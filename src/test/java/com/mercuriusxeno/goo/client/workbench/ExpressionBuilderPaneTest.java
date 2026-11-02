@@ -143,9 +143,141 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * Every builder, Items, Groups and Prefabs alike, reads "Value" and its kind on one line, an empty value
-     * defaulting to by type with a bare + adding a goo type (decision
-     * every-value-builder-reads-value-kind-on-one-line-defaulting-by-type).
+     * The edit view reads the kind and a [+] on its first line, each type row's head [type] = one indent in with its X
+     * at the right end, each term a line a second indent in reading its join, operand, ratio and [()] [^] [v] [x],
+     * and each sum closing on a [+/-] dropdown; Cancel then Done stand at the right end of the last line (decision
+     * builder-is-kind-plus-then-rows-of-terms-with-term-operators).
+     */
+    @Nested
+    class TermRows {
+        private static final String BEETROOT = "{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", "
+                + "\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\"}";
+        private static final String SUM_ADD = dropdown("+/-");
+
+        // The texts drawn on one builder line, left to right; the builder's lines stand a line height apart from 0.
+        private static List<DrawnFrame.Text> line(DrawnFrame frame, int index) {
+            return frame.drawn().stream().filter(text -> text.y() / ControlFlow.LINE == index)
+                    .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+        }
+
+        private static List<String> lineTexts(DrawnFrame frame, int index) {
+            return line(frame, index).stream().map(DrawnFrame.Text::text).toList();
+        }
+
+        // The x of each goo type icon drawn on one builder line.
+        private static List<Integer> iconXs(DrawnFrame frame, int index) {
+            ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, org.mockito.Mockito.atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(),
+                    org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(),
+                    anyInt(), anyInt(), anyInt(), anyInt());
+            List<Integer> onLine = new ArrayList<>();
+            for (int at = 0; at < xs.getAllValues().size(); at++) {
+                if (ys.getAllValues().get(at) / ControlFlow.LINE == index) {
+                    onLine.add(xs.getAllValues().get(at));
+                }
+            }
+            return onLine;
+        }
+
+        @Test
+        void beetrootsJellyRowReadsKindPlusTheRowHeadThenATermALine() {
+            DrawnFrame frame = Builder.item(BEETROOT).frame();
+            assertEquals(List.of(dropdown("by type"), "+"), lineTexts(frame, 0), frame.drawn().toString());
+            assertEquals(List.of("=", "X"), lineTexts(frame, 1), frame.drawn().toString());
+            assertEquals(List.of(ControlFlow.INDENT + ButtonPainter.PADDING), iconXs(frame, 1));
+            DrawnFrame.Text rowX = line(frame, 1).getLast();
+            assertEquals(AREA.right() - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING,
+                    rowX.x());
+            assertEquals(List.of("food", "'s", "1", ":", "1", "()", "v", "X"), lineTexts(frame, 2),
+                    frame.drawn().toString());
+            DrawnFrame.Text food = line(frame, 2).getFirst();
+            assertEquals(2 * ControlFlow.INDENT + ButtonPainter.PADDING, food.x());
+            int jelly = iconXs(frame, 2).getFirst();
+            assertTrue(line(frame, 2).get(1).x() < jelly && jelly < line(frame, 2).get(2).x(),
+                    "jelly between 's and the ratio at " + jelly);
+            assertEquals("+", lineTexts(frame, 3).getFirst(), frame.drawn().toString());
+            assertTrue(lineTexts(frame, 3).contains("^"), frame.drawn().toString());
+            assertEquals(List.of(SUM_ADD), lineTexts(frame, 4), frame.drawn().toString());
+        }
+
+        // Clicks the picker's cell for a goo type, found by its hover across the screen.
+        private static void pickType(DrawnFrame frame, String type) {
+            String key = GooTypeIcons.hoverKey(type);
+            for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y += 2) {
+                for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x += 2) {
+                    if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                        assertTrue(frame.targets.click(x, y));
+                        return;
+                    }
+                }
+            }
+            throw new AssertionError(type + " not in the picker: " + frame.targets.hoverKeys());
+        }
+
+        @Test
+        void kindLinesPlusAppendsATypeRowAtTheEnd() {
+            Builder builder = Builder.item(BEETROOT);
+            DrawnFrame before = builder.frame();
+            long rows = before.texts().stream().filter("="::equals).count();
+            DrawnFrame.Text plus = line(before, 0).get(1);
+            clickAt(before, plus);
+            pickType(builder.frame(), "metal");
+            DrawnFrame after = builder.frame();
+            assertEquals(rows + 1, after.texts().stream().filter("="::equals).count(), after.texts().toString());
+            assertTrue(builder.written.getLast().endsWith("\"metal\": \"1\"}"), builder.written.toString());
+        }
+
+        @Test
+        void parentheticalHeadReadsJoinParenUpAndXWithItsTermsAFurtherIndentIn() {
+            DrawnFrame frame = Builder.item(BEETROOT).frame();
+            DrawnFrame.Text open = frame.find("(");
+            int head = open.y() / ControlFlow.LINE;
+            assertEquals(List.of("-", "(", "^", "X"), lineTexts(frame, head), frame.drawn().toString());
+            DrawnFrame.Text food = line(frame, head + 1).getFirst();
+            assertEquals("food", food.text(), frame.drawn().toString());
+            assertEquals(open.x() + ControlFlow.INDENT + ButtonPainter.PADDING, food.x());
+            assertEquals(open.x(), frame.find(")").x(), frame.drawn().toString());
+            assertTrue(frame.find(")").y() > frame.find("saturation").y(), frame.drawn().toString());
+        }
+
+        @Test
+        void sumDropdownOffersPlusAndMinusAndAddsATermJoinedByTheChoice() {
+            Builder builder = Builder.prefab(PREFABS, "$base");
+            DrawnFrame closed = builder.frame();
+            closed.click(SUM_ADD);
+            DrawnFrame open = builder.frame();
+            List<String> texts = open.texts();
+            assertEquals(List.of("+", "-"), texts.subList(texts.lastIndexOf(SUM_ADD) + 1, texts.size()).stream()
+                    .filter(List.of("+", "-")::contains).toList(), texts.toString());
+            open.click("-");
+            builder.frame().click("base");
+            assertEquals("$base - $base", builder.written.getLast());
+        }
+
+        @Test
+        void cancelThenDoneStandAtTheLastLinesRightEnd() {
+            Builder builder = Builder.item("$waxed");
+            DrawnFrame frame = builder.frame();
+            clickAt(frame, ratioSides(frame).getFirst());
+            builder.commitNumber("3");
+            DrawnFrame changed = builder.frame();
+            DrawnFrame.Text cancel = changed.find("✗ Cancel");
+            DrawnFrame.Text done = changed.find("✓ Done");
+            Font font = DrawnFrame.font();
+            int cancelRight = cancel.x() - ButtonPainter.PADDING + ButtonPainter.width(font, "✗ Cancel");
+            assertTrue(cancelRight < done.x() - ButtonPainter.PADDING, cancel + " left of " + done);
+            assertEquals(AREA.right(), done.x() - ButtonPainter.PADDING + ButtonPainter.width(font, "✓ Done"));
+            assertEquals(done.y(), cancel.y());
+            assertEquals(changed.find(SUM_ADD).y() / ControlFlow.LINE, done.y() / ControlFlow.LINE);
+            assertFalse(changed.texts().contains("Value"), changed.texts().toString());
+        }
+    }
+
+    /**
+     * Every builder, Items, Groups and Prefabs alike, reads its kind first, an empty value defaulting to by type with
+     * a bare + beside it adding a goo type (decisions every-value-builder-reads-value-kind-on-one-line-defaulting-by-type,
+     * builder-is-kind-plus-then-rows-of-terms-with-term-operators).
      */
     @Nested
     class ValueLine {
@@ -153,32 +285,32 @@ class ExpressionBuilderPaneTest {
                 "No value yet: pick a kind to give it one.", "Pick the first goo type:", "+ goo type", "amount from",
                 "from other items", dropdown("from other items"));
 
-        private static void assertEmptyReadsValueByTypeAndPlus(Builder builder) {
+        private static void assertEmptyReadsByTypeAndPlus(Builder builder) {
             DrawnFrame frame = builder.frame();
             List<String> texts = frame.texts();
-            assertEquals(List.of("Value", dropdown("by type"), "+"), texts.subList(0, 3), texts.toString());
-            assertEquals(frame.find("Value").y(), frame.find(dropdown("by type")).y(), "Value and its kind share a line");
+            assertEquals(List.of(dropdown("by type"), "+"), texts.subList(0, 2), texts.toString());
+            assertEquals(frame.find("+").y(), frame.find(dropdown("by type")).y(), "the kind and + share a line");
             assertTrue(texts.stream().noneMatch(RETIRED::contains), texts.toString());
         }
 
         @Test
-        void emptyItemValueReadsValueByTypeAndPlus() {
-            assertEmptyReadsValueByTypeAndPlus(Builder.item(""));
+        void emptyItemValueReadsByTypeAndPlus() {
+            assertEmptyReadsByTypeAndPlus(Builder.item(""));
         }
 
         @Test
-        void emptyPrefabValueReadsValueByTypeAndPlus() {
-            assertEmptyReadsValueByTypeAndPlus(Builder.prefab(PREFABS, ""));
+        void emptyPrefabValueReadsByTypeAndPlus() {
+            assertEmptyReadsByTypeAndPlus(Builder.prefab(PREFABS, ""));
         }
 
         /**
          * A group's value opens the same builder an item's does.
          */
         @Test
-        void emptyGroupValueReadsValueByTypeAndPlus() {
+        void emptyGroupValueReadsByTypeAndPlus() {
             Builder group = new Builder(PREFABS);
             group.pane.open("", group.written::add, () -> { });
-            assertEmptyReadsValueByTypeAndPlus(group);
+            assertEmptyReadsByTypeAndPlus(group);
         }
 
         @Test
@@ -189,12 +321,9 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
-        void itemKindReadsRelativeAndAmountModesReadNumber() {
+        void itemKindReadsRelative() {
             List<String> relative = Builder.item("anvil").frame().texts();
-            assertEquals(List.of("Value", dropdown("relative")), relative.subList(0, 2), relative.toString());
-            List<String> row = Builder.prefab(PREFABS, "{\"metal\": \"5\"}").frame().texts();
-            assertTrue(row.contains(dropdown("number")), row.toString());
-            assertTrue(row.stream().noneMatch(RETIRED::contains), row.toString());
+            assertEquals(dropdown("relative"), relative.getFirst(), relative.toString());
         }
     }
 
@@ -206,19 +335,20 @@ class ExpressionBuilderPaneTest {
     void gooTypeDrawsAsAButtonThatOpensThePicker() {
         Builder builder = Builder.item("{\"metal\": \"5\"}");
         DrawnFrame frame = builder.frame();
-        int lineTop = frame.find(dropdown("number")).y() - 5;
+        int lineTop = frame.find("=").y() - 5;
+        int typeLeft = AREA.left() + ControlFlow.INDENT;
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
                 eq(ButtonPainter.BORDER));
         int border = -1;
         for (int index = 0; index < lefts.getAllValues().size(); index++) {
-            if (lefts.getAllValues().get(index) == AREA.left() && tops.getAllValues().get(index) == lineTop) {
+            if (lefts.getAllValues().get(index) == typeLeft && tops.getAllValues().get(index) == lineTop) {
                 border = index;
             }
         }
         assertTrue(border >= 0, "no border at the type's place " + lefts.getAllValues() + " " + tops.getAllValues());
-        assertTrue(frame.targets.click(AREA.left() + 1, lineTop + 1));
+        assertTrue(frame.targets.click(typeLeft + 1, lineTop + 1));
         assertTrue(builder.pane.listOpen(), "the goo type picker opens");
     }
 
@@ -282,73 +412,6 @@ class ExpressionBuilderPaneTest {
             assertFalse(builder.pane.listOpen());
             assertEquals(List.of(), builder.written);
             assertFalse(builder.frame().texts().contains("by type"));
-        }
-    }
-
-    /**
-     * The amount-from dropdown names what the amount comes from (decisions amount-modes-name-what-the-amount-comes-from,
-     * exclusive-choice-sets-draw-as-dropdowns).
-     */
-    @Nested
-    class AmountDropdown {
-        private static final String ROW = "{\"metal\": \"5\"}";
-
-        private static final List<String> MODES = List.of("number", "prefab", "relative");
-
-        private static List<String> openModes(Builder builder) {
-            builder.frame().click(dropdown("number"));
-            DrawnFrame open = builder.frame();
-            List<String> texts = open.texts();
-            int first = texts.lastIndexOf(dropdown("number")) + 1;
-            return texts.subList(first, texts.size()).stream().filter(MODES::contains).toList();
-        }
-
-        @Test
-        void prefabsRowListsTheThreeModesInOrder() {
-            assertEquals(MODES, openModes(Builder.prefab(PREFABS, ROW)));
-        }
-
-        @Test
-        void itemsRowReadsTheItemWording() {
-            assertEquals(MODES, openModes(Builder.item(ROW)));
-        }
-
-        @Test
-        void draftWithNoScalarPrefabOmitsTheNumberPrefabMode() {
-            List<BuilderGrammar.Prefab> perTypeOnly = List.of(new BuilderGrammar.Prefab("waxed", true),
-                    new BuilderGrammar.Prefab("edited", true));
-            assertEquals(List.of("number", "relative"), openModes(Builder.prefab(perTypeOnly, ROW)));
-        }
-
-        @Test
-        void amountLineDrawsNoSiblingMode() {
-            List<String> texts = Builder.prefab(PREFABS, ROW).frame().texts();
-            assertFalse(texts.contains("prefab") || texts.contains("relative"), texts.toString());
-        }
-
-        @Test
-        void pickingNumberPrefabOpensThePrefabListUnderTheSameButton() {
-            Builder builder = Builder.prefab(PREFABS, ROW);
-            DrawnFrame closed = builder.frame();
-            DrawnFrame.Text button = closed.find(dropdown("number"));
-            closed.click(dropdown("number"));
-            builder.frame().click("prefab");
-            DrawnFrame after = builder.frame();
-            assertTrue(builder.pane.listOpen());
-            DrawnFrame.Text prefabRow = after.find("base");
-            assertEquals(button.x() - ButtonPainter.PADDING + 20, prefabRow.x(), after.drawn().toString());
-            assertTrue(prefabRow.y() > button.y());
-        }
-
-        @Test
-        void pickingNumberLeavesNoOverlayAndTheOperandANumber() {
-            Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"$base\"}");
-            builder.frame().click(dropdown("prefab"));
-            builder.frame().click("number");
-            assertFalse(builder.pane.listOpen());
-            assertTrue(builder.frame().texts().contains(dropdown("number")));
-            assertEquals(1, builder.written.size(), builder.written.toString());
-            assertFalse(builder.written.getFirst().contains("$base"), builder.written.toString());
         }
     }
 
@@ -603,7 +666,7 @@ class ExpressionBuilderPaneTest {
             DrawnFrame.Text done = changed.find(DONE);
             DrawnFrame.Text cancel = changed.find(CANCEL);
             assertEquals(done.y(), cancel.y());
-            assertTrue(cancel.x() > done.x(), changed.drawn().toString());
+            assertTrue(cancel.x() < done.x(), changed.drawn().toString());
             changed.click(CANCEL);
             assertEquals("$waxed + $edited", builder.written.getLast());
             assertTrue(finished[0]);

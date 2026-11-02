@@ -306,12 +306,43 @@ final class ControlFlow {
     }
 
     /**
-     * Starts a fresh line less indented.
+     * Moves the left edge the next lines start at back toward the outer edge, leaving the current line standing, so
+     * a control may still join it.
      *
-     * @param step how far back toward the outer left edge the new lines start
+     * @param step how far back the next lines start
      */
     void outdent(int step) {
-        indent(-step);
+        shift(-step);
+    }
+
+    /**
+     * Moves the left edge the next lines start at, leaving the current line standing.
+     *
+     * @param step how far right the next lines start, negative for left
+     */
+    void shift(int step) {
+        left += step;
+    }
+
+    /**
+     * Stands the next pieces at the right end of the line, starting a fresh line where the current one holds no
+     * room for them.
+     *
+     * @param width the pieces' width, gaps between them included
+     */
+    void alignRight(int width) {
+        if (x + width > right && x > lineLeft) {
+            y += LINE;
+            lineLeft = left;
+        }
+        x = right - width;
+    }
+
+    /**
+     * @return the font the flow measures with
+     */
+    Font font() {
+        return font;
     }
 
     /**
