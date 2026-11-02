@@ -46,6 +46,7 @@ public final class GroupsTab {
     private static final String CREATE_TAG = "createTag";
     private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String TAG_MARK = "#";
+    private static final String NAMESPACE_MARK = ":";
     private static final String KEY = "key";
     private static final String TEXT = "text";
     private static final String ENTRIES = "entries";
@@ -219,6 +220,27 @@ public final class GroupsTab {
     }
 
     /**
+     * @param name a group's name
+     * @return the group under it, empty where none stands
+     */
+    public Optional<Group> group(String name) {
+        return groups.stream().filter(group -> group.name().equals(name)).findFirst();
+    }
+
+    /**
+     * @param name      a tag referent's name, as the file spells it after #
+     * @param inventory the client's items and tags
+     * @return the tag's fully qualified #namespace:path id, from the listed tag it names, the minecraft namespace
+     *     where none is listed (decision detail-is-members-plus-or-tag-members-with-the-tag-id)
+     */
+    static String tagId(String name, List<ValuesTab.ManagerEntry> inventory) {
+        String id = inventory.stream().filter(ValuesTab.ManagerEntry::tag).map(ValuesTab.ManagerEntry::id)
+                .filter(entry -> referentName(entry).equals(name)).findFirst()
+                .orElse(name.contains(NAMESPACE_MARK) ? name : DEFAULT_NAMESPACE + name);
+        return id.startsWith(TAG_MARK) ? id : TAG_MARK + id;
+    }
+
+    /**
      * @return the selected member's id, empty while none is selected
      */
     public Optional<String> selectedMember() {
@@ -326,6 +348,10 @@ public final class GroupsTab {
         for (JsonElement element : draft.members()) {
             renameIn(element.getAsJsonObject(), from, name, reference, replacement);
         }
+        // Decision group-card-is-name-then-members-then-value: the card reads the new name from this frame, before
+        // the next describe answers.
+        groups.replaceAll(group -> group.name().equals(from) ? new Group(name, group.members(), group.base(),
+                group.tweaks(), group.preview(), group.tag()) : group);
         selectedGroup = name;
         return true;
     }
