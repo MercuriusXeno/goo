@@ -435,6 +435,21 @@ final class ControlFlow {
     }
 
     /**
+     * Tints the box from the place given to the pieces drawn since: on one line, from there to the last piece; across
+     * lines, from there to the area's right edge, a pixel in per depth so a box inside a box shows its own edge
+     * (decision parentheticals-alternate-gray-tones-by-depth).
+     *
+     * @param start where the box's first piece stood
+     * @param tint  the box's color
+     * @param depth how many boxes hold it, its own included
+     */
+    void tintFrom(BuilderOverlays.Anchor start, int tint, int depth) {
+        int left = start.x() - 1;
+        int right = start.y() == y ? x - GAP + 1 : this.right - depth;
+        graphics.fill(left, start.y(), right, y + LINE, tint);
+    }
+
+    /**
      * A square button a line's height on each side, its label centered in it, as a goo type button stands that
      * tall (decision add-type-is-a-big-square-plus-question-button-below-the-list).
      *

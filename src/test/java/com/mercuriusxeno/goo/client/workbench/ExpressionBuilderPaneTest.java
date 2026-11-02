@@ -146,6 +146,36 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * A parenthetical's box fills in the depth-one tone, and a parenthetical inside it in the depth-two tone, which
+     * differs, each box spanning its own terms (decision parentheticals-alternate-gray-tones-by-depth).
+     */
+    @Test
+    void parentheticalsFillInAlternatingTonesByDepth() {
+        DrawnFrame frame = Builder.item("$waxed + ($edited + ($base + $waxed))").frame();
+        assertTrue(ExpressionBuilderPane.nestTone(1) != ExpressionBuilderPane.nestTone(2));
+        assertEquals(ExpressionBuilderPane.nestTone(1), ExpressionBuilderPane.nestTone(3));
+        DrawnFrame.Text edited = frame.find("edited");
+        DrawnFrame.Text base = frame.find("base");
+        assertTrue(filledAround(frame, ExpressionBuilderPane.nestTone(1), edited), "no depth-one box around edited");
+        assertTrue(filledAround(frame, ExpressionBuilderPane.nestTone(1), base), "the depth-one box holds base");
+        assertTrue(filledAround(frame, ExpressionBuilderPane.nestTone(2), base), "no depth-two box around base");
+        assertFalse(filledAround(frame, ExpressionBuilderPane.nestTone(2), edited), "the depth-two box spans edited");
+    }
+
+    // Whether a fill in the color covers the text's top-left.
+    private static boolean filledAround(DrawnFrame frame, int color, DrawnFrame.Text text) {
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
+                rights.capture(), bottoms.capture(), eq(color));
+        return IntStream.range(0, lefts.getAllValues().size()).anyMatch(index ->
+                lefts.getAllValues().get(index) <= text.x() && rights.getAllValues().get(index) > text.x()
+                        && tops.getAllValues().get(index) <= text.y() && bottoms.getAllValues().get(index) > text.y());
+    }
+
+    /**
      * A release on the dragged term's own slot, or Escape before the release, leaves the value as it opened
      * (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
      */
