@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * Draws the Mutators tab: each block's summary, then its mutators (formulas, additives and stacks) and its iterators
+ * Draws the Mutators tab: each block's mutators (formulas, additives and stacks) and its iterators
  * (group assignments) under a heading each, every heading with a create control naming a fresh entry (decisions
  * group-assignments-read-as-iterators, mutators-and-iterators-each-take-a-create-control). Each entry draws the key, the form, the parser's verdict and Delete on
  * an entry's first line and its sentence of controls at full width below (decision mutator-rows-take-an-extra-line),
@@ -23,7 +23,6 @@ import java.util.function.Supplier;
  * under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
 final class ProcessesPane {
-    private static final int LINE_HEIGHT = 10;
     private static final int ROW_HEIGHT = 13;
     private static final int MARK_WIDTH = 14;
     private static final int NAME_HEAD = 20;
@@ -48,6 +47,9 @@ final class ProcessesPane {
     static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.LINE + ROW_GAP;
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
+    // The mutators column takes two fifths of the pane, the iterators column the other three.
+    private static final int MUTATOR_FIFTHS = 2;
+    private static final int FIFTHS = 5;
     private static final int HALF = 2;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
@@ -61,6 +63,8 @@ final class ProcessesPane {
     private static final String NO_REASON = "";
     private static final int ROW_COLOR = 0x20FFFFFF;
     private static final String DELETE = "✗";
+    // A section key starts with an underscore and holds no newline, so a newline parts it from the entry's key.
+    private static final char MARK_SEPARATOR = '\n';
     private static final String MUTATORS = "Mutators";
     private static final String ITERATORS = "Iterators";
     // The operator's ruling: a [+] beside its heading plainly adds one of that heading's kind.
@@ -69,7 +73,8 @@ final class ProcessesPane {
     private static final String NO_TEXT = "";
     // Mutators first, then iterators.
     private static final boolean[] KINDS = {false, true};
-    private static final int HEADING_NUDGE = 5;
+    /** How far a column heading's text stands below the columns' top. */
+    static final int HEADING_NUDGE = 5;
     private static final int NAME_BOX_WIDTH = 140;
     private static final int NAME_BOX_HEIGHT = 16;
     private static final String SEARCH_HINT = "Search mutators";
@@ -78,7 +83,8 @@ final class ProcessesPane {
     private static final String[] SUB_TABS = {CONVERSIONS, POST_CONVERSIONS};
     private static final String[] SUB_TAB_LABELS = {"Conversions", "Post conversions"};
     private static final int SEARCH_WIDTH = 200;
-    private static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
+    /** The row the sub-tabs and the search box take above the columns. */
+    static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
 
     private final ProcessesTab processes;
     private final ManagerDraft draft;
@@ -220,7 +226,8 @@ final class ProcessesPane {
             search.setPosition(afterTabs + GAP, pane.top());
         }
         nameBoxPlaced = false;
-        columnsMiddle = (pane.left() + pane.right()) / HALF;
+        // Decision mutators-column-shrinks-a-fifth-for-iterators.
+        columnsMiddle = pane.left() + (pane.right() - pane.left()) * MUTATOR_FIFTHS / FIFTHS;
         processes.sections().stream().filter(section -> section.section().equals(shownSection)).findFirst()
                 .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
                         pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
@@ -231,11 +238,11 @@ final class ProcessesPane {
         overlays.draw(graphics, font, targets);
     }
 
-    // The section's summary across the pane, then its mutators in the left column and its iterators in the right.
+    // The section's mutators in the left column and its iterators in the right, from the area's top.
+    // Decision mutators-pane-draws-no-entry-count.
     private void drawColumns(GuiGraphicsExtractor graphics, Font font, ProcessesTab.ProcessSection section,
                              GroupsPane.Bounds area, ClickTargets targets) {
-        graphics.text(font, section.summary(), area.left(), area.top(), WHITE);
-        int columnsTop = area.top() + LINE_HEIGHT + GAP;
+        int columnsTop = area.top();
         for (boolean iterators : KINDS) {
             GroupsPane.Bounds column = iterators
                     ? new GroupsPane.Bounds(columnsMiddle + COLUMN_GAP / HALF, columnsTop, area.right(), area.bottom())
@@ -327,13 +334,26 @@ final class ProcessesPane {
         String heading = iterators ? ITERATORS : MUTATORS;
         int x = frame.rows().left() + frame.font().width(heading) + GAP;
         if (isNaming(section, iterators) && nameBox != null) {
-            nameBox.setPosition(x, top + 1);
-            nameBoxPlaced = true;
+            placeNameBox(frame, nameBox, x, top + 1, frame.rows().right() - x);
             return;
         }
         BuilderOverlays.control(frame.graphics(), frame.font(), NEW_ENTRY,
                 null, x, top, frame.targets(),
                 at -> startNaming(new Naming(section, iterators, null)));
+    }
+
+    // The open name box at most its own width, shrunk where the room left holds less beside its ✓ and ↺, which run
+    // what Enter and Escape run.
+    // Decision open-name-box-takes-a-done-checkmark.
+    // Decision open-name-box-takes-a-gold-arrow-that-cancels.
+    private void placeNameBox(Frame frame, EditBox box, int x, int y, int room) {
+        int width = Math.max(1, Math.min(NAME_BOX_WIDTH, room - NameBoxButtons.width(frame.font())));
+        box.setPosition(x, y);
+        box.setWidth(width);
+        nameBoxPlaced = true;
+        NameBoxButtons.draw(frame.graphics(), frame.font(), x + width, y + NAME_BOX_HEIGHT / HALF
+                - ButtonPainter.HEIGHT / HALF, ButtonPainter.HEIGHT, frame.targets(), () -> create(box.getValue()),
+                this::stopNaming);
     }
 
     private boolean isNaming(String section, boolean iterators) {
@@ -416,8 +436,26 @@ final class ProcessesPane {
         graphics.text(font, mark.glyph(), markX, y + HEAD_TEXT_NUDGE, mark.color());
         frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
                 + (row.reason().isEmpty() ? NO_REASON : REASON_GAP + row.reason())));
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, deleteX, y + BUTTON_INSET, ButtonPainter.HEIGHT,
-                frame.targets(), () -> delete(section, row.key()), BuilderOverlays.hintKey(DELETE_HINT));
+        drawRemoval(frame, section, row.key(), y + BUTTON_INSET);
+    }
+
+    // The red x at the row's right end marks the entry; a marked entry's gold arrow in its place restores it.
+    // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+    private void drawRemoval(Frame frame, String section, String key, int top) {
+        String mark = markKey(section, key);
+        if (draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, mark)) {
+            ButtonPainter.drawRestore(frame.graphics(), frame.font(), frame.rows().right(), top, ButtonPainter.HEIGHT,
+                    frame.targets(), () -> draft.removals().restore(RemovalMarks.Tab.MUTATORS, mark));
+            return;
+        }
+        ButtonPainter.drawColored(frame.graphics(), frame.font(), DELETE, RED,
+                frame.rows().right() - ButtonPainter.width(frame.font(), DELETE), top, ButtonPainter.HEIGHT,
+                frame.targets(), () -> markEntry(mark), BuilderOverlays.hintKey(DELETE_HINT));
+    }
+
+    // A mark names the entry's block and its key, since a key may stand in both blocks.
+    private static String markKey(String section, String key) {
+        return section + MARK_SEPARATOR + key;
     }
 
     /**
@@ -435,12 +473,13 @@ final class ProcessesPane {
         int x = frame.rows().left();
         int y = slot.y();
         if (nameBox != null && naming != null && key.equals(naming.renamed()) && section.equals(naming.section())) {
-            nameBox.setPosition(x, y);
-            nameBoxPlaced = true;
+            int room = slot.room() + ButtonPainter.width(frame.font(), RENAME) + PENCIL_GAP;
+            placeNameBox(frame, nameBox, x, y, room);
             return;
         }
         String shown = fittedName(frame.font(), key, slot.room());
-        frame.graphics().text(frame.font(), shown, x, y + HEAD_TEXT_NUDGE, WHITE);
+        ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, y + HEAD_TEXT_NUDGE,
+                draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)));
         if (!shown.equals(key)) {
             frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, BuilderOverlays.hintKey(key));
         }
@@ -519,9 +558,21 @@ final class ProcessesPane {
         }
     }
 
-    private void delete(String section, String key) {
+    /**
+     * Drops every marked mutator and iterator from its block, as the save does before it writes the draft.
+     * Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+     */
+    void applyRemovals() {
+        for (String mark : draft.removals().marked(RemovalMarks.Tab.MUTATORS)) {
+            int split = mark.indexOf(MARK_SEPARATOR);
+            processes.delete(mark.substring(0, split), mark.substring(split + 1));
+            draft.removals().restore(RemovalMarks.Tab.MUTATORS, mark);
+        }
+    }
+
+    private void markEntry(String mark) {
         overlays.close();
-        processes.delete(section, key);
-        actions.draftChanged();
+        draft.removals().mark(RemovalMarks.Tab.MUTATORS, mark);
+        actions.markUnsaved();
     }
 }

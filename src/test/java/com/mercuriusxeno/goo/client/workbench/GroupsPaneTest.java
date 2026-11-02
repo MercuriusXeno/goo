@@ -293,10 +293,50 @@ class GroupsPaneTest {
         }
 
         /**
-         * The red x deletes the group from the draft (decision rename-is-a-pencil-and-delete-a-red-x-everywhere).
+         * The open rename box takes a ✓ and a gold ↺ right of it on its row; ✓ writes the typed name, as Enter does,
+         * and ↺ closes the box leaving the name, as Escape does (decisions open-name-box-takes-a-done-checkmark,
+         * open-name-box-takes-a-gold-arrow-that-cancels).
          */
         @Test
-        void redXDeletesTheGroup() {
+        void renameBoxTakesADoneCheckAndANevermindArrow() {
+            draft.read("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                         {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "[]",
+                          "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                       "leading": null, "trailing": null, "closingGap": null}]}""".formatted(LONG_GROUP));
+            frame().click("✎");
+            DrawnFrame reopenedFirst = frame();
+            EditBox box = openBox();
+            box.setValue("other");
+            reopenedFirst.click("↺");
+            assertFalse(box.visible);
+            assertEquals(LONG_GROUP, groupKey());
+            frame().click("✎");
+            DrawnFrame open = frame();
+            VariablesPaneTest.assertNameBoxButtons(open, openBox());
+            openBox().setValue("renamed");
+            open.click("✓");
+            assertEquals("renamed", groupKey());
+        }
+
+        private EditBox openBox() {
+            return widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                    .filter(each -> each.visible && each.getX() > GroupsPane.listWidth(PANE)).findFirst()
+                    .orElseThrow();
+        }
+
+        private String groupKey() {
+            return draft.sectionEntries("_groups").get(0).getAsJsonObject().get("key").getAsString();
+        }
+
+        /**
+         * The red x marks the group: its row still draws with a gold ↺ hinting Restore where the x stood and the
+         * draft still holds it; the ↺ restores the x; with the mark standing, the save path removes the group from
+         * the draft (decision every-delete-marks-for-removal-and-a-gold-arrow-restores).
+         */
+        @Test
+        void redXMarksTheGroupAndTheArrowRestoresIt() {
             draft.read("""
                     {"path": "base_values.json", "members": [
                       {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
@@ -304,8 +344,23 @@ class GroupsPaneTest {
                           "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                        "leading": null, "trailing": null, "closingGap": null}]}""".formatted(LONG_GROUP));
             DrawnFrame frame = frame();
-            assertEquals(ProcessesPane.RED, frame.find("✗").color());
+            DrawnFrame.Text cross = frame.find("✗");
+            assertEquals(ProcessesPane.RED, cross.color());
             frame.click("✗");
+            DrawnFrame marked = frame();
+            DrawnFrame.Text arrow = marked.find("↺");
+            assertEquals(cross.x(), arrow.x());
+            assertEquals(cross.y(), arrow.y());
+            assertEquals(ButtonPainter.GOLD, arrow.color());
+            assertEquals(Optional.of(BuilderOverlays.hintKey("Restore")),
+                    marked.targets.hovered(arrow.x() + 1, arrow.y() + 1));
+            assertTrue(startingWith(marked, "#" + LONG_GROUP).size() >= 2, marked.texts().toString());
+            assertEquals(1, draft.sectionEntries("_groups").size());
+            marked.click("↺");
+            DrawnFrame restored = frame();
+            assertEquals(ProcessesPane.RED, restored.find("✗").color());
+            restored.click("✗");
+            pane.applyRemovals();
             assertEquals(0, draft.sectionEntries("_groups").size());
         }
     }
@@ -395,6 +450,46 @@ class GroupsPaneTest {
         List<DrawnFrame.Text> values = building.drawn().stream().filter(text -> "Value".equals(text.text())).toList();
         assertEquals(1, values.size(), building.drawn().toString());
         assertEquals(values.getFirst().y(), building.find(ControlFlow.dropdownLabel("by type")).y());
+    }
+
+    /**
+     * Members stands above a custom group's member list with the [+] right of it on its row, and above a tag's
+     * member list alone (decision members-labels-the-group-member-list).
+     */
+    @Test
+    void membersHeadsTheMemberListLeftOfThePlus() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []},
+                  {"name": "saplings", "kind": "tag", "members": [{"id": "minecraft:oak_sapling", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
+
+        groups.selectGroup("logs");
+        DrawnFrame group = new DrawnFrame();
+        pane.extract(group.graphics, DrawnFrame.font(), bounds, group.targets);
+        DrawnFrame.Text members = group.find("Members");
+        DrawnFrame.Text plus = group.find("+");
+        assertTrue(members.y() < group.find("minecraft:oak_log").y(), group.drawn().toString());
+        assertTrue(Math.abs(plus.y() - members.y()) < ExpressionLines.TEXT_LINE_HEIGHT, plus + " vs " + members);
+        assertTrue(plus.x() > members.x() + "Members".length() * 6, plus + " vs " + members);
+
+        groups.selectGroup("saplings");
+        DrawnFrame tag = new DrawnFrame();
+        pane.extract(tag.graphics, DrawnFrame.font(), bounds, tag.targets);
+        DrawnFrame.Text tagMembers = tag.find("Members");
+        assertTrue(tagMembers.y() < tag.find("minecraft:oak_sapling").y(), tag.drawn().toString());
+        assertTrue(tag.drawn().stream().noneMatch(text -> text.text().equals("+")
+                && Math.abs(text.y() - tagMembers.y()) < ExpressionLines.TEXT_LINE_HEIGHT), tag.drawn().toString());
     }
 
     /**

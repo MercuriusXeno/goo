@@ -32,6 +32,29 @@ class UsedByLineTest {
     }
 
     /**
+     * A link chip counts as a slot of its own width, so a line of icons and wider chips fits by the sum of its
+     * slots and stops short of room for the "more" link (decision
+     * used-by-lists-direct-items-and-links-to-prefabs-and-groups).
+     */
+    @Test
+    void slotsOfTheirOwnWidthFitByTheirSum() {
+        assertEquals(new UsedByLine.Fit(2, 0), UsedByLine.fitSlots(java.util.List.of(16, 40), 2, 100, more -> 20));
+        assertEquals(new UsedByLine.Fit(3, 1), UsedByLine.fitSlots(java.util.List.of(16, 16, 40, 40), 2, 100,
+                more -> 20));
+    }
+
+    /**
+     * Slots flow left to right and wrap to a new row where the next one would pass the width; the end button
+     * follows the last slot, on its row where it fits.
+     */
+    @Test
+    void slotsFlowAndWrapWithTheEndButtonAfterTheLast() {
+        assertEquals(java.util.List.of(new UsedByLine.Slot(0, 0), new UsedByLine.Slot(18, 0),
+                new UsedByLine.Slot(0, 1), new UsedByLine.Slot(42, 1)),
+                UsedByLine.flow(java.util.List.of(16, 40, 40), 2, 70, 20));
+    }
+
+    /**
      * An expanded line draws every item, wrapping as it must.
      */
     @Test

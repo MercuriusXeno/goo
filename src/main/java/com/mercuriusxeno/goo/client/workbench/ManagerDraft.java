@@ -38,6 +38,14 @@ public final class ManagerDraft {
     private JsonObject model = new JsonObject();
     // The members by key as the server's draft holds them, as the last model reply or save answered them.
     private Map<String, JsonObject> saved = new HashMap<>();
+    private final RemovalMarks removals = new RemovalMarks();
+
+    /**
+     * @return the entries every tab marked for the next save to remove
+     */
+    RemovalMarks removals() {
+        return removals;
+    }
 
     /**
      * Reads a model the server's draft holds, which the change set diffs against from now.
