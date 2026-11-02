@@ -35,7 +35,8 @@ final class MutatorControls {
     private static final String ADDITIVE = "additive";
     private static final String STACK = "stack";
     private static final String SOURCE_SHARE = "1";
-    private static final String BECOMES = "becomes";
+    // Decision mutator-body-indents-under-its-name-line: the arrow in place of the word becomes.
+    private static final String ARROW = "=>";
     private static final String TIMES_MARK = "x";
     private static final String NOTHING = "nothing";
     private static final String PLUS = "+";
@@ -89,7 +90,12 @@ final class MutatorControls {
     int draw(GuiGraphicsExtractor graphics, Font font, String section, String key, GroupsPane.Bounds area, int top,
              ClickTargets targets) {
         ControlFlow flow = new ControlFlow(graphics, font, targets, null, area.left(), area.right(), top);
-        drawForm(new Entry(flow, section, key), processes.formOf(section, key), ProcessesTab.isIterator(key));
+        boolean iterator = ProcessesTab.isIterator(key);
+        // Decision mutator-body-indents-under-its-name-line.
+        if (!iterator) {
+            flow.indent();
+        }
+        drawForm(new Entry(flow, section, key), processes.formOf(section, key), iterator);
         return flow.bottom();
     }
 
@@ -187,7 +193,7 @@ final class MutatorControls {
         flow.text(RATIO, GRAY);
         divisorControl(flow, formula.sourceDivisor(), null,
                 divisor -> processes.setFormulaDivisor(section, key, divisor));
-        flow.text(BECOMES, GRAY);
+        flow.text(ARROW, GRAY);
         Consumer<BuilderOverlays.Anchor> pickTarget = at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaTarget(section, key, type)),
                 () -> edit(() -> processes.setFormulaTarget(section, key, NOTHING_TARGET)));
