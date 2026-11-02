@@ -49,17 +49,18 @@ final class ManagerReads {
     }
 
     /**
-     * Writes the draft, which the server applies to every player at once, and reads it afresh
-     * (decision save-applies-the-draft-live-promote-renames-it).
+     * Removes every entry marked for removal, then writes the draft, which the server applies to every player at
+     * once, and reads it afresh (decisions save-applies-the-draft-live-promote-renames-it,
+     * every-delete-marks-for-removal-and-a-gold-arrow-restores).
      *
      * @param saved runs once the save answered, after the draft reads went out
      */
     void save(Runnable saved) {
-        actions.request(WorkbenchOperations.SAVE_MODEL, values.postedText(), reply -> {
+        variables.applyRemovals(() -> actions.request(WorkbenchOperations.SAVE_MODEL, values.postedText(), reply -> {
             values.readModel(reply);
             readAfresh();
             saved.run();
-        });
+        }));
     }
 
     /**

@@ -313,6 +313,8 @@ public final class ValuesManagerScreen extends Screen {
                 .thenAccept(reply -> {
                     if (reply.answered()) {
                         values.readModel(reply.text());
+                        // decision every-delete-marks-for-removal-and-a-gold-arrow-restores
+                        draft.removals().clear();
                         unsaved = false;
                         setStatus(draftConfirm.doneStatus(draft.path()), false);
                         draftConfirm.cancel();

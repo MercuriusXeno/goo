@@ -290,7 +290,10 @@ class VariablesPaneTest {
 
     // A Prefabs pane over the twelve prefabs model() names, built fresh with no draw yet.
     private static VariablesPane twelvePrefabs(VariablesTab prefabs, ManagerDraft draft) {
-        ManagerActions actions = mock(ManagerActions.class);
+        return twelvePrefabs(prefabs, draft, mock(ManagerActions.class));
+    }
+
+    private static VariablesPane twelvePrefabs(VariablesTab prefabs, ManagerDraft draft, ManagerActions actions) {
         when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
         ItemIcons icons = mock(ItemIcons.class);
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
@@ -579,6 +582,106 @@ class VariablesPaneTest {
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(anyInt(), tops.capture(), anyInt(), anyInt(), eq(color));
         return tops.getAllValues();
+    }
+
+    @org.junit.jupiter.api.Nested
+    class RemovalMarking {
+        private final ManagerActions actions = mock(ManagerActions.class);
+        private final ManagerDraft marked = new ManagerDraft();
+        private VariablesPane read;
+
+        @BeforeEach
+        void standTwelvePrefabs() {
+            marked.read(model());
+            read = twelvePrefabs(new VariablesTab(marked), marked, actions);
+        }
+
+        private DrawnFrame drawn(VariablesPane drawnPane) {
+            DrawnFrame frame = new DrawnFrame();
+            drawnPane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+            return frame;
+        }
+
+        private void verifyNoDelete(ManagerActions recorded) {
+            verify(recorded, never()).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
+                    anyString(), any());
+            verify(recorded, never()).stream(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
+                    anyString(), any(), any(), any());
+        }
+
+        /**
+         * Clicking a prefab's ✗ marks it: the block still draws, a gold ↺ hinting Restore stands where the ✗ stood,
+         * the draft reads unsaved and no delete request goes out (decision
+         * every-delete-marks-for-removal-and-a-gold-arrow-restores).
+         */
+        @Test
+        void xMarksThePrefabAndAGoldArrowStandsInItsPlace() {
+            DrawnFrame list = drawn(read);
+            DrawnFrame.Text cross = list.find("✗");
+            list.click("✗");
+            DrawnFrame after = drawn(read);
+            assertTrue(after.texts().contains("prefab" + (PREFABS - 1)), after.texts().toString());
+            DrawnFrame.Text arrow = after.drawn().stream().filter(text -> text.text().equals("↺")).findFirst()
+                    .orElseThrow(() -> new AssertionError(after.texts().toString()));
+            assertEquals(cross.x(), arrow.x());
+            assertEquals(cross.y(), arrow.y());
+            assertEquals(ButtonPainter.GOLD, arrow.color());
+            assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Restore")),
+                    after.targets.hovered(arrow.x() + 1, arrow.y() + 1));
+            verify(actions).markUnsaved();
+            verifyNoDelete(actions);
+        }
+
+        /**
+         * Clicking the ↺ of a marked prefab clears its mark: the ✗ stands again and the save path sends no delete
+         * (decision every-delete-marks-for-removal-and-a-gold-arrow-restores).
+         */
+        @Test
+        void arrowRestoresAndTheSaveRemovesNothing() {
+            drawn(read).click("✗");
+            drawn(read).click("↺");
+            DrawnFrame after = drawn(read);
+            assertEquals(PREFABS, after.texts().stream().filter("✗"::equals).count(), after.texts().toString());
+            assertTrue(marked.removals().marked(RemovalMarks.Tab.PREFABS).isEmpty());
+            Runnable write = mock(Runnable.class);
+            read.applyRemovals(write);
+            verify(write).run();
+            verifyNoDelete(actions);
+        }
+    }
+
+    /**
+     * A prefab with a cascade opens the confirm listing its readers; the confirm's Delete marks the prefab and sends
+     * nothing, and the save path then sends one delete naming it before the draft write (decision
+     * every-delete-marks-for-removal-and-a-gold-arrow-restores).
+     */
+    @Test
+    void confirmMarksAndTheSaveDeletesBeforeTheWrite() {
+        ManagerActions actions = mock(ManagerActions.class);
+        org.mockito.Mockito.doAnswer(call -> {
+            call.<java.util.function.Consumer<String>>getArgument(3).accept("""
+                    {"path": "base_values.json", "members": []}""");
+            return null;
+        }).when(actions).stream(anyString(), anyString(), any(), any(), any());
+        VariablesPane read = readByEgg(actions);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        list.click("✗");
+        DrawnFrame confirm = new DrawnFrame();
+        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        assertTrue(confirm.texts().contains("egg"), confirm.texts().toString());
+        confirm.click("Delete");
+        DrawnFrame after = new DrawnFrame();
+        read.extract(after.graphics, DrawnFrame.font(), VIEW, after.targets, 0, 0);
+        assertTrue(after.texts().contains("↺"), after.texts().toString());
+        verify(actions, never()).stream(anyString(), anyString(), any(), any(), any());
+        read.applyRemovals(() -> actions.request(com.mercuriusxeno.goo.workbench.WorkbenchOperations.SAVE_MODEL, "",
+                reply -> { }));
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(actions);
+        order.verify(actions).stream(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
+                org.mockito.ArgumentMatchers.contains("\"name\":\"base\""), any(), any(), any());
+        order.verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.SAVE_MODEL),
+                anyString(), any());
     }
 
     // A Prefabs pane over one prefab, base, that the prefab egg reads.
