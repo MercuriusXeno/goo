@@ -38,8 +38,6 @@ final class GooTypePicker {
     private static final int GLYPH = 0xFFFF8080;
     private static final String CLOSE_GLYPH = "x";
     private static final String NOTHING_GLYPH = "-";
-    private static final String CLOSE_HINT = "Close without picking a goo type";
-    private static final String NOTHING_HINT = "No goo type";
 
     private final List<String> types;
     private Set<String> hidden = Set.of();
@@ -191,9 +189,9 @@ final class GooTypePicker {
         for (Cell cell : cells()) {
             addCellTarget(targets, x, y, cell, () -> picked.accept(cell.type()), GooTypeIcons.hoverKey(cell.type()));
         }
-        addCellTarget(targets, x, y, closeCell(), () -> { }, BuilderOverlays.hintKey(CLOSE_HINT));
+        addCellTarget(targets, x, y, closeCell(), () -> { }, BuilderOverlays.hintKey(null));
         if (nothing != null) {
-            addCellTarget(targets, x, y, nothingCell(), nothing, BuilderOverlays.hintKey(NOTHING_HINT));
+            addCellTarget(targets, x, y, nothingCell(), nothing, BuilderOverlays.hintKey(null));
         }
     }
 

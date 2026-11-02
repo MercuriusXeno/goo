@@ -64,7 +64,8 @@ class PrefabHoversTest {
             ProcessesTab processes = mock(ProcessesTab.class);
             when(processes.formOf(anyString(), anyString())).thenReturn(form);
             Supplier<List<String>> none = List::of;
-            return new MutatorControls(processes, new BuilderOverlays(mock(ManagerActions.class), null), none, none,
+            return new MutatorControls(processes, new BuilderOverlays(mock(ManagerActions.class), null),
+                    mock(ManagerActions.class), none, none,
                     () -> { });
         }
 

@@ -24,9 +24,8 @@ final class AuditPane {
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
     private static final int PROGRESS_COLOR = 0x40000000;
-    private static final String RUN = "Run the audit";
+    private static final String RUN = "Run Audit";
     private static final String RUNNING = "running: saving the draft and auditing it on the server";
-    private static final String NO_SECTIONS = "No audit stands yet: Run writes one.";
     private static final String OPEN_MARK = "v ";
     private static final String CLOSED_MARK = "> ";
     private static final String PART_GAP = "  ";
@@ -130,7 +129,6 @@ final class AuditPane {
     private void drawSections(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds area, ClickTargets targets) {
         List<AuditTab.AuditSection> sections = audit.sections();
         if (sections.isEmpty()) {
-            graphics.text(font, NO_SECTIONS, area.left(), area.top(), GRAY);
             return;
         }
         int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;

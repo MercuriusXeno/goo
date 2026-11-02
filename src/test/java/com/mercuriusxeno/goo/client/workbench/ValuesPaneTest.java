@@ -10,9 +10,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
@@ -80,6 +82,44 @@ class ValuesPaneTest {
         assertEquals(ValuesTab.Filter.FRACTIONAL, values.filter());
     }
 
+    /**
+     * The selected chip draws its dark label with no drop shadow, so the label contrasts both its light fill and
+     * any shadow under it (decision selected-filter-chip-text-contrasts-its-shadow).
+     */
+    @Test
+    void selectedChipLabelDrawsDarkWithNoShadow() {
+        ValuesTab values = new ValuesTab();
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, sixPixelFont(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        ValuesPane.Chip selected = ValuesPane.layChips(List.of("Items", "Uncovered 0", "Fractional"),
+                sixPixelFont()::width, 0, 0, values.filter()).chips().getFirst();
+        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics).text(any(Font.class), eq("Items"), anyInt(), anyInt(), colors.capture(), eq(false));
+        verify(frame.graphics).fill(selected.left() + 1, selected.top() + 1, selected.left() + selected.width() - 1,
+                selected.top() + selected.height() - 1, 0xFFFFFFFF);
+        assertNotEquals(0xFFFFFFFF, (int) colors.getValue(), "the label contrasts its white fill");
+        assertEquals(List.of(), frame.texts().stream().filter("Items"::equals).toList(),
+                "no shadowed Items label draws under it");
+    }
+
+    /**
+     * The Items equality line's = and its equivalency's + draw at the line's text top, which stands at the sprite's
+     * top plus half of 16 less the font's line height (decision operators-center-on-the-sprite).
+     */
+    @Test
+    void equalityOperatorsCenterOnTheSprite() {
+        for (int lineHeight : new int[] {8, 9}) {
+            ValuesPane.Equality line = ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, 400), List.of(),
+                    new ValuesPane.RowText(ValuesTab.SourceKind.DERIVED, lineHeight, 0, EQUALS_WIDTH), SMALL_ICON)
+                    .equality();
+            assertEquals(line.spriteTop() + (16 - lineHeight + 1) / 2, line.textTop(), "line height " + lineHeight);
+        }
+    }
+
     private static Font sixPixelFont() {
         Font font = mock(Font.class);
         when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
@@ -113,19 +153,14 @@ class ValuesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 80);
         ClickTargets targets = new ClickTargets();
         pane.extract(graphics, font, bounds, targets);
-        String done = BuilderOverlays.hintKey("No unsaved changes");
         for (int notch = 0; notch < 40; notch++) {
             pane.scroll(400, 0, -1);
         }
-        targets.clear();
-        pane.extract(graphics, font, bounds, targets);
-        boolean doneInPane = false;
-        for (int y = bounds.top(); y < bounds.bottom() && !doneInPane; y++) {
-            for (int x = bounds.left(); x < bounds.right() && !doneInPane; x += 2) {
-                doneInPane = targets.hovered(x, y).filter(done::equals).isPresent();
-            }
-        }
-        assertTrue(doneInPane);
+        DrawnFrame scrolled = new DrawnFrame();
+        pane.extract(scrolled.graphics, font, bounds, scrolled.targets);
+        DrawnFrame.Text cancel = scrolled.find("✗ Cancel");
+        assertTrue(cancel.y() >= bounds.top() && cancel.y() < bounds.bottom(), cancel + " stands in the pane");
+        assertTrue(scrolled.targets.takesClick(cancel.x() + 1, cancel.y() + 1), "cancel answers in the pane");
     }
 
     /**
@@ -548,7 +583,7 @@ class ValuesPaneTest {
         assertEquals(LINE_TWO + 1, line.spriteTop());
         assertEquals(line.spriteLeft() + RowLayout.SPRITE_SIZE + ValuesPane.ICON_GAP, line.equalsLeft());
         assertEquals(line.equalsLeft() + EQUALS_WIDTH + ValuesPane.ICON_GAP, line.besideLeft());
-        assertEquals(LINE_TWO + (ValuesPane.ROW_HEIGHT - LINE_HEIGHT) / 2, line.textTop());
+        assertEquals(LINE_TWO + (ValuesPane.ROW_HEIGHT - LINE_HEIGHT + 1) / 2, line.textTop());
     }
 
     /**
@@ -744,7 +779,7 @@ class ValuesPaneTest {
             assertEquals(TWO_LINES + 2 * line, two.height());
             assertEquals(LINE_TWO + ValuesPane.ROW_HEIGHT + line, two.lineTop(1));
             assertEquals(two.lineTop(1) + 1, two.iconTop(1));
-            assertEquals(two.lineTop(1) + (line - LINE_HEIGHT) / 2, two.amountTop(1));
+            assertEquals(two.lineTop(1) + (line - LINE_HEIGHT + 1) / 2, two.amountTop(1));
         }
     }
 

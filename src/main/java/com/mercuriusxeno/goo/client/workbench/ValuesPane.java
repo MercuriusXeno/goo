@@ -259,14 +259,34 @@ final class ValuesPane {
         return layout.searchTop();
     }
 
-    // The filled box reads its label dark on its color; a hollow one reads its label in the color, dimmed.
-    private void drawChip(GuiGraphicsExtractor graphics, Font font, Chip chip, int color, ClickTargets targets) {
+    /**
+     * Draws a chip's box and label: the filled box reads its label dark on its color, a hollow one reads its label
+     * in the color, dimmed.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param chip     the chip; its filter is not read
+     * @param color    its color
+     */
+    static void drawChipFace(GuiGraphicsExtractor graphics, Font font, Chip chip, int color) {
         int right = chip.left() + chip.width();
         int bottom = chip.top() + chip.height();
         graphics.fill(chip.left(), chip.top(), right, bottom, chip.filled() ? color : CHIP_OFF);
         graphics.fill(chip.left() + 1, chip.top() + 1, right - 1, bottom - 1, chip.filled() ? color : CHIP_HOLLOW);
-        graphics.text(font, chip.label(), chip.left() + ButtonPainter.PADDING, chip.top() + CHIP_TEXT_NUDGE,
-                chip.filled() ? CHIP_FILLED_TEXT : color);
+        int labelX = chip.left() + ButtonPainter.PADDING;
+        int labelY = chip.top() + CHIP_TEXT_NUDGE;
+        if (chip.filled()) {
+            // Decision selected-filter-chip-text-contrasts-its-shadow: the dark label draws with no shadow, which
+            // would be dark too.
+            graphics.text(font, chip.label(), labelX, labelY, CHIP_FILLED_TEXT, false);
+        } else {
+            graphics.text(font, chip.label(), labelX, labelY, color);
+        }
+    }
+
+    // A chip's face, and the click that sets the filter it names.
+    private void drawChip(GuiGraphicsExtractor graphics, Font font, Chip chip, int color, ClickTargets targets) {
+        drawChipFace(graphics, font, chip, color);
         targets.add(chip.left(), chip.top(), chip.width(), chip.height(), () -> {
             values.filter(chip.filter());
             listBar.reset();
@@ -811,7 +831,7 @@ final class ValuesPane {
         int lineTwo = titleTop + TITLE_HEIGHT;
         int equalsLeft = left + ICON_SIZE + ICON_GAP;
         Equality equality = new Equality(left, lineTwo + 1, equalsLeft, equalsLeft + text.equalsWidth() + ICON_GAP,
-                lineTwo + (ROW_HEIGHT - text.lineHeight()) / HALF, row.right());
+                ExpressionLines.centeredTextTop(lineTwo, ROW_HEIGHT, text.lineHeight()), row.right());
         ValueLines value = layValueLines(runWidths, text, iconSize, equality, lineTwo);
         int bottom = Math.max(lineTwo + ROW_HEIGHT, value.bottom());
         return new EntryLayout(new Title(left, titleTop, nameWidth, symbolLeft), equality, value,
@@ -828,7 +848,8 @@ final class ValuesPane {
         int top = beside ? lineTwo + (ROW_HEIGHT - lineHeight) / HALF : lineTwo + ROW_HEIGHT;
         ValueRuns runs = layValueRuns(runWidths, equality.right() - left);
         int lines = runWidths.isEmpty() || !carriesRuns(text.kind()) ? 0 : runs.rows();
-        return new ValueLines(left, top, runs, lineHeight, (lineHeight - text.lineHeight()) / HALF, lines);
+        return new ValueLines(left, top, runs, lineHeight, ExpressionLines.centeredTextTop(0, lineHeight,
+                text.lineHeight()), lines);
     }
 
     // The list scrolls by whole rows of differing heights, so a revealed row lands on the first shown row that puts
