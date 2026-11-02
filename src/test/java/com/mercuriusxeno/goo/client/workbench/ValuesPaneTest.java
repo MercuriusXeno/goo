@@ -121,8 +121,8 @@ class ValuesPaneTest {
     }
 
     /**
-     * Items is one inlined editor: a row reads Name | icon = recipe | values | symbol on one line, its expression one
-     * indent in on the next with no label, a click there opening the builder in its place, an entry row's x at the
+     * Items is one inlined editor: a row reads its name, its recipe and its right-packed value on one line, its
+     * expression one indent in on the next with no label, a click there opening the builder in its place, an entry row's x at the
      * expression line's right end, and the loader error under it, the rows spanning the pane with no detail column
      * (decision items-row-is-one-line-then-its-expression-inline).
      */
@@ -190,17 +190,23 @@ class ValuesPaneTest {
 
         private static final int ROW_HEIGHT_OF_LINE = 9;
 
+        // Decision items-row-is-name-recipe-space-between-and-value-right-packed.
         @Test
-        void rowReadsNamePipeRecipePipeValuesPipeSymbolOnOneLine() {
+        void rowReadsNameThenRecipeBetweenThenValueRightPacked() {
             DrawnFrame frame = frame();
             DrawnFrame.Text planks = frame.find("Oak Planks");
-            assertEquals(List.of("Oak Planks", "|", "=", "|", "2", "|", "="),
-                    onLine(frame, planks).stream().map(DrawnFrame.Text::text).toList(), frame.drawn().toString());
             List<DrawnFrame.Text> line = onLine(frame, planks);
+            assertEquals(List.of("Oak Planks", "=", "2"), line.stream().map(DrawnFrame.Text::text).toList(),
+                    frame.drawn().toString());
+            DrawnFrame.Text value = line.get(2);
+            assertEquals(LIST_RIGHT, value.x() + DrawnFrame.font().width(value.text()), value.toString());
+            int nameRight = planks.x() + DrawnFrame.font().width(planks.text());
             List<Integer> sprites = itemXsAround(frame, planks.y());
             assertEquals(2, sprites.size(), "the planks' sprite and its log input: " + sprites);
-            assertTrue(sprites.get(0) > line.get(1).x() && sprites.get(0) < line.get(2).x(), "own sprite " + sprites);
-            assertTrue(sprites.get(1) > line.get(2).x() && sprites.get(1) < line.get(3).x(), "input " + sprites);
+            assertTrue(sprites.get(0) > nameRight && sprites.get(1) + RowLayout.SPRITE_SIZE < value.x(),
+                    "recipe " + sprites + " between " + nameRight + " and " + value);
+            assertTrue(frame.texts().stream().noneMatch(text -> text.equals("|") || text.equals("✔")
+                    || text.equals("#") || text.equals("?")), frame.texts().toString());
             // The rules between rows, which start at the list's left, end at the list's right short of its bar.
             ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
@@ -215,6 +221,29 @@ class ValuesPaneTest {
             assertEquals(List.of(LIST_RIGHT, LIST_RIGHT, LIST_RIGHT), ruleRights);
             assertTrue(frame.texts().stream().noneMatch(text -> text.startsWith("Select an item")
                     || text.equals("Value")), frame.texts().toString());
+        }
+
+        // Decision items-row-is-name-recipe-space-between-and-value-right-packed.
+        @Test
+        void narrowRowDropsItsRecipeUnderTheNameAndKeepsTheValueRightPacked() {
+            GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 120, 300);
+            int listRight = narrow.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+            DrawnFrame frame = new DrawnFrame();
+            when(frame.graphics.pose()).thenReturn(mock(Matrix3x2fStack.class));
+            pane.extract(frame.graphics, DrawnFrame.font(), narrow, frame.targets);
+            DrawnFrame.Text planks = frame.find("Oak Planks");
+            List<DrawnFrame.Text> line = onLine(frame, planks);
+            assertEquals(List.of("Oak Planks", "2"), line.stream().map(DrawnFrame.Text::text).toList(),
+                    frame.drawn().toString());
+            DrawnFrame.Text value = line.get(1);
+            assertEquals(listRight, value.x() + DrawnFrame.font().width(value.text()), value.toString());
+            DrawnFrame.Text equals = frame.drawn().stream().filter(text -> text.text().equals("=")
+                    && text.y() > planks.y() && text.y() < frame.find("edit to override").y()).findFirst()
+                    .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            List<Integer> recipeSprites = itemXsAround(frame, equals.y());
+            assertEquals(planks.x() + ControlFlow.INDENT, recipeSprites.getFirst(), recipeSprites.toString());
+            assertTrue(frame.find("edit to override").y() > equals.y() + ExpressionLines.TEXT_LINE_HEIGHT,
+                    "the expression draws under the dropped recipe");
         }
 
         @Test
@@ -595,34 +624,6 @@ class ValuesPaneTest {
         List<TooltipLine> lines = pane.groupTooltipFor(key).orElseThrow();
         assertEquals(1, lines.size());
         return lines.getFirst();
-    }
-
-    /**
-     * Each value disposition reads as its own symbol: valued a green check, derived a green equals, grouped a green
-     * hash, no value a red question mark, denied a green cancel circle drawn at the check's size, within a pixel, for
-     * a font whose check is 8 wide on a 9-pixel line (decisions
-     * items-row-title-carries-a-disposition-symbol-at-the-right-edge,
-     * denied-symbol-is-a-green-cancel-circle-at-symbol-size).
-     */
-    @Test
-    void eachDispositionReadsAsItsSymbolAndColor() {
-        int green = 0xFF80E080;
-        ValuesPane.Disposition check = ValuesPane.dispositionOf(ValuesTab.SourceKind.ENTRY);
-        assertEquals(new ValuesPane.Disposition("✔", green, false), check);
-        assertEquals(new ValuesPane.Disposition("=", green, false),
-                ValuesPane.dispositionOf(ValuesTab.SourceKind.DERIVED));
-        assertEquals(new ValuesPane.Disposition("#", green, false),
-                ValuesPane.dispositionOf(ValuesTab.SourceKind.GROUP));
-        assertEquals(new ValuesPane.Disposition("?", ValuesPane.RED, false),
-                ValuesPane.dispositionOf(ValuesTab.SourceKind.NONE));
-        ValuesPane.Disposition denied = ValuesPane.dispositionOf(ValuesTab.SourceKind.DENIED);
-        assertEquals(green, denied.color());
-        assertTrue(denied.drawn());
-        java.util.function.ToIntFunction<String> width = glyph -> glyph.equals("✔") ? 8 : 4;
-        ValuesPane.SymbolSize checkSize = ValuesPane.symbolSize(check, width, LINE_HEIGHT);
-        ValuesPane.SymbolSize deniedSize = ValuesPane.symbolSize(denied, width, LINE_HEIGHT);
-        assertTrue(Math.abs(checkSize.width() - deniedSize.width()) <= 1, checkSize + " against " + deniedSize);
-        assertTrue(Math.abs(checkSize.height() - deniedSize.height()) <= 1, checkSize + " against " + deniedSize);
     }
 
     /**
