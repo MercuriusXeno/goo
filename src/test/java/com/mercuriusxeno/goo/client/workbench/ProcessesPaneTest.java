@@ -154,32 +154,9 @@ class ProcessesPaneTest {
      */
     @Test
     void mutatorsLeftIteratorsRightEachScrollingAlone() {
-        int many = 20;
-        String entry = """
-                {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "\\"%s\\"", "entries": [], "leading": null,
-                 "trailing": null, "closingGap": null}""";
-        String described = """
-                {"key": "%s", "kind": "%s", "text": "\\"%s\\"", "parsed": true}""";
-        List<String> entries = new ArrayList<>();
-        List<String> processes = new ArrayList<>();
-        for (int index = 0; index < many; index++) {
-            entries.add(entry.formatted("m%02d".formatted(index), "+$oak"));
-            processes.add(described.formatted("m%02d".formatted(index), "ADDITIVE", "+$oak"));
-            entries.add(entry.formatted("#i%02d".formatted(index), "#copper @solo"));
-            processes.add(described.formatted("#i%02d".formatted(index), "ASSIGNMENT", "#copper @solo"));
-        }
-        ManagerDraft draft = new ManagerDraft();
-        draft.read("""
-                {"path": "base_values.json", "members": [
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
-                   "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ", entries)));
-        ProcessesTab tab = new ProcessesTab(draft);
-        tab.readDescribed("""
-                {"sections": [{"section": "_post_conversions", "processes": [%s]}]}"""
-                .formatted(String.join(", ", processes)));
-        pane = new ProcessesPane(tab, draft, mock(ManagerActions.class), null, () -> List.of("oak"));
+        pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 590, 390);
-        int middle = (bounds.left() + bounds.right()) / 2;
+        int middle = (bounds.right() - bounds.left()) * 2 / 5;
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
         DrawnFrame.Text mutators = frame.find("Mutators");
@@ -205,6 +182,56 @@ class ProcessesPaneTest {
     }
 
     /**
+     * In a pane 500 wide, the iterators column starts at two fifths, 200, plus half the column gap, the mutators rows'
+     * x stands left of 200, and the wheel scrolls the column it turns over (decision
+     * mutators-column-shrinks-a-fifth-for-iterators).
+     */
+    @Test
+    void mutatorsTakeTwoFifthsAndIteratorsThree() {
+        pane = manyRowsPane();
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 390);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
+        assertEquals(200 + 12 / 2, frame.find("Iterators").x());
+        DrawnFrame.Text firstMutator = first(frame, "m00");
+        assertTrue(rowControl(frame, "m00", "✗").x() < 200, frame.drawn().toString());
+        assertTrue(firstMutator.x() < 200);
+        pane.scroll(250, -3);
+        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 250 scrolls the iterators");
+        assertEquals(0, pane.columnBar(false).offset());
+        pane.scroll(150, -3);
+        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 150 scrolls the mutators");
+    }
+
+    // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane.
+    private static ProcessesPane manyRowsPane() {
+        int many = 20;
+        String entry = """
+                {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "\\"%s\\"", "entries": [], "leading": null,
+                 "trailing": null, "closingGap": null}""";
+        String described = """
+                {"key": "%s", "kind": "%s", "text": "\\"%s\\"", "parsed": true}""";
+        List<String> entries = new ArrayList<>();
+        List<String> processes = new ArrayList<>();
+        for (int index = 0; index < many; index++) {
+            entries.add(entry.formatted("m%02d".formatted(index), "+$oak"));
+            processes.add(described.formatted("m%02d".formatted(index), "ADDITIVE", "+$oak"));
+            entries.add(entry.formatted("#i%02d".formatted(index), "#copper @solo"));
+            processes.add(described.formatted("#i%02d".formatted(index), "ASSIGNMENT", "#copper @solo"));
+        }
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
+                   "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ", entries)));
+        ProcessesTab tab = new ProcessesTab(draft);
+        tab.readDescribed("""
+                {"sections": [{"section": "_post_conversions", "processes": [%s]}]}"""
+                .formatted(String.join(", ", processes)));
+        return new ProcessesPane(tab, draft, mock(ManagerActions.class), null, () -> List.of("oak"));
+    }
+
+    /**
      * Each row's head line, name, pencil, kind, mark and x, draws inside its column left of the column's scroll bar,
      * no element over the next, at the wide pane and at a 480-wide screen's narrow one (the operator's report: the
      * kind stood behind the scroll bar and the x and the kind overflowed).
@@ -214,7 +241,7 @@ class ProcessesPaneTest {
         for (int width : new int[] {590, 464}) {
             DrawnFrame frame = new DrawnFrame();
             pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
-            int middle = width / 2;
+            int middle = width * 2 / 5;
             List<DrawnFrame.Text> drawn = frame.drawn();
             List<DrawnFrame.Text> crosses = drawn.stream().filter(text -> text.text().equals("✗")).toList();
             assertEquals(3, crosses.size(), drawn.toString());
@@ -253,8 +280,15 @@ class ProcessesPaneTest {
     }
 
     private DrawnFrame frame() {
+        return frame(590);
+    }
+
+    // A pane 740 wide gives the mutators column its two fifths, 296, the room a 20-character cut name takes.
+    private static final int WIDE_PANE = 740;
+
+    private DrawnFrame frame(int width) {
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 590, 390), frame.targets);
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
         return frame;
     }
 
@@ -285,7 +319,7 @@ class ProcessesPaneTest {
     void everyRowDrawsItsColumnsAtTheSameLefts() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
-        int middle = 590 / 2;
+        int middle = 590 * 2 / 5;
         for (String column : List.of("✗", "✔")) {
             for (boolean right : new boolean[] {false, true}) {
                 List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)
@@ -294,7 +328,8 @@ class ProcessesPaneTest {
             }
         }
         int nameLeft = first(frame, "waxed").x();
-        assertEquals(nameLeft, first(frame, "copper_oxidation_and…end1").x());
+        assertEquals(nameLeft, drawn.stream().filter(text -> text.text().startsWith("copper_oxid")).findFirst()
+                .orElseThrow().x());
         assertTrue(frame.find("#exposed").x() >= middle, "the iterator stands in the right column");
         int kindLeft = frame.find(ControlFlow.dropdownLabel("additive")).x();
         assertTrue(kindLeft > nameLeft + 20 * 6, "the kind stands past the name column at " + kindLeft);
@@ -318,7 +353,7 @@ class ProcessesPaneTest {
     void longNameCutsToTwentyAnEllipsisAndFourAndHoversWhole() {
         assertEquals("copper_oxidation_and…end1", ProcessesPane.shownName(LONG_NAME));
         assertEquals("waxed", ProcessesPane.shownName("waxed"));
-        DrawnFrame frame = frame();
+        DrawnFrame frame = frame(WIDE_PANE);
         frame.find("copper_oxidation_and…end1");
         assertTrue(frame.targets.hoverKeys().contains(BuilderOverlays.hintKey(LONG_NAME)),
                 frame.targets.hoverKeys().toString());
@@ -330,7 +365,7 @@ class ProcessesPaneTest {
      */
     @Test
     void deleteClearsTheOnePixelRuleAndRowsTighten() {
-        DrawnFrame frame = frame();
+        DrawnFrame frame = frame(WIDE_PANE);
         int waxedTop = first(frame, "waxed").y();
         int longTop = frame.find("copper_oxidation_and…end1").y();
         assertEquals(ProcessesPane.ONE_LINE_ROW_PITCH, longTop - waxedTop);
@@ -392,12 +427,13 @@ class ProcessesPaneTest {
         assertFalse(postConversionKeys().contains("waxed"), postConversionKeys().toString());
     }
 
-    // The rightmost control labelled glyph on the head line of the row named key, inside that row's column: the
-    // frame's 590 pixels part into two columns, so a row's controls stand within 295 of its name.
+    // The rightmost control labelled glyph on the head line of the row named key, inside that row's column: a
+    // mutator's controls stand left of the Iterators heading.
     private static DrawnFrame.Text rowControl(DrawnFrame frame, String key, String glyph) {
         DrawnFrame.Text name = first(frame, key);
+        int split = frame.find("Iterators").x();
         return frame.drawn().stream().filter(text -> text.text().equals(glyph) && text.x() > name.x()
-                && text.x() < name.x() + 295
+                && (name.x() >= split || text.x() < split)
                 && Math.abs(text.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT)
                 .max(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
                 .orElseThrow(() -> new AssertionError(glyph + " on " + key + " in " + frame.drawn()));
