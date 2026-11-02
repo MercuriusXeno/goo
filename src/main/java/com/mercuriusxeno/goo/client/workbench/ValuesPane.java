@@ -808,11 +808,19 @@ final class ValuesPane {
         return values.hasEntry(entry.id()) ? width - ButtonPainter.width(font, DELETE) - ICON_GAP : width;
     }
 
+    // The builder's Cancel writes back the text it opened on; for an item that had no entry that text is blank, and
+    // the entry the edit added drops rather than standing blank.
+    // Decision cancelling-a-new-entry-leaves-nothing.
     private void openBuilder(ValuesTab.EntryRow row) {
         values.select(row.id());
         building = row.id();
+        boolean hadEntry = values.hasEntry(row.id());
         builder.open(row.expression(), typed -> {
-            values.edit(typed);
+            if (!hadEntry && typed.isBlank()) {
+                values.dropEntry(row.id());
+            } else {
+                values.edit(typed);
+            }
             actions.markUnsaved();
         }, () -> {
             building = null;

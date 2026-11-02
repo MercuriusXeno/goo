@@ -568,6 +568,26 @@ public final class ValuesTab {
     }
 
     /**
+     * Drops an item's entry from the draft outright, as a cancelled edit on an item that had none leaves nothing
+     * (decision cancelling-a-new-entry-leaves-nothing).
+     *
+     * @param id an item's namespaced id
+     */
+    public void dropEntry(String id) {
+        JsonObject member = valueMember(entryKeyOf(id));
+        if (member == null) {
+            return;
+        }
+        JsonArray kept = new JsonArray();
+        draft.members().forEach(element -> {
+            if (element != member) {
+                kept.add(element);
+            }
+        });
+        draft.replaceMembers(kept);
+    }
+
+    /**
      * @param id an item whose own entry the save is to remove
      */
     public void markRemoval(String id) {
