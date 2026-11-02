@@ -255,17 +255,7 @@ public final class ProcessesTab {
      * @param group   the group whose values it copies
      */
     public void setAssignmentSource(String section, String key, String group) {
-        changeAssignment(section, key, a -> new Processes.Assignment(group, a.multiplier(), a.divisor(), a.chain()));
-    }
-
-    /**
-     * @param section    _conversions
-     * @param key        the assignment's key
-     * @param multiplier the scale's multiplier, 1 for none
-     * @param divisor    the scale's divisor, 1 for none
-     */
-    public void setAssignmentScale(String section, String key, int multiplier, int divisor) {
-        changeAssignment(section, key, a -> new Processes.Assignment(a.source(), multiplier, divisor, a.chain()));
+        changeAssignment(section, key, a -> new Processes.Assignment(group, a.chain()));
     }
 
     /**
@@ -277,7 +267,7 @@ public final class ProcessesTab {
         changeAssignment(section, key, a -> {
             List<String> chain = new ArrayList<>(a.chain());
             chain.add(link);
-            return new Processes.Assignment(a.source(), a.multiplier(), a.divisor(), List.copyOf(chain));
+            return new Processes.Assignment(a.source(), List.copyOf(chain));
         });
     }
 
@@ -290,7 +280,7 @@ public final class ProcessesTab {
         changeAssignment(section, key, a -> {
             List<String> chain = new ArrayList<>(a.chain());
             chain.remove(index);
-            return new Processes.Assignment(a.source(), a.multiplier(), a.divisor(), List.copyOf(chain));
+            return new Processes.Assignment(a.source(), List.copyOf(chain));
         });
     }
 
@@ -335,7 +325,7 @@ public final class ProcessesTab {
             return Optional.empty();
         }
         String key = isIterator(typed) ? typed : GROUP_MARK + typed;
-        return create(section, key, new Processes.Assignment(groups.getFirst(), 1, 1, List.of()));
+        return create(section, key, new Processes.Assignment(groups.getFirst(), List.of()));
     }
 
     /**

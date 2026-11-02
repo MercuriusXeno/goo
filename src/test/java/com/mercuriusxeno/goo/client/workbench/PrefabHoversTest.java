@@ -84,7 +84,7 @@ class PrefabHoversTest {
          */
         @Test
         void eachAppliedMutatorHoversItsName() {
-            controls(new Processes.Assignment("logs", 1, 1, List.of("@waxed", "@smelt"))).draw(graphics, font(),
+            controls(new Processes.Assignment("logs", List.of("@waxed", "@smelt"))).draw(graphics, font(),
                     "_mutators", "#logs", new GroupsPane.Bounds(0, 0, 400, 400), 0, targets);
             assertEquals(1, prefabHovers(targets, "waxed"));
             assertEquals(1, prefabHovers(targets, "smelt"));
