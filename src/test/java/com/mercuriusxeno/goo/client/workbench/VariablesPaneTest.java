@@ -548,7 +548,9 @@ class VariablesPaneTest {
         read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text name = frame.find("wood");
         DrawnFrame.Text pencil = frame.find("✎");
-        DrawnFrame.Text equals = frame.find("=");
+        // The head's =, ahead of the read view's own type row head.
+        DrawnFrame.Text equals = frame.drawn().stream().filter(text -> text.text().equals("=")).findFirst()
+                .orElseThrow();
         DrawnFrame.Text amount = greenText(frame, "4");
         DrawnFrame.Text cross = frame.find("✗");
         assertEquals(List.of(name.y(), name.y(), name.y(), name.y()),
