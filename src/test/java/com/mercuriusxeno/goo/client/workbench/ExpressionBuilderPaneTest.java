@@ -61,8 +61,12 @@ class ExpressionBuilderPaneTest {
         }
 
         DrawnFrame frame() {
+            return frame(AREA);
+        }
+
+        DrawnFrame frame(GroupsPane.Bounds area) {
             DrawnFrame frame = new DrawnFrame();
-            pane.extract(frame.graphics, font, AREA, 0, frame.targets);
+            pane.extract(frame.graphics, font, area, 0, frame.targets);
             pane.drawOverlays(frame.graphics, font, frame.targets);
             return frame;
         }
@@ -120,11 +124,11 @@ class ExpressionBuilderPaneTest {
 
     /**
      * Over beetroot's leaf value, the builder offers no "+ sum of terms" and draws no "the sum of:"; its parenthetical
-     * draws as a "(" line, its two terms one indent step past the "(", and a ")" line under them at the "(" x
-     * (decision sum-of-terms-leaves-the-builder).
+     * reads "(", its two terms inline, then ")" past them (decisions sum-of-terms-leaves-the-builder,
+     * builder-inlines-terms-under-indentation-rules-with-a-colon).
      */
     @Test
-    void parentheticalDrawsBetweenParenLinesWithItsTermsIndented() {
+    void parentheticalReadsItsTermsInlineBetweenItsParens() {
         DrawnFrame frame = Builder.item("$dye.leaf - ($food.jelly + $saturation.jelly * 12)").frame();
         assertFalse(frame.texts().contains("+ sum of terms") || frame.texts().contains("the sum of:"),
                 frame.texts().toString());
@@ -132,14 +136,10 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text close = frame.find(")");
         DrawnFrame.Text food = frame.find("food");
         DrawnFrame.Text saturation = frame.find("saturation");
-        assertTrue(open.y() < food.y() && food.y() < saturation.y() && saturation.y() < close.y(),
+        assertEquals(List.of(open.y(), open.y(), open.y()), List.of(food.y(), saturation.y(), close.y()),
                 frame.drawn().toString());
-        assertEquals(open.x(), close.x(), frame.drawn().toString());
-        // A term's button frame starts one indent step past the "(", its text inset by the button's padding.
-        assertEquals(open.x() + ControlFlow.INDENT + ButtonPainter.PADDING, food.x(), frame.drawn().toString());
-        DrawnFrame.Text plus = frame.drawn().stream().filter(text -> text.y() == saturation.y())
-                .min(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).orElseThrow();
-        assertEquals(food.x(), plus.x(), frame.drawn().toString());
+        assertTrue(open.x() < food.x() && food.x() < saturation.x() && saturation.x() < close.x(),
+                frame.drawn().toString());
     }
 
     /**
@@ -180,25 +180,64 @@ class ExpressionBuilderPaneTest {
             return onLine;
         }
 
+        // The row's colon: gray, where the ratio's colons draw in the link color inside their boxes.
+        private static DrawnFrame.Text rowColon(DrawnFrame frame, int index) {
+            return line(frame, index).stream().filter(text -> text.text().equals(":") && text.color() == 0xFFA0A0A0)
+                    .findFirst().orElseThrow(() -> new AssertionError("no row colon on line " + index + " of "
+                            + frame.drawn()));
+        }
+
+        // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
         @Test
-        void beetrootsJellyRowReadsKindPlusTheRowHeadThenATermALine() {
+        void typeRowReadsItsColonThenItsTermsInline() {
+            DrawnFrame frame = Builder.item(BEETROOT).frame();
+            DrawnFrame.Text colon = rowColon(frame, 1);
+            int typeX = iconXs(frame, 1).getFirst();
+            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, typeX);
+            assertTrue(colon.x() > typeX, colon + " after the type at " + typeX);
+            DrawnFrame.Text food = frame.findFirst("food");
+            assertEquals(colon.y(), food.y(), frame.drawn().toString());
+            assertTrue(food.x() > colon.x(), food + " after " + colon);
+            assertEquals(0, frame.count("="), frame.texts().toString());
+        }
+
+        // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
+        @Test
+        void narrowRowsWrapUnderTheIndentationRules() {
+            Builder builder = Builder.item(BEETROOT);
+            DrawnFrame frame = builder.frame(new GroupsPane.Bounds(0, 0, 220, 390));
+            int typeLeft = ControlFlow.INDENT;
+            int oneIndent = typeLeft + ControlFlow.INDENT + ButtonPainter.PADDING;
+            int twoIndents = oneIndent + ControlFlow.INDENT;
+            DrawnFrame.Text food = frame.findFirst("food");
+            DrawnFrame.Text saturation = frame.findFirst("saturation");
+            assertTrue(saturation.y() > food.y(), frame.drawn().toString());
+            assertEquals(oneIndent, line(frame, saturation.y() / ControlFlow.LINE).getFirst().x(),
+                    frame.drawn().toString());
+            DrawnFrame.Text dye = frame.find("dye");
+            DrawnFrame.Text minus = frame.drawn().stream().filter(text -> text.text().equals("-")
+                    && text.y() > dye.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            assertEquals(oneIndent, minus.x(), frame.drawn().toString());
+            assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && text.y() == minus.y()),
+                    frame.drawn().toString());
+            int innerLine = frame.drawn().stream().filter(text -> text.text().equals("saturation")
+                    && text.y() > minus.y()).findFirst().orElseThrow().y() / ControlFlow.LINE;
+            assertEquals(twoIndents, line(frame, innerLine).getFirst().x(), frame.drawn().toString());
+        }
+
+        @Test
+        void beetrootsJellyRowReadsKindPlusThenTheRowInlineEndingOnItsX() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             assertEquals(List.of(dropdown("by type"), "+"), lineTexts(frame, 0), frame.drawn().toString());
-            assertEquals(List.of("=", "X"), lineTexts(frame, 1), frame.drawn().toString());
-            assertEquals(List.of(ControlFlow.INDENT + ButtonPainter.PADDING), iconXs(frame, 1));
+            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "()", "v", "X", "+", "saturation", "'s", "x", "12",
+                    "()", "^", "X", SUM_ADD, "X"), lineTexts(frame, 1), frame.drawn().toString());
+            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
             DrawnFrame.Text rowX = line(frame, 1).getLast();
             assertEquals(AREA.right() - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING,
                     rowX.x());
-            assertEquals(List.of("food", "'s", "1", ":", "1", "()", "v", "X"), lineTexts(frame, 2),
-                    frame.drawn().toString());
-            DrawnFrame.Text food = line(frame, 2).getFirst();
-            assertEquals(2 * ControlFlow.INDENT + ButtonPainter.PADDING, food.x());
-            int jelly = iconXs(frame, 2).getFirst();
-            assertTrue(line(frame, 2).get(1).x() < jelly && jelly < line(frame, 2).get(2).x(),
+            int jelly = iconXs(frame, 1).get(1);
+            assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),
                     "jelly between 's and the ratio at " + jelly);
-            assertEquals("+", lineTexts(frame, 3).getFirst(), frame.drawn().toString());
-            assertTrue(lineTexts(frame, 3).contains("^"), frame.drawn().toString());
-            assertEquals(List.of(SUM_ADD), lineTexts(frame, 4), frame.drawn().toString());
         }
 
         // Clicks the picker's cell for a goo type, found by its hover across the screen.
@@ -219,30 +258,35 @@ class ExpressionBuilderPaneTest {
         void kindLinesPlusAppendsATypeRowAtTheEnd() {
             Builder builder = Builder.item(BEETROOT);
             DrawnFrame before = builder.frame();
-            long rows = before.texts().stream().filter("="::equals).count();
+            long rows = rowColons(before);
             DrawnFrame.Text plus = line(before, 0).get(1);
             clickAt(before, plus);
             pickType(builder.frame(), "metal");
             DrawnFrame after = builder.frame();
-            assertEquals(rows + 1, after.texts().stream().filter("="::equals).count(), after.texts().toString());
+            assertEquals(rows + 1, rowColons(after), after.texts().toString());
             assertTrue(builder.written.getLast().endsWith("\"metal\": \"1\"}"), builder.written.toString());
         }
 
+        // A row's colon stands at the row's own x past its type, where a ratio's colon never does.
+        private static long rowColons(DrawnFrame frame) {
+            int rowColonX = rowColon(frame, 1).x();
+            return frame.drawn().stream().filter(text -> text.text().equals(ExpressionLines.COLON)
+                    && text.x() == rowColonX).count();
+        }
+
         // Leaf's parenthetical is subtracted, so neither it nor dye ahead of it draws a move that would land it first
-        // and drop its minus.
+        // and drop its minus; the parenthetical takes a line of its own, "-" "(" and its X, then its terms inline.
         @Test
-        void parentheticalHeadReadsJoinParenAndXWithItsTermsAFurtherIndentIn() {
+        void parentheticalLineReadsJoinParenAndXThenItsTermsInline() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
             int head = open.y() / ControlFlow.LINE;
-            assertEquals(List.of("-", "(", "X"), lineTexts(frame, head), frame.drawn().toString());
-            assertEquals(List.of("dye", "'s", "()", "X"), lineTexts(frame, head - 1).stream()
-                    .filter(text -> !text.equals("1") && !text.equals(":")).toList(), frame.drawn().toString());
-            DrawnFrame.Text food = line(frame, head + 1).getFirst();
-            assertEquals("food", food.text(), frame.drawn().toString());
-            assertEquals(open.x() + ControlFlow.INDENT + ButtonPainter.PADDING, food.x());
-            assertEquals(open.x(), frame.find(")").x(), frame.drawn().toString());
-            assertTrue(frame.find(")").y() > frame.find("saturation").y(), frame.drawn().toString());
+            assertEquals(List.of("-", "(", "X", "food"), lineTexts(frame, head).subList(0, 4),
+                    frame.drawn().toString());
+            assertEquals(List.of(":", "dye", "'s", "1", ":", "1", "()", "X"), lineTexts(frame, head - 1),
+                    frame.drawn().toString());
+            assertEquals(open.y(), frame.find(")").y(), frame.drawn().toString());
+            assertTrue(frame.find(")").x() > frame.find("saturation").x(), frame.drawn().toString());
         }
 
         @Test
@@ -350,7 +394,7 @@ class ExpressionBuilderPaneTest {
     void gooTypeDrawsAsAButtonThatOpensThePicker() {
         Builder builder = Builder.item("{\"metal\": \"5\"}");
         DrawnFrame frame = builder.frame();
-        int lineTop = frame.find("=").y() - 5;
+        int lineTop = frame.findFirst(ExpressionLines.COLON).y() - 5;
         int typeLeft = AREA.left() + ControlFlow.INDENT;
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);

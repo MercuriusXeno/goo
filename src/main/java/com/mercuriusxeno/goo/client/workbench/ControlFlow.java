@@ -118,6 +118,18 @@ final class ControlFlow {
         x = left;
     }
 
+    /**
+     * Continues on a fresh line one indent step in, as a line that ran out wraps, where the current line holds
+     * anything.
+     */
+    void wrapLine() {
+        if (x > lineLeft) {
+            y += LINE;
+            lineLeft = left + INDENT;
+            x = lineLeft;
+        }
+    }
+
     private void reserve(int width) {
         if (x + width > right && x > lineLeft) {
             y += LINE;

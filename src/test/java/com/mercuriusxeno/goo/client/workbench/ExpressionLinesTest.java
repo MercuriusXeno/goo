@@ -115,24 +115,22 @@ class ExpressionLinesTest {
     }
 
     /**
-     * Beetroot reads each type row as its icon then =, its terms on the indented line below, each per-type prefab
-     * as its link, 's and its member's icon, so it reads {jelly} = food's {jelly} + saturation's {jelly} x 12 and
-     * {leaf} = dye's {leaf} - (food's {jelly} + saturation's {jelly} x 12) (decision
-     * read-view-reads-type-equals-possessive-terms).
+     * Beetroot reads each type row as its icon then a colon, its terms inline after it, each per-type prefab as its
+     * link, 's and its member's icon, so it reads {jelly}: food's {jelly} + saturation's {jelly} x 12 and
+     * {leaf}: dye's {leaf} - (food's {jelly} + saturation's {jelly} x 12) (decisions
+     * read-view-reads-type-equals-possessive-terms, builder-inlines-terms-under-indentation-rules-with-a-colon).
      */
     @Test
-    void beetrootReadsTypeEqualsThenPossessiveTerms() {
+    void beetrootReadsTypeColonThenPossessiveTermsInline() {
         ExpressionTerms.Value beetroot = ExpressionTerms.parseValue(JsonParser.parseString(BEETROOT)).orElseThrow();
         List<ExpressionLines.Run> inner = new java.util.ArrayList<>(possessive("food", "jelly"));
         inner.add(symbol("+"));
         inner.addAll(possessive("saturation", "jelly"));
         inner.add(symbol("x"));
         inner.add(run(ExpressionLines.Kind.NUMBER, "12"));
-        List<ExpressionLines.Run> expected = new java.util.ArrayList<>(List.of(type("jelly"), symbol("="),
-                run(ExpressionLines.Kind.INDENTED_BREAK, "")));
+        List<ExpressionLines.Run> expected = new java.util.ArrayList<>(List.of(type("jelly"), symbol(":")));
         expected.addAll(inner);
-        expected.addAll(List.of(run(ExpressionLines.Kind.BREAK, ""), type("leaf"), symbol("="),
-                run(ExpressionLines.Kind.INDENTED_BREAK, "")));
+        expected.addAll(List.of(run(ExpressionLines.Kind.BREAK, ""), type("leaf"), symbol(":")));
         expected.addAll(possessive("dye", "leaf"));
         expected.addAll(List.of(symbol("-"), symbol("(")));
         expected.addAll(inner);
@@ -151,23 +149,63 @@ class ExpressionLinesTest {
                 ExpressionLines.shownRuns("$stick + 2", NAMES));
     }
 
+    private static DrawnFrame drawn(String shown, int width) {
+        DrawnFrame frame = new DrawnFrame();
+        ExpressionLines.draw(DrawnFrame.font(), ExpressionLines.shownRuns(shown, NAMES), 10, 20, width,
+                new ExpressionLines.Painter(frame.graphics, null, frame.targets, 0xFFFFFFFF, ButtonPainter.LINK,
+                        (variable, x, y, width1) -> { }));
+        return frame;
+    }
+
     /**
-     * The symbols draw in the symbol color, not the text color, and a type row's terms draw one indent step in.
+     * The symbols draw in the symbol color, not the text color, and each type row's first term draws on the type's
+     * line right after its colon (decision builder-inlines-terms-under-indentation-rules-with-a-colon).
      */
     @Test
-    void symbolsDrawInTheirOwnColorAndTermsAtTheIndent() {
-        DrawnFrame frame = new DrawnFrame();
-        ExpressionLines.draw(DrawnFrame.font(), ExpressionLines.shownRuns(BEETROOT, NAMES), 10, 20, 400,
-                new ExpressionLines.Painter(frame.graphics, null, frame.targets, 0xFFFFFFFF, ButtonPainter.LINK,
-                        (variable, x, y, width) -> { }));
-        for (String symbol : List.of("=", "+", "x", "-", "(", ")")) {
+    void symbolsDrawInTheirOwnColorAndTermsInlineAfterTheColon() {
+        DrawnFrame frame = drawn(BEETROOT, 400);
+        for (String symbol : List.of(":", "+", "x", "-", "(", ")")) {
             assertEquals(ExpressionLines.SYMBOL_COLOR, frame.find(symbol).color(), symbol);
         }
-        DrawnFrame.Text food = frame.drawn().stream().filter(text -> text.text().equals("food")).findFirst()
-                .orElseThrow();
-        assertEquals(10 + ControlFlow.INDENT, food.x());
-        assertEquals(10 + ControlFlow.INDENT, frame.find("dye").x());
+        DrawnFrame.Text colon = frame.findFirst(":");
+        DrawnFrame.Text food = frame.findFirst("food");
+        assertEquals(colon.y(), food.y(), frame.drawn().toString());
+        assertTrue(food.x() > colon.x(), food + " after " + colon);
+        assertEquals(frame.find(":").y(), frame.find("dye").y(), frame.drawn().toString());
         assertTrue(frame.find("dye").y() > food.y(), frame.drawn().toString());
+        assertEquals(0, frame.count("="), frame.texts().toString());
+    }
+
+    /**
+     * At a narrow width a type row's continuation wraps one indent in under the type; a parenthetical that does not
+     * fit the rest of the line goes with its join to a line of its own; a wrap inside it indents again, and the
+     * indent returns past its closing paren (decision builder-inlines-terms-under-indentation-rules-with-a-colon).
+     */
+    @Test
+    void narrowRowsWrapUnderTheIndentationRules() {
+        int left = 10;
+        int oneIndent = left + ControlFlow.INDENT;
+        int twoIndents = oneIndent + ControlFlow.INDENT;
+        DrawnFrame jelly = drawn("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\"}", 120);
+        DrawnFrame.Text food = jelly.find("food");
+        DrawnFrame.Text saturation = jelly.find("saturation");
+        assertEquals(food.y() + ExpressionLines.ICON_LINE_HEIGHT, saturation.y(), jelly.drawn().toString());
+        assertEquals(oneIndent, saturation.x(), jelly.drawn().toString());
+
+        DrawnFrame leaf = drawn("{\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)"
+                + " + $saturation.jelly\"}", 120);
+        DrawnFrame.Text dye = leaf.find("dye");
+        DrawnFrame.Text minus = leaf.find("-");
+        DrawnFrame.Text open = leaf.find("(");
+        assertEquals(List.of(dye.y() + ExpressionLines.ICON_LINE_HEIGHT, oneIndent), List.of(minus.y(), minus.x()),
+                leaf.drawn().toString());
+        assertEquals(minus.y(), open.y(), leaf.drawn().toString());
+        DrawnFrame.Text inner = leaf.findFirst("saturation");
+        assertEquals(List.of(minus.y() + ExpressionLines.ICON_LINE_HEIGHT, twoIndents), List.of(inner.y(), inner.x()),
+                leaf.drawn().toString());
+        DrawnFrame.Text after = leaf.find("saturation");
+        assertTrue(after.y() > leaf.find(")").y(), leaf.drawn().toString());
+        assertEquals(oneIndent, after.x(), leaf.drawn().toString());
     }
 
     /**

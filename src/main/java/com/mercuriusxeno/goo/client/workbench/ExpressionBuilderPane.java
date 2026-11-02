@@ -43,7 +43,6 @@ final class ExpressionBuilderPane {
     private static final String PLUS_SIGN = "+";
     private static final String MINUS_SIGN = "-";
     private static final String SUM_ADD = "+/-";
-    private static final String EQUALS = "=";
     private static final String POSSESSIVE = "'s";
     private static final String WRAP = "()";
     private static final String MOVE_UP = "^";
@@ -320,35 +319,35 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // Each row's head one indent in, its terms a second indent in.
+    // Each row one indent in: [type]: then its terms inline, wrapping one indent further in, and the row's X at the
+    // right end of its last line.
+    // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
     private void drawRows(ControlFlow flow, ExpressionBuilder edited) {
         List<ExpressionBuilder.Row> rows = edited.rows();
         Set<String> held = BuilderGrammar.heldTypes(edited);
         for (int index = 0; index < rows.size(); index++) {
             ExpressionBuilder.Row row = rows.get(index);
+            int at = index;
             flow.indent();
-            drawRowHead(flow, index, row, rows.size() > 1, held);
+            flow.typeIcon(row.type(), anchor -> overlays.openPicker(anchor,
+                    type -> apply(b -> b.setRowType(at, type)), null, held));
+            flow.text(ExpressionLines.COLON, GRAY);
             drawSum(flow, List.of(index), row.pieces(), new Place(BuilderGrammar.NUMBER_SORT, row.type()));
+            if (rows.size() > 1) {
+                flow.alignRight(ButtonPainter.width(flow.font(), REMOVE));
+                flow.coloredControl(REMOVE, RED, DELETE_HINT, anchor -> apply(b -> b.removeRow(at)));
+            }
             flow.outdent(ControlFlow.INDENT);
         }
     }
 
-    // [type] = with the row's X at the line's right end.
-    private void drawRowHead(ControlFlow flow, int row, ExpressionBuilder.Row amount, boolean removable,
-                             Set<String> held) {
-        flow.typeIcon(amount.type(), at -> overlays.openPicker(at, type -> apply(b -> b.setRowType(row, type)),
-                null, held));
-        flow.text(EQUALS, GRAY);
-        if (removable) {
-            flow.alignRight(ButtonPainter.width(flow.font(), REMOVE));
-            flow.coloredControl(REMOVE, RED, DELETE_HINT, at -> apply(b -> b.removeRow(row)));
-        }
-    }
-
+    // The whole value's terms on the line after the kind, one indent in.
     private void drawTerms(ControlFlow flow, ExpressionBuilder edited) {
         String sort = grammar.sortOf(edited);
         List<ExpressionBuilder.Piece> pieces = edited.terms();
+        flow.indent();
         drawSum(flow, List.of(), pieces, new Place(sort, null));
+        flow.outdent(ControlFlow.INDENT);
         // Decision scale-shows-the-ratio-at-once: several terms draw the whole value's ratio 1:1 on a line of its
         // own; setting a side wraps the value as one sum scaled by it.
         if (pieces.size() > 1) {
@@ -359,16 +358,13 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // A sum's terms one indent in, a line each, then the [+/-] that adds one.
+    // A sum's terms inline, then the [+/-] that adds one, each wrapping where the line runs out.
+    // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
     private void drawSum(ControlFlow flow, List<Integer> sum, List<ExpressionBuilder.Piece> pieces, Place place) {
-        flow.indent();
         for (int index = 0; index < pieces.size(); index++) {
-            flow.newLine();
             drawTerm(flow, placeOf(sum, index), pieces.get(index), pieces.size(), place);
         }
-        flow.newLine();
         drawSumAdd(flow, sum, place);
-        flow.outdent(ControlFlow.INDENT);
     }
 
     // The sign picked joins the term added: an item or prefab picked next, or a 1 where the sum reads only numbers.
@@ -395,6 +391,11 @@ final class ExpressionBuilderPane {
     // [join] where it follows another term, the operand, its ratio, then [()] [^] [v] [x].
     private void drawTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, int count,
                           Place place) {
+        if (path.getLast() > 0 && piece.operand() instanceof ExpressionBuilder.Nest) {
+            // Decision builder-inlines-terms-under-indentation-rules-with-a-colon: a parenthetical takes a line of
+            // its own with its join, its controls too wide to share the rest of a line.
+            flow.wrapLine();
+        }
         if (path.getLast() > 0) {
             drawJoin(flow, path, piece);
         }
@@ -487,20 +488,19 @@ final class ExpressionBuilderPane {
                 place.inRow() ? null : () -> apply(b -> b.setMember(path, null))));
     }
 
-    // A "(" line after the term's join carrying its ^ v x, its terms one step past the "(", each edited in place,
-    // then a ")" line under the "(" carrying the parenthetical's factor.
+    // "(" after the term's join with its ^ v x, its terms inline, each edited in place, a wrap inside it one indent
+    // further in, then ")" and the parenthetical's factor back at the outer indent.
     // Decision sum-of-terms-leaves-the-builder.
+    // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
     private void drawNest(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece,
                           ExpressionBuilder.Nest nest, int count, Place place) {
-        int column = flow.column();
         flow.text(OPEN_PAREN, GRAY);
         drawOrderAndRemove(flow, path, count);
-        flow.shift(column);
+        flow.shift(ControlFlow.INDENT);
         drawSum(flow, path, nest.pieces(), place);
-        flow.newLine();
+        flow.shift(-ControlFlow.INDENT);
         flow.text(CLOSE_PAREN, GRAY);
         drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
-        flow.shift(-column);
     }
 
     /**

@@ -72,7 +72,6 @@ final class VariablesPane {
     private static final String RESOLVED_SEPARATOR = ", ";
     private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
-    private static final String EQUALS = "=";
     private static final String VALUE_LABEL = "Value:";
     private static final String AMOUNT_OPEN = "(";
     private static final String AMOUNT_CLOSE = ")";
@@ -270,13 +269,12 @@ final class VariablesPane {
         return rowType;
     }
 
-    // A type row opens on its type, then =, then the break before its terms.
+    // A type row opens on its type, then the colon its terms follow.
     private static boolean startsTypeRow(List<ExpressionLines.Run> runs, int index) {
-        int equals = index + 1;
-        int terms = equals + 1;
-        return terms < runs.size() && runs.get(index).kind() == ExpressionLines.Kind.TYPE
-                && EQUALS.equals(runs.get(equals).text())
-                && runs.get(terms).kind() == ExpressionLines.Kind.INDENTED_BREAK;
+        int colon = index + 1;
+        return colon < runs.size() && runs.get(index).kind() == ExpressionLines.Kind.TYPE
+                && runs.get(colon).kind() == ExpressionLines.Kind.OPERATOR
+                && ExpressionLines.COLON.equals(runs.get(colon).text());
     }
 
     private static void addAmount(List<ExpressionLines.Run> runs, @Nullable String amount) {
