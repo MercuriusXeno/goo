@@ -407,32 +407,128 @@ class VariablesPaneTest {
         assertFalse(renaming.texts().contains("✎"), renaming.texts().toString());
     }
 
-    /**
-     * Used by draws one run: the item naming the prefab itself first, then the terminus item the cascade reaches,
-     * each once, and no (indirectly) label (decision used-by-draws-the-terminus-items-alone, restated).
-     */
-    @Test
-    void usedByDrawsOneRunDirectItemsFirst() {
+    private static final String READ_PREFABS = """
+            {"path": "base_values.json", "members": [
+              {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null},
+                {"key": "plank", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood / 4\\"", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}],
+               "leading": null, "trailing": null, "closingGap": null}]}
+            """;
+    // wood is named by the stick directly, by the prefab plank and by the group logs, and its cascade reaches the
+    // terminus item cake, which no expression of its own names wood.
+    private static final String WOOD_READ = """
+            "name": "wood", "kind": "scalar", "value": "8", "error": null,
+            "direct": ["minecraft:stick"], "usedBy": ["minecraft:stick", "minecraft:cake"],
+            "readers": [{"id": "plank", "kind": "constant"}, {"id": "#logs", "kind": "group"},
+                        {"id": "minecraft:stick", "kind": "item"}]""";
+    private static final String READ_EVALUATED = """
+            {"constants": [{%s},
+              {"name": "plank", "kind": "scalar", "value": "2", "error": null, "direct": [], "usedBy": [],
+               "readers": []}]}
+            """.formatted(WOOD_READ);
+
+    // A Prefabs pane over wood and plank, every hover request answered at once with wood's card.
+    private static VariablesPane woodReadByPlankAndLogs(ManagerActions actions) {
         ManagerDraft draft = new ManagerDraft();
-        draft.read(model());
+        draft.read(READ_PREFABS);
         VariablesTab prefabs = new VariablesTab(draft);
-        prefabs.readEvaluated("""
-                {"constants": [{"name": "prefab0", "kind": "scalar", "value": "8", "error": null,
-                                "direct": ["minecraft:egg"],
-                                "usedBy": ["minecraft:cake", "minecraft:egg"], "readers": []}]}
-                """);
-        ManagerActions actions = mock(ManagerActions.class);
+        prefabs.readEvaluated(READ_EVALUATED);
         when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        org.mockito.Mockito.doAnswer(call -> {
+            if (call.<String>getArgument(0).equals(com.mercuriusxeno.goo.workbench.WorkbenchOperations
+                    .CONSTANT_HOVER)) {
+                call.<java.util.function.Consumer<String>>getArgument(2).accept("{" + WOOD_READ
+                        + ", \"expression\": \"8\"}");
+            }
+            return null;
+        }).when(actions).request(anyString(), anyString(), any());
         ItemIcons icons = mock(ItemIcons.class);
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        return read;
+    }
+
+    private static DrawnFrame.Text linkText(DrawnFrame frame, String label) {
+        return frame.drawn().stream().filter(text -> text.text().equals(label) && text.color() == ButtonPainter.LINK)
+                .reduce((first, last) -> last).orElseThrow(() -> new AssertionError(label + " in "
+                        + frame.drawn()));
+    }
+
+    private static List<Integer> itemXs(DrawnFrame frame) {
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).item(any(), xs.capture(), anyInt());
+        return xs.getAllValues();
+    }
+
+    /**
+     * wood's used-by run draws the stick's icon, then the prefab plank's chip and the group logs' chip in the link
+     * color, and the terminus item cake draws nowhere (decision
+     * used-by-lists-direct-items-and-links-to-prefabs-and-groups).
+     */
+    @Test
+    void usedByDrawsDirectItemsThenPrefabAndGroupLinks() {
+        VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
-        assertFalse(frame.texts().stream().anyMatch(text -> text.contains("indirectly")), frame.texts().toString());
-        assertEquals(1, frame.texts().stream().filter("Used by "::equals).count(), frame.texts().toString());
-        List<String> items = frame.targets.hoverKeys().stream().filter(key -> key.equals(ItemIcons.hoverKey(
-                "minecraft:egg")) || key.equals(ItemIcons.hoverKey("minecraft:cake"))).toList();
-        assertEquals(List.of(ItemIcons.hoverKey("minecraft:egg"), ItemIcons.hoverKey("minecraft:cake")), items);
+        assertTrue(frame.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:stick")));
+        assertFalse(frame.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:cake")),
+                frame.targets.hoverKeys().toString());
+        assertEquals(1, itemXs(frame).size(), "one item icon, the stick's");
+        DrawnFrame.Text plank = linkText(frame, "plank");
+        DrawnFrame.Text logs = linkText(frame, "#logs");
+        assertTrue(itemXs(frame).getFirst() < plank.x(), "stick before plank");
+        assertTrue(plank.x() < logs.x(), plank + " before " + logs);
+        assertEquals(plank.y(), logs.y());
+    }
+
+    /**
+     * wood's hover card, opened from plank's $wood link, reads the same run: the stick, then plank's and logs' chips,
+     * and no cake (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
+     */
+    @Test
+    void hoverCardUsedByDrawsDirectItemsThenPrefabAndGroupLinks() {
+        VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
+        DrawnFrame.Text woodLink = linkText(list, "wood");
+        read.extract(new DrawnFrame().graphics, DrawnFrame.font(), TALL_VIEW, new ClickTargets(), woodLink.x() + 1,
+                woodLink.y() + 1);
+        DrawnFrame card = new DrawnFrame();
+        read.extract(card.graphics, DrawnFrame.font(), TALL_VIEW, card.targets, woodLink.x() + 1, woodLink.y() + 1);
+        assertEquals(2, card.texts().stream().filter("Used by "::equals).count(), card.texts().toString());
+        assertFalse(card.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:cake")));
+        assertEquals(2, itemXs(card).size(), "the stick on the block and on the card");
+        DrawnFrame.Text plank = linkText(card, "plank");
+        DrawnFrame.Text logs = linkText(card, "#logs");
+        assertTrue(itemXs(card).getLast() < plank.x(), "stick before plank on the card");
+        assertTrue(plank.x() < logs.x(), plank + " before " + logs);
+        assertTrue(plank.y() > woodLink.y(), "the card's chips draw on the card");
+    }
+
+    /**
+     * A shift + left click on plank's chip opens plank and on logs' chip opens the group logs; plank's chip hovers
+     * its value (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
+     */
+    @Test
+    void usedByLinksFollowOnShiftClickAndThePrefabChipHoversItsValue() {
+        ManagerActions actions = mock(ManagerActions.class);
+        VariablesPane read = woodReadByPlankAndLogs(actions);
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text plank = linkText(frame, "plank");
+        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("plank")),
+                frame.targets.hovered(plank.x() + 1, plank.y() + 1));
+        assertTrue(frame.targets.click(plank.x() + 1, plank.y() + 1, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT,
+                org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT));
+        verify(actions).openVariable("plank");
+        DrawnFrame.Text logs = linkText(frame, "#logs");
+        assertTrue(frame.targets.click(logs.x() + 1, logs.y() + 1, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT,
+                org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT));
+        verify(actions).openGroup("logs");
     }
 
     // A Prefabs pane over one prefab, base, that the prefab egg reads.

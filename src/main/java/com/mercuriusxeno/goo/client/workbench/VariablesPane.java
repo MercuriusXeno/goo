@@ -239,7 +239,7 @@ final class VariablesPane {
         boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
         y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
                 : drawReadView(graphics, font, block, bounds, y, targets);
-        y += drawUsedByLines(graphics, font, block.direct(), block.indirect(), bounds.left(), y + HALF,
+        y += drawUsedByLines(graphics, font, block.direct(), block.links(), bounds.left(), y + HALF,
                 bounds.right() - bounds.left(), block.name(), targets) + BLOCK_GAP;
         blockHeights.put(block.name(), y - top);
         return y - top;
@@ -383,52 +383,87 @@ final class VariablesPane {
         return height;
     }
 
-    // Used by holds the items naming the constant themselves, then the terminus items its cascade
-    // reaches, on one line drawn only where it holds an item (decision used-by-draws-the-terminus-items-alone);
-    // answers the height it took.
-    private int drawUsedByLines(GuiGraphicsExtractor graphics, Font font, List<String> direct, List<String> indirect,
-                                int x, int y, int width, @Nullable String expandKey, ClickTargets targets) {
-        // The operator's ruling: one used-by line, the items naming the prefab directly first, then the rest.
-        java.util.Set<String> usedBy = new java.util.LinkedHashSet<>(direct);
-        usedBy.addAll(indirect);
-        return drawUsedBy(graphics, font, USED_BY, List.copyOf(usedBy), x, y, width,
+    // Used by holds the items naming the constant themselves, then a link to each prefab and group reading it, on
+    // one line drawn only where it holds one; the terminus items the cascade reaches draw nowhere. Answers the height
+    // it took.
+    // Decision used-by-lists-direct-items-and-links-to-prefabs-and-groups.
+    private int drawUsedByLines(GuiGraphicsExtractor graphics, Font font, List<String> direct,
+                                List<VariablesTab.Reader> links, int x, int y, int width, @Nullable String expandKey,
+                                ClickTargets targets) {
+        return drawUsedBy(graphics, font, new UsedBy(direct, links), x, y, width,
                 expandKey == null ? null : expandKey + USED_BY_KEY, targets);
     }
 
-    // Answers the height the used-by items took, none where the constant reaches no item. A line too narrow for
-    // them stops at a ..+n button, which expands the block's line onto as many rows as it needs, and an
-    // expanded line ends on Hide, which collapses it (decision expanded-used-by-lists-take-a-hide-button); a null
-    // expandKey draws the count as plain text and never expands, as the hover card does.
-    private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, String label, List<String> usedBy, int x, int y,
-                           int width, @Nullable String expandKey, ClickTargets targets) {
-        if (usedBy.isEmpty()) {
-            return 0;
+    // The items' icons, then the links' chips, each a slot of its own width.
+    private record UsedBy(List<String> items, List<VariablesTab.Reader> links) {
+        int count() {
+            return items.size() + links.size();
         }
-        graphics.text(font, label, x, y + TEXT_NUDGE, GRAY);
-        int itemsX = x + font.width(USED_BY);
-        int itemsWidth = x + width - itemsX;
-        int step = ICON_SIZE + ICON_GAP;
-        boolean expanded = expandKey != null && expandedUsedBy.expanded(expandKey);
-        UsedByLine.Fit fit = expanded ? UsedByLine.expanded(usedBy.size())
-                : UsedByLine.fit(usedBy.size(), itemsWidth, step,
-                        hidden -> ButtonPainter.width(font, UsedByLine.moreLabel(hidden)));
-        int perRow = expanded ? Math.max(1, itemsWidth / step) : Math.max(1, fit.shown());
-        drawUsedByIcons(usedBy.subList(0, fit.shown()), itemsX, y, perRow, targets, graphics);
-        UsedByLine.Slot end = UsedByLine.endSlot(fit, expanded, perRow, step, itemsWidth,
-                ButtonPainter.width(font, UsedByLine.HIDE));
-        UsedByLine.endLabel(fit, expanded).ifPresent(endLabel -> drawUsedByEnd(graphics, font, endLabel,
-                itemsX + end.x(), y + end.row() * (ICON_SIZE + HALF), expandKey, expanded, targets));
-        return (end.row() + 1) * (ICON_SIZE + HALF);
+
+        List<Integer> widths(Font font) {
+            List<Integer> widths = new java.util.ArrayList<>();
+            items.forEach(item -> widths.add(ICON_SIZE));
+            links.forEach(link -> widths.add(ButtonPainter.width(font, linkLabel(link))));
+            return widths;
+        }
     }
 
-    private void drawUsedByIcons(List<String> shown, int left, int top, int perRow, ClickTargets targets,
-                                 GuiGraphicsExtractor graphics) {
-        int step = ICON_SIZE + ICON_GAP;
-        for (int index = 0; index < shown.size(); index++) {
-            int iconX = left + index % perRow * step;
-            int iconY = top + index / perRow * (ICON_SIZE + HALF);
-            graphics.item(icons.of(shown.get(index)), iconX, iconY);
-            ItemLinks.add(targets, actions, shown.get(index), iconX, iconY);
+    private static String linkLabel(VariablesTab.Reader link) {
+        return CONSTANT_KIND.equals(link.kind()) ? link.id() : groupLabel(link.id());
+    }
+
+    private static String groupLabel(String id) {
+        return id.startsWith(TAG_PREFIX) ? id : TAG_PREFIX + id;
+    }
+
+    // Answers the height the used-by slots took, none where nothing uses the constant. A line too narrow for them
+    // stops at a ..+n button, which expands the block's line onto as many rows as it needs, and an expanded line
+    // ends on Hide, which collapses it (decision expanded-used-by-lists-take-a-hide-button); a null expandKey draws
+    // the count as plain text and never expands, as the hover card does.
+    private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, UsedBy usedBy, int x, int y, int width,
+                           @Nullable String expandKey, ClickTargets targets) {
+        if (usedBy.count() == 0) {
+            return 0;
+        }
+        graphics.text(font, USED_BY, x, y + TEXT_NUDGE, GRAY);
+        int itemsX = x + font.width(USED_BY);
+        int itemsWidth = x + width - itemsX;
+        List<Integer> widths = usedBy.widths(font);
+        boolean expanded = expandKey != null && expandedUsedBy.expanded(expandKey);
+        UsedByLine.Fit fit = expanded ? UsedByLine.expanded(usedBy.count())
+                : UsedByLine.fitSlots(widths, ICON_GAP, itemsWidth,
+                        hidden -> ButtonPainter.width(font, UsedByLine.moreLabel(hidden)));
+        Optional<String> endLabel = UsedByLine.endLabel(fit, expanded);
+        List<UsedByLine.Slot> slots = UsedByLine.flow(widths.subList(0, fit.shown()), ICON_GAP, itemsWidth,
+                endLabel.map(label -> ButtonPainter.width(font, label)).orElse(0));
+        for (int index = 0; index < fit.shown(); index++) {
+            drawUsedBySlot(graphics, font, usedBy, index, itemsX + slots.get(index).x(),
+                    y + slots.get(index).row() * (ICON_SIZE + HALF), targets);
+        }
+        UsedByLine.Slot end = slots.getLast();
+        endLabel.ifPresent(label -> drawUsedByEnd(graphics, font, label, itemsX + end.x(),
+                y + end.row() * (ICON_SIZE + HALF), expandKey, expanded, targets));
+        return (UsedByLine.lastRow(slots, endLabel.isPresent()) + 1) * (ICON_SIZE + HALF);
+    }
+
+    // An item draws its icon; a prefab's chip follows to its block and hovers its value, a group's to its group, on
+    // shift + left click (decision shift-left-click-follows-plain-left-modifies).
+    private void drawUsedBySlot(GuiGraphicsExtractor graphics, Font font, UsedBy usedBy, int index, int x, int y,
+                                ClickTargets targets) {
+        if (index < usedBy.items().size()) {
+            String item = usedBy.items().get(index);
+            graphics.item(icons.of(item), x, y);
+            ItemLinks.add(targets, actions, item, x, y);
+            return;
+        }
+        VariablesTab.Reader link = usedBy.links().get(index - usedBy.items().size());
+        if (CONSTANT_KIND.equals(link.kind())) {
+            ButtonPainter.drawFollow(graphics, font, link.id(), x, y, ICON_SIZE, targets,
+                    () -> actions.openVariable(link.id()), PrefabHovers.hoverKey(link.id()));
+        } else {
+            String label = groupLabel(link.id());
+            ButtonPainter.drawFollow(graphics, font, label, x, y, ICON_SIZE, targets,
+                    () -> actions.openGroup(label.substring(TAG_PREFIX.length())), null);
         }
     }
 
@@ -606,10 +641,9 @@ final class VariablesPane {
         }
     }
 
-    // The card's Used by line stays collapsed.
+    // The card's Used by line stays collapsed on one row.
     private static int usedByHeight(VariablesTab.HoverCard card) {
-        int lines = (card.direct().isEmpty() ? 0 : 1) + (card.indirect().isEmpty() ? 0 : 1);
-        return lines * (ICON_SIZE + HALF) + (lines > 1 ? HALF : 0);
+        return card.direct().isEmpty() && card.links().isEmpty() ? 0 : ICON_SIZE + HALF;
     }
 
     private void drawCard(GuiGraphicsExtractor graphics, Font font, VariablesTab.HoverCard card,
@@ -635,6 +669,6 @@ final class VariablesPane {
         ExpressionLines.draw(font, resolved, x, y, textWidth, new ExpressionLines.Painter(graphics, icons, targets,
                 GREEN, LINK, (link, linkX, linkY, linkWidth) -> { }));
         y += resolvedHeight;
-        drawUsedByLines(graphics, font, card.direct(), card.indirect(), x, y, textWidth, null, targets);
+        drawUsedByLines(graphics, font, card.direct(), card.links(), x, y, textWidth, null, targets);
     }
 }
