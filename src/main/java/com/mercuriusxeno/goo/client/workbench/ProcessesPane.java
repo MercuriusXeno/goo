@@ -61,6 +61,8 @@ final class ProcessesPane {
     private static final String NO_REASON = "";
     private static final int ROW_COLOR = 0x20FFFFFF;
     private static final String DELETE = "✗";
+    // A section key starts with an underscore and holds no newline, so a newline parts it from the entry's key.
+    private static final char MARK_SEPARATOR = '\n';
     private static final String MUTATORS = "Mutators";
     private static final String ITERATORS = "Iterators";
     // The operator's ruling: a [+] beside its heading plainly adds one of that heading's kind.
@@ -416,8 +418,26 @@ final class ProcessesPane {
         graphics.text(font, mark.glyph(), markX, y + HEAD_TEXT_NUDGE, mark.color());
         frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
                 + (row.reason().isEmpty() ? NO_REASON : REASON_GAP + row.reason())));
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, deleteX, y + BUTTON_INSET, ButtonPainter.HEIGHT,
-                frame.targets(), () -> delete(section, row.key()), BuilderOverlays.hintKey(DELETE_HINT));
+        drawRemoval(frame, section, row.key(), y + BUTTON_INSET);
+    }
+
+    // The red x at the row's right end marks the entry; a marked entry's gold arrow in its place restores it.
+    // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+    private void drawRemoval(Frame frame, String section, String key, int top) {
+        String mark = markKey(section, key);
+        if (draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, mark)) {
+            ButtonPainter.drawRestore(frame.graphics(), frame.font(), frame.rows().right(), top, ButtonPainter.HEIGHT,
+                    frame.targets(), () -> draft.removals().restore(RemovalMarks.Tab.MUTATORS, mark));
+            return;
+        }
+        ButtonPainter.drawColored(frame.graphics(), frame.font(), DELETE, RED,
+                frame.rows().right() - ButtonPainter.width(frame.font(), DELETE), top, ButtonPainter.HEIGHT,
+                frame.targets(), () -> markEntry(mark), BuilderOverlays.hintKey(DELETE_HINT));
+    }
+
+    // A mark names the entry's block and its key, since a key may stand in both blocks.
+    private static String markKey(String section, String key) {
+        return section + MARK_SEPARATOR + key;
     }
 
     /**
@@ -440,7 +460,8 @@ final class ProcessesPane {
             return;
         }
         String shown = fittedName(frame.font(), key, slot.room());
-        frame.graphics().text(frame.font(), shown, x, y + HEAD_TEXT_NUDGE, WHITE);
+        ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, y + HEAD_TEXT_NUDGE,
+                draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)));
         if (!shown.equals(key)) {
             frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, BuilderOverlays.hintKey(key));
         }
@@ -519,9 +540,21 @@ final class ProcessesPane {
         }
     }
 
-    private void delete(String section, String key) {
+    /**
+     * Drops every marked mutator and iterator from its block, as the save does before it writes the draft.
+     * Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+     */
+    void applyRemovals() {
+        for (String mark : draft.removals().marked(RemovalMarks.Tab.MUTATORS)) {
+            int split = mark.indexOf(MARK_SEPARATOR);
+            processes.delete(mark.substring(0, split), mark.substring(split + 1));
+            draft.removals().restore(RemovalMarks.Tab.MUTATORS, mark);
+        }
+    }
+
+    private void markEntry(String mark) {
         overlays.close();
-        processes.delete(section, key);
-        actions.draftChanged();
+        draft.removals().mark(RemovalMarks.Tab.MUTATORS, mark);
+        actions.markUnsaved();
     }
 }

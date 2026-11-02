@@ -55,10 +55,11 @@ class ProcessesPaneTest {
 
     private ProcessesPane pane;
     private final List<AbstractWidget> widgets = new ArrayList<>();
+    private ManagerDraft draft;
 
     @BeforeEach
     void readReplies() {
-        ManagerDraft draft = new ManagerDraft();
+        draft = new ManagerDraft();
         draft.read(MODEL);
         ProcessesTab processes = new ProcessesTab(draft);
         processes.readDescribed(DESCRIBED);
@@ -345,6 +346,52 @@ class ProcessesPaneTest {
                 .orElseThrow();
         assertEquals(rule + 1, (int) bottoms.getAllValues().get(tops.getAllValues().indexOf(rule)));
         assertTrue(deleteBottom <= rule, "Delete ends at " + deleteBottom + ", the rule at " + rule);
+    }
+
+    // The rightmost control labelled glyph on the head line of the row named key, inside that row's column: the
+    // frame's 590 pixels part into two columns, so a row's controls stand within 295 of its name.
+    private static DrawnFrame.Text rowControl(DrawnFrame frame, String key, String glyph) {
+        DrawnFrame.Text name = first(frame, key);
+        return frame.drawn().stream().filter(text -> text.text().equals(glyph) && text.x() > name.x()
+                && text.x() < name.x() + 295
+                && Math.abs(text.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT)
+                .max(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                .orElseThrow(() -> new AssertionError(glyph + " on " + key + " in " + frame.drawn()));
+    }
+
+    private List<String> postConversionKeys() {
+        return draft.sectionEntries("_post_conversions").asList().stream()
+                .map(entry -> entry.getAsJsonObject().get("key").getAsString()).toList();
+    }
+
+    /**
+     * A mutator's and an iterator's ✗ marks the entry: the row still draws with a gold ↺ hinting Restore where the ✗
+     * stood and the section still holds the key; the ↺ restores the ✗; with the mark standing, the save path drops
+     * the entry (decision every-delete-marks-for-removal-and-a-gold-arrow-restores).
+     *
+     * @param key the mutator waxed in the left column, or the iterator #exposed in the right
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"waxed", "#exposed"})
+    void xMarksTheEntryAndTheArrowRestoresIt(String key) {
+        DrawnFrame list = frame();
+        DrawnFrame.Text cross = rowControl(list, key, "✗");
+        assertTrue(list.targets.click(cross.x() + 1, cross.y() + 1));
+        DrawnFrame marked = frame();
+        DrawnFrame.Text arrow = rowControl(marked, key, "↺");
+        assertEquals(cross.x(), arrow.x());
+        assertEquals(ButtonPainter.GOLD, arrow.color());
+        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Restore")),
+                marked.targets.hovered(arrow.x() + 1, arrow.y() + 1));
+        assertTrue(postConversionKeys().contains(key), postConversionKeys().toString());
+        assertTrue(marked.targets.click(arrow.x() + 1, arrow.y() + 1));
+        DrawnFrame restored = frame();
+        DrawnFrame.Text again = rowControl(restored, key, "✗");
+        assertEquals(ProcessesPane.RED, again.color());
+        assertTrue(restored.targets.click(again.x() + 1, again.y() + 1));
+        assertEquals(List.of("_post_conversions\n" + key), draft.removals().marked(RemovalMarks.Tab.MUTATORS));
+        pane.applyRemovals();
+        assertFalse(postConversionKeys().contains(key), postConversionKeys().toString());
     }
 
     // The row's name, drawn before any chain link naming it.

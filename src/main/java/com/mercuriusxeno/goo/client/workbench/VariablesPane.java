@@ -79,9 +79,6 @@ final class VariablesPane {
     // The operator's ruling: the pencil's tooltip reads Rename and the x's Delete, one word each.
     private static final String RENAME_HINT = "Rename";
     private static final String DELETE_HINT = "Delete";
-    private static final String RESTORE_HINT = "Restore";
-    // A strike through a marked name stands at the glyphs' middle.
-    private static final int STRIKE_DROP = 4;
     private static final int PENCIL_GAP = 3;
     private static final String CANCEL = "Cancel";
     private static final String USED_BY = "Used by ";
@@ -346,7 +343,7 @@ final class VariablesPane {
         if (renamingThis) {
             rename.setPosition(x, y - HALF);
         } else {
-            drawName(graphics, font, block.name(), x, y);
+            ButtonPainter.drawEntryName(graphics, font, block.name(), x, y, isMarked(block.name()));
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
             ButtonPainter.draw(graphics, font, RENAME, x + font.width(block.name()) + PENCIL_GAP,
                     y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
@@ -364,27 +361,14 @@ final class VariablesPane {
         return usedByHeight;
     }
 
-    // A marked prefab's name reads dimmed and struck through, so the operator sees what the save removes.
-    // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
-    private void drawName(GuiGraphicsExtractor graphics, Font font, String name, int x, int y) {
-        if (!isMarked(name)) {
-            graphics.text(font, name, x, y, WHITE);
-            return;
-        }
-        graphics.text(font, name, x, y, GRAY);
-        graphics.fill(x, y + STRIKE_DROP, x + font.width(name), y + STRIKE_DROP + 1, GRAY);
-    }
-
     // The red x at the row's right end marks the prefab; a marked prefab's gold arrow in its place restores it.
     // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
     private void drawRemoval(GuiGraphicsExtractor graphics, Font font, String name, int right, int y,
                              ClickTargets targets) {
         int top = y - ButtonPainter.TEXT_NUDGE;
         if (isMarked(name)) {
-            ButtonPainter.drawColored(graphics, font, ButtonPainter.RESTORE, ButtonPainter.GOLD,
-                    right - ButtonPainter.width(font, ButtonPainter.RESTORE), top, ButtonPainter.HEIGHT, targets,
-                    () -> draft.removals().restore(RemovalMarks.Tab.PREFABS, name),
-                    BuilderOverlays.hintKey(RESTORE_HINT));
+            ButtonPainter.drawRestore(graphics, font, right, top, ButtonPainter.HEIGHT, targets,
+                    () -> draft.removals().restore(RemovalMarks.Tab.PREFABS, name));
             return;
         }
         ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), top,
