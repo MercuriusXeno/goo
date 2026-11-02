@@ -95,8 +95,9 @@ class VariablesPaneTest {
     }
 
     /**
-     * Consecutive prefabs stand one tighter pitch apart; it was 39 pixels for a number prefab used nowhere
-     * (decision prefab-lines-tighten-their-padding).
+     * Consecutive prefabs stand one tighter pitch apart; it was 39 pixels for a number prefab used nowhere before its
+     * value took a line of its own (decisions prefab-lines-tighten-their-padding,
+     * prefab-head-is-name-type-used-by-and-x-on-one-line).
      */
     @Test
     void prefabRowsTakeTheTighterPitch() {
@@ -105,7 +106,7 @@ class VariablesPaneTest {
         List<Integer> tops = frame.topsOf(List.of("prefab0", "prefab1"));
         int pitch = tops.get(1) - tops.get(0);
         assertEquals(VariablesPane.UNUSED_PREFAB_PITCH, pitch);
-        assertTrue(pitch < 39, "the pitch was 39 before");
+        assertTrue(pitch - ExpressionLines.TEXT_LINE_HEIGHT < 39, "the pitch was 39 before the value's line");
     }
 
     /**
@@ -289,7 +290,10 @@ class VariablesPaneTest {
 
     // A Prefabs pane over the twelve prefabs model() names, built fresh with no draw yet.
     private static VariablesPane twelvePrefabs(VariablesTab prefabs, ManagerDraft draft) {
-        ManagerActions actions = mock(ManagerActions.class);
+        return twelvePrefabs(prefabs, draft, mock(ManagerActions.class));
+    }
+
+    private static VariablesPane twelvePrefabs(VariablesTab prefabs, ManagerDraft draft, ManagerActions actions) {
         when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
         ItemIcons icons = mock(ItemIcons.class);
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
@@ -387,17 +391,19 @@ class VariablesPaneTest {
     }
 
     /**
-     * A scalar prefab's head reads = before its number, and its pencil opens the rename box in the name's place.
+     * A scalar prefab's head reads =, its number on the value line below, and its pencil opens the rename box in the
+     * name's place (decision prefab-head-is-name-type-used-by-and-x-on-one-line).
      */
     @Test
-    void scalarHeadReadsEqualsBeforeItsNumberAndThePencilRenames() {
+    void scalarHeadReadsEqualsWithItsNumberBelowAndThePencilRenames() {
         VariablesPane read = readByEgg(mock(ManagerActions.class));
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         DrawnFrame.Text equals = frame.find("=");
         DrawnFrame.Text number = frame.drawn().stream().filter(text -> text.text().equals("8")
-                && text.y() == equals.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-        assertTrue(equals.x() < number.x(), equals + " before " + number);
+                && text.color() == 0xFF80E080).findFirst().orElseThrow(() -> new AssertionError(frame.drawn()
+                .toString()));
+        assertTrue(number.y() > equals.y(), number + " below " + equals);
         assertFalse(frame.texts().stream().anyMatch(text -> text.toLowerCase(java.util.Locale.ROOT)
                 .contains("scalar")), frame.texts().toString());
         frame.click("✎");
@@ -407,32 +413,342 @@ class VariablesPaneTest {
         assertFalse(renaming.texts().contains("✎"), renaming.texts().toString());
     }
 
+    private static final String READ_PREFABS = """
+            {"path": "base_values.json", "members": [
+              {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null},
+                {"key": "plank", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood / 4\\"", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}],
+               "leading": null, "trailing": null, "closingGap": null}]}
+            """;
+    // wood is named by the stick directly, by the prefab plank and by the group logs, and its cascade reaches the
+    // terminus item cake, which no expression of its own names wood.
+    private static final String WOOD_READ = """
+            "name": "wood", "kind": "scalar", "value": "8", "error": null,
+            "direct": ["minecraft:stick"], "usedBy": ["minecraft:stick", "minecraft:cake"],
+            "readers": [{"id": "plank", "kind": "constant"}, {"id": "#logs", "kind": "group"},
+                        {"id": "minecraft:stick", "kind": "item"}]""";
+    private static final String READ_EVALUATED = """
+            {"constants": [{%s},
+              {"name": "plank", "kind": "scalar", "value": "2", "error": null, "direct": [], "usedBy": [],
+               "readers": []}]}
+            """.formatted(WOOD_READ);
+
+    // A Prefabs pane over wood and plank, every hover request answered at once with wood's card.
+    private static VariablesPane woodReadByPlankAndLogs(ManagerActions actions) {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(READ_PREFABS);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated(READ_EVALUATED);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        org.mockito.Mockito.doAnswer(call -> {
+            if (call.<String>getArgument(0).equals(com.mercuriusxeno.goo.workbench.WorkbenchOperations
+                    .CONSTANT_HOVER)) {
+                call.<java.util.function.Consumer<String>>getArgument(2).accept("{" + WOOD_READ
+                        + ", \"expression\": \"8\"}");
+            }
+            return null;
+        }).when(actions).request(anyString(), anyString(), any());
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        return read;
+    }
+
+    private static DrawnFrame.Text linkText(DrawnFrame frame, String label) {
+        return frame.drawn().stream().filter(text -> text.text().equals(label) && text.color() == ButtonPainter.LINK)
+                .reduce((first, last) -> last).orElseThrow(() -> new AssertionError(label + " in "
+                        + frame.drawn()));
+    }
+
+    private static List<Integer> itemXs(DrawnFrame frame) {
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).item(any(), xs.capture(), anyInt());
+        return xs.getAllValues();
+    }
+
     /**
-     * Used by draws one run: the item naming the prefab itself first, then the terminus item the cascade reaches,
-     * each once, and no (indirectly) label (decision used-by-draws-the-terminus-items-alone, restated).
+     * wood's used-by run draws the stick's icon, then the prefab plank's chip and the group logs' chip in the link
+     * color, and the terminus item cake draws nowhere (decision
+     * used-by-lists-direct-items-and-links-to-prefabs-and-groups).
      */
     @Test
-    void usedByDrawsOneRunDirectItemsFirst() {
+    void usedByDrawsDirectItemsThenPrefabAndGroupLinks() {
+        VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        assertTrue(frame.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:stick")));
+        assertFalse(frame.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:cake")),
+                frame.targets.hoverKeys().toString());
+        assertEquals(1, itemXs(frame).size(), "one item icon, the stick's");
+        DrawnFrame.Text plank = linkText(frame, "plank");
+        DrawnFrame.Text logs = linkText(frame, "#logs");
+        assertTrue(itemXs(frame).getFirst() < plank.x(), "stick before plank");
+        assertTrue(plank.x() < logs.x(), plank + " before " + logs);
+        assertEquals(plank.y(), logs.y());
+    }
+
+    /**
+     * wood's hover card, opened from plank's $wood link, reads the same run: the stick, then plank's and logs' chips,
+     * and no cake (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
+     */
+    @Test
+    void hoverCardUsedByDrawsDirectItemsThenPrefabAndGroupLinks() {
+        VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
+        DrawnFrame.Text woodLink = linkText(list, "wood");
+        read.extract(new DrawnFrame().graphics, DrawnFrame.font(), TALL_VIEW, new ClickTargets(), woodLink.x() + 1,
+                woodLink.y() + 1);
+        DrawnFrame card = new DrawnFrame();
+        read.extract(card.graphics, DrawnFrame.font(), TALL_VIEW, card.targets, woodLink.x() + 1, woodLink.y() + 1);
+        assertEquals(2, card.texts().stream().filter("Used by "::equals).count(), card.texts().toString());
+        assertFalse(card.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:cake")));
+        assertEquals(2, itemXs(card).size(), "the stick on the block and on the card");
+        DrawnFrame.Text plank = linkText(card, "plank");
+        DrawnFrame.Text logs = linkText(card, "#logs");
+        assertTrue(itemXs(card).getLast() < plank.x(), "stick before plank on the card");
+        assertTrue(plank.x() < logs.x(), plank + " before " + logs);
+        assertTrue(plank.y() > woodLink.y(), "the card's chips draw on the card");
+    }
+
+    /**
+     * A shift + left click on plank's chip opens plank and on logs' chip opens the group logs; plank's chip hovers
+     * its value (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
+     */
+    @Test
+    void usedByLinksFollowOnShiftClickAndThePrefabChipHoversItsValue() {
+        ManagerActions actions = mock(ManagerActions.class);
+        VariablesPane read = woodReadByPlankAndLogs(actions);
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text plank = linkText(frame, "plank");
+        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("plank")),
+                frame.targets.hovered(plank.x() + 1, plank.y() + 1));
+        assertTrue(frame.targets.click(plank.x() + 1, plank.y() + 1, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT,
+                org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT));
+        verify(actions).openVariable("plank");
+        DrawnFrame.Text logs = linkText(frame, "#logs");
+        assertTrue(frame.targets.click(logs.x() + 1, logs.y() + 1, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT,
+                org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT));
+        verify(actions).openGroup("logs");
+    }
+
+    /**
+     * A typed prefab's head holds its name, its kind, its used-by run and its ✗ on one line, and its resolved value
+     * draws on its own line below, above the read view (decision prefab-head-is-name-type-used-by-and-x-on-one-line).
+     */
+    @Test
+    void headHoldsNameKindUsedByAndXWithTheValueBelow() {
         ManagerDraft draft = new ManagerDraft();
-        draft.read(model());
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "{\\"leaf\\": 4}", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
         VariablesTab prefabs = new VariablesTab(draft);
         prefabs.readEvaluated("""
-                {"constants": [{"name": "prefab0", "kind": "scalar", "value": "8", "error": null,
-                                "direct": ["minecraft:egg"],
-                                "usedBy": ["minecraft:cake", "minecraft:egg"], "readers": []}]}
+                {"constants": [{"name": "wood", "kind": "tree", "tree": {"leaf": "4"}, "value": null,
+                                "error": null, "direct": ["minecraft:stick"], "usedBy": [], "readers": []}]}
                 """);
         ManagerActions actions = mock(ManagerActions.class);
-        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
         ItemIcons icons = mock(ItemIcons.class);
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
-        assertFalse(frame.texts().stream().anyMatch(text -> text.contains("indirectly")), frame.texts().toString());
-        assertEquals(1, frame.texts().stream().filter("Used by "::equals).count(), frame.texts().toString());
-        List<String> items = frame.targets.hoverKeys().stream().filter(key -> key.equals(ItemIcons.hoverKey(
-                "minecraft:egg")) || key.equals(ItemIcons.hoverKey("minecraft:cake"))).toList();
-        assertEquals(List.of(ItemIcons.hoverKey("minecraft:egg"), ItemIcons.hoverKey("minecraft:cake")), items);
+        int headY = frame.find("wood").y();
+        assertEquals(headY, frame.find("typed").y());
+        assertEquals(headY, frame.find("✗").y());
+        ArgumentCaptor<Integer> itemYs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics).item(any(), anyInt(), itemYs.capture());
+        int iconY = itemYs.getValue();
+        assertTrue(iconY <= headY && iconY + SPRITE >= headY + GAME_LINE_HEIGHT, "icon " + iconY + " head " + headY);
+        ArgumentCaptor<Integer> typeYs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).blit(any(), any(), anyInt(), typeYs.capture(), org.mockito.ArgumentMatchers
+                .anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        int resolvedY = typeYs.getAllValues().getFirst();
+        assertTrue(resolvedY > headY, "resolved " + resolvedY + " head " + headY);
+        int readViewY = fillTopsAt(frame, 0x30FFFFFF).getFirst();
+        assertTrue(readViewY > resolvedY, "read view " + readViewY + " resolved " + resolvedY);
+    }
+
+    private static List<Integer> fillTopsAt(DrawnFrame frame, int color) {
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(anyInt(), tops.capture(), anyInt(), anyInt(), eq(color));
+        return tops.getAllValues();
+    }
+
+    @org.junit.jupiter.api.Nested
+    class RemovalMarking {
+        private final ManagerActions actions = mock(ManagerActions.class);
+        private final ManagerDraft marked = new ManagerDraft();
+        private VariablesPane read;
+
+        @BeforeEach
+        void standTwelvePrefabs() {
+            marked.read(model());
+            read = twelvePrefabs(new VariablesTab(marked), marked, actions);
+        }
+
+        private DrawnFrame drawn(VariablesPane drawnPane) {
+            DrawnFrame frame = new DrawnFrame();
+            drawnPane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+            return frame;
+        }
+
+        private void verifyNoDelete(ManagerActions recorded) {
+            verify(recorded, never()).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
+                    anyString(), any());
+            verify(recorded, never()).stream(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
+                    anyString(), any(), any(), any());
+        }
+
+        /**
+         * Clicking a prefab's ✗ marks it: the block still draws, a gold ↺ hinting Restore stands where the ✗ stood,
+         * the draft reads unsaved and no delete request goes out (decision
+         * every-delete-marks-for-removal-and-a-gold-arrow-restores).
+         */
+        @Test
+        void xMarksThePrefabAndAGoldArrowStandsInItsPlace() {
+            DrawnFrame list = drawn(read);
+            DrawnFrame.Text cross = list.find("✗");
+            list.click("✗");
+            DrawnFrame after = drawn(read);
+            assertTrue(after.texts().contains("prefab" + (PREFABS - 1)), after.texts().toString());
+            DrawnFrame.Text arrow = after.drawn().stream().filter(text -> text.text().equals("↺")).findFirst()
+                    .orElseThrow(() -> new AssertionError(after.texts().toString()));
+            assertEquals(cross.x(), arrow.x());
+            assertEquals(cross.y(), arrow.y());
+            assertEquals(ButtonPainter.GOLD, arrow.color());
+            assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Restore")),
+                    after.targets.hovered(arrow.x() + 1, arrow.y() + 1));
+            verify(actions).markUnsaved();
+            verifyNoDelete(actions);
+        }
+
+        /**
+         * Clicking the ↺ of a marked prefab clears its mark: the ✗ stands again and the save path sends no delete
+         * (decision every-delete-marks-for-removal-and-a-gold-arrow-restores).
+         */
+        @Test
+        void arrowRestoresAndTheSaveRemovesNothing() {
+            drawn(read).click("✗");
+            drawn(read).click("↺");
+            DrawnFrame after = drawn(read);
+            assertEquals(PREFABS, after.texts().stream().filter("✗"::equals).count(), after.texts().toString());
+            assertTrue(marked.removals().marked(RemovalMarks.Tab.PREFABS).isEmpty());
+            Runnable write = mock(Runnable.class);
+            read.applyRemovals(write);
+            verify(write).run();
+            verifyNoDelete(actions);
+        }
+    }
+
+    /**
+     * A prefab with a cascade opens the confirm listing its readers; the confirm's Delete marks the prefab and sends
+     * nothing, and the save path then sends one delete naming it before the draft write (decision
+     * every-delete-marks-for-removal-and-a-gold-arrow-restores).
+     */
+    @Test
+    void confirmMarksAndTheSaveDeletesBeforeTheWrite() {
+        ManagerActions actions = mock(ManagerActions.class);
+        org.mockito.Mockito.doAnswer(call -> {
+            call.<java.util.function.Consumer<String>>getArgument(3).accept("""
+                    {"path": "base_values.json", "members": []}""");
+            return null;
+        }).when(actions).stream(anyString(), anyString(), any(), any(), any());
+        VariablesPane read = readByEgg(actions);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        list.click("✗");
+        DrawnFrame confirm = new DrawnFrame();
+        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        assertTrue(confirm.texts().contains("egg"), confirm.texts().toString());
+        confirm.click("Delete");
+        DrawnFrame after = new DrawnFrame();
+        read.extract(after.graphics, DrawnFrame.font(), VIEW, after.targets, 0, 0);
+        assertTrue(after.texts().contains("↺"), after.texts().toString());
+        verify(actions, never()).stream(anyString(), anyString(), any(), any(), any());
+        read.applyRemovals(() -> actions.request(com.mercuriusxeno.goo.workbench.WorkbenchOperations.SAVE_MODEL, "",
+                reply -> { }));
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(actions);
+        order.verify(actions).stream(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
+                org.mockito.ArgumentMatchers.contains("\"name\":\"base\""), any(), any(), any());
+        order.verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.SAVE_MODEL),
+                anyString(), any());
+    }
+
+    /**
+     * An open rename box takes a ✓ and a gold ↺ right of it on its row; ✓ sends the rename with the typed name, as
+     * Enter does, and ↺ closes the box leaving the name, as Escape does (decisions
+     * open-name-box-takes-a-done-checkmark, open-name-box-takes-a-gold-arrow-that-cancels).
+     */
+    @Test
+    void renameBoxTakesADoneCheckAndANevermindArrow() {
+        List<AbstractWidget> widgets = new java.util.ArrayList<>();
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(new VariablesTab(draft), draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        String last = "prefab" + (PREFABS - 1);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
+        list.click("✎");
+        DrawnFrame open = new DrawnFrame();
+        read.extract(open.graphics, DrawnFrame.font(), TALL_VIEW, open.targets, 0, 0);
+        EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(each -> each.visible && last.equals(each.getValue())).findFirst().orElseThrow();
+        assertNameBoxButtons(open, box);
+        box.setValue("renamed");
+        open.click("✓");
+        verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.RENAME_CONSTANT),
+                org.mockito.ArgumentMatchers.contains("\"to\":\"renamed\""), any());
+        DrawnFrame again = new DrawnFrame();
+        read.extract(again.graphics, DrawnFrame.font(), TALL_VIEW, again.targets, 0, 0);
+        again.click("✎");
+        DrawnFrame reopened = new DrawnFrame();
+        read.extract(reopened.graphics, DrawnFrame.font(), TALL_VIEW, reopened.targets, 0, 0);
+        box.setValue("other");
+        reopened.click("↺");
+        assertFalse(box.visible);
+        verify(actions, never()).request(anyString(), org.mockito.ArgumentMatchers.contains("other"), any());
+        DrawnFrame closed = new DrawnFrame();
+        read.extract(closed.graphics, DrawnFrame.font(), TALL_VIEW, closed.targets, 0, 0);
+        assertTrue(closed.texts().contains(last), closed.texts().toString());
+    }
+
+    /**
+     * A ✓ and a gold ↺ stand right of the open box on its row.
+     *
+     * @param frame the frame drawn with the box open
+     * @param box   the open box
+     */
+    static void assertNameBoxButtons(DrawnFrame frame, EditBox box) {
+        DrawnFrame.Text done = frame.find("✓");
+        DrawnFrame.Text arrow = frame.find("↺");
+        int boxRight = box.getX() + box.getWidth();
+        assertTrue(done.x() > boxRight && arrow.x() > boxRight, done + " " + arrow + " vs box right " + boxRight);
+        assertTrue(Math.abs(done.y() - box.getY()) < ExpressionLines.TEXT_LINE_HEIGHT, done + " vs box " + box.getY());
+        assertEquals(done.y(), arrow.y());
+        assertEquals(ButtonPainter.GOLD, arrow.color());
+        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Done")),
+                frame.targets.hovered(done.x() + 1, done.y() + 1));
+        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Nevermind")),
+                frame.targets.hovered(arrow.x() + 1, arrow.y() + 1));
     }
 
     // A Prefabs pane over one prefab, base, that the prefab egg reads.

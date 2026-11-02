@@ -30,9 +30,6 @@ public final class ProcessesTab {
     private static final String VALID_VERDICT = "Valid";
     private static final String INVALID_VERDICT = "Invalid";
     private static final String REFUSED_REASON = "the parser refuses it";
-    private static final String ENTRIES_SUFFIX = " entries";
-    private static final String REFUSED_START = ", ";
-    private static final String REFUSED_SUFFIX = " refused";
     private static final String NO_TEXT = "";
     private static final String GROUPS = "_groups";
     private static final String GROUP_MARK = "#";
@@ -76,10 +73,9 @@ public final class ProcessesTab {
      * One block.
      *
      * @param section _conversions or _post_conversions
-     * @param summary how many entries it holds and how many the parser refuses
      * @param rows    its entries in the order the parser applies them
      */
-    public record ProcessSection(String section, String summary, List<ProcessRow> rows) {
+    public record ProcessSection(String section, List<ProcessRow> rows) {
     }
 
     /**
@@ -116,10 +112,7 @@ public final class ProcessesTab {
             JsonObject section = element.getAsJsonObject();
             List<ProcessRow> rows = section.getAsJsonArray(PROCESSES).asList().stream()
                     .map(JsonElement::getAsJsonObject).map(ProcessesTab::rowOf).toList();
-            long refused = rows.stream().filter(row -> !row.parsed()).count();
-            String summary = rows.size() + ENTRIES_SUFFIX + (refused == 0 ? NO_TEXT : REFUSED_START + refused
-                    + REFUSED_SUFFIX);
-            sections.add(new ProcessSection(section.get(SECTION).getAsString(), summary, rows));
+            sections.add(new ProcessSection(section.get(SECTION).getAsString(), rows));
         }
     }
 
@@ -135,10 +128,10 @@ public final class ProcessesTab {
     }
 
     /**
-     * @return each block with the entries the search keeps, its summary counting them all
+     * @return each block with the entries the search keeps
      */
     public List<ProcessSection> sections() {
-        return sections.stream().map(section -> new ProcessSection(section.section(), section.summary(),
+        return sections.stream().map(section -> new ProcessSection(section.section(),
                 section.rows().stream().filter(row -> row.key().toLowerCase(Locale.ROOT).contains(searched))
                         .toList())).toList();
     }

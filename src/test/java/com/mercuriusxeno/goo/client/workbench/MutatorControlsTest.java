@@ -254,6 +254,58 @@ class MutatorControlsTest {
     }
 
     /**
+     * An iterator row draws its source and ratio on its first line and each chained mutator with its x on its own
+     * line below, every chain line at one indented x, the [+] right of the last link's x; two rows with equal chains
+     * take equal heights (decision each-chained-mutator-takes-its-own-indented-line).
+     */
+    @Nested
+    class ChainLines {
+        private static final String SECTION = "_post_conversions";
+        private final ProcessesTab processes = mock(ProcessesTab.class);
+        private final MutatorControls controls = new MutatorControls(processes,
+                new BuilderOverlays(mock(ManagerActions.class), null), mock(ManagerActions.class), () -> List.of("oak"),
+                () -> List.of("metal"), () -> { });
+        private int bottom;
+
+        ChainLines() {
+            when(processes.processNames(SECTION)).thenReturn(List.of("rust", "smelt", "melt"));
+            when(processes.groupNames()).thenReturn(List.of("ores"));
+        }
+
+        private DrawnFrame frame(String key, List<String> chain) {
+            when(processes.formOf(SECTION, key)).thenReturn(new Processes.Assignment("ores", 1, 1, chain));
+            DrawnFrame frame = new DrawnFrame();
+            bottom = controls.draw(frame.graphics, DrawnFrame.font(), SECTION, key,
+                    new GroupsPane.Bounds(0, 0, 590, 390), 0, frame.targets);
+            return frame;
+        }
+
+        @Test
+        void eachChainedMutatorTakesItsOwnIndentedLine() {
+            DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
+            DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#ores"));
+            DrawnFrame.Text smelt = frame.find("smelt");
+            DrawnFrame.Text melt = frame.find("melt");
+            assertEquals(smelt.x(), melt.x());
+            assertTrue(smelt.x() > source.x(), smelt + " vs " + source);
+            assertEquals(source.y() + ControlFlow.LINE, smelt.y(), smelt + " vs " + source);
+            assertEquals(smelt.y() + ControlFlow.LINE, melt.y(), melt + " vs " + smelt);
+            List<DrawnFrame.Text> removes = frame.drawn().stream().filter(text -> text.text().equals("x")).toList();
+            assertEquals(2, removes.size(), frame.drawn().toString());
+            assertEquals(smelt.y(), removes.get(0).y());
+            assertTrue(removes.get(0).x() > smelt.x());
+            assertEquals(melt.y(), removes.get(1).y());
+            assertTrue(removes.get(1).x() > melt.x());
+            DrawnFrame.Text plus = frame.find("+");
+            assertEquals(melt.y(), plus.y());
+            assertTrue(plus.x() > removes.get(1).x(), plus + " vs " + removes.get(1));
+            int firstHeight = bottom;
+            frame("#gems", List.of("@rust", "@melt"));
+            assertEquals(firstHeight, bottom, "two-link chains take equal heights");
+        }
+    }
+
+    /**
      * Every group, prefab and mutator name a row draws follows its ref on shift + left click, opens its dropdown on a
      * plain left click and underlines while shift is held
      * (decision diagnose-and-correct-mutator-references-that-do-not-link).

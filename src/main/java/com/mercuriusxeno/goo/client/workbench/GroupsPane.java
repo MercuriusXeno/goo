@@ -59,6 +59,7 @@ final class GroupsPane {
     private static final String SEARCH_HINT = "Search groups";
     // Decision group-detail-puts-plus-and-rename-beside-the-name.
     private static final String ADD_MEMBER = "+";
+    private static final String MEMBERS_LABEL = "Members";
     // The operator's ruling: rename is a pencil just past the name.
     private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename";
@@ -179,11 +180,7 @@ final class GroupsPane {
 
     private boolean nameKey(EditBox box, int key) {
         if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
-            if (renaming) {
-                renameGroup(box.getValue());
-            } else {
-                createGroup(box.getValue());
-            }
+            commitName(box.getValue());
             return true;
         }
         if (key == GLFW.GLFW_KEY_ESCAPE) {
@@ -270,9 +267,8 @@ final class GroupsPane {
         int boxWidth = Math.max(1, rowRight - left - buttonsWidth - BuilderOverlays.GAP);
         boolean namingNew = naming && !renaming && nameBox != null;
         if (namingNew) {
-            nameBox.setPosition(left, top + HALF);
-            nameBox.setWidth(boxWidth);
-            nameBox.visible = visible;
+            placeNameBox(graphics, font, nameBox, left, top, Math.max(1, boxWidth - NameBoxButtons.width(font)),
+                    targets);
         }
         if (search != null) {
             search.setPosition(left, top + HALF);
@@ -456,19 +452,18 @@ final class GroupsPane {
         String name = GroupsTab.rowRuns(new GroupsTab.GroupRow(group.name(), List.of(), 0), icons::nameOf).getFirst()
                 .text();
         int deleteWidth = ButtonPainter.width(font, DELETE);
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, detail.right() - deleteWidth, y, ROW_HEIGHT, targets,
-                () -> deleteGroup(group.name()), BuilderOverlays.hintKey(DELETE_HINT));
+        drawRemoval(graphics, font, detail.right(), y, group.name(), targets);
         int buttons = (group.tag() ? 0 : ButtonPainter.width(font, RENAME) + BuilderOverlays.GAP) + deleteWidth
                 + BuilderOverlays.GAP;
         int nameWidth = detail.right() - detail.left() - buttons;
         int x = detail.left();
         if (renaming && nameBox != null) {
-            nameBox.setPosition(x, y + HALF);
-            nameBox.setWidth(NAME_BOX_WIDTH);
-            nameBox.visible = visible;
+            int room = detail.right() - x - deleteWidth - BuilderOverlays.GAP - NameBoxButtons.width(font);
+            placeNameBox(graphics, font, nameBox, x, y, Math.max(1, Math.min(NAME_BOX_WIDTH, room)), targets);
             return;
         }
-        graphics.text(font, font.plainSubstrByWidth(name, nameWidth), x, y + TEXT_NUDGE, WHITE);
+        ButtonPainter.drawEntryName(graphics, font, font.plainSubstrByWidth(name, nameWidth), x, y + TEXT_NUDGE,
+                groups.removals().isMarked(RemovalMarks.Tab.GROUPS, group.name()));
         if (!group.tag()) {
             BuilderOverlays.control(graphics, font, RENAME, RENAME_HINT, x + Math.min(nameWidth, font.width(name))
                     + BuilderOverlays.GAP, y, targets, at -> startRenaming(name));
@@ -476,15 +471,18 @@ final class GroupsPane {
     }
 
     // The operator's ruling: the [+] adding a member stands right above the member list, below the value, so its
-    // place says what it adds to. Answers the y below it, the top unchanged for a tag.
+    // place says what it adds to; Members heads the list left of it, alone for a tag, which takes no [+]. Answers
+    // the y below the row.
+    // Decision members-labels-the-group-member-list.
     private int drawAddMember(GuiGraphicsExtractor graphics, Font font, Bounds detail, GroupsTab.Group group, int top,
                               ClickTargets targets) {
-        if (group.tag()) {
-            return top;
+        graphics.text(font, MEMBERS_LABEL, detail.left(), top + TEXT_NUDGE, GRAY);
+        if (!group.tag()) {
+            BuilderOverlays.control(graphics, font, ADD_MEMBER, null,
+                    detail.left() + font.width(MEMBERS_LABEL) + BuilderOverlays.GAP, top, targets,
+                    at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
+                            choice -> apply(groups.addPickRequest(choice.id()))));
         }
-        BuilderOverlays.control(graphics, font, ADD_MEMBER, null, detail.left(), top, targets,
-                at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
-                        choice -> apply(groups.addPickRequest(choice.id()))));
         return top + ROW_HEIGHT;
     }
 
@@ -609,6 +607,27 @@ final class GroupsPane {
         return count < 1 ? Optional.empty() : Optional.of(count);
     }
 
+    // The open name box, naming a new group or renaming the selected one, with its ✓ and ↺ right of it, which run what
+    // Enter and Escape run.
+    // Decision open-name-box-takes-a-done-checkmark.
+    // Decision open-name-box-takes-a-gold-arrow-that-cancels.
+    private void placeNameBox(GuiGraphicsExtractor graphics, Font font, EditBox box, int x, int rowTop, int width,
+                              ClickTargets targets) {
+        box.setPosition(x, rowTop + HALF);
+        box.setWidth(width);
+        box.visible = visible;
+        NameBoxButtons.draw(graphics, font, x + width, rowTop, ROW_HEIGHT, targets, () -> commitName(box.getValue()),
+                this::stopNaming);
+    }
+
+    private void commitName(String typed) {
+        if (renaming) {
+            renameGroup(typed);
+        } else {
+            createGroup(typed);
+        }
+    }
+
     private void startRenaming(String name) {
         startNaming();
         renaming = true;
@@ -617,14 +636,37 @@ final class GroupsPane {
         }
     }
 
-    // Decision group-detail-puts-plus-and-rename-beside-the-name: the draft takes the new name and every tab reads it.
-    private void deleteGroup(String name) {
+    // The red x at the head's right end marks the group; a marked group's gold arrow in its place restores it.
+    // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+    private void drawRemoval(GuiGraphicsExtractor graphics, Font font, int right, int y, String name,
+                             ClickTargets targets) {
+        if (groups.removals().isMarked(RemovalMarks.Tab.GROUPS, name)) {
+            ButtonPainter.drawRestore(graphics, font, right, y, ROW_HEIGHT, targets,
+                    () -> groups.removals().restore(RemovalMarks.Tab.GROUPS, name));
+            return;
+        }
+        ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), y,
+                ROW_HEIGHT, targets, () -> markGroup(name), BuilderOverlays.hintKey(DELETE_HINT));
+    }
+
+    /**
+     * Deletes every marked group from the draft, as the save does before it writes the draft.
+     * Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+     */
+    void applyRemovals() {
+        for (String name : groups.removals().marked(RemovalMarks.Tab.GROUPS)) {
+            if (groups.deleteGroup(name)) {
+                detailBar.reset();
+            }
+            groups.removals().restore(RemovalMarks.Tab.GROUPS, name);
+        }
+    }
+
+    private void markGroup(String name) {
         closeBuilder();
         stopNaming();
-        if (groups.deleteGroup(name)) {
-            detailBar.reset();
-            actions.draftChanged();
-        }
+        groups.removals().mark(RemovalMarks.Tab.GROUPS, name);
+        actions.markUnsaved();
     }
 
     private void renameGroup(String typed) {

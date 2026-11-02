@@ -331,6 +331,13 @@ public final class GroupsTab {
     }
 
     /**
+     * @return the entries every tab marked for the next save to remove
+     */
+    RemovalMarks removals() {
+        return draft.removals();
+    }
+
+    /**
      * Deletes a group from the draft: its _groups entry and its #name value, dropping the selection where it held
      * the group (decision rename-is-a-pencil-and-delete-a-red-x-everywhere). References to #name elsewhere stay, as
      * a deleted mutator's do, and read as unknown until rewritten.
