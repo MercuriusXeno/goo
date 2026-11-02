@@ -73,6 +73,8 @@ final class GroupsPane {
     private static final String TAG_WORD = "tag";
     private static final String MEMBERS_COLON = "Members:";
     private static final String USED_BY = "Used by ";
+    // A key suffix no group name spells, so a card's Used by line expands apart from its Members line.
+    private static final String REFERENTS_KEY = ":usedBy";
     // Decision detail-is-members-plus-or-tag-members-with-the-tag-id.
     private static final String TAG_MEMBERS_LABEL = "Tag members";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
@@ -323,9 +325,10 @@ final class GroupsPane {
         boolean buildingHere = target.equals(building) && builder.isOpen();
         List<ExpressionLines.Run> runs = GroupsTab.rowRuns(card.row(), icons::nameOf);
         MembersLine members = layMembers(font, card.row(), runs.subList(1, runs.size()), area);
-        List<String> referents = groups.referents(card.row().name());
+        ReferentsLine referents = layReferents(font, card.row().name(), groups.referents(card.row().name()),
+                area.left() + ControlFlow.INDENT, area.right());
         int usedByTop = area.top() + ROW_HEIGHT + members.height();
-        int valueTop = usedByTop + (referents.isEmpty() ? 0 : ROW_HEIGHT);
+        int valueTop = usedByTop + referents.height();
         Bounds body = new Bounds(area.left() + ControlFlow.INDENT, valueTop, area.right(), area.bottom());
         List<ExpressionLines.Run> value = valueRuns(card.base(), NO_WORTH);
         int readHeight = buildingHere ? 0 : ExpressionLines.height(font, value, body.right() - body.left());
@@ -413,20 +416,60 @@ final class GroupsPane {
         return new MembersLine(area, members, itemsX, fit, end, perRow, expanded);
     }
 
+    /**
+     * Where a card's Used by line lays its iterator links.
+     *
+     * @param referents the iterators sourcing the group
+     * @param itemsX    the first link's x, past the label
+     * @param fit       how many links show and whether ..+n follows
+     * @param slots     each shown link's slot, then the end button's
+     * @param endLabel  ..+n, Hide, or none where every link fits
+     * @param key       the line's key among the expanded lists
+     */
+    private record ReferentsLine(List<String> referents, int itemsX, UsedByLine.Fit fit, List<UsedByLine.Slot> slots,
+                                 Optional<String> endLabel, String key) {
+        int height() {
+            return referents.isEmpty() ? 0 : (UsedByLine.lastRow(slots, endLabel.isPresent()) + 1) * ROW_HEIGHT;
+        }
+    }
+
+    // The links that fit the line, then ..+n counting the rest, as every used-by line cuts short; an expanded line
+    // flows onto as many rows as it needs and ends on Hide (decisions
+    // diagnose-and-correct-group-referents-without-the-ellipsis, more-button-reads-dot-dot-plus-n).
+    private ReferentsLine layReferents(Font font, String name, List<String> referents, int left, int right) {
+        int itemsX = left + font.width(USED_BY);
+        int room = right - itemsX;
+        String key = name + REFERENTS_KEY;
+        List<Integer> widths = referents.stream().map(iterator -> ButtonPainter.width(font, iterator)).toList();
+        boolean expanded = expandedRows.expanded(key);
+        UsedByLine.Fit fit = expanded ? UsedByLine.expanded(referents.size())
+                : UsedByLine.fitSlots(widths, ICON_GAP, room,
+                        hidden -> ButtonPainter.width(font, UsedByLine.moreLabel(hidden)));
+        Optional<String> endLabel = UsedByLine.endLabel(fit, expanded);
+        List<UsedByLine.Slot> slots = UsedByLine.flow(widths.subList(0, fit.shown()), ICON_GAP, room,
+                endLabel.map(label -> ButtonPainter.width(font, label)).orElse(0));
+        return new ReferentsLine(referents, itemsX, fit, slots, endLabel, key);
+    }
+
     // "Used by" then a link to each iterator whose source is the group, which a shift + left click follows to its
     // row on the Conversions pane; nothing draws for a group nothing iterates.
     // Decision group-card-lists-its-referents-as-iterator-links.
-    private void drawReferents(GuiGraphicsExtractor graphics, Font font, List<String> referents, int left, int top,
+    private void drawReferents(GuiGraphicsExtractor graphics, Font font, ReferentsLine line, int left, int top,
                                ClickTargets targets) {
-        if (referents.isEmpty()) {
+        if (line.referents().isEmpty()) {
             return;
         }
         graphics.text(font, USED_BY, left, top + TEXT_NUDGE, GRAY);
-        int x = left + font.width(USED_BY);
-        for (String iterator : referents) {
-            x = ButtonPainter.drawFollow(graphics, font, iterator, x, top, ROW_HEIGHT, targets,
-                    () -> actions.openMutator(iterator), null).right() + ICON_GAP;
+        for (int index = 0; index < line.fit().shown(); index++) {
+            String iterator = line.referents().get(index);
+            UsedByLine.Slot slot = line.slots().get(index);
+            ButtonPainter.drawFollow(graphics, font, iterator, line.itemsX() + slot.x(),
+                    top + slot.row() * ROW_HEIGHT, ROW_HEIGHT, targets, () -> actions.openMutator(iterator), null);
         }
+        UsedByLine.Slot end = line.slots().getLast();
+        boolean expanded = expandedRows.expanded(line.key());
+        line.endLabel().ifPresent(label -> ButtonPainter.draw(graphics, font, label, line.itemsX() + end.x(),
+                top + end.row() * ROW_HEIGHT, ROW_HEIGHT, targets, () -> toggle(line.key(), expanded)));
     }
 
     // Line 2: "Members:" then the member icons named on hover, ending on ..+n or Hide (decisions
