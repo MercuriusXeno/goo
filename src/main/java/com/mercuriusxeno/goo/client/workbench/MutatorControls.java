@@ -35,7 +35,11 @@ final class MutatorControls {
     private static final String ADDITIVE = "additive";
     private static final String STACK = "stack";
     private static final String SOURCE_SHARE = "1";
-    private static final String BECOMES = "becomes";
+    /** What an iterator's name line reads after its name (decision iterator-reads-loops-over-and-applies-then-its-chain). */
+    static final String LOOPS_OVER = "loops over";
+    private static final String AND_APPLIES = "and applies";
+    // Decision mutator-body-indents-under-its-name-line: the arrow in place of the word becomes.
+    private static final String ARROW = "=>";
     private static final String TIMES_MARK = "x";
     private static final String NOTHING = "nothing";
     private static final String PLUS = "+";
@@ -89,7 +93,12 @@ final class MutatorControls {
     int draw(GuiGraphicsExtractor graphics, Font font, String section, String key, GroupsPane.Bounds area, int top,
              ClickTargets targets) {
         ControlFlow flow = new ControlFlow(graphics, font, targets, null, area.left(), area.right(), top);
-        drawForm(new Entry(flow, section, key), processes.formOf(section, key), ProcessesTab.isIterator(key));
+        boolean iterator = ProcessesTab.isIterator(key);
+        // Decision mutator-body-indents-under-its-name-line.
+        if (!iterator) {
+            flow.indent();
+        }
+        drawForm(new Entry(flow, section, key), processes.formOf(section, key), iterator);
         return flow.bottom();
     }
 
@@ -187,7 +196,7 @@ final class MutatorControls {
         flow.text(RATIO, GRAY);
         divisorControl(flow, formula.sourceDivisor(), null,
                 divisor -> processes.setFormulaDivisor(section, key, divisor));
-        flow.text(BECOMES, GRAY);
+        flow.text(ARROW, GRAY);
         Consumer<BuilderOverlays.Anchor> pickTarget = at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaTarget(section, key, type)),
                 () -> edit(() -> processes.setFormulaTarget(section, key, NOTHING_TARGET)));
@@ -221,17 +230,15 @@ final class MutatorControls {
                 count -> processes.setStackCount(entry.section(), entry.key(), count));
     }
 
+    // "[source] and applies" one indent in under the name line, which reads "loops over", then the chain a second
+    // indent in; the row draws no ratio.
+    // Decision iterator-reads-loops-over-and-applies-then-its-chain.
+    // Decision iterator-drops-its-ratio-from-row-and-grammar.
     private void drawAssignment(Entry entry, Processes.Assignment assignment) {
         ControlFlow flow = entry.flow();
-        String section = entry.section();
-        String key = entry.key();
+        flow.indent();
         drawSource(entry, assignment.source());
-        // Decision factor-reads-as-a-ratio: "times 1 over 1" reads "1:1", each number its own box.
-        numberControl(flow, assignment.multiplier(), null, multiplier -> processes.setAssignmentScale(
-                section, key, multiplier, assignment.divisor()));
-        flow.text(RATIO, GRAY);
-        divisorControl(flow, assignment.divisor(), null, divisor -> processes.setAssignmentScale(section,
-                key, assignment.multiplier(), divisor));
+        flow.text(AND_APPLIES, GRAY);
         drawChain(entry, assignment.chain());
     }
 
@@ -285,7 +292,7 @@ final class MutatorControls {
         List<String> groups = processes.groupNames();
         if (assignment && !groups.isEmpty()) {
             flow.control(START_OVER, null, at -> write(entry,
-                    new Processes.Assignment(groups.getFirst(), 1, 1, List.of())));
+                    new Processes.Assignment(groups.getFirst(), List.of())));
         }
     }
 

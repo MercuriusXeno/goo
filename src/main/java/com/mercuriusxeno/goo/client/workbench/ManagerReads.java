@@ -59,6 +59,8 @@ final class ManagerReads {
         variables.applyRemovals(() -> {
             groups.applyRemovals();
             processes.applyRemovals();
+            // Decision items-row-is-one-line-then-its-expression-inline: a marked Items entry drops with the rest.
+            values.applyRemovals();
             actions.request(WorkbenchOperations.SAVE_MODEL, values.postedText(), reply -> {
                 values.readModel(reply);
                 readAfresh();

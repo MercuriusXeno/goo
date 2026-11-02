@@ -95,9 +95,8 @@ class VariablesPaneTest {
     }
 
     /**
-     * Consecutive prefabs stand one tighter pitch apart; it was 39 pixels for a number prefab used nowhere before its
-     * value took a line of its own (decisions prefab-lines-tighten-their-padding,
-     * prefab-head-is-name-type-used-by-and-x-on-one-line).
+     * Consecutive prefabs stand one tighter pitch apart; it was 39 pixels for a number prefab used nowhere (decisions
+     * prefab-lines-tighten-their-padding, prefab-head-is-name-pencil-and-value-then-used-by).
      */
     @Test
     void prefabRowsTakeTheTighterPitch() {
@@ -107,30 +106,6 @@ class VariablesPaneTest {
         int pitch = tops.get(1) - tops.get(0);
         assertEquals(VariablesPane.UNUSED_PREFAB_PITCH, pitch);
         assertTrue(pitch - ExpressionLines.TEXT_LINE_HEIGHT < 39, "the pitch was 39 before the value's line");
-    }
-
-    /**
-     * A prefab with type values names its kind typed, and tree draws nowhere on the tab (decision
-     * type-valued-prefabs-read-typed).
-     */
-    @Test
-    void typeValuedPrefabReadsTyped() {
-        ManagerDraft draft = new ManagerDraft();
-        draft.read("""
-                {"path": "base_values.json", "members": [
-                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
-                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "{\\"leaf\\": 4}", "entries": [],
-                     "leading": null, "trailing": null, "closingGap": null}],
-                   "leading": null, "trailing": null, "closingGap": null}]}
-                """);
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        VariablesPane typed = new VariablesPane(new VariablesTab(draft), draft, icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
-        DrawnFrame frame = new DrawnFrame();
-        typed.extract(frame.graphics, font, VIEW, frame.targets, 0, 0);
-        assertTrue(frame.texts().contains("typed"), frame.texts().toString());
-        assertFalse(frame.texts().contains("tree"), frame.texts().toString());
     }
 
     /**
@@ -325,7 +300,7 @@ class VariablesPaneTest {
      */
     @Test
     void jumpCentersTheEditedBlockInTheList() {
-        int target = 8;
+        int target = 6;
         List<Integer> tops = blockTopsEditing("prefab" + target);
         DrawnFrame before = new DrawnFrame();
         pane.extract(before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
@@ -347,10 +322,11 @@ class VariablesPaneTest {
     void jumpToABlockTallerThanTheListShowsItFromItsTop() {
         int target = 5;
         List<Integer> tops = blockTopsEditing("prefab" + target);
-        draw();
+        GroupsPane.Bounds shortView = new GroupsPane.Bounds(0, 20, 400, 80);
+        pane.extract(graphics, font, shortView, new ClickTargets(), 0, 0);
         pane.jumpTo("prefab" + target);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        pane.extract(frame.graphics, DrawnFrame.font(), shortView, frame.targets, 0, 0);
         int[] list = frame.firstScissor();
         assertTrue(tops.get(target + 1) - tops.get(target) > list[3] - list[1], "the edited block fits the list");
         assertEquals(tops.get(target), pane.listBar().offset());
@@ -391,19 +367,26 @@ class VariablesPaneTest {
     }
 
     /**
-     * A scalar prefab's head reads =, its number on the value line below, and its pencil opens the rename box in the
-     * name's place (decision prefab-head-is-name-type-used-by-and-x-on-one-line).
+     * A scalar prefab's head reads its name, ✎, = and its number at one y in that order, its Used by run on the line
+     * below, and its pencil opens the rename box in the name's place (decision
+     * prefab-head-is-name-pencil-and-value-then-used-by).
      */
     @Test
-    void scalarHeadReadsEqualsWithItsNumberBelowAndThePencilRenames() {
+    void scalarHeadReadsNamePencilEqualsAndNumberWithUsedByBelow() {
         VariablesPane read = readByEgg(mock(ManagerActions.class));
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text name = frame.find("base");
+        DrawnFrame.Text pencil = frame.find("✎");
         DrawnFrame.Text equals = frame.find("=");
-        DrawnFrame.Text number = frame.drawn().stream().filter(text -> text.text().equals("8")
-                && text.color() == 0xFF80E080).findFirst().orElseThrow(() -> new AssertionError(frame.drawn()
-                .toString()));
-        assertTrue(number.y() > equals.y(), number + " below " + equals);
+        DrawnFrame.Text number = greenText(frame, "8");
+        DrawnFrame.Text cross = frame.find("✗");
+        assertEquals(List.of(name.y(), name.y(), name.y(), name.y()),
+                List.of(pencil.y(), equals.y(), number.y(), cross.y()), frame.drawn().toString());
+        assertTrue(name.x() < pencil.x() && pencil.x() < equals.x() && equals.x() < number.x()
+                && number.x() < cross.x(), frame.drawn().toString());
+        DrawnFrame.Text usedBy = frame.find("Used by ");
+        assertTrue(usedBy.y() > name.y(), usedBy + " below " + name);
         assertFalse(frame.texts().stream().anyMatch(text -> text.toLowerCase(java.util.Locale.ROOT)
                 .contains("scalar")), frame.texts().toString());
         frame.click("✎");
@@ -538,11 +521,12 @@ class VariablesPaneTest {
     }
 
     /**
-     * A typed prefab's head holds its name, its kind, its used-by run and its ✗ on one line, and its resolved value
-     * draws on its own line below, above the read view (decision prefab-head-is-name-type-used-by-and-x-on-one-line).
+     * A typed prefab's head reads its name, ✎, = and its type value, the type's icon then its amount, at one y with
+     * the ✗ at the line's right end and no "typed" drawn; its Used by run draws on the line below, above the read
+     * view (decision prefab-head-is-name-pencil-and-value-then-used-by).
      */
     @Test
-    void headHoldsNameKindUsedByAndXWithTheValueBelow() {
+    void typedHeadReadsNamePencilEqualsAndTypeValueWithUsedByBelow() {
         ManagerDraft draft = new ManagerDraft();
         draft.read("""
                 {"path": "base_values.json", "members": [
@@ -562,20 +546,36 @@ class VariablesPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
-        int headY = frame.find("wood").y();
-        assertEquals(headY, frame.find("typed").y());
-        assertEquals(headY, frame.find("✗").y());
+        DrawnFrame.Text name = frame.find("wood");
+        DrawnFrame.Text pencil = frame.find("✎");
+        // The head's =, ahead of the read view's own type row head.
+        DrawnFrame.Text equals = frame.drawn().stream().filter(text -> text.text().equals("=")).findFirst()
+                .orElseThrow();
+        DrawnFrame.Text amount = greenText(frame, "4");
+        DrawnFrame.Text cross = frame.find("✗");
+        assertEquals(List.of(name.y(), name.y(), name.y(), name.y()),
+                List.of(pencil.y(), equals.y(), amount.y(), cross.y()), frame.drawn().toString());
+        ArgumentCaptor<Integer> typeXs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).blit(any(), any(), typeXs.capture(), anyInt(), org.mockito.ArgumentMatchers
+                .anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        int typeX = typeXs.getAllValues().getFirst();
+        assertTrue(name.x() < pencil.x() && pencil.x() < equals.x() && equals.x() < typeX && typeX < amount.x()
+                && amount.x() < cross.x(), frame.drawn() + " type at " + typeX);
+        int listRight = TALL_VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        assertEquals(listRight - 6 - ButtonPainter.PADDING, cross.x());
+        assertFalse(frame.texts().contains("typed"), frame.texts().toString());
+        DrawnFrame.Text usedBy = frame.find("Used by ");
+        assertTrue(usedBy.y() > name.y(), usedBy + " below " + name);
         ArgumentCaptor<Integer> itemYs = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics).item(any(), anyInt(), itemYs.capture());
-        int iconY = itemYs.getValue();
-        assertTrue(iconY <= headY && iconY + SPRITE >= headY + GAME_LINE_HEIGHT, "icon " + iconY + " head " + headY);
-        ArgumentCaptor<Integer> typeYs = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, atLeastOnce()).blit(any(), any(), anyInt(), typeYs.capture(), org.mockito.ArgumentMatchers
-                .anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
-        int resolvedY = typeYs.getAllValues().getFirst();
-        assertTrue(resolvedY > headY, "resolved " + resolvedY + " head " + headY);
+        assertTrue(itemYs.getValue() > name.y(), "the stick's icon " + itemYs.getValue() + " head " + name.y());
         int readViewY = fillTopsAt(frame, 0x30FFFFFF).getFirst();
-        assertTrue(readViewY > resolvedY, "read view " + readViewY + " resolved " + resolvedY);
+        assertTrue(readViewY > usedBy.y(), "read view " + readViewY + " used by " + usedBy.y());
+    }
+
+    private static DrawnFrame.Text greenText(DrawnFrame frame, String label) {
+        return frame.drawn().stream().filter(text -> text.text().equals(label) && text.color() == 0xFF80E080)
+                .findFirst().orElseThrow(() -> new AssertionError(label + " in " + frame.drawn()));
     }
 
     private static List<Integer> fillTopsAt(DrawnFrame frame, int color) {

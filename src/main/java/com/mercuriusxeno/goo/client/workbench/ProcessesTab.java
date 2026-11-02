@@ -72,7 +72,7 @@ public final class ProcessesTab {
     /**
      * One block.
      *
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param rows    its entries in the order the parser applies them
      */
     public record ProcessSection(String section, List<ProcessRow> rows) {
@@ -161,7 +161,7 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the formula's key
      * @param type    the goo type it converts from
      */
@@ -171,7 +171,7 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the formula's key
      * @param divisor the source type's divisor
      */
@@ -181,7 +181,7 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the formula's key
      * @param type    the goo type it converts into, or "0" for nothing
      */
@@ -193,7 +193,7 @@ public final class ProcessesTab {
     /**
      * Decision mutator-sentences-read-in-symbols: the target's ratio holds a multiplier and a divisor.
      *
-     * @param section    _conversions or _post_conversions
+     * @param section    _conversions
      * @param key        the formula's key
      * @param multiplier the target's multiplier
      * @param divisor    the target's divisor
@@ -204,7 +204,7 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the additive's key
      * @param prefab  the tree prefab whose value it adds
      */
@@ -213,7 +213,7 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @return the keys of the block's processes a stack or a chain names, in order, the assignments left out
      */
     public List<String> processNames(String section) {
@@ -222,7 +222,7 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the stack's key
      * @param formula the formula it applies
      */
@@ -232,7 +232,7 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the stack's key
      * @param count   how many times the formula applies
      */
@@ -250,26 +250,16 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the assignment's key, its target group
      * @param group   the group whose values it copies
      */
     public void setAssignmentSource(String section, String key, String group) {
-        changeAssignment(section, key, a -> new Processes.Assignment(group, a.multiplier(), a.divisor(), a.chain()));
+        changeAssignment(section, key, a -> new Processes.Assignment(group, a.chain()));
     }
 
     /**
-     * @param section    _conversions or _post_conversions
-     * @param key        the assignment's key
-     * @param multiplier the scale's multiplier, 1 for none
-     * @param divisor    the scale's divisor, 1 for none
-     */
-    public void setAssignmentScale(String section, String key, int multiplier, int divisor) {
-        changeAssignment(section, key, a -> new Processes.Assignment(a.source(), multiplier, divisor, a.chain()));
-    }
-
-    /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the assignment's key
      * @param link    a stack as "@name" or an additive as "+$name", applied after the chain's last
      */
@@ -277,12 +267,12 @@ public final class ProcessesTab {
         changeAssignment(section, key, a -> {
             List<String> chain = new ArrayList<>(a.chain());
             chain.add(link);
-            return new Processes.Assignment(a.source(), a.multiplier(), a.divisor(), List.copyOf(chain));
+            return new Processes.Assignment(a.source(), List.copyOf(chain));
         });
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the assignment's key
      * @param index   the chain link's index
      */
@@ -290,7 +280,7 @@ public final class ProcessesTab {
         changeAssignment(section, key, a -> {
             List<String> chain = new ArrayList<>(a.chain());
             chain.remove(index);
-            return new Processes.Assignment(a.source(), a.multiplier(), a.divisor(), List.copyOf(chain));
+            return new Processes.Assignment(a.source(), List.copyOf(chain));
         });
     }
 
@@ -307,7 +297,7 @@ public final class ProcessesTab {
      * Writes a fresh mutator at the block's end, a formula taking the source type to nothing, so it opens in place
      * (decision mutators-and-iterators-each-take-a-create-control).
      *
-     * @param section    _conversions or _post_conversions
+     * @param section    _conversions
      * @param name       the typed name
      * @param sourceType the goo type the fresh formula converts from
      * @return the new entry's key, empty where the name is blank, reads as an iterator or the block holds it
@@ -324,7 +314,7 @@ public final class ProcessesTab {
      * Writes a fresh iterator at the block's end, the typed target group taking the first group's values, so it
      * opens in place (decision mutators-and-iterators-each-take-a-create-control).
      *
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param name    the typed target group, its # optional
      * @return the new entry's key, empty where the name is blank, the draft names no group or the block holds it
      */
@@ -335,14 +325,14 @@ public final class ProcessesTab {
             return Optional.empty();
         }
         String key = isIterator(typed) ? typed : GROUP_MARK + typed;
-        return create(section, key, new Processes.Assignment(groups.getFirst(), 1, 1, List.of()));
+        return create(section, key, new Processes.Assignment(groups.getFirst(), List.of()));
     }
 
     /**
      * Writes an entry under a new key with its text kept, an iterator's key keeping its # (decision
      * mutators-tab-renames-and-searches-by-name).
      *
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the entry's key
      * @param typed   the new name
      * @return the new key, empty where the name is blank, crosses between a mutator and an iterator, or the block
@@ -385,7 +375,7 @@ public final class ProcessesTab {
     }
 
     /**
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     an entry's key
      * @return the entry's form, unread where the block holds no such entry
      */
@@ -397,7 +387,7 @@ public final class ProcessesTab {
     /**
      * Writes an entry as a form of another kind, or the same kind afresh.
      *
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the entry's key
      * @param form    the form it now holds
      */

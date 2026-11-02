@@ -18,7 +18,8 @@ final class ControlFlow {
     static final int LINE = BuilderOverlays.LINE;
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
-    private static final int INDENT = 12;
+    /** How far one indent step moves a line's left edge. */
+    static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int LINK = ButtonPainter.LINK;
     private static final String DROPDOWN_MARKER = " ▼";
@@ -289,20 +290,66 @@ final class ControlFlow {
      * Starts a fresh line indented one step further, for the terms a sum holds.
      */
     void indent() {
+        indent(INDENT);
+    }
+
+    /**
+     * Starts a fresh line indented further.
+     *
+     * @param step how far past the current left edge the new lines start
+     */
+    void indent(int step) {
         newLine();
-        left += INDENT;
+        left += step;
         lineLeft = left;
         x = left;
     }
 
     /**
-     * Starts a fresh line one step less indented.
+     * Moves the left edge the next lines start at back toward the outer edge, leaving the current line standing, so
+     * a control may still join it.
+     *
+     * @param step how far back the next lines start
      */
-    void outdent() {
-        newLine();
-        left -= INDENT;
-        lineLeft = left;
-        x = left;
+    void outdent(int step) {
+        shift(-step);
+    }
+
+    /**
+     * Moves the left edge the next lines start at, leaving the current line standing.
+     *
+     * @param step how far right the next lines start, negative for left
+     */
+    void shift(int step) {
+        left += step;
+    }
+
+    /**
+     * Stands the next pieces at the right end of the line, starting a fresh line where the current one holds no
+     * room for them.
+     *
+     * @param width the pieces' width, gaps between them included
+     */
+    void alignRight(int width) {
+        if (x + width > right && x > lineLeft) {
+            y += LINE;
+            lineLeft = left;
+        }
+        x = right - width;
+    }
+
+    /**
+     * @return the font the flow measures with
+     */
+    Font font() {
+        return font;
+    }
+
+    /**
+     * @return how far past the line's left edge the next piece starts
+     */
+    int column() {
+        return x - left;
     }
 
     /**

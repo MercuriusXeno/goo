@@ -29,7 +29,7 @@ class MutatorControlsTest {
      */
     @Nested
     class KindDropdown {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private static final String KEY = "rust";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final BuilderOverlays overlays = new BuilderOverlays(mock(ManagerActions.class), null);
@@ -95,7 +95,7 @@ class MutatorControlsTest {
      */
     @Nested
     class Sentences {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final BuilderOverlays overlays = mock(BuilderOverlays.class);
         private final MutatorControls controls = new MutatorControls(processes, overlays, mock(ManagerActions.class),
@@ -119,13 +119,14 @@ class MutatorControlsTest {
 
         @Test
         void formulaReadsAsTwoRatios() {
-            assertEquals(List.of("1", ":", "4", "becomes", "2", ":", "3"),
+            // Decision mutator-body-indents-under-its-name-line: the arrow => in place of the word becomes.
+            assertEquals(List.of("1", ":", "4", "=>", "2", ":", "3"),
                     sentence(new Processes.Formula("metal", 4, "yore", 2, 3)));
         }
 
         @Test
-        void formulaToNothingReadsBecomesNothing() {
-            assertEquals(List.of("1", ":", "4", "becomes", "nothing"),
+        void formulaToNothingReadsArrowNothing() {
+            assertEquals(List.of("1", ":", "4", "=>", "nothing"),
                     sentence(new Processes.Formula("metal", 4, "0", 1, 1)));
         }
 
@@ -182,25 +183,26 @@ class MutatorControlsTest {
     }
 
     /**
-     * An iterator line reads "[#group v] [n] : [m] [@a] [x] [@b] [x] [+]", its source one dropdown over every group
-     * and itself (decision iterator-line-is-source-ratio-then-chain).
+     * An iterator line reads "[#group v] and applies [@a] [x] [@b] [x] [+]", its source one dropdown over every
+     * group and itself (decisions iterator-line-is-source-ratio-then-chain,
+     * iterator-reads-loops-over-and-applies-then-its-chain).
      */
     @Nested
     class IteratorLine {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private static final String MODEL = """
                 {"path": "base_values.json", "members": [
                   {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "ores", "keySeparator": null, "kind": "VALUE", "text": "[\\"iron_ore\\"]",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null},
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "smelt", "keySeparator": null, "kind": "VALUE", "text": "\\"metal / 2 -> 0\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null},
                      {"key": "rust", "keySeparator": null, "kind": "VALUE", "text": "\\"@smelt\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null},
                      {"key": "#chained", "keySeparator": null, "kind": "VALUE",
-                      "text": "\\"#ores * 2 / 3 @smelt @rust\\"", "entries": [], "leading": null, "trailing": null,
+                      "text": "\\"#ores @smelt @rust\\"", "entries": [], "leading": null, "trailing": null,
                       "closingGap": null},
                      {"key": "#bare", "keySeparator": null, "kind": "VALUE", "text": "\\"#ores\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
@@ -228,8 +230,8 @@ class MutatorControlsTest {
         }
 
         @Test
-        void sourcedIteratorReadsSourceRatioThenChain() {
-            assertEquals(List.of(ControlFlow.dropdownLabel("#ores"), "2", ":", "3", "smelt", "x", "rust", "x", "+"),
+        void sourcedIteratorReadsSourceAndAppliesThenChain() {
+            assertEquals(List.of(ControlFlow.dropdownLabel("#ores"), "and applies", "smelt", "x", "rust", "x", "+"),
                     frame("#chained").texts());
         }
 
@@ -241,26 +243,27 @@ class MutatorControlsTest {
         }
 
         /**
-         * Picking itself on an iterator at 1:1 with no mutators keeps it an assignment, so the line keeps its
+         * Picking itself on an iterator with no mutators keeps it an assignment, so the line keeps its
          * controls rather than reading 'No form reads this line'.
          */
         @Test
-        void pickingItselfAtOneToOneKeepsTheControls() {
+        void pickingItselfWithNoMutatorsKeepsTheControls() {
             frame("#bare").click(ControlFlow.dropdownLabel("#ores"));
             frame("#bare").click("itself");
-            assertEquals(new Processes.Assignment("", 1, 1, List.of()), processes.formOf(SECTION, "#bare"));
-            assertEquals(List.of(ControlFlow.dropdownLabel("itself"), "1", ":", "1", "+"), frame("#bare").texts());
+            assertEquals(new Processes.Assignment("", List.of()), processes.formOf(SECTION, "#bare"));
+            assertEquals(List.of(ControlFlow.dropdownLabel("itself"), "and applies", "+"), frame("#bare").texts());
         }
     }
 
     /**
-     * An iterator row draws its source and ratio on its first line and each chained mutator with its x on its own
-     * line below, every chain line at one indented x, the [+] right of the last link's x; two rows with equal chains
-     * take equal heights (decision each-chained-mutator-takes-its-own-indented-line).
+     * An iterator row draws its source then "and applies" one indent in, with no ratio, and each chained mutator with
+     * its x on its own line a second indent in, the [+] right of the last link's x; two rows with equal chains take
+     * equal heights (decisions each-chained-mutator-takes-its-own-indented-line,
+     * iterator-reads-loops-over-and-applies-then-its-chain, iterator-drops-its-ratio-from-row-and-grammar).
      */
     @Nested
     class ChainLines {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final MutatorControls controls = new MutatorControls(processes,
                 new BuilderOverlays(mock(ManagerActions.class), null), mock(ManagerActions.class), () -> List.of("oak"),
@@ -273,7 +276,7 @@ class MutatorControlsTest {
         }
 
         private DrawnFrame frame(String key, List<String> chain) {
-            when(processes.formOf(SECTION, key)).thenReturn(new Processes.Assignment("ores", 1, 1, chain));
+            when(processes.formOf(SECTION, key)).thenReturn(new Processes.Assignment("ores", chain));
             DrawnFrame frame = new DrawnFrame();
             bottom = controls.draw(frame.graphics, DrawnFrame.font(), SECTION, key,
                     new GroupsPane.Bounds(0, 0, 590, 390), 0, frame.targets);
@@ -284,10 +287,15 @@ class MutatorControlsTest {
         void eachChainedMutatorTakesItsOwnIndentedLine() {
             DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
             DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#ores"));
+            DrawnFrame.Text applies = frame.find("and applies");
             DrawnFrame.Text smelt = frame.find("smelt");
             DrawnFrame.Text melt = frame.find("melt");
+            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, source.x(), frame.drawn().toString());
+            assertEquals(source.y(), applies.y());
+            assertTrue(applies.x() > source.x(), applies + " vs " + source);
+            assertFalse(frame.texts().contains(":"), frame.texts().toString());
             assertEquals(smelt.x(), melt.x());
-            assertTrue(smelt.x() > source.x(), smelt + " vs " + source);
+            assertEquals(source.x() + ControlFlow.INDENT, smelt.x(), smelt + " vs " + source);
             assertEquals(source.y() + ControlFlow.LINE, smelt.y(), smelt + " vs " + source);
             assertEquals(smelt.y() + ControlFlow.LINE, melt.y(), melt + " vs " + smelt);
             List<DrawnFrame.Text> removes = frame.drawn().stream().filter(text -> text.text().equals("x")).toList();
@@ -312,7 +320,7 @@ class MutatorControlsTest {
      */
     @Nested
     class ReferencesLink {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final ManagerActions actions = mock(ManagerActions.class);
         private final BuilderOverlays overlays = new BuilderOverlays(actions, null);
@@ -333,7 +341,7 @@ class MutatorControlsTest {
         }
 
         private DrawnFrame iterator() {
-            return frame("#ores", new Processes.Assignment("ores", 1, 1, List.of("@smelt")));
+            return frame("#ores", new Processes.Assignment("ores", List.of("@smelt")));
         }
 
         @Test

@@ -31,10 +31,18 @@ final class ExpressionLines {
     private static final int GLYPH_GAP = 1;
     private static final int HALF = 2;
     private static final int RED = 0xFFFF5555;
+    /**
+     * The = + - x ( ) symbols' color, which stands out from the text's (decision
+     * read-view-reads-type-equals-possessive-terms).
+     */
+    static final int SYMBOL_COLOR = 0xFFE0C060;
     private static final String NOTHING = "";
     private static final String PLUS = "+";
     private static final String MINUS = "-";
-    private static final String TIMES = "*";
+    // Decision read-view-reads-type-equals-possessive-terms: times reads x, and a type row reads =.
+    private static final String TIMES = "x";
+    private static final String EQUALS = "=";
+    private static final String POSSESSIVE = "'s";
     private static final String DIVIDE = "/";
     private static final String OPEN = "(";
     private static final String CLOSE = ")";
@@ -68,6 +76,8 @@ final class ExpressionLines {
         TEXT,
         /** The end of a line, as a per-type object ends each type's row. */
         BREAK,
+        /** The end of a line whose next lines start one indent step in, as a type row's terms do. */
+        INDENTED_BREAK,
         /** Text the terms could not read, drawn red as the file spells it. */
         ERROR
     }
@@ -117,7 +127,21 @@ final class ExpressionLines {
      * @param links     takes where each piece of a link landed
      */
     record Painter(GuiGraphicsExtractor graphics, @Nullable ItemIcons icons, ClickTargets targets, int textColor,
-                   int linkColor, LinkSink links) {
+                   int linkColor, LinkSink links, int symbolColor) {
+        /**
+         * A painter drawing the symbols in {@link #SYMBOL_COLOR}.
+         *
+         * @param graphics  the frame's graphics
+         * @param icons     the items' icons, null where no item draws
+         * @param targets   the frame's click areas, which take each type icon's hover
+         * @param textColor text's color
+         * @param linkColor a link's color
+         * @param links     takes where each piece of a link landed
+         */
+        Painter(GuiGraphicsExtractor graphics, @Nullable ItemIcons icons, ClickTargets targets, int textColor,
+                int linkColor, LinkSink links) {
+            this(graphics, icons, targets, textColor, linkColor, links, SYMBOL_COLOR);
+        }
     }
 
     /**
@@ -128,11 +152,15 @@ final class ExpressionLines {
     static List<Run> runs(ExpressionTerms.Value value, Function<String, String> names) {
         List<Run> runs = new ArrayList<>();
         if (value instanceof ExpressionTerms.PerType perType) {
+            // Decision read-view-reads-type-equals-possessive-terms: {type} = on the row's head line, its terms
+            // indented on the line below.
             for (ExpressionTerms.TypeRow row : perType.rows()) {
                 if (!runs.isEmpty()) {
                     runs.add(new Run(Kind.BREAK, NOTHING, null));
                 }
                 runs.add(type(row.type()));
+                runs.add(operator(EQUALS));
+                runs.add(new Run(Kind.INDENTED_BREAK, NOTHING, null));
                 addSum(runs, row.sum(), names);
             }
         } else if (value instanceof ExpressionTerms.Expression expression) {
@@ -283,6 +311,10 @@ final class ExpressionLines {
             case ExpressionTerms.Number number -> runs.add(number(number.digits()));
             case ExpressionTerms.Prefab prefab -> {
                 runs.add(new Run(Kind.LINK, prefab.name(), prefab.name()));
+                // Decision read-view-reads-type-equals-possessive-terms: a member reads as the prefab's own.
+                if (prefab.type() != null) {
+                    runs.add(text(POSSESSIVE));
+                }
                 addType(runs, prefab.type());
             }
             case ExpressionTerms.Item item -> {
@@ -389,7 +421,7 @@ final class ExpressionLines {
     static int width(Font font, List<Run> runs, ToIntFunction<String> typeSize) {
         int width = 0;
         for (Run run : runs) {
-            if (run.kind() != Kind.BREAK) {
+            if (run.kind() != Kind.BREAK && run.kind() != Kind.INDENTED_BREAK) {
                 width += (width == 0 ? 0 : RUN_GAP) + runWidth(font, run, typeSize);
             }
         }
@@ -421,7 +453,7 @@ final class ExpressionLines {
         return switch (run.kind()) {
             case TYPE -> typeSize.applyAsInt(String.valueOf(run.ref()));
             case ITEM -> ITEM_SPRITE_SIZE + ICON_TEXT_GAP + font.width(run.text());
-            case BREAK -> 0;
+            case BREAK, INDENTED_BREAK -> 0;
             default -> font.width(run.text());
         };
     }
@@ -431,7 +463,9 @@ final class ExpressionLines {
     private static int lay(List<Run> runs, Cursor cursor) {
         for (Run run : runs) {
             if (run.kind() == Kind.BREAK) {
-                cursor.newLine();
+                cursor.breakLine(0);
+            } else if (run.kind() == Kind.INDENTED_BREAK) {
+                cursor.breakLine(ControlFlow.INDENT);
             } else if (run.kind() == Kind.TEXT || run.kind() == Kind.ERROR) {
                 cursor.placeText(run);
             } else {
@@ -453,6 +487,8 @@ final class ExpressionLines {
         private final ToIntFunction<String> typeSize;
         private int lines = 1;
         private int at;
+        // Where the current line's runs start: the left edge, or one indent step in under a type row's head.
+        private int lineLeft;
 
         Cursor(Font font, int left, int top, int width, int lineHeight, @Nullable Painter painter,
                ToIntFunction<String> typeSize) {
@@ -464,11 +500,18 @@ final class ExpressionLines {
             this.painter = painter;
             this.typeSize = typeSize;
             this.at = left;
+            this.lineLeft = left;
         }
 
+        // A wrapped line starts where the line it continues did.
         void newLine() {
             lines++;
-            at = left;
+            at = lineLeft;
+        }
+
+        void breakLine(int indent) {
+            lineLeft = left + indent;
+            newLine();
         }
 
         private int lineTop() {
@@ -476,12 +519,12 @@ final class ExpressionLines {
         }
 
         private int start() {
-            return at == left ? left : at + RUN_GAP;
+            return at == lineLeft ? lineLeft : at + RUN_GAP;
         }
 
         void placeWhole(Run run) {
             int runWidth = runWidth(font, run, typeSize);
-            if (start() + runWidth > left + width && at > left) {
+            if (start() + runWidth > left + width && at > lineLeft) {
                 newLine();
             }
             int start = start();
@@ -494,9 +537,9 @@ final class ExpressionLines {
             int start = start();
             while (!rest.isEmpty()) {
                 String piece = font.plainSubstrByWidth(rest, left + width - start);
-                if (piece.isEmpty() && start > left) {
+                if (piece.isEmpty() && start > lineLeft) {
                     newLine();
-                    start = left;
+                    start = lineLeft;
                     continue;
                 }
                 piece = piece.isEmpty() ? rest.substring(0, 1) : piece;
@@ -505,7 +548,7 @@ final class ExpressionLines {
                 rest = rest.substring(piece.length());
                 if (!rest.isEmpty()) {
                     newLine();
-                    start = left;
+                    start = lineLeft;
                 }
             }
             at = start;
@@ -531,6 +574,8 @@ final class ExpressionLines {
                 case ITEM -> drawItem(font, run, piece, x, lineTop, painter);
                 case LINK -> drawLink(font, run, piece, x, textTop, painter);
                 case ERROR -> graphics.text(font, piece, x, textTop, RED);
+                // Decision read-view-reads-type-equals-possessive-terms.
+                case OPERATOR -> graphics.text(font, piece, x, textTop, painter.symbolColor());
                 default -> graphics.text(font, piece, x, textTop, painter.textColor());
             }
         }
