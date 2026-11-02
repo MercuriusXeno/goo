@@ -53,6 +53,52 @@ class DraftConfirmTest {
     }
 
     /**
+     * Closing the manager with changes not yet saved stands a confirm offering Save and close, Close without saving
+     * and Cancel, rather than closing and losing them.
+     */
+    @Test
+    void closeWithUnsavedChangesAsksSaveDiscardOrCancel() {
+        DraftConfirm confirm = new DraftConfirm();
+        assertFalse(confirm.closesNow(true));
+        assertEquals("Close with unsaved changes?", confirm.dialog().orElseThrow().title());
+        assertEquals(List.of(DraftConfirm.Choice.SAVE_AND_CLOSE, DraftConfirm.Choice.CLOSE_UNSAVED,
+                DraftConfirm.Choice.CANCEL), confirm.choices());
+        assertEquals(List.of("Save and close", "Close without saving", "Cancel"),
+                confirm.choices().stream().map(DraftConfirm.Choice::label).toList());
+    }
+
+    /**
+     * Closing with nothing unsaved closes at once and stands no confirm.
+     */
+    @Test
+    void closeWithNothingUnsavedClosesAtOnce() {
+        DraftConfirm confirm = new DraftConfirm();
+        assertTrue(confirm.closesNow(false));
+        assertTrue(confirm.dialog().isEmpty());
+    }
+
+    /**
+     * A close while a confirm stands, as Esc on it, cancels the confirm and leaves the manager open.
+     */
+    @Test
+    void closeWhileAConfirmStandsCancelsIt() {
+        DraftConfirm confirm = new DraftConfirm();
+        confirm.closesNow(true);
+        assertFalse(confirm.closesNow(true));
+        assertTrue(confirm.dialog().isEmpty());
+    }
+
+    /**
+     * Promote and Revert offer Confirm and Cancel.
+     */
+    @Test
+    void promoteOffersConfirmAndCancel() {
+        DraftConfirm confirm = new DraftConfirm();
+        confirm.askPromote(PATH, false);
+        assertEquals(List.of(DraftConfirm.Choice.CONFIRM, DraftConfirm.Choice.CANCEL), confirm.choices());
+    }
+
+    /**
      * The manager's topbar reads Save, Revert, Promote, laid leftward from the title row's right edge (decision
      * topbar-discard-reads-revert).
      */
