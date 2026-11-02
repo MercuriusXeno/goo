@@ -95,8 +95,9 @@ class VariablesPaneTest {
     }
 
     /**
-     * Consecutive prefabs stand one tighter pitch apart; it was 39 pixels for a number prefab used nowhere
-     * (decision prefab-lines-tighten-their-padding).
+     * Consecutive prefabs stand one tighter pitch apart; it was 39 pixels for a number prefab used nowhere before its
+     * value took a line of its own (decisions prefab-lines-tighten-their-padding,
+     * prefab-head-is-name-type-used-by-and-x-on-one-line).
      */
     @Test
     void prefabRowsTakeTheTighterPitch() {
@@ -105,7 +106,7 @@ class VariablesPaneTest {
         List<Integer> tops = frame.topsOf(List.of("prefab0", "prefab1"));
         int pitch = tops.get(1) - tops.get(0);
         assertEquals(VariablesPane.UNUSED_PREFAB_PITCH, pitch);
-        assertTrue(pitch < 39, "the pitch was 39 before");
+        assertTrue(pitch - ExpressionLines.TEXT_LINE_HEIGHT < 39, "the pitch was 39 before the value's line");
     }
 
     /**
@@ -387,17 +388,19 @@ class VariablesPaneTest {
     }
 
     /**
-     * A scalar prefab's head reads = before its number, and its pencil opens the rename box in the name's place.
+     * A scalar prefab's head reads =, its number on the value line below, and its pencil opens the rename box in the
+     * name's place (decision prefab-head-is-name-type-used-by-and-x-on-one-line).
      */
     @Test
-    void scalarHeadReadsEqualsBeforeItsNumberAndThePencilRenames() {
+    void scalarHeadReadsEqualsWithItsNumberBelowAndThePencilRenames() {
         VariablesPane read = readByEgg(mock(ManagerActions.class));
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         DrawnFrame.Text equals = frame.find("=");
         DrawnFrame.Text number = frame.drawn().stream().filter(text -> text.text().equals("8")
-                && text.y() == equals.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-        assertTrue(equals.x() < number.x(), equals + " before " + number);
+                && text.color() == 0xFF80E080).findFirst().orElseThrow(() -> new AssertionError(frame.drawn()
+                .toString()));
+        assertTrue(number.y() > equals.y(), number + " below " + equals);
         assertFalse(frame.texts().stream().anyMatch(text -> text.toLowerCase(java.util.Locale.ROOT)
                 .contains("scalar")), frame.texts().toString());
         frame.click("✎");
@@ -529,6 +532,53 @@ class VariablesPaneTest {
         assertTrue(frame.targets.click(logs.x() + 1, logs.y() + 1, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT,
                 org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT));
         verify(actions).openGroup("logs");
+    }
+
+    /**
+     * A typed prefab's head holds its name, its kind, its used-by run and its ✗ on one line, and its resolved value
+     * draws on its own line below, above the read view (decision prefab-head-is-name-type-used-by-and-x-on-one-line).
+     */
+    @Test
+    void headHoldsNameKindUsedByAndXWithTheValueBelow() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "{\\"leaf\\": 4}", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "wood", "kind": "tree", "tree": {"leaf": "4"}, "value": null,
+                                "error": null, "direct": ["minecraft:stick"], "usedBy": [], "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        int headY = frame.find("wood").y();
+        assertEquals(headY, frame.find("typed").y());
+        assertEquals(headY, frame.find("✗").y());
+        ArgumentCaptor<Integer> itemYs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics).item(any(), anyInt(), itemYs.capture());
+        int iconY = itemYs.getValue();
+        assertTrue(iconY <= headY && iconY + SPRITE >= headY + GAME_LINE_HEIGHT, "icon " + iconY + " head " + headY);
+        ArgumentCaptor<Integer> typeYs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).blit(any(), any(), anyInt(), typeYs.capture(), org.mockito.ArgumentMatchers
+                .anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        int resolvedY = typeYs.getAllValues().getFirst();
+        assertTrue(resolvedY > headY, "resolved " + resolvedY + " head " + headY);
+        int readViewY = fillTopsAt(frame, 0x30FFFFFF).getFirst();
+        assertTrue(readViewY > resolvedY, "read view " + readViewY + " resolved " + resolvedY);
+    }
+
+    private static List<Integer> fillTopsAt(DrawnFrame frame, int color) {
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(anyInt(), tops.capture(), anyInt(), anyInt(), eq(color));
+        return tops.getAllValues();
     }
 
     // A Prefabs pane over one prefab, base, that the prefab egg reads.
