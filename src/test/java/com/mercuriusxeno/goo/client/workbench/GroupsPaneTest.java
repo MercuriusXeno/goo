@@ -560,6 +560,46 @@ class GroupsPaneTest {
         verify(actions).openMutator("#exposed");
     }
 
+    /**
+     * A group more iterators source than its Used by line fits draws the links that fit, then ..+n counting the
+     * rest, whose click draws every link (decisions diagnose-and-correct-group-referents-without-the-ellipsis,
+     * more-button-reads-dot-dot-plus-n).
+     */
+    @Test
+    void crowdedUsedByLineEndsOnDotDotPlusNThatExpandsIt() {
+        int iterators = 20;
+        String entries = IntStream.range(0, iterators).mapToObj(index -> """
+                {"key": "#iter%02d", "keySeparator": null, "kind": "VALUE", "text": "\\"#copper @exposed_metal\\"",
+                 "entries": [], "leading": null, "trailing": null, "closingGap": null}""".formatted(index))
+                .collect(Collectors.joining(", "));
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
+                   "leading": null, "trailing": null, "closingGap": null}]}""".formatted(entries));
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "copper", "kind": "group", "members": [{"id": "minecraft:copper_block", "known": true}],
+                   "base": "8", "tweaks": [], "preview": []}]}""");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
+        long shown = frame.texts().stream().filter(text -> text.matches("^#iter\\d\\d$")).count();
+        assertTrue(shown > 0 && shown < iterators, frame.texts().toString());
+        String more = UsedByLine.moreLabel(iterators - (int) shown);
+        frame.click(more);
+        DrawnFrame expanded = new DrawnFrame();
+        pane.extract(expanded.graphics, DrawnFrame.font(), bounds, expanded.targets);
+        assertEquals(iterators, expanded.texts().stream().filter(text -> text.matches("^#iter\\d\\d$")).count(),
+                expanded.texts().toString());
+    }
+
     @Test
     void wideNameHoversWhole() {
         String key = GroupsPane.nameHoverKey(font(), WIDE, 78).orElseThrow();
