@@ -7,8 +7,11 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Draws the Groups tab: each group's card, its #name with its pencil or "tag" and its x, its members as item icons
@@ -74,6 +77,10 @@ final class GroupsPane {
     private static final String TAG_WORD = "tag";
     private static final String MEMBERS_COLON = "Members:";
     private static final String USED_BY = "Used by ";
+    private static final String VALUE_LABEL = "Value:";
+    // A resolved value as ExpressionLines.resolvedRuns reads it: "type amount" pairs joined by commas.
+    private static final String AMOUNT_SEPARATOR = " ";
+    private static final String TYPES_SEPARATOR = ", ";
     // A key suffix no group name spells, so a card's Used by line expands apart from its Members line.
     private static final String REFERENTS_KEY = ":usedBy";
     // Decision detail-is-members-plus-or-tag-members-with-the-tag-id.
@@ -316,33 +323,109 @@ final class GroupsPane {
         }
     }
 
-    // A card: #name with its pencil, or "tag" for a tag referent, and its x on line 1; "Members:" and the member
-    // icons, the rest behind ..+n, one indent in on line 2; then the value one indent in with no label. Answers its
-    // height. Decision group-card-is-name-then-members-then-value.
-    private int drawGroupCard(GuiGraphicsExtractor graphics, Font font, GroupCard card, ClickTargets targets) {
+    /**
+     * Where a card's lines stand below its name line.
+     *
+     * @param members   the Members line
+     * @param referents the Used by line
+     * @param usedByTop the Used by line's top
+     * @param worthTop  the goo value line's top
+     * @param worth     the evaluated goo value's runs, empty where none resolved
+     * @param value     the value expression's runs, empty where none is set
+     * @param body      where the value's button or builder stands, past its Value: label
+     */
+    private record CardLayout(MembersLine members, ReferentsLine referents, int usedByTop, int worthTop,
+                              List<ExpressionLines.Run> worth, List<ExpressionLines.Run> value, Bounds body) {
+        int valueTop() {
+            return body.top();
+        }
+    }
+
+    // Decision group-card-shows-its-goo-value-above-a-labelled-builder: the goo value line, then the value past
+    // Value:, the label left out where the button itself reads Value: Not explicitly set.
+    private CardLayout layCard(Font font, GroupCard card) {
         Bounds area = card.area();
-        String target = BASE_TARGET + card.row().name();
-        boolean buildingHere = target.equals(building) && builder.isOpen();
         List<ExpressionLines.Run> runs = GroupsTab.rowRuns(card.row(), icons::nameOf);
         MembersLine members = layMembers(font, card.row(), runs.subList(1, runs.size()), area);
         ReferentsLine referents = layReferents(font, card.row().name(), groups.referents(card.row().name()),
                 area.left() + ControlFlow.INDENT, area.right());
         int usedByTop = area.top() + ROW_HEIGHT + members.height();
-        int valueTop = usedByTop + referents.height();
-        Bounds body = new Bounds(area.left() + ControlFlow.INDENT, valueTop, area.right(), area.bottom());
+        int worthTop = usedByTop + referents.height();
+        List<ExpressionLines.Run> worth = worthRuns(card);
+        int valueTop = worthTop + (worth.isEmpty() ? 0 : ExpressionLines.height(font, worth, worthWidth(area)));
         List<ExpressionLines.Run> value = valueRuns(card.base(), null);
-        int readHeight = buildingHere ? 0 : ReadValueButton.height(font, value, body.right() - body.left());
+        int labelWidth = value.isEmpty() ? 0 : font.width(VALUE_LABEL) + BuilderOverlays.GAP;
+        Bounds body = new Bounds(area.left() + ControlFlow.INDENT + labelWidth, valueTop, area.right(),
+                area.bottom());
+        return new CardLayout(members, referents, usedByTop, worthTop, worth, value, body);
+    }
+
+    private static int worthWidth(Bounds area) {
+        return area.right() - area.left() - ControlFlow.INDENT;
+    }
+
+    // A card: #name with its pencil, or "tag" for a tag referent, and its x on line 1; "Members:" and the member
+    // icons, the rest behind ..+n, one indent in on line 2; Used by; the goo value; then Value: and the value.
+    // Answers its height. Decision group-card-is-name-then-members-then-value.
+    private int drawGroupCard(GuiGraphicsExtractor graphics, Font font, GroupCard card, ClickTargets targets) {
+        Bounds area = card.area();
+        String target = BASE_TARGET + card.row().name();
+        boolean buildingHere = target.equals(building) && builder.isOpen();
+        CardLayout laid = layCard(font, card);
+        int readHeight = buildingHere ? 0
+                : ReadValueButton.height(font, laid.value(), laid.body().right() - laid.body().left());
+        int readBottom = laid.valueTop() + readHeight;
         if (card.selected()) {
-            graphics.fill(area.left(), area.top(), area.right(), valueTop + readHeight, SELECTED_COLOR);
+            graphics.fill(area.left(), area.top(), area.right(), readBottom, SELECTED_COLOR);
         }
-        targets.add(area.left(), area.top(), area.right() - area.left(), valueTop + readHeight - area.top(),
+        targets.add(area.left(), area.top(), area.right() - area.left(), readBottom - area.top(),
                 () -> pickGroup(card.row().name()));
         drawCardHead(graphics, font, card, targets);
-        drawMembers(graphics, font, card.row().name(), members, targets);
-        drawReferents(graphics, font, referents, area.left() + ControlFlow.INDENT, usedByTop, targets);
-        int valueHeight = drawBuilt(graphics, font, body, valueTop, new Built(target, card.base(), null,
-                typed -> apply(groups.baseRequest(typed)), () -> pickGroup(card.row().name())), targets);
-        return valueTop + valueHeight + HALF - area.top();
+        drawMembers(graphics, font, card.row().name(), laid.members(), targets);
+        drawReferents(graphics, font, laid.referents(), area.left() + ControlFlow.INDENT, laid.usedByTop(), targets);
+        ExpressionLines.draw(font, laid.worth(), area.left() + ControlFlow.INDENT, laid.worthTop(), worthWidth(area),
+                new ExpressionLines.Painter(graphics, icons, targets, WHITE, LINK, (link, x, y, width) -> { }));
+        int valueHeight = drawBuilt(graphics, font, laid.body(), laid.valueTop(), new Built(target, card.base(),
+                null, typed -> apply(groups.baseRequest(typed)), () -> pickGroup(card.row().name())), targets);
+        drawValueLabel(graphics, font, laid, area.left() + ControlFlow.INDENT, buildingHere);
+        return laid.valueTop() + valueHeight + HALF - area.top();
+    }
+
+    // Value: on the line of the builder's kind dropdown, or of the read button's first line.
+    private static void drawValueLabel(GuiGraphicsExtractor graphics, Font font, CardLayout laid, int left,
+                                       boolean building) {
+        if (laid.value().isEmpty()) {
+            return;
+        }
+        int top = building ? ControlFlow.textTop(laid.valueTop())
+                : ReadValueButton.textTop(font, laid.value(), laid.valueTop());
+        graphics.text(font, VALUE_LABEL, left, top, GRAY);
+    }
+
+    // The group's evaluated goo value, type icons beside amounts, read off a member the group values with no tweak
+    // of its own, as no group's own evaluation reaches the manager; none where no such member resolved.
+    // Decision group-card-shows-its-goo-value-above-a-labelled-builder.
+    private List<ExpressionLines.Run> worthRuns(GroupCard card) {
+        Optional<GroupsTab.Group> group = card.group();
+        if (group.isEmpty() || card.base().isBlank()) {
+            return List.of();
+        }
+        Set<String> tweaked = new HashSet<>();
+        group.get().tweaks().forEach(tweak -> tweaked.add(tweak.member()));
+        String name = card.row().name();
+        return group.get().members().stream().map(GroupsTab.Member::id).filter(id -> !tweaked.contains(id))
+                .filter(id -> valuedByGroup(id, name)).map(values::worthOf).filter(worth -> !worth.isEmpty())
+                .findFirst().map(GroupsPane::resolvedRuns).orElse(List.of());
+    }
+
+    private boolean valuedByGroup(String id, String group) {
+        ValuesTab.Source source = values.sourceOf(id);
+        return source.kind() == ValuesTab.SourceKind.GROUP && group.equals(source.label());
+    }
+
+    private static List<ExpressionLines.Run> resolvedRuns(Map<String, String> worth) {
+        return ExpressionLines.resolvedRuns(worth.entrySet().stream().map(amount -> amount.getKey() + AMOUNT_SEPARATOR
+                + amount.getValue()).collect(java.util.stream.Collectors.joining(TYPES_SEPARATOR)));
     }
 
     // Line 1: the #name, red where it names an unknown member, its pencil or "tag", and the x at the right end; the
