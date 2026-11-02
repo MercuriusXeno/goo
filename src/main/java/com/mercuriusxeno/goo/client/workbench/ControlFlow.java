@@ -86,6 +86,14 @@ final class ControlFlow {
     }
 
     /**
+     * @param lineTop a flow line's top
+     * @return where its words and its controls' labels stand, so a label drawn beside the flow shares the line
+     */
+    static int textTop(int lineTop) {
+        return lineTop + TEXT_NUDGE;
+    }
+
+    /**
      * @return the y below the last line
      */
     int bottom() {

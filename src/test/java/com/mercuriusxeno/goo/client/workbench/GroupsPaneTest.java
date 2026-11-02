@@ -483,8 +483,10 @@ class GroupsPaneTest {
             assertTrue(icon >= planksMembers.x() + "Members:".length() * 6, "icon at " + icon);
             DrawnFrame.Text value = inList(frame, "8").getFirst();
             assertTrue(value.y() > planksMembers.y() && value.y() < logs.y(), value.toString());
-            // Decision read-mode-builder-is-a-button-with-a-pencil-segment: the value stands inside its frame.
-            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, value.x());
+            // Decisions read-mode-builder-is-a-button-with-a-pencil-segment,
+            // group-card-shows-its-goo-value-above-a-labelled-builder: the value stands inside its frame past Value:.
+            assertEquals(ControlFlow.INDENT + "Value:".length() * 6 + BuilderOverlays.GAP + ButtonPainter.PADDING,
+                    value.x());
             assertTrue(inList(frame, "4").getFirst().y() > members.getLast().y(), frame.drawn().toString());
             assertFalse(frame.texts().contains("Value"), frame.texts().toString());
         }
@@ -645,6 +647,58 @@ class GroupsPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         assertTrue(frame.texts().stream().anyMatch(text -> text.matches("^\\.\\.\\+\\d+$")), frame.texts().toString());
+    }
+
+    /**
+     * A valued group's card draws its evaluated goo value on the line above its builder, and Value: stands left of
+     * the builder's kind dropdown on its line (decision group-card-shows-its-goo-value-above-a-labelled-builder).
+     */
+    @Test
+    void valuedCardShowsItsGooValueAboveAValueLabelledBuilder() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_log", "Oak Log")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": 37}", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "oak_log", "value": {"glow": "37"}, "denied": false}]}
+                """);
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": "{\\"glow\\": 37}", "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        GroupsPane pane = new GroupsPane(groups, values, icons, actions, builder);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame listed = new DrawnFrame();
+        pane.extract(listed.graphics, DrawnFrame.font(), bounds, listed.targets);
+        DrawnFrame.Text worth = listed.findFirst("37");
+        DrawnFrame.Text members = listed.find("Members:");
+        DrawnFrame.Text pencil = listed.find(ReadValueButton.PENCIL);
+        assertTrue(worth.y() > members.y() && worth.y() < pencil.y(), worth + " between " + members + " and "
+                + pencil);
+        assertTrue(listed.targets.click(pencil.x() + 1, pencil.y() + 1));
+        DrawnFrame building = new DrawnFrame();
+        pane.extract(building.graphics, DrawnFrame.font(), bounds, building.targets);
+        DrawnFrame.Text kind = building.drawn().stream().filter(text -> text.text().endsWith(
+                ControlFlow.dropdownLabel(""))).findFirst().orElseThrow(() -> new AssertionError(building.texts()
+                .toString()));
+        assertTrue(building.findFirst("37").y() < kind.y(), building.drawn().toString());
+        DrawnFrame.Text label = building.find("Value:");
+        assertEquals(kind.y(), label.y(), label + " vs " + kind);
+        assertTrue(label.x() < kind.x(), label + " vs " + kind);
     }
 
     /**
