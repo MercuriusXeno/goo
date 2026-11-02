@@ -247,7 +247,7 @@ class ValuesTabTest {
                    "leading": null, "trailing": null, "closingGap": null},
                   {"key": "#concrete_powder", "keySeparator": null, "kind": "VALUE", "text": "\\"$base\\"",
                    "entries": [], "leading": null, "trailing": null, "closingGap": null},
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "#concrete", "keySeparator": null, "kind": "VALUE", "text": "\\"#concrete_powder\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null}

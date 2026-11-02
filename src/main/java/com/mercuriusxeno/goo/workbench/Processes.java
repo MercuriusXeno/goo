@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The Processes pane's forms for _conversions and _post_conversions, each spelled as the game's conversion
+ * The Processes pane's forms for _conversions, each spelled as the game's conversion
  * parser reads it: a formula ("metal / 4 -> yore / 9", "pulse / 4 -> yore * 2 / 3", "type / N -> 0"), an additive
  * ("+$waxed"), a stack ("2 @oxidation_metal"), and an assignment of a source group to a target group with an
  * optional scale and a chain of stacks and additives ("#exposed": "#copper @exposed_metal", a parallel copy
@@ -319,7 +319,7 @@ public final class Processes {
 
     /**
      * @param model   the model
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the entry's key
      * @param text    the entry's value text
      * @return the model with the entry set, last where it is new, since the parser applies the block in order
@@ -330,7 +330,7 @@ public final class Processes {
 
     /**
      * @param model   the model
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @return each entry read into its form, in the order the parser applies them
      */
     static List<Process> read(BaseValuesModel model, String section) {

@@ -52,10 +52,9 @@ public final class ValuesTab {
     private static final String DENIED_BY = "denied by #";
     private static final String DERIVED_SOURCE = "derived";
     private static final String CONVERSIONS_SECTION = "_conversions";
-    private static final String POST_CONVERSIONS_SECTION = "_post_conversions";
     private static final String NO_VALUE = "no value";
     // A new entry stands above the sections the file closes with, as the page and the server write one.
-    private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
+    private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", CONVERSIONS_SECTION);
     private static final String[] LAYOUT_FIELDS = {"keySeparator", "leading", "trailing", "closingGap"};
 
     private final ManagerDraft draft;
@@ -319,13 +318,13 @@ public final class ValuesTab {
         return new Source(found.label(), found.kind(), restricted(groups).contains(id));
     }
 
-    // The file's top-level value entries, then its conversions' and post-conversions', which value an item or a
-    // group as an entry does; the 26.1 file values #concrete in _post_conversions alone
-    // (decision diagnose-and-correct-group-derived-reading-derived-from).
+    // The file's top-level value entries, then its conversions', which value an item or a group as an entry does;
+    // the 26.1 file values #concrete in _conversions alone
+    // (decisions diagnose-and-correct-group-derived-reading-derived-from,
+    // conversions-is-the-one-section-and-the-pane-name).
     private List<JsonObject> valueEntries() {
         List<JsonObject> found = new ArrayList<>();
-        for (JsonArray section : List.of(draft.members(), draft.sectionEntries(CONVERSIONS_SECTION),
-                draft.sectionEntries(POST_CONVERSIONS_SECTION))) {
+        for (JsonArray section : List.of(draft.members(), draft.sectionEntries(CONVERSIONS_SECTION))) {
             for (JsonElement element : section) {
                 JsonObject entry = element.getAsJsonObject();
                 if (keyOf(entry) != null && VALUE_KIND.equals(kindOf(entry))) {

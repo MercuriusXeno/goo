@@ -78,12 +78,10 @@ final class ProcessesPane {
     private static final int NAME_BOX_WIDTH = 140;
     private static final int NAME_BOX_HEIGHT = 16;
     private static final String SEARCH_HINT = "Search mutators";
+    // Decision conversions-is-the-one-section-and-the-pane-name: the pane shows the one section, under no sub-tab.
     private static final String CONVERSIONS = "_conversions";
-    private static final String POST_CONVERSIONS = "_post_conversions";
-    private static final String[] SUB_TABS = {CONVERSIONS, POST_CONVERSIONS};
-    private static final String[] SUB_TAB_LABELS = {"Conversions", "Post conversions"};
     private static final int SEARCH_WIDTH = 200;
-    /** The row the sub-tabs and the search box take above the columns. */
+    /** The row the search box takes above the columns. */
     static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
 
     private final ProcessesTab processes;
@@ -100,7 +98,6 @@ final class ProcessesPane {
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
     private @Nullable Naming naming;
-    private String shownSection = POST_CONVERSIONS;
     private boolean nameBoxPlaced;
     private boolean visible;
 
@@ -219,16 +216,14 @@ final class ProcessesPane {
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane, ClickTargets targets) {
         overlays.commitOnBlur();
-        // Decision mutators-tab-renames-and-searches-by-name: the search box stands above the scrolling blocks, right
-        // of the sub-tabs.
-        int afterTabs = drawSubTabs(graphics, font, pane.left(), pane.top() + 1, targets);
+        // Decision mutators-tab-renames-and-searches-by-name: the search box stands above the scrolling blocks.
         if (search != null) {
-            search.setPosition(afterTabs + GAP, pane.top());
+            search.setPosition(pane.left(), pane.top());
         }
         nameBoxPlaced = false;
         // Decision mutators-column-shrinks-a-fifth-for-iterators.
         columnsMiddle = pane.left() + (pane.right() - pane.left()) * MUTATOR_FIFTHS / FIFTHS;
-        processes.sections().stream().filter(section -> section.section().equals(shownSection)).findFirst()
+        processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
                 .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
                         pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
         if (nameBox != null) {
@@ -280,33 +275,6 @@ final class ProcessesPane {
      * @param targets  the frame's click areas
      */
     private record Frame(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds rows, ClickTargets targets) {
-    }
-
-    // The operator's ruling: conversions and post-conversions are sub-tabs of Mutators, post-conversions the
-    // default; drawn as one segmented set like the Items filters. Answers the set's right edge.
-    private int drawSubTabs(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
-        int x = left;
-        for (int index = 0; index < SUB_TABS.length; index++) {
-            String section = SUB_TABS[index];
-            String label = SUB_TAB_LABELS[index];
-            int width = font.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING;
-            ValuesPane.drawChipFace(graphics, font, new ValuesPane.Chip(ValuesTab.Filter.ITEMS, label, x, top, width,
-                    ButtonPainter.HEIGHT, section.equals(shownSection)), WHITE);
-            targets.add(x, top, width, ButtonPainter.HEIGHT, () -> showSection(section));
-            x += width - 1;
-        }
-        return x + 1;
-    }
-
-    private void showSection(String section) {
-        if (!section.equals(shownSection)) {
-            shownSection = section;
-            overlays.close();
-            stopNaming();
-            for (ScrollBar each : bars) {
-                each.reset();
-            }
-        }
     }
 
     // Decision group-assignments-read-as-iterators: a column's rows, mutators or iterators alone. Answers the y below
@@ -538,15 +506,6 @@ final class ProcessesPane {
      */
     void reveal(String key) {
         revealPending = key;
-        processes.sections().stream().filter(section -> section.rows().stream().anyMatch(row -> row.key().equals(key)))
-                .findFirst().ifPresent(section -> shownSection = section.section());
-    }
-
-    /**
-     * @return the section the sub-tabs show, post-conversions until another is picked
-     */
-    String shownSection() {
-        return shownSection;
     }
 
     // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.

@@ -177,7 +177,7 @@ class GroupsTabTest {
                    "leading": null, "trailing": null, "closingGap": null},
                   {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "\\"$log\\"", "entries": [],
                    "leading": null, "trailing": null, "closingGap": null},
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "#stripped", "keySeparator": null, "kind": "VALUE", "text": "\\"#logs @strip\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null}
@@ -205,7 +205,7 @@ class GroupsTabTest {
                     .filter(member -> member.get("key").getAsString().startsWith("#")).findFirst().orElseThrow();
             assertEquals("#timber", value.get("key").getAsString());
             assertEquals("\"$log\"", value.get("text").getAsString());
-            assertEquals("\"#timber @strip\"", named.sectionEntries("_post_conversions").get(0).getAsJsonObject()
+            assertEquals("\"#timber @strip\"", named.sectionEntries("_conversions").get(0).getAsJsonObject()
                     .get("text").getAsString());
         }
 

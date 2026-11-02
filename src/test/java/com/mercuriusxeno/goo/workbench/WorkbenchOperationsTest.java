@@ -40,8 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class WorkbenchOperationsTest {
 
-    private static final List<String> SECTIONS = List.of("_constants", "_groups", "_restricted", "_conversions",
-            "_post_conversions");
+    private static final List<String> SECTIONS = List.of("_constants", "_groups", "_restricted", "_conversions");
     private static final String INVENTORY = "{\"items\":[{\"id\":\"minecraft:iron_nugget\",\"name\":\"Iron Nugget\"}],"
             + "\"item_tags\":[],\"goo_types\":[],\"recipes\":[]}";
     // An inventory written before the dump dropped its block sections, which stands until the next dump
