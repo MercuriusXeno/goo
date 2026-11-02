@@ -50,6 +50,8 @@ final class ExpressionBuilderPane {
     static final int DROP_CURSOR = 0xFF4090FF;
     private static final String RAIL_HOVER_PREFIX = "goo-term-rail:";
     private static final int HALF = 2;
+    private static final int NEST_DARKER = 0x28000000;
+    private static final int NEST_LIGHTER = 0x28FFFFFF;
     // A pixel off the slot's line counts this many off along it, so the cursor keeps to the line the pointer is on.
     private static final int LINE_WEIGHT = 4;
     // The drop cursor shows for this many frames, then hides for as many.
@@ -199,6 +201,16 @@ final class ExpressionBuilderPane {
      */
     static String railHoverKey(List<Integer> path) {
         return RAIL_HOVER_PREFIX + path;
+    }
+
+    /**
+     * @param depth how many parentheticals hold the box, its own included, from 1
+     * @return the tint its box fills in
+     */
+    static int nestTone(int depth) {
+        // Decision parentheticals-alternate-gray-tones-by-depth: an odd depth darkens its parent's tone a step and an
+        // even one lightens it back, so each box reads off the one around it.
+        return depth % HALF == 0 ? NEST_LIGHTER : NEST_DARKER;
     }
 
     // The slot the last frame laid nearest the pointer, null where it laid none.
@@ -530,7 +542,7 @@ final class ExpressionBuilderPane {
             drawJoin(flow, path, piece);
         }
         if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
-            drawNest(flow, path, piece, nest, count, place);
+            drawNest(flow, new Nested(path, piece, start), nest, count, place);
             return;
         }
         drawOperand(flow, path, piece, place);
@@ -613,19 +625,32 @@ final class ExpressionBuilderPane {
                 place.inRow() ? null : () -> apply(b -> b.setMember(path, null))));
     }
 
-    // "(" after the term's join with its ^ v x, its terms inline, each edited in place, a wrap inside it one indent
-    // further in, then ")" and the parenthetical's factor back at the outer indent.
+    // "(" after the term's join with its x, its terms inline, each edited in place, a wrap inside it one indent
+    // further in, then ")" and the parenthetical's factor back at the outer indent; the box from its rail to its
+    // factor tints by depth.
     // Decision sum-of-terms-leaves-the-builder.
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
-    private void drawNest(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece,
-                          ExpressionBuilder.Nest nest, int count, Place place) {
+    private void drawNest(ControlFlow flow, Nested nested, ExpressionBuilder.Nest nest, int count, Place place) {
+        List<Integer> path = nested.path();
         flow.text(OPEN_PAREN, GRAY);
         drawRemove(flow, path, count);
         flow.shift(ControlFlow.INDENT);
         drawSum(flow, path, nest.pieces(), place);
         flow.shift(-ControlFlow.INDENT);
         flow.text(CLOSE_PAREN, GRAY);
-        drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+        drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+        int depth = place.inRow() ? path.size() - 1 : path.size();
+        flow.tintFrom(nested.start(), nestTone(depth), depth);
+    }
+
+    /**
+     * A parenthetical as it draws: its place, its term and where its rail stood.
+     *
+     * @param path  its place
+     * @param piece its term, which carries its factor
+     * @param start where its rail stood, its box's top left
+     */
+    private record Nested(List<Integer> path, ExpressionBuilder.Piece piece, BuilderOverlays.Anchor start) {
     }
 
     /**
