@@ -772,8 +772,8 @@ class GroupsPaneTest {
         pane.extract(building.graphics, DrawnFrame.font(), bounds, building.targets);
         DrawnFrame.Text kind = building.find(ControlFlow.dropdownLabel("by type"));
         assertTrue(kind.x() < GroupsPane.listWidth(bounds), "the builder stands on the card: " + kind);
-        assertTrue(building.drawn().stream().anyMatch(text -> "+".equals(text.text()) && text.y() == kind.y()
-                && text.x() > kind.x()), building.drawn().toString());
+        // Decision add-type-is-a-big-square-plus-question-button-below-the-list: the +? stands under the kind.
+        assertTrue(building.find("+?").y() > kind.y(), building.drawn().toString());
     }
     /**
      * Between two member cards, the second card's rule stands the rule's padding below the first card's sprite
