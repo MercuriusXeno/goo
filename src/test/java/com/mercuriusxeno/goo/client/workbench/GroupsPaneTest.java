@@ -216,6 +216,19 @@ class GroupsPaneTest {
             return frame;
         }
 
+        /**
+         * Every tooltip hint a drawn Groups frame registers reads Rename, Delete or a cut group name in full
+         * (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
+         */
+        @Test
+        void everyTooltipHintIsRenameDeleteOrACutName() {
+            List<String> hints = frame().targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
+                    .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
+            assertTrue(hints.containsAll(List.of("Rename", "Delete")), hints.toString());
+            assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
+                    || hint.contains(LONG_GROUP)), hints.toString());
+        }
+
         private List<DrawnFrame.Text> startingWith(DrawnFrame frame, String prefix) {
             return frame.drawn().stream().filter(text -> !text.text().isEmpty() && prefix.startsWith(text.text()))
                     .toList();

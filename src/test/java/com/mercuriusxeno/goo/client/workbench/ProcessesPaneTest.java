@@ -237,6 +237,20 @@ class ProcessesPaneTest {
         }
     }
 
+    /**
+     * Every tooltip hint a drawn Mutators frame registers reads Rename, Delete, a verdict and its reason, or a cut
+     * name in full (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
+     */
+    @Test
+    void everyTooltipHintIsRenameDeleteAVerdictOrACutName() {
+        DrawnFrame frame = frame();
+        List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
+                .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
+        assertTrue(hints.containsAll(List.of("Rename", "Delete", LONG_NAME)), hints.toString());
+        assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
+                || hint.equals(LONG_NAME) || hint.startsWith("Valid") || hint.startsWith("Invalid")), hints.toString());
+    }
+
     private DrawnFrame frame() {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 590, 390), frame.targets);
