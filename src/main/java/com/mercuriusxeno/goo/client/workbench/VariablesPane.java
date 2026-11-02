@@ -60,7 +60,7 @@ final class VariablesPane {
      * A number prefab used nowhere, from its top to the next one's: its head holding its value, its read view's line
      * and the gaps.
      */
-    static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + BLOCK_GAP + ButtonPainter.TEXT_NUDGE + BARE_HEAD_HEIGHT
+    static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + BLOCK_GAP + TEXT_NUDGE + BARE_HEAD_HEIGHT
             + ExpressionLines.TEXT_LINE_HEIGHT + 2 + BLOCK_GAP;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
@@ -74,6 +74,9 @@ final class VariablesPane {
     private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
     private static final String EQUALS = "=";
+    private static final String VALUE_LABEL = "Value:";
+    private static final String AMOUNT_OPEN = "(";
+    private static final String AMOUNT_CLOSE = ")";
     private static final String RENAME = "✎";
     private static final String DELETE = "✗";
     private static final String CONFIRM_DELETE = "Delete";
@@ -229,32 +232,82 @@ final class VariablesPane {
         return key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
     }
 
-    // How far the head draws above its text's top: its buttons' border, or its value's type icons where they stand
-    // higher.
-    private static int headAscent(Font font, List<ExpressionLines.Run> value) {
-        return Math.max(ButtonPainter.TEXT_NUDGE, ExpressionLines.textOffset(font, value));
+    /**
+     * The read view's runs with each evaluated amount in parentheses after what it evaluates: a scalar's after the
+     * expression, a typed prefab's after each type row's terms, a failed evaluation's error after the expression
+     * (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
+     *
+     * @param runs     the expression's runs
+     * @param resolved what the prefab resolves to: "type amount" pairs joined by commas, or a scalar
+     * @param error    why it failed to resolve, empty where it resolved
+     * @return the runs with the amounts placed
+     */
+    static List<ExpressionLines.Run> amountedRuns(List<ExpressionLines.Run> runs, String resolved, String error) {
+        Map<String, String> typed = typedAmounts(resolved);
+        List<ExpressionLines.Run> amounted = new java.util.ArrayList<>();
+        String lastRow = amountTypeRows(runs, typed, amounted);
+        if (error.isEmpty()) {
+            addAmount(amounted, lastRow == null ? resolved : typed.get(lastRow));
+        } else {
+            amounted.add(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, error, null));
+        }
+        return amounted;
     }
 
-    // The value the head reads after its =: what the prefab resolves to, or its error.
-    private static List<ExpressionLines.Run> valueRuns(VariablesTab.ConstantBlock block) {
-        return block.error().isEmpty() ? ExpressionLines.resolvedRuns(block.resolved())
-                : ExpressionLines.textRuns(block.error());
+    // Copies the runs, each type row's amount before the break that ends it; answers the last row's type, null where
+    // the value holds no type rows.
+    private static @Nullable String amountTypeRows(List<ExpressionLines.Run> runs, Map<String, String> typed,
+                                                   List<ExpressionLines.Run> amounted) {
+        String rowType = null;
+        for (int index = 0; index < runs.size(); index++) {
+            ExpressionLines.Run run = runs.get(index);
+            if (run.kind() == ExpressionLines.Kind.BREAK && rowType != null) {
+                addAmount(amounted, typed.get(rowType));
+            }
+            amounted.add(run);
+            if (startsTypeRow(runs, index)) {
+                rowType = run.ref();
+            }
+        }
+        return rowType;
     }
 
-    // A block's head, its Used by run, then its read view or builder; answers the height it took with its gap.
-    // Decision prefab-head-is-name-pencil-and-value-then-used-by.
+    // A type row opens on its type, then =, then the break before its terms.
+    private static boolean startsTypeRow(List<ExpressionLines.Run> runs, int index) {
+        int equals = index + 1;
+        int terms = equals + 1;
+        return terms < runs.size() && runs.get(index).kind() == ExpressionLines.Kind.TYPE
+                && EQUALS.equals(runs.get(equals).text())
+                && runs.get(terms).kind() == ExpressionLines.Kind.INDENTED_BREAK;
+    }
+
+    private static void addAmount(List<ExpressionLines.Run> runs, @Nullable String amount) {
+        if (amount != null && !amount.isEmpty()) {
+            runs.addAll(ExpressionLines.textRuns(AMOUNT_OPEN + amount + AMOUNT_CLOSE));
+        }
+    }
+
+    private static Map<String, String> typedAmounts(String resolved) {
+        Map<String, String> amounts = new HashMap<>();
+        for (String part : resolved.split(RESOLVED_SEPARATOR)) {
+            int space = part.indexOf(' ');
+            if (space > 0) {
+                amounts.put(part.substring(0, space), part.substring(space + 1));
+            }
+        }
+        return amounts;
+    }
+
+    // A block's name line with its Used by run, then its value line or builder; answers the height it took with its
+    // gap. Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
     private int drawBlock(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                           GroupsPane.Bounds bounds, int top, ClickTargets targets) {
         blockTops.put(block.name(), top + bar.offset() - bounds.top());
-        List<ExpressionLines.Run> value = valueRuns(block);
-        int headY = top + SEPARATOR_ROW + BLOCK_GAP + headAscent(font, value);
-        int valueHeight = drawHead(graphics, font, block, value, bounds, headY, targets);
-        int y = headY + Math.max(BARE_HEAD_HEIGHT, valueHeight);
-        y += drawUsedByLines(graphics, font, block.direct(), block.links(), bounds.left(), y,
-                bounds.right() - bounds.left(), block.name(), targets);
+        int headY = top + SEPARATOR_ROW + BLOCK_GAP + TEXT_NUDGE;
+        int y = headY + drawHead(graphics, font, block, bounds, headY, targets);
         boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
         y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
-                : drawReadView(graphics, font, block, bounds, y, targets);
+                : drawValueLine(graphics, font, block, bounds, y, targets);
         y += BLOCK_GAP;
         blockHeights.put(block.name(), y - top);
         return y - top;
@@ -341,15 +394,18 @@ final class VariablesPane {
         }
     }
 
-    // The rename box stands in place of the name while the block is renamed; the value fills the room between the =
-    // and the x, its text on the head's text line. Answers how far the value reaches below the head's text top.
+    // Name [pencil], padding, Used by with its run, then the x at the right end; the rename box stands in place of the
+    // name while the block is renamed. Answers how far the line reaches below the head's text top.
+    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
     private int drawHead(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
-                         List<ExpressionLines.Run> value, GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+                         GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int x = bounds.left();
         boolean renamingThis = rename != null && block.name().equals(renaming);
         int pencilWidth = ButtonPainter.width(font, RENAME);
+        int nameWidth = font.width(block.name()) + PENCIL_GAP + pencilWidth;
         if (renamingThis) {
             drawRenameBox(graphics, font, rename, block.name(), x, y, targets);
+            nameWidth = NAME_WIDTH;
         } else {
             ButtonPainter.drawEntryName(graphics, font, block.name(), x, y, isMarked(block.name()));
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
@@ -357,18 +413,29 @@ final class VariablesPane {
                     y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
                     BuilderOverlays.hintKey(RENAME_HINT));
         }
-        int equalsX = x + Math.max(NAME_WIDTH, font.width(block.name()) + PENCIL_GAP + pencilWidth) + KIND_GAP;
-        graphics.text(font, EQUALS, equalsX, y, GRAY);
-        int valueX = equalsX + font.width(EQUALS) + VALUE_GAP;
-        int valueWidth = bounds.right() - ButtonPainter.width(font, DELETE) - ACTION_GAP - valueX;
-        int lineTop = y - ExpressionLines.textOffset(font, value);
-        // A resolved tree draws each type as its icon beside its amount (decision
-        // goo-types-draw-as-icons-named-on-hover).
-        ExpressionLines.draw(font, value, valueX, lineTop, valueWidth, new ExpressionLines.Painter(graphics, icons,
-                targets, block.error().isEmpty() ? GREEN : RED, LINK,
-                ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
+        int usedByX = x + nameWidth + KIND_GAP;
+        int usedByWidth = bounds.right() - ButtonPainter.width(font, DELETE) - ACTION_GAP - usedByX;
+        int usedBy = drawUsedByLines(graphics, font, block.direct(), block.links(), usedByX, y - TEXT_NUDGE,
+                Math.max(1, usedByWidth), block.name(), targets);
         drawRemoval(graphics, font, block.name(), bounds.right(), y, targets);
-        return lineTop + ExpressionLines.height(font, value, valueWidth) - y;
+        return Math.max(BARE_HEAD_HEIGHT, usedBy - TEXT_NUDGE);
+    }
+
+    // Value: one indent in, then the read view inline with each evaluated amount in parentheses; answers its height.
+    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
+    private int drawValueLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
+                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+        int labelX = bounds.left() + ControlFlow.INDENT;
+        int viewX = labelX + font.width(VALUE_LABEL) + VALUE_GAP;
+        int height = drawReadView(graphics, font, block, new GroupsPane.Bounds(viewX, bounds.top(), bounds.right(),
+                bounds.bottom()), y, targets);
+        graphics.text(font, VALUE_LABEL, labelX, y + 1 + ExpressionLines.textOffset(font, readRuns(block)), GRAY);
+        return height;
+    }
+
+    private List<ExpressionLines.Run> readRuns(VariablesTab.ConstantBlock block) {
+        String text = block.expression().isEmpty() ? NO_EXPRESSION : block.expression();
+        return amountedRuns(ExpressionLines.shownRuns(text, icons::nameOf), block.resolved(), block.error());
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
@@ -408,8 +475,7 @@ final class VariablesPane {
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int width = bounds.right() - bounds.left();
-        String text = block.expression().isEmpty() ? NO_EXPRESSION : block.expression();
-        List<ExpressionLines.Run> runs = ExpressionLines.shownRuns(text, icons::nameOf);
+        List<ExpressionLines.Run> runs = readRuns(block);
         int height = ExpressionLines.height(font, runs, width) + HALF;
         graphics.fill(bounds.left(), y, bounds.right(), y + height, READ_VIEW_COLOR);
         targets.add(bounds.left(), y, width, height, () -> startEditing(block.name()));
