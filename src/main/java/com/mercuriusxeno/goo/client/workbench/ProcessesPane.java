@@ -329,13 +329,26 @@ final class ProcessesPane {
         String heading = iterators ? ITERATORS : MUTATORS;
         int x = frame.rows().left() + frame.font().width(heading) + GAP;
         if (isNaming(section, iterators) && nameBox != null) {
-            nameBox.setPosition(x, top + 1);
-            nameBoxPlaced = true;
+            placeNameBox(frame, nameBox, x, top + 1, frame.rows().right() - x);
             return;
         }
         BuilderOverlays.control(frame.graphics(), frame.font(), NEW_ENTRY,
                 null, x, top, frame.targets(),
                 at -> startNaming(new Naming(section, iterators, null)));
+    }
+
+    // The open name box at most its own width, shrunk where the room left holds less beside its ✓ and ↺, which run
+    // what Enter and Escape run.
+    // Decision open-name-box-takes-a-done-checkmark.
+    // Decision open-name-box-takes-a-gold-arrow-that-cancels.
+    private void placeNameBox(Frame frame, EditBox box, int x, int y, int room) {
+        int width = Math.max(1, Math.min(NAME_BOX_WIDTH, room - NameBoxButtons.width(frame.font())));
+        box.setPosition(x, y);
+        box.setWidth(width);
+        nameBoxPlaced = true;
+        NameBoxButtons.draw(frame.graphics(), frame.font(), x + width, y + NAME_BOX_HEIGHT / HALF
+                - ButtonPainter.HEIGHT / HALF, ButtonPainter.HEIGHT, frame.targets(), () -> create(box.getValue()),
+                this::stopNaming);
     }
 
     private boolean isNaming(String section, boolean iterators) {
@@ -455,8 +468,8 @@ final class ProcessesPane {
         int x = frame.rows().left();
         int y = slot.y();
         if (nameBox != null && naming != null && key.equals(naming.renamed()) && section.equals(naming.section())) {
-            nameBox.setPosition(x, y);
-            nameBoxPlaced = true;
+            int room = slot.room() + ButtonPainter.width(frame.font(), RENAME) + PENCIL_GAP;
+            placeNameBox(frame, nameBox, x, y, room);
             return;
         }
         String shown = fittedName(frame.font(), key, slot.room());

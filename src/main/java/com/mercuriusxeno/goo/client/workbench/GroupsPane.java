@@ -180,11 +180,7 @@ final class GroupsPane {
 
     private boolean nameKey(EditBox box, int key) {
         if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
-            if (renaming) {
-                renameGroup(box.getValue());
-            } else {
-                createGroup(box.getValue());
-            }
+            commitName(box.getValue());
             return true;
         }
         if (key == GLFW.GLFW_KEY_ESCAPE) {
@@ -271,9 +267,8 @@ final class GroupsPane {
         int boxWidth = Math.max(1, rowRight - left - buttonsWidth - BuilderOverlays.GAP);
         boolean namingNew = naming && !renaming && nameBox != null;
         if (namingNew) {
-            nameBox.setPosition(left, top + HALF);
-            nameBox.setWidth(boxWidth);
-            nameBox.visible = visible;
+            placeNameBox(graphics, font, nameBox, left, top, Math.max(1, boxWidth - NameBoxButtons.width(font)),
+                    targets);
         }
         if (search != null) {
             search.setPosition(left, top + HALF);
@@ -463,9 +458,8 @@ final class GroupsPane {
         int nameWidth = detail.right() - detail.left() - buttons;
         int x = detail.left();
         if (renaming && nameBox != null) {
-            nameBox.setPosition(x, y + HALF);
-            nameBox.setWidth(NAME_BOX_WIDTH);
-            nameBox.visible = visible;
+            int room = detail.right() - x - deleteWidth - BuilderOverlays.GAP - NameBoxButtons.width(font);
+            placeNameBox(graphics, font, nameBox, x, y, Math.max(1, Math.min(NAME_BOX_WIDTH, room)), targets);
             return;
         }
         ButtonPainter.drawEntryName(graphics, font, font.plainSubstrByWidth(name, nameWidth), x, y + TEXT_NUDGE,
@@ -611,6 +605,27 @@ final class GroupsPane {
         }
         int count = Integer.parseInt(trimmed);
         return count < 1 ? Optional.empty() : Optional.of(count);
+    }
+
+    // The open name box, naming a new group or renaming the selected one, with its ✓ and ↺ right of it, which run what
+    // Enter and Escape run.
+    // Decision open-name-box-takes-a-done-checkmark.
+    // Decision open-name-box-takes-a-gold-arrow-that-cancels.
+    private void placeNameBox(GuiGraphicsExtractor graphics, Font font, EditBox box, int x, int rowTop, int width,
+                              ClickTargets targets) {
+        box.setPosition(x, rowTop + HALF);
+        box.setWidth(width);
+        box.visible = visible;
+        NameBoxButtons.draw(graphics, font, x + width, rowTop, ROW_HEIGHT, targets, () -> commitName(box.getValue()),
+                this::stopNaming);
+    }
+
+    private void commitName(String typed) {
+        if (renaming) {
+            renameGroup(typed);
+        } else {
+            createGroup(typed);
+        }
     }
 
     private void startRenaming(String name) {
