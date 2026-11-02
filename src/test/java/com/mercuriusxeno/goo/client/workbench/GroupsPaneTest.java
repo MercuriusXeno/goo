@@ -415,6 +415,46 @@ class GroupsPaneTest {
     }
 
     /**
+     * Members stands above a custom group's member list with the [+] right of it on its row, and above a tag's
+     * member list alone (decision members-labels-the-group-member-list).
+     */
+    @Test
+    void membersHeadsTheMemberListLeftOfThePlus() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []},
+                  {"name": "saplings", "kind": "tag", "members": [{"id": "minecraft:oak_sapling", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
+
+        groups.selectGroup("logs");
+        DrawnFrame group = new DrawnFrame();
+        pane.extract(group.graphics, DrawnFrame.font(), bounds, group.targets);
+        DrawnFrame.Text members = group.find("Members");
+        DrawnFrame.Text plus = group.find("+");
+        assertTrue(members.y() < group.find("minecraft:oak_log").y(), group.drawn().toString());
+        assertTrue(Math.abs(plus.y() - members.y()) < ExpressionLines.TEXT_LINE_HEIGHT, plus + " vs " + members);
+        assertTrue(plus.x() > members.x() + "Members".length() * 6, plus + " vs " + members);
+
+        groups.selectGroup("saplings");
+        DrawnFrame tag = new DrawnFrame();
+        pane.extract(tag.graphics, DrawnFrame.font(), bounds, tag.targets);
+        DrawnFrame.Text tagMembers = tag.find("Members");
+        assertTrue(tagMembers.y() < tag.find("minecraft:oak_sapling").y(), tag.drawn().toString());
+        assertTrue(tag.drawn().stream().noneMatch(text -> text.text().equals("+")
+                && Math.abs(text.y() - tagMembers.y()) < ExpressionLines.TEXT_LINE_HEIGHT), tag.drawn().toString());
+    }
+
+    /**
      * In a group's expression, a right click on a prefab ref runs nothing, a shift + left click on it opens the
      * Prefabs tab on that prefab and a plain left click on the same ref opens the builder over the value (decision
      * shift-left-click-follows-plain-left-modifies).

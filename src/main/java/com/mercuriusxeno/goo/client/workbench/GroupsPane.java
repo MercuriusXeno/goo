@@ -59,6 +59,7 @@ final class GroupsPane {
     private static final String SEARCH_HINT = "Search groups";
     // Decision group-detail-puts-plus-and-rename-beside-the-name.
     private static final String ADD_MEMBER = "+";
+    private static final String MEMBERS_LABEL = "Members";
     // The operator's ruling: rename is a pencil just past the name.
     private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename";
@@ -476,15 +477,18 @@ final class GroupsPane {
     }
 
     // The operator's ruling: the [+] adding a member stands right above the member list, below the value, so its
-    // place says what it adds to. Answers the y below it, the top unchanged for a tag.
+    // place says what it adds to; Members heads the list left of it, alone for a tag, which takes no [+]. Answers
+    // the y below the row.
+    // Decision members-labels-the-group-member-list.
     private int drawAddMember(GuiGraphicsExtractor graphics, Font font, Bounds detail, GroupsTab.Group group, int top,
                               ClickTargets targets) {
-        if (group.tag()) {
-            return top;
+        graphics.text(font, MEMBERS_LABEL, detail.left(), top + TEXT_NUDGE, GRAY);
+        if (!group.tag()) {
+            BuilderOverlays.control(graphics, font, ADD_MEMBER, null,
+                    detail.left() + font.width(MEMBERS_LABEL) + BuilderOverlays.GAP, top, targets,
+                    at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
+                            choice -> apply(groups.addPickRequest(choice.id()))));
         }
-        BuilderOverlays.control(graphics, font, ADD_MEMBER, null, detail.left(), top, targets,
-                at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
-                        choice -> apply(groups.addPickRequest(choice.id()))));
         return top + ROW_HEIGHT;
     }
 
