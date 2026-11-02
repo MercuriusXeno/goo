@@ -541,6 +541,56 @@ class ValuesPaneTest {
         assertTrue(after.texts().contains(ReadValueButton.NOT_SET), after.texts().toString());
     }
 
+    /**
+     * A derived item whose override is marked for removal draws its recipe equivalency, the value it takes once the
+     * save applies the removal, beside the gold restore arrow; an item whose entry is empty draws no ✗ and no
+     * restore arrow, marked or not, and reads Value: Not explicitly set (decision
+     * removed-entry-shows-the-derived-value-and-no-restore-on-empty).
+     */
+    @Test
+    void markedOverrideDrawsItsDerivedValueAndAnEmptyEntryOffersNoRestore() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(List.of(
+                new ManagerEntrySource.ItemName("minecraft:oak_planks", "Oak Planks"),
+                new ManagerEntrySource.ItemName("minecraft:gravel", "Gravel")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "oak_planks", "keySeparator": null, "kind": "VALUE", "text": "\\"5\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "gravel", "keySeparator": null, "kind": "VALUE", "text": "\\"\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "oak_planks", "value": {"glow": "5"}, "denied": false}]}
+                """);
+        values.readDerivedFrom("""
+                {"items": {"minecraft:oak_planks": {"inputs": [{"id": "minecraft:oak_log", "count": 1}],
+                  "output": 4}}}
+                """);
+        values.markRemoval("minecraft:oak_planks");
+        values.markRemoval("minecraft:gravel");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(mock(Matrix3x2fStack.class));
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        DrawnFrame.Text planks = frame.find("Oak Planks");
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), ys.capture());
+        long headSprites = ys.getAllValues().stream().filter(y -> Math.abs(y - planks.y()) < LINE_HEIGHT).count();
+        assertEquals(2, headSprites, "the planks' sprite and its log input");
+        assertEquals(1, frame.count(ButtonPainter.RESTORE), frame.texts().toString());
+        DrawnFrame.Text gravel = frame.find("Gravel");
+        assertTrue(frame.find(ButtonPainter.RESTORE).y() < gravel.y(), "the one restore arrow is the planks'");
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.text().equals("✗") && text.y() > gravel.y()),
+                frame.drawn().toString());
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals(ReadValueButton.NOT_SET)
+                && text.y() > gravel.y()), frame.drawn().toString());
+    }
+
     // Clicks the type picker's cell for a goo type, found by its hover across the screen.
     private static void pickType(DrawnFrame frame, String type) {
         String key = GooTypeIcons.hoverKey(type);
