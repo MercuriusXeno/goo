@@ -461,19 +461,23 @@ public final class ValuesTab {
      * @return the selected entry's row, empty while none is selected
      */
     public Optional<EntryRow> selectedRow() {
-        if (selected == null) {
-            return Optional.empty();
-        }
-        String id = selected;
+        return selected == null ? Optional.empty() : Optional.of(rowOf(selected));
+    }
+
+    /**
+     * @param id an item's namespaced id
+     * @return its row as the Items list draws it: its expression, its resolved amounts and the loader's error
+     */
+    public EntryRow rowOf(String id) {
         String name = entries.stream().filter(entry -> entry.id().equals(id)).map(ManagerEntry::name).findFirst()
                 .orElse(id);
         String key = entryKeyOf(id);
         JsonObject member = valueMember(key);
         JsonObject answer = resolved.get(key);
         boolean denied = answer != null && answer.has(DENIED) && answer.get(DENIED).getAsBoolean();
-        return Optional.of(new EntryRow(id, name,
+        return new EntryRow(id, name,
                 member == null ? NO_TEXT : ManagerDraft.shownText(member.get(TEXT).getAsString()),
-                amountsOf(answer), denied, errorOf(answer)));
+                amountsOf(answer), denied, errorOf(answer));
     }
 
     private static Map<String, String> amountsOf(@Nullable JsonObject answer) {
@@ -527,7 +531,48 @@ public final class ValuesTab {
      * @return whether the file holds a value entry of the selected item's own
      */
     public boolean selectedHasEntry() {
-        return selected != null && valueMember(entryKeyOf(selected)) != null;
+        return selected != null && hasEntry(selected);
+    }
+
+    /**
+     * @param id an item's namespaced id
+     * @return whether the file holds a value entry of the item's own
+     */
+    public boolean hasEntry(String id) {
+        return valueMember(entryKeyOf(id)) != null;
+    }
+
+    /**
+     * @param id an item whose own entry the save is to remove
+     */
+    public void markRemoval(String id) {
+        draft.removals().mark(RemovalMarks.Tab.ITEMS, id);
+    }
+
+    /**
+     * @param id an item whose entry's mark a restore clears
+     */
+    public void restoreRemoval(String id) {
+        draft.removals().restore(RemovalMarks.Tab.ITEMS, id);
+    }
+
+    /**
+     * @param id an item's namespaced id
+     * @return whether the save removes its entry
+     */
+    public boolean isMarked(String id) {
+        return draft.removals().isMarked(RemovalMarks.Tab.ITEMS, id);
+    }
+
+    /**
+     * Drops every marked item's own entry from the draft, as the save does before it writes the draft.
+     * Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+     */
+    public void applyRemovals() {
+        for (String id : draft.removals().marked(RemovalMarks.Tab.ITEMS)) {
+            removeEntry(id);
+            draft.removals().restore(RemovalMarks.Tab.ITEMS, id);
+        }
     }
 
     /**
@@ -535,10 +580,13 @@ public final class ValuesTab {
      * where recipes value it, else no value.
      */
     public void removeEntry() {
-        if (selected == null) {
-            return;
+        if (selected != null) {
+            removeEntry(selected);
         }
-        JsonObject member = valueMember(entryKeyOf(selected));
+    }
+
+    private void removeEntry(String id) {
+        JsonObject member = valueMember(entryKeyOf(id));
         if (member == null) {
             return;
         }

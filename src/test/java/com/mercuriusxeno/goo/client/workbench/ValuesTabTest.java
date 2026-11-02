@@ -17,6 +17,32 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ValuesTabTest {
 
+    /**
+     * An item's own entry marks for removal and stays in the draft, a restore clears the mark, and the save's removal
+     * drops a marked entry from the draft (decisions items-row-is-one-line-then-its-expression-inline,
+     * every-delete-marks-for-removal-and-a-gold-arrow-restores).
+     */
+    @Test
+    void entryMarksRestoresAndTheSaveRemovalDropsIt() {
+        ValuesTab tab = new ValuesTab();
+        tab.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        tab.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        String stick = "minecraft:stick";
+        assertTrue(tab.hasEntry(stick));
+        tab.markRemoval(stick);
+        assertTrue(tab.isMarked(stick) && tab.hasEntry(stick));
+        tab.restoreRemoval(stick);
+        assertTrue(!tab.isMarked(stick));
+        tab.markRemoval(stick);
+        tab.applyRemovals();
+        assertTrue(!tab.hasEntry(stick) && !tab.isMarked(stick));
+    }
+
     private static final ManagerEntrySource ENTRIES = new ListedEntrySource(
             List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick"),
                     new ManagerEntrySource.ItemName("minecraft:torch", "Torch"),
