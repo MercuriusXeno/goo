@@ -17,9 +17,9 @@ import java.util.function.Supplier;
  * line chooses the value's kind: a number (a prefab's alone), an amount per goo type, or a goo value summed from
  * other items or prefabs. Each control offers only what the game's evaluator accepts where the value is read, as
  * {@link BuilderGrammar} answers, so no choice ends in an error: a number stands unscaled, a reference draws its
- * factor as a ratio, the goo type picker hides the types a value holds, and a list holds only what the value may read. Several
- * terms stand as one sum, drawn as "the sum of:" with its terms indented below it, each edited in place, and the
- * whole value scales as one sum; these are the two ways the game's files use parentheses. Every control names what
+ * factor as a ratio, the goo type picker hides the types a value holds, and a list holds only what the value may read. A
+ * parenthetical the file holds draws between a "(" line and a ")" line with its terms indented, each edited in place,
+ * and the whole value scales as one sum; these are the two ways the game's files use parentheses. Every control names what
  * it does on hover, the lines wrap inside the pane, and done closes the builder below the value. Each change
  * writes the string the file grammar reads; a value is never written empty. The state lives in
  * {@link ExpressionBuilder}.
@@ -46,7 +46,8 @@ final class ExpressionBuilderPane {
     private static final String MINUS = "minus";
     private static final String RATIO = ":";
     private static final String WHOLE_VALUE = "the whole value";
-    private static final String SUM_OF = "the sum of:";
+    private static final String OPEN_PAREN = "(";
+    private static final String CLOSE_PAREN = ")";
     private static final String ONE_TYPE = "only one goo type";
     private static final String ONLY = "only";
     // decision remove-draws-as-a-red-x
@@ -57,7 +58,6 @@ final class ExpressionBuilderPane {
     private static final String ADD_NUMBER = "+ number";
     private static final String ADD_ITEM_OR_PREFAB = "+ item or prefab";
     private static final String ADD_PREFAB = "+ prefab";
-    private static final String ADD_SUM = "+ sum of terms";
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
     // decision done-draws-green-with-a-check-mark
@@ -398,13 +398,6 @@ final class ExpressionBuilderPane {
         String sort = grammar.sortOf(edited);
         List<ExpressionBuilder.Piece> pieces = edited.terms();
         drawSum(flow, List.of(), pieces, sort);
-        if (grammar.termTakesNumbers(sort)) {
-            flow.control(ADD_SUM, null, at -> apply(b -> b.addSum(new ExpressionBuilder.Num(
-                    ExpressionBuilder.ONE_TEXT))));
-        } else if (hasTermChoices(sort)) {
-            flow.control(ADD_SUM, null, at -> overlays.openDropdown(at, termList(sort),
-                    choice -> apply(b -> b.addSum(refOf(choice)))));
-        }
         // Decision scale-shows-the-ratio-at-once: several terms draw the whole value's ratio 1:1 on a line of its
         // own; setting a side wraps the value as one sum scaled by it.
         if (pieces.size() > 1) {
@@ -472,17 +465,22 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // "the sum of:" with its terms indented below it, each edited in place, then the sum's factor.
+    // A "(" line, its terms indented one step past the "(", each edited in place, then a ")" line under the "("
+    // carrying the parenthetical's factor.
+    // Decision sum-of-terms-leaves-the-builder.
     private void drawNest(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece,
                           ExpressionBuilder.Nest nest, int count, String sort) {
-        flow.text(SUM_OF, GRAY);
+        int column = flow.column();
+        flow.text(OPEN_PAREN, GRAY);
         if (count > 1) {
             flow.coloredControl(REMOVE, RED, DELETE_HINT, at -> apply(b -> b.remove(path)));
         }
-        flow.indent();
+        flow.indent(column + ControlFlow.INDENT);
         drawSum(flow, path, nest.pieces(), sort);
-        flow.outdent();
+        flow.outdent(ControlFlow.INDENT);
+        flow.text(CLOSE_PAREN, GRAY);
         drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+        flow.outdent(column);
     }
 
     // A goo type taken from the item or prefab: its icon picks another or the whole value again.
