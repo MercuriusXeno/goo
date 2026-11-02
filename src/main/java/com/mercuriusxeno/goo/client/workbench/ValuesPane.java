@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.IntUnaryOperator;
 import java.util.function.ToIntFunction;
 
 /**
@@ -88,7 +87,9 @@ final class ValuesPane {
     private final ManagerActions actions;
     private @Nullable EditBox search;
     private final ExpressionBuilderPane builder;
-    private final ScrollBar listBar = new ScrollBar(1);
+    /** How far one wheel notch moves the Items list, in pixels (decision items-list-scrolls-by-pixel). */
+    static final int SCROLL_STEP = LINE_HEIGHT * 3;
+    private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
     // The item whose expression the builder stands open over, in its row's place.
     private @Nullable String building;
     private boolean visible;
@@ -294,29 +295,38 @@ final class ValuesPane {
             return;
         }
         scrollToRevealed(font, listed, list);
-        int firstShown = Math.min(listBar.offset(), listed.size() - 1);
         graphics.enableScissor(list.left(), list.top(), list.right(), list.bottom());
         targets.clip(list.left(), list.top(), list.right(), list.bottom());
-        int whole = drawRowsFrom(graphics, font, listed, firstShown, list, targets);
+        int contentEnd = drawRows(graphics, font, listed, list, targets);
         targets.unclip();
         graphics.disableScissor();
-        listBar.measure(listed.size(), Math.max(1, whole));
-        listBar.draw(graphics, targets, list.right(), list.top(), list.bottom());
+        listBar.measureAndDraw(graphics, targets, contentEnd, list.right(), list.top(), list.bottom());
     }
 
-    // Draws rows from the first shown until the list's bottom; answers how many stood whole inside it.
-    private int drawRowsFrom(GuiGraphicsExtractor graphics, Font font, List<ValuesTab.ManagerEntry> listed,
-                             int firstShown, GroupsPane.Bounds list, ClickTargets targets) {
+    // Draws every row the view reaches, scrolled by the bar's pixel offset, and steps past the rest by their measured
+    // heights; the open builder's row always draws, so its height is the one it takes. Answers the y the content ends.
+    // Decision items-list-scrolls-by-pixel.
+    private int drawRows(GuiGraphicsExtractor graphics, Font font, List<ValuesTab.ManagerEntry> listed,
+                         GroupsPane.Bounds list, ClickTargets targets) {
         int right = list.right() - ScrollBar.WIDTH - ScrollBar.GAP;
-        int y = list.top();
-        int whole = 0;
-        for (int index = firstShown; index < listed.size() && y < list.bottom(); index++) {
-            RowLayout.drawSeparatorAbove(graphics, index - firstShown, y, list.left(), right);
-            y += drawEntry(graphics, font, listed.get(index), new GroupsPane.Bounds(list.left(), y, right,
-                    list.bottom()), targets);
-            whole += y <= list.bottom() ? 1 : 0;
+        int y = list.top() - listBar.offset();
+        for (int index = 0; index < listed.size(); index++) {
+            ValuesTab.ManagerEntry entry = listed.get(index);
+            boolean building = isBuilding(entry);
+            int measured = building ? 0 : rowHeight(font, entry, right - list.left());
+            if (building || y < list.bottom() && y + measured > list.top()) {
+                RowLayout.drawSeparatorAbove(graphics, index, y, list.left(), right);
+                y += drawEntry(graphics, font, entry, new GroupsPane.Bounds(list.left(), y, right, list.bottom()),
+                        targets);
+            } else {
+                y += measured;
+            }
         }
-        return whole;
+        return y;
+    }
+
+    private boolean isBuilding(ValuesTab.ManagerEntry entry) {
+        return entry.id().equals(building) && builder.isOpen();
     }
 
     // One Items row: its head line, then its expression one indent in, its x at that line's right end and the loader
@@ -331,7 +341,7 @@ final class ValuesPane {
         GroupsPane.Bounds expression = new GroupsPane.Bounds(row.left() + ControlFlow.INDENT, expressionTop,
                 expressionRight, row.bottom());
         ValuesTab.EntryRow shown = values.rowOf(entry.id());
-        int height = entry.id().equals(building) && builder.isOpen()
+        int height = isBuilding(entry)
                 ? builder.extract(graphics, font, expression, expressionTop, targets)
                 : drawValueView(graphics, font, shown, expression, targets);
         if (entered) {
@@ -725,65 +735,25 @@ final class ValuesPane {
         return iconSize + RUN_ICON_GAP + StackedFractions.width(font, StackedFractions.of(amount));
     }
 
-    // The list scrolls by whole rows of differing heights, so a revealed row lands on the first shown row that puts
-    // its middle nearest the list's middle, no later than the last first row that still fills the list.
+    // A revealed row's middle stands at the list's middle, a row taller than the list from its top, the clamp
+    // stopping the last rows at the list's end; the rows' read heights place it, the builder closed by the reveal.
     // Decision shift-follow-centers-the-target-in-its-scrolling-view.
+    // Decision tall-follow-target-shows-from-its-top.
     private void scrollToRevealed(Font font, List<ValuesTab.ManagerEntry> listed, GroupsPane.Bounds list) {
         if (revealRow == NO_REVEAL) {
             return;
         }
         int target = Math.min(revealRow, listed.size() - 1);
         revealRow = NO_REVEAL;
-        int right = list.right() - ScrollBar.WIDTH - ScrollBar.GAP;
-        IntUnaryOperator height = index -> rowHeight(font, listed.get(index), right - list.left());
-        RowFit fit = new RowFit(height, listed.size(), list.bottom() - list.top());
-        int first = Math.min(fit.centeredFirst(target), fit.lastFillingFirst());
-        listBar.measure(listed.size(), fit.wholeFrom(first));
-        listBar.scrollTo(first);
-    }
-
-    // Rows of differing heights in a view of a fixed height, by the first row shown.
-    private record RowFit(IntUnaryOperator height, int rows, int view) {
-        // The first row that puts the target's middle nearest the view's middle, walking up from the target; a target
-        // taller than the view is its own first row, shown from its top.
-        // Decision tall-follow-target-shows-from-its-top.
-        int centeredFirst(int target) {
-            double half = view / (double) HALF;
-            double middle = height.applyAsInt(target) / (double) HALF;
-            int best = target;
-            double bestMiss = Math.abs(middle - half);
-            for (int first = target - 1; first >= 0 && middle < half; first--) {
-                middle += height.applyAsInt(first);
-                double miss = Math.abs(middle - half);
-                if (miss < bestMiss) {
-                    best = first;
-                    bestMiss = miss;
-                }
-            }
-            return best;
+        int width = list.right() - ScrollBar.WIDTH - ScrollBar.GAP - list.left();
+        int targetTop = 0;
+        int content = 0;
+        for (int index = 0; index < listed.size(); index++) {
+            targetTop = index == target ? content : targetTop;
+            content += rowHeight(font, listed.get(index), width);
         }
-
-        // The first row at which the rows to the end still fit the view, the list's end at its bottom.
-        int lastFillingFirst() {
-            int first = rows - 1;
-            int filled = height.applyAsInt(first);
-            while (first > 0 && filled + height.applyAsInt(first - 1) <= view) {
-                first--;
-                filled += height.applyAsInt(first);
-            }
-            return first;
-        }
-
-        // How many rows from the first stand whole in the view, at least one.
-        int wholeFrom(int first) {
-            int whole = 0;
-            int filled = 0;
-            for (int index = first; index < rows && filled + height.applyAsInt(index) <= view; index++) {
-                filled += height.applyAsInt(index);
-                whole++;
-            }
-            return Math.max(1, whole);
-        }
+        listBar.measure(content, list.bottom() - list.top());
+        listBar.center(targetTop, rowHeight(font, listed.get(target), width));
     }
 
     /**
