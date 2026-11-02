@@ -350,15 +350,79 @@ final class ExpressionBuilder {
         int to = from + by;
         changed();
         pieces.add(to, pieces.remove(from));
-        for (int index = 0; index < pieces.size(); index++) {
-            Piece piece = pieces.get(index);
+        replaceSum(sum, signed(pieces));
+    }
+
+    /**
+     * Moves a term to a slot of any sum, its own, a parenthetical's inside it or one outside it; the first term of
+     * each sum takes no sign and a term leaving first place takes plus. A drop into the term itself, one that would
+     * empty its sum, or one landing a subtracted term first is refused.
+     * Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
+     *
+     * @param from    the term's place
+     * @param toSum   the sum it drops into, as its place reads before the term leaves
+     * @param toIndex the slot in that sum, before the term at that index, or the sum's size for its end
+     * @return whether the term moved
+     */
+    boolean moveTo(List<Integer> from, List<Integer> toSum, int toIndex) {
+        List<Integer> fromSum = from.subList(0, from.size() - 1);
+        int fromIndex = from.getLast();
+        List<Piece> source = sumAt(fromSum);
+        if (dropBreaksTheTree(from, toSum, source.size())) {
+            return refuse(MOVE_CHANGES_VALUE);
+        }
+        Piece moving = source.get(fromIndex);
+        int slot = toSum.equals(fromSum) && toIndex > fromIndex ? toIndex - 1 : toIndex;
+        List<Piece> left = new ArrayList<>(source);
+        left.remove(fromIndex);
+        if (landsSubtractedFirst(left, fromIndex, moving, slot)) {
+            return refuse(MOVE_CHANGES_VALUE);
+        }
+        List<Integer> target = sumAfterLeaving(fromSum, fromIndex, toSum);
+        changed();
+        replaceSum(fromSum, signed(left));
+        List<Piece> landing = new ArrayList<>(sumAt(target));
+        landing.add(Math.min(slot, landing.size()), moving);
+        replaceSum(target, signed(landing));
+        return true;
+    }
+
+    // A drop into the term itself, one emptying its sum, or a whole term dropped beside type rows.
+    private boolean dropBreaksTheTree(List<Integer> from, List<Integer> toSum, int sourceSize) {
+        boolean intoItself = toSum.size() >= from.size() && toSum.subList(0, from.size()).equals(from);
+        boolean beside = toSum.isEmpty() && !rows.isEmpty();
+        return intoItself || sourceSize <= 1 || beside;
+    }
+
+    // The term leaving first place hands it to a subtracted term, or the term lands first itself subtracted.
+    private static boolean landsSubtractedFirst(List<Piece> left, int fromIndex, Piece moving, int slot) {
+        boolean handsOver = fromIndex == 0 && left.getFirst().join() == ExpressionTerms.Join.MINUS;
+        return handsOver || slot == 0 && moving.join() == ExpressionTerms.Join.MINUS;
+    }
+
+    // The target sum's place once the term leaves: a later sibling parenthetical moves one index earlier.
+    private static List<Integer> sumAfterLeaving(List<Integer> fromSum, int fromIndex, List<Integer> toSum) {
+        List<Integer> target = new ArrayList<>(toSum);
+        int depth = fromSum.size();
+        boolean underFromSum = toSum.size() > depth && toSum.subList(0, depth).equals(fromSum);
+        if (underFromSum && toSum.get(depth) > fromIndex) {
+            target.set(depth, toSum.get(depth) - 1);
+        }
+        return target;
+    }
+
+    // The first term takes no sign and every later one a sign, a term leaving first place taking plus.
+    private static List<Piece> signed(List<Piece> pieces) {
+        List<Piece> signed = new ArrayList<>(pieces);
+        for (int index = 0; index < signed.size(); index++) {
+            Piece piece = signed.get(index);
             if (index == 0) {
-                pieces.set(index, piece.withJoin(ExpressionTerms.Join.FIRST));
+                signed.set(index, piece.withJoin(ExpressionTerms.Join.FIRST));
             } else if (piece.join() == ExpressionTerms.Join.FIRST) {
-                pieces.set(index, piece.withJoin(ExpressionTerms.Join.PLUS));
+                signed.set(index, piece.withJoin(ExpressionTerms.Join.PLUS));
             }
         }
-        replaceSum(sum, pieces);
+        return signed;
     }
 
     private boolean addTerm(List<Integer> sum, Operand operand) {

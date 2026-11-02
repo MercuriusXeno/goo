@@ -101,6 +101,74 @@ class ExpressionBuilderPaneTest {
         return ControlFlow.dropdownLabel(label);
     }
 
+    // Where the rail of the term at a place answers, found by its hover across the screen.
+    private static double[] railOf(DrawnFrame frame, List<Integer> path) {
+        String key = ExpressionBuilderPane.railHoverKey(path);
+        for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
+            for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
+                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                    return new double[] {x, y};
+                }
+            }
+        }
+        throw new AssertionError("no rail for " + path + " in " + frame.targets.hoverKeys());
+    }
+
+    // The tops of each fill drawn in the drop cursor's blue.
+    private static List<Integer> cursorTops(DrawnFrame frame) {
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(anyInt(), tops.capture(), anyInt(), anyInt(),
+                eq(ExpressionBuilderPane.DROP_CURSOR));
+        return tops.getAllValues();
+    }
+
+    /**
+     * Each term draws a drag rail in place of ^ and v; a press on the rail and a drag past the last term draws the
+     * blue drop cursor on the last term's line, and the release there moves the term to the end (decision
+     * terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     */
+    @Test
+    void railDragDrawsTheDropCursorAndTheReleaseMovesTheTerm() {
+        Builder builder = Builder.item("$waxed + $edited + $base");
+        DrawnFrame frame = builder.frame();
+        assertFalse(frame.texts().contains("^") || frame.texts().contains("v"), frame.texts().toString());
+        double[] rail = railOf(frame, List.of(0));
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        DrawnFrame.Text base = frame.find("base");
+        assertTrue(frame.targets.drag(AREA.right() - 40, base.y()));
+        DrawnFrame dragging = builder.frame();
+        List<Integer> cursor = cursorTops(dragging);
+        assertEquals(1, cursor.size(), "one drop cursor: " + cursor);
+        assertTrue(Math.abs(cursor.getFirst() - base.y()) < ControlFlow.LINE, cursor + " vs " + base);
+        assertTrue(dragging.texts().stream().filter("waxed"::equals).count() > 1, "the term draws at the mouse");
+        frame.targets.release();
+        assertEquals("$edited + $base + $waxed", builder.written.getLast());
+    }
+
+    /**
+     * A release on the dragged term's own slot, or Escape before the release, leaves the value as it opened
+     * (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     */
+    @Test
+    void releaseOnTheOriginOrEscapeLeavesTheValue() {
+        Builder builder = Builder.item("$waxed + $edited + $base");
+        DrawnFrame frame = builder.frame();
+        double[] rail = railOf(frame, List.of(1));
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        assertTrue(frame.targets.drag(rail[0], rail[1]));
+        frame.targets.release();
+        assertEquals(List.of(), builder.written);
+        DrawnFrame again = builder.frame();
+        double[] second = railOf(again, List.of(1));
+        assertTrue(again.targets.click(second[0], second[1]));
+        assertTrue(again.targets.drag(AREA.right() - 40, again.find("base").y()));
+        builder.frame();
+        assertTrue(builder.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE));
+        assertTrue(cursorTops(builder.frame()).isEmpty(), "the drop cursor goes with the drag");
+        again.targets.release();
+        assertEquals(List.of(), builder.written);
+    }
+
     /**
      * Inside the builder, a right click on a prefab reference runs nothing, a shift + left click on it opens the
      * Prefabs tab on that prefab, and a plain left click opens the dropdown that replaces it (decision
@@ -213,12 +281,16 @@ class ExpressionBuilderPaneTest {
             DrawnFrame.Text food = frame.findFirst("food");
             DrawnFrame.Text saturation = frame.findFirst("saturation");
             assertTrue(saturation.y() > food.y(), frame.drawn().toString());
-            assertEquals(oneIndent, line(frame, saturation.y() / ControlFlow.LINE).getFirst().x(),
-                    frame.drawn().toString());
+            // A wrapped term's line opens on its rail, one indent in under the type.
+            double[] saturationRail = railOf(frame, List.of(0, 1));
+            assertEquals(typeLeft + ControlFlow.INDENT, (int) saturationRail[0], frame.drawn().toString());
+            assertEquals(saturation.y() / ControlFlow.LINE, (int) saturationRail[1] / ControlFlow.LINE);
             DrawnFrame.Text dye = frame.find("dye");
             DrawnFrame.Text minus = frame.drawn().stream().filter(text -> text.text().equals("-")
                     && text.y() > dye.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-            assertEquals(oneIndent, minus.x(), frame.drawn().toString());
+            double[] parentheticalRail = railOf(frame, List.of(1, 1));
+            assertEquals(typeLeft + ControlFlow.INDENT, (int) parentheticalRail[0], frame.drawn().toString());
+            assertEquals(minus.y() / ControlFlow.LINE, (int) parentheticalRail[1] / ControlFlow.LINE);
             assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && text.y() == minus.y()),
                     frame.drawn().toString());
             int innerLine = frame.drawn().stream().filter(text -> text.text().equals("saturation")
@@ -230,8 +302,8 @@ class ExpressionBuilderPaneTest {
         void beetrootsJellyRowReadsKindPlusThenTheRowInlineEndingOnItsX() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
-            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "()", "v", "X", "+", "saturation", "'s", "x", "12",
-                    "()", "^", "X", SUM_ADD, "X"), lineTexts(frame, 1), frame.drawn().toString());
+            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "()", "X", "+", "saturation", "'s", "x", "12",
+                    "()", "X", SUM_ADD, "X"), lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
             DrawnFrame.Text rowX = line(frame, 1).getLast();
             assertEquals(AREA.right() - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING,

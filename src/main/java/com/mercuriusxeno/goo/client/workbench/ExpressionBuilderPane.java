@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,10 +46,18 @@ final class ExpressionBuilderPane {
     private static final String SUM_ADD = "+/-";
     private static final String POSSESSIVE = "'s";
     private static final String WRAP = "()";
-    private static final String MOVE_UP = "^";
-    private static final String MOVE_DOWN = "v";
-    private static final int EARLIER = -1;
-    private static final int LATER = 1;
+    /** The drop cursor's blue. */
+    static final int DROP_CURSOR = 0xFF4090FF;
+    private static final String RAIL_HOVER_PREFIX = "goo-term-rail:";
+    private static final int HALF = 2;
+    // A pixel off the slot's line counts this many off along it, so the cursor keeps to the line the pointer is on.
+    private static final int LINE_WEIGHT = 4;
+    // The drop cursor shows for this many frames, then hides for as many.
+    private static final int BLINK_FRAMES = 20;
+    private static final int CURSOR_INSET = 2;
+    private static final int PREVIEW_OFFSET = 8;
+    private static final int PREVIEW_COLOR = 0xE0182030;
+    private static final int PREVIEW_TEXT = 0xFFFFFFFF;
     private static final String RATIO = ":";
     private static final String WHOLE_VALUE = "the whole value";
     private static final String OPEN_PAREN = "(";
@@ -73,6 +82,10 @@ final class ExpressionBuilderPane {
     private final Supplier<List<BuilderGrammar.Prefab>> prefabs;
     private BuilderGrammar grammar;
     private @Nullable ExpressionBuilder builder;
+    // The drop slots the last frame laid, and the term a rail holds while it drags.
+    private final List<Slot> slots = new ArrayList<>();
+    private @Nullable Drag dragging;
+    private int frames;
     private String openedText = BLANK;
     private String openedShown = BLANK;
     private @Nullable Consumer<String> writes;
@@ -150,6 +163,7 @@ final class ExpressionBuilderPane {
     void close() {
         overlays.close();
         builder = null;
+        dragging = null;
     }
 
     /**
@@ -171,7 +185,25 @@ final class ExpressionBuilderPane {
      * @return whether the builder took the key
      */
     boolean keyPressed(int key) {
+        // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: Escape drops the held term back.
+        if (key == GLFW.GLFW_KEY_ESCAPE && dragging != null) {
+            dragging = null;
+            return true;
+        }
         return overlays.keyPressed(key);
+    }
+
+    /**
+     * @param path a term's place
+     * @return the hover key its drag rail answers with, which names no tooltip
+     */
+    static String railHoverKey(List<Integer> path) {
+        return RAIL_HOVER_PREFIX + path;
+    }
+
+    // The slot the last frame laid nearest the pointer, null where it laid none.
+    private @Nullable Slot nearestSlot(double x, double y) {
+        return slots.stream().min(java.util.Comparator.comparingDouble(slot -> slot.distanceTo(x, y))).orElse(null);
     }
 
     /**
@@ -199,6 +231,8 @@ final class ExpressionBuilderPane {
             return 0;
         }
         overlays.commitOnBlur();
+        frames++;
+        slots.clear();
         ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), area.right(), top), actions::openVariable);
         drawKind(flow, edited);
@@ -206,7 +240,37 @@ final class ExpressionBuilderPane {
         drawClosing(flow, edited);
         int bottom = flow.bottom();
         graphics.fill(area.left() - 1, top - 1, area.right(), bottom, PANEL_COLOR);
+        drawDropCursor(graphics);
         return bottom - top;
+    }
+
+    // A blinking blue bar at the slot the held term would drop into.
+    // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
+    private void drawDropCursor(GuiGraphicsExtractor graphics) {
+        Drag held = dragging;
+        if (held == null || held.target == null || frames / BLINK_FRAMES % HALF != 0) {
+            return;
+        }
+        BuilderOverlays.Anchor at = held.target.at();
+        int x = at.x() - BuilderOverlays.GAP / HALF;
+        graphics.fill(x - 1, at.y() + CURSOR_INSET, x + 1, at.y() + ControlFlow.LINE - CURSOR_INSET, DROP_CURSOR);
+    }
+
+    // The held term drawn at the pointer, over everything else.
+    // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
+    private void drawHeldTerm(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
+        Drag held = dragging;
+        if (held == null) {
+            return;
+        }
+        List<ExpressionLines.Run> runs = operandRuns(held.piece);
+        int left = (int) held.x + PREVIEW_OFFSET;
+        int top = (int) held.y;
+        int width = ExpressionLines.width(font, runs) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+        int height = ExpressionLines.lineHeight(runs);
+        graphics.fill(left, top, left + width, top + height, PREVIEW_COLOR);
+        ExpressionLines.draw(font, runs, left + ButtonPainter.PADDING, top, width, new ExpressionLines.Painter(
+                graphics, icons, targets, PREVIEW_TEXT, ButtonPainter.LINK, (link, x, y, linkWidth) -> { }));
     }
 
     /**
@@ -220,6 +284,7 @@ final class ExpressionBuilderPane {
     void drawOverlays(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         if (builder != null) {
             overlays.draw(graphics, font, targets);
+            drawHeldTerm(graphics, font, targets);
         }
     }
 
@@ -360,13 +425,73 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // A sum's terms inline, then the [+/-] that adds one, each wrapping where the line runs out.
+    // A sum's terms inline, then the [+/-] that adds one, each wrapping where the line runs out; a drop slot stands
+    // before each term and after the last.
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
+    // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawSum(ControlFlow flow, List<Integer> sum, List<ExpressionBuilder.Piece> pieces, Place place) {
         for (int index = 0; index < pieces.size(); index++) {
+            slots.add(new Slot(sum, index, flow.anchor()));
             drawTerm(flow, placeOf(sum, index), pieces.get(index), pieces.size(), place);
         }
+        slots.add(new Slot(sum, pieces.size(), flow.anchor()));
         drawSumAdd(flow, sum, place);
+    }
+
+    /**
+     * Where a dragged term would drop.
+     *
+     * @param sum   the sum it drops into
+     * @param index the slot in it: before the term at that index, or the sum's size for its end
+     * @param at    where the slot stands, the next piece's place on its line
+     */
+    private record Slot(List<Integer> sum, int index, BuilderOverlays.Anchor at) {
+        double distanceTo(double x, double y) {
+            double lineMiss = Math.abs(y - (at.y() + ControlFlow.LINE / (double) HALF)) * LINE_WEIGHT;
+            return lineMiss + Math.abs(x - at.x());
+        }
+    }
+
+    /**
+     * A term held by its rail: where it came from, what it reads, where the pointer stands and the slot it would
+     * drop into.
+     */
+    private final class Drag implements ClickTargets.PointerGrab {
+        private final List<Integer> from;
+        private final ExpressionBuilder.Piece piece;
+        private double x;
+        private double y;
+        private @Nullable Slot target;
+
+        Drag(List<Integer> from, ExpressionBuilder.Piece piece) {
+            this.from = from;
+            this.piece = piece;
+        }
+
+        @Override
+        public void moved(double movedX, double movedY) {
+            dragging = this;
+            x = movedX;
+            y = movedY;
+            target = nearestSlot(x, y);
+        }
+
+        @Override
+        public void released() {
+            Slot dropped = target;
+            boolean held = dragging == this;
+            dragging = null;
+            if (held && dropped != null && !isOrigin(dropped)) {
+                apply(b -> b.moveTo(from, dropped.sum(), dropped.index()));
+            }
+        }
+
+        // The slots either side of the term drop it where it stands.
+        private boolean isOrigin(Slot slot) {
+            int index = from.getLast();
+            return slot.sum().equals(from.subList(0, from.size() - 1))
+                    && (slot.index() == index || slot.index() == index + 1);
+        }
     }
 
     // The sign picked joins the term added: an item or prefab picked next, or a 1 where the sum reads only numbers.
@@ -390,7 +515,8 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // [join] where it follows another term, the operand, its ratio, then [()] [^] [v] [x].
+    // Its rail, [join] where it follows another term, the operand and its ratio in one outlined unit, then [()] [x].
+    // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, int count,
                           Place place) {
         if (path.getLast() > 0 && piece.operand() instanceof ExpressionBuilder.Nest) {
@@ -398,6 +524,8 @@ final class ExpressionBuilderPane {
             // its own with its join, its controls too wide to share the rest of a line.
             flow.wrapLine();
         }
+        BuilderOverlays.Anchor start = flow.anchor();
+        flow.rail(railHoverKey(path), new Drag(path, piece));
         if (path.getLast() > 0) {
             drawJoin(flow, path, piece);
         }
@@ -409,20 +537,13 @@ final class ExpressionBuilderPane {
         if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
             drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         }
+        flow.outlineFrom(start);
         flow.control(WRAP, null, at -> apply(b -> b.wrap(path)));
-        drawOrderAndRemove(flow, path, count);
+        drawRemove(flow, path, count);
     }
 
-    // A term draws ^ and v only where the move keeps the sum's value: the first draws no ^, the last no v, and none
-    // lands a subtracted term first; a sum keeps its last term.
-    private void drawOrderAndRemove(ControlFlow flow, List<Integer> path, int count) {
-        ExpressionBuilder edited = builder;
-        if (edited != null && edited.canMove(path, EARLIER)) {
-            flow.control(MOVE_UP, null, at -> apply(b -> b.move(path, EARLIER)));
-        }
-        if (edited != null && edited.canMove(path, LATER)) {
-            flow.control(MOVE_DOWN, null, at -> apply(b -> b.move(path, LATER)));
-        }
+    // A sum keeps its last term.
+    private void drawRemove(ControlFlow flow, List<Integer> path, int count) {
         if (count > 1) {
             flow.coloredControl(REMOVE, RED, DELETE_HINT, at -> apply(b -> b.remove(path)));
         }
@@ -499,7 +620,7 @@ final class ExpressionBuilderPane {
     private void drawNest(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece,
                           ExpressionBuilder.Nest nest, int count, Place place) {
         flow.text(OPEN_PAREN, GRAY);
-        drawOrderAndRemove(flow, path, count);
+        drawRemove(flow, path, count);
         flow.shift(ControlFlow.INDENT);
         drawSum(flow, path, nest.pieces(), place);
         flow.shift(-ControlFlow.INDENT);

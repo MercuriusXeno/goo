@@ -423,7 +423,7 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        return targets.drag(event.y()) || super.mouseDragged(event, dragX, dragY);
+        return targets.drag(event.x(), event.y()) || super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
