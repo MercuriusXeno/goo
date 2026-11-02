@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 public final class VariablesTab {
     /** The kind of a constant resolving to a value per type. */
     public static final String TREE_KIND = "tree";
+    private static final String TYPED_KIND = "typed";
     private static final String CONSTANTS_SECTION = "_constants";
     private static final String CONSTANTS = "constants";
     private static final String ENTRIES = "entries";
@@ -35,6 +36,7 @@ public final class VariablesTab {
     private static final String KIND = "kind";
     private static final String TREE = TREE_KIND;
     private static final String SCALAR = "scalar";
+    private static final String SCALAR_SHOWN = "=";
     private static final String VALUE = "value";
     private static final String ERROR = "error";
     private static final String USED_BY = "usedBy";
@@ -89,6 +91,14 @@ public final class VariablesTab {
      */
     public record ConstantBlock(String name, String expression, String kind, String resolved, String error,
                                 List<Reader> readers, List<String> direct, List<String> indirect) {
+        /**
+         * @return the kind as the manager names it: "typed" for a prefab with type values, its kind otherwise; the
+         *     payload's "tree" stays as the server sends it (decision type-valued-prefabs-read-typed)
+         */
+        public String shownKind() {
+            // The operator's ruling: a scalar prefab's head reads "= n", the number saying what it is.
+            return TREE_KIND.equals(kind) ? TYPED_KIND : SCALAR.equals(kind) ? SCALAR_SHOWN : kind;
+        }
     }
 
     /**

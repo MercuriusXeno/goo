@@ -27,9 +27,9 @@ final class ExpressionLines {
     private static final int ITEM_SPRITE_SIZE = 16;
     private static final int ICON_TEXT_GAP = 2;
     private static final int RUN_GAP = 3;
-    // Text on an icon line sits centred against the 16px icon.
-    private static final int TEXT_NUDGE = 5;
     private static final int ICON_NUDGE = 1;
+    private static final int GLYPH_GAP = 1;
+    private static final int HALF = 2;
     private static final int RED = 0xFFFF5555;
     private static final String NOTHING = "";
     private static final String PLUS = "+";
@@ -44,6 +44,8 @@ final class ExpressionLines {
     private static final String ARROW = "->";
     private static final String OPERATOR_CHARS = "+-*/()";
     private static final char REFERENCE_MARK = '$';
+    // One subtracted term draws alone, with no parentheses.
+    private static final int SUBTRACTED_ALONE = 1;
 
     private ExpressionLines() {
     }
@@ -226,14 +228,44 @@ final class ExpressionLines {
     }
 
     private static void addSum(List<Run> runs, ExpressionTerms.Sum sum, Function<String, String> names) {
-        for (ExpressionTerms.Term term : sum.terms()) {
+        List<ExpressionTerms.Term> terms = sum.terms();
+        if (subtractsSeveral(terms)) {
+            addSubtractedSum(runs, terms, names);
+            return;
+        }
+        for (ExpressionTerms.Term term : terms) {
             if (term.join() != ExpressionTerms.Join.FIRST) {
                 runs.add(operator(term.join() == ExpressionTerms.Join.PLUS ? PLUS : MINUS));
             }
-            for (ExpressionTerms.Factor factor : term.factors()) {
-                addScale(runs, factor.scale());
-                addAtom(runs, factor.atom(), names);
+            addTerm(runs, term, names);
+        }
+    }
+
+    // Decision backwards-derivation-subtracts-a-parenthesized-sum: one term less two or more draws as that term less
+    // their parenthesized sum, "a - (b + c)", the same value read as what it works back from.
+    private static boolean subtractsSeveral(List<ExpressionTerms.Term> terms) {
+        return terms.size() > SUBTRACTED_ALONE + 1
+                && terms.stream().skip(1).allMatch(term -> term.join() == ExpressionTerms.Join.MINUS);
+    }
+
+    private static void addSubtractedSum(List<Run> runs, List<ExpressionTerms.Term> terms,
+                                         Function<String, String> names) {
+        addTerm(runs, terms.getFirst(), names);
+        runs.add(operator(MINUS));
+        runs.add(operator(OPEN));
+        for (int index = 1; index < terms.size(); index++) {
+            if (index > 1) {
+                runs.add(operator(PLUS));
             }
+            addTerm(runs, terms.get(index), names);
+        }
+        runs.add(operator(CLOSE));
+    }
+
+    private static void addTerm(List<Run> runs, ExpressionTerms.Term term, Function<String, String> names) {
+        for (ExpressionTerms.Factor factor : term.factors()) {
+            addScale(runs, factor.scale());
+            addAtom(runs, factor.atom(), names);
         }
     }
 
@@ -301,11 +333,31 @@ final class ExpressionLines {
     }
 
     /**
+     * @param font the font
      * @param runs a value's runs
      * @return how far below a line's top its text draws, so a caller lines a text label up with the runs' text
      */
-    static int textOffset(List<Run> runs) {
-        return lineHeight(runs) == ICON_LINE_HEIGHT ? TEXT_NUDGE : 0;
+    static int textOffset(Font font, List<Run> runs) {
+        return lineHeight(runs) == ICON_LINE_HEIGHT ? iconLineTextOffset(font) : 0;
+    }
+
+    // Decision operators-center-on-the-sprite: text on an icon line, an operator among it, centers its glyphs on the
+    // sprite.
+    private static int iconLineTextOffset(Font font) {
+        return centeredTextTop(ICON_NUDGE, ITEM_SPRITE_SIZE, font.lineHeight);
+    }
+
+    /**
+     * A font's line height holds an empty row under its glyphs and their shadow, so the glyphs' ink is one row shorter
+     * than the line; centering the ink, not the line, centers the text on a sprite or a row.
+     *
+     * @param top        the band's top
+     * @param height     the band's height
+     * @param lineHeight the font's line height
+     * @return the text's top that centers its glyphs in the band
+     */
+    static int centeredTextTop(int top, int height, int lineHeight) {
+        return top + (height - lineHeight + GLYPH_GAP) / HALF;
     }
 
     /**
@@ -460,7 +512,7 @@ final class ExpressionLines {
         }
 
         private int textOffset() {
-            return lineHeight == ICON_LINE_HEIGHT ? TEXT_NUDGE : 0;
+            return lineHeight == ICON_LINE_HEIGHT ? iconLineTextOffset(font) : 0;
         }
 
         private void drawPiece(Run run, String piece, int x) {
@@ -500,6 +552,7 @@ final class ExpressionLines {
         if (icons != null) {
             painter.graphics().item(icons.of(String.valueOf(run.ref())), x, top + ICON_NUDGE);
         }
-        painter.graphics().text(font, piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, top + TEXT_NUDGE, painter.textColor());
+        painter.graphics().text(font, piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, top + iconLineTextOffset(font),
+                painter.textColor());
     }
 }

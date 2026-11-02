@@ -95,6 +95,44 @@ class VariablesPaneTest {
     }
 
     /**
+     * Consecutive prefabs stand one tighter pitch apart; it was 39 pixels for a number prefab used nowhere
+     * (decision prefab-lines-tighten-their-padding).
+     */
+    @Test
+    void prefabRowsTakeTheTighterPitch() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, new GroupsPane.Bounds(0, 20, 400, 4000), frame.targets, 0, 0);
+        List<Integer> tops = frame.topsOf(List.of("prefab0", "prefab1"));
+        int pitch = tops.get(1) - tops.get(0);
+        assertEquals(VariablesPane.UNUSED_PREFAB_PITCH, pitch);
+        assertTrue(pitch < 39, "the pitch was 39 before");
+    }
+
+    /**
+     * A prefab with type values names its kind typed, and tree draws nowhere on the tab (decision
+     * type-valued-prefabs-read-typed).
+     */
+    @Test
+    void typeValuedPrefabReadsTyped() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "{\\"leaf\\": 4}", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane typed = new VariablesPane(new VariablesTab(draft), draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        typed.extract(frame.graphics, font, VIEW, frame.targets, 0, 0);
+        assertTrue(frame.texts().contains("typed"), frame.texts().toString());
+        assertFalse(frame.texts().contains("tree"), frame.texts().toString());
+    }
+
+    /**
      * The box shows only while the Prefabs tab is the one shown.
      */
     @Test
@@ -166,6 +204,85 @@ class VariablesPaneTest {
         assertTrue(borders.get(2) >= separator + 2, "Rename top " + borders.get(2) + " vs " + separator);
         assertTrue(borders.get(3) >= separator + 2, "Delete top " + borders.get(3) + " vs " + separator);
     }
+
+    /**
+     * Every fill, text and sprite a prefab draws stands wholly on one side of each separator rule, a text taking the
+     * game font's nine-pixel line and a sprite sixteen, so no rule crosses a prefab's contents (decision
+     * prefab-lines-tighten-their-padding).
+     */
+    @Test
+    void noDrawnElementCrossesASeparator() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), bottoms.capture(),
+                colors.capture());
+        List<Integer> separators = new java.util.ArrayList<>();
+        List<int[]> spans = new java.util.ArrayList<>();
+        int listRight = TALL_VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        for (int index = 0; index < tops.getAllValues().size(); index++) {
+            if (colors.getAllValues().get(index) == RowLayout.SEPARATOR_COLOR) {
+                separators.add(tops.getAllValues().get(index));
+            } else if (lefts.getAllValues().get(index) < listRight) {
+                spans.add(new int[] {tops.getAllValues().get(index), bottoms.getAllValues().get(index)});
+            }
+        }
+        frame.drawn().forEach(text -> spans.add(new int[] {text.y(), text.y() + GAME_LINE_HEIGHT}));
+        ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).item(any(), anyInt(), itemTops.capture());
+        itemTops.getAllValues().forEach(top -> spans.add(new int[] {top, top + SPRITE}));
+        assertFalse(separators.isEmpty());
+        for (int separator : separators) {
+            for (int[] span : spans) {
+                assertFalse(span[0] <= separator && separator < span[1],
+                        "separator at " + separator + " crosses " + span[0] + ".." + span[1]);
+            }
+        }
+    }
+
+    /**
+     * A prefab's head reads its name with a pencil just past it, = for a number prefab, and a red x at the row's
+     * right end (the operator's rulings).
+     */
+    @Test
+    void headDrawsPencilByTheNameEqualsAndARedXAtTheEnd() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text name = frame.drawn().stream().filter(text -> text.text().equals("prefab0")).findFirst()
+                .orElseThrow();
+        DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")).findFirst()
+                .orElseThrow();
+        int pastName = name.x() + "prefab0".length() * 6;
+        assertEquals(name.y(), pencil.y());
+        assertTrue(pencil.x() > pastName && pencil.x() < pastName + 12, pencil + " vs " + name);
+        assertTrue(frame.texts().contains("="), frame.texts().toString());
+        assertFalse(frame.texts().contains("scalar") || frame.texts().contains("Rename")
+                || frame.texts().contains("Delete"), frame.texts().toString());
+        DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")).findFirst()
+                .orElseThrow();
+        assertEquals(ProcessesPane.RED, cross.color());
+        int listRight = TALL_VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        assertEquals(listRight - 6 - ButtonPainter.PADDING, cross.x());
+    }
+
+    /**
+     * Every tooltip hint a drawn Prefabs frame registers reads Rename or Delete
+     * (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
+     */
+    @Test
+    void everyTooltipHintIsRenameOrDelete() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
+                .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
+        assertEquals(List.of("Rename", "Delete"), hints.stream().sorted(java.util.Comparator.reverseOrder()).toList());
+    }
+
+    private static final int GAME_LINE_HEIGHT = 9;
+    private static final int SPRITE = 16;
 
     private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 20, 400, 6000);
     private static final GroupsPane.Bounds FITS_THE_EDITED_BLOCK = new GroupsPane.Bounds(0, 20, 400, 320);
@@ -260,13 +377,62 @@ class VariablesPaneTest {
         VariablesPane read = readByEgg(mock(ManagerActions.class));
         DrawnFrame list = new DrawnFrame().holdingShift();
         read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
-        assertFalse(list.underlined("Rename"));
-        assertFalse(list.underlined("Delete"));
-        list.click("Delete");
+        assertFalse(list.underlined("✎"));
+        assertFalse(list.underlined("✗"));
+        list.click("✗");
         DrawnFrame confirm = new DrawnFrame().holdingShift();
         read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         assertTrue(confirm.underlined("egg"));
         assertFalse(confirm.underlined("Delete"));
+    }
+
+    /**
+     * A scalar prefab's head reads = before its number, and its pencil opens the rename box in the name's place.
+     */
+    @Test
+    void scalarHeadReadsEqualsBeforeItsNumberAndThePencilRenames() {
+        VariablesPane read = readByEgg(mock(ManagerActions.class));
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text equals = frame.find("=");
+        DrawnFrame.Text number = frame.drawn().stream().filter(text -> text.text().equals("8")
+                && text.y() == equals.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+        assertTrue(equals.x() < number.x(), equals + " before " + number);
+        assertFalse(frame.texts().stream().anyMatch(text -> text.toLowerCase(java.util.Locale.ROOT)
+                .contains("scalar")), frame.texts().toString());
+        frame.click("✎");
+        DrawnFrame renaming = new DrawnFrame();
+        read.extract(renaming.graphics, DrawnFrame.font(), VIEW, renaming.targets, 0, 0);
+        assertFalse(renaming.texts().contains("base"), renaming.texts().toString());
+        assertFalse(renaming.texts().contains("✎"), renaming.texts().toString());
+    }
+
+    /**
+     * Used by draws one run: the item naming the prefab itself first, then the terminus item the cascade reaches,
+     * each once, and no (indirectly) label (decision used-by-draws-the-terminus-items-alone, restated).
+     */
+    @Test
+    void usedByDrawsOneRunDirectItemsFirst() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "prefab0", "kind": "scalar", "value": "8", "error": null,
+                                "direct": ["minecraft:egg"],
+                                "usedBy": ["minecraft:cake", "minecraft:egg"], "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        assertFalse(frame.texts().stream().anyMatch(text -> text.contains("indirectly")), frame.texts().toString());
+        assertEquals(1, frame.texts().stream().filter("Used by "::equals).count(), frame.texts().toString());
+        List<String> items = frame.targets.hoverKeys().stream().filter(key -> key.equals(ItemIcons.hoverKey(
+                "minecraft:egg")) || key.equals(ItemIcons.hoverKey("minecraft:cake"))).toList();
+        assertEquals(List.of(ItemIcons.hoverKey("minecraft:egg"), ItemIcons.hoverKey("minecraft:cake")), items);
     }
 
     // A Prefabs pane over one prefab, base, that the prefab egg reads.
@@ -321,7 +487,7 @@ class VariablesPaneTest {
         read.show(true);
         DrawnFrame list = new DrawnFrame();
         read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
-        list.click("Delete");
+        list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
         read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         confirm.click("egg");

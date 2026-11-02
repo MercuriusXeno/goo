@@ -130,6 +130,30 @@ final class ClickTargets {
     }
 
     /**
+     * An area that modifies its thing on a plain left click and goes to its ref on a shift + left click, as a ref drawn
+     * as a dropdown button does.
+     *
+     * @param left     the area's left edge
+     * @param top      the area's top edge
+     * @param width    its width
+     * @param height   its height
+     * @param gestures what a plain and a shift + left click on it do
+     * @param hoverKey what hovering it names, null for nothing
+     */
+    void addLink(int left, int top, int width, int height, LinkGestures gestures, @Nullable String hoverKey) {
+        addTarget(left, top, width, height, new Actions(gestures.modify(), gestures.follow(), false), hoverKey);
+    }
+
+    /**
+     * What a link area does on each left click.
+     *
+     * @param modify what a plain left click does
+     * @param follow what a shift + left click does
+     */
+    record LinkGestures(Runnable modify, Runnable follow) {
+    }
+
+    /**
      * An area taking every click, plain, shifted or right, as a dialog's backdrop stops a click reaching the pane
      * beneath it.
      *
@@ -236,6 +260,21 @@ final class ClickTargets {
             Runnable action = target.actions().forGesture(button, modifiers);
             if (action != null && target.contains(x, y)) {
                 action.run();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param x the cursor's x
+     * @param y the cursor's y
+     * @return whether a plain left click here would run an area's action, without running it
+     */
+    boolean takesClick(double x, double y) {
+        for (int index = targets.size() - 1; index >= 0; index--) {
+            Target target = targets.get(index);
+            if (target.contains(x, y) && target.actions().forGesture(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0) != null) {
                 return true;
             }
         }

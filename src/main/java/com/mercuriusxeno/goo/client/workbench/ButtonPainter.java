@@ -20,7 +20,8 @@ final class ButtonPainter {
     static final int BORDER = 0xFF5070A0;
     /** A button's inner fill. */
     static final int FILL = 0xFF182030;
-    private static final int TEXT_NUDGE = 3;
+    /** How far a button drawn at a text's top reaches above that top. */
+    static final int TEXT_NUDGE = 3;
     // A glyph's baseline stands seven pixels under the text's top, the underline one under that, as the font's own.
     private static final int UNDERLINE_DROP = 8;
 
@@ -137,6 +138,29 @@ final class ButtonPainter {
                 LINK);
         targets.addFollow(box.left(), box.top(), box.width(), box.height(), follow, hoverKey);
         return box;
+    }
+
+    /**
+     * Draws a button naming a ref whose plain left click modifies it and whose shift + left click follows it; its
+     * label underlines while shift is held.
+     * Decision shift-left-click-follows-plain-left-modifies.
+     * Decision holding-shift-underlines-every-link.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param label    the button's label
+     * @param box      the button's box
+     * @param targets  the frame's click areas
+     * @param gestures what a plain and a shift + left click do
+     * @param hoverKey what hovering names, null for nothing
+     */
+    static void drawLink(GuiGraphicsExtractor graphics, Font font, String label, Box box, ClickTargets targets,
+                         ClickTargets.LinkGestures gestures, @Nullable String hoverKey) {
+        drawFrame(graphics, box);
+        graphics.text(font, label, box.left() + PADDING, box.top() + TEXT_NUDGE, LINK);
+        underlineWhileShiftHeld(graphics, targets, box.left() + PADDING, box.top() + TEXT_NUDGE, font.width(label),
+                LINK);
+        targets.addLink(box.left(), box.top(), box.width(), box.height(), gestures, hoverKey);
     }
 
     /**
