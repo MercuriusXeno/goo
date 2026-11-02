@@ -35,6 +35,10 @@ final class ExpressionBuilderPane {
     private static final String PER_TYPE = "by type";
     // Decision items-kind-hint-says-worth-based-on-other-items-prefabs: the goo kind reads relative on every tab.
     private static final String GOO_KIND = "relative";
+    // Decision amount-modes-name-what-the-amount-comes-from.
+    private static final String NUMBER_MODE = "number";
+    private static final String PREFAB_MODE = "prefab";
+    private static final String RELATIVE_MODE = "relative";
     // Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators.
     private static final String PLUS_SIGN = "+";
     private static final String MINUS_SIGN = "-";
@@ -431,8 +435,11 @@ final class ExpressionBuilderPane {
     // takes one; a term no control builds draws as it reads.
     private void drawOperand(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         switch (piece.operand()) {
-            case ExpressionBuilder.Num num -> flow.control(num.digits(), null, at -> overlays.openNumber(at,
-                    num.digits(), digits -> apply(b -> b.setNumber(path, digits))));
+            case ExpressionBuilder.Num num -> {
+                drawAmountModes(flow, path, place);
+                flow.control(num.digits(), null, at -> overlays.openNumber(at, num.digits(),
+                        digits -> apply(b -> b.setNumber(path, digits))));
+            }
             case ExpressionBuilder.Ref ref -> {
                 flow.runs(refRuns(ref), null, at -> overlays.openDropdown(at, termList(place),
                         choice -> apply(b -> b.setOperand(path, refFor(choice, place)))));
@@ -441,6 +448,32 @@ final class ExpressionBuilderPane {
             case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ -> flow.runs(operandRuns(piece), null,
                     null);
         }
+    }
+
+    // A number term names what its amount comes from, so it takes a number prefab's quantity, or a row's amount an
+    // item's or per-type prefab's goo type, in place of the number; a place reading numbers alone offers no modes.
+    // Decision amount-modes-name-what-the-amount-comes-from.
+    private void drawAmountModes(ControlFlow flow, List<Integer> path, Place place) {
+        List<String> scalars = grammar.scalarPrefabs();
+        boolean relative = place.inRow() && (grammar.readsItems() || !grammar.perTypePrefabs().isEmpty());
+        if (scalars.isEmpty() && !relative) {
+            return;
+        }
+        ControlFlow.ChoiceSet modes = new ControlFlow.ChoiceSet();
+        modes.add(new BuilderOverlays.Option(NUMBER_MODE, null, at -> { }), true);
+        if (!scalars.isEmpty()) {
+            modes.add(new BuilderOverlays.Option(PREFAB_MODE, null, at -> overlays.openDropdown(at,
+                    SearchDropdown.over(List.of(), scalars, false), choice -> apply(b -> b.setOperand(path,
+                            new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, choice.id(), null))))), false);
+        }
+        if (relative) {
+            boolean items = grammar.readsItems();
+            modes.add(new BuilderOverlays.Option(RELATIVE_MODE, null, at -> overlays.openDropdown(at,
+                    SearchDropdown.over(items ? inventory.get() : List.of(), grammar.perTypePrefabs(), items),
+                    choice -> apply(b -> b.setOperand(path, new ExpressionBuilder.Ref(choice.kind(), choice.id(),
+                            place.rowType()))))), false);
+        }
+        flow.choices(modes, overlays);
     }
 
     // A whole value's term may take its whole value again; a row's amount always reads one goo type.
