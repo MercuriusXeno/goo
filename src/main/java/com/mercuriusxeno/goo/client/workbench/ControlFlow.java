@@ -19,6 +19,10 @@ final class ControlFlow {
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
+    private static final int RAIL_WIDTH = 4;
+    private static final int RAIL_INSET = 3;
+    private static final int RAIL_COLOR = 0xFF7080A0;
+    private static final int OUTLINE_COLOR = 0x60FFFFFF;
     /** How far one indent step moves a line's left edge. */
     static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
@@ -394,6 +398,40 @@ final class ControlFlow {
         targets.add(iconX, iconY, width, LINE,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
         x += width + GAP;
+    }
+
+    /**
+     * A term's drag rail: a narrow grip a line tall, a press on it grabbing the pointer until the release (decision
+     * terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     *
+     * @param hoverKey what hovering names, which no tooltip reads
+     * @param grab     what the press, each drag and the release move
+     */
+    void rail(String hoverKey, ClickTargets.PointerGrab grab) {
+        reserve(RAIL_WIDTH);
+        markPiece(RAIL_WIDTH);
+        graphics.fill(x, y + RAIL_INSET, x + RAIL_WIDTH, y + LINE - RAIL_INSET, RAIL_COLOR);
+        targets.addGrab(x, y, RAIL_WIDTH, LINE, grab);
+        targets.addHover(x, y, RAIL_WIDTH, LINE, hoverKey);
+        x += RAIL_WIDTH + GAP;
+    }
+
+    /**
+     * Outlines the pieces drawn since the place given, where they stand on its line, as a term and its rail read as
+     * one unit (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     *
+     * @param start where the first piece stood
+     */
+    void outlineFrom(BuilderOverlays.Anchor start) {
+        if (start.y() != y) {
+            return;
+        }
+        int left = start.x() - 1;
+        int right = x - GAP + 1;
+        graphics.fill(left, y, right, y + 1, OUTLINE_COLOR);
+        graphics.fill(left, y + LINE - 1, right, y + LINE, OUTLINE_COLOR);
+        graphics.fill(left, y, left + 1, y + LINE, OUTLINE_COLOR);
+        graphics.fill(right - 1, y, right, y + LINE, OUTLINE_COLOR);
     }
 
     /**

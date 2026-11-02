@@ -253,6 +253,36 @@ class ExpressionBuilderTest {
             assertTrue(down.refusal().isPresent());
         }
 
+        // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: a dragged term lands in any slot, a
+        // later one in its own sum, inside a parenthetical or out of one.
+        @Test
+        void dropMovesATermToALaterSlotIntoAndOutOfAParenthetical() {
+            ExpressionBuilder later = ExpressionBuilder.of("$waxed + $edited + $food");
+            assertTrue(later.moveTo(List.of(0), List.of(), 3));
+            assertWrites("$edited + $food + $waxed", later);
+            ExpressionBuilder into = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertTrue(into.moveTo(List.of(0), List.of(1), 1));
+            assertWrites("($edited + $waxed + $food)", into);
+            ExpressionBuilder out = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertTrue(out.moveTo(List.of(1, 1), List.of(), 1));
+            assertWrites("$waxed + $food + ($edited)", out);
+        }
+
+        // A drop that would empty a sum, land a subtracted term first or drop a parenthetical into itself is refused
+        // and the value stands.
+        @Test
+        void dropThatBreaksTheValueIsRefused() {
+            ExpressionBuilder emptying = ExpressionBuilder.of("$waxed + ($edited)");
+            assertFalse(emptying.moveTo(List.of(1, 0), List.of(), 0));
+            assertEquals("$waxed + ($edited)", emptying.text());
+            ExpressionBuilder subtracted = ExpressionBuilder.of("$waxed - $edited");
+            assertFalse(subtracted.moveTo(List.of(1), List.of(), 0));
+            assertEquals("$waxed - $edited", subtracted.text());
+            ExpressionBuilder itself = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertFalse(itself.moveTo(List.of(1), List.of(1), 0));
+            assertEquals("$waxed + ($edited + $food)", itself.text());
+        }
+
         // A move that lands no subtracted term first keeps every term's sign, so the value stands.
         @Test
         void moveKeepsTheSumsValue() {
