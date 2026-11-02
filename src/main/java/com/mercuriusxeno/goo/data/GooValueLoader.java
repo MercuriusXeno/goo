@@ -30,6 +30,8 @@ final class GooValueLoader {
 
     // --- Log messages ---
 
+    private static final String LOG_UNRESOLVED_ITEM = "{} names {}, which holds no value, so it loads no value";
+
     private static final String LOG_LOADED_PACKS = "Loaded {} base goo values from {} pack(s)";
     private static final String LOG_READ_PACK_FAIL = "Failed to read base_values.json from pack {}: {}";
     private static final String LOG_NEGATIVE_BASE = "Negative goo in base value for {}: {} -- skipped";
@@ -160,7 +162,13 @@ final class GooValueLoader {
         if (isDeniedEntry(value)) {
             state.deniedItems.add(itemId);
         } else {
-            GooValue resolved = resolveItemEntry(value, state);
+            GooValue resolved;
+            try {
+                resolved = resolveItemEntry(value, state);
+            } catch (UnresolvedItemReference unresolved) {
+                Goo.LOGGER.warn(LOG_UNRESOLVED_ITEM, itemId, unresolved.item());
+                return;
+            }
             if (resolved.hasNegative()) {
                 Goo.LOGGER.error(LOG_NEGATIVE_BASE, itemId, resolved);
             } else {

@@ -14,6 +14,7 @@ public final class GooConstantParser {
 
     private static final String CONSTANTS_SUFFIX = "_constants";
     private static final String LOG_LOADED_CONSTANTS = "Loaded {} constants ({} scalar, {} tree)";
+    private static final String LOG_UNRESOLVED_ITEM = "Constant ${} names {}, which holds no value, so it loads no value";
 
     private GooConstantParser() {
     }
@@ -58,6 +59,14 @@ public final class GooConstantParser {
      * @param state mutable parsing state
      */
     static void parseOneConstant(String name, JsonElement value, GooValueLoader.ParseState state) {
+        try {
+            parseConstantValue(name, value, state);
+        } catch (UnresolvedItemReference unresolved) {
+            Goo.LOGGER.warn(LOG_UNRESOLVED_ITEM, name, unresolved.item());
+        }
+    }
+
+    private static void parseConstantValue(String name, JsonElement value, GooValueLoader.ParseState state) {
         if (value.isJsonObject()) {
             state.treeConstants.put(name,
                     GooValueJsonFormat.parseGooValue(value.getAsJsonObject(),
