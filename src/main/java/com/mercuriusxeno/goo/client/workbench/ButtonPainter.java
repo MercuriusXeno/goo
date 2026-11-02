@@ -16,6 +16,11 @@ final class ButtonPainter {
     static final int GOLD = 0xFFE0C060;
     /** The circular arrow a restore button reads. */
     static final String RESTORE = "↺";
+    private static final String RESTORE_HINT = "Restore";
+    private static final int MARKED_COLOR = 0xFFA0A0A0;
+    private static final int NAME_COLOR = 0xFFFFFFFF;
+    // A strike through a marked name stands at the glyphs' middle.
+    private static final int STRIKE_DROP = 4;
     /** A button's height. */
     static final int HEIGHT = 14;
     /** The room between the border and the label on either side. */
@@ -221,6 +226,47 @@ final class ButtonPainter {
      */
     static int width(Font font, String label) {
         return font.width(label) + PADDING + PADDING;
+    }
+
+    /**
+     * Draws the gold circular arrow standing in a marked entry's ✗, right-aligned to where the ✗ stood.
+     * Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+     *
+     * @param graphics   the frame's graphics
+     * @param font       the font
+     * @param right      the right edge the ✗ stood against
+     * @param lineTop    the top of the line it stands on
+     * @param lineHeight that line's height
+     * @param targets    the frame's click areas
+     * @param restored   what a click does
+     * @return the box it took
+     */
+    static Box drawRestore(GuiGraphicsExtractor graphics, Font font, int right, int lineTop, int lineHeight,
+                           ClickTargets targets, Runnable restored) {
+        return drawColored(graphics, font, RESTORE, GOLD, right - width(font, RESTORE), lineTop, lineHeight, targets,
+                restored, BuilderOverlays.hintKey(RESTORE_HINT));
+    }
+
+    /**
+     * Draws an entry's name in white, or dimmed and struck through where it is marked for removal, as it reads
+     * until the save.
+     * Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param name     the shown name
+     * @param x        its left edge
+     * @param textTop  its text's top
+     * @param marked   whether the entry is marked for removal
+     */
+    static void drawEntryName(GuiGraphicsExtractor graphics, Font font, String name, int x, int textTop,
+                              boolean marked) {
+        if (!marked) {
+            graphics.text(font, name, x, textTop, NAME_COLOR);
+            return;
+        }
+        graphics.text(font, name, x, textTop, MARKED_COLOR);
+        graphics.fill(x, textTop + STRIKE_DROP, x + font.width(name), textTop + STRIKE_DROP + 1, MARKED_COLOR);
     }
 
     /**

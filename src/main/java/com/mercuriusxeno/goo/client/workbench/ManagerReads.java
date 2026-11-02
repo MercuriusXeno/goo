@@ -56,11 +56,15 @@ final class ManagerReads {
      * @param saved runs once the save answered, after the draft reads went out
      */
     void save(Runnable saved) {
-        variables.applyRemovals(() -> actions.request(WorkbenchOperations.SAVE_MODEL, values.postedText(), reply -> {
-            values.readModel(reply);
-            readAfresh();
-            saved.run();
-        }));
+        variables.applyRemovals(() -> {
+            groups.applyRemovals();
+            processes.applyRemovals();
+            actions.request(WorkbenchOperations.SAVE_MODEL, values.postedText(), reply -> {
+                values.readModel(reply);
+                readAfresh();
+                saved.run();
+            });
+        });
     }
 
     /**

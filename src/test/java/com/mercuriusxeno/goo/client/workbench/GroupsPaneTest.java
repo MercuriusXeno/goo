@@ -293,10 +293,12 @@ class GroupsPaneTest {
         }
 
         /**
-         * The red x deletes the group from the draft (decision rename-is-a-pencil-and-delete-a-red-x-everywhere).
+         * The red x marks the group: its row still draws with a gold ↺ hinting Restore where the x stood and the
+         * draft still holds it; the ↺ restores the x; with the mark standing, the save path removes the group from
+         * the draft (decision every-delete-marks-for-removal-and-a-gold-arrow-restores).
          */
         @Test
-        void redXDeletesTheGroup() {
+        void redXMarksTheGroupAndTheArrowRestoresIt() {
             draft.read("""
                     {"path": "base_values.json", "members": [
                       {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
@@ -304,8 +306,23 @@ class GroupsPaneTest {
                           "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                        "leading": null, "trailing": null, "closingGap": null}]}""".formatted(LONG_GROUP));
             DrawnFrame frame = frame();
-            assertEquals(ProcessesPane.RED, frame.find("✗").color());
+            DrawnFrame.Text cross = frame.find("✗");
+            assertEquals(ProcessesPane.RED, cross.color());
             frame.click("✗");
+            DrawnFrame marked = frame();
+            DrawnFrame.Text arrow = marked.find("↺");
+            assertEquals(cross.x(), arrow.x());
+            assertEquals(cross.y(), arrow.y());
+            assertEquals(ButtonPainter.GOLD, arrow.color());
+            assertEquals(Optional.of(BuilderOverlays.hintKey("Restore")),
+                    marked.targets.hovered(arrow.x() + 1, arrow.y() + 1));
+            assertTrue(startingWith(marked, "#" + LONG_GROUP).size() >= 2, marked.texts().toString());
+            assertEquals(1, draft.sectionEntries("_groups").size());
+            marked.click("↺");
+            DrawnFrame restored = frame();
+            assertEquals(ProcessesPane.RED, restored.find("✗").color());
+            restored.click("✗");
+            pane.applyRemovals();
             assertEquals(0, draft.sectionEntries("_groups").size());
         }
     }

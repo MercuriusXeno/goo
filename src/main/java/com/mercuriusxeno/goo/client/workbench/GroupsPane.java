@@ -456,8 +456,7 @@ final class GroupsPane {
         String name = GroupsTab.rowRuns(new GroupsTab.GroupRow(group.name(), List.of(), 0), icons::nameOf).getFirst()
                 .text();
         int deleteWidth = ButtonPainter.width(font, DELETE);
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, detail.right() - deleteWidth, y, ROW_HEIGHT, targets,
-                () -> deleteGroup(group.name()), BuilderOverlays.hintKey(DELETE_HINT));
+        drawRemoval(graphics, font, detail.right(), y, group.name(), targets);
         int buttons = (group.tag() ? 0 : ButtonPainter.width(font, RENAME) + BuilderOverlays.GAP) + deleteWidth
                 + BuilderOverlays.GAP;
         int nameWidth = detail.right() - detail.left() - buttons;
@@ -468,7 +467,8 @@ final class GroupsPane {
             nameBox.visible = visible;
             return;
         }
-        graphics.text(font, font.plainSubstrByWidth(name, nameWidth), x, y + TEXT_NUDGE, WHITE);
+        ButtonPainter.drawEntryName(graphics, font, font.plainSubstrByWidth(name, nameWidth), x, y + TEXT_NUDGE,
+                groups.removals().isMarked(RemovalMarks.Tab.GROUPS, group.name()));
         if (!group.tag()) {
             BuilderOverlays.control(graphics, font, RENAME, RENAME_HINT, x + Math.min(nameWidth, font.width(name))
                     + BuilderOverlays.GAP, y, targets, at -> startRenaming(name));
@@ -617,14 +617,37 @@ final class GroupsPane {
         }
     }
 
-    // Decision group-detail-puts-plus-and-rename-beside-the-name: the draft takes the new name and every tab reads it.
-    private void deleteGroup(String name) {
+    // The red x at the head's right end marks the group; a marked group's gold arrow in its place restores it.
+    // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+    private void drawRemoval(GuiGraphicsExtractor graphics, Font font, int right, int y, String name,
+                             ClickTargets targets) {
+        if (groups.removals().isMarked(RemovalMarks.Tab.GROUPS, name)) {
+            ButtonPainter.drawRestore(graphics, font, right, y, ROW_HEIGHT, targets,
+                    () -> groups.removals().restore(RemovalMarks.Tab.GROUPS, name));
+            return;
+        }
+        ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), y,
+                ROW_HEIGHT, targets, () -> markGroup(name), BuilderOverlays.hintKey(DELETE_HINT));
+    }
+
+    /**
+     * Deletes every marked group from the draft, as the save does before it writes the draft.
+     * Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+     */
+    void applyRemovals() {
+        for (String name : groups.removals().marked(RemovalMarks.Tab.GROUPS)) {
+            if (groups.deleteGroup(name)) {
+                detailBar.reset();
+            }
+            groups.removals().restore(RemovalMarks.Tab.GROUPS, name);
+        }
+    }
+
+    private void markGroup(String name) {
         closeBuilder();
         stopNaming();
-        if (groups.deleteGroup(name)) {
-            detailBar.reset();
-            actions.draftChanged();
-        }
+        groups.removals().mark(RemovalMarks.Tab.GROUPS, name);
+        actions.markUnsaved();
     }
 
     private void renameGroup(String typed) {
