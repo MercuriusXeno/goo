@@ -39,16 +39,14 @@ public final class VariablesTab {
     private static final String SCALAR_SHOWN = "=";
     private static final String VALUE = "value";
     private static final String ERROR = "error";
-    private static final String USED_BY = "usedBy";
     private static final String DIRECT = "direct";
-    private static final char NAMESPACE_SEPARATOR = ':';
-    private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String READERS = "readers";
     private static final String ID = "id";
     private static final String FROM = "from";
     private static final String TO = "to";
     private static final String EXPRESSION = "expression";
     private static final String CONSTANT_KIND = "constant";
+    private static final String GROUP_KIND = "group";
     private static final String OBJECT_START = "{";
     private static final String TYPE_SEPARATOR = " ";
     private static final String TYPES_SEPARATOR = ", ";
@@ -75,6 +73,17 @@ public final class VariablesTab {
      * @param kind constant, item or group
      */
     public record Reader(String id, String kind) {
+        /**
+         * @return whether the reader is a prefab or a group, which Used by draws as a link
+         */
+        public boolean linked() {
+            return CONSTANT_KIND.equals(kind) || GROUP_KIND.equals(kind);
+        }
+    }
+
+    // Decision used-by-lists-direct-items-and-links-to-prefabs-and-groups.
+    private static List<Reader> linksOf(List<Reader> readers) {
+        return readers.stream().filter(Reader::linked).toList();
     }
 
     /**
@@ -87,10 +96,16 @@ public final class VariablesTab {
      * @param error      the loader's refusal, empty where it resolved
      * @param readers    what reads it directly
      * @param direct     the items whose own expression names it
-     * @param indirect   the terminus items it cascades into, less the direct ones
      */
     public record ConstantBlock(String name, String expression, String kind, String resolved, String error,
-                                List<Reader> readers, List<String> direct, List<String> indirect) {
+                                List<Reader> readers, List<String> direct) {
+        /**
+         * @return the prefabs and groups reading it, in reader order
+         */
+        public List<Reader> links() {
+            return linksOf(readers);
+        }
+
         /**
          * @return the kind as the manager names it: "typed" for a prefab with type values, its kind otherwise; the
          *     payload's "tree" stays as the server sends it (decision type-valued-prefabs-read-typed)
@@ -108,10 +123,16 @@ public final class VariablesTab {
      * @param expression its expression as the file spells it, unquoted
      * @param lines      one line per type it resolves to, its value, or its error
      * @param direct     the items whose own expression names it
-     * @param indirect   the terminus items it cascades into, less the direct ones
+     * @param readers    what reads it directly
      */
     public record HoverCard(String title, String expression, List<String> lines, List<String> direct,
-                            List<String> indirect) {
+                            List<Reader> readers) {
+        /**
+         * @return the prefabs and groups reading it, in reader order
+         */
+        public List<Reader> links() {
+            return linksOf(readers);
+        }
     }
 
     /**
@@ -166,7 +187,7 @@ public final class VariablesTab {
             String kind = result != null ? result.get(KIND).getAsString()
                     : text.trim().startsWith(OBJECT_START) ? TREE : SCALAR;
             blocks.add(new ConstantBlock(name, ManagerDraft.shownText(text), kind, resolvedText(result),
-                    result == null ? NO_TEXT : textOf(result, ERROR), readersOf(name), idsOf(result, DIRECT), indirectOf(result)));
+                    result == null ? NO_TEXT : textOf(result, ERROR), readersOf(name), idsOf(result, DIRECT)));
         }
         return blocks;
     }
@@ -300,7 +321,7 @@ public final class VariablesTab {
             lines = List.of(VALUE_PREFIX + textOf(hover, VALUE));
         }
         return new HoverCard(hover.get(NAME).getAsString(),
-                ManagerDraft.shownText(textOf(hover, EXPRESSION)), lines, idsOf(hover, DIRECT), indirectOf(hover));
+                ManagerDraft.shownText(textOf(hover, EXPRESSION)), lines, idsOf(hover, DIRECT), readersIn(hover));
     }
 
     private String namedRequest(String name) {
@@ -321,7 +342,10 @@ public final class VariablesTab {
     }
 
     private List<Reader> readersOf(String name) {
-        JsonObject result = results.get(name);
+        return readersIn(results.get(name));
+    }
+
+    private static List<Reader> readersIn(@Nullable JsonObject result) {
         if (result == null || !result.has(READERS)) {
             return List.of();
         }
@@ -335,18 +359,6 @@ public final class VariablesTab {
         }
         JsonArray ids = result.getAsJsonArray(field);
         return ids.asList().stream().map(JsonElement::getAsString).toList();
-    }
-
-    // The terminus items less those naming the constant themselves, a bare id and its minecraft: form one item
-    // (decision used-by-draws-the-terminus-items-alone).
-    private static List<String> indirectOf(@Nullable JsonObject result) {
-        Set<String> direct = idsOf(result, DIRECT).stream().map(VariablesTab::namespaced)
-                .collect(Collectors.toSet());
-        return idsOf(result, USED_BY).stream().filter(id -> !direct.contains(namespaced(id))).toList();
-    }
-
-    private static String namespaced(String id) {
-        return id.indexOf(NAMESPACE_SEPARATOR) < 0 ? DEFAULT_NAMESPACE + id : id;
     }
 
     private static String resolvedText(@Nullable JsonObject result) {

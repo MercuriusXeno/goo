@@ -63,8 +63,8 @@ class VariablesTabTest {
 
         /**
          * Each constant reads as a block in file order: its expression unquoted, its kind, what it resolves to,
-         * its readers, the items whose own expression names it and, apart from those, the terminus items it
-         * cascades into (decision used-by-draws-the-terminus-items-alone).
+         * its readers, the items whose own expression names it and the prefabs reading it as links (decision
+         * used-by-lists-direct-items-and-links-to-prefabs-and-groups).
          */
         @Test
         void blocksReadExpressionResolvedAndReaders() {
@@ -78,7 +78,7 @@ class VariablesTabTest {
             assertEquals(List.of(new VariablesTab.Reader("egg", "constant"), new VariablesTab.Reader("stick", "item")),
                     base.readers());
             assertEquals(List.of("stick"), base.direct());
-            assertEquals(List.of("oak_log", "plank"), base.indirect());
+            assertEquals(List.of(new VariablesTab.Reader("egg", "constant")), base.links());
         }
 
         /**
@@ -261,16 +261,20 @@ class VariablesTabTest {
         }
 
         /**
-         * The hover card reads the variable's expression, one line per type it resolves to and its terminus items.
+         * The hover card reads the variable's expression, one line per type it resolves to, and as links the
+         * prefabs and groups among its readers (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
          */
         @Test
-        void hoverCardReadsExpressionTypesAndTerminus() {
-            VariablesTab.HoverCard card = tab.readHover(HOVER);
+        void hoverCardReadsExpressionTypesAndLinks() {
+            VariablesTab.HoverCard card = tab.readHover(HOVER.replace("\"readers\": []", """
+                    "readers": [{"id": "base", "kind": "constant"}, {"id": "#logs", "kind": "group"},
+                                {"id": "minecraft:egg", "kind": "item"}]"""));
             assertEquals("egg", card.title());
             assertEquals("{\"zoo\": \"$base\"}", card.expression());
             assertEquals(List.of("zoo 8", "hex 1/2"), card.lines());
             assertEquals(List.of(), card.direct());
-            assertEquals(List.of("minecraft:egg"), card.indirect());
+            assertEquals(List.of(new VariablesTab.Reader("base", "constant"), new VariablesTab.Reader("#logs", "group")),
+                    card.links());
         }
     }
 }
