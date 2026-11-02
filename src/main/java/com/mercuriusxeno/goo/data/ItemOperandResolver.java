@@ -30,10 +30,6 @@ final class ItemOperandResolver {
      */
     private static final int NO_DOT = -1;
     /**
-     * Log warning for unknown item in dot-notation.
-     */
-    private static final String WARN_UNKNOWN_ITEM = "Unknown item in dot-notation: {}";
-    /**
      * Log warning for item reference without .type.
      */
     private static final String WARN_ITEM_NO_TYPE = "Item reference without .type in int expression: {}";
@@ -110,8 +106,7 @@ final class ItemOperandResolver {
 
     /**
      * Resolves the goo type and item lookup for a dot-notation token once the dot
-     * position is known. Returns {@link Integer#MIN_VALUE} for unrecognized types,
-     * warns and returns 0 for unknown items.
+     * position is known. Returns {@link Integer#MIN_VALUE} for unrecognized types.
      *
      * @param token      the full dot-notation token
      * @param dotIdx     position of the type-separating dot
@@ -130,20 +125,17 @@ final class ItemOperandResolver {
     }
 
     /**
-     * Looks up an item's value for a specific goo type. Warns and returns 0 if
-     * the item ID is not found in the base values map.
-     *
      * @param itemId     the namespaced item identifier string
      * @param type       the goo type to extract
      * @param baseValues item values for lookups
-     * @return the item's amount for the given type, or 0 if the item is unknown
+     * @return the item's amount for the given type
+     * @throws UnresolvedItemReference where the item holds no value, which leaves the whole entry unvalued
      */
     private static int lookupItemValue(String itemId, ResourceKey<GooTypeDefinition> type,
                                        Map<Identifier, GooValue> baseValues) {
         GooValue value = baseValues.get(Identifier.parse(itemId));
         if (value == null) {
-            LOGGER.warn(WARN_UNKNOWN_ITEM, itemId);
-            return 0;
+            throw new UnresolvedItemReference(itemId);
         }
         return value.exact(type).floor();
     }
