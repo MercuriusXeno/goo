@@ -527,7 +527,7 @@ class ValuesPaneTest {
         closed.click(ReadValueButton.NOT_SET);
         DrawnFrame open = new DrawnFrame();
         pane.extract(open.graphics, DrawnFrame.font(), view, open.targets);
-        open.click("+");
+        open.click("+?");
         DrawnFrame picking = new DrawnFrame();
         pane.extract(picking.graphics, DrawnFrame.font(), view, picking.targets);
         pickType(picking, "metal");

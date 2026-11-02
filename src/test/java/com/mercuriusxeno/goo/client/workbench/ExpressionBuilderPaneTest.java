@@ -9,6 +9,7 @@ import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -228,7 +229,7 @@ class ExpressionBuilderPaneTest {
         @Test
         void beetrootsJellyRowReadsKindPlusThenTheRowInlineEndingOnItsX() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
-            assertEquals(List.of(dropdown("by type"), "+"), lineTexts(frame, 0), frame.drawn().toString());
+            assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
             assertEquals(List.of(":", "food", "'s", "1", ":", "1", "()", "v", "X", "+", "saturation", "'s", "x", "12",
                     "()", "^", "X", SUM_ADD, "X"), lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
@@ -254,13 +255,30 @@ class ExpressionBuilderPaneTest {
             throw new AssertionError(type + " not in the picker: " + frame.targets.hoverKeys());
         }
 
+        // Decision add-type-is-a-big-square-plus-question-button-below-the-list.
         @Test
-        void kindLinesPlusAppendsATypeRowAtTheEnd() {
+        void squarePlusQuestionBelowTheRowsAppendsATypeRow() {
             Builder builder = Builder.item(BEETROOT);
             DrawnFrame before = builder.frame();
+            assertEquals(List.of(dropdown("by type")), lineTexts(before, 0), before.drawn().toString());
+            DrawnFrame.Text add = before.find("+?");
+            DrawnFrame.Text lastRow = before.drawn().stream().filter(text -> text.text().equals(ExpressionLines.COLON)
+                    && text.x() == rowColon(before, 1).x()).reduce((first, last) -> last).orElseThrow();
+            assertTrue(add.y() > lastRow.y(), add + " below " + lastRow);
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+            verify(before.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(),
+                    bottoms.capture(), eq(ButtonPainter.BORDER));
+            boolean square = IntStream.range(0, lefts.getAllValues().size()).anyMatch(index ->
+                    lefts.getAllValues().get(index) < add.x() && rights.getAllValues().get(index) > add.x()
+                            && tops.getAllValues().get(index) < add.y()
+                            && rights.getAllValues().get(index) - lefts.getAllValues().get(index) == ControlFlow.LINE
+                            && bottoms.getAllValues().get(index) - tops.getAllValues().get(index) == ControlFlow.LINE);
+            assertTrue(square, "no square box a type button's height around " + add);
             long rows = rowColons(before);
-            DrawnFrame.Text plus = line(before, 0).get(1);
-            clickAt(before, plus);
+            before.click("+?");
             pickType(builder.frame(), "metal");
             DrawnFrame after = builder.frame();
             assertEquals(rows + 1, rowColons(after), after.texts().toString());
@@ -335,8 +353,9 @@ class ExpressionBuilderPaneTest {
 
     /**
      * Every builder, Items, Groups and Prefabs alike, reads its kind first, an empty value defaulting to by type with
-     * a bare + beside it adding a goo type (decisions every-value-builder-reads-value-kind-on-one-line-defaulting-by-type,
-     * builder-is-kind-plus-then-rows-of-terms-with-term-operators).
+     * the +? that adds a goo type on the line below (decisions
+     * every-value-builder-reads-value-kind-on-one-line-defaulting-by-type,
+     * add-type-is-a-big-square-plus-question-button-below-the-list).
      */
     @Nested
     class ValueLine {
@@ -347,8 +366,8 @@ class ExpressionBuilderPaneTest {
         private static void assertEmptyReadsByTypeAndPlus(Builder builder) {
             DrawnFrame frame = builder.frame();
             List<String> texts = frame.texts();
-            assertEquals(List.of(dropdown("by type"), "+"), texts.subList(0, 2), texts.toString());
-            assertEquals(frame.find("+").y(), frame.find(dropdown("by type")).y(), "the kind and + share a line");
+            assertEquals(List.of(dropdown("by type"), "+?"), texts.subList(0, 2), texts.toString());
+            assertTrue(frame.find("+?").y() > frame.find(dropdown("by type")).y(), "the +? stands below the kind");
             assertTrue(texts.stream().noneMatch(RETIRED::contains), texts.toString());
         }
 
@@ -375,7 +394,7 @@ class ExpressionBuilderPaneTest {
         @Test
         void barePlusAddsAGooType() {
             Builder builder = Builder.item("");
-            builder.frame().click("+");
+            builder.frame().click("+?");
             assertTrue(builder.pane.listOpen(), "the goo type picker opens");
         }
 
@@ -457,7 +476,7 @@ class ExpressionBuilderPaneTest {
             builder.frame().click(dropdown("relative"));
             builder.frame().click("by type");
             DrawnFrame after = builder.frame();
-            assertTrue(after.texts().contains("+"), after.texts().toString());
+            assertTrue(after.texts().contains("+?"), after.texts().toString());
             assertTrue(after.texts().contains(dropdown("by type")), after.texts().toString());
             assertFalse(builder.pane.listOpen());
         }

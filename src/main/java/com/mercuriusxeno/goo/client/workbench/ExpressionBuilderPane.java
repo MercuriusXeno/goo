@@ -57,7 +57,7 @@ final class ExpressionBuilderPane {
     private static final String REMOVE = "X";
     // The operator's ruling: every X's tooltip reads the one word Delete, and no other control explains itself.
     private static final String DELETE_HINT = "Delete";
-    private static final String ADD_TYPE = "+";
+    private static final String ADD_TYPE = "+?";
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
     // decision done-draws-green-with-a-check-mark
@@ -284,16 +284,17 @@ final class ExpressionBuilderPane {
                     BuilderGrammar.GOO_SORT.equals(sort));
         }
         flow.choices(kinds, overlays);
-        if (perType) {
-            drawAddType(flow, edited);
-        }
     }
 
+    // A square [+?] the height of a type row's goo type button, on its own line one indent in under the rows.
+    // Decision add-type-is-a-big-square-plus-question-button-below-the-list.
     private void drawAddType(ControlFlow flow, ExpressionBuilder edited) {
         Set<String> held = BuilderGrammar.heldTypes(edited);
         if (held.size() < GooTypes.order().size()) {
-            flow.control(ADD_TYPE, null, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
+            flow.indent();
+            flow.squareControl(ADD_TYPE, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
                     null, held));
+            flow.outdent(ControlFlow.INDENT);
         }
     }
 
@@ -339,6 +340,7 @@ final class ExpressionBuilderPane {
             }
             flow.outdent(ControlFlow.INDENT);
         }
+        drawAddType(flow, edited);
     }
 
     // The whole value's terms on the line after the kind, one indent in.

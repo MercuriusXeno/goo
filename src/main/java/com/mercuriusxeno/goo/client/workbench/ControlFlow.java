@@ -18,6 +18,7 @@ final class ControlFlow {
     static final int LINE = BuilderOverlays.LINE;
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
+    private static final int HALF = 2;
     /** How far one indent step moves a line's left edge. */
     static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
@@ -393,6 +394,24 @@ final class ControlFlow {
         targets.add(iconX, iconY, width, LINE,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
         x += width + GAP;
+    }
+
+    /**
+     * A square button a line's height on each side, its label centered in it, as a goo type button stands that
+     * tall (decision add-type-is-a-big-square-plus-question-button-below-the-list).
+     *
+     * @param label   its label
+     * @param pressed takes where it was clicked
+     */
+    void squareControl(String label, Consumer<BuilderOverlays.Anchor> pressed) {
+        reserve(LINE);
+        markPiece(LINE);
+        int boxX = x;
+        int boxY = y;
+        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(boxX, boxY, LINE, LINE));
+        graphics.text(font, label, boxX + (LINE - font.width(label)) / HALF, y + TEXT_NUDGE, LINK);
+        targets.add(boxX, boxY, LINE, LINE, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)));
+        x += LINE + GAP;
     }
 
     /**
