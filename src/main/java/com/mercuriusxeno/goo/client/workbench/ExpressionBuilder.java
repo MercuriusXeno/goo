@@ -266,16 +266,75 @@ final class ExpressionBuilder {
         whole.add(firstTerm(new Nest(List.copyOf(inner))).withSide(side, factor.trim()));
     }
 
-    private boolean addTerm(List<Integer> sum, Operand operand) {
-        if (!rows.isEmpty()) {
+    /**
+     * Adds a term to the end of a sum, joined by the sign given unless it stands first.
+     * Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators.
+     *
+     * @param sum     the sum's place, empty for the whole value
+     * @param operand what the term stands on
+     * @param join    plus or minus
+     * @return whether the term was added; the whole value refuses it while per-type rows stand
+     */
+    boolean add(List<Integer> sum, Operand operand, ExpressionTerms.Join join) {
+        if (sum.isEmpty() && !rows.isEmpty()) {
             return refuse(ROWS_REFUSE_TERMS);
         }
         changed();
         List<Piece> pieces = new ArrayList<>(sumAt(sum));
-        pieces.add(new Piece(pieces.isEmpty() ? ExpressionTerms.Join.FIRST : ExpressionTerms.Join.PLUS, operand,
-                ONE, ONE));
+        pieces.add(new Piece(pieces.isEmpty() ? ExpressionTerms.Join.FIRST : join, operand, ONE, ONE));
         replaceSum(sum, pieces);
         return true;
+    }
+
+    /**
+     * @param path    the term's place
+     * @param operand what the term stands on in place of its own, its join and ratio kept
+     */
+    void setOperand(List<Integer> path, Operand operand) {
+        editPiece(path, piece -> piece.withOperand(operand));
+    }
+
+    /**
+     * Makes a term a parenthetical holding it alone, its ratio moving inside with it.
+     * Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators.
+     *
+     * @param path the term's place
+     */
+    void wrap(List<Integer> path) {
+        editPiece(path, piece -> new Piece(piece.join(), new Nest(List.of(piece.withJoin(
+                ExpressionTerms.Join.FIRST))), ONE, ONE));
+    }
+
+    /**
+     * Moves a term within its sum; the term standing first takes no sign and the one leaving first takes plus.
+     * Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators.
+     *
+     * @param path the term's place
+     * @param by   how many places later, negative for earlier
+     */
+    void move(List<Integer> path, int by) {
+        List<Integer> sum = path.subList(0, path.size() - 1);
+        List<Piece> pieces = new ArrayList<>(sumAt(sum));
+        int from = path.getLast();
+        int to = from + by;
+        if (to < 0 || to >= pieces.size()) {
+            return;
+        }
+        changed();
+        pieces.add(to, pieces.remove(from));
+        for (int index = 0; index < pieces.size(); index++) {
+            Piece piece = pieces.get(index);
+            if (index == 0) {
+                pieces.set(index, piece.withJoin(ExpressionTerms.Join.FIRST));
+            } else if (piece.join() == ExpressionTerms.Join.FIRST) {
+                pieces.set(index, piece.withJoin(ExpressionTerms.Join.PLUS));
+            }
+        }
+        replaceSum(sum, pieces);
+    }
+
+    private boolean addTerm(List<Integer> sum, Operand operand) {
+        return add(sum, operand, ExpressionTerms.Join.PLUS);
     }
 
     /**
@@ -312,10 +371,12 @@ final class ExpressionBuilder {
         editPiece(path, piece -> piece.withOperand(new Ref(choice.kind(), choice.id(), null)));
     }
 
-    // The terms of the sum at a place: the whole value's, or a sum's inside it.
+    // The terms of the sum at a place: the whole value's, or a sum's inside it. Under per-type rows a place's first
+    // index names the row, whose amount is the outermost sum.
     private List<Piece> sumAt(List<Integer> sum) {
-        List<Piece> pieces = whole;
-        for (int step : sum) {
+        boolean inRows = !rows.isEmpty() && !sum.isEmpty();
+        List<Piece> pieces = inRows ? rows.get(sum.getFirst()).pieces() : whole;
+        for (int step : inRows ? sum.subList(1, sum.size()) : sum) {
             if (!(pieces.get(step).operand() instanceof Nest nest)) {
                 return List.of();
             }
@@ -329,6 +390,11 @@ final class ExpressionBuilder {
             List<Piece> replaced = List.copyOf(pieces);
             whole.clear();
             whole.addAll(replaced);
+            return;
+        }
+        if (!rows.isEmpty() && sum.size() == 1) {
+            int row = sum.getFirst();
+            rows.set(row, new Row(rows.get(row).type(), List.copyOf(pieces)));
             return;
         }
         List<Integer> outer = sum.subList(0, sum.size() - 1);
@@ -576,14 +642,19 @@ final class ExpressionBuilder {
             return;
         }
         String trimmed = factor.trim();
-        if (path.size() == 1 && whole.size() == 1 && whole.getFirst().operand() instanceof Nest nest
-                && whole.getFirst().withSide(side, trimmed).isUnscaled()) {
+        if (comesApart(path, side, trimmed) && whole.getFirst().operand() instanceof Nest nest) {
             changed();
             whole.clear();
             whole.addAll(nest.pieces());
             return;
         }
         editPiece(path, piece -> piece.withSide(side, trimmed));
+    }
+
+    // Whether the scale leaves the whole value one parenthetical scaled 1:1.
+    private boolean comesApart(List<Integer> path, Op side, String factor) {
+        boolean wholeAlone = rows.isEmpty() && path.size() == 1 && whole.size() == 1;
+        return wholeAlone && whole.getFirst().withSide(side, factor).isUnscaled();
     }
 
     /**

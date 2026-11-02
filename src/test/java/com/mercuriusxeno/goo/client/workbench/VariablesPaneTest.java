@@ -322,10 +322,11 @@ class VariablesPaneTest {
     void jumpToABlockTallerThanTheListShowsItFromItsTop() {
         int target = 5;
         List<Integer> tops = blockTopsEditing("prefab" + target);
-        draw();
+        GroupsPane.Bounds shortView = new GroupsPane.Bounds(0, 20, 400, 80);
+        pane.extract(graphics, font, shortView, new ClickTargets(), 0, 0);
         pane.jumpTo("prefab" + target);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        pane.extract(frame.graphics, DrawnFrame.font(), shortView, frame.targets, 0, 0);
         int[] list = frame.firstScissor();
         assertTrue(tops.get(target + 1) - tops.get(target) > list[3] - list[1], "the edited block fits the list");
         assertEquals(tops.get(target), pane.listBar().offset());

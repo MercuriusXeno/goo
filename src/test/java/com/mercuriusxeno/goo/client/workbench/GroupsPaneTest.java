@@ -445,11 +445,11 @@ class GroupsPaneTest {
         assertTrue(builder.isOpen());
         DrawnFrame building = new DrawnFrame();
         pane.extract(building.graphics, DrawnFrame.font(), bounds, building.targets);
-        // Decision every-value-builder-reads-value-kind-on-one-line-defaulting-by-type: the open builder's line
-        // reads Value and its kind, the label standing once.
-        List<DrawnFrame.Text> values = building.drawn().stream().filter(text -> "Value".equals(text.text())).toList();
-        assertEquals(1, values.size(), building.drawn().toString());
-        assertEquals(values.getFirst().y(), building.find(ControlFlow.dropdownLabel("by type")).y());
+        // Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators: the open builder's first line reads
+        // its kind then the [+] that adds a type row.
+        DrawnFrame.Text kind = building.find(ControlFlow.dropdownLabel("by type"));
+        assertTrue(building.drawn().stream().anyMatch(text -> "+".equals(text.text()) && text.y() == kind.y()
+                && text.x() > kind.x()), building.drawn().toString());
     }
 
     /**
