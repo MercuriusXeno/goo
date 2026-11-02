@@ -194,16 +194,88 @@ class ExpressionBuilderTest {
     class Sums {
         private static final List<Integer> FIRST_SUM = List.of(1);
 
+        private static final List<Integer> LEAF_ROW = List.of(0);
+
+        // Each step's string is one the file grammar reads.
+        private static void assertWrites(String expected, ExpressionBuilder builder) {
+            assertEquals(expected, builder.text());
+            assertTrue(ExpressionTerms.parseShown(builder.text()).isPresent(), builder.text());
+        }
+
+        // Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators: the joined add, () and ^ v build
+        // beetroot's leaf from an empty row.
         @Test
-        void sumOfTermsIsSubtracted() {
-            ExpressionBuilder builder = ExpressionBuilder.of("$dye.leaf");
-            builder.addSum(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "food", "jelly"));
-            builder.setJoin(FIRST_SUM, ExpressionTerms.Join.MINUS);
-            builder.relate(FIRST_SUM, new SearchDropdown.Choice(SearchDropdown.Kind.PREFAB, "saturation",
-                    "saturation"));
-            builder.setMember(List.of(1, 1), "jelly");
-            builder.setScale(List.of(1, 1), ExpressionBuilder.Op.MULTIPLY, "12");
-            assertEquals("$dye.leaf - ($food.jelly + 12 $saturation.jelly)", builder.text());
+        void wrapMoveAndTheJoinedAddBuildBeetrootsLeafFromAnEmptyRow() {
+            ExpressionBuilder builder = ExpressionBuilder.of("");
+            builder.switchToPerType();
+            builder.addType("leaf");
+            assertWrites("{\"leaf\": \"1\"}", builder);
+            builder.setOperand(List.of(0, 0), new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "dye", "leaf"));
+            assertWrites("{\"leaf\": \"$dye.leaf\"}", builder);
+            assertTrue(builder.add(LEAF_ROW, new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "food", "jelly"),
+                    ExpressionTerms.Join.MINUS));
+            assertWrites("{\"leaf\": \"$dye.leaf - $food.jelly\"}", builder);
+            builder.wrap(List.of(0, 1));
+            assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly)\"}", builder);
+            assertTrue(builder.add(List.of(0, 1), new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "saturation",
+                    "jelly"), ExpressionTerms.Join.PLUS));
+            builder.setScale(List.of(0, 1, 1), ExpressionBuilder.Op.MULTIPLY, "12");
+            assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly + 12 $saturation.jelly)\"}", builder);
+            builder.move(List.of(0, 1, 1), -1);
+            assertWrites("{\"leaf\": \"$dye.leaf - (12 $saturation.jelly + $food.jelly)\"}", builder);
+            builder.move(List.of(0, 1, 0), 1);
+            assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly + 12 $saturation.jelly)\"}", builder);
+        }
+
+        @Test
+        void firstTermMovesNoHigherAndLastNoLower() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited");
+            builder.move(List.of(0), -1);
+            builder.move(List.of(1), 1);
+            assertEquals("$waxed + $edited", builder.text());
+            builder.move(List.of(1), -1);
+            assertEquals("$edited + $waxed", builder.text());
+        }
+
+        // A first term takes no sign, so a move landing a subtracted term first would drop its minus and change the
+        // value; the move is refused and the value stands, as removing the last term is refused.
+        @Test
+        void subtractedTermMovesNoFirstUpOrDown() {
+            ExpressionBuilder up = ExpressionBuilder.of("$waxed - $edited");
+            assertFalse(up.canMove(List.of(1), -1));
+            up.move(List.of(1), -1);
+            assertEquals("$waxed - $edited", up.text());
+            assertTrue(up.refusal().isPresent());
+            ExpressionBuilder down = ExpressionBuilder.of("$waxed - $edited");
+            assertFalse(down.canMove(List.of(0), 1));
+            down.move(List.of(0), 1);
+            assertEquals("$waxed - $edited", down.text());
+            assertTrue(down.refusal().isPresent());
+        }
+
+        // A move that lands no subtracted term first keeps every term's sign, so the value stands.
+        @Test
+        void moveKeepsTheSumsValue() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited - $food");
+            assertTrue(builder.canMove(List.of(2), -1));
+            builder.move(List.of(2), -1);
+            assertEquals("$waxed - $food + $edited", builder.text());
+        }
+
+        @Test
+        void joinedAddWritesTheChosenSignToTheWholeValue() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed");
+            builder.add(List.of(), new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null),
+                    ExpressionTerms.Join.MINUS);
+            assertEquals("$waxed - $edited", builder.text());
+        }
+
+        // Decision sum-of-terms-leaves-the-builder: a parenthetical the file holds still edits in place.
+        @Test
+        void beetrootsParentheticalWritesBackAfterAnInnerEdit() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$dye.leaf - ($food.jelly + $saturation.jelly * 12)");
+            builder.setJoin(List.of(1, 1), ExpressionTerms.Join.MINUS);
+            assertEquals("$dye.leaf - ($food.jelly - $saturation.jelly * 12)", builder.text());
         }
 
         @Test

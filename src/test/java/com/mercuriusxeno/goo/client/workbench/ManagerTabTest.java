@@ -12,12 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ManagerTabTest {
 
     /**
-     * The tab bar reads Items, Groups, Prefabs, Mutators, Audit, the page's Values, Variables and Processes renamed,
-     * with no Checks tab.
+     * The tab bar reads Items, Groups, Prefabs, Conversions, Audit, the page's Values, Variables and Processes
+     * renamed, with no Checks tab (decision conversions-is-the-one-section-and-the-pane-name).
      */
     @Test
     void tabBarReadsPlainLabelsInOrder() {
-        assertEquals(List.of("Items", "Groups", "Prefabs", "Mutators", "Audit"),
+        assertEquals(List.of("Items", "Groups", "Prefabs", "Conversions", "Audit"),
                 Arrays.stream(ManagerTab.values()).map(ManagerTab::label).toList());
     }
 }

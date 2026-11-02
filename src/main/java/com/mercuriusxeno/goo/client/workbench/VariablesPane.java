@@ -39,6 +39,7 @@ final class VariablesPane {
     private static final int SEARCH_WIDTH = 180;
     private static final int SEARCH_GAP = 3;
     private static final int KIND_GAP = 8;
+    private static final int VALUE_GAP = 4;
     private static final int ACTION_GAP = 6;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private static final int CARD_WIDTH = 220;
@@ -56,23 +57,23 @@ final class VariablesPane {
     /** The height of a head line holding no used-by run: its text and its buttons' border below it. */
     private static final int BARE_HEAD_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT + ButtonPainter.TEXT_NUDGE;
     /**
-     * A number prefab used nowhere, from its top to the next one's: its head, its value's line, its read view's line
+     * A number prefab used nowhere, from its top to the next one's: its head holding its value, its read view's line
      * and the gaps.
      */
     static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + BLOCK_GAP + ButtonPainter.TEXT_NUDGE + BARE_HEAD_HEIGHT
-            + ExpressionLines.TEXT_LINE_HEIGHT + ExpressionLines.TEXT_LINE_HEIGHT + 2 + BLOCK_GAP;
+            + ExpressionLines.TEXT_LINE_HEIGHT + 2 + BLOCK_GAP;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
     private static final int GREEN = 0xFF80E080;
     private static final int LINK = ButtonPainter.LINK;
-    private static final int TREE_COLOR = 0xFFE0C060;
     private static final int CARD_COLOR = 0xF0181818;
     private static final int DIM_COLOR = 0xA0000000;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final String RESOLVED_SEPARATOR = ", ";
     private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
+    private static final String EQUALS = "=";
     private static final String RENAME = "✎";
     private static final String DELETE = "✗";
     private static final String CONFIRM_DELETE = "Delete";
@@ -228,21 +229,29 @@ final class VariablesPane {
         return key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
     }
 
-    // How far the head draws above its text's top: its buttons' border, or its used-by icons where they stand higher.
-    private static int headAscent(VariablesTab.ConstantBlock block) {
-        boolean used = !block.direct().isEmpty() || !block.links().isEmpty();
-        return used ? TEXT_NUDGE : ButtonPainter.TEXT_NUDGE;
+    // How far the head draws above its text's top: its buttons' border, or its value's type icons where they stand
+    // higher.
+    private static int headAscent(Font font, List<ExpressionLines.Run> value) {
+        return Math.max(ButtonPainter.TEXT_NUDGE, ExpressionLines.textOffset(font, value));
     }
 
-    // A block's head, its resolved value, then its read view or builder; answers the height it took with its gap.
-    // Decision prefab-head-is-name-type-used-by-and-x-on-one-line.
+    // The value the head reads after its =: what the prefab resolves to, or its error.
+    private static List<ExpressionLines.Run> valueRuns(VariablesTab.ConstantBlock block) {
+        return block.error().isEmpty() ? ExpressionLines.resolvedRuns(block.resolved())
+                : ExpressionLines.textRuns(block.error());
+    }
+
+    // A block's head, its Used by run, then its read view or builder; answers the height it took with its gap.
+    // Decision prefab-head-is-name-pencil-and-value-then-used-by.
     private int drawBlock(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                           GroupsPane.Bounds bounds, int top, ClickTargets targets) {
         blockTops.put(block.name(), top + bar.offset() - bounds.top());
-        int headY = top + SEPARATOR_ROW + BLOCK_GAP + headAscent(block);
-        int headHeight = drawHead(graphics, font, block, bounds, headY, targets);
-        int y = headY + Math.max(BARE_HEAD_HEIGHT, headHeight - TEXT_NUDGE);
-        y += drawResolved(graphics, font, block, bounds.left(), y, bounds.right() - bounds.left(), targets);
+        List<ExpressionLines.Run> value = valueRuns(block);
+        int headY = top + SEPARATOR_ROW + BLOCK_GAP + headAscent(font, value);
+        int valueHeight = drawHead(graphics, font, block, value, bounds, headY, targets);
+        int y = headY + Math.max(BARE_HEAD_HEIGHT, valueHeight);
+        y += drawUsedByLines(graphics, font, block.direct(), block.links(), bounds.left(), y,
+                bounds.right() - bounds.left(), block.name(), targets);
         boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
         y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
                 : drawReadView(graphics, font, block, bounds, y, targets);
@@ -332,10 +341,10 @@ final class VariablesPane {
         }
     }
 
-    // The rename box stands in place of the name while the block is renamed; the used-by run fills the room between
-    // the kind and the x. Answers the height the used-by run took, none where nothing uses the prefab.
+    // The rename box stands in place of the name while the block is renamed; the value fills the room between the =
+    // and the x, its text on the head's text line. Answers how far the value reaches below the head's text top.
     private int drawHead(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
-                         GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+                         List<ExpressionLines.Run> value, GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int x = bounds.left();
         boolean renamingThis = rename != null && block.name().equals(renaming);
         int pencilWidth = ButtonPainter.width(font, RENAME);
@@ -348,16 +357,18 @@ final class VariablesPane {
                     y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
                     BuilderOverlays.hintKey(RENAME_HINT));
         }
-        int kindX = x + Math.max(NAME_WIDTH, font.width(block.name()) + PENCIL_GAP + pencilWidth) + KIND_GAP;
-        graphics.text(font, block.shownKind(), kindX, y, VariablesTab.TREE_KIND.equals(block.kind()) ? TREE_COLOR
-                : GRAY);
-        int deleteWidth = ButtonPainter.width(font, DELETE);
-        int usedByX = kindX + font.width(block.shownKind()) + KIND_GAP;
-        int usedByWidth = bounds.right() - deleteWidth - ACTION_GAP - usedByX;
-        int usedByHeight = drawUsedByLines(graphics, font, block.direct(), block.links(), usedByX, y - TEXT_NUDGE,
-                usedByWidth, block.name(), targets);
+        int equalsX = x + Math.max(NAME_WIDTH, font.width(block.name()) + PENCIL_GAP + pencilWidth) + KIND_GAP;
+        graphics.text(font, EQUALS, equalsX, y, GRAY);
+        int valueX = equalsX + font.width(EQUALS) + VALUE_GAP;
+        int valueWidth = bounds.right() - ButtonPainter.width(font, DELETE) - ACTION_GAP - valueX;
+        int lineTop = y - ExpressionLines.textOffset(font, value);
+        // A resolved tree draws each type as its icon beside its amount (decision
+        // goo-types-draw-as-icons-named-on-hover).
+        ExpressionLines.draw(font, value, valueX, lineTop, valueWidth, new ExpressionLines.Painter(graphics, icons,
+                targets, block.error().isEmpty() ? GREEN : RED, LINK,
+                ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
         drawRemoval(graphics, font, block.name(), bounds.right(), y, targets);
-        return usedByHeight;
+        return lineTop + ExpressionLines.height(font, value, valueWidth) - y;
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
@@ -389,20 +400,6 @@ final class VariablesPane {
         }
         ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), top,
                 ButtonPainter.HEIGHT, targets, () -> askDelete(name), BuilderOverlays.hintKey(DELETE_HINT));
-    }
-
-    // A resolved tree draws each type as its icon beside its amount (decision goo-types-draw-as-icons-named-on-hover),
-    // on its own line under the head; answers the line's height.
-    private int drawResolved(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block, int x,
-                             int y, int width, ClickTargets targets) {
-        if (!block.error().isEmpty()) {
-            graphics.text(font, font.plainSubstrByWidth(block.error(), width), x, y, RED);
-            return ExpressionLines.TEXT_LINE_HEIGHT;
-        }
-        List<ExpressionLines.Run> resolved = ExpressionLines.resolvedRuns(block.resolved());
-        ExpressionLines.draw(font, resolved, x, y, width, new ExpressionLines.Painter(graphics, icons, targets, GREEN,
-                LINK, ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
-        return ExpressionLines.height(font, resolved, width);
     }
 
     // A plain left click on the read view starts editing its block, a ref in it included, and a shift + left click

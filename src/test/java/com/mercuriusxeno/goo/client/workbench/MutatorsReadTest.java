@@ -58,25 +58,6 @@ class MutatorsReadTest {
     }
 
     /**
-     * An assignment's scale lands number, colon, number, and neither "times" nor "over".
-     */
-    @Test
-    void assignmentScaleReadsAsARatio() {
-        ProcessesTab processes = mock(ProcessesTab.class);
-        when(processes.formOf(anyString(), anyString())).thenReturn(new Processes.Assignment("logs", 1, 1,
-                List.of()));
-        Supplier<List<String>> none = List::of;
-        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-        new MutatorControls(processes, new BuilderOverlays(mock(ManagerActions.class), null), mock(ManagerActions.class),
-                none, none, () -> { })
-                .draw(graphics, font(), "_post_conversions", "#logs", new GroupsPane.Bounds(0, 0, 600, 400), 0,
-                        new ClickTargets());
-        List<String> texts = drawn(graphics);
-        assertTrue(Collections.indexOfSubList(texts, List.of("1", RATIO, "1")) >= 0, texts.toString());
-        assertFalse(texts.contains("times") || texts.contains("over"), texts.toString());
-    }
-
-    /**
      * The builder's factor reads as a ratio too: times 3 reads 3:1 and divided by 4 reads 1:4.
      */
     @Test

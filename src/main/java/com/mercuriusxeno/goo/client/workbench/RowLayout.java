@@ -13,6 +13,13 @@ final class RowLayout {
     static final int SPRITE_SIZE = 16;
     /** A row holding a sprite. */
     static final int SPRITE_ROW_HEIGHT = 18;
+    /**
+     * The room a sprite row keeps between its sprite and the rule below it, so no rule touches a sprite (decision
+     * rule-takes-padding-above-it).
+     */
+    static final int RULE_PADDING = 2;
+    /** A row holding a sprite, from its top to the next one's: the row and the rule's padding. */
+    static final int SPRITE_ROW_PITCH = SPRITE_ROW_HEIGHT + RULE_PADDING;
     /** The separator's dim color. */
     static final int SEPARATOR_COLOR = 0x40FFFFFF;
 

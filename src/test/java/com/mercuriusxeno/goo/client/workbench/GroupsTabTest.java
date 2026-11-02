@@ -61,6 +61,27 @@ class GroupsTabTest {
         return JsonParser.parseString(text).getAsJsonObject();
     }
 
+    /**
+     * A group's referents are the iterators whose source names it; a group no assignment sources has none (decision
+     * group-card-lists-its-referents-as-iterator-links).
+     */
+    @Test
+    void referentsAreTheIteratorsSourcingTheGroup() {
+        ManagerDraft sourced = new ManagerDraft();
+        sourced.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "exposed_metal", "keySeparator": null, "kind": "VALUE", "text": "\\"metal / 4 -> 0\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "#exposed", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#copper @exposed_metal\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}""");
+        GroupsTab groups = new GroupsTab(sourced);
+        assertEquals(List.of("#exposed"), groups.referents("copper"));
+        assertEquals(List.of(), groups.referents("logs"));
+    }
+
     @Nested
     class Searching {
         private static final String THREE_GROUPS = """
@@ -177,7 +198,7 @@ class GroupsTabTest {
                    "leading": null, "trailing": null, "closingGap": null},
                   {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "\\"$log\\"", "entries": [],
                    "leading": null, "trailing": null, "closingGap": null},
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "#stripped", "keySeparator": null, "kind": "VALUE", "text": "\\"#logs @strip\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null}
@@ -205,7 +226,7 @@ class GroupsTabTest {
                     .filter(member -> member.get("key").getAsString().startsWith("#")).findFirst().orElseThrow();
             assertEquals("#timber", value.get("key").getAsString());
             assertEquals("\"$log\"", value.get("text").getAsString());
-            assertEquals("\"#timber @strip\"", named.sectionEntries("_post_conversions").get(0).getAsJsonObject()
+            assertEquals("\"#timber @strip\"", named.sectionEntries("_conversions").get(0).getAsJsonObject()
                     .get("text").getAsString());
         }
 

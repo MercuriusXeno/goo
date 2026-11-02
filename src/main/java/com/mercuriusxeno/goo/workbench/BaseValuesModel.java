@@ -43,9 +43,11 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     private static final String STRUCTURAL_END = ",}]\n";
     private static final String CONSTANTS = "_constants";
     // The sections the shipped file closes with; a new item entry stands above them.
-    private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
+    private static final String CONVERSIONS = "_conversions";
+    private static final String LEGACY_CONVERSIONS = "_post_conversions";
+    private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", CONVERSIONS);
     private static final String GROUPS = "_groups";
-    private static final Set<String> PROCESS_SECTIONS = Set.of("_conversions", "_post_conversions");
+    private static final Set<String> PROCESS_SECTIONS = Set.of(CONVERSIONS);
     // An assignment stacks a named process as @name.
     private static final String STACK_PREFIX = "@";
     private static final String DEFAULT_NAMESPACE = "minecraft:";
@@ -78,7 +80,7 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
      */
     public enum Kind {
         /**
-         * A section object, such as _constants, _groups, _conversions and _post_conversions: entries by key.
+         * A section object, such as _constants, _groups and _conversions: entries by key.
          */
         OBJECT,
         /**
@@ -148,7 +150,23 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
      */
     public static BaseValuesModel parse(String text) {
         String lineSeparator = text.contains(CRLF) ? CRLF : NEWLINE;
-        return new Parser(text.replace(CRLF, NEWLINE)).document(lineSeparator);
+        return new Parser(text.replace(CRLF, NEWLINE)).document(lineSeparator).withLegacyConversionsFolded();
+    }
+
+    // A hand-kept file's _post_conversions reads as the one _conversions section, after any entries an old
+    // _conversions held, and writes back under _conversions alone.
+    // Decision conversions-is-the-one-section-and-the-pane-name.
+    private BaseValuesModel withLegacyConversionsFolded() {
+        Member legacy = member(LEGACY_CONVERSIONS);
+        if (legacy == null) {
+            return this;
+        }
+        Member old = member(CONVERSIONS);
+        List<Member> entries = new ArrayList<>(old == null ? List.of() : old.entries());
+        entries.addAll(legacy.entries());
+        Member folded = legacy.withKey(CONVERSIONS).withEntries(entries);
+        return withMembers(members.stream().filter(each -> !CONVERSIONS.equals(each.key()))
+                .map(each -> LEGACY_CONVERSIONS.equals(each.key()) ? folded : each).toList());
     }
 
     /**
