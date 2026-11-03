@@ -609,7 +609,7 @@ final class ExpressionBuilderPane {
 
     // The goo type button and colon after a row's rail, which the rail keeps on its line.
     private static int typeLeadWidth(Font font, String type) {
-        return GooTypeIcons.sizeOf(type) + ButtonPainter.PADDING + ButtonPainter.PADDING + BuilderOverlays.GAP
+        return ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type)) + BuilderOverlays.GAP
                 + font.width(ExpressionLines.COLON);
     }
 
