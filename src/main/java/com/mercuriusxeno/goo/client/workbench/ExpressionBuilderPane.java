@@ -320,10 +320,17 @@ final class ExpressionBuilderPane {
     // Decision terms-and-type-rows-drag-to-a-trash-strip.
     private void drawTrash(GuiGraphicsExtractor graphics, GroupsPane.Bounds strip) {
         int tone = dragOverTrash() ? TRASH_HOVER : TRASH_REST;
-        if (tone == TRASH_REST && (dragging != null || rowDragging != null)) {
+        if (tone == TRASH_REST && dragDeletable()) {
             tone = TRASH_LIT;
         }
         graphics.fill(strip.left(), strip.top(), strip.right(), strip.bottom(), tone);
+    }
+
+    // Decision drags-indicate-only-a-drop-the-builder-takes: the strip lights only for a thing the builder deletes.
+    private boolean dragDeletable() {
+        Drag term = dragging;
+        RowDrag row = rowDragging;
+        return term != null && term.deletable || row != null && row.deletable;
     }
 
     // Whether the term or type row held stands over the trash strip.
@@ -342,6 +349,12 @@ final class ExpressionBuilderPane {
         }
         BuilderOverlays.Anchor at = held.target.at();
         graphics.fill(at.x(), at.y() - 1, right, at.y() + 1, DROP_CURSOR);
+    }
+
+    // Whether the open builder answers yes, false where none stands open.
+    private boolean holds(java.util.function.Predicate<ExpressionBuilder> query) {
+        ExpressionBuilder edited = builder;
+        return edited != null && query.test(edited);
     }
 
     // Whether the pointer stands over the trash strip the last frame drew.
@@ -581,19 +594,24 @@ final class ExpressionBuilderPane {
         private double y;
         private @Nullable RowSlot target;
         private boolean overTrash;
+        private boolean deletable;
 
         RowDrag(int row, String type) {
             this.row = row;
             this.type = type;
         }
 
+        // Decision drags-indicate-only-a-drop-the-builder-takes: a row slot the builder takes, and the strip only
+        // where the row can go.
         @Override
         public void moved(double movedX, double movedY) {
             rowDragging = this;
             x = movedX;
             y = movedY;
-            overTrash = overTrash(x, y);
-            target = overTrash ? null : nearestRowSlot(y);
+            deletable = holds(edited -> edited.canRemoveRow(row));
+            overTrash = deletable && overTrash(x, y);
+            RowSlot nearest = overTrash(x, y) ? null : nearestRowSlot(y);
+            target = nearest != null && holds(edited -> edited.canMoveRow(row, nearest.index())) ? nearest : null;
         }
 
         @Override
@@ -603,14 +621,9 @@ final class ExpressionBuilderPane {
             rowDragging = null;
             if (held && overTrash) {
                 apply(b -> b.removeRow(row));
-            } else if (held && dropped != null && !isOrigin(dropped)) {
+            } else if (held && dropped != null) {
                 apply(b -> b.moveRow(row, dropped.index()));
             }
-        }
-
-        // The slots either side of the row drop it where it stands.
-        private boolean isOrigin(RowSlot slot) {
-            return slot.index() == row || slot.index() == row + 1;
         }
     }
 
@@ -672,19 +685,25 @@ final class ExpressionBuilderPane {
         private double y;
         private @Nullable Slot target;
         private boolean overTrash;
+        private boolean deletable;
 
         Drag(List<Integer> from, ExpressionBuilder.Piece piece) {
             this.from = from;
             this.piece = piece;
         }
 
+        // Decision drags-indicate-only-a-drop-the-builder-takes: the slot the term would drop into is one the builder
+        // takes, and the strip counts only where the term can go.
         @Override
         public void moved(double movedX, double movedY) {
             dragging = this;
             x = movedX;
             y = movedY;
-            overTrash = overTrash(x, y);
-            target = overTrash ? null : nearestSlot(x, y);
+            deletable = holds(edited -> edited.canRemove(from));
+            overTrash = deletable && overTrash(x, y);
+            Slot nearest = overTrash(x, y) ? null : nearestSlot(x, y);
+            target = nearest != null && holds(edited -> edited.canMoveTo(from, nearest.sum(), nearest.index()))
+                    ? nearest : null;
         }
 
         // Decision terms-and-type-rows-drag-to-a-trash-strip: a release on the strip deletes the term.
@@ -695,16 +714,9 @@ final class ExpressionBuilderPane {
             dragging = null;
             if (held && overTrash) {
                 apply(b -> b.remove(from));
-            } else if (held && dropped != null && !isOrigin(dropped)) {
+            } else if (held && dropped != null) {
                 apply(b -> b.moveTo(from, dropped.sum(), dropped.index()));
             }
-        }
-
-        // The slots either side of the term drop it where it stands.
-        private boolean isOrigin(Slot slot) {
-            int index = from.getLast();
-            return slot.sum().equals(from.subList(0, from.size() - 1))
-                    && (slot.index() == index || slot.index() == index + 1);
         }
     }
 

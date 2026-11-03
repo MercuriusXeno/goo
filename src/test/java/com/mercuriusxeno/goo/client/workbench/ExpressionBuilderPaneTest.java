@@ -390,6 +390,62 @@ class ExpressionBuilderPaneTest {
         assertEquals(RowLayout.BOX_MARGIN, buttonTop - panel[1], "the box's top margin");
     }
 
+    /**
+     * A drag shows a drop cursor only at a slot the builder takes: none at the term's own slot, none at a slot that
+     * would empty a type row (decision drags-indicate-only-a-drop-the-builder-takes).
+     */
+    @Test
+    void dropCursorDrawsOnlyAtASlotTheBuilderTakes() {
+        Builder builder = Builder.item("$waxed + $edited + $base");
+        DrawnFrame frame = builder.frame();
+        double[] rail = railOf(frame, List.of(1));
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        assertTrue(frame.targets.drag(rail[0], rail[1]));
+        assertTrue(cursorTops(builder.frame()).isEmpty(), "a cursor at the term's own slot");
+        frame.targets.release();
+        Builder rows = Builder.item(TWO_TYPES);
+        DrawnFrame typed = rows.frame();
+        double[] only = railOf(typed, List.of(0, 0));
+        assertTrue(typed.targets.click(only[0], only[1]));
+        double[] other = railOf(typed, List.of(1, 0));
+        assertTrue(typed.targets.drag(other[0], other[1]));
+        assertTrue(cursorTops(rows.frame()).isEmpty(), "a cursor where the row would empty");
+        typed.targets.release();
+        assertEquals(List.of(), rows.written);
+    }
+
+    /**
+     * The trash strip rests through a drag of a thing the builder will not delete, over the strip and off it: a type
+     * row's only term, and the only type row (decision drags-indicate-only-a-drop-the-builder-takes).
+     */
+    @Test
+    void trashStripRestsForAThingTheBuilderWillNotDelete() {
+        Builder term = Builder.item("{\"metal\": \"5\"}");
+        DrawnFrame frame = term.frame();
+        double[] rail = railOf(frame, List.of(0, 0));
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        assertTrue(frame.targets.drag(AREA.left() + 1, rail[1]));
+        assertRests(term.frame());
+        assertTrue(frame.targets.drag(AREA.right() - 1, rail[1]));
+        assertRests(term.frame());
+        frame.targets.release();
+        Builder row = Builder.item("{\"metal\": \"5\"}");
+        DrawnFrame rowFrame = row.frame();
+        double[] rowRail = rowRailOf(rowFrame, 0);
+        assertTrue(rowFrame.targets.click(rowRail[0], rowRail[1]));
+        assertTrue(rowFrame.targets.drag(AREA.right() - 1, rowRail[1]));
+        assertRests(row.frame());
+        rowFrame.targets.release();
+        assertEquals(List.of(), term.written);
+        assertEquals(List.of(), row.written);
+    }
+
+    private static void assertRests(DrawnFrame frame) {
+        assertEquals(1, fills(frame, ExpressionBuilderPane.TRASH_REST).size(), "the strip rests");
+        assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_LIT), "the strip lit");
+        assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_HOVER), "the strip brightened");
+    }
+
     private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
 
     // Where a type row's rail answers, found by its hover across the screen.
