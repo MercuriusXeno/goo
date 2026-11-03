@@ -534,8 +534,8 @@ class ExpressionBuilderPaneTest {
         int borderBottom = border.stream().mapToInt(side -> side[3]).max().orElseThrow();
         assertTrue(borderLeft < fill[0] && borderTop < fill[1] && borderRight > fill[2] && borderBottom > fill[3],
                 "the border encloses the fill " + java.util.Arrays.toString(fill));
-        // Edited's container opens on its join's segment; waxed's ends on the last segment left of it.
-        DrawnFrame.Text join = frame.findFirst("+");
+        // Edited's container opens on its sign's segment, the second +; waxed's ends on the last segment left of it.
+        DrawnFrame.Text join = frame.drawn().stream().filter(text -> text.text().equals("+")).toList().get(1);
         int editedLeft = frame.buttonAround(join)[0];
         int waxedRight = fills(frame, ButtonPainter.BORDER).stream().filter(segment -> segment[2] <= editedLeft
                 && segment[1] <= join.y() && join.y() < segment[3]).mapToInt(segment -> segment[2]).max()
@@ -698,8 +698,9 @@ class ExpressionBuilderPaneTest {
     class SegmentedTerms {
         private static final String TERM = "3 $waxed.metal / 2";
 
-        // The term's segments left to right: its rail's, its operand's, its type's, its multiplier's, its colon's
-        // and its divisor's, each as left, top, right and bottom.
+        // The term's segments left to right: its sign's (decision every-term-carries-its-sign-as-a-segment), its
+        // rail's, its operand's, its type's, its multiplier's, its colon's and its divisor's, each as left, top, right
+        // and bottom.
         private static List<int[]> segments(DrawnFrame frame) {
             DrawnFrame.Text waxed = frame.find("$waxed");
             List<int[]> rails = new ArrayList<>(fills(frame, ControlFlow.RAIL_COLOR));
@@ -711,13 +712,14 @@ class ExpressionBuilderPaneTest {
             int[] icon = iconBlits(frame).stream().filter(blit -> blit[0] > waxed.x()
                     && Math.abs(blit[1] - waxed.y()) < ControlFlow.LINE).findFirst()
                     .orElseThrow(() -> new AssertionError("no metal icon after " + waxed));
-            return List.of(frame.buttonAround(rail[0], rail[1]), frame.buttonAround(waxed),
+            return List.of(frame.buttonAround(frame.findFirst("+")), frame.buttonAround(rail[0], rail[1]),
+                    frame.buttonAround(waxed),
                     frame.buttonAround(icon[0], icon[1]), frame.buttonAround(frame.findFirst("3")),
                     frame.buttonAround(frame.findFirst(":")), frame.buttonAround(frame.findFirst("2")));
         }
 
         /**
-         * Each segment's left border is the right border of the segment before it, the rail's first and the
+         * Each segment's left border is the right border of the segment before it, the sign's first and the
          * divisor's last, and no outline rings them.
          */
         @Test
@@ -743,15 +745,15 @@ class ExpressionBuilderPaneTest {
         void eachSegmentOpensItsEditor() {
             Builder operand = Builder.item(TERM);
             DrawnFrame frame = operand.frame();
-            int[] waxed = segments(frame).get(1);
+            int[] waxed = segments(frame).get(2);
             assertTrue(frame.targets.click(waxed[0] + 1, waxed[1] + 1), "the operand takes no click");
             assertTrue(operand.frame().texts().contains("$edited"), "the term list opens");
             Builder type = Builder.item(TERM);
             DrawnFrame typed = type.frame();
-            int[] metal = segments(typed).get(2);
+            int[] metal = segments(typed).get(3);
             assertTrue(typed.targets.click(metal[2] - 2, metal[1] + 1), "the type takes no click");
             assertTrue(type.pane.listOpen(), "the goo type picker opens");
-            for (int side = 3; side <= 5; side += 2) {
+            for (int side = 4; side <= 6; side += 2) {
                 Builder ratio = Builder.item(TERM);
                 DrawnFrame drawn = ratio.frame();
                 int[] box = segments(drawn).get(side);
@@ -768,7 +770,7 @@ class ExpressionBuilderPaneTest {
         void railSegmentDragsTheWholeTerm() {
             Builder builder = Builder.item(TERM + " + $edited");
             DrawnFrame frame = builder.frame();
-            int[] rail = segments(frame).getFirst();
+            int[] rail = segments(frame).get(1);
             assertTrue(frame.targets.click(rail[0] + 2, rail[1] + 2), "the rail takes no press");
             assertTrue(frame.targets.drag(AREA.right() - 40, frame.find("$edited").y()));
             builder.frame();
@@ -795,6 +797,59 @@ class ExpressionBuilderPaneTest {
             assertEquals(List.of(segments.getFirst()[0], top, segments.getLast()[2], bottom),
                     java.util.Arrays.stream(marks.getFirst()).boxed().toList(), "the container's bounds");
             frame.targets.release();
+        }
+    }
+
+    /**
+     * Every term's container, the first included, opens on its sign's segment, so any term flips negative in place
+     * and drags with its sign (decision every-term-carries-its-sign-as-a-segment).
+     */
+    @Nested
+    class SignOnEveryTerm {
+        private static final String SUM = "$waxed + $edited";
+
+        // The sign drawn nearest left of a term's rail on its line, and that sign's segment, which the rail's segment
+        // shares its left border with.
+        private static DrawnFrame.Text signBefore(DrawnFrame frame, double[] rail) {
+            DrawnFrame.Text sign = frame.drawn().stream().filter(text -> (text.text().equals("+")
+                    || text.text().equals("-")) && text.x() < rail[0] && Math.abs(text.y() - rail[1]) < HALF_LINE)
+                    .max(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                    .orElseThrow(() -> new AssertionError("no sign before the rail at " + rail[0]));
+            assertEquals(frame.buttonAround(sign)[2] - 1, frame.buttonAround((int) rail[0], (int) rail[1])[0],
+                    "the sign's segment shares its right border with the rail's");
+            return sign;
+        }
+
+        @Test
+        void firstTermOpensOnAPlusSegmentAsEveryTermDoes() {
+            DrawnFrame frame = Builder.item(SUM).frame();
+            assertEquals("+", signBefore(frame, railOf(frame, List.of(0))).text());
+            assertEquals("+", signBefore(frame, railOf(frame, List.of(1))).text());
+        }
+
+        @Test
+        void clickingTheFirstTermsSignFlipsItNegativeInPlace() {
+            Builder builder = Builder.item(SUM);
+            DrawnFrame frame = builder.frame();
+            DrawnFrame.Text plus = signBefore(frame, railOf(frame, List.of(0)));
+            clickAt(frame, plus);
+            assertEquals("-$waxed + $edited", builder.written.getLast());
+            DrawnFrame flipped = builder.frame();
+            DrawnFrame.Text minus = signBefore(flipped, railOf(flipped, List.of(0)));
+            assertEquals(List.of("-", flipped.buttonAround(minus)[0]), List.of(minus.text(),
+                    frame.buttonAround(plus)[0]), "the - stands where the + stood");
+        }
+
+        @Test
+        void negativeFirstTermDraggedToTheEndKeepsItsMinus() {
+            Builder builder = Builder.item("-$waxed + $edited");
+            DrawnFrame frame = builder.frame();
+            double[] rail = railOf(frame, List.of(0));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            assertTrue(frame.targets.drag(AREA.right() - 40, frame.find("$edited").y()));
+            builder.frame();
+            frame.targets.release();
+            assertEquals("$edited - $waxed", builder.written.getLast());
         }
     }
 
@@ -1281,29 +1336,26 @@ class ExpressionBuilderPaneTest {
         }
 
         /**
-         * Leaf's first term, $dye's leaf, has no place to drop, since moving or deleting it would leave the
-         * subtracted parenthetical first: its rail draws dark gray and takes no press, while leaf's row rail, which
-         * may move above jelly, draws light blue.
+         * Leaf's first term, $dye's leaf, carries its sign, so moving it behind the subtracted parenthetical leaves
+         * that parenthetical first with its minus: its rail draws light blue and takes the press, as leaf's row rail,
+         * which may move above jelly, does (decision every-term-carries-its-sign-as-a-segment, and the operator's
+         * ruling of 2026-11-03: a rail that can drag draws light blue).
          */
         @Test
-        void aRailWithNowhereToDropDrawsDarkGrayAndTakesNoPress() {
+        void dyesRailDragsNowItsParentheticalMayStandFirst() {
             Builder builder = Builder.item(BEETROOT);
             GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 330, 390);
             DrawnFrame frame = builder.frame(narrow);
             DrawnFrame.Text dye = frame.find("$dye");
-            int[] dyeRail = fills(frame, ControlFlow.LOCKED_RAIL_COLOR).stream().filter(rail -> rail[2] <= dye.x()
-                    && rail[1] <= dye.y() && dye.y() < rail[3]).findFirst()
-                    .orElseThrow(() -> new AssertionError("no dark gray rail before $dye"));
+            int[] dyeRail = railBefore(frame, ControlFlow.RAIL_COLOR, dye);
             int middle = (dyeRail[1] + dyeRail[3]) / 2;
-            assertEquals(java.util.Optional.empty(), frame.targets.grabNamed(dyeRail[0] + 1, middle),
-                    "the gray rail names a grab");
-            frame.targets.click(dyeRail[0] + 1, middle);
-            frame.targets.drag(dyeRail[0] + 1, middle + 1);
-            assertEquals(List.of(), fills(builder.frame(narrow), DragMask.SHADOW), "the gray rail starts a drag");
+            assertTrue(frame.targets.click(dyeRail[0] + 1, middle), "the light blue rail takes no press");
+            assertTrue(frame.targets.drag(dyeRail[0] + 1, middle + 1));
+            assertFalse(fills(builder.frame(narrow), DragMask.SHADOW).isEmpty(), "the light blue rail starts no drag");
+            frame.targets.release();
             double[] leafRail = rowRailOf(frame, 1);
             assertTrue(fills(frame, ControlFlow.RAIL_COLOR).stream().anyMatch(rail -> rail[0] == (int) leafRail[0]),
                     "leaf's row rail draws light blue");
-            frame.targets.release();
         }
 
         // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
@@ -1341,11 +1393,12 @@ class ExpressionBuilderPaneTest {
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
             // Decision operand-times-number-terms-edit-like-every-term: saturation's 12 reads in its ratio box.
             // Decision terms-inline-again-under-the-indentation-rules: saturation follows food on the row's line.
-            assertEquals(List.of(":", "$food", "'s", "1", ":", "1", "+", "$saturation", "'s", "12", ":", "1"),
+            // Decision every-term-carries-its-sign-as-a-segment: food, the row's first term, opens on its +.
+            assertEquals(List.of(":", "+", "$food", "'s", "1", ":", "1", "+", "$saturation", "'s", "12", ":", "1"),
                     lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.ICON_PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
-            assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),
+            assertTrue(line(frame, 1).get(3).x() < jelly && jelly < line(frame, 1).get(4).x(),
                     "jelly between 's and the ratio at " + jelly);
         }
 
@@ -1400,16 +1453,16 @@ class ExpressionBuilderPaneTest {
                     && text.x() == rowColonX).count();
         }
 
-        // Leaf's parenthetical is subtracted, so neither it nor dye ahead of it draws a move that would land it first
-        // and drop its minus; it fits the rest of dye's line, so "-" "(" and its terms follow dye's ratio inline, and
-        // no X (decisions terms-and-type-rows-drag-to-a-trash-strip, terms-inline-again-under-the-indentation-rules).
+        // Leaf's subtracted parenthetical fits the rest of dye's line, so "-" "(" and its terms follow dye's ratio
+        // inline, each term opening on its sign, and no X (decisions terms-and-type-rows-drag-to-a-trash-strip,
+        // terms-inline-again-under-the-indentation-rules, every-term-carries-its-sign-as-a-segment).
         @Test
         void parentheticalLineReadsJoinParenThenItsTermsInline() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
             int head = lineOf(frame, open.y());
-            assertEquals(List.of(":", "$dye", "'s", "1", ":", "1", "-", "(", "$food"),
-                    lineTexts(frame, head).subList(0, 9), frame.drawn().toString());
+            assertEquals(List.of(":", "+", "$dye", "'s", "1", ":", "1", "-", "(", "+", "$food"),
+                    lineTexts(frame, head).subList(0, 11), frame.drawn().toString());
             assertFalse(lineTexts(frame, head).contains("X"), frame.drawn().toString());
             // Decision terms-inline-again-under-the-indentation-rules: ")" follows the parenthetical's last term.
             DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals("$saturation")

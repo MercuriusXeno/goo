@@ -1007,15 +1007,14 @@ final class ExpressionBuilderPane {
     // Decision rails-fill-the-left-edge-of-their-box: the rail stands flush inside the box's left border, the padding
     // opening right of it; a parenthetical's rail draws once its box's height is known.
     private BuilderOverlays.Anchor drawLead(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
-        int lead = leadWidth(flow.letters(), path, piece);
+        int lead = leadWidth(flow.letters(), piece);
         // Decision terms-inline-again-under-the-indentation-rules: a parenthetical keeps its lead and wraps inside.
         flow.fit(ControlFlow.RAIL_ADVANCE + lead);
         BuilderOverlays.Anchor start = flow.anchor();
         termRails.put(railName(path), path);
         flow.railTarget(railName(path), new Drag(path, piece), lead);
-        if (path.getLast() > 0) {
-            drawJoin(flow, path, piece);
-        }
+        // Decision every-term-carries-its-sign-as-a-segment: a first parenthetical carries its sign too.
+        drawJoin(flow, path, piece);
         return start;
     }
 
@@ -1026,10 +1025,9 @@ final class ExpressionBuilderPane {
     // Decision terms-inline-again-under-the-indentation-rules.
     private void drawPlainTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         Lettering letters = flow.letters();
-        flow.openSegments(plainTermWidth(letters, path, piece), flow.segmentsHeight(operandSegmentRuns(piece)));
-        if (path.getLast() > 0) {
-            drawJoinSegment(flow, path, piece);
-        }
+        flow.openSegments(plainTermWidth(letters, piece), flow.segmentsHeight(operandSegmentRuns(piece)));
+        // Decision every-term-carries-its-sign-as-a-segment: the sign opens every term's container, the first's too.
+        drawJoinSegment(flow, path, piece);
         termRails.put(railName(path), path);
         flow.railSegment(railName(path), new Drag(path, piece));
         drawOperand(flow, path, piece, place);
@@ -1048,12 +1046,10 @@ final class ExpressionBuilderPane {
         return piece.operand() instanceof ExpressionBuilder.Ref ref ? refRuns(ref) : operandRuns(piece);
     }
 
-    // The width a plain term's segments take abutted: [join], rail, operand, a member's type, and its ratio.
-    private int plainTermWidth(Lettering letters, List<Integer> path, ExpressionBuilder.Piece piece) {
+    // The width a plain term's segments take abutted: its sign, rail, operand, a member's type, and its ratio.
+    private int plainTermWidth(Lettering letters, ExpressionBuilder.Piece piece) {
         List<Integer> widths = new ArrayList<>();
-        if (path.getLast() > 0) {
-            widths.add(ButtonPainter.width(letters, joinLabel(piece)));
-        }
+        widths.add(ButtonPainter.width(letters, joinLabel(piece)));
         widths.add(ControlFlow.RAIL_SEGMENT_WIDTH);
         widths.add(switch (piece.operand()) {
             case ExpressionBuilder.Num num -> ButtonPainter.width(letters, num.digits());
@@ -1074,18 +1070,18 @@ final class ExpressionBuilderPane {
     }
 
     // The join and the "(" after a parenthetical's rail, which the rail keeps on its line.
-    private static int leadWidth(Lettering letters, List<Integer> path, ExpressionBuilder.Piece piece) {
-        int join = path.getLast() > 0 ? ButtonPainter.width(letters, joinLabel(piece)) + BuilderOverlays.GAP : 0;
-        return join + ControlFlow.parenWidth(letters.font(), OPEN_PAREN);
+    private static int leadWidth(Lettering letters, ExpressionBuilder.Piece piece) {
+        return ButtonPainter.width(letters, joinLabel(piece)) + BuilderOverlays.GAP
+                + ControlFlow.parenWidth(letters.font(), OPEN_PAREN);
     }
 
     // The width a term takes laid on one line and the room after it: a plain term's segments, or a parenthetical's
     // rail, join and "(", its terms, ")", its ratio and the room its box adds inside and after it.
     private int termWidth(Lettering letters, List<Integer> path, ExpressionBuilder.Piece piece) {
         if (!(piece.operand() instanceof ExpressionBuilder.Nest nest)) {
-            return plainTermWidth(letters, path, piece) + TERM_MARGIN;
+            return plainTermWidth(letters, piece) + TERM_MARGIN;
         }
-        int width = ControlFlow.RAIL_ADVANCE + leadWidth(letters, path, piece) + BuilderOverlays.GAP;
+        int width = ControlFlow.RAIL_ADVANCE + leadWidth(letters, piece) + BuilderOverlays.GAP;
         for (int index = 0; index < nest.pieces().size(); index++) {
             width += termWidth(letters, placeOf(path, index), nest.pieces().get(index));
         }
@@ -1212,8 +1208,9 @@ final class ExpressionBuilderPane {
         graphics.text(font, label, left + ButtonPainter.PADDING, top + ButtonPainter.TEXT_NUDGE, PREVIEW_TEXT);
     }
 
+    // A first term added reads + as every added term does (decision every-term-carries-its-sign-as-a-segment).
     private static String joinLabel(ExpressionBuilder.Piece piece) {
-        return piece.join() == ExpressionTerms.Join.PLUS ? PLUS_SIGN : MINUS_SIGN;
+        return piece.join() == ExpressionTerms.Join.MINUS ? MINUS_SIGN : PLUS_SIGN;
     }
 
     // A parenthetical's join, a button after its rail.
@@ -1227,8 +1224,8 @@ final class ExpressionBuilderPane {
     }
 
     private void flipJoin(List<Integer> path, ExpressionBuilder.Piece piece) {
-        boolean plus = piece.join() == ExpressionTerms.Join.PLUS;
-        apply(b -> b.setJoin(path, plus ? ExpressionTerms.Join.MINUS : ExpressionTerms.Join.PLUS));
+        boolean minus = piece.join() == ExpressionTerms.Join.MINUS;
+        apply(b -> b.setJoin(path, minus ? ExpressionTerms.Join.PLUS : ExpressionTerms.Join.MINUS));
     }
 
     // A number as its segment, an item or prefab as the segment that replaces it, then 's and its goo type as one
