@@ -702,29 +702,58 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * A type row's first term follows its colon and each later term starts a line one indent under the type; a
-     * parenthetical's first term follows its "(" and each later one starts a line one indent in from its rail, its
-     * ")" on a line of its own at that indent (decision each-subsequent-term-starts-a-new-line).
+     * Terms inline under the indentation rules, in type rows and parentheticals alike (decisions
+     * terms-inline-again-under-the-indentation-rules, builder-inlines-terms-under-indentation-rules-with-a-colon).
      */
-    @Test
-    void eachSubsequentTermStartsANewLine() {
-        DrawnFrame row = Builder.item("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\"}").frame();
-        double[] first = railOf(row, List.of(0, 0));
-        double[] second = railOf(row, List.of(0, 1));
-        double[] rowRail = rowRailOf(row, 0);
-        assertEquals((int) rowRail[1] / ControlFlow.LINE, (int) first[1] / ControlFlow.LINE, "the first term");
-        assertTrue(second[1] >= first[1] + ControlFlow.LINE, "the second term shares the first's line");
-        assertEquals((int) rowRail[0] + ControlFlow.INDENT, (int) second[0], "the second term's indent");
-        DrawnFrame nested = Builder.item("$dye.leaf - ($food.jelly + $saturation.jelly * 12)").frame();
-        double[] parenthetical = railOf(nested, List.of(1));
-        double[] inner = railOf(nested, List.of(1, 0));
-        double[] innerSecond = railOf(nested, List.of(1, 1));
-        assertEquals((int) parenthetical[1] / ControlFlow.LINE, (int) inner[1] / ControlFlow.LINE, "after (");
-        assertTrue(innerSecond[1] >= inner[1] + ControlFlow.LINE, "the inner second term shares a line");
-        assertEquals((int) parenthetical[0] + ControlFlow.INDENT, (int) innerSecond[0], "the inner indent");
-        DrawnFrame.Text close = nested.find(")");
-        assertTrue(close.y() > innerSecond[1], ") shares the last term's line");
-        assertEquals((int) parenthetical[0] + ControlFlow.INDENT, close.x(), ") stands at the inner indent");
+    @Nested
+    class TermsInline {
+
+        /**
+         * A goo type row holding three short terms draws all three on the line of its colon.
+         */
+        @Test
+        void typeRowsShortTermsShareItsColonsLine() {
+            DrawnFrame frame = Builder.item("{\"metal\": \"$base + $base + $base\"}").frame();
+            int colon = frame.drawn().stream().filter(text -> text.text().equals(":")).findFirst()
+                    .orElseThrow(() -> new AssertionError(frame.drawn().toString())).y();
+            List<Integer> terms = frame.drawn().stream().filter(text -> text.text().equals("$base"))
+                    .map(DrawnFrame.Text::y).toList();
+            assertEquals(List.of(colon, colon, colon), terms, frame.drawn().toString());
+        }
+
+        /**
+         * A parenthetical holding two short terms draws "(", both terms and ")" on one line.
+         */
+        @Test
+        void parentheticalsShortTermsShareItsParensLine() {
+            DrawnFrame frame = Builder.item("($waxed + $edited) + $base").frame();
+            int open = frame.find("(").y();
+            assertEquals(List.of(open, open, open), List.of(frame.find("$waxed").y(), frame.find("$edited").y(),
+                    frame.find(")").y()), frame.drawn().toString());
+        }
+
+        /**
+         * A row's terms run on its colon's line until one would pass the content's right edge, which wraps one
+         * indent under the goo type, and no text passes that edge.
+         */
+        @Test
+        void termPastTheRightEdgeWrapsOneIndentUnderTheType() {
+            int count = 8;
+            DrawnFrame frame = Builder.item("{\"metal\": \"" + String.join(" + ", java.util.Collections.nCopies(count,
+                    "$base")) + "\"}").frame();
+            double[] rowRail = rowRailOf(frame, 0);
+            List<double[]> rails = IntStream.range(0, count).mapToObj(index -> railOf(frame, List.of(0, index)))
+                    .toList();
+            int wrapped = IntStream.range(0, count).filter(index -> rails.get(index)[1] > rails.getFirst()[1])
+                    .findFirst().orElseThrow(() -> new AssertionError("no term wrapped"));
+            for (int index = 1; index < wrapped; index++) {
+                assertEquals(rails.getFirst()[1], rails.get(index)[1], "term " + index + " shares the first's line");
+            }
+            assertTrue(wrapped > 1, "a second term fits beside the first");
+            assertEquals((int) rowRail[0] + ControlFlow.INDENT, (int) rails.get(wrapped)[0], "the wrap's indent");
+            assertEquals(List.of(), frame.drawn().stream().filter(text -> text.x()
+                    + DrawnFrame.font().width(text.text()) > CONTENT_RIGHT).toList(), "text past the right edge");
+        }
     }
 
     /**
@@ -930,11 +959,11 @@ class ExpressionBuilderPaneTest {
 
     /**
      * Over beetroot's leaf value, the builder offers no "+ sum of terms" and draws no "the sum of:"; its parenthetical
-     * reads "(" and its first term on one line, its second term on the line below and ")" below that (decisions
-     * sum-of-terms-leaves-the-builder, each-subsequent-term-starts-a-new-line).
+     * reads "(", its terms and ")" on one line (decisions sum-of-terms-leaves-the-builder,
+     * terms-inline-again-under-the-indentation-rules).
      */
     @Test
-    void parentheticalReadsItsFirstTermAfterItsParenAndEachLaterTermBelow() {
+    void parentheticalReadsItsParenItsTermsAndItsCloseOnOneLine() {
         DrawnFrame frame = Builder.item("$dye.leaf - ($food.jelly + $saturation.jelly * 12)").frame();
         assertFalse(frame.texts().contains("+ sum of terms") || frame.texts().contains("the sum of:"),
                 frame.texts().toString());
@@ -942,8 +971,9 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text close = frame.find(")");
         DrawnFrame.Text food = frame.find("$food");
         DrawnFrame.Text saturation = frame.find("$saturation");
-        assertEquals(open.y(), food.y(), frame.drawn().toString());
-        assertTrue(open.x() < food.x() && saturation.y() > food.y() && close.y() > saturation.y(),
+        assertEquals(List.of(open.y(), open.y(), open.y()), List.of(food.y(), saturation.y(), close.y()),
+                frame.drawn().toString());
+        assertTrue(open.x() < food.x() && food.x() < saturation.x() && saturation.x() < close.x(),
                 frame.drawn().toString());
     }
 
@@ -1050,10 +1080,9 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
             // Decision operand-times-number-terms-edit-like-every-term: saturation's 12 reads in its ratio box.
-            // Decision each-subsequent-term-starts-a-new-line: saturation starts the row's next line.
-            assertEquals(List.of(":", "$food", "'s", "1", ":", "1"), lineTexts(frame, 1), frame.drawn().toString());
-            assertEquals(List.of("+", "$saturation", "'s", "12", ":", "1"), lineTexts(frame, 2),
-                    frame.drawn().toString());
+            // Decision terms-inline-again-under-the-indentation-rules: saturation follows food on the row's line.
+            assertEquals(List.of(":", "$food", "'s", "1", ":", "1", "+", "$saturation", "'s", "12", ":", "1"),
+                    lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.ICON_PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
             assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),
@@ -1123,10 +1152,10 @@ class ExpressionBuilderPaneTest {
             assertFalse(lineTexts(frame, head).contains("X"), frame.drawn().toString());
             assertEquals(List.of(":", "$dye", "'s", "1", ":", "1"), lineTexts(frame, head - 1),
                     frame.drawn().toString());
-            // Decision each-subsequent-term-starts-a-new-line: ")" stands below the parenthetical's last term.
+            // Decision terms-inline-again-under-the-indentation-rules: ")" follows the parenthetical's last term.
             DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals("$saturation")
-                    && text.y() > open.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-            assertTrue(frame.find(")").y() > last.y(), frame.drawn().toString());
+                    && text.y() == open.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            assertTrue(frame.find(")").y() == last.y() && frame.find(")").x() > last.x(), frame.drawn().toString());
         }
 
         /**

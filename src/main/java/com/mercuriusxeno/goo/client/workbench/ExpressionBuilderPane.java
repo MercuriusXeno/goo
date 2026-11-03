@@ -44,6 +44,8 @@ final class ExpressionBuilderPane {
     private static final int BOX_INSIDE = BOX_PADDING - 2;
     // The room a box adds after itself past the gap the flow leaves, less the two border pixels.
     private static final int BOX_AFTER = TERM_MARGIN - BuilderOverlays.GAP + 2;
+    // A ratio's gaps: after its multiplier, its colon and its divisor.
+    private static final int RATIO_GAPS = 3;
     // How far below a line's top its centered buttons start.
     private static final int BUTTON_ABOVE = (ControlFlow.LINE - ButtonPainter.HEIGHT) / 2;
     /** The builder's panel fill. */
@@ -810,30 +812,17 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // A sum's terms inline, then the [+/-] that adds one, each wrapping where the line runs out; a drop slot stands
-    // before each term and after the last.
+    // A sum's terms inline, each wrapping one indent in where the line runs out; a drop slot stands before each term
+    // and after the last.
+    // Decision terms-inline-again-under-the-indentation-rules.
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawSum(ControlFlow flow, List<Integer> sum, List<ExpressionBuilder.Piece> pieces, Place place) {
         for (int index = 0; index < pieces.size(); index++) {
-            if (index > 0) {
-                breakBeforeTerm(flow, sum, place);
-            }
             slots.add(new Slot(sum, index, flow.anchor(), place));
             drawTerm(flow, placeOf(sum, index), pieces.get(index), place);
         }
         slots.add(new Slot(sum, pieces.size(), flow.anchor(), place));
-    }
-
-    // Decision each-subsequent-term-starts-a-new-line: a type row's later terms each start a line one indent under
-    // its type, and a parenthetical's each start a line at its inner indent; the whole value's stay inline.
-    private static void breakBeforeTerm(ControlFlow flow, List<Integer> sum, Place place) {
-        boolean rowSum = place.inRow() && sum.size() == 1;
-        if (rowSum) {
-            flow.wrapLine();
-        } else if (sum.size() > (place.inRow() ? 1 : 0)) {
-            flow.newLine();
-        }
     }
 
     /**
@@ -960,9 +949,9 @@ final class ExpressionBuilderPane {
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         if (path.getLast() > 0 && piece.operand() instanceof ExpressionBuilder.Nest) {
-            // Decision builder-inlines-terms-under-indentation-rules-with-a-colon: a parenthetical takes a line of
-            // its own with its join, its controls too wide to share the rest of a line.
-            flow.wrapLine();
+            // Decision builder-inlines-terms-under-indentation-rules-with-a-colon: a parenthetical that does not fit
+            // the rest of the line goes with its join onto a line of its own.
+            flow.fit(termWidth(flow.font(), path, piece));
         }
         BuilderOverlays.Anchor start = drawLead(flow, path, piece);
         if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
@@ -1014,6 +1003,26 @@ final class ExpressionBuilderPane {
             case ExpressionBuilder.Kept _ -> ExpressionLines.width(font, operandRuns(piece));
         };
         return join + operand;
+    }
+
+    // The width a term takes laid on one line: its rail, join and operand, a parenthetical's terms between its
+    // parens, a member's 's and goo type, its ratio, and the room its box adds inside and after it.
+    private int termWidth(Font font, List<Integer> path, ExpressionBuilder.Piece piece) {
+        int width = ControlFlow.RAIL_ADVANCE + leadWidth(font, path, piece) + BuilderOverlays.GAP;
+        if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
+            for (int index = 0; index < nest.pieces().size(); index++) {
+                width += termWidth(font, placeOf(path, index), nest.pieces().get(index));
+            }
+            width += font.width(CLOSE_PAREN) + BuilderOverlays.GAP;
+        } else if (piece.operand() instanceof ExpressionBuilder.Ref ref && ref.member() != null) {
+            width += font.width(POSSESSIVE) + ButtonPainter.iconWidth(GooTypeIcons.sizeOf(ref.member()))
+                    + BuilderOverlays.GAP;
+        }
+        if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
+            width += ButtonPainter.width(font, piece.multiplier()) + font.width(RATIO)
+                    + ButtonPainter.width(font, piece.divisor()) + BuilderOverlays.GAP * RATIO_GAPS;
+        }
+        return width + BOX_INSIDE + BOX_AFTER;
     }
 
     private static int depthOf(List<Integer> path, Place place) {
@@ -1201,14 +1210,12 @@ final class ExpressionBuilderPane {
     private void drawNest(ControlFlow flow, Nested nested, ExpressionBuilder.Nest nest, Place place) {
         List<Integer> path = nested.path();
         flow.text(OPEN_PAREN, GRAY);
-        // Decision each-subsequent-term-starts-a-new-line: the later terms and the ")" of a parenthetical holding
-        // several stand one indent in from its rail, each on a line of its own.
+        // Decision terms-inline-again-under-the-indentation-rules: the terms follow "(" and ")" follows the last;
+        // a line that runs out inside wraps one indent in from the parenthetical's rail, the indent returning at its
+        // exit.
         int inner = nested.start().x() - flow.leftEdge() + ControlFlow.INDENT;
         flow.shift(inner);
         drawSum(flow, path, nest.pieces(), place);
-        if (nest.pieces().size() > 1) {
-            flow.newLine();
-        }
         flow.text(CLOSE_PAREN, GRAY);
         // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
         // right of its ")" too, where its factor would otherwise push it onto the next line and leave the pointer
