@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.Processes;
+import net.minecraft.client.gui.Font;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,7 +45,8 @@ class MutatorControlsTest {
 
         private DrawnFrame frame() {
             DrawnFrame frame = new DrawnFrame();
-            controls.drawKind(frame.graphics, DrawnFrame.font(), SECTION, KEY, 0, 0, frame.targets);
+            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, KEY, new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
             overlays.draw(frame.graphics, DrawnFrame.font(), frame.targets);
             return frame;
         }
@@ -51,15 +54,15 @@ class MutatorControlsTest {
         @Test
         void kindLineDrawsOneButtonReadingTheChosenKind() {
             List<String> texts = frame().texts();
-            assertTrue(texts.contains(ControlFlow.dropdownLabel("additive")), texts.toString());
+            assertTrue(texts.contains(ControlFlow.dropdownLabel("add")), texts.toString());
             assertFalse(texts.contains("convert") || texts.contains("stack"), texts.toString());
         }
 
         @Test
         void pickingConvertWritesAFormula() {
-            frame().click(ControlFlow.dropdownLabel("additive"));
+            frame().click(ControlFlow.dropdownLabel("add"));
             DrawnFrame open = frame();
-            assertTrue(open.texts().containsAll(List.of("convert", "additive", "stack")), open.texts().toString());
+            assertTrue(open.texts().containsAll(List.of("convert", "add", "stack")), open.texts().toString());
             open.click("convert");
             verify(processes).setForm(SECTION, KEY, new Processes.Formula("metal", 1, "0", 1, 1));
             assertFalse(overlays.listOpen());
@@ -80,7 +83,7 @@ class MutatorControlsTest {
 
         @Test
         void pickingAdditiveOnAnAdditiveKeepsItsPrefab() {
-            pickTheChosenKind(new Processes.Additive("oak"), "additive");
+            pickTheChosenKind(new Processes.Additive("oak"), "add");
         }
 
         @Test
@@ -120,36 +123,71 @@ class MutatorControlsTest {
         @Test
         void formulaReadsAsTwoRatios() {
             // Decision mutator-body-indents-under-its-name-line: the arrow => in place of the word becomes.
-            assertEquals(List.of("1", ":", "4", "=>", "2", ":", "3"),
+            assertEquals(List.of(ControlFlow.dropdownLabel("convert"), "1", ":", "4", "=>", "2", ":", "3"),
                     sentence(new Processes.Formula("metal", 4, "yore", 2, 3)));
         }
 
         @Test
         void formulaToNothingReadsArrowNothing() {
-            assertEquals(List.of("1", ":", "4", "=>", "nothing"),
+            assertEquals(List.of(ControlFlow.dropdownLabel("convert"), "1", ":", "4", "=>", "nothing"),
                     sentence(new Processes.Formula("metal", 4, "0", 1, 1)));
         }
 
         @Test
-        void additiveReadsPlusItsPrefab() {
-            assertEquals(List.of("+", "$oak"), sentence(new Processes.Additive("oak")));
+        void additiveReadsAddThenPlusItsPrefab() {
+            assertEquals(List.of(ControlFlow.dropdownLabel("add"), "+", "$oak"),
+                    sentence(new Processes.Additive("oak")));
+        }
+
+        // Decision mutator-row-is-kind-then-type-reading-add-and-no-applies: [stack v] then the mutator.
+        @Test
+        void stackReadsItsKindThenItsMutatorTimesItsCount() {
+            assertEquals(List.of(ControlFlow.dropdownLabel("stack"), "smelt", "x", "2"),
+                    sentence(new Processes.Stack(2, "smelt")));
+        }
+
+        /**
+         * Each row's kind control hovers the row's formula, an additive and a stack alike (decision
+         * conversion-controls-hover-their-formula).
+         */
+        @Test
+        void everyRowsKindControlHoversItsFormula() {
+            for (Processes.Form form : List.of(new Processes.Formula("metal", 4, "yore", 2, 3),
+                    new Processes.Additive("oak"), new Processes.Stack(2, "smelt"))) {
+                DrawnFrame frame = frame(form);
+                DrawnFrame.Text kind = frame.drawn().getFirst();
+                assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "rust")),
+                        frame.targets.hovered(kind.x() + 1, kind.y() + 1), form.toString());
+            }
+        }
+
+        /**
+         * A row starting at x 40 draws its kind dropdown at 40, unindented, then the source type's button, then the
+         * ratio (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
+         */
+        @Test
+        void kindStandsAtTheRowsLeftBeforeTheType() {
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Formula("metal", 4, "yore", 2, 3));
+            DrawnFrame frame = new DrawnFrame();
+            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(40, 0, 590, 390),
+                    0, frame.targets);
+            String kind = ControlFlow.dropdownLabel("convert");
+            DrawnFrame.Text drawnKind = frame.find(kind);
+            assertEquals(40 + ButtonPainter.PADDING, drawnKind.x(), frame.drawn().toString());
+            DrawnFrame.Text share = frame.find("1");
+            assertEquals(drawnKind.y(), share.y(), "the kind and the ratio share the line");
+            assertTrue(share.x() > 40 + ButtonPainter.width(DrawnFrame.font(), kind) + GooTypeIcons.sizeOf("metal"),
+                    "the type's button stands between the kind and the ratio: " + frame.drawn());
         }
 
         @Test
-        void stackReadsAppliesItsMutatorTimesItsCount() {
-            assertEquals(List.of("applies", "smelt", "x", "2"), sentence(new Processes.Stack(2, "smelt")));
-        }
-
-        @Test
-        void kindOptionsReadConvertAdditiveAndStack() {
-            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Additive("oak"));
-            DrawnFrame kind = new DrawnFrame();
-            controls.drawKind(kind.graphics, DrawnFrame.font(), SECTION, "rust", 0, 0, kind.targets);
-            kind.click(ControlFlow.dropdownLabel("additive"));
+        void kindOptionsReadConvertAddAndStack() {
+            DrawnFrame kind = frame(new Processes.Additive("oak"));
+            kind.click(ControlFlow.dropdownLabel("add"));
             @SuppressWarnings("unchecked")
             ArgumentCaptor<List<BuilderOverlays.Option>> options = ArgumentCaptor.forClass(List.class);
             verify(overlays).openOptions(any(), options.capture());
-            assertEquals(List.of("convert", "additive", "stack"),
+            assertEquals(List.of("convert", "add", "stack"),
                     options.getValue().stream().map(BuilderOverlays.Option::label).toList());
         }
 
@@ -316,6 +354,27 @@ class MutatorControlsTest {
             int firstHeight = bottom;
             frame("#gems", List.of("@rust", "@melt"));
             assertEquals(firstHeight, bottom, "two-link chains take equal heights");
+        }
+
+        /**
+         * The mutated by line, the and line and the + optional mutation line end at one right edge, a gap left of the
+         * row's validity marker, so none runs under the marker or the row's remove X (decision
+         * mutator-chain-forms-a-column-left-of-the-validity-marker).
+         */
+        @Test
+        void chainLinesEndInAColumnLeftOfTheValidityMarker() {
+            DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
+            Font font = DrawnFrame.font();
+            List<Integer> rights = new ArrayList<>(frame.drawn().stream().filter(text -> text.text().equals("x"))
+                    .map(text -> text.x() + font.width("x") + ButtonPainter.PADDING).toList());
+            DrawnFrame.Text add = frame.find("+ optional mutation");
+            rights.add(add.x() + font.width(add.text()) + ButtonPainter.PADDING);
+            assertEquals(3, rights.size(), frame.drawn().toString());
+            assertEquals(1, rights.stream().distinct().count(), "the lines share one right edge: " + rights);
+            int markerLeft = ProcessesPane.markerLeft(font, 590);
+            assertEquals(markerLeft - BuilderOverlays.GAP, rights.getFirst(), "the column ends a gap left of the marker");
+            int removeLeft = 590 - ButtonPainter.width(font, "✗");
+            assertTrue(rights.getFirst() < removeLeft, "the column stands clear of the remove X at " + removeLeft);
         }
     }
 

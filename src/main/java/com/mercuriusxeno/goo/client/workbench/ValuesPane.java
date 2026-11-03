@@ -47,6 +47,8 @@ final class ValuesPane {
     private static final int FRACTION_SPACE = 2;
     // A stack count's right and bottom edges stand a pixel past the sprite's.
     private static final int COUNT_OVERHANG = 1;
+    // Where a stack count's glyphs end under the sprite's top: its text top 9 down and its 8px glyphs.
+    private static final int COUNT_GLYPHS_BOTTOM = 17;
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
     private static final int CHIP_TEXT_NUDGE = 3;
@@ -63,6 +65,9 @@ final class ValuesPane {
     static final int RUN_GAP = 3;
     /** The room between a run's type icon and its amount. */
     static final int RUN_ICON_GAP = 2;
+    // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: an amount stands a pixel further from the next
+    // run's icon than the run gap alone.
+    private static final int RUN_STEP = RUN_GAP + 1;
     private static final int GOLD = 0xFFE0C060;
     private static final int CHIP_OFF = 0xFF808080;
     private static final int CHIP_HOLLOW = 0xFF202020;
@@ -77,9 +82,7 @@ final class ValuesPane {
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
     // A hover key no item id, prefab name or goo type key spells.
-    private static final String GROUP_HOVER_PREFIX = "goo-group-members:";
     private static final String GROUP_MARK = "#";
-    private static final int MEMBER_ICONS_SHOWN = 8;
 
     private final ValuesTab values;
     private final ItemIcons icons;
@@ -88,7 +91,7 @@ final class ValuesPane {
     private final ExpressionBuilderPane builder;
     private final Map<String, MeasuredHeight> measured = new HashMap<>();
     // Where every Items row's recipe starts, from the row's left, and what it was measured from.
-    private int recipeColumn;
+    private int valueColumn;
     private @Nullable ColumnInputs columnInputs;
     /** How far one wheel notch moves the Items list, in pixels (decision items-list-scrolls-by-pixel). */
     static final int SCROLL_STEP = LINE_HEIGHT * 3;
@@ -396,47 +399,46 @@ final class ValuesPane {
      * Where an Items row's head pieces stand.
      *
      * @param nameLeft   the name's left edge
-     * @param recipeLeft the recipe's left edge, the sprite's
+     * @param valueLeft  the value's left edge, the list's value column, "=" just left of it
+     * @param recipeLeft the recipe's left edge, so the recipe ends at the row's right
      * @param recipeTop  the top of the line the recipe draws on
-     * @param valueLeft  the value's left edge, so the value ends at the row's right
      * @param height     the head's height, one line or two
      */
-    record HeadPlaces(int nameLeft, int recipeLeft, int recipeTop, int valueLeft, int height) {
+    record HeadPlaces(int nameLeft, int valueLeft, int recipeLeft, int recipeTop, int height) {
     }
 
     /**
-     * Lays an Items row's head: the name at the left, the value right packed, and the recipe at the list's recipe
-     * column; where the recipe would reach the value the recipe drops to a second line, one indent in under the name
-     * (decision items-row-is-name-recipe-space-between-and-value-right-packed).
+     * Lays an Items row's head: the name at the left, "=" and the goo value at the list's value column, and the
+     * recipe right packed at the far right; where the value would reach the recipe the recipe drops to a second
+     * line, still right packed (decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right).
      *
-     * @param left         the row's left edge
-     * @param top          the row's top edge
-     * @param right        the row's right edge
-     * @param recipeColumn the recipes' shared left edge, from the row's left
-     * @param recipeWidth  the recipe's width, sprite to last piece
-     * @param valueWidth   the value's width, 0 where it draws none
+     * @param left        the row's left edge
+     * @param top         the row's top edge
+     * @param right       the row's right edge
+     * @param valueColumn the values' shared left edge, from the row's left
+     * @param valueWidth  the value's width, 0 where it draws none
+     * @param recipeWidth the recipe's width, 0 where it draws none
      * @return each piece's place
      */
-    static HeadPlaces layHead(int left, int top, int right, int recipeColumn, int recipeWidth, int valueWidth) {
+    static HeadPlaces layHead(int left, int top, int right, int valueColumn, int valueWidth, int recipeWidth) {
         int nameLeft = left + ROW_PAD;
-        int recipeLeft = left + recipeColumn;
-        int valueLeft = right - valueWidth;
-        if (recipeLeft + recipeWidth + HEAD_GAP <= valueLeft) {
-            return new HeadPlaces(nameLeft, recipeLeft, top, valueLeft, ROW_HEIGHT);
+        int valueLeft = left + valueColumn;
+        int recipeLeft = right - recipeWidth;
+        if (recipeWidth == 0 || valueLeft + valueWidth + HEAD_GAP <= recipeLeft) {
+            return new HeadPlaces(nameLeft, valueLeft, recipeLeft, top, ROW_HEIGHT);
         }
-        return new HeadPlaces(nameLeft, nameLeft + ControlFlow.INDENT, top + ROW_HEIGHT, valueLeft,
-                ROW_HEIGHT + ROW_HEIGHT);
+        return new HeadPlaces(nameLeft, valueLeft, recipeLeft, top + ROW_HEIGHT, ROW_HEIGHT + ROW_HEIGHT);
     }
 
     // The head's pieces measured and laid for the row's width.
     private HeadPlaces placeHead(Font font, ValuesTab.ManagerEntry entry, GroupsPane.Bounds row) {
         ValuesTab.Source source = values.sourceOf(entry.id());
-        return layHead(row.left(), row.top(), row.right(), recipeColumn, equalityWidth(font, entry, source),
-                valueWidth(font, worthShown(entry.id(), source)));
+        return layHead(row.left(), row.top(), row.right(), valueColumn, valueWidthOf(font, entry.id(), source),
+                recipeWidth(font, entry.id(), source));
     }
 
-    // Decision items-row-is-name-recipe-space-between-and-value-right-packed: the recipes' shared column stands one
-    // gap past the widest name the list draws, so every recipe starts at one x.
+    // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right: the values' shared column
+    // stands one gap past the widest name the list draws, then "=" and a gap, so every value starts at one x.
     // Measured again only when the listed rows or the row width change.
     private void measureRecipeColumn(Font font, List<ValuesTab.ManagerEntry> listed, int rowWidth) {
         ColumnInputs inputs = new ColumnInputs(rowWidth, listed);
@@ -450,7 +452,7 @@ final class ValuesPane {
             int width = font.width(entry.name());
             widest = Math.max(widest, width <= cap ? width : font.width(headName(font, entry, rowWidth)));
         }
-        recipeColumn = ROW_PAD + widest + HEAD_GAP;
+        valueColumn = ROW_PAD + widest + HEAD_GAP + font.width(EQUALS) + ICON_GAP;
     }
 
     private Map<String, String> worthShown(String id, ValuesTab.Source source) {
@@ -461,9 +463,9 @@ final class ValuesPane {
         return font.plainSubstrByWidth(entry.name(), rowWidth / NAME_SHARE);
     }
 
-    // Name, the recipe space-between, the value right packed, the plain left click on the head selecting the item;
-    // answers the head's height.
-    // Decision items-row-is-name-recipe-space-between-and-value-right-packed.
+    // Name, = and the goo value at the value column, the recipe right packed, the plain left click on the head
+    // selecting the item; answers the head's height.
+    // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right.
     private int drawHead(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                          GroupsPane.Bounds row, ClickTargets targets) {
         String name = headName(font, entry, row.right() - row.left());
@@ -472,8 +474,8 @@ final class ValuesPane {
         HeadLine line = headLine(font, row.top(), row.right());
         ValuesTab.Source source = values.sourceOf(entry.id());
         graphics.text(font, name, places.nameLeft(), line.textTop(), WHITE);
-        drawValueRuns(graphics, font, worthShown(entry.id(), source), places.valueLeft(), line, targets);
-        drawEquality(graphics, font, entry, source, places.recipeLeft(), headLine(font, places.recipeTop(),
+        drawValue(graphics, font, entry.id(), source, places.valueLeft(), line, targets);
+        drawRecipe(graphics, font, entry.id(), source, places.recipeLeft(), headLine(font, places.recipeTop(),
                 row.right()), targets);
         return places.height();
     }
@@ -494,17 +496,17 @@ final class ValuesPane {
         return shown.kind() == ValuesTab.SourceKind.NONE ? NO_TEXT : shown.label();
     }
 
-    // The width drawEquality takes: the sprite, then the source's words, or "=" and what the value equals.
-    private int equalityWidth(Font font, ValuesTab.ManagerEntry entry, ValuesTab.Source shown) {
-        int sprite = ICON_SIZE + ICON_GAP;
-        if (!carriesRuns(shown.kind())) {
-            return sprite + font.width(headLabel(shown));
-        }
-        int equals = sprite + font.width(EQUALS);
+    // A valued, derived or grouped item's goo value, or the no-value or denied words, at the value column.
+    private int valueWidthOf(Font font, String id, ValuesTab.Source shown) {
+        return carriesRuns(shown.kind()) ? valueWidth(font, worthShown(id, shown)) : font.width(headLabel(shown));
+    }
+
+    // What the value equals, drawn at the far right: the group's link, the recipe, or nothing for an entry.
+    private int recipeWidth(Font font, String id, ValuesTab.Source shown) {
         return switch (shown.kind()) {
-            case GROUP -> equals + ICON_GAP + ButtonPainter.width(font, GROUP_MARK + shown.label());
-            case DERIVED -> equals + ICON_GAP + inputsWidth(font, entry.id());
-            default -> equals;
+            case GROUP -> ButtonPainter.width(font, GROUP_MARK + shown.label());
+            case DERIVED -> inputsWidth(font, id);
+            default -> 0;
         };
     }
 
@@ -525,58 +527,35 @@ final class ValuesPane {
 
     private static int valueWidth(Font font, Map<String, String> worth) {
         int width = worth.entrySet().stream().mapToInt(amount -> runWidth(font, amount.getValue(),
-                GooTypeIcons.sizeOf(amount.getKey())) + RUN_GAP).sum();
-        return worth.isEmpty() ? 0 : width - RUN_GAP;
+                GooTypeIcons.sizeOf(amount.getKey())) + RUN_STEP).sum();
+        return worth.isEmpty() ? 0 : width - RUN_STEP;
     }
 
-    // The sprite, then by disposition: "=" and what the value equals, or the no-value or denied words; answers the x
-    // past it.
-    private int drawEquality(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
-                             ValuesTab.Source shown, int x, HeadLine line, ClickTargets targets) {
-        graphics.item(icons.of(entry.id()), x, line.spriteTop());
-        int after = x + ICON_SIZE + ICON_GAP;
+    // "=" just left of the value column and the goo value after it, or the no-value or denied words in its place.
+    private void drawValue(GuiGraphicsExtractor graphics, Font font, String id, ValuesTab.Source shown, int left,
+                           HeadLine line, ClickTargets targets) {
         if (!carriesRuns(shown.kind())) {
-            String label = font.plainSubstrByWidth(headLabel(shown), Math.max(1, line.right() - after));
-            graphics.text(font, label, after, line.textTop(), colorOf(shown.kind()));
-            return after + font.width(label);
+            String label = font.plainSubstrByWidth(headLabel(shown), Math.max(1, line.right() - left));
+            graphics.text(font, label, left, line.textTop(), colorOf(shown.kind()));
+            return;
         }
-        graphics.text(font, EQUALS, after, line.textTop(), WHITE);
-        int beside = after + font.width(EQUALS) + ICON_GAP;
+        graphics.text(font, EQUALS, left - ICON_GAP - font.width(EQUALS), line.textTop(), WHITE);
+        drawValueRuns(graphics, font, worthShown(id, shown), left, line, targets);
+    }
+
+    // The group's link or the recipe at the far right, with no sprite or = before it; an entry draws nothing there.
+    private void drawRecipe(GuiGraphicsExtractor graphics, Font font, String id, ValuesTab.Source shown, int left,
+                            HeadLine line, ClickTargets targets) {
         if (shown.kind() == ValuesTab.SourceKind.GROUP) {
-            return drawGroupLink(graphics, font, shown.label(), beside, line, targets);
+            drawGroupLink(graphics, font, shown.label(), left, line, targets);
+        } else if (shown.kind() == ValuesTab.SourceKind.DERIVED) {
+            drawInputs(graphics, font, id, left, line, targets);
         }
-        if (shown.kind() == ValuesTab.SourceKind.DERIVED) {
-            return drawInputs(graphics, font, entry.id(), beside, line, targets);
-        }
-        return beside - ICON_GAP;
-    }
-
-    /**
-     * @param hoverKey what the hovered area names
-     * @return the group's members as one row of item icons where the area is a group button's, empty otherwise
-     */
-    Optional<List<TooltipLine>> groupTooltipFor(String hoverKey) {
-        if (!hoverKey.startsWith(GROUP_HOVER_PREFIX)) {
-            return Optional.empty();
-        }
-        return Optional.of(List.of(memberIcons(values.groupMembers(hoverKey.substring(GROUP_HOVER_PREFIX.length())))));
-    }
-
-    /**
-     * @param members a group's members, in member order
-     * @return the first eight as icons, then ..+n counting the rest, no label where every member draws (decisions
-     *     group-link-hovers-member-icons-then-plus-n, more-button-reads-dot-dot-plus-n)
-     */
-    static TooltipLine.MemberIcons memberIcons(List<String> members) {
-        int shown = Math.min(members.size(), MEMBER_ICONS_SHOWN);
-        int hidden = members.size() - shown;
-        return new TooltipLine.MemberIcons(members.subList(0, shown), hidden > 0 ? UsedByLine.moreLabel(hidden)
-                : NO_TEXT);
     }
 
     // The group's name as a button a shift + left click follows to its group on the Groups tab, a plain left click
-    // passing to the row, hovering its members (decisions blue-text-options-draw-as-bordered-buttons,
-    // group-link-hovers-member-icons-then-plus-n).
+    // passing to the row, hovering its preview (decisions blue-text-options-draw-as-bordered-buttons,
+    // group-link-hovers-member-icons-then-plus-n, group-referent-previews-shorthand-members-then-its-value).
     // Decision shift-left-click-follows-plain-left-modifies.
     // Answers the x past the button.
     // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the group reads after #.
@@ -585,7 +564,7 @@ final class ValuesPane {
         String shown = font.plainSubstrByWidth(GROUP_MARK + group,
                 Math.max(1, line.right() - left - ButtonPainter.PADDING - ButtonPainter.PADDING));
         return ButtonPainter.drawFollow(graphics, font, shown, left, line.spriteTop() - 1, ROW_HEIGHT, targets,
-                () -> actions.openGroup(group), GROUP_HOVER_PREFIX + group).right();
+                () -> actions.openGroup(group), GroupHovers.hoverKey(group)).right();
     }
 
     // A derived item's recipe equivalency, or the inverted recipe that solved it; one recipes value with neither to
@@ -615,7 +594,7 @@ final class ValuesPane {
             int x = laid.spriteLefts().get(index);
             ItemStack stack = icons.of(input.id());
             graphics.item(stack, x, line.spriteTop());
-            drawCount(graphics, font, stack, countParts(input.count(), recipe.output()), x, line.spriteTop());
+            drawCount(graphics, font, countParts(input.count(), recipe.output()), x, line.spriteTop());
             ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
@@ -636,7 +615,7 @@ final class ValuesPane {
             int x = laid.spriteLefts().get(index);
             ItemStack stack = icons.of(term.id());
             graphics.item(stack, x, line.spriteTop());
-            drawCount(graphics, font, stack, countParts(term.count(), recipe.output()), x, line.spriteTop());
+            drawCount(graphics, font, countParts(term.count(), recipe.output()), x, line.spriteTop());
             ItemLinks.add(targets, actions, term.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, MINUS, x, line.textTop(), WHITE));
@@ -645,11 +624,15 @@ final class ValuesPane {
 
     // The whole part draws full size as an inventory draws a stack count; the fraction draws at half scale in the
     // sprite's bottom-right corner as its numerator over a bar over its denominator, the whole just left of it.
-    private static void drawCount(GuiGraphicsExtractor graphics, Font font, ItemStack stack,
+    private static void drawCount(GuiGraphicsExtractor graphics, Font font,
                                   StackedFractions.Mixed parts, int x, int y) {
         CornerCount placed = placeCornerCount(x, y, font.width(parts.numerator()), font.width(parts.denominator()));
         if (!parts.whole().isEmpty()) {
-            graphics.itemDecorations(font, stack, placed.wholeX(), y, parts.whole());
+            // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: the whole draws small, its right edge
+            // where a stack count's stands and its glyphs a pixel under a stack count's bottom.
+            int right = placed.wholeX() + ICON_SIZE + COUNT_OVERHANG;
+            SmallDigits.draw(graphics, font, parts.whole(), right - SmallDigits.width(font, parts.whole()),
+                    y + COUNT_GLYPHS_BOTTOM - SmallDigits.GLYPH_HEIGHT + 1, WHITE);
         }
         if (parts.stacked()) {
             StackedFractions.drawStack(graphics, font, parts, placed.stack(), WHITE);
@@ -752,21 +735,24 @@ final class ValuesPane {
         int lineTop = line.spriteTop() - 1;
         for (Map.Entry<String, String> amount : worth.entrySet()) {
             int size = GooTypeIcons.sizeOf(amount.getKey());
-            GooTypeIcons.draw(graphics, targets, amount.getKey(), x, lineTop + (ROW_HEIGHT - size) / HALF, size);
-            StackedFractions.draw(graphics, font, amount.getValue(), x + size + RUN_ICON_GAP, line.textTop(), WHITE);
-            x += runWidth(font, amount.getValue(), size) + RUN_GAP;
+            int iconTop = lineTop + (ROW_HEIGHT - size) / HALF;
+            GooTypeIcons.draw(graphics, targets, amount.getKey(), x, iconTop, size);
+            // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere.
+            SmallDigits.drawBesideIcon(graphics, font, amount.getValue(), new SmallDigits.Icon(x + size, iconTop, size,
+                    RUN_ICON_GAP), WHITE);
+            x += runWidth(font, amount.getValue(), size) + RUN_STEP;
         }
-        return worth.isEmpty() ? x : x - RUN_GAP;
+        return worth.isEmpty() ? x : x - RUN_STEP;
     }
 
     /**
      * @param font     the screen's font
      * @param amount   a goo type's amount as drawn
      * @param iconSize the type icon's side
-     * @return the run's width: the type icon, its gap and the amount
+     * @return the run's width: the type icon, its gap a pixel short and the small amount
      */
     static int runWidth(Font font, String amount, int iconSize) {
-        return iconSize + RUN_ICON_GAP + StackedFractions.width(font, StackedFractions.of(amount));
+        return iconSize + RUN_ICON_GAP - 1 + SmallDigits.width(font, amount);
     }
 
     // A revealed row's middle stands at the list's middle, a row taller than the list from its top, the clamp
@@ -814,7 +800,7 @@ final class ValuesPane {
     // rule's padding.
     private int rowHeight(Font font, ValuesTab.ManagerEntry entry, int width) {
         ValuesTab.EntryRow row = values.rowOf(entry.id());
-        HeightInputs inputs = new HeightInputs(width, recipeColumn, row, values.sourceOf(entry.id()),
+        HeightInputs inputs = new HeightInputs(width, valueColumn, row, values.sourceOf(entry.id()),
                 values.derivedFrom(entry.id()), values.hasEntry(entry.id()));
         MeasuredHeight known = measured.get(entry.id());
         if (known != null && known.inputs().equals(inputs)) {
@@ -829,13 +815,13 @@ final class ValuesPane {
      * Everything a row's read height follows from, so a height measured once stands until one of them changes.
      *
      * @param width        the row's width
-     * @param recipeColumn the recipes' shared left edge
+     * @param valueColumn  the values' shared left edge
      * @param row          its name, expression, amounts and error
      * @param source       where its value comes from
      * @param recipe       the recipe its derived value comes from
      * @param entered      whether the file holds an entry of its own
      */
-    private record HeightInputs(int width, int recipeColumn, ValuesTab.EntryRow row, ValuesTab.Source source,
+    private record HeightInputs(int width, int valueColumn, ValuesTab.EntryRow row, ValuesTab.Source source,
                                 ValuesTab.Recipe recipe, boolean entered) {
     }
 

@@ -6,14 +6,13 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import java.util.function.ToIntFunction;
 
 /**
- * Draws a goo amount tooltip line: the type's icon at its texture's own size followed by its amount (decisions
- * value-tooltips-draw-each-types-icon-before-its-amount, goo-type-icons-draw-native-everywhere).
+ * Draws a goo amount tooltip line: the type's icon at its texture's own size followed by its amount, small (decisions
+ * value-tooltips-draw-each-types-icon-before-its-amount, goo-type-icons-draw-native-everywhere,
+ * goo-amounts-draw-smaller-and-a-pixel-lower-everywhere).
  */
 public final class GooAmountTooltipComponent implements ClientTooltipComponent {
     private static final int ICON_GAP = 2;
     private static final int LINE_GAP = 2;
-    // The font's glyphs stand 8px tall; the amount centers on the icon.
-    private static final int GLYPH_HEIGHT = 8;
     private static final int WHITE = 0xFFFFFFFF;
 
     private final TooltipLine.GooAmount line;
@@ -42,14 +41,14 @@ public final class GooAmountTooltipComponent implements ClientTooltipComponent {
 
     @Override
     public int getWidth(Font font) {
-        return iconSize + ICON_GAP + StackedFractions.width(font, StackedFractions.of(line.amount()));
+        return iconSize + ICON_GAP - 1 + SmallDigits.advance(font, line.amount());
     }
 
     // An improper amount reads as its whole and its part under 1 stacked over a bar, as the Items rows draw it.
     @Override
     public void extractImage(Font font, int x, int y, int width, int height, GuiGraphicsExtractor graphics) {
         GooTypeIcons.blit(graphics, line.type(), x, y);
-        StackedFractions.draw(graphics, font, line.amount(), x + iconSize + ICON_GAP,
-                y + GooTypeIcons.centered(iconSize, GLYPH_HEIGHT), WHITE);
+        SmallDigits.drawBesideIcon(graphics, font, line.amount(), new SmallDigits.Icon(x + iconSize, y, iconSize,
+                ICON_GAP), WHITE);
     }
 }

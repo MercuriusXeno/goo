@@ -312,7 +312,8 @@ final class ExpressionLines {
         switch (atom) {
             case ExpressionTerms.Number number -> runs.add(number(number.digits()));
             case ExpressionTerms.Prefab prefab -> {
-                runs.add(new Run(Kind.LINK, prefab.name(), prefab.name()));
+                // Decision diagnose-and-correct-prefabs-drawn-without-their-dollar.
+                runs.add(new Run(Kind.LINK, PrefabNames.marked(prefab.name()), prefab.name()));
                 // Decision read-view-reads-type-equals-possessive-terms: a member reads as the prefab's own.
                 // Decision possessive-sits-flush-against-its-word-button.
                 if (prefab.type() != null) {

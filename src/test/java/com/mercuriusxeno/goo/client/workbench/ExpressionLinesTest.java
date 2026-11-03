@@ -21,7 +21,7 @@ class ExpressionLinesTest {
         case "bucket" -> "Bucket";
         default -> "Unnamed";
     };
-    private static final List<String> RAW_MARKS = List.of("{", "}", "\"", "$", "minecraft:");
+    private static final List<String> RAW_MARKS = List.of("{", "}", "\"", "minecraft:");
 
     private static ExpressionLines.Run run(ExpressionLines.Kind kind, String text) {
         return new ExpressionLines.Run(kind, text, null);
@@ -102,7 +102,8 @@ class ExpressionLinesTest {
     }
 
     private static ExpressionLines.Run link(String prefab) {
-        return new ExpressionLines.Run(ExpressionLines.Kind.LINK, prefab, prefab);
+        // Decision diagnose-and-correct-prefabs-drawn-without-their-dollar: a prefab draws after its $.
+        return new ExpressionLines.Run(ExpressionLines.Kind.LINK, "$" + prefab, prefab);
     }
 
     private static ExpressionLines.Run symbol(String symbol) {
@@ -156,7 +157,7 @@ class ExpressionLinesTest {
     @Test
     void possessiveDrawsFlushAgainstItsLink() {
         DrawnFrame frame = drawn("{\"jelly\": \"$food.jelly\"}", 400);
-        DrawnFrame.Text food = frame.find("food");
+        DrawnFrame.Text food = frame.find("$food");
         DrawnFrame.Text possessive = frame.find("'s");
         assertEquals(food.x() + DrawnFrame.font().width(food.text()), possessive.x(), frame.drawn().toString());
     }
@@ -180,11 +181,11 @@ class ExpressionLinesTest {
             assertEquals(ExpressionLines.SYMBOL_COLOR, frame.find(symbol).color(), symbol);
         }
         DrawnFrame.Text colon = frame.findFirst(":");
-        DrawnFrame.Text food = frame.findFirst("food");
+        DrawnFrame.Text food = frame.findFirst("$food");
         assertEquals(colon.y(), food.y(), frame.drawn().toString());
         assertTrue(food.x() > colon.x(), food + " after " + colon);
-        assertEquals(frame.find(":").y(), frame.find("dye").y(), frame.drawn().toString());
-        assertTrue(frame.find("dye").y() > food.y(), frame.drawn().toString());
+        assertEquals(frame.find(":").y(), frame.find("$dye").y(), frame.drawn().toString());
+        assertTrue(frame.find("$dye").y() > food.y(), frame.drawn().toString());
         assertEquals(0, frame.count("="), frame.texts().toString());
     }
 
@@ -199,23 +200,23 @@ class ExpressionLinesTest {
         int oneIndent = left + ControlFlow.INDENT;
         int twoIndents = oneIndent + ControlFlow.INDENT;
         DrawnFrame jelly = drawn("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\"}", 120);
-        DrawnFrame.Text food = jelly.find("food");
-        DrawnFrame.Text saturation = jelly.find("saturation");
+        DrawnFrame.Text food = jelly.find("$food");
+        DrawnFrame.Text saturation = jelly.find("$saturation");
         assertEquals(food.y() + ExpressionLines.ICON_LINE_HEIGHT, saturation.y(), jelly.drawn().toString());
         assertEquals(oneIndent, saturation.x(), jelly.drawn().toString());
 
         DrawnFrame leaf = drawn("{\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)"
                 + " + $saturation.jelly\"}", 120);
-        DrawnFrame.Text dye = leaf.find("dye");
+        DrawnFrame.Text dye = leaf.find("$dye");
         DrawnFrame.Text minus = leaf.find("-");
         DrawnFrame.Text open = leaf.find("(");
         assertEquals(List.of(dye.y() + ExpressionLines.ICON_LINE_HEIGHT, oneIndent), List.of(minus.y(), minus.x()),
                 leaf.drawn().toString());
         assertEquals(minus.y(), open.y(), leaf.drawn().toString());
-        DrawnFrame.Text inner = leaf.findFirst("saturation");
+        DrawnFrame.Text inner = leaf.findFirst("$saturation");
         assertEquals(List.of(minus.y() + ExpressionLines.ICON_LINE_HEIGHT, twoIndents), List.of(inner.y(), inner.x()),
                 leaf.drawn().toString());
-        DrawnFrame.Text after = leaf.find("saturation");
+        DrawnFrame.Text after = leaf.find("$saturation");
         assertTrue(after.y() > leaf.find(")").y(), leaf.drawn().toString());
         assertEquals(oneIndent, after.x(), leaf.drawn().toString());
     }
@@ -240,14 +241,14 @@ class ExpressionLinesTest {
     @Test
     void linkUnderlinesWhileShiftIsHeldAndNotWhileUp() {
         List<ExpressionLines.Run> runs = List.of(run(ExpressionLines.Kind.NUMBER, "2"),
-                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "wood", "wood"));
+                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "$wood", "wood"));
         DrawnFrame held = new DrawnFrame().holdingShift();
         paint(held, runs);
-        assertTrue(held.underlined("wood"));
+        assertTrue(held.underlined("$wood"));
         assertFalse(held.underlined("2"));
         DrawnFrame up = new DrawnFrame();
         paint(up, runs);
-        assertFalse(up.underlined("wood"));
+        assertFalse(up.underlined("$wood"));
     }
 
     private static void paint(DrawnFrame frame, List<ExpressionLines.Run> runs) {
@@ -264,7 +265,7 @@ class ExpressionLinesTest {
         List<ExpressionLines.Run> runs = ExpressionLines.runs(anvil, NAMES);
         assertEquals(List.of(new ExpressionLines.Run(ExpressionLines.Kind.ITEM, "Anvil", "anvil"),
                 run(ExpressionLines.Kind.OPERATOR, "-"),
-                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "iron_block", "iron_block")), runs);
+                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "$iron_block", "iron_block")), runs);
         assertCurated(runs);
     }
 

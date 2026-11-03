@@ -109,15 +109,15 @@ class ExpressionBuilderPaneTest {
 
     // Where the rail of the term at a place answers, found by its hover across the screen.
     private static double[] railOf(DrawnFrame frame, List<Integer> path) {
-        String key = ExpressionBuilderPane.railHoverKey(path);
+        String key = ExpressionBuilderPane.railName(path);
         for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
             for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
-                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                if (frame.targets.grabNamed(x, y).filter(key::equals).isPresent()) {
                     return new double[] {x, y};
                 }
             }
         }
-        throw new AssertionError("no rail for " + path + " in " + frame.targets.hoverKeys());
+        throw new AssertionError("no rail for " + path);
     }
 
     // The tops of each fill drawn in the drop cursor's blue.
@@ -140,13 +140,13 @@ class ExpressionBuilderPaneTest {
         assertFalse(frame.texts().contains("^") || frame.texts().contains("v"), frame.texts().toString());
         double[] rail = railOf(frame, List.of(0));
         assertTrue(frame.targets.click(rail[0], rail[1]));
-        DrawnFrame.Text base = frame.find("base");
+        DrawnFrame.Text base = frame.find("$base");
         assertTrue(frame.targets.drag(AREA.right() - 40, base.y()));
         DrawnFrame dragging = builder.frame();
         List<Integer> cursor = cursorTops(dragging);
         assertEquals(1, cursor.size(), "one drop cursor: " + cursor);
         assertTrue(Math.abs(cursor.getFirst() - base.y()) < ControlFlow.LINE, cursor + " vs " + base);
-        assertTrue(dragging.texts().stream().filter("waxed"::equals).count() > 1, "the term draws at the mouse");
+        assertTrue(dragging.texts().stream().filter("$waxed"::equals).count() > 1, "the term draws at the mouse");
         frame.targets.release();
         assertEquals("$edited + $base + $waxed", builder.written.getLast());
     }
@@ -180,8 +180,8 @@ class ExpressionBuilderPaneTest {
         DrawnFrame frame = Builder.item("$waxed + $edited").frame();
         List<DrawnFrame.Text> found = handles(frame);
         assertEquals(1, found.size(), frame.drawn().toString());
-        assertTrue(found.getFirst().y() > frame.find("edited").y(), frame.drawn().toString());
-        assertTrue(found.getFirst().y() > frame.find("waxed").y(), frame.drawn().toString());
+        assertTrue(found.getFirst().y() > frame.find("$edited").y(), frame.drawn().toString());
+        assertTrue(found.getFirst().y() > frame.find("$waxed").y(), frame.drawn().toString());
     }
 
     /**
@@ -193,12 +193,12 @@ class ExpressionBuilderPaneTest {
         Builder builder = Builder.item("$waxed + $edited");
         DrawnFrame frame = builder.frame();
         clickAt(frame, handles(frame).getFirst());
-        DrawnFrame.Text edited = frame.find("edited");
+        DrawnFrame.Text edited = frame.find("$edited");
         assertTrue(frame.targets.drag(edited.x() + 1, edited.y() + 1));
         DrawnFrame dragging = builder.frame();
-        assertTrue(filledAround(dragging, ExpressionBuilderPane.WRAP_MARK, dragging.find("edited")),
+        assertTrue(filledAround(dragging, ExpressionBuilderPane.WRAP_MARK, dragging.find("$edited")),
                 "the term under the pointer is not marked");
-        assertFalse(filledAround(dragging, ExpressionBuilderPane.WRAP_MARK, dragging.find("waxed")),
+        assertFalse(filledAround(dragging, ExpressionBuilderPane.WRAP_MARK, dragging.find("$waxed")),
                 "a term off the pointer is marked");
         assertTrue(dragging.texts().stream().filter(HANDLE::equals).count() > 1, "the () draws at the mouse");
         frame.targets.release();
@@ -220,7 +220,7 @@ class ExpressionBuilderPaneTest {
         assertEquals(List.of(), builder.written);
         DrawnFrame again = builder.frame();
         clickAt(again, handles(again).getFirst());
-        DrawnFrame.Text edited = again.find("edited");
+        DrawnFrame.Text edited = again.find("$edited");
         assertTrue(again.targets.drag(edited.x() + 1, edited.y() + 1));
         builder.frame();
         assertTrue(builder.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE));
@@ -238,12 +238,140 @@ class ExpressionBuilderPaneTest {
         DrawnFrame frame = Builder.item("$waxed + ($edited + ($base + $waxed))").frame();
         assertTrue(ExpressionBuilderPane.nestTone(1) != ExpressionBuilderPane.nestTone(2));
         assertEquals(ExpressionBuilderPane.nestTone(1), ExpressionBuilderPane.nestTone(3));
-        DrawnFrame.Text edited = frame.find("edited");
-        DrawnFrame.Text base = frame.find("base");
+        DrawnFrame.Text edited = frame.find("$edited");
+        DrawnFrame.Text base = frame.find("$base");
         assertTrue(filledAround(frame, ExpressionBuilderPane.nestTone(1), edited), "no depth-one box around edited");
         assertTrue(filledAround(frame, ExpressionBuilderPane.nestTone(1), base), "the depth-one box holds base");
         assertTrue(filledAround(frame, ExpressionBuilderPane.nestTone(2), base), "no depth-two box around base");
         assertFalse(filledAround(frame, ExpressionBuilderPane.nestTone(2), edited), "the depth-two box spans edited");
+    }
+
+    /**
+     * Every box a builder draws, a term's outline, a parenthetical's border and a type row's outline, keeps a clear
+     * pixel between its border and every other box's border, so a parenthetical inside a parenthetical, a term inside
+     * a parenthetical and a term or parenthetical inside a type row each stand a pixel of padding inside the box
+     * holding them on every side, inline as before, the lines growing taller per depth; and no border shares a pixel
+     * with a button (decision drag-rail-containers-keep-a-pixel-between-borders).
+     */
+    @Test
+    void railBoxesKeepAPixelBetweenBordersAtEveryDepth() {
+        for (String shown : List.of("$waxed + ($edited + ($base + $waxed))", "$waxed + (($base + $waxed) + $edited)",
+                "$waxed + (($base + $waxed))", "{\"metal\": \"$base + ($waxed + ($edited))\", \"pulse\": \"2\"}")) {
+            assertBordersKeepAPixelApart(Builder.item(shown).frame(), shown);
+        }
+    }
+
+    /**
+     * A parenthetical opening a parenthetical stays on the line of the outer one's "(", the line growing to give
+     * the inner box its padding (decision drag-rail-containers-keep-a-pixel-between-borders).
+     */
+    @Test
+    void nestedParentheticalsStayInline() {
+        DrawnFrame frame = Builder.item("$waxed + (($base + $waxed) + $edited)").frame();
+        double[] outer = railOf(frame, List.of(1));
+        double[] inner = railOf(frame, List.of(1, 0));
+        DrawnFrame.Text open = frame.drawn().stream().filter(text -> text.text().equals("(")).findFirst().orElseThrow();
+        assertEquals(open.y(), frame.find("$base").y(), "the inner parenthetical's terms share the outer's ( line");
+        assertTrue(inner[0] > outer[0], "the inner rail stands right of the outer one");
+    }
+
+    // Each box's four sides, grouped as each box draws them, in the given border color.
+    private static List<List<int[]>> boxesIn(DrawnFrame frame, int color) {
+        List<int[]> sides = fills(frame, color);
+        assertEquals(0, sides.size() % 4, "four sides a box");
+        return IntStream.range(0, sides.size() / 4).mapToObj(box -> sides.subList(box * 4, box * 4 + 4)).toList();
+    }
+
+    private static void assertBordersKeepAPixelApart(DrawnFrame frame, String shown) {
+        List<List<int[]>> boxes = new ArrayList<>(boxesIn(frame, ExpressionBuilderPane.NEST_BORDER));
+        boxes.addAll(boxesIn(frame, ControlFlow.OUTLINE_COLOR));
+        assertTrue(boxes.size() >= 4, shown + ": boxes drawn " + boxes.size());
+        for (int one = 0; one < boxes.size(); one++) {
+            for (int other = one + 1; other < boxes.size(); other++) {
+                for (int[] side : boxes.get(one)) {
+                    for (int[] near : boxes.get(other)) {
+                        // Grown a pixel each way, a border touching the other proves no clear pixel between them.
+                        assertFalse(overlaps(side, new int[] {near[0] - 1, near[1] - 1, near[2] + 1, near[3] + 1}),
+                                shown + ": the border " + java.util.Arrays.toString(side) + " has no clear pixel to "
+                                        + java.util.Arrays.toString(near));
+                    }
+                }
+            }
+        }
+        for (int[] button : fills(frame, ButtonPainter.BORDER)) {
+            for (List<int[]> box : boxes) {
+                for (int[] side : box) {
+                    assertFalse(overlaps(side, button), shown + ": the border " + java.util.Arrays.toString(side)
+                            + " touches the button " + java.util.Arrays.toString(button));
+                }
+            }
+        }
+    }
+
+    // Whether two rectangles, as left, top, right, bottom with the right and bottom outside, share a pixel.
+    private static boolean overlaps(int[] one, int[] other) {
+        return one[0] < other[2] && other[0] < one[2] && one[1] < other[3] && other[1] < one[3];
+    }
+
+    /**
+     * A held term drag shadows the screen and lights a hole over each slot canMoveTo accepts and over the trash
+     * strip canRemove opens, and none over the term's own slots, which it refuses (decision
+     * drags-mask-everything-but-their-valid-targets).
+     */
+    @Test
+    void heldTermDragMasksAllButTheSlotsItTakes() {
+        String shown = "$waxed + $edited + $base";
+        Builder builder = Builder.item(shown);
+        DrawnFrame frame = builder.frame();
+        double[] waxed = railOf(frame, List.of(0));
+        double[] edited = railOf(frame, List.of(1));
+        assertTrue(frame.targets.click(waxed[0], waxed[1]));
+        assertTrue(frame.targets.drag(AREA.left() + 1, waxed[1]));
+        DrawnFrame held = builder.frame();
+        assertFalse(fills(held, DragMask.SHADOW).isEmpty(), "the shadow covers the screen");
+        ExpressionBuilder model = ExpressionBuilder.of(shown);
+        long accepted = IntStream.rangeClosed(0, 3).filter(slot -> model.canMoveTo(List.of(0), List.of(), slot))
+                .count();
+        List<int[]> lit = fills(held, DragMask.HIGHLIGHT);
+        assertEquals(accepted + 1, lit.size(), "a hole per slot taken and the strip");
+        assertFalse(lit.stream().anyMatch(hole -> hole[0] <= waxed[0] && waxed[0] < hole[2]
+                || hole[0] <= edited[0] && edited[0] < hole[2]), "no hole over the term's own slots");
+        frame.targets.release();
+    }
+
+    /**
+     * A held () handle lights each term it can wrap (decision drags-mask-everything-but-their-valid-targets).
+     */
+    @Test
+    void heldHandleLightsEveryTermItWraps() {
+        Builder builder = Builder.item("$waxed + $edited");
+        DrawnFrame frame = builder.frame();
+        DrawnFrame.Text handle = frame.find("()");
+        assertTrue(frame.targets.click(handle.x(), handle.y()));
+        assertTrue(frame.targets.drag(AREA.left() + 1, handle.y()));
+        assertEquals(2, fills(builder.frame(), DragMask.HIGHLIGHT).size(), "a highlight per term");
+        frame.targets.release();
+    }
+
+    /**
+     * A term's rail and a type row's rail hover nothing while the term beside the rail hovers its preview, and the
+     * trash strip hovers its hint (decisions drag-rails-hover-nothing, trash-strip-hovers-drag-items-here-to-remove).
+     */
+    @Test
+    void railsHoverNothingAndTheTrashStripHoversItsHint() {
+        DrawnFrame frame = Builder.item("$waxed + $edited").frame();
+        double[] rail = railOf(frame, List.of(1));
+        assertEquals(java.util.Optional.empty(), frame.targets.hovered(rail[0], rail[1]), "the rail hovers nothing");
+        DrawnFrame.Text edited = frame.find("$edited");
+        assertTrue(frame.targets.hovered(edited.x() + 1, edited.y() + 1).isPresent(), "the term hovers its preview");
+        int[] strip = fills(frame, ExpressionBuilderPane.TRASH_REST).getFirst();
+        String hint = frame.targets.hovered((strip[0] + strip[2]) / 2.0, (strip[1] + strip[3]) / 2.0)
+                .flatMap(BuilderOverlays::tooltipFor).map(component -> component.getString()).orElse("");
+        assertEquals("Drag items here to remove", hint);
+        DrawnFrame typed = Builder.item(TWO_TYPES).frame();
+        double[] rowRail = rowRailOf(typed, 0);
+        assertEquals(java.util.Optional.empty(), typed.targets.hovered(rowRail[0], rowRail[1]),
+                "the row's rail hovers nothing");
     }
 
     // Each fill in the color, as left, top, right, bottom.
@@ -481,7 +609,7 @@ class ExpressionBuilderPaneTest {
     void operandTimesNumberDrawsItsButtonsAndOpensTheirLists() {
         Builder builder = Builder.item("$food.jelly + $saturation.jelly * 12");
         DrawnFrame frame = builder.frame();
-        DrawnFrame.Text saturation = frame.find("saturation");
+        DrawnFrame.Text saturation = frame.find("$saturation");
         assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("12") && text.y() == saturation.y()
                 && text.x() > saturation.x()), frame.drawn().toString());
         assertTrue(iconBlits(frame).stream().anyMatch(blit -> blit[0] > saturation.x()
@@ -543,7 +671,7 @@ class ExpressionBuilderPaneTest {
     @Test
     void possessiveSitsFlushAgainstItsWordButton() {
         DrawnFrame frame = Builder.item("{\"jelly\": \"$food.jelly\"}").frame();
-        DrawnFrame.Text food = frame.find("food");
+        DrawnFrame.Text food = frame.find("$food");
         DrawnFrame.Text possessive = frame.find("'s");
         assertEquals(food.x() + DrawnFrame.font().width(food.text()) + ButtonPainter.PADDING, possessive.x(),
                 frame.drawn().toString());
@@ -557,17 +685,45 @@ class ExpressionBuilderPaneTest {
 
     private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
 
-    // Where a type row's rail answers, found by its hover across the screen.
-    private static double[] rowRailOf(DrawnFrame frame, int row) {
-        String key = ExpressionBuilderPane.rowRailHoverKey(row);
+    /**
+     * The [+?] button's border, which opens the line [+?] () stands on, draws at the first type row's box left, in
+     * the one column the rows share (decision plus-question-and-equals-align-with-the-other-lines).
+     */
+    @Test
+    void plusQuestionStandsAtTheTypeRowsLeft() {
+        DrawnFrame frame = Builder.item(TWO_TYPES).frame();
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), anyInt(), anyInt(), anyInt(),
+                eq(ControlFlow.OUTLINE_COLOR));
+        // A row's box outlines after the term boxes inside it, so the leftmost outline is the rows' box left.
+        int rowLeft = lefts.getAllValues().stream().mapToInt(Integer::intValue).min().orElseThrow();
+        assertEquals(rowLeft, hoverCorner(frame, BuilderOverlays.hintKey("Add a goo type"))[0],
+                "the +? border at the row box's left " + rowLeft);
+    }
+
+    // The top-left corner of the area hovering a key, found by its hover across the screen.
+    private static int[] hoverCorner(DrawnFrame frame, String key) {
         for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
             for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
                 if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                    return new int[] {x, y};
+                }
+            }
+        }
+        throw new AssertionError("nothing hovers " + key + " in " + frame.targets.hoverKeys());
+    }
+
+    // Where a type row's rail answers, found by its hover across the screen.
+    private static double[] rowRailOf(DrawnFrame frame, int row) {
+        String key = ExpressionBuilderPane.rowRailName(row);
+        for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
+            for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
+                if (frame.targets.grabNamed(x, y).filter(key::equals).isPresent()) {
                     return new double[] {x, y};
                 }
             }
         }
-        throw new AssertionError("no rail for row " + row + " in " + frame.targets.hoverKeys());
+        throw new AssertionError("no rail for row " + row);
     }
 
     // Each goo icon blit as its x and y.
@@ -679,7 +835,7 @@ class ExpressionBuilderPaneTest {
         DrawnFrame again = builder.frame();
         double[] second = railOf(again, List.of(1));
         assertTrue(again.targets.click(second[0], second[1]));
-        assertTrue(again.targets.drag(AREA.right() - 40, again.find("base").y()));
+        assertTrue(again.targets.drag(AREA.right() - 40, again.find("$base").y()));
         builder.frame();
         assertTrue(builder.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE));
         assertTrue(cursorTops(builder.frame()).isEmpty(), "the drop cursor goes with the drag");
@@ -697,14 +853,14 @@ class ExpressionBuilderPaneTest {
         Builder builder = Builder.item("$waxed");
         DrawnFrame closed = builder.frame();
         assertFalse(closed.texts().contains("$edited"), closed.texts().toString());
-        assertFalse(closed.rightClick("waxed"));
+        assertFalse(closed.rightClick("$waxed"));
         verify(builder.actions, never()).openVariable(any());
         DrawnFrame unmoved = builder.frame();
         assertFalse(unmoved.texts().contains("$edited"), unmoved.texts().toString());
-        unmoved.shiftClick("waxed");
+        unmoved.shiftClick("$waxed");
         verify(builder.actions).openVariable("waxed");
         assertFalse(builder.frame().texts().contains("$edited"));
-        builder.frame().click("waxed");
+        builder.frame().click("$waxed");
         List<String> opened = builder.frame().texts();
         assertTrue(opened.contains("$edited"), opened.toString());
     }
@@ -721,8 +877,8 @@ class ExpressionBuilderPaneTest {
                 frame.texts().toString());
         DrawnFrame.Text open = frame.find("(");
         DrawnFrame.Text close = frame.find(")");
-        DrawnFrame.Text food = frame.find("food");
-        DrawnFrame.Text saturation = frame.find("saturation");
+        DrawnFrame.Text food = frame.find("$food");
+        DrawnFrame.Text saturation = frame.find("$saturation");
         assertEquals(open.y(), food.y(), frame.drawn().toString());
         assertTrue(open.x() < food.x() && saturation.y() > food.y() && close.y() > saturation.y(),
                 frame.drawn().toString());
@@ -740,10 +896,18 @@ class ExpressionBuilderPaneTest {
                 + "\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\"}";
         private static final String SUM_ADD = dropdown("+/-");
 
-        // The texts drawn on one builder line, left to right; the builder's lines stand a line height apart from 0.
+        // The texts drawn on one builder line, left to right, the kind's line first.
         private static List<DrawnFrame.Text> line(DrawnFrame frame, int index) {
-            return frame.drawn().stream().filter(text -> text.y() / ControlFlow.LINE == index)
+            return frame.drawn().stream().filter(text -> lineOf(frame, text.y()) == index)
                     .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+        }
+
+        // Which builder line a y stands on, the lines read from the texts drawn on them, since a line's height grows
+        // per box depth (decision drag-rail-containers-keep-a-pixel-between-borders).
+        private static int lineOf(DrawnFrame frame, int y) {
+            List<Integer> tops = frame.drawn().stream().map(text -> text.y() - ControlFlow.textTop(0)).distinct()
+                    .sorted().toList();
+            return (int) tops.stream().filter(top -> top <= y).count() - 1;
         }
 
         private static List<String> lineTexts(DrawnFrame frame, int index) {
@@ -759,7 +923,7 @@ class ExpressionBuilderPaneTest {
                     anyInt(), anyInt(), anyInt(), anyInt());
             List<Integer> onLine = new ArrayList<>();
             for (int at = 0; at < xs.getAllValues().size(); at++) {
-                if (ys.getAllValues().get(at) / ControlFlow.LINE == index) {
+                if (lineOf(frame, ys.getAllValues().get(at)) == index) {
                     onLine.add(xs.getAllValues().get(at));
                 }
             }
@@ -779,9 +943,11 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text colon = rowColon(frame, 1);
             int typeX = iconXs(frame, 1).getFirst();
-            assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.PADDING, typeX);
-            assertTrue(colon.x() > typeX, colon + " after the type at " + typeX);
-            DrawnFrame.Text food = frame.findFirst("food");
+            // Decision type-icon-buttons-shrink-their-padding: the type's button is its icon plus a pixel each side.
+            assertEquals(ControlFlow.INDENT + ROW_RAIL + 1, typeX);
+            assertEquals(typeX + GooTypeIcons.sizeOf("jelly") + 1 + BuilderOverlays.GAP, colon.x(),
+                    colon + " a gap past the type's button at " + typeX);
+            DrawnFrame.Text food = frame.findFirst("$food");
             assertEquals(colon.y(), food.y(), frame.drawn().toString());
             assertTrue(food.x() > colon.x(), food + " after " + colon);
             assertEquals(0, frame.count("="), frame.texts().toString());
@@ -793,24 +959,24 @@ class ExpressionBuilderPaneTest {
             Builder builder = Builder.item(BEETROOT);
             DrawnFrame frame = builder.frame(new GroupsPane.Bounds(0, 0, 220, 390));
             int typeLeft = ControlFlow.INDENT;
-            DrawnFrame.Text food = frame.findFirst("food");
-            DrawnFrame.Text saturation = frame.findFirst("saturation");
+            DrawnFrame.Text food = frame.findFirst("$food");
+            DrawnFrame.Text saturation = frame.findFirst("$saturation");
             assertTrue(saturation.y() > food.y(), frame.drawn().toString());
             // A wrapped term's line opens on its rail, one indent in under the type.
             double[] saturationRail = railOf(frame, List.of(0, 1));
             assertEquals(typeLeft + ControlFlow.INDENT + BOX_ROOM, (int) saturationRail[0], frame.drawn().toString());
-            assertEquals(saturation.y() / ControlFlow.LINE, (int) saturationRail[1] / ControlFlow.LINE);
-            DrawnFrame.Text dye = frame.find("dye");
+            assertEquals(lineOf(frame, saturation.y()), lineOf(frame, (int) saturationRail[1]));
+            DrawnFrame.Text dye = frame.find("$dye");
             DrawnFrame.Text minus = frame.drawn().stream().filter(text -> text.text().equals("-")
                     && text.y() > dye.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             double[] parentheticalRail = railOf(frame, List.of(1, 1));
             assertEquals(typeLeft + ControlFlow.INDENT + BOX_ROOM, (int) parentheticalRail[0],
                     frame.drawn().toString());
-            assertEquals(minus.y() / ControlFlow.LINE, (int) parentheticalRail[1] / ControlFlow.LINE);
+            assertEquals(lineOf(frame, minus.y()), lineOf(frame, (int) parentheticalRail[1]));
             assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && text.y() == minus.y()),
                     frame.drawn().toString());
             // A wrap inside the parenthetical opens one indent further in than the parenthetical's line.
-            int innerLine = minus.y() / ControlFlow.LINE + 1;
+            int innerLine = lineOf(frame, minus.y()) + 1;
             int parentheticalLeft = (int) parentheticalRail[0] - BOX_ROOM;
             assertTrue(line(frame, innerLine).getFirst().x() >= parentheticalLeft + ControlFlow.INDENT,
                     frame.drawn().toString());
@@ -822,10 +988,10 @@ class ExpressionBuilderPaneTest {
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
             // Decision operand-times-number-terms-edit-like-every-term: saturation's 12 reads in its ratio box.
             // Decision each-subsequent-term-starts-a-new-line: saturation starts the row's next line.
-            assertEquals(List.of(":", "food", "'s", "1", ":", "1"), lineTexts(frame, 1), frame.drawn().toString());
-            assertEquals(List.of("+", "saturation", "'s", "12", ":", "1", SUM_ADD), lineTexts(frame, 2),
+            assertEquals(List.of(":", "$food", "'s", "1", ":", "1"), lineTexts(frame, 1), frame.drawn().toString());
+            assertEquals(List.of("+", "$saturation", "'s", "12", ":", "1"), lineTexts(frame, 2),
                     frame.drawn().toString());
-            assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
+            assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.ICON_PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
             assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),
                     "jelly between 's and the ratio at " + jelly);
@@ -889,29 +1055,40 @@ class ExpressionBuilderPaneTest {
         void parentheticalLineReadsJoinParenThenItsTermsInline() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
-            int head = open.y() / ControlFlow.LINE;
-            assertEquals(List.of("-", "(", "food"), lineTexts(frame, head).subList(0, 3), frame.drawn().toString());
+            int head = lineOf(frame, open.y());
+            assertEquals(List.of("-", "(", "$food"), lineTexts(frame, head).subList(0, 3), frame.drawn().toString());
             assertFalse(lineTexts(frame, head).contains("X"), frame.drawn().toString());
-            assertEquals(List.of(":", "dye", "'s", "1", ":", "1"), lineTexts(frame, head - 1),
+            assertEquals(List.of(":", "$dye", "'s", "1", ":", "1"), lineTexts(frame, head - 1),
                     frame.drawn().toString());
             // Decision each-subsequent-term-starts-a-new-line: ")" stands below the parenthetical's last term.
-            DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals("saturation")
+            DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals("$saturation")
                     && text.y() > open.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             assertTrue(frame.find(")").y() > last.y(), frame.drawn().toString());
         }
 
+        /**
+         * The control bay draws a + and a - button beside the () handle, no sum draws a +/- control, and the - dragged
+         * onto the slot before a term draws the drop cursor there and, dropped, inserts a subtracted term at that
+         * slot, its term picked from the list the dropdown offered (decision
+         * plus-and-minus-are-draggable-buttons-in-the-control-bay).
+         */
         @Test
-        void sumDropdownOffersPlusAndMinusAndAddsATermJoinedByTheChoice() {
-            Builder builder = Builder.prefab(PREFABS, "$base");
-            DrawnFrame closed = builder.frame();
-            closed.click(SUM_ADD);
-            DrawnFrame open = builder.frame();
-            List<String> texts = open.texts();
-            assertEquals(List.of("+", "-"), texts.subList(texts.lastIndexOf(SUM_ADD) + 1, texts.size()).stream()
-                    .filter(List.of("+", "-")::contains).toList(), texts.toString());
-            open.click("-");
-            builder.frame().click("$base");
-            assertEquals("$base - $base", builder.written.getLast());
+        void bayMinusDraggedOntoASlotInsertsASubtractedTermThere() {
+            Builder builder = Builder.prefab(PREFABS, "$waxed + $edited");
+            DrawnFrame frame = builder.frame();
+            DrawnFrame.Text handle = frame.find("()");
+            List<DrawnFrame.Text> bay = frame.drawn().stream().filter(text -> text.y() == handle.y())
+                    .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+            assertEquals(List.of("()", "+", "-"), bay.stream().map(DrawnFrame.Text::text).toList(), bay.toString());
+            assertEquals(0, frame.count(SUM_ADD), frame.texts().toString());
+            DrawnFrame.Text minus = bay.getLast();
+            assertTrue(frame.targets.click(minus.x(), minus.y()), "the - grabs the pointer");
+            double[] edited = railOf(frame, List.of(1));
+            assertTrue(frame.targets.drag(edited[0], edited[1]));
+            assertTrue(cursorTops(builder.frame()).size() == 1, "the drop cursor stands at the slot");
+            frame.targets.release();
+            builder.frame().click("$waxed");
+            assertEquals("$waxed - $waxed + $edited", builder.written.getLast());
         }
 
         // Decision amount-modes-name-what-the-amount-comes-from: a number term names its amount's source, so a type
@@ -1039,13 +1216,14 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * No builder control explains itself on hover but four: the () handle, [+?] and the ratio's two boxes (the
-     * operator's ruling, amended by decisions parenthetical-handle-carries-a-rail-and-hovers-its-drop and
-     * plus-question-and-ratio-boxes-hover-their-names).
+     * No builder control explains itself on hover but five: the () handle, [+?], the ratio's two boxes and the trash
+     * strip (the operator's ruling, amended by decisions parenthetical-handle-carries-a-rail-and-hovers-its-drop,
+     * plus-question-and-ratio-boxes-hover-their-names and trash-strip-hovers-drag-items-here-to-remove).
      */
     @Test
-    void onlyTheFourNamedControlsCarryATooltip() {
-        java.util.Set<String> named = java.util.stream.Stream.of(HANDLE_HINT, ADD_TYPE_HINT, "Multiplier", "Divisor")
+    void onlyTheFiveNamedControlsCarryATooltip() {
+        java.util.Set<String> named = java.util.stream.Stream.of(HANDLE_HINT, ADD_TYPE_HINT, "Multiplier", "Divisor",
+                        "Drag items here to remove")
                 .map(BuilderOverlays::hintKey).collect(java.util.stream.Collectors.toSet());
         for (String shown : List.of("$base + ($waxed - $edited)", "{\"leaf\": \"4\"}", "")) {
             Builder builder = Builder.item(shown);
@@ -1097,7 +1275,7 @@ class ExpressionBuilderPaneTest {
         assertEquals(BuilderOverlays.hintKey(HANDLE_HINT),
                 frame.targets.hovered(handle.x() + 1, handle.y() + 1).orElseThrow());
         assertTrue(frame.targets.click(rail[0] + 1, rail[1] + 1));
-        DrawnFrame.Text edited = frame.find("edited");
+        DrawnFrame.Text edited = frame.find("$edited");
         assertTrue(frame.targets.drag(edited.x() + 1, edited.y() + 1));
         assertTrue(filledAround(builder.frame(), ExpressionBuilderPane.WRAP_MARK, edited), "the rail starts no wrap");
         frame.targets.release();
@@ -1208,7 +1386,7 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = Builder.item("$waxed + $edited").frame();
             List<List<DrawnFrame.Text>> ratios = ratios(frame);
             assertEquals(3, ratios.size(), frame.texts().toString());
-            DrawnFrame.Text edited = frame.find("edited");
+            DrawnFrame.Text edited = frame.find("$edited");
             assertTrue(ratios.getLast().getFirst().y() > edited.y(), frame.drawn().toString());
             assertOneToOneAtRest(frame);
         }

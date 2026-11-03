@@ -82,6 +82,28 @@ class GroupsTabTest {
         assertEquals(List.of(), groups.referents("logs"));
     }
 
+    /**
+     * A group an iterator fills lists that iterator among its referents, and a group both filled by one iterator and
+     * read by another lists both (decision group-referent-previews-shorthand-members-then-its-value).
+     */
+    @Test
+    void referentsListTheIteratorThatFillsTheGroup() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "#exposed", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#copper\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null},
+                     {"key": "#waxed_exposed", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#exposed\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}""");
+        GroupsTab groups = new GroupsTab(draft);
+        assertEquals(List.of("#waxed_exposed"), groups.referents("waxed_exposed"));
+        assertEquals(List.of("#exposed", "#waxed_exposed"), groups.referents("exposed"));
+    }
+
     @Nested
     class Searching {
         private static final String THREE_GROUPS = """
