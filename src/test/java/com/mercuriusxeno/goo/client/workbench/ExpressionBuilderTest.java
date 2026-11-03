@@ -227,6 +227,95 @@ class ExpressionBuilderTest {
             assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly + 12 $saturation.jelly)\"}", builder);
         }
 
+        // Decision parenthetical-handle-drags-onto-a-term: the handle dropped on a term inside a parenthetical nests a
+        // group there, and dropped on the parenthetical itself wraps it in a second group.
+        @Test
+        void wrapNestsOnAnInnerTermAndOnAParentheticalItself() {
+            ExpressionBuilder inner = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            inner.wrap(List.of(1, 1));
+            assertWrites("$waxed + ($edited - ($base))", inner);
+            ExpressionBuilder outer = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            outer.wrap(List.of(1));
+            assertWrites("$waxed + (($edited - $base))", outer);
+        }
+
+        // Decision terms-and-type-rows-drag-to-a-trash-strip: a parenthetical whose last term is dragged out of it,
+        // before or after it, goes; one keeping a term stands around it.
+        @Test
+        void draggingAParentheticalsLastTermOutDeletesTheParenthetical() {
+            ExpressionBuilder after = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(after.moveTo(List.of(1, 0), List.of(), 2));
+            assertWrites("$waxed + $edited", after);
+            ExpressionBuilder before = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(before.moveTo(List.of(1, 0), List.of(), 0));
+            assertWrites("$edited + $waxed", before);
+            ExpressionBuilder kept = ExpressionBuilder.of("$waxed + ($edited + $base)");
+            assertTrue(kept.moveTo(List.of(1, 1), List.of(), 2));
+            assertWrites("$waxed + ($edited) + $base", kept);
+        }
+
+        // Decision terms-and-type-rows-drag-to-a-trash-strip: trashing a parenthetical's last term deletes the
+        // parenthetical, and trashing a parenthetical removes it whole.
+        @Test
+        void removingAParentheticalsLastTermRemovesTheParenthetical() {
+            ExpressionBuilder inner = ExpressionBuilder.of("$waxed + ($edited)");
+            inner.remove(List.of(1, 0));
+            assertWrites("$waxed", inner);
+            ExpressionBuilder whole = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            whole.remove(List.of(1));
+            assertWrites("$waxed", whole);
+        }
+
+        // Decision drags-indicate-only-a-drop-the-builder-takes: each dry run answers false exactly where its verb
+        // refuses, and the verb leaves the value standing there.
+        @Test
+        void dryRunsAnswerFalseExactlyWhereTheirVerbsRefuse() {
+            String opened = "$waxed - $edited + $base";
+            ExpressionBuilder sum = ExpressionBuilder.of(opened);
+            assertFalse(sum.canMoveTo(List.of(1), List.of(), 1), "its own slot before");
+            assertFalse(sum.canMoveTo(List.of(1), List.of(), 2), "its own slot after");
+            assertFalse(sum.canMoveTo(List.of(1), List.of(), 0), "a subtracted term landing first");
+            assertFalse(sum.moveTo(List.of(1), List.of(), 0));
+            assertEquals(opened, sum.text());
+            assertTrue(sum.canMoveTo(List.of(2), List.of(), 0));
+            assertTrue(sum.canRemove(List.of(1)));
+            ExpressionBuilder alone = ExpressionBuilder.of("$waxed");
+            assertFalse(alone.canRemove(List.of(0)), "a whole value's last term");
+            alone.remove(List.of(0));
+            assertEquals("$waxed", alone.text());
+            ExpressionBuilder nested = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(nested.canRemove(List.of(1, 0)), "a parenthetical's last term goes with it");
+            ExpressionBuilder oneRow = ExpressionBuilder.of("{\"metal\": \"5\"}");
+            assertFalse(oneRow.canRemove(List.of(0, 0)), "a type row's last term");
+            assertFalse(oneRow.canRemoveRow(0), "the last type row");
+            oneRow.removeRow(0);
+            assertEquals("{\"metal\": \"5\"}", oneRow.text());
+            ExpressionBuilder twoRows = ExpressionBuilder.of("{\"metal\": \"5\", \"pulse\": \"2\"}");
+            assertTrue(twoRows.canRemoveRow(0));
+            assertFalse(twoRows.canMoveRow(0, 0));
+            assertFalse(twoRows.canMoveRow(0, 1));
+            assertTrue(twoRows.canMoveRow(0, 2));
+            assertFalse(twoRows.canMoveTo(List.of(0, 0), List.of(1), 0), "a type row's only term emptying it");
+        }
+
+        // Decision operand-times-number-terms-edit-like-every-term: "$saturation.jelly * 12" opens as the prefab with
+        // its member and a 12 multiplier, and its writing reads back to the same pieces; a parenthetical times a
+        // number opens the same way.
+        @Test
+        void operandTimesNumberOpensAsAnEditablePiece() {
+            ExpressionBuilder beetroot = ExpressionBuilder.of("$food.jelly + $saturation.jelly * 12");
+            ExpressionBuilder.Piece saturation = beetroot.terms().get(1);
+            assertEquals(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "saturation", "jelly"),
+                    saturation.operand());
+            assertEquals("12", saturation.multiplier());
+            assertEquals(beetroot.terms(), ExpressionBuilder.of(beetroot.text()).terms(), beetroot.text());
+            ExpressionBuilder grouped = ExpressionBuilder.of("($waxed + $edited) * 3");
+            ExpressionBuilder.Piece group = grouped.terms().getFirst();
+            assertTrue(group.operand() instanceof ExpressionBuilder.Nest, group.toString());
+            assertEquals("3", group.multiplier());
+            assertEquals(grouped.terms(), ExpressionBuilder.of(grouped.text()).terms(), grouped.text());
+        }
+
         @Test
         void firstTermMovesNoHigherAndLastNoLower() {
             ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited");
@@ -251,6 +340,37 @@ class ExpressionBuilderTest {
             down.move(List.of(0), 1);
             assertEquals("$waxed - $edited", down.text());
             assertTrue(down.refusal().isPresent());
+        }
+
+        // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: a dragged term lands in any slot, a
+        // later one in its own sum, inside a parenthetical or out of one.
+        @Test
+        void dropMovesATermToALaterSlotIntoAndOutOfAParenthetical() {
+            ExpressionBuilder later = ExpressionBuilder.of("$waxed + $edited + $food");
+            assertTrue(later.moveTo(List.of(0), List.of(), 3));
+            assertWrites("$edited + $food + $waxed", later);
+            ExpressionBuilder into = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertTrue(into.moveTo(List.of(0), List.of(1), 1));
+            assertWrites("($edited + $waxed + $food)", into);
+            ExpressionBuilder out = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertTrue(out.moveTo(List.of(1, 1), List.of(), 1));
+            assertWrites("$waxed + $food + ($edited)", out);
+        }
+
+        // A drop that would empty the whole value, land a subtracted term first or drop a parenthetical into itself
+        // is refused and the value stands; a parenthetical emptied goes instead (decision
+        // terms-and-type-rows-drag-to-a-trash-strip).
+        @Test
+        void dropThatBreaksTheValueIsRefused() {
+            ExpressionBuilder emptying = ExpressionBuilder.of("($edited)");
+            assertFalse(emptying.moveTo(List.of(0, 0), List.of(), 0));
+            assertEquals("($edited)", emptying.text());
+            ExpressionBuilder subtracted = ExpressionBuilder.of("$waxed - $edited");
+            assertFalse(subtracted.moveTo(List.of(1), List.of(), 0));
+            assertEquals("$waxed - $edited", subtracted.text());
+            ExpressionBuilder itself = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertFalse(itself.moveTo(List.of(1), List.of(1), 0));
+            assertEquals("$waxed + ($edited + $food)", itself.text());
         }
 
         // A move that lands no subtracted term first keeps every term's sign, so the value stands.

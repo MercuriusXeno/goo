@@ -39,6 +39,35 @@ class SearchDropdownTest {
     }
 
     /**
+     * A prefab row reads its name after $, and a query starting with # lists the tags alone while one starting with
+     * $ lists the prefabs alone, the rest of the query filtering them (decision
+     * hash-marks-groups-and-dollar-marks-prefabs-everywhere).
+     */
+    @Test
+    void hashListsTagsAloneAndDollarPrefabsAlone() {
+        SearchDropdown prefabs = SearchDropdown.over(INVENTORY, List.of("copper_nugget", "base"), true);
+        prefabs.search("");
+        assertEquals(List.of("$copper_nugget", "$base"), prefabs.choices().stream()
+                .filter(choice -> choice.kind() == SearchDropdown.Kind.PREFAB).map(SearchDropdown.Choice::label)
+                .toList());
+        prefabs.search("$");
+        assertEquals(List.of("copper_nugget", "base"), prefabs.choices().stream().map(SearchDropdown.Choice::id)
+                .toList());
+        prefabs.search("$cop");
+        assertEquals(List.of("copper_nugget"), prefabs.choices().stream().map(SearchDropdown.Choice::id).toList());
+        SearchDropdown members = SearchDropdown.overMembers(List.of(
+                new ValuesTab.ManagerEntry("minecraft:copper_block", "Block of Copper", false),
+                new ValuesTab.ManagerEntry("#minecraft:logs", "2 members", true),
+                new ValuesTab.ManagerEntry("#minecraft:planks", "4 members", true)));
+        members.search("#");
+        assertEquals(List.of("#minecraft:logs", "#minecraft:planks"), members.choices().stream()
+                .map(SearchDropdown.Choice::label).toList());
+        members.search("#pla");
+        assertEquals(List.of("#minecraft:planks"), members.choices().stream().map(SearchDropdown.Choice::label)
+                .toList());
+    }
+
+    /**
      * A dropdown over prefabs alone lists no item.
      */
     @Test

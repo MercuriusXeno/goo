@@ -18,6 +18,20 @@ final class ControlFlow {
     static final int LINE = BuilderOverlays.LINE;
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
+    private static final int HALF = 2;
+    /** A drag rail's width. */
+    static final int RAIL_WIDTH = 6;
+    // Decision rails-fill-the-left-edge-of-their-box: the rail takes its box's whole left edge, flush inside the
+    // border, and three grip lines mark it as a rail.
+    private static final int GRIP_LINES = 3;
+    private static final int GRIP_PITCH = 2;
+    /** How far a rail moves the next piece: its width and a gap. */
+    static final int RAIL_ADVANCE = RAIL_WIDTH + GAP;
+    /** A drag rail's fill. */
+    static final int RAIL_COLOR = 0xFF7080A0;
+    /** The grip lines a drag rail draws. */
+    static final int GRIP_COLOR = 0xFFD0D8F0;
+    static final int OUTLINE_COLOR = 0x60FFFFFF;
     /** How far one indent step moves a line's left edge. */
     static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
@@ -86,6 +100,14 @@ final class ControlFlow {
     }
 
     /**
+     * @param lineTop a flow line's top
+     * @return where its words and its controls' labels stand, so a label drawn beside the flow shares the line
+     */
+    static int textTop(int lineTop) {
+        return lineTop + TEXT_NUDGE;
+    }
+
+    /**
      * @return the y below the last line
      */
     int bottom() {
@@ -110,6 +132,47 @@ final class ControlFlow {
         x = left;
     }
 
+    /**
+     * Continues on a fresh line one indent step in, as a line that ran out wraps, where the current line holds
+     * anything.
+     */
+    void wrapLine() {
+        if (x > lineLeft) {
+            y += LINE;
+            lineLeft = left + INDENT;
+            x = lineLeft;
+        }
+    }
+
+    /**
+     * Starts a fresh line where pieces this wide do not fit the rest of the current one, so a unit and its room
+     * open together.
+     *
+     * @param width the pieces' width
+     */
+    void fit(int width) {
+        reserve(width);
+    }
+
+    /**
+     * Ends the current line and leaves room under it before the next.
+     *
+     * @param height the room
+     */
+    void gapBelow(int height) {
+        newLine();
+        y += height;
+    }
+
+    /**
+     * Leaves room before the next piece.
+     *
+     * @param width the room
+     */
+    void space(int width) {
+        x += width;
+    }
+
     private void reserve(int width) {
         if (x + width > right && x > lineLeft) {
             y += LINE;
@@ -124,6 +187,20 @@ final class ControlFlow {
      */
     void text(String text, int color) {
         reserve(font.width(text));
+        graphics.text(font, text, x, y + TEXT_NUDGE, color);
+        markPiece(font.width(text));
+        x += font.width(text) + GAP;
+    }
+
+    /**
+     * Words drawn flush against the piece before them, no gap between, as a member's 's against its prefab's button
+     * (decision possessive-sits-flush-against-its-word-button).
+     *
+     * @param text  the words
+     * @param color their color
+     */
+    void textFlush(String text, int color) {
+        x -= GAP;
         graphics.text(font, text, x, y + TEXT_NUDGE, color);
         markPiece(font.width(text));
         x += font.width(text) + GAP;
@@ -346,6 +423,13 @@ final class ControlFlow {
     }
 
     /**
+     * @return the left edge the next lines start at
+     */
+    int leftEdge() {
+        return left;
+    }
+
+    /**
      * @return how far past the line's left edge the next piece starts
      */
     int column() {
@@ -373,6 +457,167 @@ final class ControlFlow {
         targets.add(iconX, iconY, width, LINE,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
         x += width + GAP;
+    }
+
+    /**
+     * A term's drag rail: a narrow grip a line tall, a press on it grabbing the pointer until the release (decision
+     * terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     *
+     * @param hoverKey what hovering names, which no tooltip reads
+     * @param grab     what the press, each drag and the release move
+     * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
+     */
+    void rail(String hoverKey, ClickTargets.PointerGrab grab, int keepWith) {
+        int railLeft = railTarget(hoverKey, grab, keepWith);
+        drawRail(railLeft, y + 1, y + LINE - 1);
+    }
+
+    /**
+     * A rail's grab and hover, its drawing left for drawRail once its box's height is known, as a parenthetical's or a
+     * type row's spans every line it takes.
+     *
+     * @param hoverKey what hovering names, which no tooltip reads
+     * @param grab     what the press, each drag and the release move
+     * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
+     * @return the rail's left edge
+     */
+    int railTarget(String hoverKey, ClickTargets.PointerGrab grab, int keepWith) {
+        reserve(RAIL_ADVANCE + keepWith);
+        markPiece(RAIL_WIDTH);
+        int railLeft = x;
+        targets.addGrab(x, y, RAIL_WIDTH, LINE, grab);
+        targets.addHover(x, y, RAIL_WIDTH, LINE, hoverKey);
+        x += RAIL_ADVANCE;
+        return railLeft;
+    }
+
+    /**
+     * Draws a rail and its three grip lines centered in it (decision rails-fill-the-left-edge-of-their-box).
+     *
+     * @param left   the rail's left edge, flush inside its box's left border
+     * @param top    its top, flush under the box's top border
+     * @param bottom its bottom, flush over the box's bottom border
+     */
+    void drawRail(int left, int top, int bottom) {
+        graphics.fill(left, top, left + RAIL_WIDTH, bottom, RAIL_COLOR);
+        int first = (top + bottom) / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
+        for (int line = 0; line < GRIP_LINES; line++) {
+            int gripTop = first + line * GRIP_PITCH;
+            graphics.fill(left + 1, gripTop, left + RAIL_WIDTH - 1, gripTop + 1, GRIP_COLOR);
+        }
+    }
+
+    /**
+     * Outlines a box one pixel in the color given, as a type row's box reads around its rail and terms.
+     *
+     * @param box   the box
+     * @param color the outline's color
+     */
+    void outlineBox(GroupsPane.Bounds box, int color) {
+        graphics.fill(box.left(), box.top(), box.right(), box.top() + 1, color);
+        graphics.fill(box.left(), box.bottom() - 1, box.right(), box.bottom(), color);
+        graphics.fill(box.left(), box.top(), box.left() + 1, box.bottom(), color);
+        graphics.fill(box.right() - 1, box.top(), box.right(), box.bottom(), color);
+    }
+
+    /**
+     * Outlines the pieces drawn since the place given, where they stand on its line, as a term and its rail read as
+     * one unit (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     *
+     * @param start where the first piece stood
+     */
+    void outlineFrom(BuilderOverlays.Anchor start) {
+        if (start.y() != y) {
+            return;
+        }
+        int left = start.x() - 1;
+        int right = x - GAP + 1;
+        graphics.fill(left, y, right, y + 1, OUTLINE_COLOR);
+        graphics.fill(left, y + LINE - 1, right, y + LINE, OUTLINE_COLOR);
+        graphics.fill(left, y, left + 1, y + LINE, OUTLINE_COLOR);
+        graphics.fill(right - 1, y, right, y + LINE, OUTLINE_COLOR);
+    }
+
+    /**
+     * Tints the box from the place given to the pieces drawn since: on one line, from there to the last piece; across
+     * lines, from there to the area's right edge, a pixel in per depth so a box inside a box shows its own edge
+     * (decision parentheticals-alternate-gray-tones-by-depth).
+     *
+     * @param start  where the box's first piece stood
+     * @param tones  the box's fill and the border around it
+     * @param depth  how many boxes hold it, its own included
+     */
+    void tintFrom(BuilderOverlays.Anchor start, BoxTones tones, int depth) {
+        GroupsPane.Bounds box = boxFrom(start, depth);
+        int border = tones.border();
+        graphics.fill(box.left() + 1, box.top(), box.right() - 1, box.top() + 1, border);
+        graphics.fill(box.left() + 1, box.bottom() - 1, box.right() - 1, box.bottom(), border);
+        graphics.fill(box.left(), box.top(), box.left() + 1, box.bottom(), border);
+        graphics.fill(box.right() - 1, box.top(), box.right(), box.bottom(), border);
+        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, box.bottom() - 1, tones.fill());
+    }
+
+    /**
+     * A box's colors (decision parentheticals-alternate-gray-tones-by-depth).
+     *
+     * @param fill   inside its border
+     * @param border its one-pixel edge
+     */
+    record BoxTones(int fill, int border) {
+    }
+
+    /**
+     * @param start where the box's first piece stood
+     * @param depth how many boxes hold it, its own included
+     * @return the box from the place given to the pieces drawn since, as tintFrom fills it
+     */
+    GroupsPane.Bounds boxFrom(BuilderOverlays.Anchor start, int depth) {
+        int boxRight = start.y() == y ? x - GAP + 1 : right - depth;
+        return new GroupsPane.Bounds(start.x() - 1, start.y(), boxRight, y + LINE);
+    }
+
+    /**
+     * A button whose press grabs the pointer, as a handle dragged onto a term does, a rail with its grips flush inside
+     * its left border so it reads as a thing to drag (decisions parenthetical-handle-drags-onto-a-term,
+     * parenthetical-handle-carries-a-rail-and-hovers-its-drop).
+     *
+     * @param label its label
+     * @param grab  follows the pointer from the press to the release
+     * @param hint  what hovering it reads
+     */
+    void grabControl(String label, ClickTargets.PointerGrab grab, String hint) {
+        int labelLeftRoom = RAIL_WIDTH + ButtonPainter.PADDING;
+        int width = 1 + labelLeftRoom + font.width(label) + ButtonPainter.PADDING;
+        reserve(width);
+        markPiece(width);
+        ButtonPainter.Box box = ButtonPainter.layout(font.width(label), x, y, LINE);
+        ButtonPainter.Box railed = new ButtonPainter.Box(box.left(), box.top(), width, box.height());
+        ButtonPainter.drawFrame(graphics, railed);
+        drawRail(railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
+        graphics.text(font, label, railed.left() + 1 + labelLeftRoom, y + TEXT_NUDGE, LINK);
+        targets.addGrab(railed.left(), railed.top(), railed.width(), railed.height(), grab);
+        targets.addHover(railed.left(), railed.top(), railed.width(), railed.height(), BuilderOverlays.hintKey(hint));
+        x = railed.right() + GAP;
+    }
+
+    /**
+     * A square button a line's height on each side, its label centered in it, as a goo type button stands that
+     * tall (decision add-type-is-a-big-square-plus-question-button-below-the-list).
+     *
+     * @param label   its label
+     * @param hint    what hovering it reads
+     * @param pressed takes where it was clicked
+     */
+    void squareControl(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
+        reserve(LINE);
+        markPiece(LINE);
+        int boxX = x;
+        int boxY = y;
+        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(boxX, boxY, LINE, LINE));
+        graphics.text(font, label, boxX + (LINE - font.width(label)) / HALF, y + TEXT_NUDGE, LINK);
+        targets.add(boxX, boxY, LINE, LINE, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)),
+                BuilderOverlays.hintKey(hint));
+        x += LINE + GAP;
     }
 
     /**

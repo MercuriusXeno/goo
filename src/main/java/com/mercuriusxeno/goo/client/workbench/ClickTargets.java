@@ -20,7 +20,8 @@ import java.util.function.DoubleConsumer;
 final class ClickTargets {
     private final List<Target> targets = new ArrayList<>();
     private @Nullable Clip clip;
-    private @Nullable DoubleConsumer grabbed;
+    private @Nullable PointerGrab grabbed;
+    private double pressedX;
     private double pressedY;
     private boolean shiftHeld;
 
@@ -198,6 +199,22 @@ final class ClickTargets {
     }
 
     /**
+     * What a grabbed area does as the cursor drags it and lets it go.
+     */
+    interface PointerGrab {
+        /**
+         * @param x the cursor's x, at the press and at each drag
+         * @param y the cursor's y
+         */
+        void moved(double x, double y);
+
+        /**
+         * The button came up.
+         */
+        void released();
+    }
+
+    /**
      * An area a press grabs, such as a scroll bar's track: the press and every drag until the release hand their y
      * to the area, wherever the cursor stands.
      *
@@ -208,21 +225,46 @@ final class ClickTargets {
      * @param drag   what the press's and each drag's y moves
      */
     void addDrag(int left, int top, int width, int height, DoubleConsumer drag) {
-        add(left, top, width, height, () -> {
-            grabbed = drag;
-            drag.accept(pressedY);
+        addGrab(left, top, width, height, new PointerGrab() {
+            @Override
+            public void moved(double x, double y) {
+                drag.accept(y);
+            }
+
+            @Override
+            public void released() {
+                // A track lets go with nothing to finish.
+            }
         });
     }
 
     /**
+     * An area a press grabs, as a term's drag rail: the press and every drag until the release hand the cursor's
+     * place to the grab, and the release tells it the button came up.
+     *
+     * @param left   the area's left edge
+     * @param top    the area's top edge
+     * @param width  its width
+     * @param height its height
+     * @param grab   what the press, each drag and the release move
+     */
+    void addGrab(int left, int top, int width, int height, PointerGrab grab) {
+        add(left, top, width, height, () -> {
+            grabbed = grab;
+            grab.moved(pressedX, pressedY);
+        });
+    }
+
+    /**
+     * @param x the cursor's x as it drags
      * @param y the cursor's y as it drags
      * @return whether a grabbed area took the drag
      */
-    boolean drag(double y) {
+    boolean drag(double x, double y) {
         if (grabbed == null) {
             return false;
         }
-        grabbed.accept(y);
+        grabbed.moved(x, y);
         return true;
     }
 
@@ -232,9 +274,12 @@ final class ClickTargets {
      * @return whether an area was grabbed
      */
     boolean release() {
-        boolean held = grabbed != null;
+        PointerGrab held = grabbed;
         grabbed = null;
-        return held;
+        if (held != null) {
+            held.released();
+        }
+        return held != null;
     }
 
     /**
@@ -254,6 +299,7 @@ final class ClickTargets {
      * @return whether an area holding an action for the gesture took the click
      */
     boolean click(double x, double y, int button, int modifiers) {
+        pressedX = x;
         pressedY = y;
         for (int index = targets.size() - 1; index >= 0; index--) {
             Target target = targets.get(index);
