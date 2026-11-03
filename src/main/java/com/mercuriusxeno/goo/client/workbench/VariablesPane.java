@@ -83,7 +83,8 @@ final class VariablesPane {
     // The operator's ruling: the pencil's tooltip reads Rename and the x's Delete, one word each.
     private static final String RENAME_HINT = "Rename";
     private static final String DELETE_HINT = "Delete";
-    private static final int PENCIL_GAP = 3;
+    // Decision spacing-rules-are-one-set-across-every-pane: the pencil a button gap past the name.
+    private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
     private static final String CANCEL = "Cancel";
     private static final String USED_BY = "Used by ";
     private static final String USED_BY_KEY = ":usedBy";
