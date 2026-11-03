@@ -20,9 +20,19 @@ final class ControlFlow {
     private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
     /** A drag rail's width. */
-    static final int RAIL_WIDTH = 4;
+    static final int RAIL_WIDTH = 6;
     private static final int RAIL_INSET = 3;
-    private static final int RAIL_COLOR = 0xFF7080A0;
+    // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: the rail stands a pixel inside its term's
+    // outline, so the two never share a pixel, and three grip lines mark it as a rail.
+    private static final int RAIL_MARGIN = 1;
+    private static final int GRIP_LINES = 3;
+    private static final int GRIP_PITCH = 2;
+    /** How far a rail moves the next piece: its margin, its width and a gap. */
+    static final int RAIL_ADVANCE = RAIL_MARGIN + RAIL_WIDTH + GAP;
+    /** A drag rail's fill. */
+    static final int RAIL_COLOR = 0xFF7080A0;
+    /** The grip lines a drag rail draws. */
+    static final int GRIP_COLOR = 0xFFD0D8F0;
     static final int OUTLINE_COLOR = 0x60FFFFFF;
     /** How far one indent step moves a line's left edge. */
     static final int INDENT = 12;
@@ -410,12 +420,24 @@ final class ControlFlow {
      * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
      */
     void rail(String hoverKey, ClickTargets.PointerGrab grab, int keepWith) {
-        reserve(RAIL_WIDTH + GAP + keepWith);
-        markPiece(RAIL_WIDTH);
-        graphics.fill(x, y + RAIL_INSET, x + RAIL_WIDTH, y + LINE - RAIL_INSET, RAIL_COLOR);
-        targets.addGrab(x, y, RAIL_WIDTH, LINE, grab);
-        targets.addHover(x, y, RAIL_WIDTH, LINE, hoverKey);
-        x += RAIL_WIDTH + GAP;
+        reserve(RAIL_ADVANCE + keepWith);
+        int width = RAIL_MARGIN + RAIL_WIDTH;
+        markPiece(width);
+        int railLeft = x + RAIL_MARGIN;
+        graphics.fill(railLeft, y + RAIL_INSET, railLeft + RAIL_WIDTH, y + LINE - RAIL_INSET, RAIL_COLOR);
+        drawGrip(railLeft);
+        targets.addGrab(x, y, width, LINE, grab);
+        targets.addHover(x, y, width, LINE, hoverKey);
+        x += RAIL_ADVANCE;
+    }
+
+    // Three short lines across the rail's middle, a pixel in from its sides.
+    private void drawGrip(int railLeft) {
+        int first = y + LINE / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
+        for (int line = 0; line < GRIP_LINES; line++) {
+            int gripTop = first + line * GRIP_PITCH;
+            graphics.fill(railLeft + 1, gripTop, railLeft + RAIL_WIDTH - 1, gripTop + 1, GRIP_COLOR);
+        }
     }
 
     /**
