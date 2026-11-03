@@ -917,7 +917,8 @@ final class ExpressionBuilder {
 
     /**
      * Whether remove would delete the term, sharing its refusal: the whole value and a type row keep their last term,
-     * and a parenthetical's last term goes as its parenthetical does (decision
+     * a parenthetical's last term goes as its parenthetical does, and a first term followed by a subtracted one stays,
+     * since deleting it would hand the first place to that term and drop its minus, as a move would (decision
      * drags-indicate-only-a-drop-the-builder-takes).
      *
      * @param path the term's place
@@ -925,7 +926,11 @@ final class ExpressionBuilder {
      */
     boolean canRemove(List<Integer> path) {
         List<Integer> sum = path.subList(0, path.size() - 1);
-        return sumAt(sum).size() > 1 || isParenthetical(sum) && canRemove(sum);
+        List<Piece> pieces = sumAt(sum);
+        if (pieces.size() > 1) {
+            return path.getLast() != 0 || pieces.get(1).join() != ExpressionTerms.Join.MINUS;
+        }
+        return isParenthetical(sum) && canRemove(sum);
     }
 
     private Piece pieceAt(List<Integer> path) {

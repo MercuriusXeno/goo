@@ -136,6 +136,9 @@ final class ExpressionBuilderPane {
     private @Nullable SignDrag signDragging;
     // Where the last frame's lines ended, short of the trash strip.
     private int linesRight;
+    // What each rail laid this frame drags, by the name it drags: a term's path or a type row's index.
+    private final java.util.Map<String, List<Integer>> termRails = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> rowRails = new java.util.HashMap<>();
     // Where the builder drew visible this frame, the pane's scissor, null where none clipped it.
     private DragMask.@Nullable Rect visible;
     // The row slots the last frame laid, and the type row a rail holds while it drags.
@@ -324,6 +327,9 @@ final class ExpressionBuilderPane {
         drawKind(flow, edited);
         drawValue(flow, edited);
         drawClosing(flow, edited);
+        // A rail whose thing has nowhere to drop draws dark gray and takes no press, the operator's ruling of
+        // 2026-11-03: no rail offers a drag that does nothing.
+        flow.paintRails(this::railDraggable);
         int bottom = flow.bottom();
         drawPanel(graphics, new GroupsPane.Bounds(area.left(), top, area.right(), bottom));
         hoverTrash(targets);
@@ -340,6 +346,21 @@ final class ExpressionBuilderPane {
         slots.clear();
         boxes.clear();
         rowSlots.clear();
+        termRails.clear();
+        rowRails.clear();
+    }
+
+    // Whether the thing a rail drags, by the name it drags, has somewhere to drop this frame: a slot the builder's dry
+    // runs take, or the trash strip, the same places its drag mask would light.
+    private boolean railDraggable(String name) {
+        List<Integer> term = termRails.get(name);
+        if (term != null) {
+            return holds(edited -> edited.canRemove(term)) || slots.stream().anyMatch(slot -> holds(edited ->
+                    edited.canMoveTo(term, slot.sum(), slot.index())));
+        }
+        Integer row = rowRails.get(name);
+        return row != null && (holds(edited -> edited.canRemoveRow(row)) || rowSlots.stream().anyMatch(slot ->
+                holds(edited -> edited.canMoveRow(row, slot.index()))));
     }
 
     // The gray box behind the builder and the trash strip along its right edge, over the lines it laid.
@@ -714,6 +735,7 @@ final class ExpressionBuilderPane {
             flow.indent();
             BuilderOverlays.Anchor start = flow.anchor();
             rowSlots.add(new RowSlot(index, start));
+            rowRails.put(rowRailName(index), index);
             flow.railTarget(rowRailName(index), new RowDrag(index, row.type()),
                     typeLeadWidth(flow.letters(), row.type()));
             flow.typeIcon(row.type(), anchor -> overlays.openPicker(anchor,
@@ -987,6 +1009,7 @@ final class ExpressionBuilderPane {
         flow.fit(piece.operand() instanceof ExpressionBuilder.Nest ? ControlFlow.RAIL_ADVANCE + lead
                 : termWidth(flow.letters(), path, piece) - BOX_AFTER);
         BuilderOverlays.Anchor start = flow.anchor();
+        termRails.put(railName(path), path);
         flow.railTarget(railName(path), new Drag(path, piece), lead);
         if (path.getLast() > 0) {
             drawJoin(flow, path, piece);

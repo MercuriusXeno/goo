@@ -608,39 +608,51 @@ class ExpressionBuilderPaneTest {
         assertTrue(frame.targets.drag(rail[0], rail[1]));
         assertTrue(cursorTops(builder.frame()).isEmpty(), "a cursor at the term's own slot");
         frame.targets.release();
+        // A type row's only term may drop nowhere, since any move would empty its row: its rail locks.
         Builder rows = Builder.item(TWO_TYPES);
         DrawnFrame typed = rows.frame();
-        double[] only = railOf(typed, List.of(0, 0));
-        assertTrue(typed.targets.click(only[0], only[1]));
-        double[] other = railOf(typed, List.of(1, 0));
-        assertTrue(typed.targets.drag(other[0], other[1]));
-        assertTrue(cursorTops(rows.frame()).isEmpty(), "a cursor where the row would empty");
-        typed.targets.release();
+        assertLockedRailTakesNoDrag(rows, typed, typed.find("5"));
         assertEquals(List.of(), rows.written);
     }
 
+    // A locked rail draws dark gray left of the text its box holds, names no grab, and a press and a drag on it
+    // start no drag, so the next frame lights no drop place and draws no cursor (the operator's ruling of
+    // 2026-11-03: no rail offers a drag that does nothing).
+    private static void assertLockedRailTakesNoDrag(Builder builder, DrawnFrame frame, DrawnFrame.Text held) {
+        int[] rail = railBefore(frame, ControlFlow.LOCKED_RAIL_COLOR, held);
+        int middle = (rail[1] + rail[3]) / 2;
+        assertEquals(java.util.Optional.empty(), frame.targets.grabNamed(rail[0] + 1, middle), "the locked rail grabs");
+        frame.targets.click(rail[0] + 1, middle);
+        frame.targets.drag(AREA.right() - 1, middle);
+        DrawnFrame after = builder.frame();
+        assertEquals(List.of(), fills(after, DragMask.SHADOW), "a drag started from the locked rail");
+        assertTrue(cursorTops(after).isEmpty(), "a cursor from the locked rail");
+        assertRests(after);
+        frame.targets.release();
+    }
+
+    // The nearest rail drawn in the color given left of a text, on the text's line, as left, top, right and bottom.
+    private static int[] railBefore(DrawnFrame frame, int color, DrawnFrame.Text text) {
+        return fills(frame, color).stream().filter(rail -> rail[2] - rail[0] == ControlFlow.RAIL_WIDTH
+                && rail[2] <= text.x() && rail[1] <= text.y() && text.y() < rail[3])
+                .max(java.util.Comparator.comparingInt(rail -> rail[0]))
+                .orElseThrow(() -> new AssertionError("no rail before " + text));
+    }
+
     /**
-     * The trash strip rests through a drag of a thing the builder will not delete, over the strip and off it: a type
-     * row's only term, and the only type row (decision drags-indicate-only-a-drop-the-builder-takes).
+     * A thing the builder will neither delete nor move, a type row's only term and the only type row, draws its
+     * rail locked, and a drag from it leaves the trash strip resting (decision
+     * drags-indicate-only-a-drop-the-builder-takes, and the operator's ruling of 2026-11-03).
      */
     @Test
     void trashStripRestsForAThingTheBuilderWillNotDelete() {
         Builder term = Builder.item("{\"metal\": \"5\"}");
         DrawnFrame frame = term.frame();
-        double[] rail = railOf(frame, List.of(0, 0));
-        assertTrue(frame.targets.click(rail[0], rail[1]));
-        assertTrue(frame.targets.drag(AREA.left() + 1, rail[1]));
-        assertRests(term.frame());
-        assertTrue(frame.targets.drag(AREA.right() - 1, rail[1]));
-        assertRests(term.frame());
-        frame.targets.release();
+        assertLockedRailTakesNoDrag(term, frame, frame.find("5"));
         Builder row = Builder.item("{\"metal\": \"5\"}");
         DrawnFrame rowFrame = row.frame();
-        double[] rowRail = rowRailOf(rowFrame, 0);
-        assertTrue(rowFrame.targets.click(rowRail[0], rowRail[1]));
-        assertTrue(rowFrame.targets.drag(AREA.right() - 1, rowRail[1]));
-        assertRests(row.frame());
-        rowFrame.targets.release();
+        DrawnFrame.Text colon = rowFrame.findFirst(ExpressionLines.COLON);
+        assertLockedRailTakesNoDrag(row, rowFrame, colon);
         assertEquals(List.of(), term.written);
         assertEquals(List.of(), row.written);
     }
@@ -857,7 +869,8 @@ class ExpressionBuilderPaneTest {
             int count = 8;
             DrawnFrame frame = Builder.item("{\"metal\": \"" + String.join(" + ", java.util.Collections.nCopies(count,
                     "$base")) + "\"}").frame();
-            double[] rowRail = rowRailOf(frame, 0);
+            // The only row is locked, so its rail stands where the row's indent puts it.
+            double[] rowRail = {AREA.left() + ControlFlow.INDENT, 0};
             List<double[]> rails = IntStream.range(0, count).mapToObj(index -> railOf(frame, List.of(0, index)))
                     .toList();
             int wrapped = IntStream.range(0, count).filter(index -> rails.get(index)[1] > rails.getFirst()[1])
@@ -1166,6 +1179,56 @@ class ExpressionBuilderPaneTest {
             assertEquals(colon.y(), food.y(), frame.drawn().toString());
             assertTrue(food.x() > colon.x(), food + " after " + colon);
             assertEquals(0, frame.count("="), frame.texts().toString());
+        }
+
+        /**
+         * Pressing and holding beetroot's leaf row by its rail grabs the row: the next frame darkens the screen and
+         * lights the row slot above jelly, where leaf may drop.
+         */
+        @Test
+        void leafRowsRailGrabsTheRowAndLightsWhereItMayDrop() {
+            Builder builder = Builder.item(BEETROOT);
+            GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 330, 390);
+            DrawnFrame frame = builder.frame(narrow);
+            double[] leafRail = rowRailOf(frame, 1);
+            // The rail as drawn, its grips at its middle, where a press means to take it.
+            int[] drawn = fills(frame, ControlFlow.RAIL_COLOR).stream().filter(rail -> rail[0] == (int) leafRail[0]
+                    && rail[1] <= leafRail[1] + 3 && rail[3] > leafRail[1]).findFirst()
+                    .orElseThrow(() -> new AssertionError("no rail drawn at the leaf row"));
+            int grips = (drawn[1] + drawn[3]) / 2;
+            assertTrue(frame.targets.click(leafRail[0] + 1, grips), "the leaf rail takes a press at its grips, "
+                    + java.util.Arrays.toString(drawn) + " grabbed from " + leafRail[1]);
+            assertTrue(frame.targets.drag(leafRail[0] + 1, grips + 1), "the leaf rail takes the drag");
+            DrawnFrame held = builder.frame(narrow);
+            assertFalse(fills(held, DragMask.SHADOW).isEmpty(), "the screen darkens");
+            assertFalse(fills(held, DragMask.HIGHLIGHT).isEmpty(), "a drop place lights");
+            frame.targets.release();
+        }
+
+        /**
+         * Leaf's first term, $dye's leaf, has no place to drop, since moving or deleting it would leave the
+         * subtracted parenthetical first: its rail draws dark gray and takes no press, while leaf's row rail, which
+         * may move above jelly, draws light blue.
+         */
+        @Test
+        void aRailWithNowhereToDropDrawsDarkGrayAndTakesNoPress() {
+            Builder builder = Builder.item(BEETROOT);
+            GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 330, 390);
+            DrawnFrame frame = builder.frame(narrow);
+            DrawnFrame.Text dye = frame.find("$dye");
+            int[] dyeRail = fills(frame, ControlFlow.LOCKED_RAIL_COLOR).stream().filter(rail -> rail[2] <= dye.x()
+                    && rail[1] <= dye.y() && dye.y() < rail[3]).findFirst()
+                    .orElseThrow(() -> new AssertionError("no dark gray rail before $dye"));
+            int middle = (dyeRail[1] + dyeRail[3]) / 2;
+            assertEquals(java.util.Optional.empty(), frame.targets.grabNamed(dyeRail[0] + 1, middle),
+                    "the gray rail names a grab");
+            frame.targets.click(dyeRail[0] + 1, middle);
+            frame.targets.drag(dyeRail[0] + 1, middle + 1);
+            assertEquals(List.of(), fills(builder.frame(narrow), DragMask.SHADOW), "the gray rail starts a drag");
+            double[] leafRail = rowRailOf(frame, 1);
+            assertTrue(fills(frame, ControlFlow.RAIL_COLOR).stream().anyMatch(rail -> rail[0] == (int) leafRail[0]),
+                    "leaf's row rail draws light blue");
+            frame.targets.release();
         }
 
         // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
