@@ -111,7 +111,7 @@ class ExpressionLinesTest {
 
     // A per-type prefab's member reads as its link, 's, then the member's icon.
     private static List<ExpressionLines.Run> possessive(String prefab, String member) {
-        return List.of(link(prefab), run(ExpressionLines.Kind.TEXT, "'s"), type(member));
+        return List.of(link(prefab), run(ExpressionLines.Kind.SUFFIX, "'s"), type(member));
     }
 
     /**
@@ -147,6 +147,18 @@ class ExpressionLinesTest {
     void scalarPrefabReadsAsABareLink() {
         assertEquals(List.of(link("stick"), symbol("+"), run(ExpressionLines.Kind.NUMBER, "2")),
                 ExpressionLines.shownRuns("$stick + 2", NAMES));
+    }
+
+    /**
+     * A per-type prefab's 's draws flush against its link, no gap between (decision
+     * possessive-sits-flush-against-its-word-button).
+     */
+    @Test
+    void possessiveDrawsFlushAgainstItsLink() {
+        DrawnFrame frame = drawn("{\"jelly\": \"$food.jelly\"}", 400);
+        DrawnFrame.Text food = frame.find("food");
+        DrawnFrame.Text possessive = frame.find("'s");
+        assertEquals(food.x() + DrawnFrame.font().width(food.text()), possessive.x(), frame.drawn().toString());
     }
 
     private static DrawnFrame drawn(String shown, int width) {

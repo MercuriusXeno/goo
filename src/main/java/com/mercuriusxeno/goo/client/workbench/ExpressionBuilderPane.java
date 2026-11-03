@@ -1007,7 +1007,7 @@ final class ExpressionBuilderPane {
         if (member == null) {
             return;
         }
-        flow.text(POSSESSIVE, GRAY);
+        flow.textFlush(POSSESSIVE, GRAY);
         flow.typeIcon(member, at -> overlays.openPicker(at, type -> apply(b -> b.setMember(path, type)),
                 place.inRow() ? null : () -> apply(b -> b.setMember(path, null))));
     }
