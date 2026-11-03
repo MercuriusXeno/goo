@@ -146,8 +146,7 @@ final class ButtonPainter {
     // ink in the box, between whole pixels where the halves fall there, so an operator's + or - stands in the middle
     // of its button (the operator saw them too far left and slightly too high). Answers where the label stood, its
     // left edge then its top, rounded to whole pixels.
-    private static int[] drawLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
-                                   int color) {
+    static int[] drawLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box, int color) {
         if (lettering.isFull()) {
             lettering.draw(graphics, label, box.left() + PADDING, box.top() + TEXT_NUDGE, color);
             return new int[] {box.left() + PADDING, box.top() + TEXT_NUDGE};

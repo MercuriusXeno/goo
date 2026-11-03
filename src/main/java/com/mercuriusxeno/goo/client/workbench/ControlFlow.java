@@ -49,6 +49,8 @@ final class ControlFlow {
     // border, and three grip lines mark it as a rail.
     private static final int GRIP_LINES = 3;
     private static final int GRIP_PITCH = 2;
+    /** A rail segment's width: the rail and the border either side of it. */
+    static final int RAIL_SEGMENT_WIDTH = RAIL_WIDTH + 2;
     /** How far a rail moves the next piece: its width and a gap. */
     static final int RAIL_ADVANCE = RAIL_WIDTH + GAP;
     /** A drag rail's fill. */
@@ -99,6 +101,11 @@ final class ControlFlow {
     // paintRails draws and arms once the pane knows which can drag.
     private final Deque<RailGrab> openRails = new ArrayDeque<>();
     private final List<LaidRail> laidRails = new ArrayList<>();
+    // The segmented container open: its left, its top and height, and the left the next segment's border takes.
+    private int segmentsLeft;
+    private int segmentsTop;
+    private int segmentsHeight;
+    private int nextSegmentLeft;
 
     /**
      * @param graphics the frame's graphics
@@ -355,21 +362,6 @@ final class ControlFlow {
 
     private static Component boldParen(String paren) {
         return Component.literal(paren).withStyle(BOLD);
-    }
-
-    /**
-     * Words drawn flush against the piece before them, no gap between, as a member's 's against its prefab's button
-     * (decision possessive-sits-flush-against-its-word-button).
-     *
-     * @param text  the words
-     * @param color their color
-     */
-    void textFlush(String text, int color) {
-        x -= GAP;
-        int width = letters.width(text);
-        letters.draw(graphics, text, x, wordsTop(), color);
-        markText(width);
-        x += width + GAP;
     }
 
     // A piece filling its line's height, as a goo type's button stands.
@@ -696,17 +688,6 @@ final class ControlFlow {
     }
 
     /**
-     * Draws a rail down its box's left edge on the box's first line, as a term's box takes that line alone.
-     *
-     * @param start where the rail stood
-     * @param depth how many boxes hold it, its own and a type row's included
-     */
-    void drawRailOnLine(BuilderOverlays.Anchor start, int depth) {
-        GroupsPane.Bounds box = boxFrom(start, depth);
-        drawRail(start.x(), box.top() + 1, box.bottom() - 1);
-    }
-
-    /**
      * Draws a rail and its three grip lines centered in it (decision rails-fill-the-left-edge-of-their-box).
      *
      * @param left   the rail's left edge, flush inside its box's left border
@@ -811,20 +792,6 @@ final class ControlFlow {
     }
 
     /**
-     * Outlines the pieces drawn since the place given, where they stand on its line, as a term and its rail read as
-     * one unit (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
-     *
-     * @param start where the first piece stood
-     * @param depth how many boxes hold it, its own and a type row's included
-     */
-    void outlineFrom(BuilderOverlays.Anchor start, int depth) {
-        if (start.y() != y) {
-            return;
-        }
-        outlineBox(boxFrom(start, depth), OUTLINE_COLOR);
-    }
-
-    /**
      * Tints the box from the place given to the pieces drawn since: on one line, from there to the last piece; across
      * lines, from there to the area's right edge, a border and a pixel in per depth so a box inside a box shows its
      * own edge (decisions parentheticals-alternate-gray-tones-by-depth,
@@ -898,6 +865,173 @@ final class ControlFlow {
             targets.addHover(railed.left(), railed.top(), railed.width(), railed.height(), hoverKey);
         }
         x = railed.right() + GAP;
+    }
+
+    /**
+     * @param widths each segment's own width, its two borders included
+     * @return how wide the segments stand abutted, each sharing its left border with the right border of the one
+     *     before it (decision containers-segment-into-click-to-edit-buttons)
+     */
+    static int abutted(int... widths) {
+        int total = 0;
+        for (int width : widths) {
+            total += width;
+        }
+        return widths.length == 0 ? 0 : total - (widths.length - 1);
+    }
+
+    /**
+     * @param letters the words' font and scale
+     * @param text    words a segment holds that take no click, as a ratio's colon
+     * @return the segment's width: its glyphs, a clear pixel either side and its two borders
+     */
+    static int textSegmentWidth(Lettering letters, String text) {
+        return 1 + CLEAR + letters.inkWidth(text) + CLEAR + 1;
+    }
+
+    /**
+     * @param letters    the words' font and scale
+     * @param possessive the words before the icon, as a member's 's
+     * @param type       the goo type's id
+     * @return the segment's width: a clear pixel, the words' glyphs, the icon with a pixel either side, and its two
+     *     borders
+     */
+    static int typeSegmentWidth(Lettering letters, String possessive, String type) {
+        return 1 + CLEAR + letters.inkWidth(possessive) + ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type)) + 1;
+    }
+
+    /**
+     * @param letters the words' font and scale
+     * @param runs    curated runs a segment holds
+     * @return the segment's width: the runs and a button's padding either side
+     */
+    static int runsSegmentWidth(Lettering letters, List<ExpressionLines.Run> runs) {
+        return ExpressionLines.width(letters, runs) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+    }
+
+    /**
+     * @param runs runs a segmented container holds
+     * @return the height the container stands: the builder's line, or a 16 px item sprite's taller line
+     */
+    int segmentsHeight(List<ExpressionLines.Run> runs) {
+        return runs.stream().anyMatch(run -> run.kind() == ExpressionLines.Kind.ITEM) ? ExpressionLines.ICON_LINE_HEIGHT
+                : line;
+    }
+
+    /**
+     * Opens a segmented container: its elements draw as abutting buttons sharing their borders, no outline or padding
+     * around them, each as tall as the container, which centers on the line (decision
+     * containers-segment-into-click-to-edit-buttons). A container too wide for the rest of the line starts the next.
+     *
+     * @param width  the segments' width abutted
+     * @param height the container's height, the tallest segment's
+     */
+    void openSegments(int width, int height) {
+        reserve(width);
+        segmentsLeft = x;
+        segmentsHeight = height;
+        segmentsTop = y - (height - line) / HALF;
+        nextSegmentLeft = x;
+        lineOverhang = Math.max(lineOverhang, y - segmentsTop);
+    }
+
+    // The next segment's frame, its left border the right border of the one before.
+    private ButtonPainter.Box nextSegment(int width) {
+        ButtonPainter.Box box = new ButtonPainter.Box(nextSegmentLeft, segmentsTop, width, segmentsHeight);
+        ButtonPainter.drawFrame(graphics, box);
+        nextSegmentLeft = box.right() - 1;
+        return box;
+    }
+
+    /**
+     * A rail as the container's segment, its press dragging the whole container; it draws once the frame knows
+     * whether the thing it drags has a place to drop (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     *
+     * @param name what the rail drags
+     * @param grab what the press, each drag and the release move
+     */
+    void railSegment(String name, ClickTargets.PointerGrab grab) {
+        ButtonPainter.Box box = nextSegment(RAIL_SEGMENT_WIDTH);
+        laidRails.add(new LaidRail(box.left() + 1, box.top() + 1, box.top() + box.height() - 1,
+                new RailGrab(grab, name)));
+    }
+
+    /**
+     * A segment whose label centers in it and whose click edits the element it names.
+     *
+     * @param label   its label
+     * @param hint    what it does, shown on hover
+     * @param pressed takes where it was clicked
+     */
+    void labelSegment(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
+        ButtonPainter.Box box = nextSegment(ButtonPainter.width(letters, label));
+        ButtonPainter.drawLabel(graphics, letters, label, box, LINK);
+        ButtonPainter.reserve(targets, box, () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)),
+                BuilderOverlays.hintKey(hint));
+    }
+
+    /**
+     * A segment holding words that take no click, a clear pixel either side of their glyphs, as a ratio's colon
+     * stands between its two boxes (decision ratio-colon-takes-no-spaces, as the operator corrected it).
+     *
+     * @param text  the words
+     * @param color their color
+     */
+    void textSegment(String text, int color) {
+        ButtonPainter.Box box = nextSegment(textSegmentWidth(letters, text));
+        letters.draw(graphics, text, box.left() + 1 + CLEAR, wordsTop(), color);
+    }
+
+    /**
+     * A segment holding words and then a goo type's icon, as a member's 's and its type, whose click edits the type.
+     *
+     * @param possessive the words before the icon
+     * @param type       the goo type's id
+     * @param pressed    takes where it was clicked
+     */
+    void typeSegment(String possessive, String type, Consumer<BuilderOverlays.Anchor> pressed) {
+        ButtonPainter.Box box = nextSegment(typeSegmentWidth(letters, possessive, type));
+        int wordsLeft = box.left() + 1 + CLEAR;
+        letters.draw(graphics, possessive, wordsLeft, wordsTop(), WHITE);
+        int size = GooTypeIcons.sizeOf(type);
+        GooTypeIcons.blit(graphics, type, wordsLeft + letters.inkWidth(possessive) + ButtonPainter.ICON_PADDING,
+                box.top() + GooTypeIcons.centered(box.height(), size));
+        targets.add(box.left(), box.top(), box.width(), box.height(),
+                () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)), GooTypeIcons.pickHoverKey(type));
+    }
+
+    /**
+     * Curated runs as a segment, a plain left click on it running the action where one is given and a shift + left
+     * click on a reference among them opening its prefab (decision shift-left-click-follows-plain-left-modifies).
+     *
+     * @param runs    the runs
+     * @param pressed takes where they were clicked, null for no click
+     */
+    void runsSegment(List<ExpressionLines.Run> runs, @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
+        ButtonPainter.Box box = nextSegment(runsSegmentWidth(letters, runs));
+        if (pressed != null) {
+            targets.add(box.left(), box.top(), box.width(), box.height(),
+                    () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)), null);
+        }
+        ExpressionLines.draw(letters, runs, new ExpressionLines.Span(box.left() + ButtonPainter.PADDING, box.top(),
+                ExpressionLines.width(letters, runs) + 1, box.height()), new ExpressionLines.Painter(graphics, icons,
+                targets, pressed == null ? WHITE : LINK, LINK, ExpressionLines.followedOnShiftClick(targets, followRef)));
+    }
+
+    /**
+     * Ends the segmented container, the next piece standing a gap past it; the boxes holding it size around it.
+     *
+     * @return the container's bounds, the union of its segments
+     */
+    GroupsPane.Bounds closeSegments() {
+        int containerRight = nextSegmentLeft + 1;
+        int bottom = segmentsTop + segmentsHeight;
+        for (int[] box : contents) {
+            box[0] = Math.min(box[0], segmentsTop);
+            box[1] = Math.max(box[1], bottom);
+        }
+        x = containerRight + GAP;
+        return new GroupsPane.Bounds(segmentsLeft, segmentsTop, containerRight, bottom);
     }
 
     /**

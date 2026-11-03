@@ -253,21 +253,6 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * Every box a builder draws, a term's outline, a parenthetical's border and a type row's outline, keeps a clear
-     * pixel between its border and every other box's border, so a parenthetical inside a parenthetical, a term inside
-     * a parenthetical and a term or parenthetical inside a type row each stand a pixel of padding inside the box
-     * holding them on every side, inline as before, the lines growing taller per depth; and no border shares a pixel
-     * with a button (decision drag-rail-containers-keep-a-pixel-between-borders).
-     */
-    @Test
-    void railBoxesKeepAPixelBetweenBordersAtEveryDepth() {
-        for (String shown : List.of("$waxed + ($edited + ($base + $waxed))", "$waxed + (($base + $waxed) + $edited)",
-                "$waxed + (($base + $waxed))", "{\"metal\": \"$base + ($waxed + ($edited))\", \"pulse\": \"2\"}")) {
-            assertBordersKeepAPixelApart(Builder.item(shown).frame(), shown);
-        }
-    }
-
-    /**
      * Every box sizes to its own contents, its border one clear pixel above its topmost and below its bottommost
      * button or inner box, however deep a box elsewhere in the value nests, so a shallow box stands as tight as the
      * innermost one (decision drag-rail-containers-keep-a-pixel-between-borders).
@@ -319,6 +304,12 @@ class ExpressionBuilderPaneTest {
         assertTrue(inner[0] > outer[0], "the inner rail stands right of the outer one");
     }
 
+    // Where a later term's segmented container opens: its join's segment, whose right border the rail's segment shares
+    // a pixel left of the rail (decision containers-segment-into-click-to-edit-buttons).
+    private static int containerLeft(DrawnFrame frame, double[] rail) {
+        return frame.buttonAround((int) rail[0] - 2, (int) rail[1])[0];
+    }
+
     // Whether two texts stand on one builder line, their tops within half a line.
     private static boolean onOneLine(DrawnFrame.Text one, DrawnFrame.Text other) {
         return Math.abs(one.y() - other.y()) < HALF_LINE;
@@ -329,37 +320,6 @@ class ExpressionBuilderPaneTest {
         List<int[]> sides = fills(frame, color);
         assertEquals(0, sides.size() % 4, "four sides a box");
         return IntStream.range(0, sides.size() / 4).mapToObj(box -> sides.subList(box * 4, box * 4 + 4)).toList();
-    }
-
-    private static void assertBordersKeepAPixelApart(DrawnFrame frame, String shown) {
-        List<List<int[]>> boxes = new ArrayList<>(boxesIn(frame, ExpressionBuilderPane.NEST_BORDER));
-        boxes.addAll(boxesIn(frame, ControlFlow.OUTLINE_COLOR));
-        assertTrue(boxes.size() >= 4, shown + ": boxes drawn " + boxes.size());
-        for (int one = 0; one < boxes.size(); one++) {
-            for (int other = one + 1; other < boxes.size(); other++) {
-                for (int[] side : boxes.get(one)) {
-                    for (int[] near : boxes.get(other)) {
-                        // Grown a pixel each way, a border touching the other proves no clear pixel between them.
-                        assertFalse(overlaps(side, new int[] {near[0] - 1, near[1] - 1, near[2] + 1, near[3] + 1}),
-                                shown + ": the border " + java.util.Arrays.toString(side) + " has no clear pixel to "
-                                        + java.util.Arrays.toString(near));
-                    }
-                }
-            }
-        }
-        for (int[] button : fills(frame, ButtonPainter.BORDER)) {
-            for (List<int[]> box : boxes) {
-                for (int[] side : box) {
-                    assertFalse(overlaps(side, button), shown + ": the border " + java.util.Arrays.toString(side)
-                            + " touches the button " + java.util.Arrays.toString(button));
-                }
-            }
-        }
-    }
-
-    // Whether two rectangles, as left, top, right, bottom with the right and bottom outside, share a pixel.
-    private static boolean overlaps(int[] one, int[] other) {
-        return one[0] < other[2] && other[0] < one[2] && one[1] < other[3] && other[1] < one[3];
     }
 
     /**
@@ -515,14 +475,21 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * A term's, a parenthetical's and a type row's rail fills its box's left edge, flush against the inside of the
-     * border from top to bottom, with three one-pixel grip lines inside it (decision rails-fill-the-left-edge-of-
-     * their-box).
+     * A parenthetical's and a type row's rail fills its box's left edge, flush against the inside of the border from
+     * top to bottom, with three one-pixel grip lines inside it (decision rails-fill-the-left-edge-of-their-box); a
+     * plain term's rail fills its own segment, flush inside the segment's border (decision
+     * containers-segment-into-click-to-edit-buttons).
      */
     @Test
     void railsFillTheLeftEdgeOfTheirBoxes() {
         DrawnFrame frame = Builder.item("$base + $waxed + ($waxed - $edited)").frame();
-        assertRailFillsItsBox(frame, railOf(frame, List.of(1)), ControlFlow.OUTLINE_COLOR);
+        double[] term = railOf(frame, List.of(1));
+        int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream().filter(fill -> fill[0] == (int) term[0]
+                && fill[1] <= term[1] && fill[3] > term[1]).findFirst()
+                .orElseThrow(() -> new AssertionError("no rail fill at " + term[0] + "," + term[1]));
+        assertEquals(List.of(rail[0] - 1, rail[1] - 1, rail[2] + 1, rail[3] + 1),
+                java.util.Arrays.stream(frame.buttonAround(rail[0], rail[1])).boxed().toList(),
+                "the term's rail fills its segment inside the border");
         assertRailFillsItsBox(frame, railOf(frame, List.of(2)), ExpressionBuilderPane.NEST_BORDER);
         DrawnFrame typed = Builder.item(TWO_TYPES).frame();
         assertRailFillsItsBox(typed, rowRailOf(typed, 0), ControlFlow.OUTLINE_COLOR);
@@ -549,9 +516,9 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * A parenthetical's box draws a one-pixel border in its own color around its fill, and sibling term boxes stand
-     * the term margin apart; the box padding and the margin both read wider than before (decision
-     * parentheticals-alternate-gray-tones-by-depth).
+     * A parenthetical's box draws a one-pixel border in its own color around its fill, and sibling terms' segmented
+     * containers stand the term margin apart, the room between containers kept as the operator ruled when they were
+     * segmented (decision parentheticals-alternate-gray-tones-by-depth).
      */
     @Test
     void parentheticalBoxesDrawABorderAndTermBoxesTakeRoom() {
@@ -567,16 +534,13 @@ class ExpressionBuilderPaneTest {
         int borderBottom = border.stream().mapToInt(side -> side[3]).max().orElseThrow();
         assertTrue(borderLeft < fill[0] && borderTop < fill[1] && borderRight > fill[2] && borderBottom > fill[3],
                 "the border encloses the fill " + java.util.Arrays.toString(fill));
-        double[] waxed = railOf(frame, List.of(0));
-        double[] edited = railOf(frame, List.of(1));
-        // The vertical outline sides on the line, left to right: waxed's left and right, then edited's.
-        List<int[]> sides = fills(frame, ControlFlow.OUTLINE_COLOR).stream()
-                .filter(side -> side[2] - side[0] == 1 && side[1] <= waxed[1] && side[3] > waxed[1])
-                .sorted(java.util.Comparator.comparingInt(side -> side[0])).toList();
-        assertTrue(sides.size() >= 3 && sides.get(2)[0] < edited[0], "outline sides " + sides.size());
-        int waxedRight = sides.get(1)[2];
-        int editedLeft = sides.get(2)[0];
-        assertEquals(ExpressionBuilderPane.TERM_MARGIN, editedLeft - waxedRight, "the room between sibling boxes");
+        // Edited's container opens on its join's segment; waxed's ends on the last segment left of it.
+        DrawnFrame.Text join = frame.findFirst("+");
+        int editedLeft = frame.buttonAround(join)[0];
+        int waxedRight = fills(frame, ButtonPainter.BORDER).stream().filter(segment -> segment[2] <= editedLeft
+                && segment[1] <= join.y() && join.y() < segment[3]).mapToInt(segment -> segment[2]).max()
+                .orElseThrow();
+        assertEquals(ExpressionBuilderPane.TERM_MARGIN, editedLeft - waxedRight, "the room between siblings");
     }
 
     /**
@@ -722,6 +686,115 @@ class ExpressionBuilderPaneTest {
                 int gap = typeBoxes.get(index)[1] - typeBoxes.get(index - 1)[3];
                 assertTrue(gap >= RowLayout.BUTTON_GAP, value + ": row " + index + " stands " + gap + " below");
             }
+        }
+    }
+
+    /**
+     * A plain term draws as one segmented container: its rail, its operand, its 's goo type, its multiplier, its
+     * colon and its divisor as abutting buttons sharing their borders, each editing what it names, with no outline or
+     * padding around them (decision containers-segment-into-click-to-edit-buttons).
+     */
+    @Nested
+    class SegmentedTerms {
+        private static final String TERM = "3 $waxed.metal / 2";
+
+        // The term's segments left to right: its rail's, its operand's, its type's, its multiplier's, its colon's
+        // and its divisor's, each as left, top, right and bottom.
+        private static List<int[]> segments(DrawnFrame frame) {
+            DrawnFrame.Text waxed = frame.find("$waxed");
+            List<int[]> rails = new ArrayList<>(fills(frame, ControlFlow.RAIL_COLOR));
+            rails.addAll(fills(frame, ControlFlow.LOCKED_RAIL_COLOR));
+            int[] rail = rails.stream().filter(fill -> fill[2] - fill[0] == ControlFlow.RAIL_WIDTH
+                    && fill[2] <= waxed.x() && fill[1] <= waxed.y() && waxed.y() < fill[3])
+                    .max(java.util.Comparator.comparingInt(fill -> fill[0]))
+                    .orElseThrow(() -> new AssertionError("no rail before " + waxed));
+            int[] icon = iconBlits(frame).stream().filter(blit -> blit[0] > waxed.x()
+                    && Math.abs(blit[1] - waxed.y()) < ControlFlow.LINE).findFirst()
+                    .orElseThrow(() -> new AssertionError("no metal icon after " + waxed));
+            return List.of(frame.buttonAround(rail[0], rail[1]), frame.buttonAround(waxed),
+                    frame.buttonAround(icon[0], icon[1]), frame.buttonAround(frame.findFirst("3")),
+                    frame.buttonAround(frame.findFirst(":")), frame.buttonAround(frame.findFirst("2")));
+        }
+
+        /**
+         * Each segment's left border is the right border of the segment before it, the rail's first and the
+         * divisor's last, and no outline rings them.
+         */
+        @Test
+        void termSegmentsAbutSharingTheirBordersWithNoRing() {
+            DrawnFrame frame = Builder.item(TERM).frame();
+            List<int[]> segments = segments(frame);
+            for (int index = 1; index < segments.size(); index++) {
+                assertEquals(segments.get(index - 1)[2] - 1, segments.get(index)[0], "segment " + index
+                        + " shares its left border with the one before: " + segments.stream()
+                        .map(java.util.Arrays::toString).toList());
+            }
+            int left = segments.getFirst()[0];
+            int right = segments.getLast()[2];
+            assertEquals(List.of(), fills(frame, ControlFlow.OUTLINE_COLOR).stream().filter(fill -> fill[0] <= left
+                    && fill[2] >= right).map(java.util.Arrays::toString).toList(), "an outline rings the segments");
+        }
+
+        /**
+         * The operand's segment opens the term list, the type's the goo type picker, and the multiplier's and the
+         * divisor's the number box.
+         */
+        @Test
+        void eachSegmentOpensItsEditor() {
+            Builder operand = Builder.item(TERM);
+            DrawnFrame frame = operand.frame();
+            int[] waxed = segments(frame).get(1);
+            assertTrue(frame.targets.click(waxed[0] + 1, waxed[1] + 1), "the operand takes no click");
+            assertTrue(operand.frame().texts().contains("$edited"), "the term list opens");
+            Builder type = Builder.item(TERM);
+            DrawnFrame typed = type.frame();
+            int[] metal = segments(typed).get(2);
+            assertTrue(typed.targets.click(metal[2] - 2, metal[1] + 1), "the type takes no click");
+            assertTrue(type.pane.listOpen(), "the goo type picker opens");
+            for (int side = 3; side <= 5; side += 2) {
+                Builder ratio = Builder.item(TERM);
+                DrawnFrame drawn = ratio.frame();
+                int[] box = segments(drawn).get(side);
+                assertTrue(drawn.targets.click(box[0] + 1, box[1] + 1), "side " + side + " takes no click");
+                ratio.commitNumber("7");
+                assertTrue(ratio.written.getLast().contains("7"), ratio.written.toString());
+            }
+        }
+
+        /**
+         * A press on the rail's segment and a release past the next term moves the whole term there.
+         */
+        @Test
+        void railSegmentDragsTheWholeTerm() {
+            Builder builder = Builder.item(TERM + " + $edited");
+            DrawnFrame frame = builder.frame();
+            int[] rail = segments(frame).getFirst();
+            assertTrue(frame.targets.click(rail[0] + 2, rail[1] + 2), "the rail takes no press");
+            assertTrue(frame.targets.drag(AREA.right() - 40, frame.find("$edited").y()));
+            builder.frame();
+            frame.targets.release();
+            assertEquals("$edited + " + TERM, builder.written.getLast());
+        }
+
+        /**
+         * The term's container is exactly its segments' union, the () handle's mark over it reading from the
+         * rail's left to the divisor's right and from the tallest segment's top to its bottom.
+         */
+        @Test
+        void termContainerIsExactlyItsSegmentsUnion() {
+            Builder builder = Builder.item(TERM);
+            DrawnFrame frame = builder.frame();
+            List<int[]> segments = segments(frame);
+            clickAt(frame, handles(frame).getFirst());
+            DrawnFrame.Text waxed = frame.find("$waxed");
+            assertTrue(frame.targets.drag(waxed.x() + 1, waxed.y() + 1));
+            List<int[]> marks = fills(builder.frame(), ExpressionBuilderPane.WRAP_MARK);
+            assertEquals(1, marks.size(), "one wrap mark");
+            int top = segments.stream().mapToInt(segment -> segment[1]).min().orElseThrow();
+            int bottom = segments.stream().mapToInt(segment -> segment[3]).max().orElseThrow();
+            assertEquals(List.of(segments.getFirst()[0], top, segments.getLast()[2], bottom),
+                    java.util.Arrays.stream(marks.getFirst()).boxed().toList(), "the container's bounds");
+            frame.targets.release();
         }
     }
 
@@ -879,23 +952,26 @@ class ExpressionBuilderPaneTest {
                 assertEquals(rails.getFirst()[1], rails.get(index)[1], "term " + index + " shares the first's line");
             }
             assertTrue(wrapped > 1, "a second term fits beside the first");
-            assertEquals((int) rowRail[0] + ControlFlow.INDENT, (int) rails.get(wrapped)[0], "the wrap's indent");
+            assertEquals((int) rowRail[0] + ControlFlow.INDENT, containerLeft(frame, rails.get(wrapped)),
+                    "the wrap's indent");
             assertEquals(List.of(), frame.drawn().stream().filter(text -> text.x()
                     + LETTERS.width(text.text()) > CONTENT_RIGHT).toList(), "text past the right edge");
         }
     }
 
     /**
-     * A per-type prefab's 's draws flush against its word's button, no gap between (decision
-     * possessive-sits-flush-against-its-word-button).
+     * A per-type prefab's 's draws in the segment after its word's, which shares the word's right border, one clear
+     * pixel past it, no gap between (decisions possessive-sits-flush-against-its-word-button,
+     * containers-segment-into-click-to-edit-buttons).
      */
     @Test
     void possessiveSitsFlushAgainstItsWordButton() {
         DrawnFrame frame = Builder.item("{\"jelly\": \"$food.jelly\"}").frame();
         DrawnFrame.Text food = frame.find("$food");
         DrawnFrame.Text possessive = frame.find("'s");
-        assertEquals(food.x() + LETTERS.width(food.text()) + ButtonPainter.PADDING, possessive.x(),
-                frame.drawn().toString());
+        int[] word = frame.buttonAround(food);
+        assertEquals(word[2] - 1, frame.buttonAround(possessive)[0], "the 's segment shares the word's border");
+        assertEquals(word[2] + 1, possessive.x(), frame.drawn().toString());
     }
 
     private static void assertRests(DrawnFrame frame) {
@@ -966,9 +1042,8 @@ class ExpressionBuilderPaneTest {
         DrawnFrame frame = Builder.item(TWO_TYPES).frame();
         for (int row = 0; row < 2; row++) {
             double[] rail = rowRailOf(frame, row);
-            int line = (int) rail[1] / ControlFlow.LINE;
-            int icon = iconBlits(frame).stream().filter(blit -> blit[1] / ControlFlow.LINE == line)
-                    .mapToInt(blit -> blit[0]).min().orElseThrow(() -> new AssertionError("no icon on " + line));
+            int icon = iconBlits(frame).stream().filter(blit -> Math.abs(blit[1] - rail[1]) < ControlFlow.LINE)
+                    .mapToInt(blit -> blit[0]).min().orElseThrow(() -> new AssertionError("no icon by " + rail[1]));
             assertTrue(rail[0] < icon, "row " + row + "'s rail at " + rail[0] + " vs its icon at " + icon);
         }
         assertTrue(frame.texts().stream().noneMatch("X"::equals), frame.drawn().toString());
@@ -1240,9 +1315,9 @@ class ExpressionBuilderPaneTest {
             DrawnFrame.Text food = frame.findFirst("$food");
             DrawnFrame.Text saturation = frame.findFirst("$saturation");
             assertTrue(saturation.y() > food.y(), frame.drawn().toString());
-            // A wrapped term's line opens on its rail, one indent in under the type.
+            // A wrapped term's line opens on its container, one indent in under the type.
             double[] saturationRail = railOf(frame, List.of(0, 1));
-            assertEquals(typeLeft + ControlFlow.INDENT + BOX_ROOM, (int) saturationRail[0], frame.drawn().toString());
+            assertEquals(typeLeft + ControlFlow.INDENT, containerLeft(frame, saturationRail), frame.drawn().toString());
             assertEquals(lineOf(frame, saturation.y()), lineOf(frame, (int) saturationRail[1]));
             DrawnFrame.Text dye = frame.find("$dye");
             DrawnFrame.Text minus = frame.drawn().stream().filter(text -> text.text().equals("-")
