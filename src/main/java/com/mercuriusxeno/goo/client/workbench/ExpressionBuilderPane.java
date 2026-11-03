@@ -312,8 +312,6 @@ final class ExpressionBuilderPane {
         // Decision builder-font-and-spacing-shrink-padding-untouched: the builder letters its words smaller.
         ControlFlow flow = ControlFlow.lettered(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
-        // Decision drag-rail-containers-keep-a-pixel-between-borders: the lines grow taller per box depth.
-        flow.padForBoxes(boxDepth(edited));
         drawKind(flow, edited);
         drawValue(flow, edited);
         drawClosing(flow, edited);
@@ -678,8 +676,6 @@ final class ExpressionBuilderPane {
         Set<String> held = BuilderGrammar.heldTypes(edited);
         flow.indent();
         rowSlots.add(new RowSlot(edited.rows().size(), flow.anchor()));
-        // Decision plus-question-and-equals-align-with-the-other-lines.
-        flow.alignToBoxBorder();
         if (held.size() < GooTypes.order().size()) {
             flow.squareControl(ADD_TYPE, ADD_TYPE_HINT, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
                     null, held));
@@ -711,11 +707,12 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // Each row one indent in: its rail, [type]: then its terms inline, wrapping one indent further in; a row slot
-    // stands before each row and before [+?].
+    // Each row one indent in: its goo type button, its rail the button's first segment, then its colon and its terms
+    // inline, wrapping one indent further in, no box drawn around the row; a row slot stands before each row and
+    // before [+?].
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
-    // Decision type-rows-drag-by-a-rail-to-reorder-or-trash: the rail left of the goo icon, and no x, the trash
-    // strip deleting the row.
+    // Decision type-rows-drag-by-a-rail-to-reorder-or-trash: no x, the trash strip deleting the row.
+    // Decision type-row-rail-sits-on-the-goo-type-button-with-no-box: the rail moves the row's terms with it.
     private void drawRows(ControlFlow flow, ExpressionBuilder edited) {
         List<ExpressionBuilder.Row> rows = edited.rows();
         Set<String> held = BuilderGrammar.heldTypes(edited);
@@ -723,32 +720,21 @@ final class ExpressionBuilderPane {
             ExpressionBuilder.Row row = rows.get(index);
             int at = index;
             flow.indent();
-            BuilderOverlays.Anchor start = flow.anchor();
-            rowSlots.add(new RowSlot(index, start));
+            rowSlots.add(new RowSlot(index, flow.anchor()));
             rowRails.put(rowRailName(index), index);
-            flow.railTarget(rowRailName(index), new RowDrag(index, row.type()),
-                    typeLeadWidth(flow.letters(), row.type()));
-            flow.typeIcon(row.type(), anchor -> overlays.openPicker(anchor,
+            flow.openSegments(ControlFlow.abutted(ControlFlow.RAIL_SEGMENT_WIDTH,
+                    ButtonPainter.iconWidth(GooTypeIcons.sizeOf(row.type()))), ControlFlow.LINE);
+            flow.railSegment(rowRailName(index), new RowDrag(index, row.type()));
+            flow.typeSegment(BLANK, row.type(), anchor -> overlays.openPicker(anchor,
                     type -> apply(b -> b.setRowType(at, type)), null, held));
+            flow.closeSegments();
             flow.text(ExpressionLines.COLON, GRAY);
             drawSum(flow, List.of(index), row.pieces(), new Place(BuilderGrammar.NUMBER_SORT, row.type()));
-            // Decision rails-fill-the-left-edge-of-their-box: the row reads as one outlined box, its rail down the
-            // box's whole left edge.
-            GroupsPane.Bounds box = flow.boxFrom(start, 1);
-            flow.outlineBox(box, ControlFlow.OUTLINE_COLOR);
-            flow.drawRail(start.x(), box.top() + 1, box.bottom() - 1);
-            flow.closeBox();
             flow.outdent(ControlFlow.INDENT);
             // Decision type-rows-stand-apart-in-the-builder: the next row's buttons stand a button gap below.
             flow.gapBelow(RowLayout.BUTTON_GAP);
         }
         drawAddType(flow, edited);
-    }
-
-    // The goo type button and colon after a row's rail, which the rail keeps on its line.
-    private static int typeLeadWidth(Lettering letters, String type) {
-        return ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type)) + BuilderOverlays.GAP
-                + letters.width(ExpressionLines.COLON);
     }
 
     /**
@@ -821,8 +807,6 @@ final class ExpressionBuilderPane {
         drawSum(flow, List.of(), pieces, new Place(sort, null));
         // Decision parenthetical-handle-drags-onto-a-term: the () handle below the terms, where [+?] stands for rows.
         flow.indent(0);
-        // Decision plus-question-and-equals-align-with-the-other-lines.
-        flow.alignToBoxBorder();
         drawHandle(flow);
         drawSignHandles(flow);
         flow.outdent(ControlFlow.INDENT);
@@ -1085,12 +1069,6 @@ final class ExpressionBuilderPane {
 
     private static int depthOf(List<Integer> path, Place place) {
         return place.inRow() ? path.size() - 1 : path.size();
-    }
-
-    // The most boxes any piece of the value stands inside: a type row's alone, since a term's and a parenthetical's
-    // segments stand in no box of their own (decision containers-segment-into-click-to-edit-buttons).
-    private static int boxDepth(ExpressionBuilder edited) {
-        return edited.isPerType() ? 1 : 0;
     }
 
     // The height a parenthetical's own segments stand: a 16 px item sprite's line where any term inside it shows one.

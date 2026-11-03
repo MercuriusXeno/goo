@@ -38,8 +38,11 @@ class ExpressionBuilderPaneTest {
     private static final int WORDS_DROP = LETTERS.centeredTop(0, ControlFlow.LINE);
     // Texts whose tops stand closer than this share a builder line.
     private static final int HALF_LINE = ControlFlow.LINE / 2;
-    // A type row's rail and the gap after it, which stand before its goo type button.
-    private static final int ROW_RAIL = ControlFlow.RAIL_ADVANCE;
+    // A type row's rail segment, whose right border its goo type's segment shares (decision
+    // type-row-rail-sits-on-the-goo-type-button-with-no-box).
+    private static final int ROW_RAIL = ControlFlow.RAIL_SEGMENT_WIDTH - 1;
+    // The outline a term's and a type row's box drew before their containers were segmented, which nothing draws now.
+    private static final int RETIRED_OUTLINE = 0x60FFFFFF;
 
     /**
      * An open builder, each frame it draws and each string it writes.
@@ -250,11 +253,6 @@ class ExpressionBuilderPaneTest {
         assertFalse(filledAround(frame, ExpressionBuilderPane.nestTone(2), edited), "the depth-two box spans edited");
     }
 
-    // A box's left, top, right and bottom from its four sides, top, bottom, left and right in the order drawn.
-    private static int[] boundsOf(List<int[]> sides) {
-        return new int[] {sides.get(2)[0], sides.get(0)[1], sides.get(3)[2], sides.get(1)[3]};
-    }
-
     /**
      * A parenthetical opening a parenthetical stays on the line of the outer one's "(", the line growing to give
      * the inner box its padding (decision drag-rail-containers-keep-a-pixel-between-borders).
@@ -278,13 +276,6 @@ class ExpressionBuilderPaneTest {
     // Whether two texts stand on one builder line, their tops within half a line.
     private static boolean onOneLine(DrawnFrame.Text one, DrawnFrame.Text other) {
         return Math.abs(one.y() - other.y()) < HALF_LINE;
-    }
-
-    // Each box's four sides, grouped as each box draws them, in the given border color.
-    private static List<List<int[]>> boxesIn(DrawnFrame frame, int color) {
-        List<int[]> sides = fills(frame, color);
-        assertEquals(0, sides.size() % 4, "four sides a box");
-        return IntStream.range(0, sides.size() / 4).mapToObj(box -> sides.subList(box * 4, box * 4 + 4)).toList();
     }
 
     /**
@@ -440,45 +431,35 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * A type row's rail fills its box's left edge, flush against the inside of the border from top to bottom, with
-     * three one-pixel grip lines inside it (decision rails-fill-the-left-edge-of-their-box); a plain term's and a
-     * parenthetical's rail fills its own segment, flush inside the segment's border (decisions
-     * containers-segment-into-click-to-edit-buttons, parens-are-segments-bounding-the-parenthetical).
+     * A plain term's, a parenthetical's and a type row's rail fills its own segment, flush inside the segment's border
+     * from top to bottom, with three one-pixel grip lines inside it (decisions rails-fill-the-left-edge-of-their-box,
+     * containers-segment-into-click-to-edit-buttons, parens-are-segments-bounding-the-parenthetical,
+     * type-row-rail-sits-on-the-goo-type-button-with-no-box).
      */
     @Test
     void railsFillTheLeftEdgeOfTheirBoxes() {
         DrawnFrame frame = Builder.item("$base + $waxed + ($waxed - $edited)").frame();
         for (List<Integer> path : List.of(List.of(1), List.of(2))) {
-            double[] term = railOf(frame, path);
-            int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream().filter(fill -> fill[0] == (int) term[0]
-                    && fill[1] <= term[1] && fill[3] > term[1]).findFirst()
-                    .orElseThrow(() -> new AssertionError("no rail fill at " + term[0] + "," + term[1]));
-            assertEquals(List.of(rail[0] - 1, rail[1] - 1, rail[2] + 1, rail[3] + 1),
-                    java.util.Arrays.stream(frame.buttonAround(rail[0], rail[1])).boxed().toList(),
-                    path + "'s rail fills its segment inside the border");
+            assertRailFillsItsSegment(frame, railOf(frame, path));
         }
         DrawnFrame typed = Builder.item(TWO_TYPES).frame();
-        assertRailFillsItsBox(typed, rowRailOf(typed, 0), ControlFlow.OUTLINE_COLOR);
+        assertRailFillsItsSegment(typed, rowRailOf(typed, 0));
     }
 
-    // The rail answering at a point stands flush inside the border of the given color on its left, top and bottom.
-    private static void assertRailFillsItsBox(DrawnFrame frame, double[] point, int borderColor) {
-        int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream()
-                .filter(fill -> fill[0] == (int) point[0] && fill[1] <= point[1] + 1 && fill[3] > point[1])
-                .findFirst().orElseThrow(() -> new AssertionError("no rail fill at " + point[0] + "," + point[1]));
+    // The rail answering at a point fills its segment one pixel inside the segment's border, its three one-pixel grip
+    // lines inside it.
+    private static void assertRailFillsItsSegment(DrawnFrame frame, double[] point) {
+        int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream().filter(fill -> fill[0] == (int) point[0]
+                && fill[1] <= point[1] && fill[3] > point[1]).findFirst()
+                .orElseThrow(() -> new AssertionError("no rail fill at " + point[0] + "," + point[1]));
+        assertEquals(List.of(rail[0] - 1, rail[1] - 1, rail[2] + 1, rail[3] + 1),
+                java.util.Arrays.stream(frame.buttonAround(rail[0], rail[1])).boxed().toList(),
+                "the rail fills its segment inside the border");
         List<int[]> grips = fills(frame, ControlFlow.GRIP_COLOR).stream()
                 .filter(fill -> fill[0] >= rail[0] && fill[2] <= rail[2] && fill[1] >= rail[1] && fill[3] <= rail[3])
                 .toList();
         assertEquals(3, grips.size(), "grip lines inside the rail");
         grips.forEach(grip -> assertEquals(1, grip[3] - grip[1], "a grip line is one pixel tall"));
-        List<int[]> border = fills(frame, borderColor);
-        assertTrue(border.stream().anyMatch(side -> side[2] == rail[0] && side[0] == rail[0] - 1
-                && side[1] <= rail[1] - 1 && side[3] >= rail[3] + 1), "no border flush left of "
-                + java.util.Arrays.toString(rail));
-        assertTrue(border.stream().anyMatch(side -> side[1] == rail[1] - 1 && side[3] == rail[1]
-                && side[0] <= rail[0] && side[2] >= rail[2]), "no border flush above " + java.util.Arrays.toString(rail));
-        assertTrue(border.stream().anyMatch(side -> side[1] == rail[3] && side[3] == rail[3] + 1
-                && side[0] <= rail[0] && side[2] >= rail[2]), "no border flush below " + java.util.Arrays.toString(rail));
     }
 
     /**
@@ -688,7 +669,7 @@ class ExpressionBuilderPaneTest {
             }
             int left = segments.getFirst()[0];
             int right = segments.getLast()[2];
-            assertEquals(List.of(), fills(frame, ControlFlow.OUTLINE_COLOR).stream().filter(fill -> fill[0] <= left
+            assertEquals(List.of(), fills(frame, RETIRED_OUTLINE).stream().filter(fill -> fill[0] <= left
                     && fill[2] >= right).map(java.util.Arrays::toString).toList(), "an outline rings the segments");
         }
 
@@ -752,6 +733,55 @@ class ExpressionBuilderPaneTest {
             assertEquals(List.of(segments.getFirst()[0], top, segments.getLast()[2], bottom),
                     java.util.Arrays.stream(marks.getFirst()).boxed().toList(), "the container's bounds");
             frame.targets.release();
+        }
+    }
+
+    /**
+     * A goo type row draws no box: its rail is the first segment of its goo type button, and its colon and terms
+     * follow on the line (decisions type-row-rail-sits-on-the-goo-type-button-with-no-box,
+     * containers-segment-into-click-to-edit-buttons).
+     */
+    @Nested
+    class TypeRowSegments {
+
+        // The row's rail segment and its goo type's icon segment, each as left, top, right and bottom.
+        private static List<int[]> typeButton(DrawnFrame frame, int row) {
+            double[] grab = rowRailOf(frame, row);
+            int[] rail = frame.buttonAround((int) grab[0], (int) grab[1]);
+            int[] icon = iconBlits(frame).stream().filter(blit -> blit[0] > rail[0]
+                    && Math.abs(blit[1] - grab[1]) < ControlFlow.LINE).min(java.util.Comparator.comparingInt(
+                            blit -> blit[0])).orElseThrow(() -> new AssertionError("no icon right of row " + row));
+            return List.of(rail, frame.buttonAround(icon[0], icon[1]));
+        }
+
+        @Test
+        void rowRailIsTheGooTypeButtonsFirstSegmentAndNoBoxRingsTheRow() {
+            DrawnFrame frame = Builder.item(TWO_TYPES).frame();
+            List<int[]> metal = typeButton(frame, 0);
+            int[] rail = metal.get(0);
+            int[] icon = metal.get(1);
+            assertEquals(rail[2] - 1, icon[0], "the icon's segment shares the rail's right border");
+            assertEquals(List.of(rail[1], rail[3]), List.of(icon[1], icon[3]), "the rail and the icon stand alike");
+            int last = frame.buttonAround(frame.findFirst("5"))[2];
+            assertEquals(List.of(), fills(frame, RETIRED_OUTLINE).stream().filter(fill -> fill[0] <= rail[0]
+                    && fill[2] >= last).map(java.util.Arrays::toString).toList(), "a box rings the row");
+        }
+
+        @Test
+        void rowRailReordersTheRowAndItsIconOpensThePicker() {
+            Builder builder = Builder.item(TWO_TYPES);
+            DrawnFrame frame = builder.frame();
+            int[] rail = typeButton(frame, 0).get(0);
+            assertTrue(frame.targets.click(rail[0] + 2, rail[1] + 2), "the rail takes no press");
+            assertTrue(frame.targets.drag(rail[0] + 2, frame.find("+?").y()));
+            builder.frame();
+            frame.targets.release();
+            assertEquals("{\"pulse\": \"2\", \"metal\": \"5\"}", builder.written.getLast());
+            Builder picking = Builder.item(TWO_TYPES);
+            DrawnFrame typed = picking.frame();
+            int[] icon = typeButton(typed, 0).get(1);
+            assertTrue(typed.targets.click(icon[0] + 2, icon[1] + 2), "the icon takes no click");
+            assertTrue(picking.pane.listOpen(), "the goo type picker opens");
         }
     }
 
@@ -876,19 +906,17 @@ class ExpressionBuilderPaneTest {
         }
 
         /**
-         * Two goo type rows stand as close as their boxes allow: the pulse row's box one clear pixel and the button
-         * gap below the metal row's, the row pitch below the 34 px it was.
+         * Two goo type rows stand as close as their buttons allow: the pulse row's rail segment the button gap below
+         * the metal row's, no box between them, the row pitch below the 34 px it was (decision
+         * type-row-rail-sits-on-the-goo-type-button-with-no-box, and the operator's ruling that the gap between type
+         * rows stays).
          */
         @Test
-        void typeRowsStandAsCloseAsTheirBoxesAllow() {
+        void typeRowsStandAsCloseAsTheirButtonsAllow() {
             DrawnFrame frame = Builder.item(TWO_TYPES).frame();
-            List<int[]> outlines = boxesIn(frame, ControlFlow.OUTLINE_COLOR).stream()
-                    .map(ExpressionBuilderPaneTest::boundsOf).toList();
-            int rowLeft = outlines.stream().mapToInt(box -> box[0]).min().orElseThrow();
-            List<int[]> rows = outlines.stream().filter(box -> box[0] == rowLeft)
-                    .sorted(java.util.Comparator.comparingInt(box -> box[1])).toList();
-            assertEquals(2, rows.size(), "a box a row");
-            assertEquals(1 + RowLayout.BUTTON_GAP, rows.get(1)[1] - rows.get(0)[3], "the clear room between rows");
+            List<int[]> rows = IntStream.range(0, 2).mapToObj(row -> rowRailOf(frame, row))
+                    .map(rail -> frame.buttonAround((int) rail[0], (int) rail[1])).toList();
+            assertEquals(RowLayout.BUTTON_GAP, rows.get(1)[1] - rows.get(0)[3], "the clear room between rows");
             List<DrawnFrame.Text> colons = frame.drawn().stream().filter(text -> text.text().equals(":")).toList();
             int colonX = colons.stream().mapToInt(DrawnFrame.Text::x).min().orElseThrow();
             List<Integer> rowColons = colons.stream().filter(colon -> colon.x() == colonX).map(DrawnFrame.Text::y)
@@ -1047,19 +1075,17 @@ class ExpressionBuilderPaneTest {
     private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
 
     /**
-     * The [+?] button's border, which opens the line [+?] () stands on, draws at the first type row's box left, in
-     * the one column the rows share (decision plus-question-and-equals-align-with-the-other-lines).
+     * The [+?] button's border, which opens the line [+?] () stands on, draws at the first type row's goo type button
+     * left, its rail segment's, in the one column the rows share (decisions
+     * plus-question-and-equals-align-with-the-other-lines, type-row-rail-sits-on-the-goo-type-button-with-no-box).
      */
     @Test
     void plusQuestionStandsAtTheTypeRowsLeft() {
         DrawnFrame frame = Builder.item(TWO_TYPES).frame();
-        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), anyInt(), anyInt(), anyInt(),
-                eq(ControlFlow.OUTLINE_COLOR));
-        // A row's box outlines after the term boxes inside it, so the leftmost outline is the rows' box left.
-        int rowLeft = lefts.getAllValues().stream().mapToInt(Integer::intValue).min().orElseThrow();
+        double[] rail = rowRailOf(frame, 0);
+        int rowLeft = frame.buttonAround((int) rail[0], (int) rail[1])[0];
         assertEquals(rowLeft, hoverCorner(frame, BuilderOverlays.hintKey("Add a goo type"))[0],
-                "the +? border at the row box's left " + rowLeft);
+                "the +? border at the row's left " + rowLeft);
     }
 
     // The top-left corner of the area hovering a key, found by its hover across the screen.
