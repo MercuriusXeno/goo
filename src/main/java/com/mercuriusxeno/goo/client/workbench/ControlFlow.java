@@ -40,13 +40,8 @@ final class ControlFlow {
     private static final int CLEAR = 1;
     /** A drag rail's width. */
     static final int RAIL_WIDTH = 6;
-    /**
-     * How far each box depth steps in from the box holding it: its border and a pixel of padding (decision
-     * drag-rail-containers-keep-a-pixel-between-borders).
-     */
-    static final int BOX_STEP = 2;
-    // Decision rails-fill-the-left-edge-of-their-box: the rail takes its box's whole left edge, flush inside the
-    // border, and three grip lines mark it as a rail.
+    // Decision rails-fill-the-left-edge-of-their-box: the rail fills its segment flush inside the border, and three
+    // grip lines mark it as a rail.
     private static final int GRIP_LINES = 3;
     private static final int GRIP_PITCH = 2;
     /** A rail segment's width: the rail and the border either side of it. */
@@ -61,7 +56,6 @@ final class ControlFlow {
     static final int LOCKED_RAIL_COLOR = 0xFF3C3C3C;
     // A locked rail's grip lines, dimmed with it.
     private static final int LOCKED_GRIP_COLOR = 0xFF5A5A5A;
-    static final int OUTLINE_COLOR = 0x60FFFFFF;
     /** How far one indent step moves a line's left edge. */
     static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
@@ -89,17 +83,10 @@ final class ControlFlow {
     private int pieceLeft;
     private int pieceTop;
     private int pieceWidth;
-    // The room above and below each line's pieces that its boxes' borders and padding take; y is the pieces' top.
-    private int pad;
-    // The boxes open around the next piece: a rail opens one and closeBox ends it.
-    private int openBoxes;
-    // Each open box's contents as top and bottom, the innermost first: every piece drawn widens every open box's
-    // contents, and a box closing widens the boxes holding it by its own bounds.
-    // Decision drag-rail-containers-keep-a-pixel-between-borders.
+    // Each open container's contents as top and bottom, the innermost first: every piece drawn widens every open
+    // container's contents, and a container closing widens the ones holding it by its own bounds.
     private final Deque<int[]> contents = new ArrayDeque<>();
-    // The rails of the boxes standing open, the innermost first, and every rail the flow laid this frame, which
-    // paintRails draws and arms once the pane knows which can drag.
-    private final Deque<RailGrab> openRails = new ArrayDeque<>();
+    // Every rail the flow laid this frame, which paintRails draws and arms once the pane knows which can drag.
     private final List<LaidRail> laidRails = new ArrayList<>();
     // The segmented container open: its left, its top and height, and the left the next segment's border takes.
     private int segmentsLeft;
@@ -187,28 +174,11 @@ final class ControlFlow {
         return Lettering.full(font).centeredTop(lineTop, LINE);
     }
 
-    /**
-     * Grows every line after the current one by a border and a pixel of padding above and below its pieces per box
-     * depth, so the boxes drawn later nest inline, each clear of the box holding it and of the buttons inside it
-     * (decision drag-rail-containers-keep-a-pixel-between-borders). The current line holds no box, as a builder's
-     * kind line holds none, so it keeps its top and the labels beside it their line.
-     *
-     * @param depth the most boxes any piece stands inside
-     */
-    void padForBoxes(int depth) {
-        pad = depth * BOX_STEP;
-    }
-
-    // One line to the next: the pieces' line and the pad above and below it, then a clear row where boxes pad the
-    // lines, so a box on one line stands clear of a box on the next.
-    private int pitch() {
-        int clear = pad == 0 ? line : line + pad + pad + 1;
-        return clear + lineOverhang + lineOverhang;
-    }
-
-    // Steps to the next line, forgetting what the last one reached past it.
+    // Steps to the next line, the line and what its tallest piece reached past it above and below, forgetting that
+    // reach; containers draw no padding, so no line grows for one (decision
+    // containers-segment-into-click-to-edit-buttons).
     private void advanceLine() {
-        y += pitch();
+        y += line + lineOverhang + lineOverhang;
         lineOverhang = 0;
     }
 
@@ -229,7 +199,7 @@ final class ControlFlow {
      * @return the y below the last line
      */
     int bottom() {
-        return y + line + pad + lineOverhang;
+        return y + line + lineOverhang;
     }
 
     /**
@@ -291,10 +261,8 @@ final class ControlFlow {
         x += width;
     }
 
-    // A piece inside boxes ends a clear pixel short of the innermost box's right border across lines.
     private void reserve(int width) {
-        int piecesRight = openBoxes == 0 ? right : right - openBoxes * BOX_STEP - 1;
-        if (x + width > piecesRight && x > lineLeft) {
+        if (x + width > right && x > lineLeft) {
             advanceLine();
             lineLeft = left + INDENT;
             x = lineLeft;
@@ -569,15 +537,6 @@ final class ControlFlow {
     }
 
     /**
-     * Stands the next piece on the column the boxes above draw their left borders on, a pixel left of the line's
-     * left edge as {@link #boxFrom} lays them, so a button opening a line lines up with the boxed lines over it
-     * (decision plus-question-and-equals-align-with-the-other-lines).
-     */
-    void alignToBoxBorder() {
-        x = lineLeft - 1;
-    }
-
-    /**
      * Moves the left edge the next lines start at, leaving the current line standing.
      *
      * @param step how far right the next lines start, negative for left
@@ -643,61 +602,6 @@ final class ControlFlow {
         targets.add(iconX, iconY, width, line,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
         x += width + GAP;
-    }
-
-    /**
-     * A rail's grab, opening its box, its drawing left for drawRail once its box's height is known, as a
-     * parenthetical's or a type row's spans every line it takes; closeBox ends the box (decision
-     * terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor). The rail hovers nothing, a control apart from the
-     * thing it drags (decision drag-rails-hover-nothing).
-     *
-     * @param name     what the rail drags
-     * @param grab     what the press, each drag and the release move
-     * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
-     * @return the rail's left edge
-     */
-    int railTarget(String name, ClickTargets.PointerGrab grab, int keepWith) {
-        reserve(RAIL_ADVANCE + keepWith);
-        pieceLeft = x;
-        pieceTop = y;
-        pieceWidth = RAIL_WIDTH;
-        contents.push(new int[] {Integer.MAX_VALUE, Integer.MIN_VALUE});
-        openRails.push(new RailGrab(grab, name));
-        int railLeft = x;
-        x += RAIL_ADVANCE;
-        openBoxes++;
-        return railLeft;
-    }
-
-    /**
-     * Ends the box the last open rail opened, so the pieces after it take the room it held.
-     */
-    void closeBox() {
-        openBoxes--;
-        openRails.pop();
-        int[] closed = contents.pop();
-        if (closed[0] <= closed[1]) {
-            for (int[] holder : contents) {
-                holder[0] = Math.min(holder[0], closed[0] - BOX_STEP);
-                holder[1] = Math.max(holder[1], closed[1] + BOX_STEP);
-            }
-        }
-    }
-
-    /**
-     * Draws a rail and its three grip lines centered in it (decision rails-fill-the-left-edge-of-their-box).
-     *
-     * @param left   the rail's left edge, flush inside its box's left border
-     * @param top    its top, flush under the box's top border
-     * @param bottom its bottom, flush over the box's bottom border
-     */
-    void drawRail(int left, int top, int bottom) {
-        RailGrab open = openRails.peek();
-        if (open == null) {
-            drawRail(graphics, left, top, bottom);
-            return;
-        }
-        laidRails.add(new LaidRail(left, top, bottom, open));
     }
 
     /**
@@ -776,19 +680,6 @@ final class ControlFlow {
     }
 
     /**
-     * Outlines a box one pixel in the color given, as a type row's box reads around its rail and terms.
-     *
-     * @param box   the box
-     * @param color the outline's color
-     */
-    void outlineBox(GroupsPane.Bounds box, int color) {
-        graphics.fill(box.left(), box.top(), box.right(), box.top() + 1, color);
-        graphics.fill(box.left(), box.bottom() - 1, box.right(), box.bottom(), color);
-        graphics.fill(box.left(), box.top(), box.left() + 1, box.bottom(), color);
-        graphics.fill(box.right() - 1, box.top(), box.right(), box.bottom(), color);
-    }
-
-    /**
      * Opens a container whose segments and inner containers span more than one segment run, as a parenthetical's
      * "(" run, its terms and its ")" run do; closeContainer answers their union.
      */
@@ -798,8 +689,8 @@ final class ControlFlow {
 
     /**
      * Ends the container openContainer opened: on one line it spans from its first segment to its last; across lines
-     * it reaches the area's right edge, inside any box holding it. Its top and bottom are its tallest piece's, with
-     * no padding (decision containers-segment-into-click-to-edit-buttons); the boxes holding it size around it.
+     * it reaches the area's right edge. Its top and bottom are its tallest piece's, with no padding (decision
+     * containers-segment-into-click-to-edit-buttons); the containers holding it size around it.
      *
      * @param first its first segment run's bounds
      * @return its bounds
@@ -807,7 +698,7 @@ final class ControlFlow {
     GroupsPane.Bounds closeContainer(GroupsPane.Bounds first) {
         int[] held = contents.pop();
         boolean oneLine = first.top() == segmentsTop;
-        int containerRight = oneLine ? x - GAP : right - openBoxes * BOX_STEP;
+        int containerRight = oneLine ? x - GAP : right;
         for (int[] holder : contents) {
             holder[0] = Math.min(holder[0], held[0]);
             holder[1] = Math.max(holder[1], held[1]);
@@ -824,26 +715,6 @@ final class ControlFlow {
      */
     void tint(GroupsPane.Bounds box, int tone) {
         graphics.fill(box.left(), box.top(), box.right(), box.bottom(), tone);
-    }
-
-    /**
-     * A box sizes to its own contents: its border and one clear pixel above the topmost piece or box it holds and
-     * below the bottommost, however deep a box elsewhere nests; across lines it reaches the area's right edge, each
-     * depth a border and a pixel in (decision drag-rail-containers-keep-a-pixel-between-borders). Called while the
-     * box stands open, before closeBox; a box holding no piece takes its lines' padded edges.
-     *
-     * @param start where the box's first piece stood
-     * @param depth how many boxes hold it, its own and a type row's included
-     * @return the box from the place given to the pieces drawn since, as tintFrom fills it
-     */
-    GroupsPane.Bounds boxFrom(BuilderOverlays.Anchor start, int depth) {
-        int inset = (depth - 1) * BOX_STEP;
-        int boxRight = start.y() == y ? x - GAP + 1 : right - inset;
-        int[] held = contents.peek();
-        if (held == null || held[0] > held[1]) {
-            return new GroupsPane.Bounds(start.x() - 1, start.y() - pad + inset, boxRight, y + line + pad - inset);
-        }
-        return new GroupsPane.Bounds(start.x() - 1, held[0] - BOX_STEP, boxRight, held[1] + BOX_STEP);
     }
 
     /**
@@ -897,13 +768,15 @@ final class ControlFlow {
 
     /**
      * @param letters    the words' font and scale
-     * @param possessive the words before the icon, as a member's 's
+     * @param possessive the words before the icon, as a member's 's, empty for none
      * @param type       the goo type's id
-     * @return the segment's width: a clear pixel, the words' glyphs, the icon with a pixel either side, and its two
-     *     borders
+     * @return the segment's width: a type-icon button's, the icon and its border either side (decision
+     *     type-icon-buttons-shrink-their-padding), widened where words stand before the icon by their glyphs, a clear
+     *     pixel before them and a clear pixel either side of the icon
      */
     static int typeSegmentWidth(Lettering letters, String possessive, String type) {
-        return 1 + CLEAR + letters.inkWidth(possessive) + ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type)) + 1;
+        int icon = ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type));
+        return possessive.isEmpty() ? icon : 1 + CLEAR + letters.inkWidth(possessive) + icon + 1;
     }
 
     /**
@@ -997,19 +870,23 @@ final class ControlFlow {
     }
 
     /**
-     * A segment holding words and then a goo type's icon, as a member's 's and its type, whose click edits the type.
+     * A segment holding a goo type's icon, words before it where given, as a member's 's and its type or a type
+     * row's goo type, whose click edits the type.
      *
-     * @param possessive the words before the icon
+     * @param possessive the words before the icon, empty for none
      * @param type       the goo type's id
      * @param pressed    takes where it was clicked
      */
     void typeSegment(String possessive, String type, Consumer<BuilderOverlays.Anchor> pressed) {
         ButtonPainter.Box box = nextSegment(typeSegmentWidth(letters, possessive, type));
-        int wordsLeft = box.left() + 1 + CLEAR;
-        letters.draw(graphics, possessive, wordsLeft, wordsTop(), WHITE);
+        int iconLeft = box.left() + ButtonPainter.ICON_PADDING;
+        if (!possessive.isEmpty()) {
+            int wordsLeft = box.left() + 1 + CLEAR;
+            letters.draw(graphics, possessive, wordsLeft, wordsTop(), WHITE);
+            iconLeft = wordsLeft + letters.inkWidth(possessive) + ButtonPainter.ICON_PADDING;
+        }
         int size = GooTypeIcons.sizeOf(type);
-        GooTypeIcons.blit(graphics, type, wordsLeft + letters.inkWidth(possessive) + ButtonPainter.ICON_PADDING,
-                box.top() + GooTypeIcons.centered(box.height(), size));
+        GooTypeIcons.blit(graphics, type, iconLeft, box.top() + GooTypeIcons.centered(box.height(), size));
         targets.add(box.left(), box.top(), box.width(), box.height(),
                 () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)), GooTypeIcons.pickHoverKey(type));
     }
