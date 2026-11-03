@@ -227,6 +227,18 @@ class ExpressionBuilderTest {
             assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly + 12 $saturation.jelly)\"}", builder);
         }
 
+        // Decision parenthetical-handle-drags-onto-a-term: the handle dropped on a term inside a parenthetical nests a
+        // group there, and dropped on the parenthetical itself wraps it in a second group.
+        @Test
+        void wrapNestsOnAnInnerTermAndOnAParentheticalItself() {
+            ExpressionBuilder inner = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            inner.wrap(List.of(1, 1));
+            assertWrites("$waxed + ($edited - ($base))", inner);
+            ExpressionBuilder outer = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            outer.wrap(List.of(1));
+            assertWrites("$waxed + (($edited - $base))", outer);
+        }
+
         @Test
         void firstTermMovesNoHigherAndLastNoLower() {
             ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited");
