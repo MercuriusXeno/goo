@@ -40,7 +40,7 @@ final class ExpressionBuilderPane {
     /** The room between sibling term boxes. */
     static final int TERM_MARGIN = 8;
     // The room a box adds inside its border past what the flow leaves, and past its last piece.
-    private static final int BOX_INSIDE = BOX_PADDING - ControlFlow.RAIL_MARGIN - 1;
+    private static final int BOX_INSIDE = BOX_PADDING - 2;
     // The room a box adds after itself past the gap the flow leaves, less the two border pixels.
     private static final int BOX_AFTER = TERM_MARGIN - BuilderOverlays.GAP + 2;
     // How far below a line's top its centered buttons start.
@@ -581,12 +581,19 @@ final class ExpressionBuilderPane {
             ExpressionBuilder.Row row = rows.get(index);
             int at = index;
             flow.indent();
-            rowSlots.add(new RowSlot(index, flow.anchor()));
-            flow.rail(rowRailHoverKey(index), new RowDrag(index, row.type()), typeLeadWidth(flow.font(), row.type()));
+            BuilderOverlays.Anchor start = flow.anchor();
+            rowSlots.add(new RowSlot(index, start));
+            flow.railTarget(rowRailHoverKey(index), new RowDrag(index, row.type()),
+                    typeLeadWidth(flow.font(), row.type()));
             flow.typeIcon(row.type(), anchor -> overlays.openPicker(anchor,
                     type -> apply(b -> b.setRowType(at, type)), null, held));
             flow.text(ExpressionLines.COLON, GRAY);
             drawSum(flow, List.of(index), row.pieces(), new Place(BuilderGrammar.NUMBER_SORT, row.type()));
+            // Decision rails-fill-the-left-edge-of-their-box: the row reads as one outlined box, its rail down the
+            // box's whole left edge.
+            GroupsPane.Bounds box = flow.boxFrom(start, 0);
+            flow.outlineBox(box, ControlFlow.OUTLINE_COLOR);
+            flow.drawRail(start.x(), box.top() + 1, box.bottom() - 1);
             flow.outdent(ControlFlow.INDENT);
             // Decision type-rows-stand-apart-in-the-builder: the next row's buttons stand a button gap below.
             flow.gapBelow(RowLayout.BUTTON_GAP);
@@ -785,27 +792,44 @@ final class ExpressionBuilderPane {
             // its own with its join, its controls too wide to share the rest of a line.
             flow.wrapLine();
         }
-        int lead = leadWidth(flow.font(), path, piece);
-        // Decision parentheticals-alternate-gray-tones-by-depth: the box's padding opens with its rail.
-        flow.fit(BOX_INSIDE + ControlFlow.RAIL_ADVANCE + lead);
-        BuilderOverlays.Anchor start = flow.anchor();
-        flow.space(BOX_INSIDE);
-        flow.rail(railHoverKey(path), new Drag(path, piece), lead);
-        if (path.getLast() > 0) {
-            drawJoin(flow, path, piece);
-        }
+        BuilderOverlays.Anchor start = drawLead(flow, path, piece);
         if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
             drawNest(flow, new Nested(path, piece, start), nest, place);
         } else {
-            drawOperand(flow, path, piece, place);
-            if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
-                drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
-            }
-            flow.space(BOX_INSIDE);
-            flow.outlineFrom(start);
-            boxes.add(new TermBox(path, flow.boxFrom(start, depthOf(path, place))));
+            drawPlainTerm(flow, new Nested(path, piece, start), place);
         }
         flow.space(BOX_AFTER);
+    }
+
+    // The term's rail and its join, kept on one line with its operand; answers where the box starts.
+    // Decision rails-fill-the-left-edge-of-their-box: the rail stands flush inside the box's left border, the padding
+    // opening right of it; a parenthetical's rail draws once its box's height is known.
+    private BuilderOverlays.Anchor drawLead(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
+        int lead = leadWidth(flow.font(), path, piece);
+        flow.fit(ControlFlow.RAIL_ADVANCE + lead);
+        BuilderOverlays.Anchor start = flow.anchor();
+        if (piece.operand() instanceof ExpressionBuilder.Nest) {
+            flow.railTarget(railHoverKey(path), new Drag(path, piece), lead);
+        } else {
+            flow.rail(railHoverKey(path), new Drag(path, piece), lead);
+        }
+        if (path.getLast() > 0) {
+            drawJoin(flow, path, piece);
+        }
+        return start;
+    }
+
+    // A term no parenthetical holds open: its operand and ratio, outlined from its rail.
+    private void drawPlainTerm(ControlFlow flow, Nested term, Place place) {
+        List<Integer> path = term.path();
+        ExpressionBuilder.Piece piece = term.piece();
+        drawOperand(flow, path, piece, place);
+        if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
+            drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+        }
+        flow.space(BOX_INSIDE);
+        flow.outlineFrom(term.start());
+        boxes.add(new TermBox(path, flow.boxFrom(term.start(), depthOf(path, place))));
     }
 
     // The join and the operand after a term's rail, which the rail keeps on its line.
@@ -987,7 +1011,9 @@ final class ExpressionBuilderPane {
         int depth = depthOf(path, place);
         flow.space(BOX_INSIDE);
         flow.tintFrom(nested.start(), new ControlFlow.BoxTones(nestTone(depth), NEST_BORDER), depth);
-        boxes.add(new TermBox(path, flow.boxFrom(nested.start(), depth)));
+        GroupsPane.Bounds box = flow.boxFrom(nested.start(), depth);
+        flow.drawRail(nested.start().x(), box.top() + 1, box.bottom() - 1);
+        boxes.add(new TermBox(path, box));
     }
 
     /**

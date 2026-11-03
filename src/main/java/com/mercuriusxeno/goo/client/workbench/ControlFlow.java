@@ -21,15 +21,12 @@ final class ControlFlow {
     private static final int HALF = 2;
     /** A drag rail's width. */
     static final int RAIL_WIDTH = 6;
-    private static final int RAIL_INSET = 3;
-    // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: the rail stands a pixel inside its term's
-    // outline, so the two never share a pixel, and three grip lines mark it as a rail.
-    /** The room left of a rail, between it and an outline. */
-    static final int RAIL_MARGIN = 1;
+    // Decision rails-fill-the-left-edge-of-their-box: the rail takes its box's whole left edge, flush inside the
+    // border, and three grip lines mark it as a rail.
     private static final int GRIP_LINES = 3;
     private static final int GRIP_PITCH = 2;
-    /** How far a rail moves the next piece: its margin, its width and a gap. */
-    static final int RAIL_ADVANCE = RAIL_MARGIN + RAIL_WIDTH + GAP;
+    /** How far a rail moves the next piece: its width and a gap. */
+    static final int RAIL_ADVANCE = RAIL_WIDTH + GAP;
     /** A drag rail's fill. */
     static final int RAIL_COLOR = 0xFF7080A0;
     /** The grip lines a drag rail draws. */
@@ -450,24 +447,56 @@ final class ControlFlow {
      * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
      */
     void rail(String hoverKey, ClickTargets.PointerGrab grab, int keepWith) {
-        reserve(RAIL_ADVANCE + keepWith);
-        int width = RAIL_MARGIN + RAIL_WIDTH;
-        markPiece(width);
-        int railLeft = x + RAIL_MARGIN;
-        graphics.fill(railLeft, y + RAIL_INSET, railLeft + RAIL_WIDTH, y + LINE - RAIL_INSET, RAIL_COLOR);
-        drawGrip(railLeft);
-        targets.addGrab(x, y, width, LINE, grab);
-        targets.addHover(x, y, width, LINE, hoverKey);
-        x += RAIL_ADVANCE;
+        int railLeft = railTarget(hoverKey, grab, keepWith);
+        drawRail(railLeft, y + 1, y + LINE - 1);
     }
 
-    // Three short lines across the rail's middle, a pixel in from its sides.
-    private void drawGrip(int railLeft) {
-        int first = y + LINE / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
+    /**
+     * A rail's grab and hover, its drawing left for drawRail once its box's height is known, as a parenthetical's or a
+     * type row's spans every line it takes.
+     *
+     * @param hoverKey what hovering names, which no tooltip reads
+     * @param grab     what the press, each drag and the release move
+     * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
+     * @return the rail's left edge
+     */
+    int railTarget(String hoverKey, ClickTargets.PointerGrab grab, int keepWith) {
+        reserve(RAIL_ADVANCE + keepWith);
+        markPiece(RAIL_WIDTH);
+        int railLeft = x;
+        targets.addGrab(x, y, RAIL_WIDTH, LINE, grab);
+        targets.addHover(x, y, RAIL_WIDTH, LINE, hoverKey);
+        x += RAIL_ADVANCE;
+        return railLeft;
+    }
+
+    /**
+     * Draws a rail and its three grip lines centered in it (decision rails-fill-the-left-edge-of-their-box).
+     *
+     * @param left   the rail's left edge, flush inside its box's left border
+     * @param top    its top, flush under the box's top border
+     * @param bottom its bottom, flush over the box's bottom border
+     */
+    void drawRail(int left, int top, int bottom) {
+        graphics.fill(left, top, left + RAIL_WIDTH, bottom, RAIL_COLOR);
+        int first = (top + bottom) / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
         for (int line = 0; line < GRIP_LINES; line++) {
             int gripTop = first + line * GRIP_PITCH;
-            graphics.fill(railLeft + 1, gripTop, railLeft + RAIL_WIDTH - 1, gripTop + 1, GRIP_COLOR);
+            graphics.fill(left + 1, gripTop, left + RAIL_WIDTH - 1, gripTop + 1, GRIP_COLOR);
         }
+    }
+
+    /**
+     * Outlines a box one pixel in the color given, as a type row's box reads around its rail and terms.
+     *
+     * @param box   the box
+     * @param color the outline's color
+     */
+    void outlineBox(GroupsPane.Bounds box, int color) {
+        graphics.fill(box.left(), box.top(), box.right(), box.top() + 1, color);
+        graphics.fill(box.left(), box.bottom() - 1, box.right(), box.bottom(), color);
+        graphics.fill(box.left(), box.top(), box.left() + 1, box.bottom(), color);
+        graphics.fill(box.right() - 1, box.top(), box.right(), box.bottom(), color);
     }
 
     /**
@@ -500,10 +529,10 @@ final class ControlFlow {
     void tintFrom(BuilderOverlays.Anchor start, BoxTones tones, int depth) {
         GroupsPane.Bounds box = boxFrom(start, depth);
         int border = tones.border();
-        graphics.fill(box.left(), box.top(), box.right(), box.top() + 1, border);
-        graphics.fill(box.left(), box.bottom() - 1, box.right(), box.bottom(), border);
-        graphics.fill(box.left(), box.top() + 1, box.left() + 1, box.bottom() - 1, border);
-        graphics.fill(box.right() - 1, box.top() + 1, box.right(), box.bottom() - 1, border);
+        graphics.fill(box.left() + 1, box.top(), box.right() - 1, box.top() + 1, border);
+        graphics.fill(box.left() + 1, box.bottom() - 1, box.right() - 1, box.bottom(), border);
+        graphics.fill(box.left(), box.top(), box.left() + 1, box.bottom(), border);
+        graphics.fill(box.right() - 1, box.top(), box.right(), box.bottom(), border);
         graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, box.bottom() - 1, tones.fill());
     }
 
