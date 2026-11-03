@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -85,6 +86,7 @@ final class ValuesPane {
     private final ManagerActions actions;
     private @Nullable EditBox search;
     private final ExpressionBuilderPane builder;
+    private final Map<String, MeasuredHeight> measured = new HashMap<>();
     /** How far one wheel notch moves the Items list, in pixels (decision items-list-scrolls-by-pixel). */
     static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
@@ -168,9 +170,15 @@ final class ValuesPane {
 
     // Decision items-row-is-one-line-then-its-expression-inline: the list spans the pane, with no detail column.
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
-        int listTop = drawSearchLine(graphics, font, bounds, targets) + GAP;
-        drawEntries(graphics, font, new GroupsPane.Bounds(bounds.left(), listTop, bounds.right(), bounds.bottom()),
-                targets);
+        // Each row's height is measured every frame, so the frame reads the draft once rather than once a row.
+        values.freeze();
+        try {
+            int listTop = drawSearchLine(graphics, font, bounds, targets) + GAP;
+            drawEntries(graphics, font, new GroupsPane.Bounds(bounds.left(), listTop, bounds.right(),
+                    bounds.bottom()), targets);
+        } finally {
+            values.thaw();
+        }
         builder.drawOverlays(graphics, font, targets);
     }
 
@@ -785,6 +793,38 @@ final class ValuesPane {
     // rule's padding.
     private int rowHeight(Font font, ValuesTab.ManagerEntry entry, int width) {
         ValuesTab.EntryRow row = values.rowOf(entry.id());
+        HeightInputs inputs = new HeightInputs(width, row, values.sourceOf(entry.id()), values.derivedFrom(entry.id()),
+                values.hasEntry(entry.id()));
+        MeasuredHeight known = measured.get(entry.id());
+        if (known != null && known.inputs().equals(inputs)) {
+            return known.height();
+        }
+        int height = measureRow(font, entry, row, width);
+        measured.put(entry.id(), new MeasuredHeight(inputs, height));
+        return height;
+    }
+
+    /**
+     * Everything a row's read height follows from, so a height measured once stands until one of them changes.
+     *
+     * @param width   the row's width
+     * @param row     its name, expression, amounts and error
+     * @param source  where its value comes from
+     * @param recipe  the recipe its derived value comes from
+     * @param entered whether the file holds an entry of its own
+     */
+    private record HeightInputs(int width, ValuesTab.EntryRow row, ValuesTab.Source source, ValuesTab.Recipe recipe,
+                                boolean entered) {
+    }
+
+    /**
+     * @param inputs what the height was measured from
+     * @param height the height
+     */
+    private record MeasuredHeight(HeightInputs inputs, int height) {
+    }
+
+    private int measureRow(Font font, ValuesTab.ManagerEntry entry, ValuesTab.EntryRow row, int width) {
         int expression = ReadValueButton.height(font, expressionRuns(row), expressionWidth(font, entry, width));
         int head = placeHead(font, entry, headName(font, entry, width), new GroupsPane.Bounds(0, 0, width, 0))
                 .height();

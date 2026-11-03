@@ -423,6 +423,60 @@ class ValuesPaneTest {
         return new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of));
     }
 
+    private static final int LARGE_LIST = 3000;
+    private static final int LARGE_GROUPS = 40;
+    private static final int GROUP_SIZE = 25;
+    private static final long FRAME_BUDGET_MS = 50;
+
+    // An Items pane the size of a modded game's: thousands of items, each listed item valued by its own entry and a
+    // group of items valued by each group entry.
+    private static ValuesPane largeList() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(IntStream.range(0, LARGE_LIST).mapToObj(index ->
+                new ManagerEntrySource.ItemName("minecraft:large_%04d".formatted(index), "Large %04d".formatted(index)))
+                .toList(), List.of()));
+        String own = IntStream.range(0, LARGE_LIST / 2).mapToObj(index -> """
+                {"key": "large_%04d", "keySeparator": null, "kind": "VALUE", "text": "\\"%d $base\\"", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}""".formatted(index, index))
+                .collect(Collectors.joining(", "));
+        String groupEntries = IntStream.range(0, LARGE_GROUPS).mapToObj(group -> """
+                {"key": "#group_%d", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": 4}", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}""".formatted(group))
+                .collect(Collectors.joining(", "));
+        String groups = IntStream.range(0, LARGE_GROUPS).mapToObj(group -> """
+                {"key": "group_%d", "keySeparator": null, "kind": "VALUE", "text": "[%s]", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}""".formatted(group,
+                IntStream.range(0, GROUP_SIZE).mapToObj(member -> "\\\"large_%04d\\\"".formatted(
+                        LARGE_LIST / 2 + group * GROUP_SIZE + member)).collect(Collectors.joining(", "))))
+                .collect(Collectors.joining(", "));
+        values.readModel("{\"path\": \"base_values.json\", \"members\": [" + own + ", " + groupEntries
+                + ", {\"key\": \"_groups\", \"kind\": \"SECTION\", \"text\": \"\", \"entries\": [" + groups + "]}]}");
+        values.readResolved("{\"entries\": [" + IntStream.range(0, LARGE_LIST).mapToObj(index ->
+                "{\"key\": \"large_%04d\", \"value\": {\"glow\": \"%d\"}, \"denied\": false}".formatted(index, index + 1))
+                .collect(Collectors.joining(", ")) + "]}");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        return new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    /**
+     * A frame of the Items list over thousands of items draws within a frame budget, its fastest of several warm
+     * frames graded so a loaded machine does not fail it: every click waits on the next frame.
+     */
+    @Test
+    void largeItemsListDrawsAFrameWithinBudget() {
+        ValuesPane pane = largeList();
+        Font font = DrawnFrame.font();
+        long fastest = Long.MAX_VALUE;
+        for (int run = 0; run < 4; run++) {
+            DrawnFrame frame = new DrawnFrame();
+            long started = System.nanoTime();
+            pane.extract(frame.graphics, font, SHORT_VIEW, frame.targets);
+            fastest = Math.min(fastest, (System.nanoTime() - started) / 1_000_000);
+        }
+        assertTrue(fastest < FRAME_BUDGET_MS, "fastest frame took " + fastest + " ms over " + LARGE_LIST + " items");
+    }
+
     // Each row's height, read off a list tall enough to draw every row unscrolled.
     private static List<Integer> rowHeights() {
         DrawnFrame tall = new DrawnFrame();
