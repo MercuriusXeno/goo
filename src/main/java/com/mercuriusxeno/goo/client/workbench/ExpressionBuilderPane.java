@@ -57,6 +57,15 @@ final class ExpressionBuilderPane {
     static final int TRASH_LIT = 0x80FF5555;
     /** The trash strip's tone while the dragged thing hovers it. */
     static final int TRASH_HOVER = 0xD0FF5555;
+    /** The trash strip's border, a lighter red than its fill. */
+    static final int TRASH_BORDER = 0xFFFF9A9A;
+    /** The trash can drawn inside the strip. */
+    static final int TRASH_CAN = 0xFFFFE0E0;
+    private static final int CAN_WIDTH = 8;
+    private static final int CAN_HEIGHT = 10;
+    private static final int CAN_BODY_TOP = 3;
+    private static final int CAN_HANDLE_INSET = 3;
+    private static final int CAN_RIB_INSET = 2;
     private static final String NUMBER_KIND = "a number";
     private static final String PER_TYPE = "by type";
     // Decision items-kind-hint-says-worth-based-on-other-items-prefabs: the goo kind reads relative on every tab.
@@ -324,6 +333,30 @@ final class ExpressionBuilderPane {
             tone = TRASH_LIT;
         }
         graphics.fill(strip.left(), strip.top(), strip.right(), strip.bottom(), tone);
+        // Decision trash-strip-draws-a-can-and-a-lighter-red-border.
+        graphics.fill(strip.left(), strip.top(), strip.right(), strip.top() + 1, TRASH_BORDER);
+        graphics.fill(strip.left(), strip.bottom() - 1, strip.right(), strip.bottom(), TRASH_BORDER);
+        graphics.fill(strip.left(), strip.top() + 1, strip.left() + 1, strip.bottom() - 1, TRASH_BORDER);
+        graphics.fill(strip.right() - 1, strip.top() + 1, strip.right(), strip.bottom() - 1, TRASH_BORDER);
+        drawCan(graphics, strip.left() + (strip.right() - strip.left() - CAN_WIDTH) / HALF,
+                strip.top() + (strip.bottom() - strip.top() - CAN_HEIGHT) / HALF);
+    }
+
+    // A trash can CAN_WIDTH wide from its body's left: a handle, a lid a pixel wider each side, and a body of two
+    // sides, a bottom and two ribs.
+    private static void drawCan(GuiGraphicsExtractor graphics, int left, int top) {
+        int right = left + CAN_WIDTH;
+        int bodyTop = top + CAN_BODY_TOP;
+        int bottom = top + CAN_HEIGHT;
+        graphics.fill(left + CAN_HANDLE_INSET, top, right - CAN_HANDLE_INSET, top + 1, TRASH_CAN);
+        int lid = top + 1;
+        graphics.fill(left - 1, lid, right + 1, lid + 1, TRASH_CAN);
+        graphics.fill(left, bodyTop, left + 1, bottom, TRASH_CAN);
+        graphics.fill(right - 1, bodyTop, right, bottom, TRASH_CAN);
+        graphics.fill(left + 1, bottom - 1, right - 1, bottom, TRASH_CAN);
+        int ribBottom = bottom - CAN_RIB_INSET;
+        graphics.fill(left + CAN_RIB_INSET, bodyTop + 1, left + CAN_RIB_INSET + 1, ribBottom, TRASH_CAN);
+        graphics.fill(right - CAN_RIB_INSET - 1, bodyTop + 1, right - CAN_RIB_INSET, ribBottom, TRASH_CAN);
     }
 
     // Decision drags-indicate-only-a-drop-the-builder-takes: the strip lights only for a thing the builder deletes.
