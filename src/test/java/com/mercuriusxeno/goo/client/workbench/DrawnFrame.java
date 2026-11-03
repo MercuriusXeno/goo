@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,10 +25,47 @@ import static org.mockito.Mockito.when;
 final class DrawnFrame {
     final GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
     final ClickTargets targets = new ClickTargets();
+    private final List<Placed> placed = new ArrayList<>();
+    // A pose stack deep enough for every nesting a pane draws, and pose-free graphics a test swaps in reads as none.
+    private static final int POSE_DEPTH = 16;
 
     DrawnFrame() {
         when(graphics.guiWidth()).thenReturn(SCREEN_WIDTH);
         when(graphics.guiHeight()).thenReturn(SCREEN_HEIGHT);
+        when(graphics.pose()).thenReturn(new Matrix3x2fStack(POSE_DEPTH));
+        doAnswer(call -> {
+            Matrix3x2fStack pose = graphics.pose();
+            // A mocked pose a test swaps in answers zeros, which reads as no pose at all.
+            boolean posed = pose != null && pose.m00() != 0;
+            float scale = posed ? pose.m00() : 1;
+            float left = posed ? pose.m20() : 0;
+            float top = posed ? pose.m21() : 0;
+            placed.add(new Placed(call.getArgument(1), scale, Math.round(left + scale * call.<Integer>getArgument(2)),
+                    Math.round(top + scale * call.<Integer>getArgument(3)), call.getArgument(4)));
+            return null;
+        }).when(graphics).text(any(Font.class), anyString(), anyInt(), anyInt(), anyInt());
+    }
+
+    /**
+     * One text as it landed on the screen, the pose it drew under applied.
+     *
+     * @param text  the string
+     * @param scale the pose's scale
+     * @param x     its left edge on the screen
+     * @param y     its top edge on the screen
+     * @param color its color
+     */
+    record Placed(String text, float scale, int x, int y, int color) {
+    }
+
+    /**
+     * @param label a drawn string
+     * @return where it last landed on the screen and at what scale
+     */
+    Placed placed(String label) {
+        List<Placed> matches = placed.stream().filter(text -> text.text().equals(label)).toList();
+        assertTrue(!matches.isEmpty(), label + " not drawn in " + texts());
+        return matches.getLast();
     }
 
     /** The mocked screen's width. */
@@ -57,21 +96,10 @@ final class DrawnFrame {
     }
 
     /**
-     * @return every text drawn, in order
+     * @return every text drawn, in order, where it landed on the screen
      */
     List<Text> drawn() {
-        ArgumentCaptor<String> texts = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
-        verify(graphics, atLeast(0)).text(any(Font.class), texts.capture(), xs.capture(), ys.capture(),
-                colors.capture());
-        List<Text> drawn = new ArrayList<>();
-        for (int index = 0; index < texts.getAllValues().size(); index++) {
-            drawn.add(new Text(texts.getAllValues().get(index), xs.getAllValues().get(index),
-                    ys.getAllValues().get(index), colors.getAllValues().get(index)));
-        }
-        return drawn;
+        return placed.stream().map(text -> new Text(text.text(), text.x(), text.y(), text.color())).toList();
     }
 
     /**

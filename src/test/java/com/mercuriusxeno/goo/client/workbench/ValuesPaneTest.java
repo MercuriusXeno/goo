@@ -162,16 +162,17 @@ class ValuesPaneTest {
             pane = new ValuesPane(values, icons, actions, builder);
         }
 
-        // The log input's 1/4 count draws a half-scale stack, which reads the pose.
+        // The log input's 1/4 count draws a half-scale stack under the frame's pose.
         private DrawnFrame frame() {
             DrawnFrame frame = new DrawnFrame();
-            when(frame.graphics.pose()).thenReturn(mock(Matrix3x2fStack.class));
             pane.extract(frame.graphics, DrawnFrame.font(), PANE, frame.targets);
             return frame;
         }
 
+        // A row's texts, the small amounts a few pixels under its words (decision
+        // goo-amounts-draw-smaller-and-a-pixel-lower-everywhere).
         private static List<DrawnFrame.Text> onLine(DrawnFrame frame, DrawnFrame.Text anchor) {
-            return frame.drawn().stream().filter(text -> text.y() == anchor.y())
+            return frame.drawn().stream().filter(text -> Math.abs(text.y() - anchor.y()) <= AMOUNT_DROP)
                     .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
         }
 
@@ -189,6 +190,7 @@ class ValuesPaneTest {
         }
 
         private static final int ROW_HEIGHT_OF_LINE = 9;
+        private static final int AMOUNT_DROP = 3;
 
         // Decision items-row-is-name-recipe-space-between-and-value-right-packed.
         @Test
@@ -199,7 +201,7 @@ class ValuesPaneTest {
             assertEquals(List.of("Oak Planks", "=", "2"), line.stream().map(DrawnFrame.Text::text).toList(),
                     frame.drawn().toString());
             DrawnFrame.Text value = line.get(2);
-            assertEquals(LIST_RIGHT, value.x() + DrawnFrame.font().width(value.text()), value.toString());
+            assertEquals(LIST_RIGHT, value.x() + SmallDigits.width(DrawnFrame.font(), value.text()), value.toString());
             int nameRight = planks.x() + DrawnFrame.font().width(planks.text());
             List<Integer> sprites = itemXsAround(frame, planks.y());
             assertEquals(2, sprites.size(), "the planks' sprite and its log input: " + sprites);
@@ -238,7 +240,7 @@ class ValuesPaneTest {
             }
             List<DrawnFrame.Text> line = onLine(frame, frame.find("Oak Planks"));
             DrawnFrame.Text value = line.getLast();
-            assertEquals(LIST_RIGHT, value.x() + DrawnFrame.font().width(value.text()), value.toString());
+            assertEquals(LIST_RIGHT, value.x() + SmallDigits.width(DrawnFrame.font(), value.text()), value.toString());
         }
 
         // Decision spacing-rules-are-one-set-across-every-pane: an entry row's x keeps the rule gap over the rule
@@ -264,14 +266,13 @@ class ValuesPaneTest {
             GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 120, 300);
             int listRight = narrow.right() - ScrollBar.WIDTH - ScrollBar.GAP;
             DrawnFrame frame = new DrawnFrame();
-            when(frame.graphics.pose()).thenReturn(mock(Matrix3x2fStack.class));
             pane.extract(frame.graphics, DrawnFrame.font(), narrow, frame.targets);
             DrawnFrame.Text planks = frame.find("Oak Planks");
             List<DrawnFrame.Text> line = onLine(frame, planks);
             assertEquals(List.of("Oak Planks", "2"), line.stream().map(DrawnFrame.Text::text).toList(),
                     frame.drawn().toString());
             DrawnFrame.Text value = line.get(1);
-            assertEquals(listRight, value.x() + DrawnFrame.font().width(value.text()), value.toString());
+            assertEquals(listRight, value.x() + SmallDigits.width(DrawnFrame.font(), value.text()), value.toString());
             int planksValueY = frame.topsOf(List.of(ReadValueButton.NOT_SET)).getFirst();
             DrawnFrame.Text equals = frame.drawn().stream().filter(text -> text.text().equals("=")
                     && text.y() > planks.y() && text.y() < planksValueY).findFirst()
@@ -1176,17 +1177,49 @@ class ValuesPaneTest {
         assertTrue(at >= 0, texts.toString());
         assertEquals(List.of("20", "1", "4"), texts.subList(at, at + 3));
         assertTrue(!texts.contains("81/4"), texts.toString());
+        // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere.
+        assertEquals(SmallDigits.SCALE, frame.placed("20").scale(), "the amount draws through SmallDigits");
     }
 
     /**
-     * A run is its type icon at whatever size the texture gives, its gap and the amount's width (decision
-     * items-value-line-draws-type-icons-at-eleven-texels).
+     * A recipe input's whole count draws through SmallDigits in the sprite's corner, smaller than a stack count
+     * (decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere).
+     */
+    @Test
+    void recipeCountDrawsThroughSmallDigits() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_hanging_sign", "Oak Hanging Sign")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": []}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "oak_hanging_sign", "value": {"leaf": "8"}, "denied": false}]}
+                """);
+        values.readDerivedFrom("""
+                {"items": {"minecraft:oak_hanging_sign": {"inputs": [{"id": "minecraft:chain", "count": 7}],
+                  "output": 1}}}
+                """);
+        values.select("minecraft:oak_hanging_sign");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        assertEquals(SmallDigits.SCALE, frame.placed("7").scale());
+    }
+
+    /**
+     * A run is its type icon at whatever size the texture gives, its gap a pixel short and the small amount (decisions items-value-line-draws-type-icons-at-eleven-texels,
+     * goo-amounts-draw-smaller-and-a-pixel-lower-everywhere).
      */
     @Test
     void runIsItsIconBesideItsAmountAtAnySize() {
         Font font = sixPixelFont();
         for (int icon : ICON_SIZES) {
-            assertEquals(icon + ValuesPane.RUN_ICON_GAP + font.width("1.5k"), ValuesPane.runWidth(font, "1.5k", icon));
+            assertEquals(icon + ValuesPane.RUN_ICON_GAP - 1 + SmallDigits.width(font, "1.5k"),
+                    ValuesPane.runWidth(font, "1.5k", icon));
         }
     }
 }
