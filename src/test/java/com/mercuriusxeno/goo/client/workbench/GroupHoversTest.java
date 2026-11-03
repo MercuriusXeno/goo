@@ -1,14 +1,12 @@
 package com.mercuriusxeno.goo.client.workbench;
 
-import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests what a #group link or an iterator link hovers: the group's members in shorthand on one line, cut with an
- * ellipsis, then its value's amounts where it has one (decisions group-referent-previews-shorthand-members-then-its-
+ * Tests what a #group link or an iterator link hovers: the group's members as sprites on one line, cut at eight
+ * with +n for the rest, then its value's amounts where it has one (decisions group-referent-previews-shorthand-members-then-its-
  * value, group-link-hovers-member-icons-then-plus-n).
  */
 class GroupHoversTest {
@@ -40,7 +38,9 @@ class GroupHoversTest {
                   {"name": "stones", "kind": "group", "members": [{"id": "minecraft:stone", "known": true},
                      {"id": "minecraft:granite", "known": true}, {"id": "minecraft:diorite", "known": true},
                      {"id": "minecraft:andesite", "known": true}, {"id": "minecraft:cobblestone", "known": true},
-                     {"id": "minecraft:deepslate", "known": true}],
+                     {"id": "minecraft:deepslate", "known": true}, {"id": "minecraft:tuff", "known": true},
+                     {"id": "minecraft:calcite", "known": true}, {"id": "minecraft:basalt", "known": true},
+                     {"id": "minecraft:blackstone", "known": true}],
                    "base": null, "tweaks": [], "preview": []}]}
                 """);
     }
@@ -50,17 +50,15 @@ class GroupHoversTest {
     }
 
     @Test
-    void valuedGroupReadsItsMembersThenItsValue() {
-        assertEquals(List.of(new TooltipLine.Text(Component.literal("oak_log")),
+    void valuedGroupReadsItsMemberSpritesThenItsValue() {
+        assertEquals(List.of(new TooltipLine.Members(List.of("minecraft:oak_log"), 0),
                 new TooltipLine.GooAmount("glow", "37")), hover("logs"));
     }
 
     @Test
-    void longMemberListCutsWithAnEllipsisAndAnUnvaluedGroupReadsItsMembersAlone() {
-        List<TooltipLine> lines = hover("stones");
-        assertEquals(1, lines.size(), lines.toString());
-        String members = ((TooltipLine.Text) lines.getFirst()).text().getString();
-        assertTrue(members.startsWith("stone, granite, "), members);
-        assertTrue(members.endsWith("…") && !members.contains("deepslate"), members);
+    void longMemberListCutsAtEightSpritesThenPlusNAndAnUnvaluedGroupReadsItsMembersAlone() {
+        assertEquals(List.of(new TooltipLine.Members(List.of("minecraft:stone", "minecraft:granite",
+                "minecraft:diorite", "minecraft:andesite", "minecraft:cobblestone", "minecraft:deepslate",
+                "minecraft:tuff", "minecraft:calcite"), 2)), hover("stones"));
     }
 }
