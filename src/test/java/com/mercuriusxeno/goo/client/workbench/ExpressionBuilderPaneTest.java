@@ -928,7 +928,7 @@ class ExpressionBuilderPaneTest {
             // Decision operand-times-number-terms-edit-like-every-term: saturation's 12 reads in its ratio box.
             // Decision each-subsequent-term-starts-a-new-line: saturation starts the row's next line.
             assertEquals(List.of(":", "food", "'s", "1", ":", "1"), lineTexts(frame, 1), frame.drawn().toString());
-            assertEquals(List.of("+", "saturation", "'s", "12", ":", "1", SUM_ADD), lineTexts(frame, 2),
+            assertEquals(List.of("+", "saturation", "'s", "12", ":", "1"), lineTexts(frame, 2),
                     frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.ICON_PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
@@ -1005,18 +1005,29 @@ class ExpressionBuilderPaneTest {
             assertTrue(frame.find(")").y() > last.y(), frame.drawn().toString());
         }
 
+        /**
+         * The control bay draws a + and a - button beside the () handle, no sum draws a +/- control, and the - dragged
+         * onto the slot before a term draws the drop cursor there and, dropped, inserts a subtracted term at that
+         * slot, its term picked from the list the dropdown offered (decision
+         * plus-and-minus-are-draggable-buttons-in-the-control-bay).
+         */
         @Test
-        void sumDropdownOffersPlusAndMinusAndAddsATermJoinedByTheChoice() {
-            Builder builder = Builder.prefab(PREFABS, "$base");
-            DrawnFrame closed = builder.frame();
-            closed.click(SUM_ADD);
-            DrawnFrame open = builder.frame();
-            List<String> texts = open.texts();
-            assertEquals(List.of("+", "-"), texts.subList(texts.lastIndexOf(SUM_ADD) + 1, texts.size()).stream()
-                    .filter(List.of("+", "-")::contains).toList(), texts.toString());
-            open.click("-");
-            builder.frame().click("$base");
-            assertEquals("$base - $base", builder.written.getLast());
+        void bayMinusDraggedOntoASlotInsertsASubtractedTermThere() {
+            Builder builder = Builder.prefab(PREFABS, "$waxed + $edited");
+            DrawnFrame frame = builder.frame();
+            DrawnFrame.Text handle = frame.find("()");
+            List<DrawnFrame.Text> bay = frame.drawn().stream().filter(text -> text.y() == handle.y())
+                    .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+            assertEquals(List.of("()", "+", "-"), bay.stream().map(DrawnFrame.Text::text).toList(), bay.toString());
+            assertEquals(0, frame.count(SUM_ADD), frame.texts().toString());
+            DrawnFrame.Text minus = bay.getLast();
+            assertTrue(frame.targets.click(minus.x(), minus.y()), "the - grabs the pointer");
+            double[] edited = railOf(frame, List.of(1));
+            assertTrue(frame.targets.drag(edited[0], edited[1]));
+            assertTrue(cursorTops(builder.frame()).size() == 1, "the drop cursor stands at the slot");
+            frame.targets.release();
+            builder.frame().click("$waxed");
+            assertEquals("$waxed - $waxed + $edited", builder.written.getLast());
         }
 
         // Decision amount-modes-name-what-the-amount-comes-from: a number term names its amount's source, so a type

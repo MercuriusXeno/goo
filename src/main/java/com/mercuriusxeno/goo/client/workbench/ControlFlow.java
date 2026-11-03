@@ -631,9 +631,9 @@ final class ControlFlow {
      *
      * @param label its label
      * @param grab  follows the pointer from the press to the release
-     * @param hint  what hovering it reads
+     * @param hint  what hovering it reads, null for nothing
      */
-    void grabControl(String label, ClickTargets.PointerGrab grab, String hint) {
+    void grabControl(String label, ClickTargets.PointerGrab grab, @Nullable String hint) {
         int labelLeftRoom = RAIL_WIDTH + ButtonPainter.PADDING;
         int width = 1 + labelLeftRoom + font.width(label) + ButtonPainter.PADDING;
         reserve(width);
@@ -644,7 +644,10 @@ final class ControlFlow {
         drawRail(railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
         graphics.text(font, label, railed.left() + 1 + labelLeftRoom, y + TEXT_NUDGE, LINK);
         targets.addGrab(railed.left(), railed.top(), railed.width(), railed.height(), grab);
-        targets.addHover(railed.left(), railed.top(), railed.width(), railed.height(), BuilderOverlays.hintKey(hint));
+        String hoverKey = BuilderOverlays.hintKey(hint);
+        if (hoverKey != null) {
+            targets.addHover(railed.left(), railed.top(), railed.width(), railed.height(), hoverKey);
+        }
         x = railed.right() + GAP;
     }
 
