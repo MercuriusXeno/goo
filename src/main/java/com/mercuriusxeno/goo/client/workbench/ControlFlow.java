@@ -36,6 +36,8 @@ final class ControlFlow {
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
+    // The one clear pixel between a ratio's colon and each of its boxes.
+    private static final int CLEAR = 1;
     /** A drag rail's width. */
     static final int RAIL_WIDTH = 6;
     /**
@@ -305,15 +307,19 @@ final class ControlFlow {
     }
 
     /**
-     * Words drawn flush against the piece before them and the piece after, no gap on either side, as a ratio's colon
-     * stands between its two boxes (decision ratio-colon-takes-no-spaces).
+     * Words drawn between the piece before them and the piece after, one clear pixel from each, as a ratio's colon
+     * stands between its two boxes (decision ratio-colon-takes-no-spaces, as the operator corrected it: the space
+     * reduced, not removed).
      *
      * @param text  the words
      * @param color their color
      */
     void textBetween(String text, int color) {
-        textFlush(text, color);
-        x -= GAP;
+        x += CLEAR - GAP;
+        int ink = letters.inkWidth(text);
+        letters.draw(graphics, text, x, wordsTop(), color);
+        markText(ink);
+        x += ink + CLEAR;
     }
 
     /**

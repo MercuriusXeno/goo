@@ -799,19 +799,19 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * A ratio draws m:d, its colon flush against the multiplier's box and the divisor's box flush against the colon
-     * (decision ratio-colon-takes-no-spaces).
+     * A ratio keeps one clear pixel between its colon's glyph and each of its boxes (decision
+     * ratio-colon-takes-no-spaces, as the operator corrected it: the space reduced, not removed).
      */
     @Test
-    void ratioDrawsItsColonFlushBetweenItsBoxes() {
+    void ratioKeepsAPixelBetweenItsColonAndEachBox() {
         DrawnFrame frame = Builder.item("2 $waxed / 3").frame();
         List<DrawnFrame.Text> sides = ratioSides(frame);
         assertEquals(List.of("2", "3"), sides.stream().map(DrawnFrame.Text::text).toList(), frame.texts().toString());
         DrawnFrame.Text colon = frame.drawn().get(frame.drawn().indexOf(sides.get(1)) - 1);
         int multiplierRight = sides.get(0).x() - ButtonPainter.PADDING + ButtonPainter.width(LETTERS, "2");
         int divisorLeft = sides.get(1).x() - ButtonPainter.PADDING;
-        assertEquals(List.of(multiplierRight, colon.x() + LETTERS.width(":")), List.of(colon.x(), divisorLeft),
-                frame.drawn().toString());
+        assertEquals(List.of(multiplierRight + 1, colon.x() + LETTERS.inkWidth(":") + 1),
+                List.of(colon.x(), divisorLeft), frame.drawn().toString());
     }
 
     /**
