@@ -33,7 +33,7 @@ class ExpressionBuilderPaneTest {
     // Where the builder's lines end, short of the trash strip by a gap.
     private static final int CONTENT_RIGHT = AREA.right() - ExpressionBuilderPane.TRASH_WIDTH - BuilderOverlays.GAP;
     // A type row's rail and the gap after it, which stand before its goo type button.
-    private static final int ROW_RAIL = ControlFlow.RAIL_WIDTH + BuilderOverlays.GAP;
+    private static final int ROW_RAIL = ControlFlow.RAIL_ADVANCE;
 
     /**
      * An open builder, each frame it draws and each string it writes.
@@ -308,6 +308,35 @@ class ExpressionBuilderPaneTest {
         Builder builder = Builder.item("$base + ($waxed - $edited)");
         trash(builder.frame(), List.of(1));
         assertEquals("$base", builder.written.getLast());
+    }
+
+    /**
+     * A term's rail draws three one-pixel grip lines inside it, and stands a pixel clear of its term's outline on
+     * every side (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     */
+    @Test
+    void railDrawsThreeGripLinesClearOfItsTermsOutline() {
+        DrawnFrame frame = Builder.item("$waxed + $edited").frame();
+        double[] point = railOf(frame, List.of(1));
+        int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream()
+                .filter(fill -> fill[1] <= point[1] + ControlFlow.LINE && fill[3] > point[1]
+                        && fill[0] <= point[0] + ControlFlow.RAIL_WIDTH + 1 && fill[2] > point[0])
+                .findFirst().orElseThrow(() -> new AssertionError("no rail fill near " + point[0]));
+        List<int[]> grips = fills(frame, ControlFlow.GRIP_COLOR).stream()
+                .filter(fill -> fill[0] >= rail[0] && fill[2] <= rail[2] && fill[1] >= rail[1] && fill[3] <= rail[3])
+                .toList();
+        assertEquals(3, grips.size(), "grip lines inside the rail");
+        grips.forEach(grip -> assertEquals(1, grip[3] - grip[1], "a grip line is one pixel tall"));
+        assertEquals(3, grips.stream().map(grip -> grip[1]).distinct().count(), "the grip lines stand apart");
+        int line = rail[1] / ControlFlow.LINE * ControlFlow.LINE;
+        List<int[]> outline = fills(frame, ControlFlow.OUTLINE_COLOR).stream()
+                .filter(fill -> fill[1] >= line && fill[3] <= line + ControlFlow.LINE && fill[0] < rail[2])
+                .toList();
+        int outlineLeft = outline.stream().mapToInt(fill -> fill[0]).filter(left -> left < rail[0]).max()
+                .orElseThrow(() -> new AssertionError("no outline left of the rail"));
+        assertTrue(rail[0] >= outlineLeft + 2, "the rail at " + rail[0] + " touches the outline at " + outlineLeft);
+        assertTrue(rail[1] >= line + 2 && rail[3] <= line + ControlFlow.LINE - 2,
+                "the rail's ends touch the outline: " + java.util.Arrays.toString(rail));
     }
 
     private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
