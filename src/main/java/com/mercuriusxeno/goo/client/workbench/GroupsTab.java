@@ -331,6 +331,19 @@ public final class GroupsTab {
     }
 
     /**
+     * Decision custom-group-members-drag-by-numbered-rails.
+     *
+     * @param from the moved member's index in the selected group
+     * @param to   the index it takes, the members from there on stepping down one
+     * @return the apply request writing the members in their new order
+     */
+    public String moveMemberRequest(int from, int to) {
+        List<String> picks = new ArrayList<>(memberIds());
+        picks.add(to, picks.remove(from));
+        return picksRequest(picks);
+    }
+
+    /**
      * @param base the group's base line
      * @return the apply request writing it
      */

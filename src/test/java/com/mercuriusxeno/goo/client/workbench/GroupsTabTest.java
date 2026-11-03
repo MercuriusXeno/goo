@@ -421,6 +421,22 @@ class GroupsTabTest {
         }
 
         /**
+         * Moving a three-member group's third member to slot 1 posts the members in the new order (decision
+         * custom-group-members-drag-by-numbered-rails).
+         */
+        @Test
+        void moveMemberPostsTheMembersInTheNewOrder() {
+            tab.readDescribed("""
+                    {"groups": [{"name": "trio", "members": [{"id": "minecraft:oak_log", "known": true},
+                      {"id": "minecraft:birch_log", "known": true}, {"id": "minecraft:spruce_log", "known": true}],
+                      "base": null, "tweaks": [], "preview": []}]}""");
+            tab.selectGroup("trio");
+            JsonObject request = parsed(tab.moveMemberRequest(2, 0));
+            assertEquals(List.of("minecraft:spruce_log", "minecraft:oak_log", "minecraft:birch_log"),
+                    request.getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
+        }
+
+        /**
          * A tweak posts the member, its count and its trait; an empty trait value posts no trait.
          */
         @Test
