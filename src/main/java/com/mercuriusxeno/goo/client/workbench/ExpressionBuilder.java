@@ -365,37 +365,77 @@ final class ExpressionBuilder {
      * @return whether the term moved
      */
     boolean moveTo(List<Integer> from, List<Integer> toSum, int toIndex) {
-        List<Integer> fromSum = from.subList(0, from.size() - 1);
-        List<Piece> source = sumAt(fromSum);
-        if (source.size() == 1 && isParenthetical(fromSum)) {
-            // Decision terms-and-type-rows-drag-to-a-trash-strip: the parenthetical its last term leaves goes too,
-            // the term landing where the parenthetical would.
-            return moveLeaving(fromSum, source.getFirst(), toSum, toIndex);
-        }
-        return moveLeaving(from, source.get(from.getLast()), toSum, toIndex);
-    }
-
-    // Moves a term into a slot, the term standing in place of the one leaving; refuses as moveTo does.
-    private boolean moveLeaving(List<Integer> leaving, Piece moving, List<Integer> toSum, int toIndex) {
-        List<Integer> fromSum = leaving.subList(0, leaving.size() - 1);
-        int fromIndex = leaving.getLast();
-        List<Piece> source = sumAt(fromSum);
-        if (dropBreaksTheTree(leaving, toSum, source.size())) {
+        if (!canMoveTo(from, toSum, toIndex)) {
             return refuse(MOVE_CHANGES_VALUE);
         }
-        int slot = toSum.equals(fromSum) && toIndex > fromIndex ? toIndex - 1 : toIndex;
-        List<Piece> left = new ArrayList<>(source);
+        Leaving leaving = leavingOf(from);
+        List<Integer> fromSum = leaving.path().subList(0, leaving.path().size() - 1);
+        int fromIndex = leaving.path().getLast();
+        List<Piece> left = new ArrayList<>(sumAt(fromSum));
         left.remove(fromIndex);
-        if (landsSubtractedFirst(left, fromIndex, moving, slot)) {
-            return refuse(MOVE_CHANGES_VALUE);
-        }
+        int slot = slotAfterLeaving(fromSum, fromIndex, toSum, toIndex);
         List<Integer> target = sumAfterLeaving(fromSum, fromIndex, toSum);
+        Piece moving = leaving.moving();
         changed();
         replaceSum(fromSum, signed(left));
         List<Piece> landing = new ArrayList<>(sumAt(target));
         landing.add(Math.min(slot, landing.size()), moving);
         replaceSum(target, signed(landing));
         return true;
+    }
+
+    /**
+     * Whether moveTo would take the drop, sharing its refusals: a drop on the term's own slots either side, into the
+     * term itself, one emptying the whole value or a type row, a whole term beside type rows, or one landing a
+     * subtracted term first (decision drags-indicate-only-a-drop-the-builder-takes).
+     *
+     * @param from    the term's place
+     * @param toSum   the sum it would drop into
+     * @param toIndex the slot in that sum
+     * @return whether the drop moves the term
+     */
+    boolean canMoveTo(List<Integer> from, List<Integer> toSum, int toIndex) {
+        List<Integer> ownSum = from.subList(0, from.size() - 1);
+        boolean origin = toSum.equals(ownSum) && (toIndex == from.getLast() || toIndex == from.getLast() + 1);
+        if (origin) {
+            return false;
+        }
+        Leaving leaving = leavingOf(from);
+        List<Integer> fromSum = leaving.path().subList(0, leaving.path().size() - 1);
+        int fromIndex = leaving.path().getLast();
+        List<Piece> source = sumAt(fromSum);
+        if (dropBreaksTheTree(leaving.path(), toSum, source.size())) {
+            return false;
+        }
+        List<Piece> left = new ArrayList<>(source);
+        left.remove(fromIndex);
+        return !landsSubtractedFirst(left, fromIndex, leaving.moving(),
+                slotAfterLeaving(fromSum, fromIndex, toSum, toIndex));
+    }
+
+    /**
+     * What leaves its place as a term moves: the term, or the parenthetical its last term empties.
+     *
+     * @param path   the place that empties
+     * @param moving the term that lands
+     */
+    private record Leaving(List<Integer> path, Piece moving) {
+    }
+
+    // Decision terms-and-type-rows-drag-to-a-trash-strip: the parenthetical its last term leaves goes too, the term
+    // landing where the parenthetical would.
+    private Leaving leavingOf(List<Integer> from) {
+        List<Integer> fromSum = from.subList(0, from.size() - 1);
+        List<Piece> source = sumAt(fromSum);
+        if (source.size() == 1 && isParenthetical(fromSum)) {
+            return new Leaving(fromSum, source.getFirst());
+        }
+        return new Leaving(from, source.get(from.getLast()));
+    }
+
+    // The slot in the target sum once the leaving term is out of its own sum.
+    private static int slotAfterLeaving(List<Integer> fromSum, int fromIndex, List<Integer> toSum, int toIndex) {
+        return toSum.equals(fromSum) && toIndex > fromIndex ? toIndex - 1 : toIndex;
     }
 
     // A sum inside a parenthetical, rather than the whole value's or a type row's.
@@ -621,7 +661,7 @@ final class ExpressionBuilder {
      * @param slot the slot it drops into: before the row at that index, or the rows' count for the end
      */
     void moveRow(int row, int slot) {
-        if (slot == row || slot == row + 1) {
+        if (!canMoveRow(row, slot)) {
             return;
         }
         changed();
@@ -630,10 +670,27 @@ final class ExpressionBuilder {
     }
 
     /**
+     * @param row  the row's index
+     * @param slot the slot it would drop into
+     * @return whether moveRow would reorder the rows: false on its own slots either side
+     */
+    boolean canMoveRow(int row, int slot) {
+        return slot != row && slot != row + 1 && slot >= 0 && slot <= rows.size();
+    }
+
+    /**
+     * @param row the row's index
+     * @return whether removeRow would delete it: the rows keep their last
+     */
+    boolean canRemoveRow(int row) {
+        return rows.size() > 1 && row >= 0 && row < rows.size();
+    }
+
+    /**
      * @param row the row's index
      */
     void removeRow(int row) {
-        if (rows.size() == 1) {
+        if (!canRemoveRow(row)) {
             refuse(LAST_ROW);
             return;
         }
@@ -814,14 +871,14 @@ final class ExpressionBuilder {
      * @param path the term's place
      */
     void remove(List<Integer> path) {
-        List<Integer> sum = path.subList(0, path.size() - 1);
-        List<Piece> pieces = new ArrayList<>(sumAt(sum));
-        if (pieces.size() == 1 && isParenthetical(sum)) {
-            remove(sum);
+        if (!canRemove(path)) {
+            refuse(LAST_TERM);
             return;
         }
+        List<Integer> sum = path.subList(0, path.size() - 1);
+        List<Piece> pieces = new ArrayList<>(sumAt(sum));
         if (pieces.size() == 1) {
-            refuse(LAST_TERM);
+            remove(sum);
             return;
         }
         changed();
@@ -831,6 +888,19 @@ final class ExpressionBuilder {
             pieces.set(0, pieces.getFirst().withJoin(ExpressionTerms.Join.FIRST));
         }
         replaceSum(sum, pieces);
+    }
+
+    /**
+     * Whether remove would delete the term, sharing its refusal: the whole value and a type row keep their last term,
+     * and a parenthetical's last term goes as its parenthetical does (decision
+     * drags-indicate-only-a-drop-the-builder-takes).
+     *
+     * @param path the term's place
+     * @return whether removing it deletes something
+     */
+    boolean canRemove(List<Integer> path) {
+        List<Integer> sum = path.subList(0, path.size() - 1);
+        return sumAt(sum).size() > 1 || isParenthetical(sum) && canRemove(sum);
     }
 
     private Piece pieceAt(List<Integer> path) {

@@ -266,6 +266,38 @@ class ExpressionBuilderTest {
             assertWrites("$waxed", whole);
         }
 
+        // Decision drags-indicate-only-a-drop-the-builder-takes: each dry run answers false exactly where its verb
+        // refuses, and the verb leaves the value standing there.
+        @Test
+        void dryRunsAnswerFalseExactlyWhereTheirVerbsRefuse() {
+            String opened = "$waxed - $edited + $base";
+            ExpressionBuilder sum = ExpressionBuilder.of(opened);
+            assertFalse(sum.canMoveTo(List.of(1), List.of(), 1), "its own slot before");
+            assertFalse(sum.canMoveTo(List.of(1), List.of(), 2), "its own slot after");
+            assertFalse(sum.canMoveTo(List.of(1), List.of(), 0), "a subtracted term landing first");
+            assertFalse(sum.moveTo(List.of(1), List.of(), 0));
+            assertEquals(opened, sum.text());
+            assertTrue(sum.canMoveTo(List.of(2), List.of(), 0));
+            assertTrue(sum.canRemove(List.of(1)));
+            ExpressionBuilder alone = ExpressionBuilder.of("$waxed");
+            assertFalse(alone.canRemove(List.of(0)), "a whole value's last term");
+            alone.remove(List.of(0));
+            assertEquals("$waxed", alone.text());
+            ExpressionBuilder nested = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(nested.canRemove(List.of(1, 0)), "a parenthetical's last term goes with it");
+            ExpressionBuilder oneRow = ExpressionBuilder.of("{\"metal\": \"5\"}");
+            assertFalse(oneRow.canRemove(List.of(0, 0)), "a type row's last term");
+            assertFalse(oneRow.canRemoveRow(0), "the last type row");
+            oneRow.removeRow(0);
+            assertEquals("{\"metal\": \"5\"}", oneRow.text());
+            ExpressionBuilder twoRows = ExpressionBuilder.of("{\"metal\": \"5\", \"pulse\": \"2\"}");
+            assertTrue(twoRows.canRemoveRow(0));
+            assertFalse(twoRows.canMoveRow(0, 0));
+            assertFalse(twoRows.canMoveRow(0, 1));
+            assertTrue(twoRows.canMoveRow(0, 2));
+            assertFalse(twoRows.canMoveTo(List.of(0, 0), List.of(1), 0), "a type row's only term emptying it");
+        }
+
         @Test
         void firstTermMovesNoHigherAndLastNoLower() {
             ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited");
