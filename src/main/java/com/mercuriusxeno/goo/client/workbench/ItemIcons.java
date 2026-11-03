@@ -73,13 +73,19 @@ final class ItemIcons {
      * @return the item's stack, empty for a tag or an unknown id
      */
     ItemStack of(String id) {
-        return stacks.computeIfAbsent(id, key -> {
-            if (key.startsWith(TAG_PREFIX)) {
-                return ItemStack.EMPTY;
-            }
-            Identifier parsed = Identifier.tryParse(key.contains(NAMESPACE_SEPARATOR) ? key : DEFAULT_NAMESPACE + key);
-            return parsed == null ? ItemStack.EMPTY : BuiltInRegistries.ITEM.getValue(parsed).getDefaultInstance();
-        });
+        return stacks.computeIfAbsent(id, ItemIcons::stackOf);
+    }
+
+    /**
+     * @param id an item id, bare in the minecraft namespace, or a #tag
+     * @return the item's stack read from the registry afresh, empty for a tag or an unknown id
+     */
+    static ItemStack stackOf(String id) {
+        if (id.startsWith(TAG_PREFIX)) {
+            return ItemStack.EMPTY;
+        }
+        Identifier parsed = Identifier.tryParse(id.contains(NAMESPACE_SEPARATOR) ? id : DEFAULT_NAMESPACE + id);
+        return parsed == null ? ItemStack.EMPTY : BuiltInRegistries.ITEM.getValue(parsed).getDefaultInstance();
     }
 
     /**
