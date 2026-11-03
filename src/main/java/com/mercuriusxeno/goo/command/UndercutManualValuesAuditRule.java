@@ -28,6 +28,7 @@ public final class UndercutManualValuesAuditRule implements GooAuditRule {
     private static final String BACKWARD = " (solved backward)";
     private static final String NO_MARK = "";
     private static final String FLAG_UNDERCUT = " keyed value undercut by a cheaper derived value";
+    private static final String ALL_CLEAR = INDENT + "No hand-keyed value is undercut by a cheaper derived value.";
 
     @Override
     public GooAuditSection run(GooAuditInputs inputs) {
@@ -41,7 +42,7 @@ public final class UndercutManualValuesAuditRule implements GooAuditRule {
             flags.add(undercut.item() + FLAG_UNDERCUT);
         }
         return new GooAuditSection(SECTION, SECTION + HEADER_OPEN + undercuts.size() + HEADER_SUFFIX,
-                List.copyOf(lines), undercuts.size(), List.copyOf(flags));
+                GooAuditSection.orAllClear(lines, ALL_CLEAR), undercuts.size(), List.copyOf(flags));
     }
 
     private static String chainText(List<GooUndercutChains.Step> chain) {

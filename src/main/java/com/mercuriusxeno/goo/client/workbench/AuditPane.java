@@ -9,7 +9,8 @@ import java.util.stream.Stream;
 
 /**
  * Draws the Audit tab: Run saves the draft and runs both dumps in-process on the server, its latest lines showing
- * as they arrive, then the sections the audit carries, flagged ones first, each starting open and, where it holds more
+ * as they arrive, then the sections the audit carries, flagged ones first and flagless ones headed green with a
+ * checkmark, each starting open and, where it holds more
  * than one row, opened or closed by a button before its header or by the header, every one at once by the
  * expand/collapse-all button on the Run row, as index.html's audit section does (decisions
  * goo-workbench-opens-the-in-game-manager-screen,
@@ -25,6 +26,8 @@ final class AuditPane {
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
+    /** The green a flagless section's header draws in. */
+    static final int GREEN = 0xFF55FF55;
     private static final int PROGRESS_COLOR = 0x40000000;
     private static final String RUN = "Run Audit";
     private static final String RUNNING = "running: saving the draft and auditing it on the server";
@@ -32,6 +35,7 @@ final class AuditPane {
     private static final String CLOSED_MARK = ">";
     private static final String COLLAPSE_ALL = "Collapse all";
     private static final String EXPAND_ALL = "Expand all";
+    private static final String CHECKMARK = "✔";
     private static final String PART_GAP = "  ";
     private static final String NO_TEXT = "";
 
@@ -203,9 +207,12 @@ final class AuditPane {
                     HEADER_HEIGHT, targets, toggle).right() + GAP;
             targets.add(textLeft, row.top(), row.left() + row.width() - textLeft, HEADER_HEIGHT, toggle);
         }
-        String head = section.header() + PART_GAP + section.badge() + PART_GAP + section.source();
+        // Decision flagless-section-draws-green-with-a-checkmark.
+        boolean flagless = section.flags().isEmpty();
+        String head = section.header() + PART_GAP + (flagless ? CHECKMARK : section.badge()) + PART_GAP
+                + section.source();
         graphics.text(font, font.plainSubstrByWidth(head, row.left() + row.width() - textLeft), textLeft,
-                row.top() + ButtonPainter.TEXT_NUDGE, WHITE);
+                row.top() + ButtonPainter.TEXT_NUDGE, flagless ? GREEN : WHITE);
         int y = row.top() + HEADER_HEIGHT;
         if (open) {
             y = drawLines(graphics, font, section.flags(), row.left(), y, row.width(), RED);

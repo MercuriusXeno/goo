@@ -11,7 +11,8 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests the Audit tab's pane through drawn frames of recorded sections, with no Screen (decisions
  * audit-section-lines-word-wrap, sections-start-expanded-with-an-expand-collapse-all-button,
- * chevron-only-where-a-section-holds-more-than-one-row, section-chevron-becomes-a-button).
+ * chevron-only-where-a-section-holds-more-than-one-row, section-chevron-becomes-a-button,
+ * flagless-section-draws-green-with-a-checkmark).
  */
 class AuditPaneTest {
     private static final GroupsPane.Bounds VIEW = new GroupsPane.Bounds(0, 0, 200, 400);
@@ -19,6 +20,8 @@ class AuditPaneTest {
     private static final String LONG_LINE = "minecraft:cobblestone remainders 2 items solved 40 via the rock root"
             + " and the metal root";
     private static final String OPEN_MARK = "v";
+    private static final String CHECKMARK = "✔";
+    private static final int WHITE = 0xFFFFFFFF;
     private static final List<Integer> BODY_COLORS = List.of(0xFFA0A0A0, 0xFFFF5555);
 
     @Nested
@@ -83,6 +86,22 @@ class AuditPaneTest {
             DrawnFrame toggled = draw(pane);
             assertFalse(toggled.texts().contains("alpha one"));
             assertTrue(toggled.texts().contains("beta one"));
+        }
+    }
+
+    @Nested
+    class Flagless {
+        @Test
+        void flaglessHeaderDrawsGreenWithACheckmark() {
+            DrawnFrame frame = draw(sections(section("Quiet", "  No recipe cycles detected."),
+                    "{\"header\": \"Loud\", \"flags\": [\"first flag\", \"second flag\"], \"lines\": [\"body\"]}"));
+            DrawnFrame.Text quiet = header(frame, "Quiet");
+            assertTrue(quiet.text().contains(CHECKMARK), quiet.text());
+            assertEquals(AuditPane.GREEN, quiet.color());
+            DrawnFrame.Text loud = header(frame, "Loud");
+            assertTrue(loud.text().contains("2 flags"), loud.text());
+            assertFalse(loud.text().contains(CHECKMARK), loud.text());
+            assertEquals(WHITE, loud.color());
         }
     }
 

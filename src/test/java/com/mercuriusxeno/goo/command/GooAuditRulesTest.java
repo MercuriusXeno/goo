@@ -110,6 +110,25 @@ class GooAuditRulesTest {
     }
 
     /**
+     * Over inputs holding nothing to flag or list, every rule answers one all-clear line as its body and no flag
+     * (decision flagless-section-shows-one-all-clear-line).
+     */
+    @Test
+    void everyRuleAnswersOneAllClearLineOnEmptyInputs() throws IOException {
+        GooAuditInputs empty = new GooAuditInputs(GooBaseValuesPreview.registry("{}"), List.of(), Set.of());
+        List<String> unclear = new ArrayList<>();
+        for (GooAuditRule rule : GooAuditRules.discovered()) {
+            GooAuditSection section = rule.run(empty);
+            List<String> body = section.lines().stream().filter(line -> !line.isBlank()).toList();
+            if (!section.flags().isEmpty() || body.size() != 1) {
+                unclear.add(rule.getClass().getSimpleName() + " answers " + section.lines() + " flags "
+                        + section.flags());
+            }
+        }
+        assertEquals(List.of(), unclear);
+    }
+
+    /**
      * A phantom id is read against the registered items handed in, so the rule needs no registry.
      */
     @Test
