@@ -605,8 +605,10 @@ final class VariablesPane {
                     () -> actions.openVariable(link.id()), PrefabHovers.hoverKey(link.id()));
         } else {
             String label = groupLabel(link.id());
-            ButtonPainter.drawFollow(graphics, font, label, x, y, ICON_SIZE, targets,
-                    () -> actions.openGroup(label.substring(TAG_PREFIX.length())), null);
+            String group = label.substring(TAG_PREFIX.length());
+            // Decision group-referent-previews-shorthand-members-then-its-value.
+            ButtonPainter.drawFollow(graphics, font, label, x, y, ICON_SIZE, targets, () -> actions.openGroup(group),
+                    GroupHovers.hoverKey(group));
         }
     }
 

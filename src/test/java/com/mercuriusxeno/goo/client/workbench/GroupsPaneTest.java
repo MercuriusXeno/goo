@@ -570,6 +570,9 @@ class GroupsPaneTest {
         assertTrue(usedBy.getFirst().y() > members.getFirst().y() && usedBy.getFirst().y() < logs, usedBy.toString());
         DrawnFrame.Text link = frame.find("#exposed");
         assertEquals(ButtonPainter.LINK, link.color());
+        // Decision group-referent-previews-shorthand-members-then-its-value: the iterator previews its group.
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
+                frame.targets.hovered(link.x() + 1, link.y() + 1));
         assertTrue(Math.abs(link.y() - usedBy.getFirst().y()) < ExpressionLines.TEXT_LINE_HEIGHT, link.toString());
         frame.shiftClick("#exposed");
         verify(actions).openMutator("#exposed");

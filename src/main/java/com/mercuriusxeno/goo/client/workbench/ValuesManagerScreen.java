@@ -509,7 +509,7 @@ public final class ValuesManagerScreen extends Screen {
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
-                        .or(() -> valuesPane.groupTooltipFor(hoverKey))
+                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, hoverKey))
                         .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey));
     }
 
@@ -535,7 +535,6 @@ public final class ValuesManagerScreen extends Screen {
     private static Either<FormattedText, TooltipComponent> elementOf(TooltipLine line) {
         return switch (line) {
             case TooltipLine.Text text -> Either.left(text.text());
-            case TooltipLine.MemberIcons members -> Either.right(members);
             case TooltipLine.Runs runs -> Either.right(runs);
             case TooltipLine.GooAmount amount -> Either.right(new TooltipLine.GooAmounts(List.of(amount)));
         };

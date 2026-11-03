@@ -191,6 +191,21 @@ class ProcessesPaneTest {
         assertEquals(2, frame().count("$oak"), frame().texts().toString());
     }
 
+    /**
+     * An iterator's own name previews the group it fills and its source previews the group it copies (decision
+     * group-referent-previews-shorthand-members-then-its-value).
+     */
+    @Test
+    void iteratorNameAndSourcePreviewTheirGroups() {
+        DrawnFrame frame = frame();
+        DrawnFrame.Text name = frame.find("#exposed");
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
+                frame.targets.hovered(name.x() + 1, name.y() + 1));
+        DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#copper"));
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("copper")),
+                frame.targets.hovered(source.x() + 1, source.y() + 1));
+    }
+
     // A Mutators pane over the iterators #twice, applying waxed then rust, and #bare, applying nothing.
     private ProcessesPane chainedIterators(ManagerActions actions) {
         String entry = """

@@ -82,9 +82,7 @@ final class ValuesPane {
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
     // A hover key no item id, prefab name or goo type key spells.
-    private static final String GROUP_HOVER_PREFIX = "goo-group-members:";
     private static final String GROUP_MARK = "#";
-    private static final int MEMBER_ICONS_SHOWN = 8;
 
     private final ValuesTab values;
     private final ItemIcons icons;
@@ -556,32 +554,9 @@ final class ValuesPane {
         return beside - ICON_GAP;
     }
 
-    /**
-     * @param hoverKey what the hovered area names
-     * @return the group's members as one row of item icons where the area is a group button's, empty otherwise
-     */
-    Optional<List<TooltipLine>> groupTooltipFor(String hoverKey) {
-        if (!hoverKey.startsWith(GROUP_HOVER_PREFIX)) {
-            return Optional.empty();
-        }
-        return Optional.of(List.of(memberIcons(values.groupMembers(hoverKey.substring(GROUP_HOVER_PREFIX.length())))));
-    }
-
-    /**
-     * @param members a group's members, in member order
-     * @return the first eight as icons, then ..+n counting the rest, no label where every member draws (decisions
-     *     group-link-hovers-member-icons-then-plus-n, more-button-reads-dot-dot-plus-n)
-     */
-    static TooltipLine.MemberIcons memberIcons(List<String> members) {
-        int shown = Math.min(members.size(), MEMBER_ICONS_SHOWN);
-        int hidden = members.size() - shown;
-        return new TooltipLine.MemberIcons(members.subList(0, shown), hidden > 0 ? UsedByLine.moreLabel(hidden)
-                : NO_TEXT);
-    }
-
     // The group's name as a button a shift + left click follows to its group on the Groups tab, a plain left click
-    // passing to the row, hovering its members (decisions blue-text-options-draw-as-bordered-buttons,
-    // group-link-hovers-member-icons-then-plus-n).
+    // passing to the row, hovering its preview (decisions blue-text-options-draw-as-bordered-buttons,
+    // group-link-hovers-member-icons-then-plus-n, group-referent-previews-shorthand-members-then-its-value).
     // Decision shift-left-click-follows-plain-left-modifies.
     // Answers the x past the button.
     // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the group reads after #.
@@ -590,7 +565,7 @@ final class ValuesPane {
         String shown = font.plainSubstrByWidth(GROUP_MARK + group,
                 Math.max(1, line.right() - left - ButtonPainter.PADDING - ButtonPainter.PADDING));
         return ButtonPainter.drawFollow(graphics, font, shown, left, line.spriteTop() - 1, ROW_HEIGHT, targets,
-                () -> actions.openGroup(group), GROUP_HOVER_PREFIX + group).right();
+                () -> actions.openGroup(group), GroupHovers.hoverKey(group)).right();
     }
 
     // A derived item's recipe equivalency, or the inverted recipe that solved it; one recipes value with neither to

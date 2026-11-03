@@ -244,6 +244,8 @@ final class MutatorControls {
         } else {
             flow.linkControl(ControlFlow.dropdownLabel(GROUP_MARK + source), null, open,
                     () -> actions.openGroup(source));
+            // Decision group-referent-previews-shorthand-members-then-its-value.
+            flow.hoverLast(GroupHovers.hoverKey(source));
         }
     }
 
