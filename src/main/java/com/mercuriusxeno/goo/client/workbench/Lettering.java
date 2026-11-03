@@ -20,6 +20,8 @@ record Lettering(Font font, float scale) {
     private static final int HALF = 2;
     // The font advances one pixel past each glyph's ink, so a run's width ends a pixel past its last glyph.
     private static final int TRAILING_ADVANCE = 1;
+    // A line's last row holds its glyphs' shadow, under their ink.
+    private static final int SHADOW_ROW = 1;
 
     /**
      * @param font the font
@@ -52,6 +54,38 @@ record Lettering(Font font, float scale) {
     int inkWidth(String text) {
         int advance = Math.max(0, font.width(text) - TRAILING_ADVANCE);
         return isFull() ? advance : (int) Math.ceil(advance * scale);
+    }
+
+    /**
+     * @param button the button the label stands in
+     * @param label  the label
+     * @return where the label's top-left draws in the button, its x then its y
+     */
+    float[] labelOrigin(ButtonPainter.Box button, String label) {
+        // The glyphs' ink: the run's advance less the pixel after its last glyph, and the line less its empty row and
+        // its shadow's row.
+        float inkWidth = Math.max(0, font.width(label) - TRAILING_ADVANCE) * scale;
+        float inkHeight = Math.max(0, font.lineHeight - GLYPH_GAP - SHADOW_ROW) * scale;
+        return new float[] {button.left() + (button.width() - inkWidth) / HALF,
+            button.top() + (button.height() - inkHeight) / HALF};
+    }
+
+    /**
+     * Draws words with their top-left at a place between whole pixels, scaled about that place, as a label centered
+     * in its button draws.
+     *
+     * @param graphics the frame's graphics
+     * @param text     the words
+     * @param origin   their left edge, then their top
+     * @param color    their color
+     */
+    void draw(GuiGraphicsExtractor graphics, String text, float[] origin, int color) {
+        Matrix3x2fStack pose = graphics.pose();
+        pose.pushMatrix();
+        pose.translate(origin[0], origin[1]);
+        pose.scale(scale);
+        graphics.text(font, text, 0, 0, color);
+        pose.popMatrix();
     }
 
     /**

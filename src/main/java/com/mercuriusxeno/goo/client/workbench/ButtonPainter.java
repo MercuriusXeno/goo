@@ -137,14 +137,24 @@ final class ButtonPainter {
                            ClickTargets targets, Runnable pressed, @Nullable String hoverKey) {
         Box box = layout(lettering.width(label), line.left(), line.top(), line.height());
         drawFrame(graphics, box);
-        lettering.draw(graphics, label, box.left() + PADDING, labelTop(lettering, box), color);
+        drawLabel(graphics, lettering, label, box, color);
         reserve(targets, box, pressed, hoverKey);
         return box;
     }
 
-    // A full-size label stands its nudge under the box's top; a scaled one centers its glyphs in the box.
-    private static int labelTop(Lettering lettering, Box box) {
-        return lettering.isFull() ? box.top() + TEXT_NUDGE : lettering.centeredTop(box.top(), box.height());
+    // A full-size label stands its padding in and its nudge under the box's top; a scaled one centers its glyphs'
+    // ink in the box, between whole pixels where the halves fall there, so an operator's + or - stands in the middle
+    // of its button (the operator saw them too far left and slightly too high). Answers where the label stood, its
+    // left edge then its top, rounded to whole pixels.
+    private static int[] drawLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
+                                   int color) {
+        if (lettering.isFull()) {
+            lettering.draw(graphics, label, box.left() + PADDING, box.top() + TEXT_NUDGE, color);
+            return new int[] {box.left() + PADDING, box.top() + TEXT_NUDGE};
+        }
+        float[] origin = lettering.labelOrigin(box, label);
+        lettering.draw(graphics, label, origin, color);
+        return new int[] {Math.round(origin[0]), Math.round(origin[1])};
     }
 
     // The underline stands under a scaled label's glyphs as it does under the font's own.
@@ -199,10 +209,8 @@ final class ButtonPainter {
 
     private static void drawLinkLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
                                       ClickTargets targets) {
-        int textTop = labelTop(lettering, box);
-        lettering.draw(graphics, label, box.left() + PADDING, textTop, LINK);
-        underlineWhileShiftHeld(graphics, targets, lettering, box.left() + PADDING, textTop, lettering.width(label),
-                LINK);
+        int[] place = drawLabel(graphics, lettering, label, box, LINK);
+        underlineWhileShiftHeld(graphics, targets, lettering, place[0], place[1], lettering.width(label), LINK);
     }
 
     /**

@@ -32,13 +32,12 @@ class ExpressionBuilderPaneTest {
     private static final GroupsPane.Bounds AREA = new GroupsPane.Bounds(0, 0, 590, 390);
     // Where the builder's lines end, short of the trash strip by a gap.
     private static final int CONTENT_RIGHT = AREA.right() - ExpressionBuilderPane.TRASH_WIDTH - BuilderOverlays.GAP;
-    // The builder's lettering on the mocked font, and how far below their line's top its words and its button
-    // labels stand (decision builder-font-and-spacing-shrink-padding-untouched).
+    // The builder's lettering on the mocked font, and how far below their line's top its words stand
+    // (decision builder-font-and-spacing-shrink-padding-untouched).
     private static final Lettering LETTERS = new Lettering(DrawnFrame.font(), ControlFlow.BUILDER_SCALE);
     private static final int WORDS_DROP = LETTERS.centeredTop(0, ControlFlow.LINE);
     // Texts whose tops stand closer than this share a builder line.
     private static final int HALF_LINE = ControlFlow.LINE / 2;
-    private static final int LABEL_DROP = LETTERS.centeredTop(0, ButtonPainter.HEIGHT);
     // A type row's rail and the gap after it, which stand before its goo type button.
     private static final int ROW_RAIL = ControlFlow.RAIL_ADVANCE;
     // The room a term box leaves between its left border and its rail: none, the rail standing flush.
@@ -589,8 +588,9 @@ class ExpressionBuilderPaneTest {
         DrawnFrame frame = Builder.item("$waxed").frame();
         int[] panel = fills(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
         DrawnFrame.Text kind = frame.drawn().getFirst();
-        int buttonLeft = kind.x() - ButtonPainter.PADDING;
-        int buttonTop = kind.y() - LABEL_DROP;
+        int[] button = frame.buttonAround(kind);
+        int buttonLeft = button[0];
+        int buttonTop = button[1];
         assertEquals(RowLayout.BOX_MARGIN, buttonLeft - panel[0], "the box's left margin");
         assertEquals(RowLayout.BOX_MARGIN, buttonTop - panel[1], "the box's top margin");
     }
@@ -808,8 +808,8 @@ class ExpressionBuilderPaneTest {
         List<DrawnFrame.Text> sides = ratioSides(frame);
         assertEquals(List.of("2", "3"), sides.stream().map(DrawnFrame.Text::text).toList(), frame.texts().toString());
         DrawnFrame.Text colon = frame.drawn().get(frame.drawn().indexOf(sides.get(1)) - 1);
-        int multiplierRight = sides.get(0).x() - ButtonPainter.PADDING + ButtonPainter.width(LETTERS, "2");
-        int divisorLeft = sides.get(1).x() - ButtonPainter.PADDING;
+        int multiplierRight = frame.buttonAround(sides.get(0))[2];
+        int divisorLeft = frame.buttonAround(sides.get(1))[0];
         assertEquals(List.of(multiplierRight + 1, colon.x() + LETTERS.inkWidth(":") + 1),
                 List.of(colon.x(), divisorLeft), frame.drawn().toString());
     }
@@ -1402,9 +1402,9 @@ class ExpressionBuilderPaneTest {
             DrawnFrame changed = builder.frame();
             DrawnFrame.Text cancel = changed.find("✗ Cancel");
             DrawnFrame.Text done = changed.find("✓ Done");
-            int cancelRight = cancel.x() - ButtonPainter.PADDING + ButtonPainter.width(LETTERS, "✗ Cancel");
-            assertTrue(cancelRight < done.x() - ButtonPainter.PADDING, cancel + " left of " + done);
-            assertEquals(CONTENT_RIGHT, done.x() - ButtonPainter.PADDING + ButtonPainter.width(LETTERS, "✓ Done"));
+            int cancelRight = changed.buttonAround(cancel)[2];
+            assertTrue(cancelRight < changed.buttonAround(done)[0], cancel + " left of " + done);
+            assertEquals(CONTENT_RIGHT, changed.buttonAround(done)[2]);
             assertEquals(done.y(), cancel.y());
             assertEquals(changed.find("()").y() / ControlFlow.LINE, done.y() / ControlFlow.LINE);
             assertFalse(changed.texts().contains("Value"), changed.texts().toString());

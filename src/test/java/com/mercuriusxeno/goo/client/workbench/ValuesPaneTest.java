@@ -310,7 +310,7 @@ class ValuesPaneTest {
             assertTrue(builder.isOpen());
             DrawnFrame open = frame();
             DrawnFrame.Text kind = open.find(ControlFlow.dropdownLabel("by type"));
-            assertEquals(gravel.x() - ButtonPainter.PADDING, kind.x() - ButtonPainter.PADDING, kind + " vs " + gravel);
+            assertEquals(gravel.x() - ButtonPainter.PADDING, open.buttonAround(kind)[0], kind + " vs " + gravel);
         }
 
         // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
