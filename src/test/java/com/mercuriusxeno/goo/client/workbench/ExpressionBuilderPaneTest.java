@@ -1026,16 +1026,46 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * No builder control explains itself on hover; an X's tooltip reads the one word Delete (the operator's ruling).
+     * No builder control explains itself on hover but the () handle, which reads how it is used (the operator's
+     * ruling, amended by decision parenthetical-handle-carries-a-rail-and-hovers-its-drop).
      */
     @Test
-    void onlyAnXCarriesATooltipAndItReadsDelete() {
+    void onlyTheHandleCarriesATooltip() {
         for (String shown : List.of("$base + ($waxed - $edited)", "{\"leaf\": \"4\"}", "")) {
             Builder builder = Builder.item(shown);
             List<String> hints = builder.frame().targets.hoverKeys().stream()
                     .filter(key -> BuilderOverlays.tooltipFor(key).isPresent()).distinct().toList();
-            assertTrue(hints.stream().allMatch(BuilderOverlays.hintKey("Delete")::equals), shown + ": " + hints);
+            assertTrue(hints.stream().allMatch(BuilderOverlays.hintKey(HANDLE_HINT)::equals), shown + ": " + hints);
         }
+    }
+
+    private static final String HANDLE_HINT = "Drop on term, wrap w/ parenthesis";
+
+    /**
+     * The () handle draws a rail with its grips flush inside its box's left border, a press on the rail starts the
+     * wrap drag, and hovering the handle reads how it is used (decision
+     * parenthetical-handle-carries-a-rail-and-hovers-its-drop).
+     */
+    @Test
+    void handleCarriesARailAndHoversItsDrop() {
+        Builder builder = Builder.item("$waxed + $edited");
+        DrawnFrame frame = builder.frame();
+        DrawnFrame.Text handle = handles(frame).getFirst();
+        int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream()
+                .filter(fill -> fill[2] <= handle.x() && fill[2] > handle.x() - ControlFlow.LINE
+                        && fill[1] <= handle.y() && fill[3] > handle.y())
+                .findFirst().orElseThrow(() -> new AssertionError("no rail left of the handle " + handle));
+        assertEquals(3, fills(frame, ControlFlow.GRIP_COLOR).stream().filter(grip -> grip[0] >= rail[0]
+                && grip[2] <= rail[2] && grip[1] >= rail[1] && grip[3] <= rail[3]).count(), "grips in the rail");
+        assertTrue(fills(frame, ButtonPainter.BORDER).stream().anyMatch(box -> box[0] == rail[0] - 1
+                && box[1] == rail[1] - 1 && box[3] == rail[3] + 1 && box[2] > handle.x()), "the rail sits flush");
+        assertEquals(BuilderOverlays.hintKey(HANDLE_HINT),
+                frame.targets.hovered(handle.x() + 1, handle.y() + 1).orElseThrow());
+        assertTrue(frame.targets.click(rail[0] + 1, rail[1] + 1));
+        DrawnFrame.Text edited = frame.find("edited");
+        assertTrue(frame.targets.drag(edited.x() + 1, edited.y() + 1));
+        assertTrue(filledAround(builder.frame(), ExpressionBuilderPane.WRAP_MARK, edited), "the rail starts no wrap");
+        frame.targets.release();
     }
 
     /**

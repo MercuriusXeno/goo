@@ -563,21 +563,27 @@ final class ControlFlow {
     }
 
     /**
-     * A button whose press grabs the pointer, as a handle dragged onto a term does (decision
-     * parenthetical-handle-drags-onto-a-term).
+     * A button whose press grabs the pointer, as a handle dragged onto a term does, a rail with its grips flush inside
+     * its left border so it reads as a thing to drag (decisions parenthetical-handle-drags-onto-a-term,
+     * parenthetical-handle-carries-a-rail-and-hovers-its-drop).
      *
      * @param label its label
      * @param grab  follows the pointer from the press to the release
+     * @param hint  what hovering it reads
      */
-    void grabControl(String label, ClickTargets.PointerGrab grab) {
-        int width = ButtonPainter.width(font, label);
+    void grabControl(String label, ClickTargets.PointerGrab grab, String hint) {
+        int labelLeftRoom = RAIL_WIDTH + ButtonPainter.PADDING;
+        int width = 1 + labelLeftRoom + font.width(label) + ButtonPainter.PADDING;
         reserve(width);
         markPiece(width);
         ButtonPainter.Box box = ButtonPainter.layout(font.width(label), x, y, LINE);
-        ButtonPainter.drawFrame(graphics, box);
-        graphics.text(font, label, box.left() + ButtonPainter.PADDING, y + TEXT_NUDGE, LINK);
-        targets.addGrab(box.left(), box.top(), box.width(), box.height(), grab);
-        x = box.right() + GAP;
+        ButtonPainter.Box railed = new ButtonPainter.Box(box.left(), box.top(), width, box.height());
+        ButtonPainter.drawFrame(graphics, railed);
+        drawRail(railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
+        graphics.text(font, label, railed.left() + 1 + labelLeftRoom, y + TEXT_NUDGE, LINK);
+        targets.addGrab(railed.left(), railed.top(), railed.width(), railed.height(), grab);
+        targets.addHover(railed.left(), railed.top(), railed.width(), railed.height(), BuilderOverlays.hintKey(hint));
+        x = railed.right() + GAP;
     }
 
     /**
