@@ -109,15 +109,15 @@ class ExpressionBuilderPaneTest {
 
     // Where the rail of the term at a place answers, found by its hover across the screen.
     private static double[] railOf(DrawnFrame frame, List<Integer> path) {
-        String key = ExpressionBuilderPane.railHoverKey(path);
+        String key = ExpressionBuilderPane.railName(path);
         for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
             for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
-                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                if (frame.targets.grabNamed(x, y).filter(key::equals).isPresent()) {
                     return new double[] {x, y};
                 }
             }
         }
-        throw new AssertionError("no rail for " + path + " in " + frame.targets.hoverKeys());
+        throw new AssertionError("no rail for " + path);
     }
 
     // The tops of each fill drawn in the drop cursor's blue.
@@ -351,6 +351,27 @@ class ExpressionBuilderPaneTest {
         assertTrue(frame.targets.drag(AREA.left() + 1, handle.y()));
         assertEquals(2, fills(builder.frame(), DragMask.HIGHLIGHT).size(), "a highlight per term");
         frame.targets.release();
+    }
+
+    /**
+     * A term's rail and a type row's rail hover nothing while the term beside the rail hovers its preview, and the
+     * trash strip hovers its hint (decisions drag-rails-hover-nothing, trash-strip-hovers-drag-items-here-to-remove).
+     */
+    @Test
+    void railsHoverNothingAndTheTrashStripHoversItsHint() {
+        DrawnFrame frame = Builder.item("$waxed + $edited").frame();
+        double[] rail = railOf(frame, List.of(1));
+        assertEquals(java.util.Optional.empty(), frame.targets.hovered(rail[0], rail[1]), "the rail hovers nothing");
+        DrawnFrame.Text edited = frame.find("edited");
+        assertTrue(frame.targets.hovered(edited.x() + 1, edited.y() + 1).isPresent(), "the term hovers its preview");
+        int[] strip = fills(frame, ExpressionBuilderPane.TRASH_REST).getFirst();
+        String hint = frame.targets.hovered((strip[0] + strip[2]) / 2.0, (strip[1] + strip[3]) / 2.0)
+                .flatMap(BuilderOverlays::tooltipFor).map(component -> component.getString()).orElse("");
+        assertEquals("Drag items here to remove", hint);
+        DrawnFrame typed = Builder.item(TWO_TYPES).frame();
+        double[] rowRail = rowRailOf(typed, 0);
+        assertEquals(java.util.Optional.empty(), typed.targets.hovered(rowRail[0], rowRail[1]),
+                "the row's rail hovers nothing");
     }
 
     // Each fill in the color, as left, top, right, bottom.
@@ -694,15 +715,15 @@ class ExpressionBuilderPaneTest {
 
     // Where a type row's rail answers, found by its hover across the screen.
     private static double[] rowRailOf(DrawnFrame frame, int row) {
-        String key = ExpressionBuilderPane.rowRailHoverKey(row);
+        String key = ExpressionBuilderPane.rowRailName(row);
         for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
             for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
-                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                if (frame.targets.grabNamed(x, y).filter(key::equals).isPresent()) {
                     return new double[] {x, y};
                 }
             }
         }
-        throw new AssertionError("no rail for row " + row + " in " + frame.targets.hoverKeys());
+        throw new AssertionError("no rail for row " + row);
     }
 
     // Each goo icon blit as its x and y.
@@ -1195,13 +1216,14 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * No builder control explains itself on hover but four: the () handle, [+?] and the ratio's two boxes (the
-     * operator's ruling, amended by decisions parenthetical-handle-carries-a-rail-and-hovers-its-drop and
-     * plus-question-and-ratio-boxes-hover-their-names).
+     * No builder control explains itself on hover but five: the () handle, [+?], the ratio's two boxes and the trash
+     * strip (the operator's ruling, amended by decisions parenthetical-handle-carries-a-rail-and-hovers-its-drop,
+     * plus-question-and-ratio-boxes-hover-their-names and trash-strip-hovers-drag-items-here-to-remove).
      */
     @Test
-    void onlyTheFourNamedControlsCarryATooltip() {
-        java.util.Set<String> named = java.util.stream.Stream.of(HANDLE_HINT, ADD_TYPE_HINT, "Multiplier", "Divisor")
+    void onlyTheFiveNamedControlsCarryATooltip() {
+        java.util.Set<String> named = java.util.stream.Stream.of(HANDLE_HINT, ADD_TYPE_HINT, "Multiplier", "Divisor",
+                        "Drag items here to remove")
                 .map(BuilderOverlays::hintKey).collect(java.util.stream.Collectors.toSet());
         for (String shown : List.of("$base + ($waxed - $edited)", "{\"leaf\": \"4\"}", "")) {
             Builder builder = Builder.item(shown);

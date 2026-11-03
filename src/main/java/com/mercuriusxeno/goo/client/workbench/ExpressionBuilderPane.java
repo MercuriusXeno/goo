@@ -79,6 +79,7 @@ final class ExpressionBuilderPane {
     private static final String MINUS_SIGN = "-";
     private static final String POSSESSIVE = "'s";
     private static final String WRAP = "()";
+    private static final String TRASH_HINT = "Drag items here to remove";
     // How far a drop slot's hole in the drag mask reaches either side of its cursor.
     private static final int SLOT_HOLE_REACH = 3;
     // Decision parenthetical-handle-carries-a-rail-and-hovers-its-drop: the handle reads how it is used.
@@ -87,8 +88,8 @@ final class ExpressionBuilderPane {
     static final int DROP_CURSOR = 0xFF4090FF;
     /** The cursor's blue, see-through, over the term the held () would wrap. */
     static final int WRAP_MARK = 0x804090FF;
-    private static final String RAIL_HOVER_PREFIX = "goo-term-rail:";
-    private static final String ROW_RAIL_HOVER_PREFIX = "goo-row-rail:";
+    private static final String RAIL_NAME_PREFIX = "goo-term-rail:";
+    private static final String ROW_RAIL_NAME_PREFIX = "goo-row-rail:";
     private static final int HALF = 2;
     private static final int NEST_DARKER = 0x28000000;
     private static final int NEST_LIGHTER = 0x28FFFFFF;
@@ -255,18 +256,18 @@ final class ExpressionBuilderPane {
 
     /**
      * @param path a term's place
-     * @return the hover key its drag rail answers with, which names no tooltip
+     * @return the name its drag rail grabs under, which hovering never reads
      */
-    static String railHoverKey(List<Integer> path) {
-        return RAIL_HOVER_PREFIX + path;
+    static String railName(List<Integer> path) {
+        return RAIL_NAME_PREFIX + path;
     }
 
     /**
      * @param row a type row's index
-     * @return the hover key its drag rail answers with, which names no tooltip
+     * @return the name its drag rail grabs under, which hovering never reads
      */
-    static String rowRailHoverKey(int row) {
-        return ROW_RAIL_HOVER_PREFIX + row;
+    static String rowRailName(int row) {
+        return ROW_RAIL_NAME_PREFIX + row;
     }
 
     /**
@@ -309,10 +310,7 @@ final class ExpressionBuilderPane {
             return 0;
         }
         overlays.commitOnBlur();
-        frames++;
-        slots.clear();
-        boxes.clear();
-        rowSlots.clear();
+        startFrame();
         int stripLeft = area.right() - TRASH_WIDTH;
         ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
@@ -323,11 +321,20 @@ final class ExpressionBuilderPane {
         drawClosing(flow, edited);
         int bottom = flow.bottom();
         drawPanel(graphics, new GroupsPane.Bounds(area.left(), top, area.right(), bottom));
+        hoverTrash(targets);
         drawDropCursor(graphics);
         linesRight = stripLeft - BuilderOverlays.GAP;
         drawRowCursor(graphics, linesRight);
         drawWrapMark(graphics);
         return bottom - top;
+    }
+
+    // A new frame lays its slots, boxes and row slots afresh.
+    private void startFrame() {
+        frames++;
+        slots.clear();
+        boxes.clear();
+        rowSlots.clear();
     }
 
     // The gray box behind the builder and the trash strip along its right edge, over the lines it laid.
@@ -338,6 +345,15 @@ final class ExpressionBuilderPane {
         graphics.fill(laid.left() - RowLayout.BOX_MARGIN, panelTop, laid.right(), laid.bottom(), PANEL_COLOR);
         trash = new GroupsPane.Bounds(laid.right() - TRASH_WIDTH, panelTop, laid.right(), laid.bottom());
         drawTrash(graphics, trash);
+    }
+
+    // Decision trash-strip-hovers-drag-items-here-to-remove.
+    private void hoverTrash(ClickTargets targets) {
+        GroupsPane.Bounds strip = trash;
+        if (strip != null) {
+            targets.addHover(strip.left(), strip.top(), strip.right() - strip.left(), strip.bottom() - strip.top(),
+                    BuilderOverlays.hintKey(TRASH_HINT));
+        }
     }
 
     // Decision terms-and-type-rows-drag-to-a-trash-strip.
@@ -668,7 +684,7 @@ final class ExpressionBuilderPane {
             flow.indent();
             BuilderOverlays.Anchor start = flow.anchor();
             rowSlots.add(new RowSlot(index, start));
-            flow.railTarget(rowRailHoverKey(index), new RowDrag(index, row.type()),
+            flow.railTarget(rowRailName(index), new RowDrag(index, row.type()),
                     typeLeadWidth(flow.font(), row.type()));
             flow.typeIcon(row.type(), anchor -> overlays.openPicker(anchor,
                     type -> apply(b -> b.setRowType(at, type)), null, held));
@@ -948,7 +964,7 @@ final class ExpressionBuilderPane {
         int lead = leadWidth(flow.font(), path, piece);
         flow.fit(ControlFlow.RAIL_ADVANCE + lead);
         BuilderOverlays.Anchor start = flow.anchor();
-        flow.railTarget(railHoverKey(path), new Drag(path, piece), lead);
+        flow.railTarget(railName(path), new Drag(path, piece), lead);
         if (path.getLast() > 0) {
             drawJoin(flow, path, piece);
         }
