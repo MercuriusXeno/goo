@@ -366,12 +366,23 @@ final class ExpressionBuilder {
      */
     boolean moveTo(List<Integer> from, List<Integer> toSum, int toIndex) {
         List<Integer> fromSum = from.subList(0, from.size() - 1);
-        int fromIndex = from.getLast();
         List<Piece> source = sumAt(fromSum);
-        if (dropBreaksTheTree(from, toSum, source.size())) {
+        if (source.size() == 1 && isParenthetical(fromSum)) {
+            // Decision terms-and-type-rows-drag-to-a-trash-strip: the parenthetical its last term leaves goes too,
+            // the term landing where the parenthetical would.
+            return moveLeaving(fromSum, source.getFirst(), toSum, toIndex);
+        }
+        return moveLeaving(from, source.get(from.getLast()), toSum, toIndex);
+    }
+
+    // Moves a term into a slot, the term standing in place of the one leaving; refuses as moveTo does.
+    private boolean moveLeaving(List<Integer> leaving, Piece moving, List<Integer> toSum, int toIndex) {
+        List<Integer> fromSum = leaving.subList(0, leaving.size() - 1);
+        int fromIndex = leaving.getLast();
+        List<Piece> source = sumAt(fromSum);
+        if (dropBreaksTheTree(leaving, toSum, source.size())) {
             return refuse(MOVE_CHANGES_VALUE);
         }
-        Piece moving = source.get(fromIndex);
         int slot = toSum.equals(fromSum) && toIndex > fromIndex ? toIndex - 1 : toIndex;
         List<Piece> left = new ArrayList<>(source);
         left.remove(fromIndex);
@@ -385,6 +396,12 @@ final class ExpressionBuilder {
         landing.add(Math.min(slot, landing.size()), moving);
         replaceSum(target, signed(landing));
         return true;
+    }
+
+    // A sum inside a parenthetical, rather than the whole value's or a type row's.
+    private boolean isParenthetical(List<Integer> sum) {
+        boolean rowSum = !rows.isEmpty() && sum.size() == 1;
+        return !sum.isEmpty() && !rowSum;
     }
 
     // A drop into the term itself, one emptying its sum, or a whole term dropped beside type rows.
@@ -775,13 +792,18 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Removes a term; a sum keeps its last term.
+     * Removes a term; the whole value and a type row keep their last term, and a parenthetical losing its last
+     * term goes with it (decision terms-and-type-rows-drag-to-a-trash-strip).
      *
      * @param path the term's place
      */
     void remove(List<Integer> path) {
         List<Integer> sum = path.subList(0, path.size() - 1);
         List<Piece> pieces = new ArrayList<>(sumAt(sum));
+        if (pieces.size() == 1 && isParenthetical(sum)) {
+            remove(sum);
+            return;
+        }
         if (pieces.size() == 1) {
             refuse(LAST_TERM);
             return;

@@ -239,6 +239,33 @@ class ExpressionBuilderTest {
             assertWrites("$waxed + (($edited - $base))", outer);
         }
 
+        // Decision terms-and-type-rows-drag-to-a-trash-strip: a parenthetical whose last term is dragged out of it,
+        // before or after it, goes; one keeping a term stands around it.
+        @Test
+        void draggingAParentheticalsLastTermOutDeletesTheParenthetical() {
+            ExpressionBuilder after = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(after.moveTo(List.of(1, 0), List.of(), 2));
+            assertWrites("$waxed + $edited", after);
+            ExpressionBuilder before = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(before.moveTo(List.of(1, 0), List.of(), 0));
+            assertWrites("$edited + $waxed", before);
+            ExpressionBuilder kept = ExpressionBuilder.of("$waxed + ($edited + $base)");
+            assertTrue(kept.moveTo(List.of(1, 1), List.of(), 2));
+            assertWrites("$waxed + ($edited) + $base", kept);
+        }
+
+        // Decision terms-and-type-rows-drag-to-a-trash-strip: trashing a parenthetical's last term deletes the
+        // parenthetical, and trashing a parenthetical removes it whole.
+        @Test
+        void removingAParentheticalsLastTermRemovesTheParenthetical() {
+            ExpressionBuilder inner = ExpressionBuilder.of("$waxed + ($edited)");
+            inner.remove(List.of(1, 0));
+            assertWrites("$waxed", inner);
+            ExpressionBuilder whole = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            whole.remove(List.of(1));
+            assertWrites("$waxed", whole);
+        }
+
         @Test
         void firstTermMovesNoHigherAndLastNoLower() {
             ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited");
@@ -280,13 +307,14 @@ class ExpressionBuilderTest {
             assertWrites("$waxed + $food + ($edited)", out);
         }
 
-        // A drop that would empty a sum, land a subtracted term first or drop a parenthetical into itself is refused
-        // and the value stands.
+        // A drop that would empty the whole value, land a subtracted term first or drop a parenthetical into itself
+        // is refused and the value stands; a parenthetical emptied goes instead (decision
+        // terms-and-type-rows-drag-to-a-trash-strip).
         @Test
         void dropThatBreaksTheValueIsRefused() {
-            ExpressionBuilder emptying = ExpressionBuilder.of("$waxed + ($edited)");
-            assertFalse(emptying.moveTo(List.of(1, 0), List.of(), 0));
-            assertEquals("$waxed + ($edited)", emptying.text());
+            ExpressionBuilder emptying = ExpressionBuilder.of("($edited)");
+            assertFalse(emptying.moveTo(List.of(0, 0), List.of(), 0));
+            assertEquals("($edited)", emptying.text());
             ExpressionBuilder subtracted = ExpressionBuilder.of("$waxed - $edited");
             assertFalse(subtracted.moveTo(List.of(1), List.of(), 0));
             assertEquals("$waxed - $edited", subtracted.text());

@@ -30,6 +30,8 @@ class ExpressionBuilderPaneTest {
     private static final List<BuilderGrammar.Prefab> PREFABS = List.of(new BuilderGrammar.Prefab("base", false),
             new BuilderGrammar.Prefab("waxed", true), new BuilderGrammar.Prefab("edited", true));
     private static final GroupsPane.Bounds AREA = new GroupsPane.Bounds(0, 0, 590, 390);
+    // Where the builder's lines end, short of the trash strip by a gap.
+    private static final int CONTENT_RIGHT = AREA.right() - ExpressionBuilderPane.TRASH_WIDTH - BuilderOverlays.GAP;
 
     /**
      * An open builder, each frame it draws and each string it writes.
@@ -240,6 +242,72 @@ class ExpressionBuilderPaneTest {
         assertFalse(filledAround(frame, ExpressionBuilderPane.nestTone(2), edited), "the depth-two box spans edited");
     }
 
+    // Each fill in the color, as left, top, right, bottom.
+    private static List<int[]> fills(DrawnFrame frame, int color) {
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
+                rights.capture(), bottoms.capture(), eq(color));
+        return IntStream.range(0, lefts.getAllValues().size()).mapToObj(index -> new int[] {
+                lefts.getAllValues().get(index), tops.getAllValues().get(index),
+                rights.getAllValues().get(index), bottoms.getAllValues().get(index)}).toList();
+    }
+
+    // Presses the term's rail and drags it onto the trash strip, answering where it was released.
+    private static double[] dragToTrash(DrawnFrame frame, List<Integer> path) {
+        double[] rail = railOf(frame, path);
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        double[] strip = {AREA.right() - ExpressionBuilderPane.TRASH_WIDTH / 2.0, rail[1]};
+        assertTrue(frame.targets.drag(strip[0], strip[1]));
+        return strip;
+    }
+
+    private static void trash(DrawnFrame frame, List<Integer> path) {
+        dragToTrash(frame, path);
+        frame.targets.release();
+    }
+
+    /**
+     * The trash strip fills the builder's right edge over its full height in the rest tone; a term's rail drag
+     * lights it, the pointer over it brightens it, and the release there deletes the term (decision
+     * terms-and-type-rows-drag-to-a-trash-strip).
+     */
+    @Test
+    void trashStripRestsLightsWhileDraggingAndDeletesTheTermReleasedOnIt() {
+        Builder builder = Builder.item("$waxed + $edited + $base");
+        DrawnFrame frame = builder.frame();
+        int[] panel = fills(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
+        int[] strip = fills(frame, ExpressionBuilderPane.TRASH_REST).getFirst();
+        assertEquals(List.of(AREA.right() - ExpressionBuilderPane.TRASH_WIDTH, panel[1], AREA.right(), panel[3]),
+                List.of(strip[0], strip[1], strip[2], strip[3]), "the strip spans the builder's right edge");
+        double[] rail = railOf(frame, List.of(1));
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        assertTrue(frame.targets.drag(AREA.left() + 1, rail[1]));
+        DrawnFrame lit = builder.frame();
+        assertEquals(1, fills(lit, ExpressionBuilderPane.TRASH_LIT).size(), "the strip lights while dragging");
+        assertEquals(List.of(), fills(lit, ExpressionBuilderPane.TRASH_REST));
+        assertTrue(frame.targets.drag(AREA.right() - 1, rail[1]));
+        DrawnFrame hovered = builder.frame();
+        assertEquals(1, fills(hovered, ExpressionBuilderPane.TRASH_HOVER).size(), "the strip brightens under it");
+        assertTrue(cursorTops(hovered).isEmpty(), "no drop cursor while over the strip");
+        frame.targets.release();
+        assertEquals("$waxed + $base", builder.written.getLast());
+        assertEquals(1, fills(builder.frame(), ExpressionBuilderPane.TRASH_REST).size(), "the strip rests again");
+    }
+
+    /**
+     * A parenthetical dragged by its rail onto the trash strip goes whole (decision
+     * terms-and-type-rows-drag-to-a-trash-strip).
+     */
+    @Test
+    void parentheticalReleasedOnTheTrashStripGoes() {
+        Builder builder = Builder.item("$base + ($waxed - $edited)");
+        trash(builder.frame(), List.of(1));
+        assertEquals("$base", builder.written.getLast());
+    }
+
     // Whether a fill in the color covers the text's top-left.
     private static boolean filledAround(DrawnFrame frame, int color, DrawnFrame.Text text) {
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
@@ -384,8 +452,6 @@ class ExpressionBuilderPaneTest {
             Builder builder = Builder.item(BEETROOT);
             DrawnFrame frame = builder.frame(new GroupsPane.Bounds(0, 0, 220, 390));
             int typeLeft = ControlFlow.INDENT;
-            int oneIndent = typeLeft + ControlFlow.INDENT + ButtonPainter.PADDING;
-            int twoIndents = oneIndent + ControlFlow.INDENT;
             DrawnFrame.Text food = frame.findFirst("food");
             DrawnFrame.Text saturation = frame.findFirst("saturation");
             assertTrue(saturation.y() > food.y(), frame.drawn().toString());
@@ -401,20 +467,23 @@ class ExpressionBuilderPaneTest {
             assertEquals(minus.y() / ControlFlow.LINE, (int) parentheticalRail[1] / ControlFlow.LINE);
             assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && text.y() == minus.y()),
                     frame.drawn().toString());
+            // A wrap inside the parenthetical opens on the wrapped term's rail, one indent further in.
             int innerLine = frame.drawn().stream().filter(text -> text.text().equals("saturation")
                     && text.y() > minus.y()).findFirst().orElseThrow().y() / ControlFlow.LINE;
-            assertEquals(twoIndents, line(frame, innerLine).getFirst().x(), frame.drawn().toString());
+            double[] innerRail = railOf(frame, List.of(1, 1, 1));
+            assertEquals(innerLine, (int) innerRail[1] / ControlFlow.LINE, frame.drawn().toString());
+            assertEquals((int) parentheticalRail[0] + ControlFlow.INDENT, (int) innerRail[0], frame.drawn().toString());
         }
 
         @Test
-        void beetrootsJellyRowReadsKindPlusThenTheRowInlineEndingOnItsX() {
+        void beetrootsJellyRowReadsKindPlusThenTheRowInlineEndingOnTheRowsX() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
-            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "X", "+", "saturation", "'s", "x", "12",
-                    "X", SUM_ADD, "X"), lineTexts(frame, 1), frame.drawn().toString());
+            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "+", "saturation", "'s", "x", "12", SUM_ADD,
+                    "X"), lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
             DrawnFrame.Text rowX = line(frame, 1).getLast();
-            assertEquals(AREA.right() - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING,
+            assertEquals(CONTENT_RIGHT - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING,
                     rowX.x());
             int jelly = iconXs(frame, 1).get(1);
             assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),
@@ -473,17 +542,19 @@ class ExpressionBuilderPaneTest {
         }
 
         // Leaf's parenthetical is subtracted, so neither it nor dye ahead of it draws a move that would land it first
-        // and drop its minus; the parenthetical takes a line of its own, "-" "(" then its terms inline, its X last
-        // (decision term-operators-right-pack).
+        // and drop its minus; the parenthetical takes a line of its own, "-" "(" then its terms inline, and no X
+        // (decision terms-and-type-rows-drag-to-a-trash-strip).
         @Test
-        void parentheticalLineReadsJoinParenThenItsTermsInlineAndItsXLast() {
+        void parentheticalLineReadsJoinParenThenItsTermsInline() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
             int head = open.y() / ControlFlow.LINE;
             assertEquals(List.of("-", "(", "food"), lineTexts(frame, head).subList(0, 3), frame.drawn().toString());
-            assertTrue(lineTexts(frame, head).indexOf(")") < lineTexts(frame, head).lastIndexOf("X"),
-                    frame.drawn().toString());
-            assertEquals(List.of(":", "dye", "'s", "1", ":", "1", "X"), lineTexts(frame, head - 1),
+            // The row's own X, which the type-row rail retires, is the line's one X.
+            assertEquals(List.of(CONTENT_RIGHT - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING),
+                    line(frame, head).stream().filter(text -> text.text().equals("X")).map(DrawnFrame.Text::x)
+                            .toList(), frame.drawn().toString());
+            assertEquals(List.of(":", "dye", "'s", "1", ":", "1"), lineTexts(frame, head - 1),
                     frame.drawn().toString());
             assertEquals(open.y(), frame.find(")").y(), frame.drawn().toString());
             assertTrue(frame.find(")").x() > frame.find("saturation").x(), frame.drawn().toString());
@@ -541,7 +612,7 @@ class ExpressionBuilderPaneTest {
             Font font = DrawnFrame.font();
             int cancelRight = cancel.x() - ButtonPainter.PADDING + ButtonPainter.width(font, "✗ Cancel");
             assertTrue(cancelRight < done.x() - ButtonPainter.PADDING, cancel + " left of " + done);
-            assertEquals(AREA.right(), done.x() - ButtonPainter.PADDING + ButtonPainter.width(font, "✓ Done"));
+            assertEquals(CONTENT_RIGHT, done.x() - ButtonPainter.PADDING + ButtonPainter.width(font, "✓ Done"));
             assertEquals(done.y(), cancel.y());
             assertEquals(changed.find("()").y() / ControlFlow.LINE, done.y() / ControlFlow.LINE);
             assertFalse(changed.texts().contains("Value"), changed.texts().toString());
@@ -830,25 +901,6 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
-        void termRemovesDrawAsRedXsReadingDelete() {
-            DrawnFrame frame = Builder.item("$waxed + $edited").frame();
-            assertFalse(frame.texts().contains("remove"), frame.texts().toString());
-            List<DrawnFrame.Text> xs = removes(frame);
-            assertEquals(2, xs.size(), frame.texts().toString());
-            xs.forEach(x -> assertEquals(ExpressionBuilderPane.RED, x.color()));
-            assertEquals(BuilderOverlays.hintKey("Delete"),
-                    frame.targets.hovered(xs.getFirst().x() + 1, xs.getFirst().y() + 1).orElseThrow());
-        }
-
-        @Test
-        void clickingATermsXRemovesThatTerm() {
-            Builder builder = Builder.item("$waxed + $edited");
-            DrawnFrame frame = builder.frame();
-            clickAt(frame, removes(frame).getFirst());
-            assertEquals("$edited", builder.written.getLast());
-        }
-
-        @Test
         void rowRemovesDrawAsRedXsReadingDelete() {
             Builder builder = Builder.item("{\"metal\": \"5\", \"pulse\": \"2\"}");
             DrawnFrame frame = builder.frame();
@@ -862,95 +914,14 @@ class ExpressionBuilderPaneTest {
             assertFalse(builder.written.getLast().contains("metal"), builder.written.toString());
         }
 
-        @Test
-        void sumRemoveDrawsAsARedXReadingDelete() {
-            DrawnFrame frame = Builder.item("$base + ($waxed - $edited)").frame();
-            assertFalse(frame.texts().contains("remove"), frame.texts().toString());
-            List<String> hints = removes(frame).stream().map(x -> frame.targets.hovered(x.x() + 1, x.y() + 1)
-                    .orElseThrow()).toList();
-            assertTrue(hints.contains(BuilderOverlays.hintKey("Delete")),
-                    hints.toString());
-        }
-
-        // The right edge of the X's button.
-        private static int rightOf(DrawnFrame frame, DrawnFrame.Text x) {
-            return x.x() + DrawnFrame.font().width(X) + ButtonPainter.PADDING;
-        }
-
-        // Each fill in the color, as left, top, right, bottom.
-        private static List<int[]> fills(DrawnFrame frame, int color) {
-            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
-            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-            verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
-                    rights.capture(), bottoms.capture(), eq(color));
-            return IntStream.range(0, lefts.getAllValues().size()).mapToObj(index -> new int[] {
-                    lefts.getAllValues().get(index), tops.getAllValues().get(index),
-                    rights.getAllValues().get(index), bottoms.getAllValues().get(index)}).toList();
-        }
-
         /**
-         * The last term's X is the last button inside its outlined box, its right edge one border pixel in from the
-         * box's right edge, on the rail's line (decision term-operators-right-pack).
+         * No term or parenthetical draws an X; the trash strip is their one deletion (decisions
+         * terms-and-type-rows-drag-to-a-trash-strip, term-operators-right-pack).
          */
         @Test
-        void termXStandsAtItsBoxRightEndOppositeItsRail() {
-            DrawnFrame frame = Builder.item("$waxed + $edited").frame();
-            double[] rail = railOf(frame, List.of(1));
-            int boxRight = fills(frame, ControlFlow.OUTLINE_COLOR).stream()
-                    .filter(fill -> fill[2] - fill[0] == 1 && fill[3] - fill[1] == ControlFlow.LINE)
-                    .filter(fill -> fill[0] > rail[0] && fill[1] <= rail[1] && fill[3] > rail[1])
-                    .mapToInt(fill -> fill[2]).max().orElseThrow();
-            DrawnFrame.Text x = removes(frame).getLast();
-            assertEquals(boxRight - 1, rightOf(frame, x), "the X stands outside its box");
-            assertTrue(Math.abs(x.y() - rail[1]) < ControlFlow.LINE, x + " off the rail's line " + rail[1]);
-        }
-
-        /**
-         * No X stands between a parenthetical's "(" and its first term's rail (decision term-operators-right-pack).
-         */
-        @Test
-        void noXStandsAfterAParentheticalsOpenParen() {
-            DrawnFrame frame = Builder.item("$base + ($waxed - $edited)").frame();
-            DrawnFrame.Text open = frame.find("(");
-            double[] rail = railOf(frame, List.of(1, 0));
-            assertTrue(removes(frame).stream().noneMatch(x -> Math.abs(x.y() - open.y()) < ControlFlow.LINE
-                    && x.x() > open.x() && x.x() < rail[0]), frame.drawn().toString());
-        }
-
-        /**
-         * A one-line parenthetical's X stands at its box's right end, on its line (decision
-         * term-operators-right-pack).
-         */
-        @Test
-        void oneLineParentheticalXStandsAtItsBoxRightEnd() {
-            Builder builder = Builder.item("$base + ($waxed - $edited)");
-            DrawnFrame frame = builder.frame();
-            int[] box = fills(frame, ExpressionBuilderPane.nestTone(1)).getFirst();
-            assertEquals(ControlFlow.LINE, box[3] - box[1], "the box spans more than one line");
-            DrawnFrame.Text x = removes(frame).stream().filter(remove -> rightOf(frame, remove) == box[2] - 1
-                    && remove.y() >= box[1] && remove.y() < box[3]).findFirst()
-                    .orElseThrow(() -> new AssertionError(frame.drawn() + " vs box right " + box[2]));
-            clickAt(frame, x);
-            assertEquals("$base", builder.written.getLast(), "the X at the box's right end is not the box's own");
-        }
-
-        /**
-         * A parenthetical wrapping across lines carries its X at its box's top right (decision
-         * term-operators-right-pack).
-         */
-        @Test
-        void multiLineParentheticalXStandsAtItsBoxTopRight() {
-            Builder builder = Builder.item("$base + ($waxed - $edited + $base + $waxed + $edited)");
-            DrawnFrame frame = builder.frame(new GroupsPane.Bounds(0, 0, 220, 390));
-            int[] box = fills(frame, ExpressionBuilderPane.nestTone(1)).getFirst();
-            assertTrue(box[3] - box[1] > ControlFlow.LINE, "the box spans one line");
-            DrawnFrame.Text x = removes(frame).stream().filter(remove -> rightOf(frame, remove) == box[2] - 1
-                    && remove.y() >= box[1] && remove.y() < box[1] + ControlFlow.LINE).findFirst()
-                    .orElseThrow(() -> new AssertionError(frame.drawn() + " vs box " + java.util.Arrays.toString(box)));
-            clickAt(frame, x);
-            assertEquals("$base", builder.written.getLast(), "the X at the box's top right is not the box's own");
+        void noTermOrParentheticalDrawsAnX() {
+            DrawnFrame frame = Builder.item("$base + $waxed + ($waxed - $edited)").frame();
+            assertEquals(List.of(), removes(frame), frame.drawn().toString());
         }
 
         @Test
@@ -959,7 +930,7 @@ class ExpressionBuilderPaneTest {
             Builder builder = new Builder(PREFABS);
             builder.pane.open("$waxed + $edited", builder.written::add, () -> finished[0] = true);
             DrawnFrame opened = builder.frame();
-            clickAt(opened, removes(opened).getFirst());
+            trash(opened, List.of(0));
             DrawnFrame frame = builder.frame();
             DrawnFrame.Text done = frame.find(DONE);
             assertEquals(ExpressionBuilderPane.GREEN, done.color());
@@ -1017,7 +988,7 @@ class ExpressionBuilderPaneTest {
             Builder builder = new Builder(PREFABS);
             builder.pane.open("$waxed + $edited", builder.written::add, () -> finished[0] = true);
             DrawnFrame unchanged = builder.frame();
-            clickAt(unchanged, removes(unchanged).getFirst());
+            trash(unchanged, List.of(0));
             DrawnFrame changed = builder.frame();
             DrawnFrame.Text done = changed.find(DONE);
             DrawnFrame.Text cancel = changed.find(CANCEL);
