@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.client.hud.NineSlice;
 import com.mercuriusxeno.goo.client.hud.PanelPainter;
 import com.mercuriusxeno.goo.client.hud.PanelRectangle;
 import com.mercuriusxeno.goo.client.hud.PanelRow;
+import com.mercuriusxeno.goo.client.hud.WordWrap;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
@@ -38,7 +39,6 @@ final class AbilityExplanationPanel {
     static final int COST_MECHANICS_COLOR = 0xFF55FFFF;
     private static final int HALF = 2;
     private static final int BORDERS_ACROSS = 2;
-    private static final String WORD_SEPARATOR = " ";
 
     private AbilityExplanationPanel() {
     }
@@ -98,45 +98,16 @@ final class AbilityExplanationPanel {
                                ToIntFunction<String> widthOf) {
         List<PanelRow> rows = new ArrayList<>();
         rows.add(PanelPainter.labelRow(lookup.translate(ability.displayName())));
-        for (String line : wrap(lookup.translate(ability.description()), textWidth, widthOf)) {
+        for (String line : WordWrap.lines(lookup.translate(ability.description()), textWidth, widthOf)) {
             rows.add(PanelRow.header(line, PanelPainter.TEXT_COLOR));
         }
         // zero-cost-field-formats-the-cost-mechanics: the text filled from the ability's own numbers
         ability.costMechanics(lookup).ifPresent(text -> {
-            for (String line : wrap(text, textWidth, widthOf)) {
+            for (String line : WordWrap.lines(text, textWidth, widthOf)) {
                 rows.add(PanelRow.header(line, COST_MECHANICS_COLOR));
             }
         });
         return rows;
-    }
-
-    /**
-     * Breaks a text into lines no wider than a width, word by word; a word
-     * wider than the width stands on a line of its own.
-     *
-     * @param text    the text
-     * @param width   the widest a line runs
-     * @param widthOf the width in pixels the font gives a string
-     * @return the lines, top first
-     */
-    static List<String> wrap(String text, int width, ToIntFunction<String> widthOf) {
-        List<String> lines = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-        for (String word : text.trim().split(WORD_SEPARATOR)) {
-            String joined = line.isEmpty() ? word : line + WORD_SEPARATOR + word;
-            if (!line.isEmpty() && widthOf.applyAsInt(joined) > width) {
-                lines.add(line.toString());
-                line.setLength(0);
-                line.append(word);
-            } else {
-                line.setLength(0);
-                line.append(joined);
-            }
-        }
-        if (!line.isEmpty()) {
-            lines.add(line.toString());
-        }
-        return lines;
     }
 
     private static void drawRows(GuiGraphicsExtractor graphics, Font font, List<PanelRow> rows, int left, int top) {

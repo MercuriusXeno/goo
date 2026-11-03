@@ -28,6 +28,7 @@ public final class RootRemaindersAuditRule implements GooAuditRule {
     private static final String INPUT = ": input ";
     private static final String EACH = ", each ";
     private static final String REMAINDER = ", remainder ";
+    private static final String ALL_CLEAR = INDENT + "No root _roots names solves an item.";
 
     @Override
     public GooAuditSection run(GooAuditInputs inputs) {
@@ -42,6 +43,6 @@ public final class RootRemaindersAuditRule implements GooAuditRule {
                     + EACH + row.perOutput() + REMAINDER + row.remainder()));
         }
         return new GooAuditSection(SECTION, SECTION + HEADER_OPEN + solutions.size() + HEADER_SUFFIX,
-                List.copyOf(lines), 0, List.of());
+                GooAuditSection.orAllClear(lines, ALL_CLEAR), 0, List.of());
     }
 }

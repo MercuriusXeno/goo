@@ -67,6 +67,7 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
     private static final String LOSSLESS_SEPARATOR = ", ";
     private static final String NO_LOSS_PREFIX = "No recipe loses goo when ";
     private static final String NO_LOSS_SUFFIX = " is worth 1.";
+    private static final String ALL_CLEAR = INDENT + "No goo type's recipes join items into a clique.";
     private static final String LOSS_PREFIX = "Recipes that lose goo when ";
     private static final String LOSS_SUFFIX = " is worth 1:";
     private static final String COLUMN_RECIPE = "Recipe";
@@ -215,8 +216,9 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
             }
         }
         List<String> flags = lines.stream().filter(line -> line.startsWith(CLIQUE_PREFIX)).toList();
+        // Decision flagless-section-shows-one-all-clear-line: with no clique, the preamble explains no table.
         return new GooAuditSection(SECTION, SECTION + HEADER_OPEN + typesWithCliques + HEADER_SUFFIX,
-                List.copyOf(lines), 0, flags);
+                typesWithCliques == 0 ? List.of(ALL_CLEAR) : List.copyOf(lines), 0, flags);
     }
 
     private static List<WalkedRecipe> walkedRecipes(GooValueRegistry values, Map<Identifier, GooValue> effective) {

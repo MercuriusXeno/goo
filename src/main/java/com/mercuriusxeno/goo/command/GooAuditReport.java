@@ -217,9 +217,9 @@ public final class GooAuditReport {
      */
     private static final String HDR_LEAST_VALUE_SUFFIX = " types)";
     /**
-     * Least value message when no goo type stands.
+     * Least value message when no item in the recipe graph carries a goo type.
      */
-    private static final String MSG_NO_TYPES = "  No goo types.";
+    private static final String MSG_NO_TYPE_CARRIED = "  No item in the recipe graph carries a goo type.";
     /**
      * Heads the per-item least values inside the least value section.
      */
@@ -587,12 +587,17 @@ public final class GooAuditReport {
     static void appendLeastValueSection(GooValueRegistry values, List<String> report) {
         List<LeastNumberPerType.TypeLeastValue> answers = LeastNumberPerType.work(values.valueSettingRecipes(),
                 values.table().getEffectiveValues(), values.deniedItems(), GooTypes.BUNDLED);
-        List<String> lines = new ArrayList<>(answers.stream().flatMap(answer -> answer.lines().stream()).toList());
-        lines.add(LEAST_VALUE_BY_ITEM);
-        lines.addAll(LeastNumberPerType.smallestValueLines(values.valueSettingRecipes(),
-                values.table().getEffectiveValues(), values.deniedItems()));
+        List<String> itemLines = LeastNumberPerType.smallestValueLines(values.valueSettingRecipes(),
+                values.table().getEffectiveValues(), values.deniedItems());
+        List<String> lines = new ArrayList<>();
+        // Decision flagless-section-shows-one-all-clear-line: with no item carrying a type, one line says so.
+        if (!itemLines.isEmpty() || answers.stream().anyMatch(answer -> !answer.items().isEmpty())) {
+            answers.forEach(answer -> lines.addAll(answer.lines()));
+            lines.add(LEAST_VALUE_BY_ITEM);
+            lines.addAll(itemLines);
+        }
         appendSectionBody(report, HDR_LEAST_VALUE_PREFIX + answers.size() + HDR_LEAST_VALUE_SUFFIX,
-                MSG_NO_TYPES, lines, Function.identity());
+                MSG_NO_TYPE_CARRIED, lines, Function.identity());
     }
 
     // --- No Value ---
