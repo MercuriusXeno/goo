@@ -753,6 +753,40 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * A term dragged to the slot after a parenthetical wrapping onto two lines draws its drop cursor from that
+     * parenthetical box's top to its bottom, inset, and the mask's hole there stands as tall as the cursor (decision
+     * drop-indicators-size-to-the-container-they-land-beside).
+     */
+    @Test
+    void dropCursorAndHoleSpanTheParentheticalTheySitBeside() {
+        Builder builder = Builder.item("$edited + ($waxed + $edited + $waxed + $edited + $waxed) + $base");
+        GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 330, 390);
+        DrawnFrame frame = builder.frame(narrow);
+        DrawnFrame.Text open = frame.find("(");
+        DrawnFrame.Text close = frame.find(")");
+        assertTrue(close.y() > open.y() + HALF_LINE, "the parenthetical wraps onto a second line");
+        int[] parenthetical = boxesIn(frame, ExpressionBuilderPane.NEST_BORDER).stream()
+                .map(ExpressionBuilderPaneTest::boundsOf).filter(box -> box[1] <= open.y() && box[3] >= close.y())
+                .findFirst().orElseThrow(() -> new AssertionError("no parenthetical box"));
+        double[] first = railOf(frame, List.of(0));
+        assertTrue(frame.targets.click(first[0], first[1]));
+        int afterClose = close.x() + ControlFlow.parenWidth(DrawnFrame.font(), ")") + BuilderOverlays.GAP;
+        assertTrue(frame.targets.drag(afterClose, close.y() + HALF_LINE));
+        DrawnFrame held = builder.frame(narrow);
+        List<int[]> cursors = fills(held, ExpressionBuilderPane.DROP_CURSOR);
+        assertEquals(1, cursors.size(), "one cursor");
+        int[] cursor = cursors.getFirst();
+        assertTrue(cursor[3] - cursor[1] > ControlFlow.LINE, "the cursor spans more than one line");
+        assertEquals(parenthetical[3] - parenthetical[1] - 2 * 2, cursor[3] - cursor[1],
+                "the cursor spans the parenthetical box less its inset");
+        int[] hole = fills(held, DragMask.HIGHLIGHT).stream().filter(lit -> lit[0] <= cursor[0] && cursor[2] <= lit[2]
+                && lit[1] <= cursor[3] && cursor[1] <= lit[3]).findFirst()
+                .orElseThrow(() -> new AssertionError("no hole at the cursor"));
+        assertEquals(List.of(cursor[1], cursor[3]), List.of(hole[1], hole[3]), "the hole as tall as the cursor");
+        frame.targets.release();
+    }
+
+    /**
      * A ratio draws m:d, its colon flush against the multiplier's box and the divisor's box flush against the colon
      * (decision ratio-colon-takes-no-spaces).
      */

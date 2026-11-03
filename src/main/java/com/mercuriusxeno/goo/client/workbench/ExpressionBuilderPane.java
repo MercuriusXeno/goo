@@ -443,7 +443,20 @@ final class ExpressionBuilderPane {
         }
         BuilderOverlays.Anchor at = target.at();
         int x = at.x() - BuilderOverlays.GAP / HALF;
-        graphics.fill(x - 1, at.y() + CURSOR_INSET, x + 1, at.y() + ControlFlow.LINE - CURSOR_INSET, DROP_CURSOR);
+        int[] span = spanOf(target);
+        graphics.fill(x - 1, span[0], x + 1, span[1], DROP_CURSOR);
+    }
+
+    // Decision drop-indicators-size-to-the-container-they-land-beside: the top and bottom a slot's cursor and hole
+    // take, the box of the term or parenthetical the slot stands beside, inset; a slot beside no box, as an empty
+    // sum's, takes its line.
+    private int[] spanOf(Slot slot) {
+        List<Integer> beside = placeOf(slot.sum(), slot.beside());
+        GroupsPane.Bounds box = boxes.stream().filter(drawn -> drawn.path().equals(beside)).map(TermBox::box)
+                .findFirst().orElse(null);
+        int top = box == null ? slot.at().y() : box.top();
+        int bottom = box == null ? slot.at().y() + ControlFlow.LINE : box.bottom();
+        return new int[] {top + CURSOR_INSET, bottom - CURSOR_INSET};
     }
 
     // Decision drags-mask-everything-but-their-valid-targets: while a term, a type row, the () handle or a + or -
@@ -489,14 +502,14 @@ final class ExpressionBuilderPane {
     }
 
     private List<DragMask.Rect> slotHoles(java.util.function.Predicate<Slot> takes) {
-        return slots.stream().filter(takes).map(ExpressionBuilderPane::slotHole).toList();
+        return slots.stream().filter(takes).map(this::slotHole).toList();
     }
 
-    // A slot's hole: the drop cursor's column and a little room either side, the line's height.
-    private static DragMask.Rect slotHole(Slot slot) {
+    // A slot's hole: the drop cursor's column and a little room either side, as tall as the cursor drawn there.
+    private DragMask.Rect slotHole(Slot slot) {
         int x = slot.at().x() - BuilderOverlays.GAP / HALF;
-        return new DragMask.Rect(x - SLOT_HOLE_REACH, slot.at().y(), x + SLOT_HOLE_REACH,
-                slot.at().y() + ControlFlow.LINE);
+        int[] span = spanOf(slot);
+        return new DragMask.Rect(x - SLOT_HOLE_REACH, span[0], x + SLOT_HOLE_REACH, span[1]);
     }
 
     // A row slot's hole: the row cursor's bar and a little room above and below it, out to the lines' right end.
@@ -818,21 +831,24 @@ final class ExpressionBuilderPane {
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawSum(ControlFlow flow, List<Integer> sum, List<ExpressionBuilder.Piece> pieces, Place place) {
         for (int index = 0; index < pieces.size(); index++) {
-            slots.add(new Slot(sum, index, flow.anchor(), place));
+            // A slot before a term stands in front of it; the sum's last slot stands behind its last term.
+            slots.add(new Slot(sum, index, flow.anchor(), place, index));
             drawTerm(flow, placeOf(sum, index), pieces.get(index), place);
         }
-        slots.add(new Slot(sum, pieces.size(), flow.anchor(), place));
+        slots.add(new Slot(sum, pieces.size(), flow.anchor(), place, pieces.size() - 1));
     }
 
     /**
      * Where a dragged term would drop.
      *
-     * @param sum   the sum it drops into
-     * @param index the slot in it: before the term at that index, or the sum's size for its end
-     * @param at    where the slot stands, the next piece's place on its line
-     * @param place where the sum stands, which names the terms a term inserted there takes
+     * @param sum    the sum it drops into
+     * @param index  the slot in it: before the term at that index, or the sum's size for its end
+     * @param at     where the slot stands, the next piece's place on its line
+     * @param place  where the sum stands, which names the terms a term inserted there takes
+     * @param beside the index in the sum of the term or parenthetical the slot stands in front of or behind, whose
+     *               box its cursor and hole span (decision drop-indicators-size-to-the-container-they-land-beside)
      */
-    private record Slot(List<Integer> sum, int index, BuilderOverlays.Anchor at, Place place) {
+    private record Slot(List<Integer> sum, int index, BuilderOverlays.Anchor at, Place place, int beside) {
         double distanceTo(double x, double y) {
             double lineMiss = Math.abs(y - (at.y() + ControlFlow.LINE / (double) HALF)) * LINE_WEIGHT;
             return lineMiss + Math.abs(x - at.x());
@@ -1223,7 +1239,8 @@ final class ExpressionBuilderPane {
         // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
         // right of its ")" too, where its factor would otherwise push it onto the next line and leave the pointer
         // past ")" nearest the inner sum's end.
-        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor(), place));
+        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor(), place,
+                path.getLast()));
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         flow.shift(-inner);
         int depth = depthOf(path, place);
