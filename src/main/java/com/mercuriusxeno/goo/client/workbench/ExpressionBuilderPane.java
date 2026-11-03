@@ -80,6 +80,8 @@ final class ExpressionBuilderPane {
     private static final String SUM_ADD = "+/-";
     private static final String POSSESSIVE = "'s";
     private static final String WRAP = "()";
+    // Decision parenthetical-handle-carries-a-rail-and-hovers-its-drop: the handle reads how it is used.
+    private static final String WRAP_HINT = "Drop on term, wrap w/ parenthesis";
     /** The drop cursor's blue. */
     static final int DROP_CURSOR = 0xFF4090FF;
     /** The cursor's blue, see-through, over the term the held () would wrap. */
@@ -888,7 +890,7 @@ final class ExpressionBuilderPane {
     // The () handle beside [+?], or below a whole value's terms; dragged onto a term it wraps that term.
     // Decision parenthetical-handle-drags-onto-a-term.
     private void drawHandle(ControlFlow flow) {
-        flow.grabControl(WRAP, new Wrapping());
+        flow.grabControl(WRAP, new Wrapping(), WRAP_HINT);
     }
 
     /**
