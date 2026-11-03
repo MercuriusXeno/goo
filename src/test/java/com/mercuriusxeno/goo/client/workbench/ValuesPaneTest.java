@@ -307,7 +307,7 @@ class ValuesPaneTest {
         @Test
         void valuedRowFramesItsExpressionAndItsPencilOpensTheBuilder() {
             DrawnFrame frame = frame();
-            DrawnFrame.Text wood = frame.find("wood");
+            DrawnFrame.Text wood = frame.find("$wood");
             DrawnFrame.Text pencil = pencilBeside(frame, wood);
             assertTrue(pencil.x() > wood.x() + DrawnFrame.font().width(wood.text()), pencil + " vs " + wood);
             ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
@@ -339,7 +339,7 @@ class ValuesPaneTest {
         void entryRowsXMarksTheEntryAndTheErrorDrawsUnderTheExpression() {
             DrawnFrame frame = frame();
             DrawnFrame.Text stick = frame.find("Stick");
-            DrawnFrame.Text wood = frame.find("wood");
+            DrawnFrame.Text wood = frame.find("$wood");
             DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")).findFirst()
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             assertTrue(cross.y() > stick.y() && Math.abs(cross.y() - wood.y()) < ExpressionLines.TEXT_LINE_HEIGHT,
@@ -352,7 +352,7 @@ class ValuesPaneTest {
             assertEquals(List.of(cross.x(), cross.y()), List.of(arrow.x(), arrow.y()));
             DrawnFrame.Text error = marked.find("Unknown constant $missing");
             assertEquals(RED, error.color());
-            assertTrue(error.y() > marked.find("missing").y(), error + " under the expression");
+            assertTrue(error.y() > marked.find("$missing").y(), error + " under the expression");
         }
     }
 
@@ -413,13 +413,13 @@ class ValuesPaneTest {
         ValuesPane pane = new ValuesPane(values, icons, actions, builder);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        assertTrue(!frame.rightClick("wood"));
+        assertTrue(!frame.rightClick("$wood"));
         verify(actions, never()).openVariable(anyString());
         assertTrue(!builder.isOpen());
-        frame.shiftClick("wood");
+        frame.shiftClick("$wood");
         verify(actions).openVariable("wood");
         assertTrue(!builder.isOpen());
-        frame.click("wood");
+        frame.click("$wood");
         assertTrue(builder.isOpen());
     }
 
@@ -462,7 +462,7 @@ class ValuesPaneTest {
             load("\\\"$waxed + ($edited)\\\"");
             DrawnFrame frame = new DrawnFrame();
             pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
-            frame.click("waxed");
+            frame.click("$waxed");
             DrawnFrame builder = frame();
             double[] rail = railOf(builder, List.of(1, 0));
             assertTrue(builder.targets.click(rail[0], rail[1]));
@@ -482,7 +482,7 @@ class ValuesPaneTest {
 
         // Opens the builder by a plain click on the read view's first ref, and answers the builder's first frame.
         private DrawnFrame opened() {
-            frame().click("food");
+            frame().click("$food");
             return frame();
         }
 

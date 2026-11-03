@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 final class PrefabHovers {
     // A hover key no prefab name, item id or hint spells.
     private static final String HOVER_PREFIX = "goo-prefab:";
-    private static final String PREFAB_MARK = "$";
     private static final String EQUALS = " = ";
     private static final String TYPE_SEPARATOR = ", ";
     private static final String OPEN = " (";
@@ -55,7 +54,7 @@ final class PrefabHovers {
         }
         Optional<VariablesTab.PrefabValue> value = variables.prefabValue(name);
         List<TooltipLine> lines = new ArrayList<>();
-        lines.add(line(PREFAB_MARK + name + EQUALS + body(expression.get(), value)));
+        lines.add(line(PrefabNames.marked(name) + EQUALS + body(expression.get(), value)));
         value.map(VariablesTab.PrefabValue::error).filter(error -> !error.isEmpty())
                 .ifPresent(error -> lines.add(line(error)));
         return Optional.of(lines);

@@ -19,7 +19,6 @@ final class SearchDropdown {
     /** How many choices the list shows at once. */
     static final int SHOWN = 8;
     private static final String TAG_MARK = "#";
-    private static final String PREFAB_MARK = "$";
     private static final String NOTHING = "";
     private static final String COUNT_SEPARATOR = ", ";
     private static final int ICON_INSET = 1;
@@ -86,7 +85,7 @@ final class SearchDropdown {
                     .forEach(entry -> choices.add(new Choice(Kind.ITEM, entry.id(), entry.name())));
         }
         // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: a prefab reads after $.
-        prefabs.forEach(name -> choices.add(new Choice(Kind.PREFAB, name, PREFAB_MARK + name)));
+        prefabs.forEach(name -> choices.add(new Choice(Kind.PREFAB, name, PrefabNames.marked(name))));
         return new SearchDropdown(choices);
     }
 
@@ -144,7 +143,7 @@ final class SearchDropdown {
         if (searched.startsWith(TAG_MARK)) {
             return Kind.TAG;
         }
-        return searched.startsWith(PREFAB_MARK) ? Kind.PREFAB : null;
+        return searched.startsWith(PrefabNames.PREFAB_MARK) ? Kind.PREFAB : null;
     }
 
     private static boolean holds(Choice choice, String text) {
