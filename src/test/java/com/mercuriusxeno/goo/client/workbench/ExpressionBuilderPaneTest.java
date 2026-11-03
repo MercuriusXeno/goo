@@ -488,6 +488,26 @@ class ExpressionBuilderPaneTest {
         assertTrue(builder.pane.listOpen(), "the prefab list opens");
     }
 
+    /**
+     * Each type row's goo type button stands at least the button gap below the row above it, over two and three
+     * types (decision type-rows-stand-apart-in-the-builder).
+     */
+    @Test
+    void typeRowsStandAButtonGapApart() {
+        for (String value : List.of(TWO_TYPES, "{\"metal\": \"5\", \"pulse\": \"2\", \"glow\": \"1\"}")) {
+            DrawnFrame frame = Builder.item(value).frame();
+            int typeLeft = AREA.left() + ControlFlow.INDENT + ROW_RAIL;
+            List<int[]> typeBoxes = fills(frame, ButtonPainter.BORDER).stream()
+                    .filter(box -> box[0] == typeLeft)
+                    .sorted(java.util.Comparator.comparingInt(side -> side[1])).toList();
+            assertTrue(typeBoxes.size() >= 2, value + ": " + typeBoxes.size() + " type buttons");
+            for (int index = 1; index < typeBoxes.size(); index++) {
+                int gap = typeBoxes.get(index)[1] - typeBoxes.get(index - 1)[3];
+                assertTrue(gap >= RowLayout.BUTTON_GAP, value + ": row " + index + " stands " + gap + " below");
+            }
+        }
+    }
+
     private static void assertRests(DrawnFrame frame) {
         assertEquals(1, fills(frame, ExpressionBuilderPane.TRASH_REST).size(), "the strip rests");
         assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_LIT), "the strip lit");
