@@ -31,7 +31,18 @@ final class ExpressionBuilderPane {
     static final int RED = 0xFFFF5555;
     /** The done control's check mark and word. */
     static final int GREEN = 0xFF80E080;
-    private static final int PANEL_COLOR = 0x30FFFFFF;
+    /** The builder's panel fill. */
+    static final int PANEL_COLOR = 0x30FFFFFF;
+    // Decision terms-and-type-rows-drag-to-a-trash-strip: the strip along the builder's right edge, dim at rest,
+    // lit while a drag is in flight and brighter while the dragged thing hovers it.
+    /** The trash strip's width. */
+    static final int TRASH_WIDTH = 12;
+    /** The trash strip's tone at rest. */
+    static final int TRASH_REST = 0x30FF5555;
+    /** The trash strip's tone while a drag is in flight. */
+    static final int TRASH_LIT = 0x80FF5555;
+    /** The trash strip's tone while the dragged thing hovers it. */
+    static final int TRASH_HOVER = 0xD0FF5555;
     private static final String NUMBER_KIND = "a number";
     private static final String PER_TYPE = "by type";
     // Decision items-kind-hint-says-worth-based-on-other-items-prefabs: the goo kind reads relative on every tab.
@@ -92,6 +103,8 @@ final class ExpressionBuilderPane {
     // The term boxes the last frame laid, and the () handle while it drags.
     private final List<TermBox> boxes = new ArrayList<>();
     private @Nullable Wrapping wrapping;
+    // The trash strip the last frame drew.
+    private GroupsPane.@Nullable Bounds trash;
     private int frames;
     private String openedText = BLANK;
     private String openedShown = BLANK;
@@ -254,16 +267,35 @@ final class ExpressionBuilderPane {
         frames++;
         slots.clear();
         boxes.clear();
+        int stripLeft = area.right() - TRASH_WIDTH;
         ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
-                new ControlFlow.Span(area.left(), area.right(), top), actions::openVariable);
+                new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
         drawKind(flow, edited);
         drawValue(flow, edited);
         drawClosing(flow, edited);
         int bottom = flow.bottom();
         graphics.fill(area.left() - 1, top - 1, area.right(), bottom, PANEL_COLOR);
+        trash = new GroupsPane.Bounds(stripLeft, top - 1, area.right(), bottom);
+        drawTrash(graphics, trash);
         drawDropCursor(graphics);
         drawWrapMark(graphics);
         return bottom - top;
+    }
+
+    // Decision terms-and-type-rows-drag-to-a-trash-strip.
+    private void drawTrash(GuiGraphicsExtractor graphics, GroupsPane.Bounds strip) {
+        Drag held = dragging;
+        int tone = held == null ? TRASH_REST : held.overTrash ? TRASH_HOVER : TRASH_LIT;
+        graphics.fill(strip.left(), strip.top(), strip.right(), strip.bottom(), tone);
+    }
+
+    // Whether the pointer stands over the trash strip the last frame drew.
+    private boolean overTrash(double x, double y) {
+        GroupsPane.Bounds strip = trash;
+        if (strip == null) {
+            return false;
+        }
+        return x >= strip.left() && x < strip.right() && y >= strip.top() && y < strip.bottom();
     }
 
     // A blinking blue bar at the slot the held term would drop into.
@@ -460,7 +492,7 @@ final class ExpressionBuilderPane {
     private void drawSum(ControlFlow flow, List<Integer> sum, List<ExpressionBuilder.Piece> pieces, Place place) {
         for (int index = 0; index < pieces.size(); index++) {
             slots.add(new Slot(sum, index, flow.anchor()));
-            drawTerm(flow, placeOf(sum, index), pieces.get(index), pieces.size(), place);
+            drawTerm(flow, placeOf(sum, index), pieces.get(index), place);
         }
         slots.add(new Slot(sum, pieces.size(), flow.anchor()));
         drawSumAdd(flow, sum, place);
@@ -482,7 +514,7 @@ final class ExpressionBuilderPane {
 
     /**
      * A term held by its rail: where it came from, what it reads, where the pointer stands and the slot it would
-     * drop into.
+     * drop into, or the trash strip.
      */
     private final class Drag implements ClickTargets.PointerGrab {
         private final List<Integer> from;
@@ -490,6 +522,7 @@ final class ExpressionBuilderPane {
         private double x;
         private double y;
         private @Nullable Slot target;
+        private boolean overTrash;
 
         Drag(List<Integer> from, ExpressionBuilder.Piece piece) {
             this.from = from;
@@ -501,15 +534,19 @@ final class ExpressionBuilderPane {
             dragging = this;
             x = movedX;
             y = movedY;
-            target = nearestSlot(x, y);
+            overTrash = overTrash(x, y);
+            target = overTrash ? null : nearestSlot(x, y);
         }
 
+        // Decision terms-and-type-rows-drag-to-a-trash-strip: a release on the strip deletes the term.
         @Override
         public void released() {
             Slot dropped = target;
             boolean held = dragging == this;
             dragging = null;
-            if (held && dropped != null && !isOrigin(dropped)) {
+            if (held && overTrash) {
+                apply(b -> b.remove(from));
+            } else if (held && dropped != null && !isOrigin(dropped)) {
                 apply(b -> b.moveTo(from, dropped.sum(), dropped.index()));
             }
         }
@@ -543,10 +580,10 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // Its rail, [join] where it follows another term, the operand, its ratio, [()] and [x] in one outlined unit.
+    // Its rail, [join] where it follows another term, the operand and its ratio in one outlined unit; the trash strip
+    // deletes it, so it carries no x (decision term-operators-right-pack).
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
-    private void drawTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, int count,
-                          Place place) {
+    private void drawTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         if (path.getLast() > 0 && piece.operand() instanceof ExpressionBuilder.Nest) {
             // Decision builder-inlines-terms-under-indentation-rules-with-a-colon: a parenthetical takes a line of
             // its own with its join, its controls too wide to share the rest of a line.
@@ -558,15 +595,13 @@ final class ExpressionBuilderPane {
             drawJoin(flow, path, piece);
         }
         if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
-            drawNest(flow, new Nested(path, piece, start), nest, count, place);
+            drawNest(flow, new Nested(path, piece, start), nest, place);
             return;
         }
         drawOperand(flow, path, piece, place);
         if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
             drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         }
-        // Decision term-operators-right-pack: the x is the box's last piece, opposite the rail.
-        drawRemove(flow, path, count);
         flow.outlineFrom(start);
         boxes.add(new TermBox(path, flow.boxFrom(start, depthOf(path, place))));
     }
@@ -667,13 +702,6 @@ final class ExpressionBuilderPane {
         graphics.text(font, WRAP, left + ButtonPainter.PADDING, top + ButtonPainter.TEXT_NUDGE, PREVIEW_TEXT);
     }
 
-    // A sum keeps its last term.
-    private void drawRemove(ControlFlow flow, List<Integer> path, int count) {
-        if (count > 1) {
-            flow.coloredControl(REMOVE, RED, DELETE_HINT, at -> apply(b -> b.remove(path)));
-        }
-    }
-
     private void drawJoin(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
         boolean plus = piece.join() == ExpressionTerms.Join.PLUS;
         flow.control(plus ? PLUS_SIGN : MINUS_SIGN, null, at -> apply(b -> b.setJoin(path,
@@ -739,26 +767,18 @@ final class ExpressionBuilderPane {
     }
 
     // "(" after the term's join, its terms inline, each edited in place, a wrap inside it one indent further in,
-    // then ")" and the parenthetical's factor back at the outer indent, and its x last; the box from its rail to
-    // its x tints by depth.
+    // then ")" and the parenthetical's factor back at the outer indent; the box from its rail tints by depth.
     // Decision sum-of-terms-leaves-the-builder.
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
-    // Decision term-operators-right-pack: the x stands at the box's right end on one line, at its top right across
-    // lines.
-    private void drawNest(ControlFlow flow, Nested nested, ExpressionBuilder.Nest nest, int count, Place place) {
+    private void drawNest(ControlFlow flow, Nested nested, ExpressionBuilder.Nest nest, Place place) {
         List<Integer> path = nested.path();
         flow.text(OPEN_PAREN, GRAY);
-        ControlFlow.Hold hold = count > 1 ? flow.holdRight(ButtonPainter.width(flow.font(), REMOVE)) : null;
         flow.shift(ControlFlow.INDENT);
         drawSum(flow, path, nest.pieces(), place);
         flow.shift(-ControlFlow.INDENT);
         flow.text(CLOSE_PAREN, GRAY);
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         int depth = depthOf(path, place);
-        if (hold != null) {
-            flow.heldControl(hold, nested.start(), depth, new ControlFlow.Colored(REMOVE, RED, DELETE_HINT,
-                    at -> apply(b -> b.remove(path))));
-        }
         flow.tintFrom(nested.start(), nestTone(depth), depth);
         boxes.add(new TermBox(path, flow.boxFrom(nested.start(), depth)));
     }

@@ -43,9 +43,6 @@ final class ControlFlow {
     private int pieceLeft;
     private int pieceTop;
     private int pieceWidth;
-    // The line holding room at its right end for controls drawn there later, and how much room it holds.
-    private int heldTop = Integer.MIN_VALUE;
-    private int held;
 
     /**
      * @param graphics the frame's graphics
@@ -139,8 +136,7 @@ final class ControlFlow {
     }
 
     private void reserve(int width) {
-        int limit = heldTop == y ? right - held : right;
-        if (x + width > limit && x > lineLeft) {
+        if (x + width > right && x > lineLeft) {
             y += LINE;
             lineLeft = left + INDENT;
             x = lineLeft;
@@ -479,68 +475,6 @@ final class ControlFlow {
         graphics.text(font, label, box.left() + ButtonPainter.PADDING, y + TEXT_NUDGE, LINK);
         targets.addGrab(box.left(), box.top(), box.width(), box.height(), grab);
         x = box.right() + GAP;
-    }
-
-    /**
-     * Room held at a line's right end for a control the box drawn after it carries.
-     *
-     * @param top    the line holding it
-     * @param before how much room the line held already, a box outside this one's
-     */
-    record Hold(int top, int before) {
-    }
-
-    /**
-     * Holds room at the current line's right end, so the pieces after it wrap short of a control drawn there once
-     * they are laid.
-     *
-     * @param width the control's width
-     * @return the hold, which heldControl draws into
-     */
-    Hold holdRight(int width) {
-        if (heldTop != y) {
-            heldTop = y;
-            held = 0;
-        }
-        Hold hold = new Hold(y, held);
-        held += width + GAP;
-        return hold;
-    }
-
-    /**
-     * Gives back the held room and draws the control a box held it for: next in the flow where the box stayed on
-     * its first line, at that line's right end inside the box where the box ran across lines (decision
-     * term-operators-right-pack).
-     *
-     * @param hold    the room the box held
-     * @param start   where the box's first piece stood
-     * @param depth   how many boxes hold it, its own included, as tintFrom insets it
-     * @param control the control's label, color, hint and action
-     */
-    void heldControl(Hold hold, BuilderOverlays.Anchor start, int depth, Colored control) {
-        if (heldTop == hold.top()) {
-            held = hold.before();
-        }
-        if (start.y() == y) {
-            coloredControl(control.label(), control.color(), control.hint(), control.pressed());
-            return;
-        }
-        int controlX = right - depth - 1 - hold.before() - ButtonPainter.width(font, control.label());
-        int controlY = start.y();
-        ButtonPainter.drawColored(graphics, font, control.label(), control.color(), controlX, controlY, LINE, targets,
-                () -> control.pressed().accept(new BuilderOverlays.Anchor(controlX, controlY)),
-                BuilderOverlays.hintKey(control.hint()));
-    }
-
-    /**
-     * A control whose label takes a color of its own.
-     *
-     * @param label   its label
-     * @param color   the label's color
-     * @param hint    what it does, shown on hover
-     * @param pressed takes where it was clicked
-     */
-    record Colored(String label, int color, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
     }
 
     /**
