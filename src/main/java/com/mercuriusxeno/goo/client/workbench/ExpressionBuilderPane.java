@@ -932,6 +932,10 @@ final class ExpressionBuilderPane {
         drawSum(flow, path, nest.pieces(), place);
         flow.shift(-ControlFlow.INDENT);
         flow.text(CLOSE_PAREN, GRAY);
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
+        // right of its ")" too, where its factor would otherwise push it onto the next line and leave the pointer
+        // past ")" nearest the inner sum's end.
+        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor()));
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         int depth = depthOf(path, place);
         flow.space(BOX_INSIDE);

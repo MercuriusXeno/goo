@@ -423,6 +423,124 @@ class ValuesPaneTest {
         assertTrue(builder.isOpen());
     }
 
+    /**
+     * The builder open in an Items row over the operator's beetroot value, driven through the pane's click targets as
+     * the screen drives them: the press, each drag and the release.
+     */
+    @org.junit.jupiter.api.Nested
+    class BuilderDragsInARow {
+        private static final String BEETROOT = "minecraft:beetroot";
+        private static final String OPENED = "{\\\"jelly\\\": \\\"$food.jelly + $saturation.jelly * 12\\\", "
+                + "\\\"leaf\\\": \\\"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\\\"}";
+        private final ValuesTab values = new ValuesTab();
+        private final ValuesPane pane;
+
+        BuilderDragsInARow() {
+            values.readEntries(new ListedEntrySource(
+                    List.of(new ManagerEntrySource.ItemName(BEETROOT, "Beetroot")), List.of()));
+            load(OPENED);
+            values.select(BEETROOT);
+            ManagerActions actions = mock(ManagerActions.class);
+            ItemIcons icons = mock(ItemIcons.class);
+            pane = new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
+                    List::of));
+        }
+
+        // The beetroot's entry, its text escaped for the model's JSON.
+        private void load(String text) {
+            values.readModel("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "beetroot", "keySeparator": null, "kind": "VALUE", "text": "%s", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null}]}
+                    """.formatted(text));
+        }
+
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the last term out takes the
+        // parenthetical with it.
+        @Test
+        void lastTermDraggedOutOfAParentheticalTakesItAlong() {
+            load("\\\"$waxed + ($edited)\\\"");
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+            frame.click("waxed");
+            DrawnFrame builder = frame();
+            double[] rail = railOf(builder, List.of(1, 0));
+            assertTrue(builder.targets.click(rail[0], rail[1]));
+            DrawnFrame.Text close = builder.drawn().stream().filter(text -> text.text().equals(")")).findFirst()
+                    .orElseThrow();
+            assertTrue(builder.targets.drag(close.x() + 20, close.y() + 1));
+            frame();
+            assertTrue(builder.targets.release());
+            assertEquals("$waxed + $edited", written());
+        }
+
+        private DrawnFrame frame() {
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+            return frame;
+        }
+
+        // Opens the builder by a plain click on the read view's first ref, and answers the builder's first frame.
+        private DrawnFrame opened() {
+            frame().click("food");
+            return frame();
+        }
+
+        private static double[] railOf(DrawnFrame frame, List<Integer> path) {
+            String key = ExpressionBuilderPane.railHoverKey(path);
+            for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
+                for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
+                    if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                        return new double[] {x, y};
+                    }
+                }
+            }
+            throw new AssertionError("no rail for " + path + " in " + frame.targets.hoverKeys());
+        }
+
+        // The trash strip's middle on a y, read off its rest-tone fill.
+        private static double stripX(DrawnFrame frame) {
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), anyInt(), rights.capture(), anyInt(),
+                    eq(ExpressionBuilderPane.TRASH_REST));
+            return (lefts.getValue() + rights.getValue()) / 2.0;
+        }
+
+        private String written() {
+            return values.rowOf(BEETROOT).expression();
+        }
+
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags.
+        @Test
+        void parentheticalReleasedOnTheTrashStripGoes() {
+            DrawnFrame frame = opened();
+            double[] rail = railOf(frame, List.of(1, 1));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            assertTrue(frame.targets.drag(stripX(frame), rail[1]));
+            frame();
+            assertTrue(frame.targets.release());
+            assertEquals("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", \"leaf\": \"$dye.leaf\"}", written());
+        }
+
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags.
+        @Test
+        void termDraggedOutOfTheParentheticalLandsAfterIt() {
+            DrawnFrame frame = opened();
+            double[] rail = railOf(frame, List.of(1, 1, 0));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            double[] after = railOf(frame, List.of(1, 1));
+            DrawnFrame.Text close = frame.drawn().stream().filter(text -> text.text().equals(")")).findFirst()
+                    .orElseThrow();
+            assertTrue(frame.targets.drag(close.x() + 20, close.y() + 1));
+            frame();
+            assertTrue(frame.targets.release());
+            assertEquals("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", "
+                    + "\"leaf\": \"$dye.leaf - ($saturation.jelly * 12) + $food.jelly\"}", written(),
+                    "dragged from the parenthetical at " + after[0]);
+        }
+    }
+
     private static final int FOLLOWED_ITEMS = 40;
     private static final GroupsPane.Bounds SHORT_VIEW = new GroupsPane.Bounds(0, 0, 500, 300);
     private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 0, 500, 8000);
