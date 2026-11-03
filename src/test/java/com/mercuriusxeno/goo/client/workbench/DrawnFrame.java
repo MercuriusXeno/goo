@@ -99,6 +99,31 @@ final class DrawnFrame {
     }
 
     /**
+     * @param label a text drawn inside a button
+     * @return the smallest button border around the text's top-left, as left, top, right and bottom, since a lettered
+     *     label centers in its button rather than standing a fixed padding in
+     */
+    int[] buttonAround(Text label) {
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics, atLeast(0)).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
+                org.mockito.ArgumentMatchers.eq(ButtonPainter.BORDER));
+        int[] around = null;
+        for (int index = 0; index < lefts.getAllValues().size(); index++) {
+            int[] box = {lefts.getAllValues().get(index), tops.getAllValues().get(index),
+                rights.getAllValues().get(index), bottoms.getAllValues().get(index)};
+            boolean holds = box[0] <= label.x() && label.x() < box[2] && box[1] <= label.y() && label.y() < box[3];
+            if (holds && (around == null || box[2] - box[0] < around[2] - around[0])) {
+                around = box;
+            }
+        }
+        assertTrue(around != null, "no button around " + label);
+        return around;
+    }
+
+    /**
      * @return a font six pixels a character wide that cuts nothing
      */
     static Font font() {
