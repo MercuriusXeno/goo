@@ -6,12 +6,16 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The Audit tab's state with no Screen: the sections goo_audit.json or the text dumps carry, flagged sections first,
- * the latest lines of a dump run in flight, and the line its result leaves, as index.html's audit section holds them
+ * which of them stand closed, the latest lines of a dump run in flight, and the line its result leaves, as
+ * index.html's audit section holds them
  * (decisions goo-workbench-opens-the-in-game-manager-screen, workbench-shows-each-roots-remainders-and-items-solved,
  * workbench-lists-type-to-type-paths-worst-first, workbench-traces-each-undercut-manual-value-to-its-roots).
  */
@@ -38,6 +42,7 @@ public final class AuditTab {
 
     private final List<AuditSection> sections = new ArrayList<>();
     private final Deque<String> progress = new ArrayDeque<>();
+    private final Set<String> closed = new HashSet<>();
     private boolean running;
     private String runLine = NO_TEXT;
 
@@ -99,6 +104,47 @@ public final class AuditTab {
      */
     public List<AuditSection> sections() {
         return List.copyOf(sections);
+    }
+
+    /**
+     * Every section starts open, its body drawn with no click taken.
+     * Decision sections-start-expanded-with-an-expand-collapse-all-button.
+     *
+     * @param header a section's header
+     * @return whether its body draws
+     */
+    public boolean open(String header) {
+        return !closed.contains(header);
+    }
+
+    /**
+     * @param header a section's header, whose body closes if open and opens if closed
+     */
+    public void toggle(String header) {
+        if (!closed.remove(header)) {
+            closed.add(header);
+        }
+    }
+
+    /**
+     * @param headers the headers of the sections the expand/collapse-all button opens and closes
+     * @return whether any of them stands open, so the button reads Collapse all
+     */
+    public boolean anyOpen(Collection<String> headers) {
+        return headers.stream().anyMatch(this::open);
+    }
+
+    /**
+     * Closes every one of the sections while any stands open, else opens every one.
+     *
+     * @param headers the headers of the sections the expand/collapse-all button opens and closes
+     */
+    public void toggleAll(Collection<String> headers) {
+        if (anyOpen(headers)) {
+            closed.addAll(headers);
+        } else {
+            closed.removeAll(headers);
+        }
     }
 
     /**
