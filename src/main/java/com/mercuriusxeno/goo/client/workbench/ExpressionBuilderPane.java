@@ -71,8 +71,6 @@ final class ExpressionBuilderPane {
     private static final String POSSESSIVE = "'s";
     private static final String WRAP = "()";
     private static final String TRASH_HINT = "Drag items here to remove";
-    // How far a drop slot's hole in the drag mask reaches either side of its cursor.
-    private static final int SLOT_HOLE_REACH = 3;
     // Decision parenthetical-handle-carries-a-rail-and-hovers-its-drop: the handle reads how it is used.
     private static final String WRAP_HINT = "Drop on term, wrap w/ parenthesis";
     /** The drop cursor's blue. */
@@ -88,7 +86,6 @@ final class ExpressionBuilderPane {
     private static final int LINE_WEIGHT = 4;
     // The drop cursor shows for this many frames, then hides for as many.
     private static final int BLINK_FRAMES = 20;
-    private static final int CURSOR_INSET = 2;
     private static final int PREVIEW_OFFSET = 8;
     private static final int PREVIEW_COLOR = 0xE0182030;
     private static final int PREVIEW_TEXT = 0xFFFFFFFF;
@@ -456,16 +453,18 @@ final class ExpressionBuilderPane {
         graphics.fill(x - 1, span[0], x + 1, span[1], DROP_CURSOR);
     }
 
-    // Decision drop-indicators-size-to-the-container-they-land-beside: the top and bottom a slot's cursor and hole
-    // take, the box of the term or parenthetical the slot stands beside, inset; a slot beside no box, as an empty
-    // sum's, takes its line.
+    // The top and bottom a slot's cursor takes and its hole derives from: the interior of the layer the slot joins,
+    // the segments' height of the container the slot stands beside; a slot beside no container, as an empty sum's,
+    // takes its line.
+    // Decision drop-indicators-size-to-the-container-they-land-beside.
+    // Decision mask-holes-fit-the-indicator-and-the-layer-interior.
     private int[] spanOf(Slot slot) {
         List<Integer> beside = placeOf(slot.sum(), slot.beside());
         GroupsPane.Bounds box = boxes.stream().filter(drawn -> drawn.path().equals(beside)).map(TermBox::box)
                 .findFirst().orElse(null);
         int top = box == null ? slot.at().y() : box.top();
         int bottom = box == null ? slot.at().y() + ControlFlow.LINE : box.bottom();
-        return new int[] {top + CURSOR_INSET, bottom - CURSOR_INSET};
+        return new int[] {top, bottom};
     }
 
     // Decision drags-mask-everything-but-their-valid-targets: while a term, a type row, the () handle or a + or -
@@ -514,17 +513,22 @@ final class ExpressionBuilderPane {
         return slots.stream().filter(takes).map(this::slotHole).toList();
     }
 
-    // A slot's hole: the drop cursor's column and a little room either side, as tall as the cursor drawn there.
+    // A slot's hole: the drop cursor's bar grown one pixel each way, centered on it, whether or not the blinking bar
+    // draws this frame.
+    // Decision mask-holes-fit-the-indicator-and-the-layer-interior.
     private DragMask.Rect slotHole(Slot slot) {
         int x = slot.at().x() - BuilderOverlays.GAP / HALF;
         int[] span = spanOf(slot);
-        return new DragMask.Rect(x - SLOT_HOLE_REACH, span[0], x + SLOT_HOLE_REACH, span[1]);
+        return aPixelAround(new DragMask.Rect(x - 1, span[0], x + 1, span[1]));
     }
 
-    // A row slot's hole: the row cursor's bar and a little room above and below it, out to the lines' right end.
+    // A row slot's hole: the row cursor's bar, out to the lines' right end, grown one pixel each way.
     private DragMask.Rect rowSlotHole(RowSlot slot) {
-        return new DragMask.Rect(slot.at().x(), slot.at().y() - SLOT_HOLE_REACH, linesRight,
-                slot.at().y() + SLOT_HOLE_REACH);
+        return aPixelAround(new DragMask.Rect(slot.at().x(), slot.at().y() - 1, linesRight, slot.at().y() + 1));
+    }
+
+    private static DragMask.Rect aPixelAround(DragMask.Rect bar) {
+        return new DragMask.Rect(bar.left() - 1, bar.top() - 1, bar.right() + 1, bar.bottom() + 1);
     }
 
     private List<DragMask.Rect> withTrash(List<DragMask.Rect> holes, boolean removable) {

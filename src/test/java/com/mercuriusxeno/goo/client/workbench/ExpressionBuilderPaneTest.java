@@ -926,9 +926,10 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * A term dragged to the slot after a parenthetical wrapping onto two lines draws its drop cursor from that
-     * parenthetical box's top to its bottom, inset, and the mask's hole there stands as tall as the cursor (decision
-     * drop-indicators-size-to-the-container-they-land-beside).
+     * A term dragged to the slot after a parenthetical wrapping onto two lines draws its drop cursor exactly from that
+     * parenthetical container's top to its bottom, and the mask's hole there stands one pixel around the cursor
+     * (decisions drop-indicators-size-to-the-container-they-land-beside,
+     * mask-holes-fit-the-indicator-and-the-layer-interior).
      */
     @Test
     void dropCursorAndHoleSpanTheParentheticalTheySitBeside() {
@@ -954,13 +955,45 @@ class ExpressionBuilderPaneTest {
         assertEquals(1, cursors.size(), "one cursor");
         int[] cursor = cursors.getFirst();
         assertTrue(cursor[3] - cursor[1] > ControlFlow.LINE, "the cursor spans more than one line");
-        assertEquals(parenthetical[3] - parenthetical[1] - 2 * 2, cursor[3] - cursor[1],
-                "the cursor spans the parenthetical box less its inset");
-        int[] hole = fills(held, DragMask.HIGHLIGHT).stream().filter(lit -> lit[0] <= cursor[0] && cursor[2] <= lit[2]
-                && lit[1] <= cursor[3] && cursor[1] <= lit[3]).findFirst()
-                .orElseThrow(() -> new AssertionError("no hole at the cursor"));
-        assertEquals(List.of(cursor[1], cursor[3]), List.of(hole[1], hole[3]), "the hole as tall as the cursor");
+        assertEquals(List.of(parenthetical[1], parenthetical[3]), List.of(cursor[1], cursor[3]),
+                "the cursor spans the parenthetical's container");
+        assertHoleStandsAPixelAround(held, cursor);
         frame.targets.release();
+    }
+
+    // The mask's hole at the cursor is the cursor grown one pixel each way, centered on it (decision
+    // mask-holes-fit-the-indicator-and-the-layer-interior).
+    private static void assertHoleStandsAPixelAround(DrawnFrame frame, int[] cursor) {
+        int[] hole = fills(frame, DragMask.HIGHLIGHT).stream().filter(lit -> lit[0] <= cursor[0] && cursor[2] <= lit[2]
+                && lit[1] <= cursor[3] && cursor[1] <= lit[3]).findFirst()
+                .orElseThrow(() -> new AssertionError("no hole at the cursor " + java.util.Arrays.toString(cursor)));
+        assertEquals(List.of(cursor[0] - 1, cursor[1] - 1, cursor[2] + 1, cursor[3] + 1),
+                java.util.Arrays.stream(hole).boxed().toList(), "the hole one pixel around the cursor");
+    }
+
+    /**
+     * A term dragged to the slot before another plain term draws its drop cursor exactly as tall as that term's
+     * segments, its rail segment's top to its bottom, and the mask's hole there stands one pixel around the cursor
+     * (decision mask-holes-fit-the-indicator-and-the-layer-interior).
+     */
+    @Test
+    void dropCursorSpansTheTermsSegmentsAndItsHoleAPixelAround() {
+        Builder builder = Builder.item("$waxed + $edited + $base");
+        DrawnFrame frame = builder.frame();
+        double[] waxed = railOf(frame, List.of(0));
+        double[] base = railOf(frame, List.of(2));
+        int[] baseRail = frame.buttonAround((int) base[0], (int) base[1]);
+        assertTrue(frame.targets.click(waxed[0], waxed[1]));
+        assertTrue(frame.targets.drag(containerLeft(frame, base) - 3, base[1]));
+        DrawnFrame held = builder.frame();
+        List<int[]> cursors = fills(held, ExpressionBuilderPane.DROP_CURSOR);
+        assertEquals(1, cursors.size(), "one cursor");
+        int[] cursor = cursors.getFirst();
+        assertEquals(List.of(baseRail[1], baseRail[3]), List.of(cursor[1], cursor[3]),
+                "the cursor as tall as the term's segments");
+        assertHoleStandsAPixelAround(held, cursor);
+        frame.targets.release();
+        assertEquals("$edited + $waxed + $base", builder.written.getLast());
     }
 
     /**
