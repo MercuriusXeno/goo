@@ -557,6 +557,34 @@ class ExpressionBuilderPaneTest {
 
     private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
 
+    /**
+     * The [+?] button's border, which opens the line [+?] () stands on, draws at the first type row's box left, in
+     * the one column the rows share (decision plus-question-and-equals-align-with-the-other-lines).
+     */
+    @Test
+    void plusQuestionStandsAtTheTypeRowsLeft() {
+        DrawnFrame frame = Builder.item(TWO_TYPES).frame();
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), anyInt(), anyInt(), anyInt(),
+                eq(ControlFlow.OUTLINE_COLOR));
+        // A row's box outlines after the term boxes inside it, so the leftmost outline is the rows' box left.
+        int rowLeft = lefts.getAllValues().stream().mapToInt(Integer::intValue).min().orElseThrow();
+        assertEquals(rowLeft, hoverCorner(frame, BuilderOverlays.hintKey("Add a goo type"))[0],
+                "the +? border at the row box's left " + rowLeft);
+    }
+
+    // The top-left corner of the area hovering a key, found by its hover across the screen.
+    private static int[] hoverCorner(DrawnFrame frame, String key) {
+        for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
+            for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
+                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                    return new int[] {x, y};
+                }
+            }
+        }
+        throw new AssertionError("nothing hovers " + key + " in " + frame.targets.hoverKeys());
+    }
+
     // Where a type row's rail answers, found by its hover across the screen.
     private static double[] rowRailOf(DrawnFrame frame, int row) {
         String key = ExpressionBuilderPane.rowRailHoverKey(row);

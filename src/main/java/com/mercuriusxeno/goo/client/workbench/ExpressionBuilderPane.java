@@ -545,6 +545,8 @@ final class ExpressionBuilderPane {
         Set<String> held = BuilderGrammar.heldTypes(edited);
         flow.indent();
         rowSlots.add(new RowSlot(edited.rows().size(), flow.anchor()));
+        // Decision plus-question-and-equals-align-with-the-other-lines.
+        flow.alignToBoxBorder();
         if (held.size() < GooTypes.order().size()) {
             flow.squareControl(ADD_TYPE, ADD_TYPE_HINT, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
                     null, held));
@@ -683,6 +685,8 @@ final class ExpressionBuilderPane {
         drawSum(flow, List.of(), pieces, new Place(sort, null));
         // Decision parenthetical-handle-drags-onto-a-term: the () handle below the terms, where [+?] stands for rows.
         flow.indent(0);
+        // Decision plus-question-and-equals-align-with-the-other-lines.
+        flow.alignToBoxBorder();
         drawHandle(flow);
         flow.outdent(ControlFlow.INDENT);
         // Decision scale-shows-the-ratio-at-once: several terms draw the whole value's ratio 1:1 on a line of its

@@ -393,6 +393,15 @@ final class ControlFlow {
     }
 
     /**
+     * Stands the next piece on the column the boxes above draw their left borders on, a pixel left of the line's
+     * left edge as {@link #boxFrom} lays them, so a button opening a line lines up with the boxed lines over it
+     * (decision plus-question-and-equals-align-with-the-other-lines).
+     */
+    void alignToBoxBorder() {
+        x = lineLeft - 1;
+    }
+
+    /**
      * Moves the left edge the next lines start at, leaving the current line standing.
      *
      * @param step how far right the next lines start, negative for left
