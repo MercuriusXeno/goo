@@ -153,6 +153,15 @@ public final class VariablesTab {
     }
 
     /**
+     * @param name a prefab's name
+     * @return its expression as the draft holds it, a tree's as its object text, empty where no prefab is so named
+     */
+    public Optional<String> expressionOf(String name) {
+        return constantEntries().stream().filter(entry -> entry.get(KEY).getAsString().equals(name)).findFirst()
+                .map(entry -> entry.get(TEXT).getAsString());
+    }
+
+    /**
      * @param evaluateJson the constants evaluate operation's reply over the draft
      */
     public void readEvaluated(String evaluateJson) {

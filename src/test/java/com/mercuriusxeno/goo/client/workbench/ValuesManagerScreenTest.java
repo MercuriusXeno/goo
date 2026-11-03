@@ -291,4 +291,18 @@ class ValuesManagerScreenTest {
     private static ExpressionBuilderPane builder(ManagerActions actions, ItemIcons icons) {
         return new ExpressionBuilderPane(actions, icons, List::of, List::of);
     }
+
+    /**
+     * A run of goo amount lines reaches the tooltip as one grid element between the text lines around it (decision
+     * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+     */
+    @Test
+    void aRunOfAmountLinesFoldsIntoOneGrid() {
+        TooltipLine.GooAmount metal = new TooltipLine.GooAmount("metal", "3");
+        TooltipLine.GooAmount rock = new TooltipLine.GooAmount("rock", "1/2");
+        var elements = ValuesManagerScreen.tooltipElements(List.of(new TooltipLine.Text(Component.literal("stick")),
+                metal, rock, new TooltipLine.Text(Component.literal("after"))));
+        assertEquals(3, elements.size(), elements.toString());
+        assertEquals(java.util.Optional.of(new TooltipLine.GooAmounts(List.of(metal, rock))), elements.get(1).right());
+    }
 }

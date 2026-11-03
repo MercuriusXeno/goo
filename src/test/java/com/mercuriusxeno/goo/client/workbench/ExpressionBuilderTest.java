@@ -212,13 +212,13 @@ class ExpressionBuilderTest {
             assertWrites("{\"leaf\": \"1\"}", builder);
             builder.setOperand(List.of(0, 0), new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "dye", "leaf"));
             assertWrites("{\"leaf\": \"$dye.leaf\"}", builder);
-            assertTrue(builder.add(LEAF_ROW, new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "food", "jelly"),
-                    ExpressionTerms.Join.MINUS));
+            assertTrue(builder.insertAt(LEAF_ROW, 1, new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "food",
+                    "jelly"), ExpressionTerms.Join.MINUS));
             assertWrites("{\"leaf\": \"$dye.leaf - $food.jelly\"}", builder);
             builder.wrap(List.of(0, 1));
             assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly)\"}", builder);
-            assertTrue(builder.add(List.of(0, 1), new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "saturation",
-                    "jelly"), ExpressionTerms.Join.PLUS));
+            assertTrue(builder.insertAt(List.of(0, 1), 1, new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB,
+                    "saturation", "jelly"), ExpressionTerms.Join.PLUS));
             builder.setScale(List.of(0, 1, 1), ExpressionBuilder.Op.MULTIPLY, "12");
             assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly + 12 $saturation.jelly)\"}", builder);
             builder.move(List.of(0, 1, 1), -1);
@@ -385,9 +385,38 @@ class ExpressionBuilderTest {
         @Test
         void joinedAddWritesTheChosenSignToTheWholeValue() {
             ExpressionBuilder builder = ExpressionBuilder.of("$waxed");
-            builder.add(List.of(), new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null),
+            builder.insertAt(List.of(), 1, new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null),
                     ExpressionTerms.Join.MINUS);
             assertEquals("$waxed - $edited", builder.text());
+        }
+
+        /**
+         * A + or - dropped on a slot inserts a term of that sign there, a term dropped first taking no sign and the
+         * one it passes taking plus; a subtracted first term is refused, as moveTo refuses one (decision
+         * plus-and-minus-are-draggable-buttons-in-the-control-bay).
+         */
+        @Test
+        void insertAtLandsTheTermAtTheSlotWithItsSign() {
+            ExpressionBuilder.Ref edited = new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null);
+            ExpressionBuilder middle = ExpressionBuilder.of("$waxed + $base");
+            assertTrue(middle.canInsertAt(List.of(), 1, ExpressionTerms.Join.MINUS));
+            assertTrue(middle.insertAt(List.of(), 1, edited, ExpressionTerms.Join.MINUS));
+            assertEquals("$waxed - $edited + $base", middle.text());
+            ExpressionBuilder first = ExpressionBuilder.of("$waxed + $base");
+            assertTrue(first.insertAt(List.of(), 0, edited, ExpressionTerms.Join.PLUS));
+            assertEquals("$edited + $waxed + $base", first.text());
+            ExpressionBuilder inner = ExpressionBuilder.of("$waxed + ($base)");
+            assertTrue(inner.insertAt(List.of(1), 1, edited, ExpressionTerms.Join.MINUS));
+            assertEquals("$waxed + ($base - $edited)", inner.text());
+        }
+
+        @Test
+        void insertAtRefusesASubtractedFirstTerm() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $base");
+            ExpressionBuilder.Ref edited = new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null);
+            assertFalse(builder.canInsertAt(List.of(), 0, ExpressionTerms.Join.MINUS));
+            assertFalse(builder.insertAt(List.of(), 0, edited, ExpressionTerms.Join.MINUS));
+            assertEquals("$waxed + $base", builder.text());
         }
 
         // Decision sum-of-terms-leaves-the-builder: a parenthetical the file holds still edits in place.

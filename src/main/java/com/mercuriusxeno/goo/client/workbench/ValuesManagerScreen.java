@@ -490,7 +490,7 @@ public final class ValuesManagerScreen extends Screen {
         draftPane.extract(graphics, font, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
         targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
-                .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, elementsOf(lines),
+                .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, tooltipElements(lines),
                         mouseX, mouseY, ItemStack.EMPTY));
         // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
         linkCursor.frame(targets, mouseX, mouseY, graphics::requestCursor);
@@ -509,18 +509,43 @@ public final class ValuesManagerScreen extends Screen {
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
-                        .or(() -> valuesPane.groupTooltipFor(hoverKey));
+                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, hoverKey))
+                        .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey));
     }
 
-    // Text stays text; a goo amount reaches GooAmountTooltipComponent through the tooltip factory registered for it,
-    // and the deferred call draws the tooltip over the frame (decision
-    // value-tooltips-draw-each-types-icon-before-its-amount).
-    private static List<Either<FormattedText, TooltipComponent>> elementsOf(List<TooltipLine> lines) {
-        return lines.stream().map(line -> switch (line) {
-            case TooltipLine.Text text -> Either.<FormattedText, TooltipComponent>left(text.text());
-            case TooltipLine.GooAmount amount -> Either.<FormattedText, TooltipComponent>right(amount);
-            case TooltipLine.MemberIcons members -> Either.<FormattedText, TooltipComponent>right(members);
-        }).toList();
+    // Text stays text; a run of goo amounts folds into one grid that reaches GooAmountGrid through the tooltip factory
+    // registered for it, and the deferred call draws the tooltip over the frame (decisions
+    // value-tooltips-draw-each-types-icon-before-its-amount,
+    // tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+    static List<Either<FormattedText, TooltipComponent>> tooltipElements(List<TooltipLine> lines) {
+        List<Either<FormattedText, TooltipComponent>> elements = new java.util.ArrayList<>();
+        List<TooltipLine.GooAmount> run = new java.util.ArrayList<>();
+        for (TooltipLine line : lines) {
+            if (line instanceof TooltipLine.GooAmount amount) {
+                run.add(amount);
+                continue;
+            }
+            endRun(elements, run);
+            elements.add(elementOf(line));
+        }
+        endRun(elements, run);
+        return elements;
+    }
+
+    private static Either<FormattedText, TooltipComponent> elementOf(TooltipLine line) {
+        return switch (line) {
+            case TooltipLine.Text text -> Either.left(text.text());
+            case TooltipLine.Runs runs -> Either.right(runs);
+            case TooltipLine.GooAmount amount -> Either.right(new TooltipLine.GooAmounts(List.of(amount)));
+        };
+    }
+
+    private static void endRun(List<Either<FormattedText, TooltipComponent>> elements,
+                               List<TooltipLine.GooAmount> run) {
+        if (!run.isEmpty()) {
+            elements.add(Either.right(new TooltipLine.GooAmounts(run)));
+            run.clear();
+        }
     }
 
     @Override

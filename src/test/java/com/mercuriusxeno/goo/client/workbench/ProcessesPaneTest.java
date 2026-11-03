@@ -130,7 +130,7 @@ class ProcessesPaneTest {
     void mutatorsLeftIteratorsRightEachScrollingAlone() {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 590, 390);
-        int middle = (bounds.right() - bounds.left()) / 2;
+        int middle = (bounds.right() - bounds.left()) * 3 / 5;
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
         DrawnFrame.Text mutators = frame.find("Mutators");
@@ -156,24 +156,25 @@ class ProcessesPaneTest {
     }
 
     /**
-     * In a pane 500 wide, the iterators column starts at half, 250, plus half the column gap, the mutators rows' x
-     * stands left of 250, and the wheel scrolls the column it turns over (decision conversions-columns-split-50-50).
+     * In a pane 500 wide, the iterators column starts at three fifths, 300, plus half the column gap, the mutators
+     * rows' x stands left of 300, and the wheel scrolls the column it turns over (decision
+     * mutators-iterators-split-sixty-forty).
      */
     @Test
-    void wheelScrollsTheHalfItTurnsOver() {
+    void wheelScrollsTheColumnItTurnsOver() {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 390);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
-        assertEquals(250 + 12 / 2, frame.find("Iterators").x());
+        assertEquals(300 + 12 / 2, frame.find("Iterators").x());
         DrawnFrame.Text firstMutator = first(frame, "m00");
-        assertTrue(rowControl(frame, "m00", "✗").x() < 250, frame.drawn().toString());
-        assertTrue(firstMutator.x() < 250);
-        pane.scroll(300, -3);
-        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 300 scrolls the iterators");
+        assertTrue(rowControl(frame, "m00", "✗").x() < 300, frame.drawn().toString());
+        assertTrue(firstMutator.x() < 300);
+        pane.scroll(320, -3);
+        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 320 scrolls the iterators");
         assertEquals(0, pane.columnBar(false).offset());
-        pane.scroll(200, -3);
-        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 200 scrolls the mutators");
+        pane.scroll(280, -3);
+        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 280 scrolls the mutators");
     }
 
     /**
@@ -188,6 +189,21 @@ class ProcessesPaneTest {
         frame.click("$oak");
         assertTrue(frame().texts().contains("$oak"), "the prefab pick lists $oak");
         assertEquals(2, frame().count("$oak"), frame().texts().toString());
+    }
+
+    /**
+     * An iterator's own name previews the group it fills and its source previews the group it copies (decision
+     * group-referent-previews-shorthand-members-then-its-value).
+     */
+    @Test
+    void iteratorNameAndSourcePreviewTheirGroups() {
+        DrawnFrame frame = frame();
+        DrawnFrame.Text name = frame.find("#exposed");
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
+                frame.targets.hovered(name.x() + 1, name.y() + 1));
+        DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#copper"));
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("copper")),
+                frame.targets.hovered(source.x() + 1, source.y() + 1));
     }
 
     // A Mutators pane over the iterators #twice, applying waxed then rust, and #bare, applying nothing.
@@ -252,9 +268,10 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Each mutation line right packs against the iterator box's right edge: its x ends at the edge, the mutator
-     * buttons share one x, each line's words stand one gap left of its button, and "+ optional mutation" ends at the
-     * edge too (decision iterator-reads-copies-then-mutates-using-and).
+     * Each mutation line right packs against a column edge a gap left of the row's validity marker: its x ends at
+     * the edge, the mutator buttons share one x, each line's words stand one gap left of its button, and
+     * "+ optional mutation" ends at the edge too (decisions iterator-reads-copies-then-mutates-using-and,
+     * mutator-chain-forms-a-column-left-of-the-validity-marker).
      */
     @Test
     void iteratorMutationLinesRightPackWithTheirButtonsAligned() {
@@ -264,7 +281,10 @@ class ProcessesPaneTest {
         DrawnFrame.Text and = frame.find("and");
         DrawnFrame.Text waxed = onLineOf(frame, then, "waxed");
         DrawnFrame.Text rust = onLineOf(frame, and, "rust");
-        int edge = boxRightAt(frame, then.x(), then.y());
+        DrawnFrame.Text marker = frame.drawn().stream().filter(text -> text.text().equals("✔") && text.x() > then.x())
+                .findFirst().orElseThrow();
+        int edge = marker.x() - BuilderOverlays.GAP;
+        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the column ends inside the box");
         assertEquals(edge, rightOf(onLineOf(frame, then, "x")), frame.drawn().toString());
         assertEquals(edge, rightOf(onLineOf(frame, and, "x")), frame.drawn().toString());
         assertEquals(waxed.x(), rust.x(), waxed + " vs " + rust);
@@ -340,18 +360,18 @@ class ProcessesPaneTest {
     }
 
     /**
-     * A mutator's sentence draws on the line under its name line, starting one indent step in from the name's x
-     * (decision mutator-body-indents-under-its-name-line).
+     * A mutator's sentence draws on the line under its name line, unindented, its kind dropdown at the name's x
+     * (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
      */
     @Test
-    void mutatorSentenceIndentsUnderItsNameLine() {
+    void mutatorSentenceStartsAtTheNameWithItsKind() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
         DrawnFrame.Text waxed = first(frame, "waxed");
-        DrawnFrame.Text plus = drawn.get(drawn.indexOf(waxed) + 5);
-        assertEquals("+", plus.text(), drawn.toString());
-        assertTrue(plus.y() > waxed.y(), plus + " below " + waxed);
-        assertEquals(waxed.x() + ControlFlow.INDENT, plus.x(), drawn.toString());
+        DrawnFrame.Text kind = drawn.get(drawn.indexOf(waxed) + 4);
+        assertEquals(ControlFlow.dropdownLabel("add"), kind.text(), drawn.toString());
+        assertTrue(kind.y() > waxed.y(), kind + " below " + waxed);
+        assertEquals(waxed.x() + ButtonPainter.PADDING, kind.x(), drawn.toString());
     }
 
     // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane.
@@ -392,7 +412,7 @@ class ProcessesPaneTest {
         for (int width : new int[] {590, 464}) {
             DrawnFrame frame = new DrawnFrame();
             pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
-            int middle = width / 2;
+            int middle = width * 3 / 5;
             List<DrawnFrame.Text> drawn = frame.drawn();
             List<DrawnFrame.Text> crosses = drawn.stream().filter(text -> text.text().equals("✗")).toList();
             assertEquals(3, crosses.size(), drawn.toString());
@@ -434,7 +454,7 @@ class ProcessesPaneTest {
         return frame(590);
     }
 
-    // A pane 740 wide gives the mutators column its half, 370, more than a 20-character cut name takes.
+    // A pane 740 wide gives the mutators column its three fifths, 444, more than a 20-character cut name takes.
     private static final int WIDE_PANE = 740;
 
     private DrawnFrame frame(int width) {
@@ -444,14 +464,14 @@ class ProcessesPaneTest {
     }
 
     /**
-     * The mutators column and the iterators column each take half the pane, a gap between them, and each column's
-     * scroll bar stands at its own right edge (decision conversions-columns-split-50-50).
+     * The mutators column takes 60 percent of the pane and the iterators column 40, the gap centered on the split,
+     * and each column's scroll bar stands at its own right edge (decision mutators-iterators-split-sixty-forty).
      */
     @Test
-    void columnsSplitThePaneInHalves() {
+    void columnsSplitThePaneSixtyForty() {
         int width = 590;
         DrawnFrame frame = frame(width);
-        int middle = width / 2;
+        int middle = width * 3 / 5;
         int halfGap = 6;
         assertEquals(middle + halfGap, frame.find("Iterators").x());
         assertEquals(0, frame.find("Mutators").x());
@@ -486,15 +506,14 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Every row's top line draws its name with a pencil just past it, then its kind dropdown and mark at the same
-     * column lefts, and a red x at the row's right end, under no header (the operator's ruling: pencil by the name,
-     * x at the row end).
+     * Every row's top line draws its name with a pencil just past it, its mark at one column left, and a red x at the
+     * row's right end, under no header (the operator's ruling: pencil by the name, x at the row end).
      */
     @Test
     void everyRowDrawsItsColumnsAtTheSameLefts() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
-        int middle = 590 / 2;
+        int middle = 590 * 3 / 5;
         for (String column : List.of("✗", "✔")) {
             for (boolean right : new boolean[] {false, true}) {
                 List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)
@@ -506,8 +525,6 @@ class ProcessesPaneTest {
         assertEquals(nameLeft, drawn.stream().filter(text -> text.text().startsWith("copper_oxid")).findFirst()
                 .orElseThrow().x());
         assertTrue(frame.find("#exposed").x() >= middle, "the iterator stands in the right column");
-        int kindLeft = frame.find(ControlFlow.dropdownLabel("additive")).x();
-        assertTrue(kindLeft > nameLeft + 20 * 6, "the kind stands past the name column at " + kindLeft);
         List<DrawnFrame.Text> pencils = drawn.stream().filter(text -> text.text().equals("✎")).toList();
         assertEquals(3, pencils.size(), frame.texts().toString());
         DrawnFrame.Text waxed = first(frame, "waxed");

@@ -77,17 +77,19 @@ final class ExpressionBuilderPane {
     // Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators.
     private static final String PLUS_SIGN = "+";
     private static final String MINUS_SIGN = "-";
-    private static final String SUM_ADD = "+/-";
     private static final String POSSESSIVE = "'s";
     private static final String WRAP = "()";
+    private static final String TRASH_HINT = "Drag items here to remove";
+    // How far a drop slot's hole in the drag mask reaches either side of its cursor.
+    private static final int SLOT_HOLE_REACH = 3;
     // Decision parenthetical-handle-carries-a-rail-and-hovers-its-drop: the handle reads how it is used.
     private static final String WRAP_HINT = "Drop on term, wrap w/ parenthesis";
     /** The drop cursor's blue. */
     static final int DROP_CURSOR = 0xFF4090FF;
     /** The cursor's blue, see-through, over the term the held () would wrap. */
     static final int WRAP_MARK = 0x804090FF;
-    private static final String RAIL_HOVER_PREFIX = "goo-term-rail:";
-    private static final String ROW_RAIL_HOVER_PREFIX = "goo-row-rail:";
+    private static final String RAIL_NAME_PREFIX = "goo-term-rail:";
+    private static final String ROW_RAIL_NAME_PREFIX = "goo-row-rail:";
     private static final int HALF = 2;
     private static final int NEST_DARKER = 0x28000000;
     private static final int NEST_LIGHTER = 0x28FFFFFF;
@@ -129,6 +131,10 @@ final class ExpressionBuilderPane {
     // The term boxes the last frame laid, and the () handle while it drags.
     private final List<TermBox> boxes = new ArrayList<>();
     private @Nullable Wrapping wrapping;
+    // The + or - the bay's buttons hold while it drags.
+    private @Nullable SignDrag signDragging;
+    // Where the last frame's lines ended, short of the trash strip.
+    private int linesRight;
     // The row slots the last frame laid, and the type row a rail holds while it drags.
     private final List<RowSlot> rowSlots = new ArrayList<>();
     private @Nullable RowDrag rowDragging;
@@ -250,18 +256,18 @@ final class ExpressionBuilderPane {
 
     /**
      * @param path a term's place
-     * @return the hover key its drag rail answers with, which names no tooltip
+     * @return the name its drag rail grabs under, which hovering never reads
      */
-    static String railHoverKey(List<Integer> path) {
-        return RAIL_HOVER_PREFIX + path;
+    static String railName(List<Integer> path) {
+        return RAIL_NAME_PREFIX + path;
     }
 
     /**
      * @param row a type row's index
-     * @return the hover key its drag rail answers with, which names no tooltip
+     * @return the name its drag rail grabs under, which hovering never reads
      */
-    static String rowRailHoverKey(int row) {
-        return ROW_RAIL_HOVER_PREFIX + row;
+    static String rowRailName(int row) {
+        return ROW_RAIL_NAME_PREFIX + row;
     }
 
     /**
@@ -304,22 +310,31 @@ final class ExpressionBuilderPane {
             return 0;
         }
         overlays.commitOnBlur();
-        frames++;
-        slots.clear();
-        boxes.clear();
-        rowSlots.clear();
+        startFrame();
         int stripLeft = area.right() - TRASH_WIDTH;
         ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
+        // Decision drag-rail-containers-keep-a-pixel-between-borders: the lines grow taller per box depth.
+        flow.padForBoxes(boxDepth(edited));
         drawKind(flow, edited);
         drawValue(flow, edited);
         drawClosing(flow, edited);
         int bottom = flow.bottom();
         drawPanel(graphics, new GroupsPane.Bounds(area.left(), top, area.right(), bottom));
+        hoverTrash(targets);
         drawDropCursor(graphics);
-        drawRowCursor(graphics, stripLeft - BuilderOverlays.GAP);
+        linesRight = stripLeft - BuilderOverlays.GAP;
+        drawRowCursor(graphics, linesRight);
         drawWrapMark(graphics);
         return bottom - top;
+    }
+
+    // A new frame lays its slots, boxes and row slots afresh.
+    private void startFrame() {
+        frames++;
+        slots.clear();
+        boxes.clear();
+        rowSlots.clear();
     }
 
     // The gray box behind the builder and the trash strip along its right edge, over the lines it laid.
@@ -330,6 +345,15 @@ final class ExpressionBuilderPane {
         graphics.fill(laid.left() - RowLayout.BOX_MARGIN, panelTop, laid.right(), laid.bottom(), PANEL_COLOR);
         trash = new GroupsPane.Bounds(laid.right() - TRASH_WIDTH, panelTop, laid.right(), laid.bottom());
         drawTrash(graphics, trash);
+    }
+
+    // Decision trash-strip-hovers-drag-items-here-to-remove.
+    private void hoverTrash(ClickTargets targets) {
+        GroupsPane.Bounds strip = trash;
+        if (strip != null) {
+            targets.addHover(strip.left(), strip.top(), strip.right() - strip.left(), strip.bottom() - strip.top(),
+                    BuilderOverlays.hintKey(TRASH_HINT));
+        }
     }
 
     // Decision terms-and-type-rows-drag-to-a-trash-strip.
@@ -405,16 +429,82 @@ final class ExpressionBuilderPane {
         return x >= strip.left() && x < strip.right() && y >= strip.top() && y < strip.bottom();
     }
 
-    // A blinking blue bar at the slot the held term would drop into.
+    // A blinking blue bar at the slot the held term, or the held + or -, would drop into.
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawDropCursor(GuiGraphicsExtractor graphics) {
-        Drag held = dragging;
-        if (held == null || held.target == null || frames / BLINK_FRAMES % HALF != 0) {
+        Slot target = heldSlot();
+        if (target == null || frames / BLINK_FRAMES % HALF != 0) {
             return;
         }
-        BuilderOverlays.Anchor at = held.target.at();
+        BuilderOverlays.Anchor at = target.at();
         int x = at.x() - BuilderOverlays.GAP / HALF;
         graphics.fill(x - 1, at.y() + CURSOR_INSET, x + 1, at.y() + ControlFlow.LINE - CURSOR_INSET, DROP_CURSOR);
+    }
+
+    // Decision drags-mask-everything-but-their-valid-targets: while a term, a type row, the () handle or a + or -
+    // is held, the screen darkens but over each place the builder's dry runs say it may drop.
+    private void drawDragMask(GuiGraphicsExtractor graphics) {
+        List<DragMask.Rect> holes = dropTargets();
+        if (holes != null) {
+            DragMask.draw(graphics, new DragMask.Rect(0, 0, graphics.guiWidth(), graphics.guiHeight()), holes);
+        }
+    }
+
+    // The held drag's targets, null where nothing is held.
+    private @Nullable List<DragMask.Rect> dropTargets() {
+        Drag term = dragging;
+        RowDrag row = rowDragging;
+        SignDrag sign = signDragging;
+        if (term != null) {
+            return withTrash(slotHoles(slot -> holds(edited -> edited.canMoveTo(term.from, slot.sum(),
+                    slot.index()))), holds(edited -> edited.canRemove(term.from)));
+        }
+        if (row != null) {
+            List<DragMask.Rect> holes = rowSlots.stream().filter(slot -> holds(edited -> edited.canMoveRow(row.row,
+                    slot.index()))).map(this::rowSlotHole).toList();
+            return withTrash(holes, holds(edited -> edited.canRemoveRow(row.row)));
+        }
+        if (sign != null) {
+            return slotHoles(slot -> takesInsert(slot, sign.join));
+        }
+        return wrapping == null ? null : boxes.stream().map(wrappable -> new DragMask.Rect(wrappable.box().left(),
+                wrappable.box().top(), wrappable.box().right(), wrappable.box().bottom())).toList();
+    }
+
+    private List<DragMask.Rect> slotHoles(java.util.function.Predicate<Slot> takes) {
+        return slots.stream().filter(takes).map(ExpressionBuilderPane::slotHole).toList();
+    }
+
+    // A slot's hole: the drop cursor's column and a little room either side, the line's height.
+    private static DragMask.Rect slotHole(Slot slot) {
+        int x = slot.at().x() - BuilderOverlays.GAP / HALF;
+        return new DragMask.Rect(x - SLOT_HOLE_REACH, slot.at().y(), x + SLOT_HOLE_REACH,
+                slot.at().y() + ControlFlow.LINE);
+    }
+
+    // A row slot's hole: the row cursor's bar and a little room above and below it, out to the lines' right end.
+    private DragMask.Rect rowSlotHole(RowSlot slot) {
+        return new DragMask.Rect(slot.at().x(), slot.at().y() - SLOT_HOLE_REACH, linesRight,
+                slot.at().y() + SLOT_HOLE_REACH);
+    }
+
+    private List<DragMask.Rect> withTrash(List<DragMask.Rect> holes, boolean removable) {
+        GroupsPane.Bounds strip = trash;
+        if (!removable || strip == null) {
+            return holes;
+        }
+        List<DragMask.Rect> all = new ArrayList<>(holes);
+        all.add(new DragMask.Rect(strip.left(), strip.top(), strip.right(), strip.bottom()));
+        return all;
+    }
+
+    private @Nullable Slot heldSlot() {
+        Drag term = dragging;
+        if (term != null) {
+            return term.target;
+        }
+        SignDrag sign = signDragging;
+        return sign == null ? null : sign.target;
     }
 
     // The held term drawn at the pointer, over everything else.
@@ -468,10 +558,12 @@ final class ExpressionBuilderPane {
      */
     void drawOverlays(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         if (builder != null) {
+            drawDragMask(graphics);
             overlays.draw(graphics, font, targets);
             drawHeldTerm(graphics, font, targets);
             drawHeldRow(graphics, font, targets);
             drawHeldHandle(graphics, font);
+            drawHeldSign(graphics, font);
         }
     }
 
@@ -545,11 +637,14 @@ final class ExpressionBuilderPane {
         Set<String> held = BuilderGrammar.heldTypes(edited);
         flow.indent();
         rowSlots.add(new RowSlot(edited.rows().size(), flow.anchor()));
+        // Decision plus-question-and-equals-align-with-the-other-lines.
+        flow.alignToBoxBorder();
         if (held.size() < GooTypes.order().size()) {
             flow.squareControl(ADD_TYPE, ADD_TYPE_HINT, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
                     null, held));
         }
         drawHandle(flow);
+        drawSignHandles(flow);
         flow.outdent(ControlFlow.INDENT);
     }
 
@@ -589,7 +684,7 @@ final class ExpressionBuilderPane {
             flow.indent();
             BuilderOverlays.Anchor start = flow.anchor();
             rowSlots.add(new RowSlot(index, start));
-            flow.railTarget(rowRailHoverKey(index), new RowDrag(index, row.type()),
+            flow.railTarget(rowRailName(index), new RowDrag(index, row.type()),
                     typeLeadWidth(flow.font(), row.type()));
             flow.typeIcon(row.type(), anchor -> overlays.openPicker(anchor,
                     type -> apply(b -> b.setRowType(at, type)), null, held));
@@ -597,9 +692,10 @@ final class ExpressionBuilderPane {
             drawSum(flow, List.of(index), row.pieces(), new Place(BuilderGrammar.NUMBER_SORT, row.type()));
             // Decision rails-fill-the-left-edge-of-their-box: the row reads as one outlined box, its rail down the
             // box's whole left edge.
-            GroupsPane.Bounds box = flow.boxFrom(start, 0);
+            GroupsPane.Bounds box = flow.boxFrom(start, 1);
             flow.outlineBox(box, ControlFlow.OUTLINE_COLOR);
             flow.drawRail(start.x(), box.top() + 1, box.bottom() - 1);
+            flow.closeBox();
             flow.outdent(ControlFlow.INDENT);
             // Decision type-rows-stand-apart-in-the-builder: the next row's buttons stand a button gap below.
             flow.gapBelow(RowLayout.BUTTON_GAP);
@@ -609,7 +705,7 @@ final class ExpressionBuilderPane {
 
     // The goo type button and colon after a row's rail, which the rail keeps on its line.
     private static int typeLeadWidth(Font font, String type) {
-        return GooTypeIcons.sizeOf(type) + ButtonPainter.PADDING + ButtonPainter.PADDING + BuilderOverlays.GAP
+        return ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type)) + BuilderOverlays.GAP
                 + font.width(ExpressionLines.COLON);
     }
 
@@ -683,7 +779,10 @@ final class ExpressionBuilderPane {
         drawSum(flow, List.of(), pieces, new Place(sort, null));
         // Decision parenthetical-handle-drags-onto-a-term: the () handle below the terms, where [+?] stands for rows.
         flow.indent(0);
+        // Decision plus-question-and-equals-align-with-the-other-lines.
+        flow.alignToBoxBorder();
         drawHandle(flow);
+        drawSignHandles(flow);
         flow.outdent(ControlFlow.INDENT);
         // Decision scale-shows-the-ratio-at-once: several terms draw the whole value's ratio 1:1 on a line of its
         // own; setting a side wraps the value as one sum scaled by it.
@@ -704,11 +803,10 @@ final class ExpressionBuilderPane {
             if (index > 0) {
                 breakBeforeTerm(flow, sum, place);
             }
-            slots.add(new Slot(sum, index, flow.anchor()));
+            slots.add(new Slot(sum, index, flow.anchor(), place));
             drawTerm(flow, placeOf(sum, index), pieces.get(index), place);
         }
-        slots.add(new Slot(sum, pieces.size(), flow.anchor()));
-        drawSumAdd(flow, sum, place);
+        slots.add(new Slot(sum, pieces.size(), flow.anchor(), place));
     }
 
     // Decision each-subsequent-term-starts-a-new-line: a type row's later terms each start a line one indent under
@@ -728,8 +826,9 @@ final class ExpressionBuilderPane {
      * @param sum   the sum it drops into
      * @param index the slot in it: before the term at that index, or the sum's size for its end
      * @param at    where the slot stands, the next piece's place on its line
+     * @param place where the sum stands, which names the terms a term inserted there takes
      */
-    private record Slot(List<Integer> sum, int index, BuilderOverlays.Anchor at) {
+    private record Slot(List<Integer> sum, int index, BuilderOverlays.Anchor at, Place place) {
         double distanceTo(double x, double y) {
             double lineMiss = Math.abs(y - (at.y() + ControlFlow.LINE / (double) HALF)) * LINE_WEIGHT;
             return lineMiss + Math.abs(x - at.x());
@@ -782,24 +881,61 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // The sign picked joins the term added: an item or prefab picked next, or a 1 where the sum reads only numbers.
-    private void drawSumAdd(ControlFlow flow, List<Integer> sum, Place place) {
-        if (!hasTermChoices(place) && !takesNumbers(place)) {
-            return;
-        }
-        List<BuilderOverlays.Option> signs = List.of(
-                new BuilderOverlays.Option(PLUS_SIGN, null, at -> addTerm(at, sum, ExpressionTerms.Join.PLUS, place)),
-                new BuilderOverlays.Option(MINUS_SIGN, null,
-                        at -> addTerm(at, sum, ExpressionTerms.Join.MINUS, place)));
-        flow.control(ControlFlow.dropdownLabel(SUM_ADD), null, at -> overlays.openOptions(at, signs));
+    // Decision plus-and-minus-are-draggable-buttons-in-the-control-bay: a + and a - in the bay beside the () handle,
+    // each dragged to the slot where its term goes.
+    private void drawSignHandles(ControlFlow flow) {
+        flow.grabControl(PLUS_SIGN, new SignDrag(ExpressionTerms.Join.PLUS), null);
+        flow.grabControl(MINUS_SIGN, new SignDrag(ExpressionTerms.Join.MINUS), null);
     }
 
-    private void addTerm(BuilderOverlays.Anchor at, List<Integer> sum, ExpressionTerms.Join join, Place place) {
+    /**
+     * A + or - held from the bay: where the pointer stands and the slot its term would drop into.
+     */
+    private final class SignDrag implements ClickTargets.PointerGrab {
+        private final ExpressionTerms.Join join;
+        private double x;
+        private double y;
+        private @Nullable Slot target;
+
+        SignDrag(ExpressionTerms.Join join) {
+            this.join = join;
+        }
+
+        // Decision drags-indicate-only-a-drop-the-builder-takes: the slot is one the builder inserts a term at.
+        @Override
+        public void moved(double movedX, double movedY) {
+            signDragging = this;
+            x = movedX;
+            y = movedY;
+            Slot nearest = overTrash(x, y) ? null : nearestSlot(x, y);
+            target = nearest != null && takesInsert(nearest, join) ? nearest : null;
+        }
+
+        @Override
+        public void released() {
+            Slot dropped = target;
+            boolean held = signDragging == this;
+            signDragging = null;
+            if (held && dropped != null) {
+                insertTerm(dropped, join);
+            }
+        }
+    }
+
+    private boolean takesInsert(Slot slot, ExpressionTerms.Join join) {
+        return (hasTermChoices(slot.place()) || takesNumbers(slot.place()))
+                && holds(edited -> edited.canInsertAt(slot.sum(), slot.index(), join));
+    }
+
+    // The term dropped: an item or prefab picked from the list at the slot, or a 1 where the sum reads only numbers.
+    private void insertTerm(Slot slot, ExpressionTerms.Join join) {
+        Place place = slot.place();
         if (hasTermChoices(place)) {
-            overlays.openDropdown(at, termList(place), choice -> apply(b -> b.add(sum, refFor(choice, place),
-                    join)));
+            overlays.openDropdown(slot.at(), termList(place), choice -> apply(b -> b.insertAt(slot.sum(),
+                    slot.index(), refFor(choice, place), join)));
         } else {
-            apply(b -> b.add(sum, new ExpressionBuilder.Num(ExpressionBuilder.ONE_TEXT), join));
+            apply(b -> b.insertAt(slot.sum(), slot.index(), new ExpressionBuilder.Num(ExpressionBuilder.ONE_TEXT),
+                    join));
         }
     }
 
@@ -828,11 +964,7 @@ final class ExpressionBuilderPane {
         int lead = leadWidth(flow.font(), path, piece);
         flow.fit(ControlFlow.RAIL_ADVANCE + lead);
         BuilderOverlays.Anchor start = flow.anchor();
-        if (piece.operand() instanceof ExpressionBuilder.Nest) {
-            flow.railTarget(railHoverKey(path), new Drag(path, piece), lead);
-        } else {
-            flow.rail(railHoverKey(path), new Drag(path, piece), lead);
-        }
+        flow.railTarget(railName(path), new Drag(path, piece), lead);
         if (path.getLast() > 0) {
             drawJoin(flow, path, piece);
         }
@@ -848,8 +980,11 @@ final class ExpressionBuilderPane {
             drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         }
         flow.space(BOX_INSIDE);
-        flow.outlineFrom(term.start());
-        boxes.add(new TermBox(path, flow.boxFrom(term.start(), depthOf(path, place))));
+        int depth = boxDepthOf(path, place);
+        flow.outlineFrom(term.start(), depth);
+        flow.drawRailOnLine(term.start(), depth);
+        flow.closeBox();
+        boxes.add(new TermBox(path, flow.boxFrom(term.start(), depth)));
     }
 
     // The join and the operand after a term's rail, which the rail keeps on its line.
@@ -867,6 +1002,24 @@ final class ExpressionBuilderPane {
 
     private static int depthOf(List<Integer> path, Place place) {
         return place.inRow() ? path.size() - 1 : path.size();
+    }
+
+    // How many boxes hold a term, its own and its type row's included.
+    private static int boxDepthOf(List<Integer> path, Place place) {
+        return depthOf(path, place) + (place.inRow() ? 1 : 0);
+    }
+
+    // The most boxes any piece of the value stands inside: a type row's, then each term's and parenthetical's.
+    private static int boxDepth(ExpressionBuilder edited) {
+        if (!edited.isPerType()) {
+            return termsDepth(edited.terms());
+        }
+        return edited.rows().stream().mapToInt(row -> 1 + termsDepth(row.pieces())).max().orElse(0);
+    }
+
+    private static int termsDepth(List<ExpressionBuilder.Piece> pieces) {
+        return pieces.stream().mapToInt(piece -> piece.operand() instanceof ExpressionBuilder.Nest nest
+                ? 1 + termsDepth(nest.pieces()) : 1).max().orElse(0);
     }
 
     /**
@@ -938,14 +1091,27 @@ final class ExpressionBuilderPane {
     // The held () drawn at the pointer, over everything else.
     private void drawHeldHandle(GuiGraphicsExtractor graphics, Font font) {
         Wrapping held = wrapping;
-        if (held == null) {
-            return;
+        if (held != null) {
+            drawHeldLabel(graphics, font, WRAP, held.x, held.y);
         }
-        int left = (int) held.x + PREVIEW_OFFSET;
-        int top = (int) held.y;
-        int width = font.width(WRAP) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+    }
+
+    // The held + or - drawn at the pointer, over everything else.
+    private void drawHeldSign(GuiGraphicsExtractor graphics, Font font) {
+        SignDrag held = signDragging;
+        if (held != null) {
+            drawHeldLabel(graphics, font, held.join == ExpressionTerms.Join.PLUS ? PLUS_SIGN : MINUS_SIGN, held.x,
+                    held.y);
+        }
+    }
+
+    private static void drawHeldLabel(GuiGraphicsExtractor graphics, Font font, String label, double pointerX,
+                                      double pointerY) {
+        int left = (int) pointerX + PREVIEW_OFFSET;
+        int top = (int) pointerY;
+        int width = font.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING;
         graphics.fill(left, top, left + width, top + ButtonPainter.HEIGHT, PREVIEW_COLOR);
-        graphics.text(font, WRAP, left + ButtonPainter.PADDING, top + ButtonPainter.TEXT_NUDGE, PREVIEW_TEXT);
+        graphics.text(font, label, left + ButtonPainter.PADDING, top + ButtonPainter.TEXT_NUDGE, PREVIEW_TEXT);
     }
 
     private void drawJoin(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
@@ -1031,14 +1197,16 @@ final class ExpressionBuilderPane {
         // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
         // right of its ")" too, where its factor would otherwise push it onto the next line and leave the pointer
         // past ")" nearest the inner sum's end.
-        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor()));
+        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor(), place));
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         flow.shift(-inner);
         int depth = depthOf(path, place);
+        int boxDepth = boxDepthOf(path, place);
         flow.space(BOX_INSIDE);
-        flow.tintFrom(nested.start(), new ControlFlow.BoxTones(nestTone(depth), NEST_BORDER), depth);
-        GroupsPane.Bounds box = flow.boxFrom(nested.start(), depth);
+        flow.tintFrom(nested.start(), new ControlFlow.BoxTones(nestTone(depth), NEST_BORDER), boxDepth);
+        GroupsPane.Bounds box = flow.boxFrom(nested.start(), boxDepth);
         flow.drawRail(nested.start().x(), box.top() + 1, box.bottom() - 1);
+        flow.closeBox();
         boxes.add(new TermBox(path, box));
     }
 

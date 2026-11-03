@@ -407,19 +407,28 @@ final class GroupsPane {
     // of its own, as no group's own evaluation reaches the manager; none where no such member resolved.
     // Decision group-card-shows-its-goo-value-above-a-labelled-builder.
     private List<ExpressionLines.Run> worthRuns(GroupCard card) {
-        Optional<GroupsTab.Group> group = card.group();
-        if (group.isEmpty() || card.base().isBlank()) {
-            return List.of();
-        }
-        Set<String> tweaked = new HashSet<>();
-        group.get().tweaks().forEach(tweak -> tweaked.add(tweak.member()));
-        String name = card.row().name();
-        return group.get().members().stream().map(GroupsTab.Member::id).filter(id -> !tweaked.contains(id))
-                .filter(id -> valuedByGroup(id, name)).map(values::worthOf).filter(worth -> !worth.isEmpty())
-                .findFirst().map(GroupsPane::resolvedRuns).orElse(List.of());
+        Map<String, String> worth = card.group().map(group -> worthOf(group, values)).orElse(Map.of());
+        return worth.isEmpty() ? List.of() : resolvedRuns(worth);
     }
 
-    private boolean valuedByGroup(String id, String group) {
+    /**
+     * @param group  a group
+     * @param values the Items tab's state, holding each member's evaluated value
+     * @return the group's goo value, read off a member it values with no tweak of its own; empty where the group
+     *     takes no base or no such member resolved
+     */
+    static Map<String, String> worthOf(GroupsTab.Group group, ValuesTab values) {
+        if (group.base() == null || group.base().isBlank()) {
+            return Map.of();
+        }
+        Set<String> tweaked = new HashSet<>();
+        group.tweaks().forEach(tweak -> tweaked.add(tweak.member()));
+        return group.members().stream().map(GroupsTab.Member::id).filter(id -> !tweaked.contains(id))
+                .filter(id -> valuedByGroup(values, id, group.name())).map(values::worthOf)
+                .filter(worth -> !worth.isEmpty()).findFirst().orElse(Map.of());
+    }
+
+    private static boolean valuedByGroup(ValuesTab values, String id, String group) {
         ValuesTab.Source source = values.sourceOf(id);
         return source.kind() == ValuesTab.SourceKind.GROUP && group.equals(source.label());
     }
@@ -547,8 +556,10 @@ final class GroupsPane {
         for (int index = 0; index < line.fit().shown(); index++) {
             String iterator = line.referents().get(index);
             UsedByLine.Slot slot = line.slots().get(index);
+            // Decision group-referent-previews-shorthand-members-then-its-value: an iterator previews its group.
             ButtonPainter.drawFollow(graphics, font, iterator, line.itemsX() + slot.x(),
-                    top + slot.row() * ROW_HEIGHT, ROW_HEIGHT, targets, () -> actions.openMutator(iterator), null);
+                    top + slot.row() * ROW_HEIGHT, ROW_HEIGHT, targets, () -> actions.openMutator(iterator),
+                    GroupHovers.iteratorHoverKey(iterator));
         }
         UsedByLine.Slot end = line.slots().getLast();
         boolean expanded = expandedRows.expanded(line.key());

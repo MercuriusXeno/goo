@@ -72,7 +72,6 @@ final class VariablesPane {
     private static final String RESOLVED_SEPARATOR = ", ";
     private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
-    private static final String PREFAB_MARK = "$";
     private static final String VALUE_LABEL = "Value:";
     private static final String AMOUNT_OPEN = "(";
     private static final String AMOUNT_CLOSE = ")";
@@ -438,7 +437,7 @@ final class VariablesPane {
         boolean renamingThis = rename != null && block.name().equals(renaming);
         int pencilWidth = ButtonPainter.width(font, RENAME);
         // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab's name reads after $.
-        String shown = PREFAB_MARK + block.name();
+        String shown = PrefabNames.marked(block.name());
         int nameWidth = font.width(shown) + PENCIL_GAP + pencilWidth;
         if (renamingThis) {
             drawRenameBox(graphics, font, rename, block.name(), x, y, targets);
@@ -553,7 +552,7 @@ final class VariablesPane {
     }
 
     private static String linkLabel(VariablesTab.Reader link) {
-        return CONSTANT_KIND.equals(link.kind()) ? PREFAB_MARK + link.id() : groupLabel(link.id());
+        return CONSTANT_KIND.equals(link.kind()) ? PrefabNames.marked(link.id()) : groupLabel(link.id());
     }
 
     private static String groupLabel(String id) {
@@ -606,8 +605,10 @@ final class VariablesPane {
                     () -> actions.openVariable(link.id()), PrefabHovers.hoverKey(link.id()));
         } else {
             String label = groupLabel(link.id());
-            ButtonPainter.drawFollow(graphics, font, label, x, y, ICON_SIZE, targets,
-                    () -> actions.openGroup(label.substring(TAG_PREFIX.length())), null);
+            String group = label.substring(TAG_PREFIX.length());
+            // Decision group-referent-previews-shorthand-members-then-its-value.
+            ButtonPainter.drawFollow(graphics, font, label, x, y, ICON_SIZE, targets, () -> actions.openGroup(group),
+                    GroupHovers.hoverKey(group));
         }
     }
 
