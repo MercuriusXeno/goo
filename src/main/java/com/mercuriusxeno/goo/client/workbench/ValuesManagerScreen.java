@@ -17,6 +17,7 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.ClientHooks;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.EnumMap;
 import java.util.List;
@@ -25,7 +26,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save and an X that closes it, a tab bar carrying every
+ * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save, a [?] that toggles explainer mode and an X that closes it, a tab bar carrying every
  * tab of the page over one shared draft, each tab drawn by its pane, and a status line beneath
  * (decisions goo-workbench-opens-the-in-game-manager-screen, save-applies-the-draft-live-promote-renames-it). The
  * state lives in the tab classes and {@link ManagerConnection}; this class lays the panes out and forwards input.
@@ -53,6 +54,7 @@ public final class ValuesManagerScreen extends Screen {
     // decision topbar-discard-reads-revert
     private static final String REVERT = "Revert";
     private static final String CLOSE = "X";
+    private static final String HELP = "?";
     private static final String DRAFT_BADGE = "draft";
     private static final String READING = "Reading the draft.";
     private static final String SAVING = "saving";
@@ -74,6 +76,8 @@ public final class ValuesManagerScreen extends Screen {
     private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
             PointerHand::cursor);
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
+    private final ExplainerMode explainer = new ExplainerMode(ExplainerTargets.forTabs(this::tabBounds));
+    private @Nullable Button helpButton;
     private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
     private final VariablesPane variablesPane;
@@ -222,6 +226,9 @@ public final class ValuesManagerScreen extends Screen {
         TitleRow row = titleRowOf(width);
         addRenderableWidget(Button.builder(Component.literal(CLOSE), button -> onClose())
                 .bounds(row.closeLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
+        // Decision question-button-toggles-explainer-mode-with-the-drag-mask.
+        helpButton = addRenderableWidget(Button.builder(Component.literal(HELP), button -> explainer.toggle())
+                .bounds(row.helpLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
         int right = row.topbarRight();
         right = topbarButton(SAVE, right, () -> save(() -> { }));
         right = topbarButton(REVERT, right, () -> draftConfirm.askRevert(draft.path()));
@@ -233,9 +240,10 @@ public final class ValuesManagerScreen extends Screen {
      *
      * @param closeLeft   the X's left edge
      * @param closeRight  the X's right edge, at the screen's right margin
+     * @param helpLeft    the [?]'s left edge, the square one gap left of the X
      * @param topbarRight the right edge of the topbar's first button
      */
-    record TitleRow(int closeLeft, int closeRight, int topbarRight) {
+    record TitleRow(int closeLeft, int closeRight, int helpLeft, int topbarRight) {
     }
 
     /**
@@ -245,7 +253,8 @@ public final class ValuesManagerScreen extends Screen {
     static TitleRow titleRowOf(int screenWidth) {
         int closeRight = screenWidth - MARGIN;
         int closeLeft = closeRight - BUTTON_HEIGHT;
-        return new TitleRow(closeLeft, closeRight, closeLeft - TAB_GAP);
+        int helpLeft = closeLeft - TAB_GAP - BUTTON_HEIGHT;
+        return new TitleRow(closeLeft, closeRight, helpLeft, helpLeft - TAB_GAP);
     }
 
     /**
@@ -261,6 +270,11 @@ public final class ValuesManagerScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal(label), button -> pressed.run())
                 .bounds(right - buttonWidth, TOPBAR_Y, buttonWidth, BUTTON_HEIGHT).build());
         return right - buttonWidth - TAB_GAP;
+    }
+
+    private DragMask.Rect tabBounds(ManagerTab each) {
+        Button button = tabButtons.get(each);
+        return new DragMask.Rect(button.getX(), button.getY(), button.getRight(), button.getBottom());
     }
 
     private GroupsPane.Bounds contentBounds() {
@@ -417,6 +431,10 @@ public final class ValuesManagerScreen extends Screen {
         if (draftPane.open()) {
             return clickTargets(targets, event);
         }
+        // The mode is modal: only the [?] that leaves it takes a click.
+        if (explainer.active() && (helpButton == null || !helpButton.isMouseOver(event.x(), event.y()))) {
+            return true;
+        }
         if (emptyBoxUnder(children(), event) || super.mouseClicked(event, doubleClick)) {
             return true;
         }
@@ -436,6 +454,9 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE && explainer.leave()) {
+            return true;
+        }
         return paneTakesKey(event.key()) || super.keyPressed(event);
     }
 
@@ -451,7 +472,7 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-        if (draftPane.open()) {
+        if (draftPane.open() || explainer.active()) {
             return true;
         }
         switch (tab) {
@@ -491,6 +512,7 @@ public final class ValuesManagerScreen extends Screen {
         graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
                 statusIsError ? RED : GRAY);
         draftPane.extract(graphics, font, width, height, targets);
+        explainer.extract(graphics, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
         extractTooltip(graphics, mouseX, mouseY);
         // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
@@ -525,6 +547,10 @@ public final class ValuesManagerScreen extends Screen {
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
     // then its value.
     private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
+        Optional<List<TooltipLine>> explained = explainer.tooltipFor(hoverKey);
+        if (explained.isPresent()) {
+            return explained;
+        }
         Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
