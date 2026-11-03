@@ -147,6 +147,8 @@ final class MutatorControls {
                     () -> write(entry, new Processes.Stack(1, others.getFirst())))), stack);
         }
         flow.choices(kinds, overlays);
+        // Decision conversion-controls-hover-their-formula: the kind hovers the row's formula.
+        flow.hoverLast(ConversionHovers.hoverKey(entry.section(), entry.key()));
     }
 
     // Picking the kind the form already is keeps the form, so a misclick wipes nothing.

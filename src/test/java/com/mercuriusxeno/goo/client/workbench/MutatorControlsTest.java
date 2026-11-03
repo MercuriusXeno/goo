@@ -147,6 +147,21 @@ class MutatorControlsTest {
         }
 
         /**
+         * Each row's kind control hovers the row's formula, an additive and a stack alike (decision
+         * conversion-controls-hover-their-formula).
+         */
+        @Test
+        void everyRowsKindControlHoversItsFormula() {
+            for (Processes.Form form : List.of(new Processes.Formula("metal", 4, "yore", 2, 3),
+                    new Processes.Additive("oak"), new Processes.Stack(2, "smelt"))) {
+                DrawnFrame frame = frame(form);
+                DrawnFrame.Text kind = frame.drawn().getFirst();
+                assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "rust")),
+                        frame.targets.hovered(kind.x() + 1, kind.y() + 1), form.toString());
+            }
+        }
+
+        /**
          * A row starting at x 40 draws its kind dropdown at 40, unindented, then the source type's button, then the
          * ratio (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
          */

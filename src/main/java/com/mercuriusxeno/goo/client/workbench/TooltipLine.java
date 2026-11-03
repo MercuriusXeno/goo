@@ -8,7 +8,8 @@ import java.util.List;
  * One line of a tooltip the values manager shows: text, or a goo type's amount, which draws as the type's icon
  * followed by the amount (decision value-tooltips-draw-each-types-icon-before-its-amount).
  */
-public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmount, TooltipLine.MemberIcons {
+public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmount, TooltipLine.MemberIcons,
+        TooltipLine.Runs {
 
     /**
      * A line of text: a name, a scalar value, an error or a hint.
@@ -25,6 +26,21 @@ public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmo
      * @param amount the amount as the value reads it
      */
     record GooAmount(String type, String amount) implements TooltipLine {
+    }
+
+    /**
+     * One line of runs, goo types as icons beside numbers and symbols, which {@link RunsTooltipComponent} draws
+     * (decision conversion-controls-hover-their-formula).
+     *
+     * @param runs the line's runs
+     */
+    record Runs(List<ExpressionLines.Run> runs) implements TooltipLine, TooltipComponent {
+        /**
+         * @param runs the line's runs
+         */
+        public Runs {
+            runs = List.copyOf(runs);
+        }
     }
 
     /**
