@@ -53,6 +53,10 @@ final class ControlFlow {
     static final int RAIL_COLOR = 0xFF7080A0;
     /** The grip lines a drag rail draws. */
     static final int GRIP_COLOR = 0xFFD0D8F0;
+    /** A rail's fill where what it holds has nowhere to drop, so it takes no press. */
+    static final int LOCKED_RAIL_COLOR = 0xFF3C3C3C;
+    // A locked rail's grip lines, dimmed with it.
+    private static final int LOCKED_GRIP_COLOR = 0xFF5A5A5A;
     static final int OUTLINE_COLOR = 0x60FFFFFF;
     /** How far one indent step moves a line's left edge. */
     static final int INDENT = 12;
@@ -89,6 +93,10 @@ final class ControlFlow {
     // contents, and a box closing widens the boxes holding it by its own bounds.
     // Decision drag-rail-containers-keep-a-pixel-between-borders.
     private final Deque<int[]> contents = new ArrayDeque<>();
+    // The rails of the boxes standing open, the innermost first, and every rail the flow laid this frame, which
+    // paintRails draws and arms once the pane knows which can drag.
+    private final Deque<RailGrab> openRails = new ArrayDeque<>();
+    private final List<LaidRail> laidRails = new ArrayList<>();
 
     /**
      * @param graphics the frame's graphics
@@ -659,8 +667,8 @@ final class ControlFlow {
         pieceTop = y;
         pieceWidth = RAIL_WIDTH;
         contents.push(new int[] {Integer.MAX_VALUE, Integer.MIN_VALUE});
+        openRails.push(new RailGrab(grab, name));
         int railLeft = x;
-        targets.addGrab(x, y, RAIL_WIDTH, line, grab, name);
         x += RAIL_ADVANCE;
         openBoxes++;
         return railLeft;
@@ -671,6 +679,7 @@ final class ControlFlow {
      */
     void closeBox() {
         openBoxes--;
+        openRails.pop();
         int[] closed = contents.pop();
         if (closed[0] <= closed[1]) {
             for (int[] holder : contents) {
@@ -699,7 +708,66 @@ final class ControlFlow {
      * @param bottom its bottom, flush over the box's bottom border
      */
     void drawRail(int left, int top, int bottom) {
-        drawRail(graphics, left, top, bottom);
+        RailGrab open = openRails.peek();
+        if (open == null) {
+            drawRail(graphics, left, top, bottom);
+            return;
+        }
+        laidRails.add(new LaidRail(left, top, bottom, open));
+    }
+
+    /**
+     * What a rail's press takes and what it drags.
+     *
+     * @param grab what the press, each drag and the release move
+     * @param name what the rail drags
+     */
+    private record RailGrab(ClickTargets.PointerGrab grab, String name) {
+    }
+
+    /**
+     * A rail laid down its box's left edge, waiting to be painted.
+     *
+     * @param left   its left edge
+     * @param top    its top
+     * @param bottom its bottom
+     * @param grab   what its press takes
+     */
+    private record LaidRail(int left, int top, int bottom, RailGrab grab) {
+    }
+
+    /**
+     * Paints every rail the frame laid: one whose thing may drop somewhere in its own color, its press taking the
+     * whole rail as drawn, every line its box spans; one whose thing has nowhere to drop dark gray, taking no press,
+     * so no rail offers a drag that does nothing. Called once the frame's drop places are laid.
+     *
+     * @param draggable whether the thing a rail drags, by the name it drags, has a place to drop
+     */
+    void paintRails(java.util.function.Predicate<String> draggable) {
+        for (LaidRail rail : laidRails) {
+            String name = rail.grab().name();
+            if (draggable.test(name)) {
+                drawRail(graphics, new RailPaint(rail.left(), rail.top(), rail.bottom(), RAIL_COLOR, GRIP_COLOR));
+                targets.addGrab(rail.left(), rail.top(), RAIL_WIDTH, rail.bottom() - rail.top(), rail.grab().grab(),
+                        name);
+            } else {
+                drawRail(graphics, new RailPaint(rail.left(), rail.top(), rail.bottom(), LOCKED_RAIL_COLOR,
+                        LOCKED_GRIP_COLOR));
+            }
+        }
+        laidRails.clear();
+    }
+
+    /**
+     * Where a rail paints and in which colors.
+     *
+     * @param left   its left edge
+     * @param top    its top
+     * @param bottom its bottom
+     * @param fill   its fill
+     * @param grips  its grip lines' color
+     */
+    private record RailPaint(int left, int top, int bottom, int fill, int grips) {
     }
 
     /**
@@ -711,11 +779,15 @@ final class ControlFlow {
      * @param bottom   its bottom
      */
     static void drawRail(GuiGraphicsExtractor graphics, int left, int top, int bottom) {
-        graphics.fill(left, top, left + RAIL_WIDTH, bottom, RAIL_COLOR);
-        int first = (top + bottom) / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
+        drawRail(graphics, new RailPaint(left, top, bottom, RAIL_COLOR, GRIP_COLOR));
+    }
+
+    private static void drawRail(GuiGraphicsExtractor graphics, RailPaint rail) {
+        graphics.fill(rail.left(), rail.top(), rail.left() + RAIL_WIDTH, rail.bottom(), rail.fill());
+        int first = (rail.top() + rail.bottom()) / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
         for (int line = 0; line < GRIP_LINES; line++) {
             int gripTop = first + line * GRIP_PITCH;
-            graphics.fill(left + 1, gripTop, left + RAIL_WIDTH - 1, gripTop + 1, GRIP_COLOR);
+            graphics.fill(rail.left() + 1, gripTop, rail.left() + RAIL_WIDTH - 1, gripTop + 1, rail.grips());
         }
     }
 
@@ -812,7 +884,7 @@ final class ControlFlow {
         ButtonPainter.Box box = ButtonPainter.layout(letters.width(label), x, y, line);
         ButtonPainter.Box railed = new ButtonPainter.Box(box.left(), box.top(), width, box.height());
         ButtonPainter.drawFrame(graphics, railed);
-        drawRail(railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
+        drawRail(graphics, railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
         letters.draw(graphics, label, railed.left() + 1 + labelLeftRoom, wordsTop(), LINK);
         targets.addGrab(railed.left(), railed.top(), railed.width(), railed.height(), grab);
         String hoverKey = BuilderOverlays.hintKey(hint);
