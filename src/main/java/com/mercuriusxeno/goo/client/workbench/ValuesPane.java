@@ -31,8 +31,8 @@ final class ValuesPane {
     static final int ROW_PAD = 1;
     // The name takes at most a third of the row, leaving the line's room to its value.
     private static final int NAME_SHARE = 3;
-    // The least room either side of the recipe on the head line.
-    private static final int HEAD_GAP = 4;
+    /** The least room either side of the recipe on the head line. */
+    static final int HEAD_GAP = 4;
     private static final String DELETE = "✗";
     private static final String DELETE_HINT = "Delete";
     private static final int ICON_SIZE = 16;
@@ -87,6 +87,9 @@ final class ValuesPane {
     private @Nullable EditBox search;
     private final ExpressionBuilderPane builder;
     private final Map<String, MeasuredHeight> measured = new HashMap<>();
+    // Where every Items row's recipe starts, from the row's left, and what it was measured from.
+    private int recipeColumn;
+    private @Nullable ColumnInputs columnInputs;
     /** How far one wheel notch moves the Items list, in pixels (decision items-list-scrolls-by-pixel). */
     static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
@@ -300,6 +303,7 @@ final class ValuesPane {
             graphics.text(font, NO_ENTRIES, list.left(), list.top(), GRAY);
             return;
         }
+        measureRecipeColumn(font, listed, list.right() - ScrollBar.WIDTH - ScrollBar.GAP - list.left());
         scrollToRevealed(font, listed, list);
         graphics.enableScissor(list.left(), list.top(), list.right(), list.bottom());
         targets.clip(list.left(), list.top(), list.right(), list.bottom());
@@ -400,36 +404,52 @@ final class ValuesPane {
     }
 
     /**
-     * Lays an Items row's head: the name at the left, the value right packed, and the recipe centered in the room
-     * between them; where the three overrun the line the recipe drops to a second line, one indent in under the name
+     * Lays an Items row's head: the name at the left, the value right packed, and the recipe at the list's recipe
+     * column; where the recipe would reach the value the recipe drops to a second line, one indent in under the name
      * (decision items-row-is-name-recipe-space-between-and-value-right-packed).
      *
-     * @param left        the row's left edge
-     * @param top         the row's top edge
-     * @param right       the row's right edge
-     * @param nameWidth   the name's drawn width
-     * @param recipeWidth the recipe's width, sprite to last piece
-     * @param valueWidth  the value's width, 0 where it draws none
+     * @param left         the row's left edge
+     * @param top          the row's top edge
+     * @param right        the row's right edge
+     * @param recipeColumn the recipes' shared left edge, from the row's left
+     * @param recipeWidth  the recipe's width, sprite to last piece
+     * @param valueWidth   the value's width, 0 where it draws none
      * @return each piece's place
      */
-    static HeadPlaces layHead(int left, int top, int right, int nameWidth, int recipeWidth, int valueWidth) {
+    static HeadPlaces layHead(int left, int top, int right, int recipeColumn, int recipeWidth, int valueWidth) {
         int nameLeft = left + ROW_PAD;
-        int nameRight = nameLeft + nameWidth;
+        int recipeLeft = left + recipeColumn;
         int valueLeft = right - valueWidth;
-        int room = valueLeft - nameRight - HEAD_GAP - HEAD_GAP;
-        if (recipeWidth <= room) {
-            return new HeadPlaces(nameLeft, nameRight + (valueLeft - nameRight - recipeWidth) / HALF, top, valueLeft,
-                    ROW_HEIGHT);
+        if (recipeLeft + recipeWidth + HEAD_GAP <= valueLeft) {
+            return new HeadPlaces(nameLeft, recipeLeft, top, valueLeft, ROW_HEIGHT);
         }
         return new HeadPlaces(nameLeft, nameLeft + ControlFlow.INDENT, top + ROW_HEIGHT, valueLeft,
                 ROW_HEIGHT + ROW_HEIGHT);
     }
 
     // The head's pieces measured and laid for the row's width.
-    private HeadPlaces placeHead(Font font, ValuesTab.ManagerEntry entry, String name, GroupsPane.Bounds row) {
+    private HeadPlaces placeHead(Font font, ValuesTab.ManagerEntry entry, GroupsPane.Bounds row) {
         ValuesTab.Source source = values.sourceOf(entry.id());
-        return layHead(row.left(), row.top(), row.right(), font.width(name), equalityWidth(font, entry, source),
+        return layHead(row.left(), row.top(), row.right(), recipeColumn, equalityWidth(font, entry, source),
                 valueWidth(font, worthShown(entry.id(), source)));
+    }
+
+    // Decision items-row-is-name-recipe-space-between-and-value-right-packed: the recipes' shared column stands one
+    // gap past the widest name the list draws, so every recipe starts at one x.
+    // Measured again only when the listed rows or the row width change.
+    private void measureRecipeColumn(Font font, List<ValuesTab.ManagerEntry> listed, int rowWidth) {
+        ColumnInputs inputs = new ColumnInputs(rowWidth, listed);
+        if (inputs.equals(columnInputs)) {
+            return;
+        }
+        columnInputs = inputs;
+        int widest = 0;
+        int cap = rowWidth / NAME_SHARE;
+        for (ValuesTab.ManagerEntry entry : listed) {
+            int width = font.width(entry.name());
+            widest = Math.max(widest, width <= cap ? width : font.width(headName(font, entry, rowWidth)));
+        }
+        recipeColumn = ROW_PAD + widest + HEAD_GAP;
     }
 
     private Map<String, String> worthShown(String id, ValuesTab.Source source) {
@@ -446,7 +466,7 @@ final class ValuesPane {
     private int drawHead(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                          GroupsPane.Bounds row, ClickTargets targets) {
         String name = headName(font, entry, row.right() - row.left());
-        HeadPlaces places = placeHead(font, entry, name, row);
+        HeadPlaces places = placeHead(font, entry, row);
         targets.add(row.left(), row.top(), row.right() - row.left(), places.height(), () -> values.select(entry.id()));
         HeadLine line = headLine(font, row.top(), row.right());
         ValuesTab.Source source = values.sourceOf(entry.id());
@@ -793,8 +813,8 @@ final class ValuesPane {
     // rule's padding.
     private int rowHeight(Font font, ValuesTab.ManagerEntry entry, int width) {
         ValuesTab.EntryRow row = values.rowOf(entry.id());
-        HeightInputs inputs = new HeightInputs(width, row, values.sourceOf(entry.id()), values.derivedFrom(entry.id()),
-                values.hasEntry(entry.id()));
+        HeightInputs inputs = new HeightInputs(width, recipeColumn, row, values.sourceOf(entry.id()),
+                values.derivedFrom(entry.id()), values.hasEntry(entry.id()));
         MeasuredHeight known = measured.get(entry.id());
         if (known != null && known.inputs().equals(inputs)) {
             return known.height();
@@ -807,14 +827,24 @@ final class ValuesPane {
     /**
      * Everything a row's read height follows from, so a height measured once stands until one of them changes.
      *
-     * @param width   the row's width
-     * @param row     its name, expression, amounts and error
-     * @param source  where its value comes from
-     * @param recipe  the recipe its derived value comes from
-     * @param entered whether the file holds an entry of its own
+     * @param width        the row's width
+     * @param recipeColumn the recipes' shared left edge
+     * @param row          its name, expression, amounts and error
+     * @param source       where its value comes from
+     * @param recipe       the recipe its derived value comes from
+     * @param entered      whether the file holds an entry of its own
      */
-    private record HeightInputs(int width, ValuesTab.EntryRow row, ValuesTab.Source source, ValuesTab.Recipe recipe,
-                                boolean entered) {
+    private record HeightInputs(int width, int recipeColumn, ValuesTab.EntryRow row, ValuesTab.Source source,
+                                ValuesTab.Recipe recipe, boolean entered) {
+    }
+
+    /**
+     * Everything the recipe column follows from.
+     *
+     * @param rowWidth the rows' width
+     * @param listed   the rows the list draws
+     */
+    private record ColumnInputs(int rowWidth, List<ValuesTab.ManagerEntry> listed) {
     }
 
     /**
@@ -826,8 +856,7 @@ final class ValuesPane {
 
     private int measureRow(Font font, ValuesTab.ManagerEntry entry, ValuesTab.EntryRow row, int width) {
         int expression = ReadValueButton.height(font, expressionRuns(row), expressionWidth(font, entry, width));
-        int head = placeHead(font, entry, headName(font, entry, width), new GroupsPane.Bounds(0, 0, width, 0))
-                .height();
+        int head = placeHead(font, entry, new GroupsPane.Bounds(0, 0, width, 0)).height();
         return head + expression + (row.error().isEmpty() ? 0 : LINE_HEIGHT) + RowLayout.RULE_PADDING;
     }
 

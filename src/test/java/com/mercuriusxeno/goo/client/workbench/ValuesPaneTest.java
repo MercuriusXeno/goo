@@ -223,6 +223,24 @@ class ValuesPaneTest {
                     || text.equals("Value")), frame.texts().toString());
         }
 
+        // Decision items-row-is-name-recipe-space-between-and-value-right-packed: the recipes form one left-aligned
+        // column at the widest name plus a gap, each value still right packed.
+        @Test
+        void recipesStartAtOneColumnPastTheWidestName() {
+            DrawnFrame frame = frame();
+            List<String> names = List.of("Stick", "Oak Planks", "Gravel", "Cobblestone");
+            int widest = names.stream().mapToInt(DrawnFrame.font()::width).max().orElseThrow();
+            int column = PANE.left() + ValuesPane.ROW_PAD + widest + ValuesPane.HEAD_GAP;
+            for (String name : names) {
+                DrawnFrame.Text head = frame.find(name);
+                List<Integer> sprites = itemXsAround(frame, head.y());
+                assertEquals(column, sprites.getFirst(), name + "'s recipe sprites " + sprites);
+            }
+            List<DrawnFrame.Text> line = onLine(frame, frame.find("Oak Planks"));
+            DrawnFrame.Text value = line.getLast();
+            assertEquals(LIST_RIGHT, value.x() + DrawnFrame.font().width(value.text()), value.toString());
+        }
+
         // Decision items-row-is-name-recipe-space-between-and-value-right-packed.
         @Test
         void narrowRowDropsItsRecipeUnderTheNameAndKeepsTheValueRightPacked() {
@@ -426,7 +444,10 @@ class ValuesPaneTest {
     private static final int LARGE_LIST = 3000;
     private static final int LARGE_GROUPS = 40;
     private static final int GROUP_SIZE = 25;
-    private static final long FRAME_BUDGET_MS = 50;
+    // A frame scanning every row ran 3.5 seconds and an indexed one under 25 ms alone; the whole suite's load slows
+    // the indexed frame past 80 ms, so the budget sits well clear of that and well under the scan.
+    private static final long FRAME_BUDGET_MS = 250;
+    private static final int WARM_FRAMES = 8;
 
     // An Items pane the size of a modded game's: thousands of items, each listed item valued by its own entry and a
     // group of items valued by each group entry.
@@ -468,7 +489,7 @@ class ValuesPaneTest {
         ValuesPane pane = largeList();
         Font font = DrawnFrame.font();
         long fastest = Long.MAX_VALUE;
-        for (int run = 0; run < 4; run++) {
+        for (int run = 0; run < WARM_FRAMES; run++) {
             DrawnFrame frame = new DrawnFrame();
             long started = System.nanoTime();
             pane.extract(frame.graphics, font, SHORT_VIEW, frame.targets);
