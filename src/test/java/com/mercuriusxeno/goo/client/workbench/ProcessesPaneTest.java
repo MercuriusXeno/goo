@@ -341,18 +341,18 @@ class ProcessesPaneTest {
     }
 
     /**
-     * A mutator's sentence draws on the line under its name line, starting one indent step in from the name's x
-     * (decision mutator-body-indents-under-its-name-line).
+     * A mutator's sentence draws on the line under its name line, unindented, its kind dropdown at the name's x
+     * (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
      */
     @Test
-    void mutatorSentenceIndentsUnderItsNameLine() {
+    void mutatorSentenceStartsAtTheNameWithItsKind() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
         DrawnFrame.Text waxed = first(frame, "waxed");
-        DrawnFrame.Text plus = drawn.get(drawn.indexOf(waxed) + 5);
-        assertEquals("+", plus.text(), drawn.toString());
-        assertTrue(plus.y() > waxed.y(), plus + " below " + waxed);
-        assertEquals(waxed.x() + ControlFlow.INDENT, plus.x(), drawn.toString());
+        DrawnFrame.Text kind = drawn.get(drawn.indexOf(waxed) + 4);
+        assertEquals(ControlFlow.dropdownLabel("add"), kind.text(), drawn.toString());
+        assertTrue(kind.y() > waxed.y(), kind + " below " + waxed);
+        assertEquals(waxed.x() + ButtonPainter.PADDING, kind.x(), drawn.toString());
     }
 
     // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane.
@@ -487,9 +487,8 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Every row's top line draws its name with a pencil just past it, then its kind dropdown and mark at the same
-     * column lefts, and a red x at the row's right end, under no header (the operator's ruling: pencil by the name,
-     * x at the row end).
+     * Every row's top line draws its name with a pencil just past it, its mark at one column left, and a red x at the
+     * row's right end, under no header (the operator's ruling: pencil by the name, x at the row end).
      */
     @Test
     void everyRowDrawsItsColumnsAtTheSameLefts() {
@@ -507,8 +506,6 @@ class ProcessesPaneTest {
         assertEquals(nameLeft, drawn.stream().filter(text -> text.text().startsWith("copper_oxid")).findFirst()
                 .orElseThrow().x());
         assertTrue(frame.find("#exposed").x() >= middle, "the iterator stands in the right column");
-        int kindLeft = frame.find(ControlFlow.dropdownLabel("additive")).x();
-        assertTrue(kindLeft > nameLeft + 20 * 6, "the kind stands past the name column at " + kindLeft);
         List<DrawnFrame.Text> pencils = drawn.stream().filter(text -> text.text().equals("✎")).toList();
         assertEquals(3, pencils.size(), frame.texts().toString());
         DrawnFrame.Text waxed = first(frame, "waxed");

@@ -43,7 +43,8 @@ class MutatorControlsTest {
 
         private DrawnFrame frame() {
             DrawnFrame frame = new DrawnFrame();
-            controls.drawKind(frame.graphics, DrawnFrame.font(), SECTION, KEY, 0, 0, frame.targets);
+            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, KEY, new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
             overlays.draw(frame.graphics, DrawnFrame.font(), frame.targets);
             return frame;
         }
@@ -51,15 +52,15 @@ class MutatorControlsTest {
         @Test
         void kindLineDrawsOneButtonReadingTheChosenKind() {
             List<String> texts = frame().texts();
-            assertTrue(texts.contains(ControlFlow.dropdownLabel("additive")), texts.toString());
+            assertTrue(texts.contains(ControlFlow.dropdownLabel("add")), texts.toString());
             assertFalse(texts.contains("convert") || texts.contains("stack"), texts.toString());
         }
 
         @Test
         void pickingConvertWritesAFormula() {
-            frame().click(ControlFlow.dropdownLabel("additive"));
+            frame().click(ControlFlow.dropdownLabel("add"));
             DrawnFrame open = frame();
-            assertTrue(open.texts().containsAll(List.of("convert", "additive", "stack")), open.texts().toString());
+            assertTrue(open.texts().containsAll(List.of("convert", "add", "stack")), open.texts().toString());
             open.click("convert");
             verify(processes).setForm(SECTION, KEY, new Processes.Formula("metal", 1, "0", 1, 1));
             assertFalse(overlays.listOpen());
@@ -80,7 +81,7 @@ class MutatorControlsTest {
 
         @Test
         void pickingAdditiveOnAnAdditiveKeepsItsPrefab() {
-            pickTheChosenKind(new Processes.Additive("oak"), "additive");
+            pickTheChosenKind(new Processes.Additive("oak"), "add");
         }
 
         @Test
@@ -120,36 +121,56 @@ class MutatorControlsTest {
         @Test
         void formulaReadsAsTwoRatios() {
             // Decision mutator-body-indents-under-its-name-line: the arrow => in place of the word becomes.
-            assertEquals(List.of("1", ":", "4", "=>", "2", ":", "3"),
+            assertEquals(List.of(ControlFlow.dropdownLabel("convert"), "1", ":", "4", "=>", "2", ":", "3"),
                     sentence(new Processes.Formula("metal", 4, "yore", 2, 3)));
         }
 
         @Test
         void formulaToNothingReadsArrowNothing() {
-            assertEquals(List.of("1", ":", "4", "=>", "nothing"),
+            assertEquals(List.of(ControlFlow.dropdownLabel("convert"), "1", ":", "4", "=>", "nothing"),
                     sentence(new Processes.Formula("metal", 4, "0", 1, 1)));
         }
 
         @Test
-        void additiveReadsPlusItsPrefab() {
-            assertEquals(List.of("+", "$oak"), sentence(new Processes.Additive("oak")));
+        void additiveReadsAddThenPlusItsPrefab() {
+            assertEquals(List.of(ControlFlow.dropdownLabel("add"), "+", "$oak"),
+                    sentence(new Processes.Additive("oak")));
+        }
+
+        // Decision mutator-row-is-kind-then-type-reading-add-and-no-applies: [stack v] then the mutator.
+        @Test
+        void stackReadsItsKindThenItsMutatorTimesItsCount() {
+            assertEquals(List.of(ControlFlow.dropdownLabel("stack"), "smelt", "x", "2"),
+                    sentence(new Processes.Stack(2, "smelt")));
+        }
+
+        /**
+         * A row starting at x 40 draws its kind dropdown at 40, unindented, then the source type's button, then the
+         * ratio (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
+         */
+        @Test
+        void kindStandsAtTheRowsLeftBeforeTheType() {
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Formula("metal", 4, "yore", 2, 3));
+            DrawnFrame frame = new DrawnFrame();
+            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(40, 0, 590, 390),
+                    0, frame.targets);
+            String kind = ControlFlow.dropdownLabel("convert");
+            DrawnFrame.Text drawnKind = frame.find(kind);
+            assertEquals(40 + ButtonPainter.PADDING, drawnKind.x(), frame.drawn().toString());
+            DrawnFrame.Text share = frame.find("1");
+            assertEquals(drawnKind.y(), share.y(), "the kind and the ratio share the line");
+            assertTrue(share.x() > 40 + ButtonPainter.width(DrawnFrame.font(), kind) + GooTypeIcons.sizeOf("metal"),
+                    "the type's button stands between the kind and the ratio: " + frame.drawn());
         }
 
         @Test
-        void stackReadsAppliesItsMutatorTimesItsCount() {
-            assertEquals(List.of("applies", "smelt", "x", "2"), sentence(new Processes.Stack(2, "smelt")));
-        }
-
-        @Test
-        void kindOptionsReadConvertAdditiveAndStack() {
-            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Additive("oak"));
-            DrawnFrame kind = new DrawnFrame();
-            controls.drawKind(kind.graphics, DrawnFrame.font(), SECTION, "rust", 0, 0, kind.targets);
-            kind.click(ControlFlow.dropdownLabel("additive"));
+        void kindOptionsReadConvertAddAndStack() {
+            DrawnFrame kind = frame(new Processes.Additive("oak"));
+            kind.click(ControlFlow.dropdownLabel("add"));
             @SuppressWarnings("unchecked")
             ArgumentCaptor<List<BuilderOverlays.Option>> options = ArgumentCaptor.forClass(List.class);
             verify(overlays).openOptions(any(), options.capture());
-            assertEquals(List.of("convert", "additive", "stack"),
+            assertEquals(List.of("convert", "add", "stack"),
                     options.getValue().stream().map(BuilderOverlays.Option::label).toList());
         }
 

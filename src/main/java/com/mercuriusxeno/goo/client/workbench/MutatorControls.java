@@ -13,10 +13,11 @@ import java.util.regex.Pattern;
 
 /**
  * One Mutators entry drawn as a sentence of controls, every field the game's conversion parser reads a click away:
- * a process chooses its kind, convert, additive or stack; a formula picks its source and target goo types through
- * the picker, nothing among them for the target, and reads as two ratios, "1 : N" of the source becoming "M : K" of
- * the target, no divisor taking 0; an additive reads "+ prefab" and a stack "applies mutator xN"
- * (decision mutator-sentences-read-in-symbols); an assignment picks its source group, or the
+ * a process opens its line at the row's left with its kind, convert, add or stack, before its goo type; a formula
+ * picks its source and target goo types through the picker, nothing among them for the target, and reads as two
+ * ratios, "1 : N" of the source becoming "M : K" of the target, no divisor taking 0; an additive reads "+ prefab" and
+ * a stack "mutator xN" (decisions mutator-sentences-read-in-symbols,
+ * mutator-row-is-kind-then-type-reading-add-and-no-applies); an assignment picks its source group, or the
  * target's own values, its scale and its chain of processes. Each control names what it does on hover, the sentence
  * wraps inside the pane, and each change writes the entry through Processes' writers (decision
  * expression-builder-composes-every-form-without-typing).
@@ -33,7 +34,8 @@ final class MutatorControls {
     private static final String NO_SOURCE = "";
     // Decision mutator-sentences-read-in-symbols: the word formula goes.
     private static final String CONVERT = "convert";
-    private static final String ADDITIVE = "additive";
+    // Decision mutator-row-is-kind-then-type-reading-add-and-no-applies: the additive kind reads add.
+    private static final String ADDITIVE = "add";
     private static final String STACK = "stack";
     private static final String SOURCE_SHARE = "1";
     // Decision iterator-reads-copies-then-mutates-using-and, as the operator restated it: the source after copies,
@@ -47,7 +49,6 @@ final class MutatorControls {
     private static final String TIMES_MARK = "x";
     private static final String NOTHING = "nothing";
     private static final String PLUS = "+";
-    private static final String APPLIES = "applies";
     private static final String ITSELF = "itself";
     private static final String RATIO = ":";
     private static final String REMOVE_LINK = "x";
@@ -97,39 +98,15 @@ final class MutatorControls {
              ClickTargets targets) {
         ControlFlow flow = new ControlFlow(graphics, font, targets, null, area.left(), area.right(), top);
         boolean iterator = ProcessesTab.isIterator(key);
-        // Decision mutator-body-indents-under-its-name-line.
+        Entry entry = new Entry(flow, section, key);
+        Processes.Form form = processes.formOf(section, key);
+        // Decision mutator-row-is-kind-then-type-reading-add-and-no-applies: a mutator's line starts unindented at
+        // the row's left with its kind, then its goo type.
         if (!iterator) {
-            flow.indent();
+            drawKind(entry, form);
         }
-        drawForm(new Entry(flow, section, key), processes.formOf(section, key), iterator);
+        drawForm(entry, form, iterator);
         return flow.bottom();
-    }
-
-    /**
-     * Draws a mutator's kind dropdown, which stands on its row's top line (decision
-     * mutator-row-is-aligned-columns-name-kind-validity-rename-delete).
-     *
-     * @param graphics the frame's graphics
-     * @param font     the font
-     * @param section  the entry's block
-     * @param key      the entry's key
-     * @param left     the dropdown's left edge
-     * @param top      its line's top
-     * @param targets  the frame's click areas
-     */
-    void drawKind(GuiGraphicsExtractor graphics, Font font, String section, String key, int left, int top,
-                  ClickTargets targets) {
-        ControlFlow flow = new ControlFlow(graphics, font, targets, null, left, Integer.MAX_VALUE, top);
-        drawKind(new Entry(flow, section, key), processes.formOf(section, key));
-    }
-
-    /**
-     * @param font the screen's font
-     * @return the widest the kind dropdown draws, so a row reserves that room for it whatever kind it holds
-     */
-    static int kindWidth(Font font) {
-        return java.util.stream.Stream.of(CONVERT, ADDITIVE, STACK)
-                .mapToInt(label -> ButtonPainter.width(font, ControlFlow.dropdownLabel(label))).max().orElse(0);
     }
 
     private void drawForm(Entry entry, Processes.Form form, boolean assignment) {
@@ -227,7 +204,6 @@ final class MutatorControls {
 
     private void drawStack(Entry entry, Processes.Stack stack) {
         ControlFlow flow = entry.flow();
-        flow.text(APPLIES, GRAY);
         nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), null,
                 SearchDropdown.overMutators(otherProcesses(entry)),
                 formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
