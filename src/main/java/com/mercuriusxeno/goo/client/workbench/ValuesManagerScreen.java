@@ -17,7 +17,6 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.ClientHooks;
-import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.EnumMap;
 import java.util.List;
@@ -77,7 +76,6 @@ public final class ValuesManagerScreen extends Screen {
             PointerHand::cursor);
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
     private final ExplainerMode explainer = new ExplainerMode(ExplainerTargets.forTabs(this::tabBounds));
-    private @Nullable Button helpButton;
     private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
     private final VariablesPane variablesPane;
@@ -227,7 +225,7 @@ public final class ValuesManagerScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal(CLOSE), button -> onClose())
                 .bounds(row.closeLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
         // Decision question-button-toggles-explainer-mode-with-the-drag-mask.
-        helpButton = addRenderableWidget(Button.builder(Component.literal(HELP), button -> explainer.toggle())
+        addRenderableWidget(Button.builder(Component.literal(HELP), button -> explainer.toggle())
                 .bounds(row.helpLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
         int right = row.topbarRight();
         right = topbarButton(SAVE, right, () -> save(() -> { }));
@@ -431,8 +429,8 @@ public final class ValuesManagerScreen extends Screen {
         if (draftPane.open()) {
             return clickTargets(targets, event);
         }
-        // The mode is modal: only the [?] that leaves it takes a click.
-        if (explainer.active() && (helpButton == null || !helpButton.isMouseOver(event.x(), event.y()))) {
+        // The mode is modal: a click anywhere, the [?] included, leaves it and reaches nothing beneath.
+        if (explainer.leave()) {
             return true;
         }
         if (emptyBoxUnder(children(), event) || super.mouseClicked(event, doubleClick)) {
@@ -533,13 +531,22 @@ public final class ValuesManagerScreen extends Screen {
     // The tooltip draws on a stratum of its own over the frame, placed by the hovered area's bounds rather than the
     // cursor.
     private void extractTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        Optional<List<TooltipLine>> hoveredLines = targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines);
+        Optional<ClickTargets.HoveredArea> area = targets.hoveredArea(mouseX, mouseY);
         Optional<ClientTooltipPositioner> positioner = anchoredTooltip(targets, mouseX, mouseY);
-        if (hoveredLines.isEmpty() || positioner.isEmpty()) {
+        if (area.isEmpty() || positioner.isEmpty()) {
             return;
         }
-        List<ClientTooltipComponent> components = ClientHooks.gatherTooltipComponentsFromElements(ItemStack.EMPTY,
-                tooltipElements(hoveredLines.get()), mouseX, width, height, font);
+        Optional<Component> explained = explainer.tooltipFor(area.get().hoverKey());
+        Optional<List<TooltipLine>> hoveredLines = tooltipLines(area.get().hoverKey());
+        List<ClientTooltipComponent> components;
+        if (explained.isPresent()) {
+            components = ExplainerTooltip.components(font, explained.get(), area.get().bounds(), width, height);
+        } else if (hoveredLines.isPresent()) {
+            components = ClientHooks.gatherTooltipComponentsFromElements(ItemStack.EMPTY,
+                    tooltipElements(hoveredLines.get()), mouseX, width, height, font);
+        } else {
+            return;
+        }
         graphics.nextStratum();
         graphics.tooltip(font, components, mouseX, mouseY, positioner.get(), null);
     }
@@ -547,10 +554,6 @@ public final class ValuesManagerScreen extends Screen {
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
     // then its value.
     private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
-        Optional<List<TooltipLine>> explained = explainer.tooltipFor(hoverKey);
-        if (explained.isPresent()) {
-            return explained;
-        }
         Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
