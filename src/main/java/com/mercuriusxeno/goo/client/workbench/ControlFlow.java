@@ -410,9 +410,10 @@ final class ControlFlow {
      *
      * @param hoverKey what hovering names, which no tooltip reads
      * @param grab     what the press, each drag and the release move
+     * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
      */
-    void rail(String hoverKey, ClickTargets.PointerGrab grab) {
-        reserve(RAIL_WIDTH);
+    void rail(String hoverKey, ClickTargets.PointerGrab grab, int keepWith) {
+        reserve(RAIL_WIDTH + GAP + keepWith);
         markPiece(RAIL_WIDTH);
         graphics.fill(x, y + RAIL_INSET, x + RAIL_WIDTH, y + LINE - RAIL_INSET, RAIL_COLOR);
         targets.addGrab(x, y, RAIL_WIDTH, LINE, grab);
@@ -448,9 +449,36 @@ final class ControlFlow {
      * @param depth how many boxes hold it, its own included
      */
     void tintFrom(BuilderOverlays.Anchor start, int tint, int depth) {
-        int left = start.x() - 1;
-        int right = start.y() == y ? x - GAP + 1 : this.right - depth;
-        graphics.fill(left, start.y(), right, y + LINE, tint);
+        GroupsPane.Bounds box = boxFrom(start, depth);
+        graphics.fill(box.left(), box.top(), box.right(), box.bottom(), tint);
+    }
+
+    /**
+     * @param start where the box's first piece stood
+     * @param depth how many boxes hold it, its own included
+     * @return the box from the place given to the pieces drawn since, as tintFrom fills it
+     */
+    GroupsPane.Bounds boxFrom(BuilderOverlays.Anchor start, int depth) {
+        int boxRight = start.y() == y ? x - GAP + 1 : right - depth;
+        return new GroupsPane.Bounds(start.x() - 1, start.y(), boxRight, y + LINE);
+    }
+
+    /**
+     * A button whose press grabs the pointer, as a handle dragged onto a term does (decision
+     * parenthetical-handle-drags-onto-a-term).
+     *
+     * @param label its label
+     * @param grab  follows the pointer from the press to the release
+     */
+    void grabControl(String label, ClickTargets.PointerGrab grab) {
+        int width = ButtonPainter.width(font, label);
+        reserve(width);
+        markPiece(width);
+        ButtonPainter.Box box = ButtonPainter.layout(font.width(label), x, y, LINE);
+        ButtonPainter.drawFrame(graphics, box);
+        graphics.text(font, label, box.left() + ButtonPainter.PADDING, y + TEXT_NUDGE, LINK);
+        targets.addGrab(box.left(), box.top(), box.width(), box.height(), grab);
+        x = box.right() + GAP;
     }
 
     /**

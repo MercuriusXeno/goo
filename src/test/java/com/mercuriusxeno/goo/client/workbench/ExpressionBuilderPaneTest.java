@@ -145,6 +145,84 @@ class ExpressionBuilderPaneTest {
         assertEquals("$edited + $base + $waxed", builder.written.getLast());
     }
 
+    private static final String HANDLE = "()";
+
+    private static List<DrawnFrame.Text> handles(DrawnFrame frame) {
+        return frame.drawn().stream().filter(text -> text.text().equals(HANDLE)).toList();
+    }
+
+    /**
+     * A per-type value draws one () handle beside the [+?] below its rows, and no term carries one (decision
+     * parenthetical-handle-drags-onto-a-term).
+     */
+    @Test
+    void perTypeValueDrawsOneHandleBesideAddType() {
+        DrawnFrame frame = Builder.item("{\"metal\": \"5 $base\", \"pulse\": \"2\"}").frame();
+        List<DrawnFrame.Text> found = handles(frame);
+        assertEquals(1, found.size(), frame.drawn().toString());
+        DrawnFrame.Text addType = frame.find("+?");
+        assertEquals(addType.y(), found.getFirst().y(), frame.drawn().toString());
+        assertTrue(found.getFirst().x() > addType.x() + ControlFlow.LINE, frame.drawn().toString());
+    }
+
+    /**
+     * A whole-value sum draws one () handle below its last term's line, none on a term's line (decision
+     * parenthetical-handle-drags-onto-a-term).
+     */
+    @Test
+    void wholeValueSumDrawsOneHandleBelowItsTerms() {
+        DrawnFrame frame = Builder.item("$waxed + $edited").frame();
+        List<DrawnFrame.Text> found = handles(frame);
+        assertEquals(1, found.size(), frame.drawn().toString());
+        assertTrue(found.getFirst().y() > frame.find("edited").y(), frame.drawn().toString());
+        assertTrue(found.getFirst().y() > frame.find("waxed").y(), frame.drawn().toString());
+    }
+
+    /**
+     * A press on the () handle and a move over the second term fills that term's box in the cursor's blue, and the
+     * release there wraps the term (decision parenthetical-handle-drags-onto-a-term).
+     */
+    @Test
+    void handleDraggedOntoATermMarksItBlueAndTheReleaseWrapsIt() {
+        Builder builder = Builder.item("$waxed + $edited");
+        DrawnFrame frame = builder.frame();
+        clickAt(frame, handles(frame).getFirst());
+        DrawnFrame.Text edited = frame.find("edited");
+        assertTrue(frame.targets.drag(edited.x() + 1, edited.y() + 1));
+        DrawnFrame dragging = builder.frame();
+        assertTrue(filledAround(dragging, ExpressionBuilderPane.WRAP_MARK, dragging.find("edited")),
+                "the term under the pointer is not marked");
+        assertFalse(filledAround(dragging, ExpressionBuilderPane.WRAP_MARK, dragging.find("waxed")),
+                "a term off the pointer is marked");
+        assertTrue(dragging.texts().stream().filter(HANDLE::equals).count() > 1, "the () draws at the mouse");
+        frame.targets.release();
+        assertEquals("$waxed + ($edited)", builder.written.getLast());
+    }
+
+    /**
+     * A drag on the () handle released over no term, or ended by Escape, writes nothing (decision
+     * parenthetical-handle-drags-onto-a-term).
+     */
+    @Test
+    void handleReleasedOffATermOrEscapedWrapsNothing() {
+        Builder builder = Builder.item("$waxed + $edited");
+        DrawnFrame frame = builder.frame();
+        clickAt(frame, handles(frame).getFirst());
+        assertTrue(frame.targets.drag(AREA.right() - 5, AREA.bottom() - 5));
+        builder.frame();
+        frame.targets.release();
+        assertEquals(List.of(), builder.written);
+        DrawnFrame again = builder.frame();
+        clickAt(again, handles(again).getFirst());
+        DrawnFrame.Text edited = again.find("edited");
+        assertTrue(again.targets.drag(edited.x() + 1, edited.y() + 1));
+        builder.frame();
+        assertTrue(builder.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE));
+        assertFalse(filledAround(builder.frame(), ExpressionBuilderPane.WRAP_MARK, edited), "the mark stays");
+        again.targets.release();
+        assertEquals(List.of(), builder.written);
+    }
+
     /**
      * A parenthetical's box fills in the depth-one tone, and a parenthetical inside it in the depth-two tone, which
      * differs, each box spanning its own terms (decision parentheticals-alternate-gray-tones-by-depth).
@@ -332,8 +410,8 @@ class ExpressionBuilderPaneTest {
         void beetrootsJellyRowReadsKindPlusThenTheRowInlineEndingOnItsX() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
-            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "()", "X", "+", "saturation", "'s", "x", "12",
-                    "()", "X", SUM_ADD, "X"), lineTexts(frame, 1), frame.drawn().toString());
+            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "X", "+", "saturation", "'s", "x", "12",
+                    "X", SUM_ADD, "X"), lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
             DrawnFrame.Text rowX = line(frame, 1).getLast();
             assertEquals(AREA.right() - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING,
@@ -405,7 +483,7 @@ class ExpressionBuilderPaneTest {
             assertEquals(List.of("-", "(", "food"), lineTexts(frame, head).subList(0, 3), frame.drawn().toString());
             assertTrue(lineTexts(frame, head).indexOf(")") < lineTexts(frame, head).lastIndexOf("X"),
                     frame.drawn().toString());
-            assertEquals(List.of(":", "dye", "'s", "1", ":", "1", "()", "X"), lineTexts(frame, head - 1),
+            assertEquals(List.of(":", "dye", "'s", "1", ":", "1", "X"), lineTexts(frame, head - 1),
                     frame.drawn().toString());
             assertEquals(open.y(), frame.find(")").y(), frame.drawn().toString());
             assertTrue(frame.find(")").x() > frame.find("saturation").x(), frame.drawn().toString());
@@ -465,7 +543,7 @@ class ExpressionBuilderPaneTest {
             assertTrue(cancelRight < done.x() - ButtonPainter.PADDING, cancel + " left of " + done);
             assertEquals(AREA.right(), done.x() - ButtonPainter.PADDING + ButtonPainter.width(font, "✓ Done"));
             assertEquals(done.y(), cancel.y());
-            assertEquals(changed.find(SUM_ADD).y() / ControlFlow.LINE, done.y() / ControlFlow.LINE);
+            assertEquals(changed.find("()").y() / ControlFlow.LINE, done.y() / ControlFlow.LINE);
             assertFalse(changed.texts().contains("Value"), changed.texts().toString());
         }
     }

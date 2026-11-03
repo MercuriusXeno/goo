@@ -48,6 +48,8 @@ final class ExpressionBuilderPane {
     private static final String WRAP = "()";
     /** The drop cursor's blue. */
     static final int DROP_CURSOR = 0xFF4090FF;
+    /** The cursor's blue, see-through, over the term the held () would wrap. */
+    static final int WRAP_MARK = 0x804090FF;
     private static final String RAIL_HOVER_PREFIX = "goo-term-rail:";
     private static final int HALF = 2;
     private static final int NEST_DARKER = 0x28000000;
@@ -87,6 +89,9 @@ final class ExpressionBuilderPane {
     // The drop slots the last frame laid, and the term a rail holds while it drags.
     private final List<Slot> slots = new ArrayList<>();
     private @Nullable Drag dragging;
+    // The term boxes the last frame laid, and the () handle while it drags.
+    private final List<TermBox> boxes = new ArrayList<>();
+    private @Nullable Wrapping wrapping;
     private int frames;
     private String openedText = BLANK;
     private String openedShown = BLANK;
@@ -166,6 +171,7 @@ final class ExpressionBuilderPane {
         overlays.close();
         builder = null;
         dragging = null;
+        wrapping = null;
     }
 
     /**
@@ -188,8 +194,10 @@ final class ExpressionBuilderPane {
      */
     boolean keyPressed(int key) {
         // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: Escape drops the held term back.
-        if (key == GLFW.GLFW_KEY_ESCAPE && dragging != null) {
+        // Decision parenthetical-handle-drags-onto-a-term: Escape drops the held () and wraps nothing.
+        if (key == GLFW.GLFW_KEY_ESCAPE && (dragging != null || wrapping != null)) {
             dragging = null;
+            wrapping = null;
             return true;
         }
         return overlays.keyPressed(key);
@@ -245,6 +253,7 @@ final class ExpressionBuilderPane {
         overlays.commitOnBlur();
         frames++;
         slots.clear();
+        boxes.clear();
         ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), area.right(), top), actions::openVariable);
         drawKind(flow, edited);
@@ -253,6 +262,7 @@ final class ExpressionBuilderPane {
         int bottom = flow.bottom();
         graphics.fill(area.left() - 1, top - 1, area.right(), bottom, PANEL_COLOR);
         drawDropCursor(graphics);
+        drawWrapMark(graphics);
         return bottom - top;
     }
 
@@ -297,6 +307,7 @@ final class ExpressionBuilderPane {
         if (builder != null) {
             overlays.draw(graphics, font, targets);
             drawHeldTerm(graphics, font, targets);
+            drawHeldHandle(graphics, font);
         }
     }
 
@@ -365,14 +376,16 @@ final class ExpressionBuilderPane {
 
     // A square [+?] the height of a type row's goo type button, on its own line one indent in under the rows.
     // Decision add-type-is-a-big-square-plus-question-button-below-the-list.
+    // Decision parenthetical-handle-drags-onto-a-term: the () handle stands beside it.
     private void drawAddType(ControlFlow flow, ExpressionBuilder edited) {
         Set<String> held = BuilderGrammar.heldTypes(edited);
+        flow.indent();
         if (held.size() < GooTypes.order().size()) {
-            flow.indent();
             flow.squareControl(ADD_TYPE, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
                     null, held));
-            flow.outdent(ControlFlow.INDENT);
         }
+        drawHandle(flow);
+        flow.outdent(ControlFlow.INDENT);
     }
 
     // A goo value starts from what it held before, or from the item or prefab picked first.
@@ -426,6 +439,9 @@ final class ExpressionBuilderPane {
         List<ExpressionBuilder.Piece> pieces = edited.terms();
         flow.indent();
         drawSum(flow, List.of(), pieces, new Place(sort, null));
+        // Decision parenthetical-handle-drags-onto-a-term: the () handle below the terms, where [+?] stands for rows.
+        flow.indent(0);
+        drawHandle(flow);
         flow.outdent(ControlFlow.INDENT);
         // Decision scale-shows-the-ratio-at-once: several terms draw the whole value's ratio 1:1 on a line of its
         // own; setting a side wraps the value as one sum scaled by it.
@@ -537,7 +553,7 @@ final class ExpressionBuilderPane {
             flow.wrapLine();
         }
         BuilderOverlays.Anchor start = flow.anchor();
-        flow.rail(railHoverKey(path), new Drag(path, piece));
+        flow.rail(railHoverKey(path), new Drag(path, piece), leadWidth(flow.font(), path, piece));
         if (path.getLast() > 0) {
             drawJoin(flow, path, piece);
         }
@@ -549,10 +565,106 @@ final class ExpressionBuilderPane {
         if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
             drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         }
-        flow.control(WRAP, null, at -> apply(b -> b.wrap(path)));
         // Decision term-operators-right-pack: the x is the box's last piece, opposite the rail.
         drawRemove(flow, path, count);
         flow.outlineFrom(start);
+        boxes.add(new TermBox(path, flow.boxFrom(start, depthOf(path, place))));
+    }
+
+    // The join and the operand after a term's rail, which the rail keeps on its line.
+    private int leadWidth(Font font, List<Integer> path, ExpressionBuilder.Piece piece) {
+        int join = path.getLast() > 0 ? ButtonPainter.width(font, PLUS_SIGN) + BuilderOverlays.GAP : 0;
+        int operand = switch (piece.operand()) {
+            case ExpressionBuilder.Num num -> ButtonPainter.width(font, num.digits());
+            case ExpressionBuilder.Ref ref -> ExpressionLines.width(font, refRuns(ref)) + ButtonPainter.PADDING
+                    + ButtonPainter.PADDING;
+            case ExpressionBuilder.Nest _ -> font.width(OPEN_PAREN);
+            case ExpressionBuilder.Kept _ -> ExpressionLines.width(font, operandRuns(piece));
+        };
+        return join + operand;
+    }
+
+    private static int depthOf(List<Integer> path, Place place) {
+        return place.inRow() ? path.size() - 1 : path.size();
+    }
+
+    /**
+     * Where a term drew, which the () handle wraps when dropped inside it.
+     *
+     * @param path the term's place
+     * @param box  the box it spans
+     */
+    private record TermBox(List<Integer> path, GroupsPane.Bounds box) {
+        boolean holds(double x, double y) {
+            return x >= box.left() && x < box.right() && y >= box.top() && y < box.bottom();
+        }
+
+        long area() {
+            return (long) (box.right() - box.left()) * (box.bottom() - box.top());
+        }
+    }
+
+    // The innermost term box the last frame laid under the pointer, null where none holds it.
+    private @Nullable TermBox boxUnder(double x, double y) {
+        return boxes.stream().filter(term -> term.holds(x, y)).min(java.util.Comparator.comparingLong(TermBox::area))
+                .orElse(null);
+    }
+
+    // The () handle beside [+?], or below a whole value's terms; dragged onto a term it wraps that term.
+    // Decision parenthetical-handle-drags-onto-a-term.
+    private void drawHandle(ControlFlow flow) {
+        flow.grabControl(WRAP, new Wrapping());
+    }
+
+    /**
+     * The () handle held: where the pointer stands and the term it would wrap.
+     */
+    private final class Wrapping implements ClickTargets.PointerGrab {
+        private double x;
+        private double y;
+        private @Nullable TermBox target;
+
+        @Override
+        public void moved(double movedX, double movedY) {
+            wrapping = this;
+            x = movedX;
+            y = movedY;
+            target = boxUnder(x, y);
+        }
+
+        @Override
+        public void released() {
+            TermBox dropped = target;
+            boolean held = wrapping == this;
+            wrapping = null;
+            if (held && dropped != null) {
+                apply(b -> b.wrap(dropped.path()));
+            }
+        }
+    }
+
+    // The term the held () would wrap, filled in the cursor's blue.
+    // Decision parenthetical-handle-drags-onto-a-term.
+    private void drawWrapMark(GuiGraphicsExtractor graphics) {
+        Wrapping held = wrapping;
+        if (held == null || held.target == null) {
+            return;
+        }
+        GroupsPane.Bounds box = held.target.box();
+        graphics.fill(box.left(), box.top(), box.right(), box.bottom(), WRAP_MARK);
+    }
+
+    // The held () drawn at the pointer, over everything else.
+    private void drawHeldHandle(GuiGraphicsExtractor graphics, Font font) {
+        Wrapping held = wrapping;
+        if (held == null) {
+            return;
+        }
+        int left = (int) held.x + PREVIEW_OFFSET;
+        int top = (int) held.y;
+        int width = font.width(WRAP) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+        graphics.fill(left, top, left + width, top + ButtonPainter.HEIGHT, PREVIEW_COLOR);
+        graphics.text(font, WRAP, left + ButtonPainter.PADDING, top + ButtonPainter.TEXT_NUDGE, PREVIEW_TEXT);
     }
 
     // A sum keeps its last term.
@@ -642,12 +754,13 @@ final class ExpressionBuilderPane {
         flow.shift(-ControlFlow.INDENT);
         flow.text(CLOSE_PAREN, GRAY);
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
-        int depth = place.inRow() ? path.size() - 1 : path.size();
+        int depth = depthOf(path, place);
         if (hold != null) {
             flow.heldControl(hold, nested.start(), depth, new ControlFlow.Colored(REMOVE, RED, DELETE_HINT,
                     at -> apply(b -> b.remove(path))));
         }
         flow.tintFrom(nested.start(), nestTone(depth), depth);
+        boxes.add(new TermBox(path, flow.boxFrom(nested.start(), depth)));
     }
 
     /**
