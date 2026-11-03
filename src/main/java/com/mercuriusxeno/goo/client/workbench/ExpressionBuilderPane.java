@@ -1003,7 +1003,7 @@ final class ExpressionBuilderPane {
             case ExpressionBuilder.Num num -> ButtonPainter.width(letters, num.digits());
             case ExpressionBuilder.Ref ref -> ExpressionLines.width(letters, refRuns(ref)) + ButtonPainter.PADDING
                     + ButtonPainter.PADDING;
-            case ExpressionBuilder.Nest _ -> letters.width(OPEN_PAREN);
+            case ExpressionBuilder.Nest _ -> ControlFlow.parenWidth(letters.font(), OPEN_PAREN);
             case ExpressionBuilder.Kept _ -> ExpressionLines.width(letters, operandRuns(piece));
         };
         return join + operand;
@@ -1017,7 +1017,7 @@ final class ExpressionBuilderPane {
             for (int index = 0; index < nest.pieces().size(); index++) {
                 width += termWidth(letters, placeOf(path, index), nest.pieces().get(index));
             }
-            width += letters.width(CLOSE_PAREN) + BuilderOverlays.GAP;
+            width += ControlFlow.parenWidth(letters.font(), CLOSE_PAREN) + BuilderOverlays.GAP;
         } else if (piece.operand() instanceof ExpressionBuilder.Ref ref && ref.member() != null) {
             width += letters.width(POSSESSIVE) + ButtonPainter.iconWidth(GooTypeIcons.sizeOf(ref.member()))
                     + BuilderOverlays.GAP;
@@ -1213,14 +1213,15 @@ final class ExpressionBuilderPane {
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
     private void drawNest(ControlFlow flow, Nested nested, ExpressionBuilder.Nest nest, Place place) {
         List<Integer> path = nested.path();
-        flow.text(OPEN_PAREN, GRAY);
+        // Decision parentheses-draw-bold-and-larger.
+        flow.paren(OPEN_PAREN, GRAY);
         // Decision terms-inline-again-under-the-indentation-rules: the terms follow "(" and ")" follows the last;
         // a line that runs out inside wraps one indent in from the parenthetical's rail, the indent returning at its
         // exit.
         int inner = nested.start().x() - flow.leftEdge() + ControlFlow.INDENT;
         flow.shift(inner);
         drawSum(flow, path, nest.pieces(), place);
-        flow.text(CLOSE_PAREN, GRAY);
+        flow.paren(CLOSE_PAREN, GRAY);
         // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
         // right of its ")" too, where its factor would otherwise push it onto the next line and leave the pointer
         // past ")" nearest the inner sum's end.

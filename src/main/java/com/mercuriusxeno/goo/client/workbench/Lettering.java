@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import org.joml.Matrix3x2fStack;
 
 /**
@@ -64,6 +65,36 @@ record Lettering(Font font, float scale) {
      */
     String fitting(String text, int width) {
         return font.plainSubstrByWidth(text, isFull() ? width : (int) Math.floor(width / scale));
+    }
+
+    /**
+     * @param text styled words
+     * @return the width they take at this scale, their style's glyphs measured, rounded up to a whole pixel
+     */
+    int width(Component text) {
+        return isFull() ? font.width(text) : (int) Math.ceil(font.width(text) * scale);
+    }
+
+    /**
+     * Draws styled words with their top-left at the place given, scaled about that place.
+     *
+     * @param graphics the frame's graphics
+     * @param text     the styled words
+     * @param x        their left edge
+     * @param y        their top
+     * @param color    their color
+     */
+    void draw(GuiGraphicsExtractor graphics, Component text, int x, int y, int color) {
+        if (isFull()) {
+            graphics.text(font, text, x, y, color);
+            return;
+        }
+        Matrix3x2fStack pose = graphics.pose();
+        pose.pushMatrix();
+        pose.translate(x, y);
+        pose.scale(scale);
+        graphics.text(font, text, 0, 0, color);
+        pose.popMatrix();
     }
 
     /**

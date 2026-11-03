@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -25,6 +27,12 @@ final class ControlFlow {
     static final int LINE = ButtonPainter.HEIGHT;
     /** The scale the expression builder letters its words at. */
     static final float BUILDER_SCALE = 0.75f;
+    /**
+     * The scale a parenthetical's "(" and ")" draw at, bold, larger than the builder's words so the parentheticals
+     * read at a glance (decision parentheses-draw-bold-and-larger).
+     */
+    static final float PAREN_SCALE = 1.25f;
+    private static final Style BOLD = Style.EMPTY.withBold(true);
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
@@ -286,6 +294,41 @@ final class ControlFlow {
         letters.draw(graphics, text, x, wordsTop(), color);
         markText(width);
         x += width + GAP;
+    }
+
+    /**
+     * A parenthetical's "(" or ")", bold and larger than the words beside it, centered on the line; where it stands
+     * taller than the line the boxes holding it grow around it (decision parentheses-draw-bold-and-larger).
+     *
+     * @param paren the parenthesis
+     * @param color its color
+     */
+    void paren(String paren, int color) {
+        Lettering large = parenLettering(font);
+        Component bold = boldParen(paren);
+        int width = large.width(bold);
+        reserve(width);
+        int top = large.centeredTop(y, line);
+        large.draw(graphics, bold, x, top, color);
+        markPiece(width, top, large.lineHeight());
+        x += width + GAP;
+    }
+
+    /**
+     * @param font  the font
+     * @param paren a parenthesis
+     * @return the width it takes drawn bold and larger, as {@link #paren} draws it
+     */
+    static int parenWidth(Font font, String paren) {
+        return parenLettering(font).width(boldParen(paren));
+    }
+
+    private static Lettering parenLettering(Font font) {
+        return new Lettering(font, PAREN_SCALE);
+    }
+
+    private static Component boldParen(String paren) {
+        return Component.literal(paren).withStyle(BOLD);
     }
 
     /**

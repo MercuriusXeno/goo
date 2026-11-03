@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
@@ -19,8 +21,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * One frame a pane drew onto mocked graphics with a mocked font six pixels a character wide: the texts it drew, where
- * each stood and in which color, and its click areas, so a test clicks a control by its label.
+ * One frame a pane drew onto mocked graphics with a mocked font six pixels a character wide: the texts it drew, plain
+ * or styled, where each stood, at what scale, whether bold and in which color, and its click areas, so a test clicks
+ * a control by its label.
  */
 final class DrawnFrame {
     final GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
@@ -34,16 +37,26 @@ final class DrawnFrame {
         when(graphics.guiHeight()).thenReturn(SCREEN_HEIGHT);
         when(graphics.pose()).thenReturn(new Matrix3x2fStack(POSE_DEPTH));
         doAnswer(call -> {
-            Matrix3x2fStack pose = graphics.pose();
-            // A mocked pose a test swaps in answers zeros, which reads as no pose at all.
-            boolean posed = pose != null && pose.m00() != 0;
-            float scale = posed ? pose.m00() : 1;
-            float left = posed ? pose.m20() : 0;
-            float top = posed ? pose.m21() : 0;
-            placed.add(new Placed(call.getArgument(1), scale, Math.round(left + scale * call.<Integer>getArgument(2)),
-                    Math.round(top + scale * call.<Integer>getArgument(3)), call.getArgument(4)));
+            place(call.getArgument(1), false, call.getArgument(2), call.getArgument(3), call.getArgument(4));
             return null;
         }).when(graphics).text(any(Font.class), anyString(), anyInt(), anyInt(), anyInt());
+        doAnswer(call -> {
+            Component styled = call.getArgument(1);
+            place(styled.getString(), styled.getStyle().isBold(), call.getArgument(2), call.getArgument(3),
+                    call.getArgument(4));
+            return null;
+        }).when(graphics).text(any(Font.class), any(Component.class), anyInt(), anyInt(), anyInt());
+    }
+
+    // Records a text where it landed on the screen, the pose it drew under applied.
+    private void place(String text, boolean bold, int x, int y, int color) {
+        Matrix3x2fStack pose = graphics.pose();
+        // A mocked pose a test swaps in answers zeros, which reads as no pose at all.
+        boolean posed = pose != null && pose.m00() != 0;
+        float scale = posed ? pose.m00() : 1;
+        float left = posed ? pose.m20() : 0;
+        float top = posed ? pose.m21() : 0;
+        placed.add(new Placed(text, scale, bold, Math.round(left + scale * x), Math.round(top + scale * y), color));
     }
 
     /**
@@ -51,11 +64,12 @@ final class DrawnFrame {
      *
      * @param text  the string
      * @param scale the pose's scale
+     * @param bold  whether it drew in a bold style
      * @param x     its left edge on the screen
      * @param y     its top edge on the screen
      * @param color its color
      */
-    record Placed(String text, float scale, int x, int y, int color) {
+    record Placed(String text, float scale, boolean bold, int x, int y, int color) {
     }
 
     /**
@@ -90,6 +104,8 @@ final class DrawnFrame {
     static Font font() {
         Font font = mock(Font.class);
         when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
+        when(font.width(any(FormattedText.class))).thenAnswer(call -> call.<FormattedText>getArgument(0).getString()
+                .length() * 6);
         when(font.plainSubstrByWidth(anyString(), anyInt())).thenAnswer(call -> call.getArgument(0));
         when(font.plainSubstrByWidth(anyString(), anyInt(), anyBoolean())).thenAnswer(call -> call.getArgument(0));
         return font;
