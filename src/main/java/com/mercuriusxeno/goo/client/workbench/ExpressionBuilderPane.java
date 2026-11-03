@@ -588,6 +588,8 @@ final class ExpressionBuilderPane {
             flow.text(ExpressionLines.COLON, GRAY);
             drawSum(flow, List.of(index), row.pieces(), new Place(BuilderGrammar.NUMBER_SORT, row.type()));
             flow.outdent(ControlFlow.INDENT);
+            // Decision type-rows-stand-apart-in-the-builder: the next row's buttons stand a button gap below.
+            flow.gapBelow(RowLayout.BUTTON_GAP);
         }
         drawAddType(flow, edited);
     }

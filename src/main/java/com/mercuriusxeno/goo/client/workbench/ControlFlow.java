@@ -158,6 +158,16 @@ final class ControlFlow {
     }
 
     /**
+     * Ends the current line and leaves room under it before the next.
+     *
+     * @param height the room
+     */
+    void gapBelow(int height) {
+        newLine();
+        y += height;
+    }
+
+    /**
      * Leaves room before the next piece.
      *
      * @param width the room
