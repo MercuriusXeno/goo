@@ -274,9 +274,8 @@ class ExpressionBuilderTest {
             ExpressionBuilder sum = ExpressionBuilder.of(opened);
             assertFalse(sum.canMoveTo(List.of(1), List.of(), 1), "its own slot before");
             assertFalse(sum.canMoveTo(List.of(1), List.of(), 2), "its own slot after");
-            assertFalse(sum.canMoveTo(List.of(1), List.of(), 0), "a subtracted term landing first");
-            assertFalse(sum.moveTo(List.of(1), List.of(), 0));
-            assertEquals(opened, sum.text());
+            // Decision every-term-carries-its-sign-as-a-segment: a subtracted term lands first with its minus.
+            assertTrue(sum.canMoveTo(List.of(1), List.of(), 0), "a subtracted term landing first");
             assertTrue(sum.canMoveTo(List.of(2), List.of(), 0));
             assertTrue(sum.canRemove(List.of(1)));
             ExpressionBuilder alone = ExpressionBuilder.of("$waxed");
@@ -326,20 +325,34 @@ class ExpressionBuilderTest {
             assertEquals("$edited + $waxed", builder.text());
         }
 
-        // A first term takes no sign, so a move landing a subtracted term first would drop its minus and change the
-        // value; the move is refused and the value stands, as removing the last term is refused.
+        // Decision every-term-carries-its-sign-as-a-segment: a first term carries its sign as every term does, so a
+        // subtracted term moving first keeps its minus as a leading minus and the value stands.
         @Test
-        void subtractedTermMovesNoFirstUpOrDown() {
+        void subtractedTermMovesFirstKeepingItsMinus() {
             ExpressionBuilder up = ExpressionBuilder.of("$waxed - $edited");
-            assertFalse(up.canMove(List.of(1), -1));
+            assertTrue(up.canMove(List.of(1), -1));
             up.move(List.of(1), -1);
-            assertEquals("$waxed - $edited", up.text());
-            assertTrue(up.refusal().isPresent());
+            assertEquals("-$edited + $waxed", up.text());
             ExpressionBuilder down = ExpressionBuilder.of("$waxed - $edited");
-            assertFalse(down.canMove(List.of(0), 1));
+            assertTrue(down.canMove(List.of(0), 1));
             down.move(List.of(0), 1);
-            assertEquals("$waxed - $edited", down.text());
-            assertTrue(down.refusal().isPresent());
+            assertEquals("-$edited + $waxed", down.text());
+        }
+
+        // Decision every-term-carries-its-sign-as-a-segment: a leading minus reads as the first term's MINUS sign,
+        // and writes back as the leading minus the game's grammar reads.
+        @Test
+        void leadingMinusReadsAsTheFirstTermsSignAndWritesBack() {
+            ExpressionBuilder builder = ExpressionBuilder.of("-$waxed + $edited");
+            assertEquals(ExpressionTerms.Join.MINUS, builder.terms().getFirst().join());
+            assertEquals(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "waxed", null),
+                    builder.terms().getFirst().operand());
+            assertEquals("-$waxed + $edited", builder.text());
+            ExpressionBuilder flipped = ExpressionBuilder.of("$waxed + $edited");
+            flipped.setJoin(List.of(0), ExpressionTerms.Join.MINUS);
+            assertEquals("-$waxed + $edited", flipped.text());
+            flipped.setJoin(List.of(0), ExpressionTerms.Join.PLUS);
+            assertEquals("$waxed + $edited", flipped.text());
         }
 
         // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: a dragged term lands in any slot, a
@@ -357,23 +370,19 @@ class ExpressionBuilderTest {
             assertWrites("$waxed + $food + ($edited)", out);
         }
 
-        // A drop that would empty the whole value, land a subtracted term first or drop a parenthetical into itself
-        // is refused and the value stands; a parenthetical emptied goes instead (decision
-        // terms-and-type-rows-drag-to-a-trash-strip).
+        // A drop that would empty the whole value or drop a parenthetical into itself is refused and the value stands;
+        // a parenthetical emptied goes instead (decision terms-and-type-rows-drag-to-a-trash-strip).
         @Test
         void dropThatBreaksTheValueIsRefused() {
             ExpressionBuilder emptying = ExpressionBuilder.of("($edited)");
             assertFalse(emptying.moveTo(List.of(0, 0), List.of(), 0));
             assertEquals("($edited)", emptying.text());
-            ExpressionBuilder subtracted = ExpressionBuilder.of("$waxed - $edited");
-            assertFalse(subtracted.moveTo(List.of(1), List.of(), 0));
-            assertEquals("$waxed - $edited", subtracted.text());
             ExpressionBuilder itself = ExpressionBuilder.of("$waxed + ($edited + $food)");
             assertFalse(itself.moveTo(List.of(1), List.of(1), 0));
             assertEquals("$waxed + ($edited + $food)", itself.text());
         }
 
-        // A move that lands no subtracted term first keeps every term's sign, so the value stands.
+        // A move keeps every term's sign, so the value stands.
         @Test
         void moveKeepsTheSumsValue() {
             ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited - $food");
@@ -391,8 +400,7 @@ class ExpressionBuilderTest {
         }
 
         /**
-         * A + or - dropped on a slot inserts a term of that sign there, a term dropped first taking no sign and the
-         * one it passes taking plus; a subtracted first term is refused, as moveTo refuses one (decision
+         * A + or - dropped on a slot inserts a term of that sign there, the one it passes taking plus (decision
          * plus-and-minus-are-draggable-buttons-in-the-control-bay).
          */
         @Test
@@ -410,13 +418,14 @@ class ExpressionBuilderTest {
             assertEquals("$waxed + ($base - $edited)", inner.text());
         }
 
+        // Decision every-term-carries-its-sign-as-a-segment: a - dropped first lands as a leading minus.
         @Test
-        void insertAtRefusesASubtractedFirstTerm() {
+        void insertAtLandsASubtractedFirstTermWithItsMinus() {
             ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $base");
             ExpressionBuilder.Ref edited = new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null);
-            assertFalse(builder.canInsertAt(List.of(), 0, ExpressionTerms.Join.MINUS));
-            assertFalse(builder.insertAt(List.of(), 0, edited, ExpressionTerms.Join.MINUS));
-            assertEquals("$waxed + $base", builder.text());
+            assertTrue(builder.canInsertAt(List.of(), 0, ExpressionTerms.Join.MINUS));
+            assertTrue(builder.insertAt(List.of(), 0, edited, ExpressionTerms.Join.MINUS));
+            assertEquals("-$edited + $waxed + $base", builder.text());
         }
 
         // Decision sum-of-terms-leaves-the-builder: a parenthetical the file holds still edits in place.
