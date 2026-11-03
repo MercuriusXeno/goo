@@ -246,6 +246,73 @@ class ExpressionBuilderPaneTest {
         assertFalse(filledAround(frame, ExpressionBuilderPane.nestTone(2), edited), "the depth-two box spans edited");
     }
 
+    /**
+     * Every box a builder draws, a term's outline, a parenthetical's border and a type row's outline, keeps a clear
+     * pixel between its border and every other box's border, so a parenthetical inside a parenthetical, a term inside
+     * a parenthetical and a term or parenthetical inside a type row each stand a pixel of padding inside the box
+     * holding them on every side, inline as before, the lines growing taller per depth; and no border shares a pixel
+     * with a button (decision drag-rail-containers-keep-a-pixel-between-borders).
+     */
+    @Test
+    void railBoxesKeepAPixelBetweenBordersAtEveryDepth() {
+        for (String shown : List.of("$waxed + ($edited + ($base + $waxed))", "$waxed + (($base + $waxed) + $edited)",
+                "$waxed + (($base + $waxed))", "{\"metal\": \"$base + ($waxed + ($edited))\", \"pulse\": \"2\"}")) {
+            assertBordersKeepAPixelApart(Builder.item(shown).frame(), shown);
+        }
+    }
+
+    /**
+     * A parenthetical opening a parenthetical stays on the line of the outer one's "(", the line growing to give
+     * the inner box its padding (decision drag-rail-containers-keep-a-pixel-between-borders).
+     */
+    @Test
+    void nestedParentheticalsStayInline() {
+        DrawnFrame frame = Builder.item("$waxed + (($base + $waxed) + $edited)").frame();
+        double[] outer = railOf(frame, List.of(1));
+        double[] inner = railOf(frame, List.of(1, 0));
+        DrawnFrame.Text open = frame.drawn().stream().filter(text -> text.text().equals("(")).findFirst().orElseThrow();
+        assertEquals(open.y(), frame.find("base").y(), "the inner parenthetical's terms share the outer's ( line");
+        assertTrue(inner[0] > outer[0], "the inner rail stands right of the outer one");
+    }
+
+    // Each box's four sides, grouped as each box draws them, in the given border color.
+    private static List<List<int[]>> boxesIn(DrawnFrame frame, int color) {
+        List<int[]> sides = fills(frame, color);
+        assertEquals(0, sides.size() % 4, "four sides a box");
+        return IntStream.range(0, sides.size() / 4).mapToObj(box -> sides.subList(box * 4, box * 4 + 4)).toList();
+    }
+
+    private static void assertBordersKeepAPixelApart(DrawnFrame frame, String shown) {
+        List<List<int[]>> boxes = new ArrayList<>(boxesIn(frame, ExpressionBuilderPane.NEST_BORDER));
+        boxes.addAll(boxesIn(frame, ControlFlow.OUTLINE_COLOR));
+        assertTrue(boxes.size() >= 4, shown + ": boxes drawn " + boxes.size());
+        for (int one = 0; one < boxes.size(); one++) {
+            for (int other = one + 1; other < boxes.size(); other++) {
+                for (int[] side : boxes.get(one)) {
+                    for (int[] near : boxes.get(other)) {
+                        // Grown a pixel each way, a border touching the other proves no clear pixel between them.
+                        assertFalse(overlaps(side, new int[] {near[0] - 1, near[1] - 1, near[2] + 1, near[3] + 1}),
+                                shown + ": the border " + java.util.Arrays.toString(side) + " has no clear pixel to "
+                                        + java.util.Arrays.toString(near));
+                    }
+                }
+            }
+        }
+        for (int[] button : fills(frame, ButtonPainter.BORDER)) {
+            for (List<int[]> box : boxes) {
+                for (int[] side : box) {
+                    assertFalse(overlaps(side, button), shown + ": the border " + java.util.Arrays.toString(side)
+                            + " touches the button " + java.util.Arrays.toString(button));
+                }
+            }
+        }
+    }
+
+    // Whether two rectangles, as left, top, right, bottom with the right and bottom outside, share a pixel.
+    private static boolean overlaps(int[] one, int[] other) {
+        return one[0] < other[2] && other[0] < one[2] && one[1] < other[3] && other[1] < one[3];
+    }
+
     // Each fill in the color, as left, top, right, bottom.
     private static List<int[]> fills(DrawnFrame frame, int color) {
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
@@ -768,10 +835,18 @@ class ExpressionBuilderPaneTest {
                 + "\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\"}";
         private static final String SUM_ADD = dropdown("+/-");
 
-        // The texts drawn on one builder line, left to right; the builder's lines stand a line height apart from 0.
+        // The texts drawn on one builder line, left to right, the kind's line first.
         private static List<DrawnFrame.Text> line(DrawnFrame frame, int index) {
-            return frame.drawn().stream().filter(text -> text.y() / ControlFlow.LINE == index)
+            return frame.drawn().stream().filter(text -> lineOf(frame, text.y()) == index)
                     .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+        }
+
+        // Which builder line a y stands on, the lines read from the texts drawn on them, since a line's height grows
+        // per box depth (decision drag-rail-containers-keep-a-pixel-between-borders).
+        private static int lineOf(DrawnFrame frame, int y) {
+            List<Integer> tops = frame.drawn().stream().map(text -> text.y() - ControlFlow.textTop(0)).distinct()
+                    .sorted().toList();
+            return (int) tops.stream().filter(top -> top <= y).count() - 1;
         }
 
         private static List<String> lineTexts(DrawnFrame frame, int index) {
@@ -787,7 +862,7 @@ class ExpressionBuilderPaneTest {
                     anyInt(), anyInt(), anyInt(), anyInt());
             List<Integer> onLine = new ArrayList<>();
             for (int at = 0; at < xs.getAllValues().size(); at++) {
-                if (ys.getAllValues().get(at) / ControlFlow.LINE == index) {
+                if (lineOf(frame, ys.getAllValues().get(at)) == index) {
                     onLine.add(xs.getAllValues().get(at));
                 }
             }
@@ -829,18 +904,18 @@ class ExpressionBuilderPaneTest {
             // A wrapped term's line opens on its rail, one indent in under the type.
             double[] saturationRail = railOf(frame, List.of(0, 1));
             assertEquals(typeLeft + ControlFlow.INDENT + BOX_ROOM, (int) saturationRail[0], frame.drawn().toString());
-            assertEquals(saturation.y() / ControlFlow.LINE, (int) saturationRail[1] / ControlFlow.LINE);
+            assertEquals(lineOf(frame, saturation.y()), lineOf(frame, (int) saturationRail[1]));
             DrawnFrame.Text dye = frame.find("dye");
             DrawnFrame.Text minus = frame.drawn().stream().filter(text -> text.text().equals("-")
                     && text.y() > dye.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             double[] parentheticalRail = railOf(frame, List.of(1, 1));
             assertEquals(typeLeft + ControlFlow.INDENT + BOX_ROOM, (int) parentheticalRail[0],
                     frame.drawn().toString());
-            assertEquals(minus.y() / ControlFlow.LINE, (int) parentheticalRail[1] / ControlFlow.LINE);
+            assertEquals(lineOf(frame, minus.y()), lineOf(frame, (int) parentheticalRail[1]));
             assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && text.y() == minus.y()),
                     frame.drawn().toString());
             // A wrap inside the parenthetical opens one indent further in than the parenthetical's line.
-            int innerLine = minus.y() / ControlFlow.LINE + 1;
+            int innerLine = lineOf(frame, minus.y()) + 1;
             int parentheticalLeft = (int) parentheticalRail[0] - BOX_ROOM;
             assertTrue(line(frame, innerLine).getFirst().x() >= parentheticalLeft + ControlFlow.INDENT,
                     frame.drawn().toString());
@@ -919,7 +994,7 @@ class ExpressionBuilderPaneTest {
         void parentheticalLineReadsJoinParenThenItsTermsInline() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
-            int head = open.y() / ControlFlow.LINE;
+            int head = lineOf(frame, open.y());
             assertEquals(List.of("-", "(", "food"), lineTexts(frame, head).subList(0, 3), frame.drawn().toString());
             assertFalse(lineTexts(frame, head).contains("X"), frame.drawn().toString());
             assertEquals(List.of(":", "dye", "'s", "1", ":", "1"), lineTexts(frame, head - 1),

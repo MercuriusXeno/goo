@@ -311,6 +311,8 @@ final class ExpressionBuilderPane {
         int stripLeft = area.right() - TRASH_WIDTH;
         ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
+        // Decision drag-rail-containers-keep-a-pixel-between-borders: the lines grow taller per box depth.
+        flow.padForBoxes(boxDepth(edited));
         drawKind(flow, edited);
         drawValue(flow, edited);
         drawClosing(flow, edited);
@@ -599,9 +601,10 @@ final class ExpressionBuilderPane {
             drawSum(flow, List.of(index), row.pieces(), new Place(BuilderGrammar.NUMBER_SORT, row.type()));
             // Decision rails-fill-the-left-edge-of-their-box: the row reads as one outlined box, its rail down the
             // box's whole left edge.
-            GroupsPane.Bounds box = flow.boxFrom(start, 0);
+            GroupsPane.Bounds box = flow.boxFrom(start, 1);
             flow.outlineBox(box, ControlFlow.OUTLINE_COLOR);
             flow.drawRail(start.x(), box.top() + 1, box.bottom() - 1);
+            flow.closeBox();
             flow.outdent(ControlFlow.INDENT);
             // Decision type-rows-stand-apart-in-the-builder: the next row's buttons stand a button gap below.
             flow.gapBelow(RowLayout.BUTTON_GAP);
@@ -832,11 +835,7 @@ final class ExpressionBuilderPane {
         int lead = leadWidth(flow.font(), path, piece);
         flow.fit(ControlFlow.RAIL_ADVANCE + lead);
         BuilderOverlays.Anchor start = flow.anchor();
-        if (piece.operand() instanceof ExpressionBuilder.Nest) {
-            flow.railTarget(railHoverKey(path), new Drag(path, piece), lead);
-        } else {
-            flow.rail(railHoverKey(path), new Drag(path, piece), lead);
-        }
+        flow.railTarget(railHoverKey(path), new Drag(path, piece), lead);
         if (path.getLast() > 0) {
             drawJoin(flow, path, piece);
         }
@@ -852,8 +851,11 @@ final class ExpressionBuilderPane {
             drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         }
         flow.space(BOX_INSIDE);
-        flow.outlineFrom(term.start());
-        boxes.add(new TermBox(path, flow.boxFrom(term.start(), depthOf(path, place))));
+        int depth = boxDepthOf(path, place);
+        flow.outlineFrom(term.start(), depth);
+        flow.drawRailOnLine(term.start(), depth);
+        flow.closeBox();
+        boxes.add(new TermBox(path, flow.boxFrom(term.start(), depth)));
     }
 
     // The join and the operand after a term's rail, which the rail keeps on its line.
@@ -871,6 +873,24 @@ final class ExpressionBuilderPane {
 
     private static int depthOf(List<Integer> path, Place place) {
         return place.inRow() ? path.size() - 1 : path.size();
+    }
+
+    // How many boxes hold a term, its own and its type row's included.
+    private static int boxDepthOf(List<Integer> path, Place place) {
+        return depthOf(path, place) + (place.inRow() ? 1 : 0);
+    }
+
+    // The most boxes any piece of the value stands inside: a type row's, then each term's and parenthetical's.
+    private static int boxDepth(ExpressionBuilder edited) {
+        if (!edited.isPerType()) {
+            return termsDepth(edited.terms());
+        }
+        return edited.rows().stream().mapToInt(row -> 1 + termsDepth(row.pieces())).max().orElse(0);
+    }
+
+    private static int termsDepth(List<ExpressionBuilder.Piece> pieces) {
+        return pieces.stream().mapToInt(piece -> piece.operand() instanceof ExpressionBuilder.Nest nest
+                ? 1 + termsDepth(nest.pieces()) : 1).max().orElse(0);
     }
 
     /**
@@ -1039,10 +1059,12 @@ final class ExpressionBuilderPane {
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         flow.shift(-inner);
         int depth = depthOf(path, place);
+        int boxDepth = boxDepthOf(path, place);
         flow.space(BOX_INSIDE);
-        flow.tintFrom(nested.start(), new ControlFlow.BoxTones(nestTone(depth), NEST_BORDER), depth);
-        GroupsPane.Bounds box = flow.boxFrom(nested.start(), depth);
+        flow.tintFrom(nested.start(), new ControlFlow.BoxTones(nestTone(depth), NEST_BORDER), boxDepth);
+        GroupsPane.Bounds box = flow.boxFrom(nested.start(), boxDepth);
         flow.drawRail(nested.start().x(), box.top() + 1, box.bottom() - 1);
+        flow.closeBox();
         boxes.add(new TermBox(path, box));
     }
 
