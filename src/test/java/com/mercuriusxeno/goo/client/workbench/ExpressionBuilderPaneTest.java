@@ -313,6 +313,46 @@ class ExpressionBuilderPaneTest {
         return one[0] < other[2] && other[0] < one[2] && one[1] < other[3] && other[1] < one[3];
     }
 
+    /**
+     * A held term drag shadows the screen and lights a hole over each slot canMoveTo accepts and over the trash
+     * strip canRemove opens, and none over the term's own slots, which it refuses (decision
+     * drags-mask-everything-but-their-valid-targets).
+     */
+    @Test
+    void heldTermDragMasksAllButTheSlotsItTakes() {
+        String shown = "$waxed + $edited + $base";
+        Builder builder = Builder.item(shown);
+        DrawnFrame frame = builder.frame();
+        double[] waxed = railOf(frame, List.of(0));
+        double[] edited = railOf(frame, List.of(1));
+        assertTrue(frame.targets.click(waxed[0], waxed[1]));
+        assertTrue(frame.targets.drag(AREA.left() + 1, waxed[1]));
+        DrawnFrame held = builder.frame();
+        assertFalse(fills(held, DragMask.SHADOW).isEmpty(), "the shadow covers the screen");
+        ExpressionBuilder model = ExpressionBuilder.of(shown);
+        long accepted = IntStream.rangeClosed(0, 3).filter(slot -> model.canMoveTo(List.of(0), List.of(), slot))
+                .count();
+        List<int[]> lit = fills(held, DragMask.HIGHLIGHT);
+        assertEquals(accepted + 1, lit.size(), "a hole per slot taken and the strip");
+        assertFalse(lit.stream().anyMatch(hole -> hole[0] <= waxed[0] && waxed[0] < hole[2]
+                || hole[0] <= edited[0] && edited[0] < hole[2]), "no hole over the term's own slots");
+        frame.targets.release();
+    }
+
+    /**
+     * A held () handle lights each term it can wrap (decision drags-mask-everything-but-their-valid-targets).
+     */
+    @Test
+    void heldHandleLightsEveryTermItWraps() {
+        Builder builder = Builder.item("$waxed + $edited");
+        DrawnFrame frame = builder.frame();
+        DrawnFrame.Text handle = frame.find("()");
+        assertTrue(frame.targets.click(handle.x(), handle.y()));
+        assertTrue(frame.targets.drag(AREA.left() + 1, handle.y()));
+        assertEquals(2, fills(builder.frame(), DragMask.HIGHLIGHT).size(), "a highlight per term");
+        frame.targets.release();
+    }
+
     // Each fill in the color, as left, top, right, bottom.
     private static List<int[]> fills(DrawnFrame frame, int color) {
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
