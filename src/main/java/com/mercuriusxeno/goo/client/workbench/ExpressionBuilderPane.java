@@ -983,8 +983,8 @@ final class ExpressionBuilderPane {
         int depth = boxDepthOf(path, place);
         flow.outlineFrom(term.start(), depth);
         flow.drawRailOnLine(term.start(), depth);
-        flow.closeBox();
         boxes.add(new TermBox(path, flow.boxFrom(term.start(), depth)));
+        flow.closeBox();
     }
 
     // The join and the operand after a term's rail, which the rail keeps on its line.

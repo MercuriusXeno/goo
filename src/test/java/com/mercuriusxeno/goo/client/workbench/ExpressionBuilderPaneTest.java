@@ -262,6 +262,44 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * Every box sizes to its own contents, its border one clear pixel above its topmost and below its bottommost
+     * button or inner box, however deep a box elsewhere in the value nests, so a shallow box stands as tight as the
+     * innermost one (decision drag-rail-containers-keep-a-pixel-between-borders).
+     */
+    @Test
+    void everyBoxHugsItsContentsWithOneClearPixel() {
+        for (String shown : List.of("$waxed + ($edited + ($base + $waxed))", "$waxed + (($base + $waxed) + $edited)",
+                "$waxed + (($base + $waxed))", "{\"metal\": \"$base + ($waxed + ($edited))\", \"pulse\": \"2\"}")) {
+            DrawnFrame frame = Builder.item(shown).frame();
+            List<int[]> boxes = new ArrayList<>(boxesIn(frame, ExpressionBuilderPane.NEST_BORDER).stream()
+                    .map(ExpressionBuilderPaneTest::boundsOf).toList());
+            boxes.addAll(boxesIn(frame, ControlFlow.OUTLINE_COLOR).stream().map(ExpressionBuilderPaneTest::boundsOf)
+                    .toList());
+            List<int[]> pieces = new ArrayList<>(fills(frame, ButtonPainter.BORDER));
+            pieces.addAll(boxes);
+            List<String> loose = new ArrayList<>();
+            for (int[] box : boxes) {
+                List<int[]> inside = pieces.stream().filter(piece -> piece != box && piece[0] > box[0]
+                        && piece[2] < box[2] && piece[1] > box[1] && piece[3] < box[3]).toList();
+                if (inside.isEmpty()) {
+                    continue;
+                }
+                int topGap = inside.stream().mapToInt(piece -> piece[1]).min().orElseThrow() - box[1];
+                int bottomGap = box[3] - inside.stream().mapToInt(piece -> piece[3]).max().orElseThrow();
+                if (topGap != 2 || bottomGap != 2) {
+                    loose.add(java.util.Arrays.toString(box) + " top " + topGap + " bottom " + bottomGap);
+                }
+            }
+            assertEquals(List.of(), loose, shown + ": boxes padded past one clear pixel");
+        }
+    }
+
+    // A box's left, top, right and bottom from its four sides, top, bottom, left and right in the order drawn.
+    private static int[] boundsOf(List<int[]> sides) {
+        return new int[] {sides.get(2)[0], sides.get(0)[1], sides.get(3)[2], sides.get(1)[3]};
+    }
+
+    /**
      * A parenthetical opening a parenthetical stays on the line of the outer one's "(", the line growing to give
      * the inner box its padding (decision drag-rail-containers-keep-a-pixel-between-borders).
      */
