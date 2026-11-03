@@ -545,6 +545,18 @@ final class ControlFlow {
      * @param bottom its bottom, flush over the box's bottom border
      */
     void drawRail(int left, int top, int bottom) {
+        drawRail(graphics, left, top, bottom);
+    }
+
+    /**
+     * Draws a rail and its three grip lines centered in it, as a group member's rail does outside any builder line.
+     *
+     * @param graphics the frame's graphics
+     * @param left     the rail's left edge
+     * @param top      its top
+     * @param bottom   its bottom
+     */
+    static void drawRail(GuiGraphicsExtractor graphics, int left, int top, int bottom) {
         graphics.fill(left, top, left + RAIL_WIDTH, bottom, RAIL_COLOR);
         int first = (top + bottom) / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
         for (int line = 0; line < GRIP_LINES; line++) {

@@ -104,6 +104,7 @@ final class GroupsPane {
     private final ManagerActions actions;
     private final ExpressionBuilderPane builder;
     private final BuilderOverlays overlays;
+    private final MemberRails memberRails;
     private final ExpandedLists expandedRows = new ExpandedLists();
     private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
     private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
@@ -129,6 +130,7 @@ final class GroupsPane {
         this.actions = actions;
         this.builder = builder;
         this.overlays = new BuilderOverlays(actions, icons);
+        this.memberRails = new MemberRails((from, to) -> apply(groups.moveMemberRequest(from, to)));
     }
 
     /**
@@ -674,12 +676,15 @@ final class GroupsPane {
         } else {
             y = drawAddMember(graphics, font, detail, y, targets);
         }
-        y = drawCards(graphics, font, detail, y, targets);
+        y = drawCards(graphics, font, detail, y, !group.tag(), targets);
         if (!group.tag()) {
             y = drawMemberLine(graphics, font, detail, group, y + SECTION_GAP, targets);
         }
         targets.unclip();
         graphics.disableScissor();
+        if (!group.tag()) {
+            memberRails.drawHeld(graphics, detail);
+        }
         detailBar.measureAndDraw(graphics, targets, y, detail.right() + ScrollBar.GAP + ScrollBar.WIDTH, detail.top(),
                 detail.bottom());
     }
@@ -752,18 +757,26 @@ final class GroupsPane {
                 ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
     }
 
-    // Answers the y below the cards; a card cut by the pane's edge is not drawn, so no icon shows half.
-    private int drawCards(GuiGraphicsExtractor graphics, Font font, Bounds detail, int top, ClickTargets targets) {
+    // Answers the y below the cards; a card cut by the pane's edge is not drawn, so no icon shows half. A railed list,
+    // a custom group's, numbers each member and draws its rail (decision custom-group-members-drag-by-numbered-rails).
+    private int drawCards(GuiGraphicsExtractor graphics, Font font, Bounds detail, int top, boolean railed,
+                          ClickTargets targets) {
         List<GroupsTab.MemberRow> members = groups.memberRows(values.entries());
         String selected = groups.selectedMember().orElse(NO_TEXT);
+        memberRails.layList(top, members.size());
         for (int index = 0; index < members.size(); index++) {
             int cardY = top + index * CARD_HEIGHT;
             if (cardY < detail.top() || cardY + CARD_HEIGHT > detail.bottom()) {
                 continue;
             }
             RowLayout.drawSeparatorAbove(graphics, index, cardY, detail.left(), detail.right());
-            drawCard(graphics, font, members.get(index), new Bounds(detail.left(), cardY, detail.right(),
-                    cardY + CARD_HEIGHT), selected, targets);
+            Bounds card = new Bounds(detail.left(), cardY, detail.right(), cardY + CARD_HEIGHT);
+            GroupsTab.MemberRow member = members.get(index);
+            drawCard(graphics, font, member, card, railed ? memberRails.iconLeft(font, card) : card.left(), selected,
+                    targets);
+            if (railed) {
+                memberRails.draw(graphics, font, card, index, member.id(), targets);
+            }
         }
         return top + members.size() * CARD_HEIGHT;
     }
@@ -771,12 +784,12 @@ final class GroupsPane {
     // Decision group-list-takes-60-percent-and-labels-span-the-pane: a member's sprite, then its name and note on one
     // line reaching the detail's right edge, the text centered on the 18px row.
     private void drawCard(GuiGraphicsExtractor graphics, Font font, GroupsTab.MemberRow member, Bounds card,
-                          String selected, ClickTargets targets) {
+                          int iconLeft, String selected, ClickTargets targets) {
         if (member.id().equals(selected)) {
             graphics.fill(card.left(), card.top(), card.right(), card.bottom(), SELECTED_COLOR);
         }
-        graphics.item(icons.of(member.id()), card.left(), card.top() + 1);
-        int textX = card.left() + ICON_SIZE + ICON_GAP;
+        graphics.item(icons.of(member.id()), iconLeft, card.top() + 1);
+        int textX = iconLeft + ICON_SIZE + ICON_GAP;
         int textTop = ExpressionLines.centeredTextTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT, font.lineHeight);
         String name = font.plainSubstrByWidth(member.name(), card.right() - textX);
         graphics.text(font, name, textX, textTop, member.known() ? WHITE : RED);

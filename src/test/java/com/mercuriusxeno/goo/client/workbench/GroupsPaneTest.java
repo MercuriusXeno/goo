@@ -521,16 +521,135 @@ class GroupsPaneTest {
             assertTrue(sameLine(members, plus) && plus.x() > members.x(), plus + " vs " + members);
             DrawnFrame.Text card = inDetail(group).stream().filter(text -> text.text().equals("minecraft:oak_planks"))
                     .findFirst().orElseThrow();
-            // Decision member-list-takes-30-percent-with-no-indent: the member row stands at the detail's left.
-            assertEquals(List.of(DETAIL_LEFT),
+            // Decision member-list-takes-30-percent-with-no-indent: the member row stands at the detail's left, a
+            // custom group's row opening on its rail and number (decision custom-group-members-drag-by-numbered-rails).
+            DrawnFrame.Text number = inDetail(group).stream().filter(text -> text.text().equals("1")).findFirst()
+                    .orElseThrow(() -> new AssertionError(group.drawn().toString()));
+            assertEquals(DETAIL_LEFT + ControlFlow.RAIL_WIDTH + 2, number.x());
+            assertEquals(List.of(number.x() + 6 + 2),
                     itemXsBetween(group, card.y() - 8, card.y() + 8).stream().filter(x -> x >= DETAIL_LEFT).toList());
             groups.selectGroup("logs");
             DrawnFrame tag = frame();
+            DrawnFrame.Text log = tag.find("minecraft:oak_log");
+            assertEquals(List.of(DETAIL_LEFT),
+                    itemXsBetween(tag, log.y() - 8, log.y() + 8).stream().filter(x -> x >= DETAIL_LEFT).toList());
             List<String> detail = inDetail(tag).stream().map(DrawnFrame.Text::text).toList();
             assertTrue(detail.containsAll(List.of("Tag members", "#minecraft:logs")), detail.toString());
             assertTrue(tag.find("#minecraft:logs").y() < tag.find("minecraft:oak_log").y(), tag.drawn().toString());
             assertFalse(detail.contains("+") || detail.contains("Value")
                     || detail.stream().anyMatch(text -> text.startsWith("Tag membership")), detail.toString());
+        }
+    }
+
+    /**
+     * A custom group's detail numbers each member and draws a drag rail at its left, a rail drag reordering the
+     * members, while a tag group's members draw neither (decision custom-group-members-drag-by-numbered-rails).
+     */
+    @Nested
+    class MemberRails {
+        private static final GroupsPane.Bounds PANE = new GroupsPane.Bounds(0, 0, 500, 300);
+        private static final int DETAIL_LEFT = GroupsPane.listWidth(PANE) + 12;
+        private static final List<String> TRIO = List.of("minecraft:oak_log", "minecraft:birch_log",
+                "minecraft:spruce_log");
+        private final ManagerDraft draft = new ManagerDraft();
+        private final GroupsTab groups = new GroupsTab(draft);
+        private final ManagerActions actions = mock(ManagerActions.class);
+        private final GroupsPane pane;
+
+        MemberRails() {
+            draft.read("""
+                    {"path": "base_values.json", "members": []}""");
+            groups.readDescribed("""
+                    {"groups": [
+                      {"name": "trio", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true},
+                        {"id": "minecraft:birch_log", "known": true}, {"id": "minecraft:spruce_log", "known": true}],
+                       "base": null, "tweaks": [], "preview": []},
+                      {"name": "logs", "kind": "tag", "members": [{"id": "minecraft:oak_log", "known": true},
+                        {"id": "minecraft:birch_log", "known": true}, {"id": "minecraft:spruce_log", "known": true}],
+                       "base": null, "tweaks": [], "preview": []}]}""");
+            ValuesTab values = new ValuesTab(draft);
+            when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+            ItemIcons icons = mock(ItemIcons.class);
+            when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+            pane = new GroupsPane(groups, values, icons, actions,
+                    new ExpressionBuilderPane(actions, icons, List::of, List::of));
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+        }
+
+        private DrawnFrame frame(String group) {
+            groups.selectGroup(group);
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), PANE, frame.targets);
+            return frame;
+        }
+
+        // The rails the detail column drew, each as left, top, right and bottom.
+        private static List<int[]> detailRails(DrawnFrame frame) {
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
+                    rights.capture(), bottoms.capture(), eq(ControlFlow.RAIL_COLOR));
+            return IntStream.range(0, lefts.getAllValues().size()).filter(index ->
+                    lefts.getAllValues().get(index) >= DETAIL_LEFT).mapToObj(index -> new int[] {
+                        lefts.getAllValues().get(index), tops.getAllValues().get(index),
+                        rights.getAllValues().get(index), bottoms.getAllValues().get(index)}).toList();
+        }
+
+        private static List<DrawnFrame.Text> detailNumbers(DrawnFrame frame) {
+            return frame.drawn().stream().filter(text -> text.x() >= DETAIL_LEFT && text.text().matches("\\d+"))
+                    .toList();
+        }
+
+        /**
+         * The custom group's three members draw 1, 2 and 3 down the detail, each on its member's line between the
+         * rail at the detail's left and the member's name, one rail a member.
+         */
+        @Test
+        void customGroupMembersDrawTheirNumberAndARailEach() {
+            DrawnFrame frame = frame("trio");
+            List<DrawnFrame.Text> numbers = detailNumbers(frame);
+            assertEquals(List.of("1", "2", "3"), numbers.stream().map(DrawnFrame.Text::text).toList());
+            List<int[]> rails = detailRails(frame);
+            assertEquals(3, rails.size(), "a rail a member");
+            for (int index = 0; index < TRIO.size(); index++) {
+                DrawnFrame.Text name = frame.find(TRIO.get(index));
+                DrawnFrame.Text number = numbers.get(index);
+                assertTrue(Math.abs(number.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, number + " vs " + name);
+                assertEquals(DETAIL_LEFT, rails.get(index)[0]);
+                assertTrue(rails.get(index)[2] <= number.x() && number.x() < name.x(), number + " vs " + name);
+            }
+        }
+
+        /**
+         * The tag group's members draw no number and no rail.
+         */
+        @Test
+        void tagGroupMembersDrawNoNumberAndNoRail() {
+            DrawnFrame frame = frame("logs");
+            assertEquals(List.of(), detailNumbers(frame));
+            assertEquals(List.of(), detailRails(frame).stream().map(java.util.Arrays::toString).toList());
+        }
+
+        /**
+         * Dragging the third member's rail onto the first member's row posts the members with the third first.
+         */
+        @Test
+        void railDragOntoTheFirstRowMovesTheMemberThere() {
+            DrawnFrame frame = frame("trio");
+            int[] third = detailRails(frame).get(2);
+            int firstRow = frame.find(TRIO.get(0)).y();
+            assertTrue(frame.targets.click(third[0] + 1, third[1] + 1));
+            frame.targets.drag(third[0] + 1, firstRow);
+            frame.targets.release();
+            ArgumentCaptor<String> posted = ArgumentCaptor.forClass(String.class);
+            verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.APPLY_TO_GROUP),
+                    posted.capture(), any());
+            assertEquals(List.of("minecraft:spruce_log", "minecraft:oak_log", "minecraft:birch_log"),
+                    com.google.gson.JsonParser.parseString(posted.getValue()).getAsJsonObject()
+                            .getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
         }
     }
 
