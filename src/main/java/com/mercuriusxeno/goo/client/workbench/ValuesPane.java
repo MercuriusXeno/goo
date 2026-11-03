@@ -47,6 +47,8 @@ final class ValuesPane {
     private static final int FRACTION_SPACE = 2;
     // A stack count's right and bottom edges stand a pixel past the sprite's.
     private static final int COUNT_OVERHANG = 1;
+    // Where a stack count's glyphs end under the sprite's top: its text top 9 down and its 8px glyphs.
+    private static final int COUNT_GLYPHS_BOTTOM = 17;
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
     private static final int CHIP_TEXT_NUDGE = 3;
@@ -63,6 +65,9 @@ final class ValuesPane {
     static final int RUN_GAP = 3;
     /** The room between a run's type icon and its amount. */
     static final int RUN_ICON_GAP = 2;
+    // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: an amount stands a pixel further from the next
+    // run's icon than the run gap alone.
+    private static final int RUN_STEP = RUN_GAP + 1;
     private static final int GOLD = 0xFFE0C060;
     private static final int CHIP_OFF = 0xFF808080;
     private static final int CHIP_HOLLOW = 0xFF202020;
@@ -525,8 +530,8 @@ final class ValuesPane {
 
     private static int valueWidth(Font font, Map<String, String> worth) {
         int width = worth.entrySet().stream().mapToInt(amount -> runWidth(font, amount.getValue(),
-                GooTypeIcons.sizeOf(amount.getKey())) + RUN_GAP).sum();
-        return worth.isEmpty() ? 0 : width - RUN_GAP;
+                GooTypeIcons.sizeOf(amount.getKey())) + RUN_STEP).sum();
+        return worth.isEmpty() ? 0 : width - RUN_STEP;
     }
 
     // The sprite, then by disposition: "=" and what the value equals, or the no-value or denied words; answers the x
@@ -615,7 +620,7 @@ final class ValuesPane {
             int x = laid.spriteLefts().get(index);
             ItemStack stack = icons.of(input.id());
             graphics.item(stack, x, line.spriteTop());
-            drawCount(graphics, font, stack, countParts(input.count(), recipe.output()), x, line.spriteTop());
+            drawCount(graphics, font, countParts(input.count(), recipe.output()), x, line.spriteTop());
             ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
@@ -636,7 +641,7 @@ final class ValuesPane {
             int x = laid.spriteLefts().get(index);
             ItemStack stack = icons.of(term.id());
             graphics.item(stack, x, line.spriteTop());
-            drawCount(graphics, font, stack, countParts(term.count(), recipe.output()), x, line.spriteTop());
+            drawCount(graphics, font, countParts(term.count(), recipe.output()), x, line.spriteTop());
             ItemLinks.add(targets, actions, term.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, MINUS, x, line.textTop(), WHITE));
@@ -645,11 +650,15 @@ final class ValuesPane {
 
     // The whole part draws full size as an inventory draws a stack count; the fraction draws at half scale in the
     // sprite's bottom-right corner as its numerator over a bar over its denominator, the whole just left of it.
-    private static void drawCount(GuiGraphicsExtractor graphics, Font font, ItemStack stack,
+    private static void drawCount(GuiGraphicsExtractor graphics, Font font,
                                   StackedFractions.Mixed parts, int x, int y) {
         CornerCount placed = placeCornerCount(x, y, font.width(parts.numerator()), font.width(parts.denominator()));
         if (!parts.whole().isEmpty()) {
-            graphics.itemDecorations(font, stack, placed.wholeX(), y, parts.whole());
+            // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: the whole draws small, its right edge
+            // where a stack count's stands and its glyphs a pixel under a stack count's bottom.
+            int right = placed.wholeX() + ICON_SIZE + COUNT_OVERHANG;
+            SmallDigits.draw(graphics, font, parts.whole(), right - SmallDigits.width(font, parts.whole()),
+                    y + COUNT_GLYPHS_BOTTOM - SmallDigits.GLYPH_HEIGHT + 1, WHITE);
         }
         if (parts.stacked()) {
             StackedFractions.drawStack(graphics, font, parts, placed.stack(), WHITE);
@@ -752,21 +761,24 @@ final class ValuesPane {
         int lineTop = line.spriteTop() - 1;
         for (Map.Entry<String, String> amount : worth.entrySet()) {
             int size = GooTypeIcons.sizeOf(amount.getKey());
-            GooTypeIcons.draw(graphics, targets, amount.getKey(), x, lineTop + (ROW_HEIGHT - size) / HALF, size);
-            StackedFractions.draw(graphics, font, amount.getValue(), x + size + RUN_ICON_GAP, line.textTop(), WHITE);
-            x += runWidth(font, amount.getValue(), size) + RUN_GAP;
+            int iconTop = lineTop + (ROW_HEIGHT - size) / HALF;
+            GooTypeIcons.draw(graphics, targets, amount.getKey(), x, iconTop, size);
+            // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere.
+            SmallDigits.drawBesideIcon(graphics, font, amount.getValue(), new SmallDigits.Icon(x + size, iconTop, size,
+                    RUN_ICON_GAP), WHITE);
+            x += runWidth(font, amount.getValue(), size) + RUN_STEP;
         }
-        return worth.isEmpty() ? x : x - RUN_GAP;
+        return worth.isEmpty() ? x : x - RUN_STEP;
     }
 
     /**
      * @param font     the screen's font
      * @param amount   a goo type's amount as drawn
      * @param iconSize the type icon's side
-     * @return the run's width: the type icon, its gap and the amount
+     * @return the run's width: the type icon, its gap a pixel short and the small amount
      */
     static int runWidth(Font font, String amount, int iconSize) {
-        return iconSize + RUN_ICON_GAP + StackedFractions.width(font, StackedFractions.of(amount));
+        return iconSize + RUN_ICON_GAP - 1 + SmallDigits.width(font, amount);
     }
 
     // A revealed row's middle stands at the list's middle, a row taller than the list from its top, the clamp
