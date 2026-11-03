@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
@@ -135,6 +136,8 @@ final class ExpressionBuilderPane {
     private @Nullable SignDrag signDragging;
     // Where the last frame's lines ended, short of the trash strip.
     private int linesRight;
+    // Where the builder drew visible this frame, the pane's scissor, null where none clipped it.
+    private DragMask.@Nullable Rect visible;
     // The row slots the last frame laid, and the type row a rail holds while it drags.
     private final List<RowSlot> rowSlots = new ArrayList<>();
     private @Nullable RowDrag rowDragging;
@@ -311,6 +314,7 @@ final class ExpressionBuilderPane {
         }
         overlays.commitOnBlur();
         startFrame();
+        visible = visibleArea(graphics);
         int stripLeft = area.right() - TRASH_WIDTH;
         ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
@@ -443,11 +447,23 @@ final class ExpressionBuilderPane {
 
     // Decision drags-mask-everything-but-their-valid-targets: while a term, a type row, the () handle or a + or -
     // is held, the screen darkens but over each place the builder's dry runs say it may drop.
+    // Each place lights only where the builder drew visible, so a place scrolled under the pane's edge, as under the
+    // search bar, lights its visible part or nothing.
     private void drawDragMask(GuiGraphicsExtractor graphics) {
         List<DragMask.Rect> holes = dropTargets();
         if (holes != null) {
-            DragMask.draw(graphics, new DragMask.Rect(0, 0, graphics.guiWidth(), graphics.guiHeight()), holes);
+            DragMask.Rect shown = visible;
+            DragMask.draw(graphics, new DragMask.Rect(0, 0, graphics.guiWidth(), graphics.guiHeight()),
+                    shown == null ? holes : holes.stream().map(hole -> hole.within(shown))
+                            .filter(hole -> !hole.isEmpty()).toList());
         }
+    }
+
+    // The scissor the pane drew the builder under, null where none clipped it.
+    private static DragMask.@Nullable Rect visibleArea(GuiGraphicsExtractor graphics) {
+        ScreenRectangle scissor = graphics.peekScissorStack();
+        return scissor == null ? null
+                : new DragMask.Rect(scissor.left(), scissor.top(), scissor.right(), scissor.bottom());
     }
 
     // The held drag's targets, null where nothing is held.

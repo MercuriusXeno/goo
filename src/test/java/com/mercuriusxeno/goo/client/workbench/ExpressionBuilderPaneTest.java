@@ -378,6 +378,31 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * A held term's lit drop places stay inside the area the builder draws visible, so a place scrolled partly under
+     * the pane's edge, as under the search bar, lights only its visible part (decision
+     * drags-mask-everything-but-their-valid-targets).
+     */
+    @Test
+    void heldTermLightsOnlyTheVisiblePartOfEachDropPlace() {
+        Builder builder = Builder.item("$waxed + $edited + $base");
+        DrawnFrame frame = builder.frame();
+        double[] waxed = railOf(frame, List.of(0));
+        assertTrue(frame.targets.click(waxed[0], waxed[1]));
+        assertTrue(frame.targets.drag(AREA.left() + 1, waxed[1]));
+        int visibleTop = (int) waxed[1] + 4;
+        DrawnFrame clipped = new DrawnFrame();
+        when(clipped.graphics.peekScissorStack()).thenReturn(new net.minecraft.client.gui.navigation.ScreenRectangle(
+                0, visibleTop, DrawnFrame.SCREEN_WIDTH, DrawnFrame.SCREEN_HEIGHT - visibleTop));
+        builder.pane.extract(clipped.graphics, builder.font, AREA, 0, clipped.targets);
+        builder.pane.drawOverlays(clipped.graphics, builder.font, clipped.targets);
+        List<int[]> lit = fills(clipped, DragMask.HIGHLIGHT);
+        assertFalse(lit.isEmpty(), "the drop places light");
+        assertEquals(List.of(), lit.stream().filter(hole -> hole[1] < visibleTop).map(java.util.Arrays::toString)
+                .toList(), "lit above the visible top " + visibleTop);
+        frame.targets.release();
+    }
+
+    /**
      * A held () handle lights each term it can wrap (decision drags-mask-everything-but-their-valid-targets).
      */
     @Test
