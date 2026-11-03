@@ -438,7 +438,8 @@ final class ValuesPane {
     }
 
     // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right: the values' shared column
-    // stands one gap past the widest name the list draws, then "=" and a gap, so every value starts at one x.
+    // stands one gap past the widest name the list draws, then the item's sprite, "=" and a gap each, so every value
+    // starts at one x.
     // Measured again only when the listed rows or the row width change.
     private void measureRecipeColumn(Font font, List<ValuesTab.ManagerEntry> listed, int rowWidth) {
         ColumnInputs inputs = new ColumnInputs(rowWidth, listed);
@@ -452,7 +453,7 @@ final class ValuesPane {
             int width = font.width(entry.name());
             widest = Math.max(widest, width <= cap ? width : font.width(headName(font, entry, rowWidth)));
         }
-        valueColumn = ROW_PAD + widest + HEAD_GAP + font.width(EQUALS) + ICON_GAP;
+        valueColumn = ROW_PAD + widest + HEAD_GAP + ICON_SIZE + ICON_GAP + font.width(EQUALS) + ICON_GAP;
     }
 
     private Map<String, String> worthShown(String id, ValuesTab.Source source) {
@@ -531,9 +532,11 @@ final class ValuesPane {
         return worth.isEmpty() ? 0 : width - RUN_STEP;
     }
 
-    // "=" just left of the value column and the goo value after it, or the no-value or denied words in its place.
+    // The item's own sprite and "=" just left of the value column and the goo value after it, or the sprite and the
+    // no-value or denied words in the value's place.
     private void drawValue(GuiGraphicsExtractor graphics, Font font, String id, ValuesTab.Source shown, int left,
                            HeadLine line, ClickTargets targets) {
+        graphics.item(icons.of(id), left - ICON_GAP - font.width(EQUALS) - ICON_GAP - ICON_SIZE, line.spriteTop());
         if (!carriesRuns(shown.kind())) {
             String label = font.plainSubstrByWidth(headLabel(shown), Math.max(1, line.right() - left));
             graphics.text(font, label, left, line.textTop(), colorOf(shown.kind()));
