@@ -536,6 +536,19 @@ class ExpressionBuilderPaneTest {
         assertEquals((int) parenthetical[0] + ControlFlow.INDENT, close.x(), ") stands at the inner indent");
     }
 
+    /**
+     * A per-type prefab's 's draws flush against its word's button, no gap between (decision
+     * possessive-sits-flush-against-its-word-button).
+     */
+    @Test
+    void possessiveSitsFlushAgainstItsWordButton() {
+        DrawnFrame frame = Builder.item("{\"jelly\": \"$food.jelly\"}").frame();
+        DrawnFrame.Text food = frame.find("food");
+        DrawnFrame.Text possessive = frame.find("'s");
+        assertEquals(food.x() + DrawnFrame.font().width(food.text()) + ButtonPainter.PADDING, possessive.x(),
+                frame.drawn().toString());
+    }
+
     private static void assertRests(DrawnFrame frame) {
         assertEquals(1, fills(frame, ExpressionBuilderPane.TRASH_REST).size(), "the strip rests");
         assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_LIT), "the strip lit");

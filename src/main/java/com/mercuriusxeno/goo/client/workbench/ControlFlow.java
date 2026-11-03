@@ -192,6 +192,20 @@ final class ControlFlow {
         x += font.width(text) + GAP;
     }
 
+    /**
+     * Words drawn flush against the piece before them, no gap between, as a member's 's against its prefab's button
+     * (decision possessive-sits-flush-against-its-word-button).
+     *
+     * @param text  the words
+     * @param color their color
+     */
+    void textFlush(String text, int color) {
+        x -= GAP;
+        graphics.text(font, text, x, y + TEXT_NUDGE, color);
+        markPiece(font.width(text));
+        x += font.width(text) + GAP;
+    }
+
     private void markPiece(int width) {
         pieceLeft = x;
         pieceTop = y;

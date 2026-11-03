@@ -78,6 +78,8 @@ final class ExpressionLines {
         OPERATOR,
         /** Plain text. */
         TEXT,
+        /** Text drawn flush against the run before it, as a member's 's against its prefab. */
+        SUFFIX,
         /** The end of a line, as a per-type object ends each type's row. */
         BREAK,
         /** Text the terms could not read, drawn red as the file spells it. */
@@ -312,8 +314,9 @@ final class ExpressionLines {
             case ExpressionTerms.Prefab prefab -> {
                 runs.add(new Run(Kind.LINK, prefab.name(), prefab.name()));
                 // Decision read-view-reads-type-equals-possessive-terms: a member reads as the prefab's own.
+                // Decision possessive-sits-flush-against-its-word-button.
                 if (prefab.type() != null) {
-                    runs.add(text(POSSESSIVE));
+                    runs.add(new Run(Kind.SUFFIX, POSSESSIVE, null));
                 }
                 addType(runs, prefab.type());
             }
@@ -422,7 +425,8 @@ final class ExpressionLines {
         int width = 0;
         for (Run run : runs) {
             if (run.kind() != Kind.BREAK) {
-                width += (width == 0 ? 0 : RUN_GAP) + runWidth(font, run, typeSize);
+                boolean gapped = width != 0 && run.kind() != Kind.SUFFIX;
+                width += (gapped ? RUN_GAP : 0) + runWidth(font, run, typeSize);
             }
         }
         return width;
@@ -466,15 +470,22 @@ final class ExpressionLines {
     private static int lay(List<Run> runs, Cursor cursor) {
         for (int index = 0; index < runs.size(); index++) {
             Run run = runs.get(index);
-            if (run.kind() == Kind.BREAK) {
-                cursor.breakLine(0);
-            } else if (run.kind() == Kind.TEXT || run.kind() == Kind.ERROR) {
-                cursor.placeText(run);
-            } else {
-                placeOperandOrSymbol(runs, index, cursor);
+            switch (run.kind()) {
+                case BREAK -> cursor.breakLine(0);
+                case SUFFIX -> cursor.placeFlush(run);
+                case TEXT, ERROR -> cursor.placeText(run);
+                default -> placeOperandOrSymbol(runs, index, cursor);
             }
         }
         return cursor.lines;
+    }
+
+    // Decision possessive-sits-flush-against-its-word-button: a word wraps with the suffix flush against it.
+    private static void fitWithSuffix(List<Run> runs, int index, Cursor cursor) {
+        int suffix = index + 1;
+        if (suffix < runs.size() && runs.get(suffix).kind() == Kind.SUFFIX) {
+            cursor.fitTogether(width(cursor.font, runs.subList(index, suffix + 1), cursor.typeSize));
+        }
     }
 
     private static void placeOperandOrSymbol(List<Run> runs, int index, Cursor cursor) {
@@ -486,6 +497,7 @@ final class ExpressionLines {
         if (isSymbol(run, CLOSE)) {
             cursor.wrapAt(-ControlFlow.INDENT);
         }
+        fitWithSuffix(runs, index, cursor);
         cursor.placeWhole(run);
         if (isSymbol(run, COLON) || isSymbol(run, OPEN)) {
             cursor.wrapAt(ControlFlow.INDENT);
@@ -583,6 +595,12 @@ final class ExpressionLines {
             int start = start();
             drawPiece(run, run.text(), start);
             at = start + runWidth;
+        }
+
+        // Against the run before, no gap and no wrap between them.
+        void placeFlush(Run run) {
+            drawPiece(run, run.text(), at);
+            at += runWidth(font, run, typeSize);
         }
 
         void placeText(Run run) {
