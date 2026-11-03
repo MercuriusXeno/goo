@@ -298,6 +298,24 @@ class ExpressionBuilderTest {
             assertFalse(twoRows.canMoveTo(List.of(0, 0), List.of(1), 0), "a type row's only term emptying it");
         }
 
+        // Decision operand-times-number-terms-edit-like-every-term: "$saturation.jelly * 12" opens as the prefab with
+        // its member and a 12 multiplier, and its writing reads back to the same pieces; a parenthetical times a
+        // number opens the same way.
+        @Test
+        void operandTimesNumberOpensAsAnEditablePiece() {
+            ExpressionBuilder beetroot = ExpressionBuilder.of("$food.jelly + $saturation.jelly * 12");
+            ExpressionBuilder.Piece saturation = beetroot.terms().get(1);
+            assertEquals(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "saturation", "jelly"),
+                    saturation.operand());
+            assertEquals("12", saturation.multiplier());
+            assertEquals(beetroot.terms(), ExpressionBuilder.of(beetroot.text()).terms(), beetroot.text());
+            ExpressionBuilder grouped = ExpressionBuilder.of("($waxed + $edited) * 3");
+            ExpressionBuilder.Piece group = grouped.terms().getFirst();
+            assertTrue(group.operand() instanceof ExpressionBuilder.Nest, group.toString());
+            assertEquals("3", group.multiplier());
+            assertEquals(grouped.terms(), ExpressionBuilder.of(grouped.text()).terms(), grouped.text());
+        }
+
         @Test
         void firstTermMovesNoHigherAndLastNoLower() {
             ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited");

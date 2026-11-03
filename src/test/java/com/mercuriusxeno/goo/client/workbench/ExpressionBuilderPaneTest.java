@@ -471,6 +471,23 @@ class ExpressionBuilderPaneTest {
                 && piece[3] < strip[3], "a can piece outside the strip: " + java.util.Arrays.toString(piece)));
     }
 
+    /**
+     * A prefab times a number draws as the prefab's button, its member's icon and a multiplier box reading the
+     * number, and the prefab button opens the prefab list (decision operand-times-number-terms-edit-like-every-term).
+     */
+    @Test
+    void operandTimesNumberDrawsItsButtonsAndOpensTheirLists() {
+        Builder builder = Builder.item("$food.jelly + $saturation.jelly * 12");
+        DrawnFrame frame = builder.frame();
+        DrawnFrame.Text saturation = frame.find("saturation");
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("12") && text.y() == saturation.y()
+                && text.x() > saturation.x()), frame.drawn().toString());
+        assertTrue(iconBlits(frame).stream().anyMatch(blit -> blit[0] > saturation.x()
+                && Math.abs(blit[1] - saturation.y()) < ControlFlow.LINE), "no member icon after saturation");
+        clickAt(frame, saturation);
+        assertTrue(builder.pane.listOpen(), "the prefab list opens");
+    }
+
     private static void assertRests(DrawnFrame frame) {
         assertEquals(1, fills(frame, ExpressionBuilderPane.TRASH_REST).size(), "the strip rests");
         assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_LIT), "the strip lit");
@@ -732,20 +749,20 @@ class ExpressionBuilderPaneTest {
             assertEquals(minus.y() / ControlFlow.LINE, (int) parentheticalRail[1] / ControlFlow.LINE);
             assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && text.y() == minus.y()),
                     frame.drawn().toString());
-            // A wrap inside the parenthetical opens on the wrapped term's rail, one indent further in.
-            int innerLine = frame.drawn().stream().filter(text -> text.text().equals("saturation")
-                    && text.y() > minus.y()).findFirst().orElseThrow().y() / ControlFlow.LINE;
-            double[] innerRail = railOf(frame, List.of(1, 1, 1));
-            assertEquals(innerLine, (int) innerRail[1] / ControlFlow.LINE, frame.drawn().toString());
-            assertEquals((int) parentheticalRail[0] + ControlFlow.INDENT, (int) innerRail[0], frame.drawn().toString());
+            // A wrap inside the parenthetical opens one indent further in than the parenthetical's line.
+            int innerLine = minus.y() / ControlFlow.LINE + 1;
+            int parentheticalLeft = (int) parentheticalRail[0] - BOX_ROOM;
+            assertEquals(parentheticalLeft + ControlFlow.INDENT + ButtonPainter.PADDING,
+                    line(frame, innerLine).getFirst().x(), frame.drawn().toString());
         }
 
         @Test
         void beetrootsJellyRowReadsKindPlusThenTheRowInline() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
-            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "+", "saturation", "'s", "x", "12", SUM_ADD),
-                    lineTexts(frame, 1), frame.drawn().toString());
+            // Decision operand-times-number-terms-edit-like-every-term: saturation's 12 reads in its ratio box.
+            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "+", "saturation", "'s", "12", ":", "1",
+                    SUM_ADD), lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
             assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),

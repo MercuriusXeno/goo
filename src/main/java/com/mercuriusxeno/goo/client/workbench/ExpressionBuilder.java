@@ -104,20 +104,26 @@ final class ExpressionBuilder {
      * @param operand    what it stands on
      * @param multiplier the number multiplying it, 1 for none
      * @param divisor    the number dividing it, 1 for none
+     * @param timesAfter whether the multiplier writes after the operand, as "$x * 12", rather than before it as a
+     *                   count, as "12 $x"; the term keeps the form the file wrote
      */
-    record Piece(ExpressionTerms.Join join, Operand operand, String multiplier, String divisor) {
+    record Piece(ExpressionTerms.Join join, Operand operand, String multiplier, String divisor, boolean timesAfter) {
+        Piece(ExpressionTerms.Join join, Operand operand, String multiplier, String divisor) {
+            this(join, operand, multiplier, divisor, false);
+        }
+
         Piece withOperand(Operand changed) {
-            return new Piece(join, changed, multiplier, divisor);
+            return new Piece(join, changed, multiplier, divisor, timesAfter);
         }
 
         Piece withJoin(ExpressionTerms.Join changed) {
-            return new Piece(changed, operand, multiplier, divisor);
+            return new Piece(changed, operand, multiplier, divisor, timesAfter);
         }
 
         // Decision ratio-holds-multiplier-and-divisor-together: a side set leaves the other standing.
         Piece withSide(Op side, String factor) {
-            return side == Op.MULTIPLY ? new Piece(join, operand, factor, divisor)
-                    : new Piece(join, operand, multiplier, factor);
+            return side == Op.MULTIPLY ? new Piece(join, operand, factor, divisor, timesAfter)
+                    : new Piece(join, operand, multiplier, factor, timesAfter);
         }
 
         boolean isUnscaled() {
@@ -968,7 +974,7 @@ final class ExpressionBuilder {
         List<ExpressionTerms.Factor> factors = new ArrayList<>();
         if (ONE.equals(piece.multiplier())) {
             factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, atom));
-        } else if (atom instanceof ExpressionTerms.Number) {
+        } else if (atom instanceof ExpressionTerms.Number || piece.timesAfter()) {
             factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, atom));
             factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.TIMES, multiplier));
         } else {
@@ -1019,8 +1025,21 @@ final class ExpressionBuilder {
         if (factors.size() == 1) {
             return operandOf(factors.getFirst().atom()).map(operand -> new Piece(join, operand, ONE, ONE));
         }
-        return factors.size() == PAIR && factors.getFirst().atom() instanceof ExpressionTerms.Number count
-                ? countedOf(join, count, factors.get(1)) : Optional.empty();
+        if (factors.size() != PAIR) {
+            return Optional.empty();
+        }
+        return factors.getFirst().atom() instanceof ExpressionTerms.Number count
+                ? countedOf(join, count, factors.get(1)) : timesOf(join, factors.getFirst(), factors.get(1));
+    }
+
+    // Decision operand-times-number-terms-edit-like-every-term: an operand times a number, as
+    // "$saturation.jelly * 12", is the operand with that number as its multiplier.
+    private static Optional<Piece> timesOf(ExpressionTerms.Join join, ExpressionTerms.Factor operand,
+                                           ExpressionTerms.Factor second) {
+        if (second.scale() != ExpressionTerms.Scale.TIMES || !(second.atom() instanceof ExpressionTerms.Number times)) {
+            return Optional.empty();
+        }
+        return operandOf(operand.atom()).map(atom -> new Piece(join, atom, times.digits(), ONE, true));
     }
 
     private static Optional<Piece> countedOf(ExpressionTerms.Join join, ExpressionTerms.Number count,
