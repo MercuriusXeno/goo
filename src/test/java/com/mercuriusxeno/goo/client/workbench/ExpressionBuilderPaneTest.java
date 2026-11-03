@@ -36,6 +36,8 @@ class ExpressionBuilderPaneTest {
     // labels stand (decision builder-font-and-spacing-shrink-padding-untouched).
     private static final Lettering LETTERS = new Lettering(DrawnFrame.font(), ControlFlow.BUILDER_SCALE);
     private static final int WORDS_DROP = LETTERS.centeredTop(0, ControlFlow.LINE);
+    // Texts whose tops stand closer than this share a builder line.
+    private static final int HALF_LINE = ControlFlow.LINE / 2;
     private static final int LABEL_DROP = LETTERS.centeredTop(0, ButtonPainter.HEIGHT);
     // A type row's rail and the gap after it, which stand before its goo type button.
     private static final int ROW_RAIL = ControlFlow.RAIL_ADVANCE;
@@ -314,8 +316,13 @@ class ExpressionBuilderPaneTest {
         double[] outer = railOf(frame, List.of(1));
         double[] inner = railOf(frame, List.of(1, 0));
         DrawnFrame.Text open = frame.drawn().stream().filter(text -> text.text().equals("(")).findFirst().orElseThrow();
-        assertEquals(open.y(), frame.find("$base").y(), "the inner parenthetical's terms share the outer's ( line");
+        assertTrue(onOneLine(open, frame.find("$base")), "the inner parenthetical's terms share the outer's ( line");
         assertTrue(inner[0] > outer[0], "the inner rail stands right of the outer one");
+    }
+
+    // Whether two texts stand on one builder line, their tops within half a line.
+    private static boolean onOneLine(DrawnFrame.Text one, DrawnFrame.Text other) {
+        return Math.abs(one.y() - other.y()) < HALF_LINE;
     }
 
     // Each box's four sides, grouped as each box draws them, in the given border color.
@@ -746,6 +753,21 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * A parenthetical's "(" and ")" draw bold and larger than the term text beside them (decision
+     * parentheses-draw-bold-and-larger).
+     */
+    @Test
+    void parenthesesDrawBoldAndLargerThanTheirTerms() {
+        DrawnFrame frame = Builder.item("($waxed + $edited) + $base").frame();
+        float term = frame.placed("$waxed").scale();
+        for (String paren : List.of("(", ")")) {
+            DrawnFrame.Placed drawn = frame.placed(paren);
+            assertTrue(drawn.bold(), paren + " draws bold");
+            assertTrue(drawn.scale() > term, paren + " at " + drawn.scale() + " against the term's " + term);
+        }
+    }
+
+    /**
      * Terms inline under the indentation rules, in type rows and parentheticals alike (decisions
      * terms-inline-again-under-the-indentation-rules, builder-inlines-terms-under-indentation-rules-with-a-colon).
      */
@@ -771,9 +793,9 @@ class ExpressionBuilderPaneTest {
         @Test
         void parentheticalsShortTermsShareItsParensLine() {
             DrawnFrame frame = Builder.item("($waxed + $edited) + $base").frame();
-            int open = frame.find("(").y();
-            assertEquals(List.of(open, open, open), List.of(frame.find("$waxed").y(), frame.find("$edited").y(),
-                    frame.find(")").y()), frame.drawn().toString());
+            DrawnFrame.Text open = frame.find("(");
+            assertTrue(onOneLine(open, frame.find("$waxed")) && onOneLine(open, frame.find("$edited"))
+                    && onOneLine(open, frame.find(")")), frame.drawn().toString());
         }
 
         /**
@@ -1015,7 +1037,7 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text close = frame.find(")");
         DrawnFrame.Text food = frame.find("$food");
         DrawnFrame.Text saturation = frame.find("$saturation");
-        assertEquals(List.of(open.y(), open.y(), open.y()), List.of(food.y(), saturation.y(), close.y()),
+        assertTrue(onOneLine(open, food) && onOneLine(open, saturation) && onOneLine(open, close),
                 frame.drawn().toString());
         assertTrue(open.x() < food.x() && food.x() < saturation.x() && saturation.x() < close.x(),
                 frame.drawn().toString());
@@ -1040,11 +1062,17 @@ class ExpressionBuilderPaneTest {
         }
 
         // Which builder line a y stands on, the lines read from the texts drawn on them, since a line's height grows
-        // per box depth (decision drag-rail-containers-keep-a-pixel-between-borders).
+        // per box depth (decision drag-rail-containers-keep-a-pixel-between-borders); texts within half a line of
+        // each other share one, as a larger paren's centered glyphs stand a little above its line's words (decision
+        // parentheses-draw-bold-and-larger).
         private static int lineOf(DrawnFrame frame, int y) {
-            List<Integer> tops = frame.drawn().stream().map(text -> text.y() - WORDS_DROP).distinct()
-                    .sorted().toList();
-            return (int) tops.stream().filter(top -> top <= y).count() - 1;
+            List<Integer> lines = new ArrayList<>();
+            for (int top : frame.drawn().stream().map(DrawnFrame.Text::y).distinct().sorted().toList()) {
+                if (lines.isEmpty() || top - lines.getLast() >= HALF_LINE) {
+                    lines.add(top);
+                }
+            }
+            return (int) lines.stream().filter(top -> top < y + HALF_LINE).count() - 1;
         }
 
         private static List<String> lineTexts(DrawnFrame frame, int index) {
@@ -1110,7 +1138,7 @@ class ExpressionBuilderPaneTest {
             assertEquals(typeLeft + ControlFlow.INDENT + BOX_ROOM, (int) parentheticalRail[0],
                     frame.drawn().toString());
             assertEquals(lineOf(frame, minus.y()), lineOf(frame, (int) parentheticalRail[1]));
-            assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && text.y() == minus.y()),
+            assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && onOneLine(text, minus)),
                     frame.drawn().toString());
             // A wrap inside the parenthetical opens one indent further in than the parenthetical's line.
             int innerLine = lineOf(frame, minus.y()) + 1;
@@ -1198,8 +1226,8 @@ class ExpressionBuilderPaneTest {
                     frame.drawn().toString());
             // Decision terms-inline-again-under-the-indentation-rules: ")" follows the parenthetical's last term.
             DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals("$saturation")
-                    && text.y() == open.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-            assertTrue(frame.find(")").y() == last.y() && frame.find(")").x() > last.x(), frame.drawn().toString());
+                    && onOneLine(text, open)).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            assertTrue(onOneLine(frame.find(")"), last) && frame.find(")").x() > last.x(), frame.drawn().toString());
         }
 
         /**
