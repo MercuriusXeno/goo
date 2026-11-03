@@ -394,8 +394,7 @@ final class ProcessesPane {
     private void drawHeadLine(Frame frame, String section, ProcessesTab.ProcessRow row, int y) {
         GuiGraphicsExtractor graphics = frame.graphics();
         Font font = frame.font();
-        int deleteX = frame.rows().right() - ButtonPainter.width(font, DELETE);
-        int markX = deleteX - MARK_WIDTH;
+        int markX = markerLeft(font, frame.rows().right());
         int nameRoom = markX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
         drawName(frame, section, row.key(), new NameSlot(y, nameRoom));
         VerdictMark mark = verdictMark(row);
@@ -403,6 +402,15 @@ final class ProcessesPane {
         frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
                 + (row.reason().isEmpty() ? NO_REASON : REASON_GAP + row.reason())));
         drawRemoval(frame, section, row.key(), y + BUTTON_INSET);
+    }
+
+    /**
+     * @param font     the screen's font
+     * @param rowRight the row's right edge
+     * @return the validity marker's left, which stands just left of the remove X at the row's right end
+     */
+    static int markerLeft(Font font, int rowRight) {
+        return rowRight - ButtonPainter.width(font, DELETE) - MARK_WIDTH;
     }
 
     // The red x at the row's right end marks the entry; a marked entry's gold arrow in its place restores it.

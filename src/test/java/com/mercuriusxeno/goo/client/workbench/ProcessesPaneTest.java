@@ -253,9 +253,10 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Each mutation line right packs against the iterator box's right edge: its x ends at the edge, the mutator
-     * buttons share one x, each line's words stand one gap left of its button, and "+ optional mutation" ends at the
-     * edge too (decision iterator-reads-copies-then-mutates-using-and).
+     * Each mutation line right packs against a column edge a gap left of the row's validity marker: its x ends at
+     * the edge, the mutator buttons share one x, each line's words stand one gap left of its button, and
+     * "+ optional mutation" ends at the edge too (decisions iterator-reads-copies-then-mutates-using-and,
+     * mutator-chain-forms-a-column-left-of-the-validity-marker).
      */
     @Test
     void iteratorMutationLinesRightPackWithTheirButtonsAligned() {
@@ -265,7 +266,10 @@ class ProcessesPaneTest {
         DrawnFrame.Text and = frame.find("and");
         DrawnFrame.Text waxed = onLineOf(frame, then, "waxed");
         DrawnFrame.Text rust = onLineOf(frame, and, "rust");
-        int edge = boxRightAt(frame, then.x(), then.y());
+        DrawnFrame.Text marker = frame.drawn().stream().filter(text -> text.text().equals("✔") && text.x() > then.x())
+                .findFirst().orElseThrow();
+        int edge = marker.x() - BuilderOverlays.GAP;
+        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the column ends inside the box");
         assertEquals(edge, rightOf(onLineOf(frame, then, "x")), frame.drawn().toString());
         assertEquals(edge, rightOf(onLineOf(frame, and, "x")), frame.drawn().toString());
         assertEquals(waxed.x(), rust.x(), waxed + " vs " + rust);

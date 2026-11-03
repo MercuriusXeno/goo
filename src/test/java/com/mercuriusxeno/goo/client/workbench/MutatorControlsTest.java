@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.Processes;
+import net.minecraft.client.gui.Font;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -337,6 +339,27 @@ class MutatorControlsTest {
             int firstHeight = bottom;
             frame("#gems", List.of("@rust", "@melt"));
             assertEquals(firstHeight, bottom, "two-link chains take equal heights");
+        }
+
+        /**
+         * The mutated by line, the and line and the + optional mutation line end at one right edge, a gap left of the
+         * row's validity marker, so none runs under the marker or the row's remove X (decision
+         * mutator-chain-forms-a-column-left-of-the-validity-marker).
+         */
+        @Test
+        void chainLinesEndInAColumnLeftOfTheValidityMarker() {
+            DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
+            Font font = DrawnFrame.font();
+            List<Integer> rights = new ArrayList<>(frame.drawn().stream().filter(text -> text.text().equals("x"))
+                    .map(text -> text.x() + font.width("x") + ButtonPainter.PADDING).toList());
+            DrawnFrame.Text add = frame.find("+ optional mutation");
+            rights.add(add.x() + font.width(add.text()) + ButtonPainter.PADDING);
+            assertEquals(3, rights.size(), frame.drawn().toString());
+            assertEquals(1, rights.stream().distinct().count(), "the lines share one right edge: " + rights);
+            int markerLeft = ProcessesPane.markerLeft(font, 590);
+            assertEquals(markerLeft - BuilderOverlays.GAP, rights.getFirst(), "the column ends a gap left of the marker");
+            int removeLeft = 590 - ButtonPainter.width(font, "✗");
+            assertTrue(rights.getFirst() < removeLeft, "the column stands clear of the remove X at " + removeLeft);
         }
     }
 
