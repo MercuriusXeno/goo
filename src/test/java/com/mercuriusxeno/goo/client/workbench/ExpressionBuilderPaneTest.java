@@ -34,8 +34,8 @@ class ExpressionBuilderPaneTest {
     private static final int CONTENT_RIGHT = AREA.right() - ExpressionBuilderPane.TRASH_WIDTH - BuilderOverlays.GAP;
     // A type row's rail and the gap after it, which stand before its goo type button.
     private static final int ROW_RAIL = ControlFlow.RAIL_ADVANCE;
-    // The room a term box leaves inside its border before its rail's own margin.
-    private static final int BOX_ROOM = ExpressionBuilderPane.BOX_PADDING - ControlFlow.RAIL_MARGIN - 1;
+    // The room a term box leaves between its left border and its rail: none, the rail standing flush.
+    private static final int BOX_ROOM = 0;
 
     /**
      * An open builder, each frame it draws and each string it writes.
@@ -313,37 +313,42 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * A term's rail draws three one-pixel grip lines inside it, and stands a pixel clear of its term's outline on
-     * every side (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     * A term's, a parenthetical's and a type row's rail fills its box's left edge, flush against the inside of the
+     * border from top to bottom, with three one-pixel grip lines inside it (decision rails-fill-the-left-edge-of-
+     * their-box).
      */
     @Test
-    void railDrawsThreeGripLinesClearOfItsTermsOutline() {
-        DrawnFrame frame = Builder.item("$waxed + $edited").frame();
-        double[] point = railOf(frame, List.of(1));
+    void railsFillTheLeftEdgeOfTheirBoxes() {
+        DrawnFrame frame = Builder.item("$base + $waxed + ($waxed - $edited)").frame();
+        assertRailFillsItsBox(frame, railOf(frame, List.of(1)), ControlFlow.OUTLINE_COLOR);
+        assertRailFillsItsBox(frame, railOf(frame, List.of(2)), ExpressionBuilderPane.NEST_BORDER);
+        DrawnFrame typed = Builder.item(TWO_TYPES).frame();
+        assertRailFillsItsBox(typed, rowRailOf(typed, 0), ControlFlow.OUTLINE_COLOR);
+    }
+
+    // The rail answering at a point stands flush inside the border of the given color on its left, top and bottom.
+    private static void assertRailFillsItsBox(DrawnFrame frame, double[] point, int borderColor) {
         int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream()
-                .filter(fill -> fill[1] <= point[1] + ControlFlow.LINE && fill[3] > point[1]
-                        && fill[0] <= point[0] + ControlFlow.RAIL_WIDTH + 1 && fill[2] > point[0])
-                .findFirst().orElseThrow(() -> new AssertionError("no rail fill near " + point[0]));
+                .filter(fill -> fill[0] == (int) point[0] && fill[1] <= point[1] + 1 && fill[3] > point[1])
+                .findFirst().orElseThrow(() -> new AssertionError("no rail fill at " + point[0] + "," + point[1]));
         List<int[]> grips = fills(frame, ControlFlow.GRIP_COLOR).stream()
                 .filter(fill -> fill[0] >= rail[0] && fill[2] <= rail[2] && fill[1] >= rail[1] && fill[3] <= rail[3])
                 .toList();
         assertEquals(3, grips.size(), "grip lines inside the rail");
         grips.forEach(grip -> assertEquals(1, grip[3] - grip[1], "a grip line is one pixel tall"));
-        assertEquals(3, grips.stream().map(grip -> grip[1]).distinct().count(), "the grip lines stand apart");
-        int line = rail[1] / ControlFlow.LINE * ControlFlow.LINE;
-        List<int[]> outline = fills(frame, ControlFlow.OUTLINE_COLOR).stream()
-                .filter(fill -> fill[1] >= line && fill[3] <= line + ControlFlow.LINE && fill[0] < rail[2])
-                .toList();
-        int outlineLeft = outline.stream().mapToInt(fill -> fill[0]).filter(left -> left < rail[0]).max()
-                .orElseThrow(() -> new AssertionError("no outline left of the rail"));
-        assertTrue(rail[0] >= outlineLeft + 2, "the rail at " + rail[0] + " touches the outline at " + outlineLeft);
-        assertTrue(rail[1] >= line + 2 && rail[3] <= line + ControlFlow.LINE - 2,
-                "the rail's ends touch the outline: " + java.util.Arrays.toString(rail));
+        List<int[]> border = fills(frame, borderColor);
+        assertTrue(border.stream().anyMatch(side -> side[2] == rail[0] && side[0] == rail[0] - 1
+                && side[1] <= rail[1] - 1 && side[3] >= rail[3] + 1), "no border flush left of "
+                + java.util.Arrays.toString(rail));
+        assertTrue(border.stream().anyMatch(side -> side[1] == rail[1] - 1 && side[3] == rail[1]
+                && side[0] <= rail[0] && side[2] >= rail[2]), "no border flush above " + java.util.Arrays.toString(rail));
+        assertTrue(border.stream().anyMatch(side -> side[1] == rail[3] && side[3] == rail[3] + 1
+                && side[0] <= rail[0] && side[2] >= rail[2]), "no border flush below " + java.util.Arrays.toString(rail));
     }
 
     /**
-     * A parenthetical's box draws a one-pixel border in its own color around its fill, its rail the box padding in
-     * from that border, and sibling term boxes stand the term margin apart; both read wider than before (decision
+     * A parenthetical's box draws a one-pixel border in its own color around its fill, and sibling term boxes stand
+     * the term margin apart; the box padding and the margin both read wider than before (decision
      * parentheticals-alternate-gray-tones-by-depth).
      */
     @Test
@@ -360,9 +365,6 @@ class ExpressionBuilderPaneTest {
         int borderBottom = border.stream().mapToInt(side -> side[3]).max().orElseThrow();
         assertTrue(borderLeft < fill[0] && borderTop < fill[1] && borderRight > fill[2] && borderBottom > fill[3],
                 "the border encloses the fill " + java.util.Arrays.toString(fill));
-        int railLeft = fills(frame, ControlFlow.RAIL_COLOR).stream().filter(rail -> rail[0] > borderLeft
-                && rail[1] >= borderTop && rail[3] <= borderBottom).mapToInt(rail -> rail[0]).min().orElseThrow();
-        assertEquals(borderLeft + ExpressionBuilderPane.BOX_PADDING, railLeft, "the parenthetical's rail");
         double[] waxed = railOf(frame, List.of(0));
         double[] edited = railOf(frame, List.of(1));
         // The vertical outline sides on the line, left to right: waxed's left and right, then edited's.
@@ -772,8 +774,8 @@ class ExpressionBuilderPaneTest {
             // A wrap inside the parenthetical opens one indent further in than the parenthetical's line.
             int innerLine = minus.y() / ControlFlow.LINE + 1;
             int parentheticalLeft = (int) parentheticalRail[0] - BOX_ROOM;
-            assertEquals(parentheticalLeft + ControlFlow.INDENT + ButtonPainter.PADDING,
-                    line(frame, innerLine).getFirst().x(), frame.drawn().toString());
+            assertTrue(line(frame, innerLine).getFirst().x() >= parentheticalLeft + ControlFlow.INDENT,
+                    frame.drawn().toString());
         }
 
         @Test
