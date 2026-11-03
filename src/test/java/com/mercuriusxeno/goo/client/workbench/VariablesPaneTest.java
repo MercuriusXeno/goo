@@ -537,7 +537,7 @@ class VariablesPaneTest {
         VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
         DrawnFrame list = new DrawnFrame();
         read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
-        DrawnFrame.Text woodLink = linkText(list, "wood");
+        DrawnFrame.Text woodLink = linkText(list, "$wood");
         read.extract(new DrawnFrame().graphics, DrawnFrame.font(), TALL_VIEW, new ClickTargets(), woodLink.x() + 1,
                 woodLink.y() + 1);
         DrawnFrame card = new DrawnFrame();
@@ -983,13 +983,13 @@ class VariablesPaneTest {
         read.show(true);
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
-        assertFalse(frame.rightClick("wood"));
+        assertFalse(frame.rightClick("$wood"));
         verify(actions, never()).openVariable(anyString());
         assertTrue(prefabs.editing().isEmpty());
-        frame.shiftClick("wood");
+        frame.shiftClick("$wood");
         verify(actions).openVariable("wood");
         assertTrue(prefabs.editing().isEmpty());
-        frame.click("wood");
+        frame.click("$wood");
         assertEquals(java.util.Optional.of("plank"), prefabs.editing());
     }
 

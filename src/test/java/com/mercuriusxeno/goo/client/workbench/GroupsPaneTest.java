@@ -830,13 +830,13 @@ class GroupsPaneTest {
         groups.selectGroup("logs");
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
-        assertTrue(!frame.rightClick("wood"));
+        assertTrue(!frame.rightClick("$wood"));
         verify(actions, never()).openVariable(anyString());
         assertTrue(!builder.isOpen());
-        frame.shiftClick("wood");
+        frame.shiftClick("$wood");
         verify(actions).openVariable("wood");
         assertTrue(!builder.isOpen());
-        frame.click("wood");
+        frame.click("$wood");
         assertTrue(builder.isOpen());
     }
 

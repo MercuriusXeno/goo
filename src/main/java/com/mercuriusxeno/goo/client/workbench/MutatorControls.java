@@ -30,7 +30,6 @@ final class MutatorControls {
     private static final String NOTHING_TARGET = "0";
     private static final String GROUP_MARK = "#";
     private static final String STACK_MARK = "@";
-    private static final String PREFAB_MARK = "$";
     private static final String NO_SOURCE = "";
     // Decision mutator-sentences-read-in-symbols: the word formula goes.
     private static final String CONVERT = "convert";
@@ -201,7 +200,7 @@ final class MutatorControls {
         ControlFlow flow = entry.flow();
         flow.text(PLUS, GRAY);
         // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab reads after $.
-        nameControl(flow, new Ref(PREFAB_MARK + additive.constant(), () -> actions.openVariable(additive.constant())),
+        nameControl(flow, new Ref(PrefabNames.marked(additive.constant()), () -> actions.openVariable(additive.constant())),
                 null, SearchDropdown.over(List.of(), treePrefabs.get(), false),
                 prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
         flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
