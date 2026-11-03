@@ -396,9 +396,29 @@ final class ClickTargets {
      * @return what the topmost area under the cursor names, empty where it names nothing
      */
     Optional<String> hovered(double x, double y) {
+        return hoveredArea(x, y).map(HoveredArea::hoverKey);
+    }
+
+    /**
+     * What a hovered area names and where it stands.
+     *
+     * @param hoverKey what hovering it names
+     * @param bounds   the area, as clipped when it was added
+     */
+    record HoveredArea(String hoverKey, GroupsPane.Bounds bounds) {
+    }
+
+    /**
+     * @param x the cursor's x
+     * @param y the cursor's y
+     * @return what the topmost area under the cursor names, with its bounds, empty where it names nothing
+     */
+    Optional<HoveredArea> hoveredArea(double x, double y) {
         for (int index = targets.size() - 1; index >= 0; index--) {
-            if (targets.get(index).contains(x, y)) {
-                return Optional.ofNullable(targets.get(index).hoverKey());
+            Target target = targets.get(index);
+            if (target.contains(x, y)) {
+                return Optional.ofNullable(target.hoverKey()).map(key -> new HoveredArea(key,
+                        new GroupsPane.Bounds(target.left(), target.top(), target.right(), target.bottom())));
             }
         }
         return Optional.empty();
