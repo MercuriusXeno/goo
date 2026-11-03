@@ -42,13 +42,85 @@ class ValuesManagerScreenTest {
     private static final Map<String, String> CANNED = Map.of(WorkbenchOperations.MODEL, MODEL);
 
     /**
-     * The X is a square ending at the right margin and the topbar starts one gap left of it (decision
-     * x-in-the-top-right-closes-the-manager).
+     * The X is a square ending at the right margin, the [?] a square one gap left of it and the topbar starts one gap
+     * left of the [?] (decisions x-in-the-top-right-closes-the-manager,
+     * question-button-toggles-explainer-mode-with-the-drag-mask).
      */
     @Test
     void closeXEndsAtTheRightMarginAndTheTopbarStandsLeftOfIt() {
         ValuesManagerScreen.TitleRow row = ValuesManagerScreen.titleRowOf(400);
-        assertEquals(new ValuesManagerScreen.TitleRow(378, 392, 376), row);
+        assertEquals(new ValuesManagerScreen.TitleRow(378, 392, 362, 360), row);
+    }
+
+    /**
+     * Explainer mode over five tabs laid 50 pixels apart on the tab row (decisions
+     * question-button-toggles-explainer-mode-with-the-drag-mask, explainer-lines-are-the-operators-tab-descriptions).
+     */
+    @Nested
+    class ExplainerModeOverTheTabs {
+        private final ExplainerMode explainer = new ExplainerMode(ExplainerTargets.forTabs(tab ->
+                new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)));
+
+        private List<DragMask.Rect> fills(DrawnFrame frame, int color) {
+            org.mockito.ArgumentCaptor<Integer> lefts = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            org.mockito.ArgumentCaptor<Integer> tops = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            org.mockito.ArgumentCaptor<Integer> rights = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            org.mockito.ArgumentCaptor<Integer> bottoms = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            org.mockito.Mockito.verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(),
+                    tops.capture(), rights.capture(), bottoms.capture(), org.mockito.ArgumentMatchers.eq(color));
+            List<DragMask.Rect> rects = new ArrayList<>();
+            for (int index = 0; index < lefts.getAllValues().size(); index++) {
+                rects.add(new DragMask.Rect(lefts.getAllValues().get(index), tops.getAllValues().get(index),
+                        rights.getAllValues().get(index), bottoms.getAllValues().get(index)));
+            }
+            return rects;
+        }
+
+        private DrawnFrame frame() {
+            DrawnFrame frame = new DrawnFrame();
+            explainer.extract(frame.graphics, DrawnFrame.SCREEN_WIDTH, DrawnFrame.SCREEN_HEIGHT, frame.targets);
+            return frame;
+        }
+
+        /**
+         * One press of [?] shadows the screen and lights one hole over each tab.
+         */
+        @Test
+        void pressDrawsTheMaskWithAHolePerTab() {
+            explainer.toggle();
+            DrawnFrame frame = frame();
+            assertFalse(fills(frame, DragMask.SHADOW).isEmpty(), "the shadow covers the screen");
+            List<DragMask.Rect> tabs = java.util.Arrays.stream(ManagerTab.values()).map(tab ->
+                    new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)).toList();
+            assertEquals(tabs, fills(frame, DragMask.HIGHLIGHT));
+        }
+
+        /**
+         * Hovering the Items tab in the mode opens a tooltip reading the Items paragraph, starting at its first
+         * sentence.
+         */
+        @Test
+        void hoveringItemsInTheModeShowsTheItemsParagraph() {
+            explainer.toggle();
+            DrawnFrame frame = frame();
+            String key = frame.targets.hovered(20, 25).orElseThrow();
+            String text = String.join(" ", explainer.tooltipFor(key).orElseThrow().stream()
+                    .map(line -> ((TooltipLine.Text) line).text().getString()).toList());
+            assertTrue(text.startsWith("Search for items, view their explicit or derived values, and recipe ratios"
+                    + " to help make decisions on values."), text);
+        }
+
+        /**
+         * A second press of [?] draws no shadow and hovers no explainer text.
+         */
+        @Test
+        void secondPressDrawsNoMask() {
+            explainer.toggle();
+            explainer.toggle();
+            DrawnFrame frame = frame();
+            assertEquals(List.of(), fills(frame, DragMask.SHADOW));
+            assertEquals(java.util.Optional.empty(), frame.targets.hovered(20, 25));
+        }
     }
 
     /**
