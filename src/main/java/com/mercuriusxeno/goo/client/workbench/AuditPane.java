@@ -2,15 +2,18 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.client.hud.WordWrap;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import java.util.List;
 import java.util.stream.Stream;
 
 /**
  * Draws the Audit tab: Run saves the draft and runs both dumps in-process on the server, its latest lines showing
- * as they arrive, then the sections the audit carries, flagged ones first and flagless ones headed green with a
- * checkmark, each starting open and, where it holds more
+ * as they arrive, then the sections the audit carries under a heading for each file they came from, flagged ones
+ * first, each header's name bold before its plain results and flagless ones headed green with a checkmark, each
+ * starting open and, where it holds more
  * than one row, opened or closed by a button before its header or by the header, every one at once by the
  * expand/collapse-all button on the Run row, as index.html's audit section does (decisions
  * goo-workbench-opens-the-in-game-manager-screen,
@@ -36,6 +39,10 @@ final class AuditPane {
     private static final String COLLAPSE_ALL = "Collapse all";
     private static final String EXPAND_ALL = "Expand all";
     private static final String CHECKMARK = "✔";
+    private static final String RESULTS_OPEN = " (";
+    private static final String SPACE = " ";
+    // The file headings' yellow, apart from the sections' white and green headers.
+    private static final int FILE_COLOR = 0xFFFFFF55;
     private static final String PART_GAP = "  ";
     private static final String NO_TEXT = "";
 
@@ -174,7 +181,14 @@ final class AuditPane {
         graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
         targets.clip(area.left(), area.top(), area.right(), area.bottom());
         int y = area.top() - sectionsBar.offset();
+        String file = null;
         for (AuditTab.AuditSection section : sections) {
+            // Decision audit-headings-group-by-file-under-a-file-heading.
+            if (!section.source().equals(file)) {
+                file = section.source();
+                graphics.text(font, file, area.left(), y, FILE_COLOR);
+                y += LINE_HEIGHT + GAP;
+            }
             y = drawSection(graphics, font, section, new Row(area.left(), y, width), targets) + GAP;
         }
         targets.unclip();
@@ -207,18 +221,36 @@ final class AuditPane {
                     HEADER_HEIGHT, targets, toggle).right() + GAP;
             targets.add(textLeft, row.top(), row.left() + row.width() - textLeft, HEADER_HEIGHT, toggle);
         }
-        // Decision flagless-section-draws-green-with-a-checkmark.
-        boolean flagless = section.flags().isEmpty();
-        String head = section.header() + PART_GAP + (flagless ? CHECKMARK : section.badge()) + PART_GAP
-                + section.source();
-        graphics.text(font, font.plainSubstrByWidth(head, row.left() + row.width() - textLeft), textLeft,
-                row.top() + ButtonPainter.TEXT_NUDGE, flagless ? GREEN : WHITE);
+        drawHeader(graphics, font, section, textLeft, row.top() + ButtonPainter.TEXT_NUDGE);
         int y = row.top() + HEADER_HEIGHT;
         if (open) {
             y = drawLines(graphics, font, section.flags(), row.left(), y, row.width(), RED);
             y = drawLines(graphics, font, section.lines(), row.left(), y, row.width(), GRAY);
         }
         return y;
+    }
+
+    // The header's name bold, its parenthesized results plain after it, then its flag count, or a checkmark with
+    // the whole line green where it flags nothing.
+    private static void drawHeader(GuiGraphicsExtractor graphics, Font font, AuditTab.AuditSection section, int left,
+                                   int textTop) {
+        // Decision flagless-section-draws-green-with-a-checkmark.
+        boolean flagless = section.flags().isEmpty();
+        int color = flagless ? GREEN : WHITE;
+        String header = section.header();
+        int results = header.indexOf(RESULTS_OPEN);
+        // Decision heading-name-weighs-more-than-its-parenthesized-results.
+        Component name = Component.literal(results < 0 ? header : header.substring(0, results))
+                .withStyle(ChatFormatting.BOLD);
+        graphics.text(font, name, left, textTop, color);
+        int x = left + font.width(name);
+        if (results >= 0) {
+            String plain = header.substring(results).trim();
+            x += font.width(SPACE);
+            graphics.text(font, plain, x, textTop, color);
+            x += font.width(plain);
+        }
+        graphics.text(font, flagless ? CHECKMARK : section.badge(), x + font.width(PART_GAP), textTop, color);
     }
 
     private static int drawLines(GuiGraphicsExtractor graphics, Font font, List<String> lines, int x, int top,

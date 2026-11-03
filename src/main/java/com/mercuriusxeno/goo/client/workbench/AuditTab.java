@@ -9,12 +9,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * The Audit tab's state with no Screen: the sections goo_audit.json or the text dumps carry, flagged sections first,
- * which of them stand closed, the latest lines of a dump run in flight, and the line its result leaves, as
+ * The Audit tab's state with no Screen: the sections goo_audit.json or the text dumps carry, grouped by file with
+ * flagged sections first within each, which of them stand closed, the latest lines of a dump run in flight, and the line its result leaves, as
  * index.html's audit section holds them
  * (decisions goo-workbench-opens-the-in-game-manager-screen, workbench-shows-each-roots-remainders-and-items-solved,
  * workbench-lists-type-to-type-paths-worst-first, workbench-traces-each-undercut-manual-value-to-its-roots).
@@ -73,21 +74,25 @@ public final class AuditTab {
         return JsonParser.parseString(sectionsJson).getAsJsonObject().getAsJsonArray(SECTIONS).isEmpty();
     }
 
+    // Decision audit-headings-group-by-file-under-a-file-heading: the files in the order they first appear, the
+    // flagged sections leading within each.
     private void readSectionsOf(JsonObject reply) {
-        List<AuditSection> flagged = new ArrayList<>();
-        List<AuditSection> quiet = new ArrayList<>();
-        for (JsonElement element : reply.getAsJsonArray(SECTIONS)) {
-            JsonObject section = element.getAsJsonObject();
-            List<String> flags = strings(section, FLAGS);
-            JsonElement dump = section.get(DUMP);
-            AuditSection read = new AuditSection(section.get(HEADER).getAsString(), flags,
-                    dump == null || dump.isJsonNull() ? AUDIT_JSON : dump.getAsString(), strings(section, LINES),
-                    flags.isEmpty() ? NO_TEXT : flags.size() + (flags.size() == 1 ? ONE_FLAG : FLAGS_SUFFIX));
-            (flags.isEmpty() ? quiet : flagged).add(read);
-        }
+        List<AuditSection> read = reply.getAsJsonArray(SECTIONS).asList().stream()
+                .map(element -> sectionOf(element.getAsJsonObject())).toList();
         sections.clear();
-        sections.addAll(flagged);
-        sections.addAll(quiet);
+        for (String source : new LinkedHashSet<>(read.stream().map(AuditSection::source).toList())) {
+            List<AuditSection> inFile = read.stream().filter(section -> section.source().equals(source)).toList();
+            inFile.stream().filter(section -> !section.flags().isEmpty()).forEach(sections::add);
+            inFile.stream().filter(section -> section.flags().isEmpty()).forEach(sections::add);
+        }
+    }
+
+    private static AuditSection sectionOf(JsonObject section) {
+        List<String> flags = strings(section, FLAGS);
+        JsonElement dump = section.get(DUMP);
+        return new AuditSection(section.get(HEADER).getAsString(), flags,
+                dump == null || dump.isJsonNull() ? AUDIT_JSON : dump.getAsString(), strings(section, LINES),
+                flags.isEmpty() ? NO_TEXT : flags.size() + (flags.size() == 1 ? ONE_FLAG : FLAGS_SUFFIX));
     }
 
     private static List<String> strings(JsonObject json, String field) {
@@ -100,7 +105,7 @@ public final class AuditTab {
     }
 
     /**
-     * @return the sections, flagged ones first
+     * @return the sections grouped by the file they came from, flagged ones first within each file
      */
     public List<AuditSection> sections() {
         return List.copyOf(sections);
