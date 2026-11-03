@@ -819,7 +819,11 @@ class GroupsPaneTest {
                 .toString()));
         assertTrue(building.findFirst("37").y() < kind.y(), building.drawn().toString());
         DrawnFrame.Text label = building.find("Value:");
-        assertEquals(kind.y(), label.y(), label + " vs " + kind);
+        // The full-size label and the builder's smaller kind label center on the builder's first line.
+        Font font = DrawnFrame.font();
+        int labelCenter = label.y() * 2 + font.lineHeight;
+        int kindCenter = kind.y() * 2 + new Lettering(font, ControlFlow.BUILDER_SCALE).lineHeight();
+        assertTrue(Math.abs(labelCenter - kindCenter) <= 2, label + " vs " + kind);
         assertTrue(label.x() < kind.x(), label + " vs " + kind);
     }
 

@@ -32,6 +32,11 @@ class ExpressionBuilderPaneTest {
     private static final GroupsPane.Bounds AREA = new GroupsPane.Bounds(0, 0, 590, 390);
     // Where the builder's lines end, short of the trash strip by a gap.
     private static final int CONTENT_RIGHT = AREA.right() - ExpressionBuilderPane.TRASH_WIDTH - BuilderOverlays.GAP;
+    // The builder's lettering on the mocked font, and how far below their line's top its words and its button
+    // labels stand (decision builder-font-and-spacing-shrink-padding-untouched).
+    private static final Lettering LETTERS = new Lettering(DrawnFrame.font(), ControlFlow.BUILDER_SCALE);
+    private static final int WORDS_DROP = LETTERS.centeredTop(0, ControlFlow.LINE);
+    private static final int LABEL_DROP = LETTERS.centeredTop(0, ButtonPainter.HEIGHT);
     // A type row's rail and the gap after it, which stand before its goo type button.
     private static final int ROW_RAIL = ControlFlow.RAIL_ADVANCE;
     // The room a term box leaves between its left border and its rail: none, the rail standing flush.
@@ -578,7 +583,7 @@ class ExpressionBuilderPaneTest {
         int[] panel = fills(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
         DrawnFrame.Text kind = frame.drawn().getFirst();
         int buttonLeft = kind.x() - ButtonPainter.PADDING;
-        int buttonTop = kind.y() - ButtonPainter.TEXT_NUDGE;
+        int buttonTop = kind.y() - LABEL_DROP;
         assertEquals(RowLayout.BOX_MARGIN, buttonLeft - panel[0], "the box's left margin");
         assertEquals(RowLayout.BOX_MARGIN, buttonTop - panel[1], "the box's top margin");
     }
@@ -702,6 +707,45 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * The builder draws smaller text on tighter lines, its box padding untouched (decision
+     * builder-font-and-spacing-shrink-padding-untouched).
+     */
+    @Nested
+    class SmallerText {
+
+        /**
+         * A term's text draws under a pose scale below one.
+         */
+        @Test
+        void termTextDrawsBelowFullScale() {
+            DrawnFrame frame = Builder.item("$waxed + $edited").frame();
+            float scale = frame.placed("$waxed").scale();
+            assertTrue(scale < 1.0f, "the term draws at " + scale);
+        }
+
+        /**
+         * Two goo type rows stand as close as their boxes allow: the pulse row's box one clear pixel and the button
+         * gap below the metal row's, the row pitch below the 34 px it was.
+         */
+        @Test
+        void typeRowsStandAsCloseAsTheirBoxesAllow() {
+            DrawnFrame frame = Builder.item(TWO_TYPES).frame();
+            List<int[]> outlines = boxesIn(frame, ControlFlow.OUTLINE_COLOR).stream()
+                    .map(ExpressionBuilderPaneTest::boundsOf).toList();
+            int rowLeft = outlines.stream().mapToInt(box -> box[0]).min().orElseThrow();
+            List<int[]> rows = outlines.stream().filter(box -> box[0] == rowLeft)
+                    .sorted(java.util.Comparator.comparingInt(box -> box[1])).toList();
+            assertEquals(2, rows.size(), "a box a row");
+            assertEquals(1 + RowLayout.BUTTON_GAP, rows.get(1)[1] - rows.get(0)[3], "the clear room between rows");
+            List<DrawnFrame.Text> colons = frame.drawn().stream().filter(text -> text.text().equals(":")).toList();
+            int colonX = colons.stream().mapToInt(DrawnFrame.Text::x).min().orElseThrow();
+            List<Integer> rowColons = colons.stream().filter(colon -> colon.x() == colonX).map(DrawnFrame.Text::y)
+                    .toList();
+            assertTrue(rowColons.get(1) - rowColons.get(0) < 34, "the row pitch " + rowColons);
+        }
+    }
+
+    /**
      * Terms inline under the indentation rules, in type rows and parentheticals alike (decisions
      * terms-inline-again-under-the-indentation-rules, builder-inlines-terms-under-indentation-rules-with-a-colon).
      */
@@ -752,7 +796,7 @@ class ExpressionBuilderPaneTest {
             assertTrue(wrapped > 1, "a second term fits beside the first");
             assertEquals((int) rowRail[0] + ControlFlow.INDENT, (int) rails.get(wrapped)[0], "the wrap's indent");
             assertEquals(List.of(), frame.drawn().stream().filter(text -> text.x()
-                    + DrawnFrame.font().width(text.text()) > CONTENT_RIGHT).toList(), "text past the right edge");
+                    + LETTERS.width(text.text()) > CONTENT_RIGHT).toList(), "text past the right edge");
         }
     }
 
@@ -765,7 +809,7 @@ class ExpressionBuilderPaneTest {
         DrawnFrame frame = Builder.item("{\"jelly\": \"$food.jelly\"}").frame();
         DrawnFrame.Text food = frame.find("$food");
         DrawnFrame.Text possessive = frame.find("'s");
-        assertEquals(food.x() + DrawnFrame.font().width(food.text()) + ButtonPainter.PADDING, possessive.x(),
+        assertEquals(food.x() + LETTERS.width(food.text()) + ButtonPainter.PADDING, possessive.x(),
                 frame.drawn().toString());
     }
 
@@ -998,7 +1042,7 @@ class ExpressionBuilderPaneTest {
         // Which builder line a y stands on, the lines read from the texts drawn on them, since a line's height grows
         // per box depth (decision drag-rail-containers-keep-a-pixel-between-borders).
         private static int lineOf(DrawnFrame frame, int y) {
-            List<Integer> tops = frame.drawn().stream().map(text -> text.y() - ControlFlow.textTop(0)).distinct()
+            List<Integer> tops = frame.drawn().stream().map(text -> text.y() - WORDS_DROP).distinct()
                     .sorted().toList();
             return (int) tops.stream().filter(top -> top <= y).count() - 1;
         }
@@ -1218,10 +1262,9 @@ class ExpressionBuilderPaneTest {
             DrawnFrame changed = builder.frame();
             DrawnFrame.Text cancel = changed.find("✗ Cancel");
             DrawnFrame.Text done = changed.find("✓ Done");
-            Font font = DrawnFrame.font();
-            int cancelRight = cancel.x() - ButtonPainter.PADDING + ButtonPainter.width(font, "✗ Cancel");
+            int cancelRight = cancel.x() - ButtonPainter.PADDING + ButtonPainter.width(LETTERS, "✗ Cancel");
             assertTrue(cancelRight < done.x() - ButtonPainter.PADDING, cancel + " left of " + done);
-            assertEquals(CONTENT_RIGHT, done.x() - ButtonPainter.PADDING + ButtonPainter.width(font, "✓ Done"));
+            assertEquals(CONTENT_RIGHT, done.x() - ButtonPainter.PADDING + ButtonPainter.width(LETTERS, "✓ Done"));
             assertEquals(done.y(), cancel.y());
             assertEquals(changed.find("()").y() / ControlFlow.LINE, done.y() / ControlFlow.LINE);
             assertFalse(changed.texts().contains("Value"), changed.texts().toString());
@@ -1290,7 +1333,7 @@ class ExpressionBuilderPaneTest {
     void gooTypeDrawsAsAButtonThatOpensThePicker() {
         Builder builder = Builder.item("{\"metal\": \"5\"}");
         DrawnFrame frame = builder.frame();
-        int lineTop = frame.findFirst(ExpressionLines.COLON).y() - 5;
+        int lineTop = frame.findFirst(ExpressionLines.COLON).y() - WORDS_DROP;
         int typeLeft = AREA.left() + ControlFlow.INDENT + ROW_RAIL;
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);

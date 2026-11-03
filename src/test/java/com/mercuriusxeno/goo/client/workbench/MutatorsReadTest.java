@@ -70,9 +70,10 @@ class MutatorsReadTest {
         ExpressionBuilderPane pane = new ExpressionBuilderPane(mock(ManagerActions.class),
                 new ItemIcons(id -> Map.of()), List::of, () -> List.of(new BuilderGrammar.Prefab("waxed", true)));
         pane.open(shown, typed -> { }, () -> { });
-        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-        pane.extract(graphics, font(), new GroupsPane.Bounds(0, 0, 600, 400), 0, new ClickTargets());
-        List<String> texts = drawn(graphics);
+        // The builder letters its words under a pose, which DrawnFrame's graphics carry.
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font(), new GroupsPane.Bounds(0, 0, 600, 400), 0, frame.targets);
+        List<String> texts = frame.texts();
         int colon = texts.indexOf(RATIO);
         assertTrue(colon > 0, texts.toString());
         assertFalse(texts.contains("times") || texts.contains("divided by"), texts.toString());

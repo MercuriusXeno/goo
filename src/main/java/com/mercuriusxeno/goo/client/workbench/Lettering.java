@@ -1,0 +1,90 @@
+package com.mercuriusxeno.goo.client.workbench;
+
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.joml.Matrix3x2fStack;
+
+/**
+ * A font drawn at a scale: every width it answers and every text it draws are the font's at that scale, so the
+ * glyphs and the room between them shrink together, as the expression builder letters its words (decision
+ * builder-font-and-spacing-shrink-padding-untouched). At scale one it is the font itself and draws with no pose.
+ *
+ * @param font  the font
+ * @param scale how large its glyphs draw against the font's own
+ */
+record Lettering(Font font, float scale) {
+    private static final float FULL = 1f;
+    // A font's line holds an empty row under its glyphs, so centering the ink centers one row lower than the line.
+    private static final int GLYPH_GAP = 1;
+    private static final int HALF = 2;
+
+    /**
+     * @param font the font
+     * @return the font at its own size
+     */
+    static Lettering full(Font font) {
+        return new Lettering(font, FULL);
+    }
+
+    /**
+     * @return whether the lettering draws at the font's own size
+     */
+    boolean isFull() {
+        return scale == FULL;
+    }
+
+    /**
+     * @param text words
+     * @return the width they take at this scale, rounded up to a whole pixel
+     */
+    int width(String text) {
+        return isFull() ? font.width(text) : (int) Math.ceil(font.width(text) * scale);
+    }
+
+    /**
+     * @return the height a line of text takes at this scale, rounded up to a whole pixel
+     */
+    int lineHeight() {
+        return isFull() ? font.lineHeight : (int) Math.ceil(font.lineHeight * scale);
+    }
+
+    /**
+     * @param top    a band's top
+     * @param height the band's height
+     * @return the text top that centers this lettering's glyphs in the band
+     */
+    int centeredTop(int top, int height) {
+        return top + (height - lineHeight() + GLYPH_GAP) / HALF;
+    }
+
+    /**
+     * @param text  words
+     * @param width the room they may take at this scale
+     * @return the longest start of the words that fits the room
+     */
+    String fitting(String text, int width) {
+        return font.plainSubstrByWidth(text, isFull() ? width : (int) Math.floor(width / scale));
+    }
+
+    /**
+     * Draws words with their top-left at the place given, scaled about that place.
+     *
+     * @param graphics the frame's graphics
+     * @param text     the words
+     * @param x        their left edge
+     * @param y        their top
+     * @param color    their color
+     */
+    void draw(GuiGraphicsExtractor graphics, String text, int x, int y, int color) {
+        if (isFull()) {
+            graphics.text(font, text, x, y, color);
+            return;
+        }
+        Matrix3x2fStack pose = graphics.pose();
+        pose.pushMatrix();
+        pose.translate(x, y);
+        pose.scale(scale);
+        graphics.text(font, text, 0, 0, color);
+        pose.popMatrix();
+    }
+}

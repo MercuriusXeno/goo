@@ -16,8 +16,15 @@ import java.util.function.Consumer;
  * rows draw through it.
  */
 final class ControlFlow {
-    /** A line's height, an icon's. */
-    static final int LINE = BuilderOverlays.LINE;
+    /** A full-size flow's line, an icon's, as the Mutators rows lay. */
+    static final int FULL_LINE = BuilderOverlays.LINE;
+    /**
+     * The expression builder's line: a goo type's 12 px icon, its frame and a pixel each side, the icons drawn at
+     * their native size (decision builder-font-and-spacing-shrink-padding-untouched, as the operator ruled).
+     */
+    static final int LINE = ButtonPainter.HEIGHT;
+    /** The scale the expression builder letters its words at. */
+    static final float BUILDER_SCALE = 0.75f;
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
@@ -48,6 +55,13 @@ final class ControlFlow {
 
     private final GuiGraphicsExtractor graphics;
     private final Font font;
+    // The words' font and scale, and the line the pieces stand on: the font's own and FULL_LINE for the Mutators
+    // rows, the builder's smaller lettering and LINE for the expression builder.
+    private final Lettering letters;
+    private final int line;
+    // How far a piece taller than the line, as a 16 px item sprite on the builder's line, reaches past it above and
+    // below; the step to the next line grows by it.
+    private int lineOverhang;
     private final ClickTargets targets;
     private final @Nullable ItemIcons icons;
     private final Consumer<String> followRef;
@@ -102,8 +116,32 @@ final class ControlFlow {
      */
     ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, Span span,
                 Consumer<String> followRef) {
+        this(graphics, targets, icons, span, followRef, Lettering.full(font), FULL_LINE);
+    }
+
+    /**
+     * A flow lettered at the expression builder's smaller scale on the builder's tighter line, its icons at their
+     * native size (decision builder-font-and-spacing-shrink-padding-untouched).
+     *
+     * @param graphics  the frame's graphics
+     * @param font      the font
+     * @param targets   the frame's click areas
+     * @param icons     the items' icons, null where no item draws
+     * @param span      where the lines lay
+     * @param followRef opens the prefab a reference run names, on a shift + left click
+     * @return the flow
+     */
+    static ControlFlow lettered(GuiGraphicsExtractor graphics, Font font, ClickTargets targets,
+                                @Nullable ItemIcons icons, Span span, Consumer<String> followRef) {
+        return new ControlFlow(graphics, targets, icons, span, followRef, new Lettering(font, BUILDER_SCALE), LINE);
+    }
+
+    private ControlFlow(GuiGraphicsExtractor graphics, ClickTargets targets, @Nullable ItemIcons icons, Span span,
+                        Consumer<String> followRef, Lettering letters, int line) {
         this.graphics = graphics;
-        this.font = font;
+        this.font = letters.font();
+        this.letters = letters;
+        this.line = line;
         this.targets = targets;
         this.icons = icons;
         this.followRef = followRef;
@@ -115,11 +153,13 @@ final class ControlFlow {
     }
 
     /**
-     * @param lineTop a flow line's top
-     * @return where its words and its controls' labels stand, so a label drawn beside the flow shares the line
+     * @param font    the font a label beside the builder draws in, at its own size
+     * @param lineTop a builder line's top
+     * @return where the label's words stand so they center on the builder's line, as the builder's own smaller
+     *     words and button labels center on it
      */
-    static int textTop(int lineTop) {
-        return lineTop + TEXT_NUDGE;
+    static int besideBuilderTop(Font font, int lineTop) {
+        return Lettering.full(font).centeredTop(lineTop, LINE);
     }
 
     /**
@@ -137,14 +177,34 @@ final class ControlFlow {
     // One line to the next: the pieces' line and the pad above and below it, then a clear row where boxes pad the
     // lines, so a box on one line stands clear of a box on the next.
     private int pitch() {
-        return pad == 0 ? LINE : LINE + pad + pad + 1;
+        int clear = pad == 0 ? line : line + pad + pad + 1;
+        return clear + lineOverhang + lineOverhang;
+    }
+
+    // Steps to the next line, forgetting what the last one reached past it.
+    private void advanceLine() {
+        y += pitch();
+        lineOverhang = 0;
+    }
+
+    // Where the flow's words stand on its line: the font's nudge at full size, centered in the line when lettered
+    // smaller.
+    private int wordsTop() {
+        return letters.isFull() ? y + TEXT_NUDGE : letters.centeredTop(y, line);
+    }
+
+    /**
+     * @return the words' font and scale, which every width the builder measures reads
+     */
+    Lettering letters() {
+        return letters;
     }
 
     /**
      * @return the y below the last line
      */
     int bottom() {
-        return y + LINE + pad;
+        return y + line + pad + lineOverhang;
     }
 
     /**
@@ -159,7 +219,7 @@ final class ControlFlow {
      */
     void newLine() {
         if (x > lineLeft || lineLeft > left) {
-            y += pitch();
+            advanceLine();
         }
         lineLeft = left;
         x = left;
@@ -171,7 +231,7 @@ final class ControlFlow {
      */
     void wrapLine() {
         if (x > lineLeft) {
-            y += pitch();
+            advanceLine();
             lineLeft = left + INDENT;
             x = lineLeft;
         }
@@ -210,7 +270,7 @@ final class ControlFlow {
     private void reserve(int width) {
         int piecesRight = openBoxes == 0 ? right : right - openBoxes * BOX_STEP - 1;
         if (x + width > piecesRight && x > lineLeft) {
-            y += pitch();
+            advanceLine();
             lineLeft = left + INDENT;
             x = lineLeft;
         }
@@ -221,10 +281,11 @@ final class ControlFlow {
      * @param color their color
      */
     void text(String text, int color) {
-        reserve(font.width(text));
-        graphics.text(font, text, x, y + TEXT_NUDGE, color);
-        markText(font.width(text));
-        x += font.width(text) + GAP;
+        int width = letters.width(text);
+        reserve(width);
+        letters.draw(graphics, text, x, wordsTop(), color);
+        markText(width);
+        x += width + GAP;
     }
 
     /**
@@ -236,14 +297,15 @@ final class ControlFlow {
      */
     void textFlush(String text, int color) {
         x -= GAP;
-        graphics.text(font, text, x, y + TEXT_NUDGE, color);
-        markText(font.width(text));
-        x += font.width(text) + GAP;
+        int width = letters.width(text);
+        letters.draw(graphics, text, x, wordsTop(), color);
+        markText(width);
+        x += width + GAP;
     }
 
     // A piece filling its line's height, as a goo type's button stands.
     private void markPiece(int width) {
-        markPiece(width, y, LINE);
+        markPiece(width, y, line);
     }
 
     // A piece standing from top for height pixels, which the open boxes size around.
@@ -259,13 +321,13 @@ final class ControlFlow {
 
     // A button's piece: its frame, inset from its line's top and bottom.
     private void markButton(int width) {
-        ButtonPainter.Box box = ButtonPainter.layout(0, x, y, LINE);
+        ButtonPainter.Box box = ButtonPainter.layout(0, x, y, line);
         markPiece(width, box.top(), box.height());
     }
 
     // Words' piece: the font's line from where the words stand.
     private void markText(int width) {
-        markPiece(width, y + TEXT_NUDGE, font.lineHeight);
+        markPiece(width, wordsTop(), letters.lineHeight());
     }
 
     /**
@@ -275,7 +337,7 @@ final class ControlFlow {
      * @param hoverKey what hovering the piece names
      */
     void hoverLast(String hoverKey) {
-        targets.addHover(pieceLeft, pieceTop, pieceWidth, LINE, hoverKey);
+        targets.addHover(pieceLeft, pieceTop, pieceWidth, line, hoverKey);
     }
 
     /**
@@ -286,9 +348,9 @@ final class ControlFlow {
      */
     void note(String text, int color) {
         newLine();
-        String shown = font.plainSubstrByWidth(text, right - left);
-        graphics.text(font, shown, x, y + TEXT_NUDGE, color);
-        x += font.width(shown) + GAP;
+        String shown = letters.fitting(text, right - left);
+        letters.draw(graphics, shown, x, wordsTop(), color);
+        x += letters.width(shown) + GAP;
     }
 
     /**
@@ -297,9 +359,7 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      */
     void control(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
-        reserve(ButtonPainter.width(font, label));
-        markButton(ButtonPainter.width(font, label));
-        x = BuilderOverlays.control(graphics, font, label, hint, x, y, targets, pressed);
+        coloredControl(label, LINK, hint, pressed);
     }
 
     /**
@@ -313,13 +373,13 @@ final class ControlFlow {
      * @param follow  opens what the label names
      */
     void linkControl(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
-        int width = ButtonPainter.width(font, label);
+        int width = ButtonPainter.width(letters, label);
         reserve(width);
         markButton(width);
         int controlX = x;
         int controlY = y;
-        ButtonPainter.Box box = ButtonPainter.layout(font.width(label), controlX, controlY, LINE);
-        ButtonPainter.drawLink(graphics, font, label, box, targets, new ClickTargets.LinkGestures(
+        ButtonPainter.Box box = ButtonPainter.layout(letters.width(label), controlX, controlY, line);
+        ButtonPainter.drawLink(graphics, letters, label, box, targets, new ClickTargets.LinkGestures(
                 () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)), follow),
                 BuilderOverlays.hintKey(hint));
         x = box.right() + GAP;
@@ -334,10 +394,11 @@ final class ControlFlow {
      * @param follow   opens what the label names
      */
     void followLink(String label, String hoverKey, Runnable follow) {
-        int width = ButtonPainter.width(font, label);
+        int width = ButtonPainter.width(letters, label);
         reserve(width);
         markButton(width);
-        x = ButtonPainter.drawFollow(graphics, font, label, x, y, LINE, targets, follow, hoverKey).right() + GAP;
+        x = ButtonPainter.drawFollow(graphics, letters, label, new ButtonPainter.Box(x, y, 0, line), targets, follow,
+                hoverKey).right() + GAP;
     }
 
     /**
@@ -349,13 +410,14 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      */
     void coloredControl(String label, int color, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
-        reserve(ButtonPainter.width(font, label));
-        markButton(ButtonPainter.width(font, label));
+        int width = ButtonPainter.width(letters, label);
+        reserve(width);
+        markButton(width);
         int controlX = x;
         int controlY = y;
-        ButtonPainter.Box box = ButtonPainter.drawColored(graphics, font, label, color, controlX, controlY, LINE,
-                targets, () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)),
-                BuilderOverlays.hintKey(hint));
+        ButtonPainter.Box box = ButtonPainter.drawColored(graphics, letters, label, color,
+                new ButtonPainter.Box(controlX, controlY, 0, line), targets,
+                () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)), BuilderOverlays.hintKey(hint));
         x = box.right() + GAP;
     }
 
@@ -474,7 +536,7 @@ final class ControlFlow {
      */
     void alignRight(int width) {
         if (x + width > right && x > lineLeft) {
-            y += pitch();
+            advanceLine();
             lineLeft = left;
         }
         x = right - width;
@@ -517,10 +579,10 @@ final class ControlFlow {
         markPiece(width);
         int iconX = x;
         int iconY = y;
-        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(iconX, iconY, width, LINE));
+        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(iconX, iconY, width, line));
         GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.ICON_PADDING,
-                iconY + GooTypeIcons.centered(LINE, size));
-        targets.add(iconX, iconY, width, LINE,
+                iconY + GooTypeIcons.centered(line, size));
+        targets.add(iconX, iconY, width, line,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
         x += width + GAP;
     }
@@ -543,7 +605,7 @@ final class ControlFlow {
         pieceWidth = RAIL_WIDTH;
         contents.push(new int[] {Integer.MAX_VALUE, Integer.MIN_VALUE});
         int railLeft = x;
-        targets.addGrab(x, y, RAIL_WIDTH, LINE, grab, name);
+        targets.addGrab(x, y, RAIL_WIDTH, line, grab, name);
         x += RAIL_ADVANCE;
         openBoxes++;
         return railLeft;
@@ -673,7 +735,7 @@ final class ControlFlow {
         int boxRight = start.y() == y ? x - GAP + 1 : right - inset;
         int[] held = contents.peek();
         if (held == null || held[0] > held[1]) {
-            return new GroupsPane.Bounds(start.x() - 1, start.y() - pad + inset, boxRight, y + LINE + pad - inset);
+            return new GroupsPane.Bounds(start.x() - 1, start.y() - pad + inset, boxRight, y + line + pad - inset);
         }
         return new GroupsPane.Bounds(start.x() - 1, held[0] - BOX_STEP, boxRight, held[1] + BOX_STEP);
     }
@@ -689,14 +751,14 @@ final class ControlFlow {
      */
     void grabControl(String label, ClickTargets.PointerGrab grab, @Nullable String hint) {
         int labelLeftRoom = RAIL_WIDTH + ButtonPainter.PADDING;
-        int width = 1 + labelLeftRoom + font.width(label) + ButtonPainter.PADDING;
+        int width = 1 + labelLeftRoom + letters.width(label) + ButtonPainter.PADDING;
         reserve(width);
         markButton(width);
-        ButtonPainter.Box box = ButtonPainter.layout(font.width(label), x, y, LINE);
+        ButtonPainter.Box box = ButtonPainter.layout(letters.width(label), x, y, line);
         ButtonPainter.Box railed = new ButtonPainter.Box(box.left(), box.top(), width, box.height());
         ButtonPainter.drawFrame(graphics, railed);
         drawRail(railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
-        graphics.text(font, label, railed.left() + 1 + labelLeftRoom, y + TEXT_NUDGE, LINK);
+        letters.draw(graphics, label, railed.left() + 1 + labelLeftRoom, wordsTop(), LINK);
         targets.addGrab(railed.left(), railed.top(), railed.width(), railed.height(), grab);
         String hoverKey = BuilderOverlays.hintKey(hint);
         if (hoverKey != null) {
@@ -714,15 +776,15 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      */
     void squareControl(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
-        reserve(LINE);
-        markPiece(LINE);
+        reserve(line);
+        markPiece(line);
         int boxX = x;
         int boxY = y;
-        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(boxX, boxY, LINE, LINE));
-        graphics.text(font, label, boxX + (LINE - font.width(label)) / HALF, y + TEXT_NUDGE, LINK);
-        targets.add(boxX, boxY, LINE, LINE, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)),
+        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(boxX, boxY, line, line));
+        letters.draw(graphics, label, boxX + (line - letters.width(label)) / HALF, wordsTop(), LINK);
+        targets.add(boxX, boxY, line, line, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)),
                 BuilderOverlays.hintKey(hint));
-        x += LINE + GAP;
+        x += line + GAP;
     }
 
     /**
@@ -738,50 +800,76 @@ final class ControlFlow {
         if (runs.isEmpty()) {
             return;
         }
-        int width = ExpressionLines.width(font, runs);
+        int width = ExpressionLines.width(letters, runs);
         int inset = pressed == null ? 0 : ButtonPainter.PADDING;
         reserve(width + inset + inset);
-        markRuns(runs, width + inset + inset, pressed != null);
+        RunsBand band = bandOf(runs);
+        markRuns(band, width + inset + inset, pressed != null);
         if (pressed != null) {
-            drawRunsFrame(runs, width);
+            drawRunsFrame(band, width);
         }
-        addRunsTarget(width + inset + inset, hint, pressed);
-        int runsTop = ExpressionLines.lineHeight(runs) == LINE ? y : y + TEXT_NUDGE;
-        ExpressionLines.draw(font, runs, x + inset, runsTop, width + 1, new ExpressionLines.Painter(graphics, icons,
-                targets, pressed == null ? WHITE : LINK, LINK, ExpressionLines.followedOnShiftClick(targets, followRef)));
+        addRunsTarget(band, width + inset + inset, hint, pressed);
+        ExpressionLines.draw(letters, runs, new ExpressionLines.Span(x + inset, band.top(), width + 1, band.height()),
+                new ExpressionLines.Painter(graphics, icons, targets, pressed == null ? WHITE : LINK, LINK,
+                        ExpressionLines.followedOnShiftClick(targets, followRef)));
+        lineOverhang = Math.max(lineOverhang, y - band.top());
         x += width + inset + inset + GAP;
     }
 
-    // Framed runs stand as their frame does, the line's height where an icon stands among them; bare runs as their
-    // own line.
-    private void markRuns(List<ExpressionLines.Run> runs, int width, boolean framed) {
-        if (ExpressionLines.lineHeight(runs) == LINE) {
-            markPiece(width);
-        } else if (framed) {
+    /**
+     * Where runs draw on the flow's line.
+     *
+     * @param top    the band's top
+     * @param height the band's height
+     * @param filled whether the runs fill their band as an icon line does, rather than stand as text on the line
+     */
+    private record RunsBand(int top, int height, boolean filled) {
+    }
+
+    // At full size an icon line's runs fill the line and text runs stand at the words' nudge; lettered smaller, runs
+    // fill the builder's line, and a 16 px item sprite's line stands taller, reaching past the line evenly above and
+    // below (decision builder-font-and-spacing-shrink-padding-untouched, as the operator ruled).
+    private RunsBand bandOf(List<ExpressionLines.Run> runs) {
+        int natural = ExpressionLines.lineHeight(runs);
+        if (letters.isFull()) {
+            return natural == line ? new RunsBand(y, line, true) : new RunsBand(y + TEXT_NUDGE, natural, false);
+        }
+        boolean sprite = runs.stream().anyMatch(run -> run.kind() == ExpressionLines.Kind.ITEM);
+        int height = sprite ? ExpressionLines.ICON_LINE_HEIGHT : line;
+        return new RunsBand(y - (height - line) / HALF, height, true);
+    }
+
+    // Framed runs stand as their frame does; bare text runs as their own band.
+    private void markRuns(RunsBand band, int width, boolean framed) {
+        if (!band.filled() && framed) {
             markButton(width);
         } else {
-            markPiece(width, y + TEXT_NUDGE, ExpressionLines.lineHeight(runs));
+            markPiece(width, band.top(), band.height());
         }
     }
 
-    // Decision blue-text-options-draw-as-bordered-buttons: a clickable run is a button, its runs inside; a run
-    // holding an icon takes the whole line's height.
-    private void drawRunsFrame(List<ExpressionLines.Run> runs, int width) {
-        ButtonPainter.drawFrame(graphics, ExpressionLines.lineHeight(runs) == LINE
-                ? new ButtonPainter.Box(x, y, width + ButtonPainter.PADDING + ButtonPainter.PADDING, LINE)
-                : ButtonPainter.layout(width, x, y, LINE));
+    // Decision blue-text-options-draw-as-bordered-buttons: a clickable run is a button, its runs inside; runs that
+    // fill their band take the band's height.
+    private void drawRunsFrame(RunsBand band, int width) {
+        ButtonPainter.drawFrame(graphics, band.filled()
+                ? new ButtonPainter.Box(x, band.top(), width + ButtonPainter.PADDING + ButtonPainter.PADDING,
+                        band.height())
+                : ButtonPainter.layout(width, x, y, line));
     }
 
-    // The runs' click, or their hint alone where they take none.
-    private void addRunsTarget(int width, @Nullable String hint, @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
+    // The runs' click, or their hint alone where they take none, over the band they fill or the line they stand on.
+    private void addRunsTarget(RunsBand band, int width, @Nullable String hint,
+                               @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
         int runsX = x;
         int runsY = y;
+        int areaTop = band.filled() ? band.top() : y;
+        int areaHeight = band.filled() ? band.height() : line;
         String hoverKey = BuilderOverlays.hintKey(hint);
         if (pressed != null) {
-            targets.add(runsX, runsY, width, LINE, () -> pressed.accept(new BuilderOverlays.Anchor(runsX, runsY)),
-                    hoverKey);
+            targets.add(runsX, areaTop, width, areaHeight,
+                    () -> pressed.accept(new BuilderOverlays.Anchor(runsX, runsY)), hoverKey);
         } else if (hoverKey != null) {
-            targets.addHover(runsX, runsY, width, LINE, hoverKey);
+            targets.addHover(runsX, areaTop, width, areaHeight, hoverKey);
         }
     }
 }
