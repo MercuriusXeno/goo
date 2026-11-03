@@ -16,9 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -393,9 +395,12 @@ class VariablesPaneTest {
         assertTrue(value.y() > name.y() && value.y() - name.y() < 2 * ButtonPainter.HEIGHT, value + " vs " + name);
         DrawnFrame.Text expression = frame.drawn().stream().filter(text -> text.text().equals("384")
                 && text.x() > value.x()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-        DrawnFrame.Text amount = frame.find("(384)");
-        assertEquals(List.of(value.y(), value.y()), List.of(expression.y(), amount.y()), frame.drawn().toString());
-        assertTrue(value.x() < expression.x() && expression.x() < amount.x(), frame.drawn().toString());
+        assertEquals(value.y(), expression.y(), frame.drawn().toString());
+        assertTrue(value.x() < expression.x(), frame.drawn().toString());
+        // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount: a plain number previews nothing.
+        assertEquals(1, frame.count("384"), frame.texts().toString());
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() == value.y() && text.text().contains("(")),
+                frame.drawn().toString());
         assertFalse(frame.texts().contains("="), frame.texts().toString());
         frame.clickFirst("✎");
         DrawnFrame renaming = new DrawnFrame();
@@ -419,7 +424,7 @@ class VariablesPaneTest {
         DrawnFrame.Text value = frame.find("Value:");
         DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals(ReadValueButton.PENCIL)
                 && text.y() == value.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-        assertTrue(pencil.x() > frame.find("(384)").x(), pencil.toString());
+        assertTrue(pencil.x() > frame.find("384").x(), pencil.toString());
         assertTrue(frame.targets.click(pencil.x() + 1, pencil.y() + 1));
         DrawnFrame editing = new DrawnFrame();
         read.extract(editing.graphics, DrawnFrame.font(), VIEW, editing.targets, 0, 0);
@@ -611,6 +616,81 @@ class VariablesPaneTest {
         assertTrue(leaf.y() >= value.y() && glow.y() > leaf.y(), frame.drawn().toString());
         assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("4") && text.y() == leaf.y()
                 && text.x() < leaf.x()), frame.drawn().toString());
+    }
+
+    private static final List<String> PREVIEWED_TYPES = List.of("rock", "yore", "opulent", "crystal");
+
+    // A prefab summing two others whose preview reads four goo types, the screenshot's $mundane_trim.
+    private static VariablesPane typedPreview() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "trim", "keySeparator": null, "kind": "VALUE", "text": "\\"$diamond + $block\\"",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "trim", "kind": "tree", "tree": {"rock": "192", "yore": "336",
+                                "opulent": "32256", "crystal": "96768"}, "value": null, "error": null,
+                                "direct": [], "usedBy": [], "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        return new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    private static int blitsBetween(DrawnFrame frame, int top, int bottom) {
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeast(0)).blit(any(), any(), anyInt(), ys.capture(), anyFloat(), anyFloat(),
+                anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        return (int) ys.getAllValues().stream().filter(y -> y >= top && y < bottom).count();
+    }
+
+    /**
+     * A typed preview draws each goo type's icon where its name stood, the amount beside it, and no type name
+     * (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
+     */
+    @Test
+    void typedPreviewDrawsIconsInPlaceOfTypeNames() {
+        DrawnFrame frame = new DrawnFrame();
+        typedPreview().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, 2000, 400),
+                frame.targets, 0, 0);
+        DrawnFrame.Text value = frame.find("Value:");
+        assertTrue(frame.texts().stream().noneMatch(text -> PREVIEWED_TYPES.stream().anyMatch(text::contains)),
+                frame.texts().toString());
+        assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT,
+                value.y() + ButtonPainter.HEIGHT), frame.drawn().toString());
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().startsWith("192") && text.y() == value.y()),
+                frame.drawn().toString());
+    }
+
+    /**
+     * At every width the preview's closing paren draws with its last amount, never alone on a line, and at some
+     * width that pair wraps below the first amount (decision prefab-head-is-name-pencil-used-by-then-value-with-its-
+     * amount).
+     */
+    @Test
+    void previewsClosingParenWrapsWithItsLastAmount() {
+        boolean wrapped = false;
+        for (int width = 200; width <= 700; width++) {
+            int right = width;
+            DrawnFrame frame = new DrawnFrame();
+            typedPreview().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, right, 4000),
+                    frame.targets, 0, 0);
+            assertTrue(frame.drawn().stream().noneMatch(text -> text.text().trim().equals(")")),
+                    "at " + right + ": " + frame.drawn());
+            DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().startsWith("96768"))
+                    .findFirst().orElseThrow(() -> new AssertionError("at " + right + ": " + frame.drawn()));
+            assertTrue(last.text().endsWith(")"), last.toString());
+            DrawnFrame.Text first = frame.drawn().stream().filter(text -> text.text().contains("192"))
+                    .findFirst().orElseThrow();
+            wrapped |= last.y() > first.y();
+        }
+        assertTrue(wrapped, "some width wraps the last amount below the first");
     }
 
     private static DrawnFrame.Text greenText(DrawnFrame frame, String label) {
