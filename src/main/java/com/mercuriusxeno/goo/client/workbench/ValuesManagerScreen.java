@@ -509,7 +509,8 @@ public final class ValuesManagerScreen extends Screen {
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
-                        .or(() -> valuesPane.groupTooltipFor(hoverKey));
+                        .or(() -> valuesPane.groupTooltipFor(hoverKey))
+                        .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey));
     }
 
     // Text stays text; a run of goo amounts folds into one grid that reaches GooAmountGrid through the tooltip factory
@@ -525,14 +526,19 @@ public final class ValuesManagerScreen extends Screen {
                 continue;
             }
             endRun(elements, run);
-            elements.add(switch (line) {
-                case TooltipLine.Text text -> Either.left(text.text());
-                case TooltipLine.MemberIcons members -> Either.right(members);
-                case TooltipLine.GooAmount amount -> Either.right(new TooltipLine.GooAmounts(List.of(amount)));
-            });
+            elements.add(elementOf(line));
         }
         endRun(elements, run);
         return elements;
+    }
+
+    private static Either<FormattedText, TooltipComponent> elementOf(TooltipLine line) {
+        return switch (line) {
+            case TooltipLine.Text text -> Either.left(text.text());
+            case TooltipLine.MemberIcons members -> Either.right(members);
+            case TooltipLine.Runs runs -> Either.right(runs);
+            case TooltipLine.GooAmount amount -> Either.right(new TooltipLine.GooAmounts(List.of(amount)));
+        };
     }
 
     private static void endRun(List<Either<FormattedText, TooltipComponent>> elements,
