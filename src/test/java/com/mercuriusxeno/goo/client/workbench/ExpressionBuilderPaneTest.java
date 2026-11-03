@@ -753,6 +753,22 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * A ratio draws m:d, its colon flush against the multiplier's box and the divisor's box flush against the colon
+     * (decision ratio-colon-takes-no-spaces).
+     */
+    @Test
+    void ratioDrawsItsColonFlushBetweenItsBoxes() {
+        DrawnFrame frame = Builder.item("2 $waxed / 3").frame();
+        List<DrawnFrame.Text> sides = ratioSides(frame);
+        assertEquals(List.of("2", "3"), sides.stream().map(DrawnFrame.Text::text).toList(), frame.texts().toString());
+        DrawnFrame.Text colon = frame.drawn().get(frame.drawn().indexOf(sides.get(1)) - 1);
+        int multiplierRight = sides.get(0).x() - ButtonPainter.PADDING + ButtonPainter.width(LETTERS, "2");
+        int divisorLeft = sides.get(1).x() - ButtonPainter.PADDING;
+        assertEquals(List.of(multiplierRight, colon.x() + LETTERS.width(":")), List.of(colon.x(), divisorLeft),
+                frame.drawn().toString());
+    }
+
+    /**
      * A parenthetical's "(" and ")" draw bold and larger than the term text beside them (decision
      * parentheses-draw-bold-and-larger).
      */
@@ -1213,17 +1229,16 @@ class ExpressionBuilderPaneTest {
         }
 
         // Leaf's parenthetical is subtracted, so neither it nor dye ahead of it draws a move that would land it first
-        // and drop its minus; the parenthetical takes a line of its own, "-" "(" then its terms inline, and no X
-        // (decision terms-and-type-rows-drag-to-a-trash-strip).
+        // and drop its minus; it fits the rest of dye's line, so "-" "(" and its terms follow dye's ratio inline, and
+        // no X (decisions terms-and-type-rows-drag-to-a-trash-strip, terms-inline-again-under-the-indentation-rules).
         @Test
         void parentheticalLineReadsJoinParenThenItsTermsInline() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
             int head = lineOf(frame, open.y());
-            assertEquals(List.of("-", "(", "$food"), lineTexts(frame, head).subList(0, 3), frame.drawn().toString());
+            assertEquals(List.of(":", "$dye", "'s", "1", ":", "1", "-", "(", "$food"),
+                    lineTexts(frame, head).subList(0, 9), frame.drawn().toString());
             assertFalse(lineTexts(frame, head).contains("X"), frame.drawn().toString());
-            assertEquals(List.of(":", "$dye", "'s", "1", ":", "1"), lineTexts(frame, head - 1),
-                    frame.drawn().toString());
             // Decision terms-inline-again-under-the-indentation-rules: ")" follows the parenthetical's last term.
             DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals("$saturation")
                     && onOneLine(text, open)).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));

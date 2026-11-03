@@ -44,8 +44,6 @@ final class ExpressionBuilderPane {
     private static final int BOX_INSIDE = BOX_PADDING - 2;
     // The room a box adds after itself past the gap the flow leaves, less the two border pixels.
     private static final int BOX_AFTER = TERM_MARGIN - BuilderOverlays.GAP + 2;
-    // A ratio's gaps: after its multiplier, its colon and its divisor.
-    private static final int RATIO_GAPS = 3;
     // How far below a line's top its centered buttons start.
     private static final int BUTTON_ABOVE = (ControlFlow.LINE - ButtonPainter.HEIGHT) / 2;
     /** The builder's panel fill. */
@@ -1024,7 +1022,7 @@ final class ExpressionBuilderPane {
         }
         if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
             width += ButtonPainter.width(letters, piece.multiplier()) + letters.width(RATIO)
-                    + ButtonPainter.width(letters, piece.divisor()) + BuilderOverlays.GAP * RATIO_GAPS;
+                    + ButtonPainter.width(letters, piece.divisor()) + BuilderOverlays.GAP;
         }
         return width + BOX_INSIDE + BOX_AFTER;
     }
@@ -1260,16 +1258,18 @@ final class ExpressionBuilderPane {
     // each a number box.
     // Decision factor-reads-as-a-ratio.
     // Decision scale-shows-the-ratio-at-once: an unscaled reference or sum draws 1:1 at rest, either side set first.
-    // Decision ratio-holds-multiplier-and-divisor-together: each box sets its own side alone, so 2:3 draws 2 : 3.
+    // Decision ratio-holds-multiplier-and-divisor-together: each box sets its own side alone, so 2:3 draws 2:3.
+    // Decision ratio-colon-takes-no-spaces.
     private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, ScaleChange change) {
         if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
             drawRatio(flow, piece.multiplier(), piece.divisor(), change);
         }
     }
 
+    // The colon stands flush between the multiplier's box and the divisor's.
     private void drawRatio(ControlFlow flow, String multiplier, String divisor, ScaleChange change) {
         ratioSide(flow, multiplier, MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
-        flow.text(RATIO, GRAY);
+        flow.textBetween(RATIO, GRAY);
         ratioSide(flow, divisor, DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
     }
 
