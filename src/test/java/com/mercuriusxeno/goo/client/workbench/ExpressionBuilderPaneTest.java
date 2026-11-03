@@ -779,8 +779,10 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text colon = rowColon(frame, 1);
             int typeX = iconXs(frame, 1).getFirst();
-            assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.PADDING, typeX);
-            assertTrue(colon.x() > typeX, colon + " after the type at " + typeX);
+            // Decision type-icon-buttons-shrink-their-padding: the type's button is its icon plus a pixel each side.
+            assertEquals(ControlFlow.INDENT + ROW_RAIL + 1, typeX);
+            assertEquals(typeX + GooTypeIcons.sizeOf("jelly") + 1 + BuilderOverlays.GAP, colon.x(),
+                    colon + " a gap past the type's button at " + typeX);
             DrawnFrame.Text food = frame.findFirst("food");
             assertEquals(colon.y(), food.y(), frame.drawn().toString());
             assertTrue(food.x() > colon.x(), food + " after " + colon);
@@ -825,7 +827,7 @@ class ExpressionBuilderPaneTest {
             assertEquals(List.of(":", "food", "'s", "1", ":", "1"), lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(List.of("+", "saturation", "'s", "12", ":", "1", SUM_ADD), lineTexts(frame, 2),
                     frame.drawn().toString());
-            assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
+            assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.ICON_PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
             assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),
                     "jelly between 's and the ratio at " + jelly);

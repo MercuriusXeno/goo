@@ -447,13 +447,14 @@ final class ControlFlow {
         // Decision goo-types-in-builders-draw-as-buttons: the icon stands inside a button's border, the line's
         // height, so it reads as clickable.
         int size = GooTypeIcons.sizeOf(type);
-        int width = size + ButtonPainter.PADDING + ButtonPainter.PADDING;
+        int width = ButtonPainter.iconWidth(size);
         reserve(width);
         markPiece(width);
         int iconX = x;
         int iconY = y;
         ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(iconX, iconY, width, LINE));
-        GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.PADDING, iconY + GooTypeIcons.centered(LINE, size));
+        GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.ICON_PADDING,
+                iconY + GooTypeIcons.centered(LINE, size));
         targets.add(iconX, iconY, width, LINE,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
         x += width + GAP;

@@ -25,6 +25,8 @@ final class ButtonPainter {
     static final int HEIGHT = 14;
     /** The room between the border and the label on either side. */
     static final int PADDING = 3;
+    /** The room a type-icon button leaves each side of its icon (decision type-icon-buttons-shrink-their-padding). */
+    static final int ICON_PADDING = 1;
     /** A button's border color. */
     static final int BORDER = 0xFF5070A0;
     /** A button's inner fill. */
@@ -226,6 +228,15 @@ final class ButtonPainter {
      */
     static int width(Font font, String label) {
         return font.width(label) + PADDING + PADDING;
+    }
+
+    /**
+     * @param iconSize a type icon's size
+     * @return the width a type-icon button takes: the icon and one pixel each side
+     */
+    static int iconWidth(int iconSize) {
+        // Decision type-icon-buttons-shrink-their-padding.
+        return iconSize + ICON_PADDING + ICON_PADDING;
     }
 
     /**
