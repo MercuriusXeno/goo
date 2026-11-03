@@ -79,6 +79,8 @@ final class ExpressionBuilderPane {
     private static final String MINUS_SIGN = "-";
     private static final String POSSESSIVE = "'s";
     private static final String WRAP = "()";
+    // How far a drop slot's hole in the drag mask reaches either side of its cursor.
+    private static final int SLOT_HOLE_REACH = 3;
     // Decision parenthetical-handle-carries-a-rail-and-hovers-its-drop: the handle reads how it is used.
     private static final String WRAP_HINT = "Drop on term, wrap w/ parenthesis";
     /** The drop cursor's blue. */
@@ -130,6 +132,8 @@ final class ExpressionBuilderPane {
     private @Nullable Wrapping wrapping;
     // The + or - the bay's buttons hold while it drags.
     private @Nullable SignDrag signDragging;
+    // Where the last frame's lines ended, short of the trash strip.
+    private int linesRight;
     // The row slots the last frame laid, and the type row a rail holds while it drags.
     private final List<RowSlot> rowSlots = new ArrayList<>();
     private @Nullable RowDrag rowDragging;
@@ -320,7 +324,8 @@ final class ExpressionBuilderPane {
         int bottom = flow.bottom();
         drawPanel(graphics, new GroupsPane.Bounds(area.left(), top, area.right(), bottom));
         drawDropCursor(graphics);
-        drawRowCursor(graphics, stripLeft - BuilderOverlays.GAP);
+        linesRight = stripLeft - BuilderOverlays.GAP;
+        drawRowCursor(graphics, linesRight);
         drawWrapMark(graphics);
         return bottom - top;
     }
@@ -420,6 +425,63 @@ final class ExpressionBuilderPane {
         graphics.fill(x - 1, at.y() + CURSOR_INSET, x + 1, at.y() + ControlFlow.LINE - CURSOR_INSET, DROP_CURSOR);
     }
 
+    // Decision drags-mask-everything-but-their-valid-targets: while a term, a type row, the () handle or a + or -
+    // is held, the screen darkens but over each place the builder's dry runs say it may drop.
+    private void drawDragMask(GuiGraphicsExtractor graphics) {
+        List<DragMask.Rect> holes = dropTargets();
+        if (holes != null) {
+            DragMask.draw(graphics, new DragMask.Rect(0, 0, graphics.guiWidth(), graphics.guiHeight()), holes);
+        }
+    }
+
+    // The held drag's targets, null where nothing is held.
+    private @Nullable List<DragMask.Rect> dropTargets() {
+        Drag term = dragging;
+        RowDrag row = rowDragging;
+        SignDrag sign = signDragging;
+        if (term != null) {
+            return withTrash(slotHoles(slot -> holds(edited -> edited.canMoveTo(term.from, slot.sum(),
+                    slot.index()))), holds(edited -> edited.canRemove(term.from)));
+        }
+        if (row != null) {
+            List<DragMask.Rect> holes = rowSlots.stream().filter(slot -> holds(edited -> edited.canMoveRow(row.row,
+                    slot.index()))).map(this::rowSlotHole).toList();
+            return withTrash(holes, holds(edited -> edited.canRemoveRow(row.row)));
+        }
+        if (sign != null) {
+            return slotHoles(slot -> takesInsert(slot, sign.join));
+        }
+        return wrapping == null ? null : boxes.stream().map(wrappable -> new DragMask.Rect(wrappable.box().left(),
+                wrappable.box().top(), wrappable.box().right(), wrappable.box().bottom())).toList();
+    }
+
+    private List<DragMask.Rect> slotHoles(java.util.function.Predicate<Slot> takes) {
+        return slots.stream().filter(takes).map(ExpressionBuilderPane::slotHole).toList();
+    }
+
+    // A slot's hole: the drop cursor's column and a little room either side, the line's height.
+    private static DragMask.Rect slotHole(Slot slot) {
+        int x = slot.at().x() - BuilderOverlays.GAP / HALF;
+        return new DragMask.Rect(x - SLOT_HOLE_REACH, slot.at().y(), x + SLOT_HOLE_REACH,
+                slot.at().y() + ControlFlow.LINE);
+    }
+
+    // A row slot's hole: the row cursor's bar and a little room above and below it, out to the lines' right end.
+    private DragMask.Rect rowSlotHole(RowSlot slot) {
+        return new DragMask.Rect(slot.at().x(), slot.at().y() - SLOT_HOLE_REACH, linesRight,
+                slot.at().y() + SLOT_HOLE_REACH);
+    }
+
+    private List<DragMask.Rect> withTrash(List<DragMask.Rect> holes, boolean removable) {
+        GroupsPane.Bounds strip = trash;
+        if (!removable || strip == null) {
+            return holes;
+        }
+        List<DragMask.Rect> all = new ArrayList<>(holes);
+        all.add(new DragMask.Rect(strip.left(), strip.top(), strip.right(), strip.bottom()));
+        return all;
+    }
+
     private @Nullable Slot heldSlot() {
         Drag term = dragging;
         if (term != null) {
@@ -480,6 +542,7 @@ final class ExpressionBuilderPane {
      */
     void drawOverlays(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         if (builder != null) {
+            drawDragMask(graphics);
             overlays.draw(graphics, font, targets);
             drawHeldTerm(graphics, font, targets);
             drawHeldRow(graphics, font, targets);
