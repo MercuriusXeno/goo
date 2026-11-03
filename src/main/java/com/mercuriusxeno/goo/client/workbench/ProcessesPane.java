@@ -38,8 +38,6 @@ final class ProcessesPane {
     private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
     private static final int BUTTON_INSET = RowLayout.RULE_GAP;
     private static final int HEAD_TEXT_NUDGE = BUTTON_INSET + ButtonPainter.TEXT_NUDGE;
-    // The kind dropdown's line centers a button two pixels under the line's top.
-    private static final int KIND_LINE_INSET = 2;
     // The sentence line centers its buttons, so they stand the rule gap under the head line's.
     private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT;
     private static final int ROW_GAP = 1;
@@ -388,8 +386,9 @@ final class ProcessesPane {
         return below + ROW_GAP;
     }
 
-    // Decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete: the name, the kind dropdown, the
-    // mark, Rename and Delete at fixed column lefts, under no header.
+    // Decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete: the name, the mark, Rename and Delete
+    // at fixed column lefts, under no header; the kind opens the sentence line below
+    // (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
     // The operator's report: the kind stood behind the scroll bar, so the line lays out from the x at the column's
     // right end leftward, and the name takes the room left over.
     private void drawHeadLine(Frame frame, String section, ProcessesTab.ProcessRow row, int y) {
@@ -397,14 +396,8 @@ final class ProcessesPane {
         Font font = frame.font();
         int deleteX = frame.rows().right() - ButtonPainter.width(font, DELETE);
         int markX = deleteX - MARK_WIDTH;
-        int kindX = markX - MutatorControls.kindWidth(font) - PENCIL_GAP;
-        int nameRoom = kindX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
+        int nameRoom = markX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
         drawName(frame, section, row.key(), new NameSlot(y, nameRoom));
-        // Decision iterator-reads-copies-then-mutates-using-and: an iterator's name line holds its name alone.
-        if (!ProcessesTab.isIterator(row.key())) {
-            controls.drawKind(graphics, font, section, row.key(), kindX, y + BUTTON_INSET - KIND_LINE_INSET,
-                    frame.targets());
-        }
         VerdictMark mark = verdictMark(row);
         graphics.text(font, mark.glyph(), markX, y + HEAD_TEXT_NUDGE, mark.color());
         frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
