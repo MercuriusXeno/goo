@@ -591,16 +591,18 @@ final class ControlFlow {
      * tall (decision add-type-is-a-big-square-plus-question-button-below-the-list).
      *
      * @param label   its label
+     * @param hint    what hovering it reads
      * @param pressed takes where it was clicked
      */
-    void squareControl(String label, Consumer<BuilderOverlays.Anchor> pressed) {
+    void squareControl(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
         reserve(LINE);
         markPiece(LINE);
         int boxX = x;
         int boxY = y;
         ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(boxX, boxY, LINE, LINE));
         graphics.text(font, label, boxX + (LINE - font.width(label)) / HALF, y + TEXT_NUDGE, LINK);
-        targets.add(boxX, boxY, LINE, LINE, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)));
+        targets.add(boxX, boxY, LINE, LINE, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)),
+                BuilderOverlays.hintKey(hint));
         x += LINE + GAP;
     }
 

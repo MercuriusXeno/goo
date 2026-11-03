@@ -104,6 +104,10 @@ final class ExpressionBuilderPane {
     private static final String OPEN_PAREN = "(";
     private static final String CLOSE_PAREN = ")";
     private static final String ADD_TYPE = "+?";
+    // Decision plus-question-and-ratio-boxes-hover-their-names: [+?] and the ratio's two boxes name themselves.
+    private static final String ADD_TYPE_HINT = "Add a goo type";
+    private static final String MULTIPLIER_HINT = "Multiplier";
+    private static final String DIVISOR_HINT = "Divisor";
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
     // decision done-draws-green-with-a-check-mark
@@ -542,7 +546,7 @@ final class ExpressionBuilderPane {
         flow.indent();
         rowSlots.add(new RowSlot(edited.rows().size(), flow.anchor()));
         if (held.size() < GooTypes.order().size()) {
-            flow.squareControl(ADD_TYPE, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
+            flow.squareControl(ADD_TYPE, ADD_TYPE_HINT, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
                     null, held));
         }
         drawHandle(flow);
@@ -1068,9 +1072,9 @@ final class ExpressionBuilderPane {
     }
 
     private void drawRatio(ControlFlow flow, String multiplier, String divisor, ScaleChange change) {
-        ratioSide(flow, multiplier, null, ExpressionBuilder.Op.MULTIPLY, change);
+        ratioSide(flow, multiplier, MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
         flow.text(RATIO, GRAY);
-        ratioSide(flow, divisor, null, ExpressionBuilder.Op.DIVIDE, change);
+        ratioSide(flow, divisor, DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
     }
 
     private void ratioSide(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op side,

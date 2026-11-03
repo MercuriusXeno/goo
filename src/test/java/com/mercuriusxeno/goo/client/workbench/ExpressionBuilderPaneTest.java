@@ -1026,20 +1026,42 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * No builder control explains itself on hover but the () handle, which reads how it is used (the operator's
-     * ruling, amended by decision parenthetical-handle-carries-a-rail-and-hovers-its-drop).
+     * No builder control explains itself on hover but four: the () handle, [+?] and the ratio's two boxes (the
+     * operator's ruling, amended by decisions parenthetical-handle-carries-a-rail-and-hovers-its-drop and
+     * plus-question-and-ratio-boxes-hover-their-names).
      */
     @Test
-    void onlyTheHandleCarriesATooltip() {
+    void onlyTheFourNamedControlsCarryATooltip() {
+        java.util.Set<String> named = java.util.stream.Stream.of(HANDLE_HINT, ADD_TYPE_HINT, "Multiplier", "Divisor")
+                .map(BuilderOverlays::hintKey).collect(java.util.stream.Collectors.toSet());
         for (String shown : List.of("$base + ($waxed - $edited)", "{\"leaf\": \"4\"}", "")) {
             Builder builder = Builder.item(shown);
             List<String> hints = builder.frame().targets.hoverKeys().stream()
                     .filter(key -> BuilderOverlays.tooltipFor(key).isPresent()).distinct().toList();
-            assertTrue(hints.stream().allMatch(BuilderOverlays.hintKey(HANDLE_HINT)::equals), shown + ": " + hints);
+            assertTrue(named.containsAll(hints), shown + ": " + hints);
         }
     }
 
     private static final String HANDLE_HINT = "Drop on term, wrap w/ parenthesis";
+    private static final String ADD_TYPE_HINT = "Add a goo type";
+
+    /**
+     * [+?] hovers "Add a goo type", and a term's ratio hovers "Multiplier" on its left box and "Divisor" on its right
+     * (decision plus-question-and-ratio-boxes-hover-their-names).
+     */
+    @Test
+    void plusQuestionAndRatioBoxesHoverTheirNames() {
+        DrawnFrame typed = Builder.item("{\"leaf\": \"4\"}").frame();
+        DrawnFrame.Text add = typed.find("+?");
+        assertEquals(BuilderOverlays.hintKey(ADD_TYPE_HINT), typed.targets.hovered(add.x() + 1, add.y() + 1)
+                .orElseThrow());
+        DrawnFrame frame = Builder.item("$waxed").frame();
+        List<DrawnFrame.Text> sides = ratioSides(frame);
+        assertEquals(BuilderOverlays.hintKey("Multiplier"),
+                frame.targets.hovered(sides.get(0).x() + 1, sides.get(0).y() + 1).orElseThrow());
+        assertEquals(BuilderOverlays.hintKey("Divisor"),
+                frame.targets.hovered(sides.get(1).x() + 1, sides.get(1).y() + 1).orElseThrow());
+    }
 
     /**
      * The () handle draws a rail with its grips flush inside its box's left border, a press on the rail starts the
