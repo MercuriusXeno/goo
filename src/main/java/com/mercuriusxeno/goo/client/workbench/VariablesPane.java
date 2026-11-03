@@ -76,6 +76,7 @@ final class VariablesPane {
     private static final String VALUE_LABEL = "Value:";
     private static final String AMOUNT_OPEN = "(";
     private static final String AMOUNT_CLOSE = ")";
+    private static final String AMOUNT_COMMA = ",";
     private static final String RENAME = "✎";
     private static final String DELETE = "✗";
     private static final String CONFIRM_DELETE = "Delete";
@@ -245,7 +246,11 @@ final class VariablesPane {
         List<ExpressionLines.Run> amounted = new java.util.ArrayList<>();
         String lastRow = amountTypeRows(runs, typed, amounted);
         if (error.isEmpty()) {
-            addAmount(amounted, lastRow == null ? resolved : typed.get(lastRow));
+            // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount: a plain number previews nothing,
+            // its amount being the number itself.
+            if (!isPlainNumber(runs)) {
+                addAmount(amounted, lastRow == null ? resolved : typed.get(lastRow));
+            }
         } else {
             amounted.add(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, error, null));
         }
@@ -278,10 +283,42 @@ final class VariablesPane {
                 && ExpressionLines.COLON.equals(runs.get(colon).text());
     }
 
+    private static boolean isPlainNumber(List<ExpressionLines.Run> runs) {
+        return runs.size() == 1 && runs.getFirst().kind() == ExpressionLines.Kind.NUMBER;
+    }
+
+    // The amount in parentheses, each goo type as its icon beside its amount and commas between the pairs. Every
+    // piece places whole, the open paren joined to the first amount and the close paren to the last, so a wrap
+    // moves the last amount down with its paren.
+    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
     private static void addAmount(List<ExpressionLines.Run> runs, @Nullable String amount) {
-        if (amount != null && !amount.isEmpty()) {
-            runs.addAll(ExpressionLines.textRuns(AMOUNT_OPEN + amount + AMOUNT_CLOSE));
+        if (amount == null || amount.isEmpty()) {
+            return;
         }
+        List<ExpressionLines.Run> amounts = closedAmounts(ExpressionLines.resolvedRuns(amount));
+        ExpressionLines.Run first = amounts.getFirst();
+        if (first.kind() == ExpressionLines.Kind.TYPE) {
+            amounts.addFirst(amountRun(AMOUNT_OPEN));
+        } else {
+            amounts.set(0, amountRun(AMOUNT_OPEN + first.text()));
+        }
+        runs.addAll(amounts);
+    }
+
+    // Each amount placed whole, a comma after each but the last and the close paren after the last.
+    private static List<ExpressionLines.Run> closedAmounts(List<ExpressionLines.Run> pieces) {
+        List<ExpressionLines.Run> amounts = new java.util.ArrayList<>();
+        for (int index = 0; index < pieces.size(); index++) {
+            ExpressionLines.Run piece = pieces.get(index);
+            boolean last = index == pieces.size() - 1;
+            amounts.add(piece.kind() == ExpressionLines.Kind.TYPE ? piece
+                    : amountRun(piece.text() + (last ? AMOUNT_CLOSE : AMOUNT_COMMA)));
+        }
+        return amounts;
+    }
+
+    private static ExpressionLines.Run amountRun(String text) {
+        return new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, text, null);
     }
 
     private static Map<String, String> typedAmounts(String resolved) {
