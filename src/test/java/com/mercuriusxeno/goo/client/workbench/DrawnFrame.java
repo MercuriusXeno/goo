@@ -104,6 +104,16 @@ final class DrawnFrame {
      *     label centers in its button rather than standing a fixed padding in
      */
     int[] buttonAround(Text label) {
+        return buttonAround(label.x(), label.y());
+    }
+
+    /**
+     * @param x a point's x
+     * @param y a point's y
+     * @return the smallest button border around the point, as left, top, right and bottom, as a segment holding an
+     *     icon stands around the icon
+     */
+    int[] buttonAround(int x, int y) {
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
@@ -114,12 +124,12 @@ final class DrawnFrame {
         for (int index = 0; index < lefts.getAllValues().size(); index++) {
             int[] box = {lefts.getAllValues().get(index), tops.getAllValues().get(index),
                 rights.getAllValues().get(index), bottoms.getAllValues().get(index)};
-            boolean holds = box[0] <= label.x() && label.x() < box[2] && box[1] <= label.y() && label.y() < box[3];
+            boolean holds = box[0] <= x && x < box[2] && box[1] <= y && y < box[3];
             if (holds && (around == null || box[2] - box[0] < around[2] - around[0])) {
                 around = box;
             }
         }
-        assertTrue(around != null, "no button around " + label);
+        assertTrue(around != null, "no button around " + x + "," + y);
         return around;
     }
 
