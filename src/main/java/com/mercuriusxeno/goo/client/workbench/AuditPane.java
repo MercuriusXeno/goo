@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mercuriusxeno.goo.client.hud.WordWrap;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -158,8 +159,11 @@ final class AuditPane {
                                  int width, int color) {
         int y = top;
         for (String line : lines) {
-            graphics.text(font, font.plainSubstrByWidth(line, width), x, y, color);
-            y += LINE_HEIGHT;
+            // Decision audit-section-lines-word-wrap.
+            for (String wrapped : WordWrap.lines(line, width, font::width)) {
+                graphics.text(font, wrapped, x, y, color);
+                y += LINE_HEIGHT;
+            }
         }
         return y;
     }
