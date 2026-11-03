@@ -232,7 +232,7 @@ class MutatorControlsTest {
         // Decision iterator-reads-copies-then-mutates-using-and.
         @Test
         void sourcedIteratorReadsCopiesThenMutatesUsingAnd() {
-            assertEquals(List.of("copies", ControlFlow.dropdownLabel("#ores"), "then mutates using", "smelt", "x",
+            assertEquals(List.of("copies", ControlFlow.dropdownLabel("#ores"), "mutated by", "smelt", "x",
                     "and", "rust", "x", "+ optional mutation"), frame("#chained").texts());
         }
 
@@ -259,7 +259,7 @@ class MutatorControlsTest {
 
     /**
      * An iterator row draws "copies" and its source one indent in, with no ratio, and each chained mutator with its x
-     * on its own line after "then mutates using" or "and", then "+ optional mutation" on a line of its own; two rows
+     * on its own line after "mutated by" or "and", then "+ optional mutation" on a line of its own; two rows
      * with equal chains take equal heights (decisions each-chained-mutator-takes-its-own-indented-line,
      * iterator-reads-copies-then-mutates-using-and, iterator-drops-its-ratio-from-row-and-grammar).
      */
@@ -290,7 +290,7 @@ class MutatorControlsTest {
             DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
             DrawnFrame.Text copies = frame.find("copies");
             DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#ores"));
-            DrawnFrame.Text then = frame.find("then mutates using");
+            DrawnFrame.Text then = frame.find("mutated by");
             DrawnFrame.Text and = frame.find("and");
             DrawnFrame.Text smelt = frame.find("smelt");
             DrawnFrame.Text melt = frame.find("melt");
@@ -298,7 +298,9 @@ class MutatorControlsTest {
             assertEquals(copies.y(), source.y());
             assertTrue(source.x() > copies.x(), source + " vs " + copies);
             assertFalse(frame.texts().contains(":"), frame.texts().toString());
-            assertEquals(List.of(copies.x(), copies.x()), List.of(then.x(), and.x()), frame.drawn().toString());
+            // Decision iterator-reads-copies-then-mutates-using-and: the words right pack, ending at one x.
+            assertEquals(then.x() + DrawnFrame.font().width(then.text()), and.x() + DrawnFrame.font().width(and.text()),
+                    frame.drawn().toString());
             assertEquals(List.of(source.y() + ControlFlow.LINE, then.y() + ControlFlow.LINE),
                     List.of(then.y(), and.y()), frame.drawn().toString());
             assertEquals(List.of(then.y(), and.y()), List.of(smelt.y(), melt.y()), frame.drawn().toString());

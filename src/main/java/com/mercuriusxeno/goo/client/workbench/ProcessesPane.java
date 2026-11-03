@@ -58,7 +58,8 @@ final class ProcessesPane {
     private static final String CROSS = "✘";
     private static final String REASON_GAP = ": ";
     private static final String NO_REASON = "";
-    private static final int ROW_COLOR = 0x20FFFFFF;
+    /** A mutator or iterator row's box fill. */
+    static final int ROW_COLOR = 0x20FFFFFF;
     private static final String DELETE = "✗";
     // A section key starts with an underscore and holds no newline, so a newline parts it from the entry's key.
     private static final char MARK_SEPARATOR = '\n';
