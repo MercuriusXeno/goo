@@ -275,23 +275,41 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Adds a term to the end of a sum, joined by the sign given unless it stands first.
-     * Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators.
+     * Inserts a term at a slot of a sum, joined by the sign given; a term landing first takes no sign and the one
+     * it passes takes plus. The whole value refuses it while per-type rows stand, and a subtracted first term is
+     * refused, as moveTo refuses one (decision plus-and-minus-are-draggable-buttons-in-the-control-bay).
      *
      * @param sum     the sum's place, empty for the whole value
+     * @param index   the slot, before the term at that index, or the sum's size for its end
      * @param operand what the term stands on
      * @param join    plus or minus
-     * @return whether the term was added; the whole value refuses it while per-type rows stand
+     * @return whether the term was inserted
      */
-    boolean add(List<Integer> sum, Operand operand, ExpressionTerms.Join join) {
-        if (sum.isEmpty() && !rows.isEmpty()) {
-            return refuse(ROWS_REFUSE_TERMS);
+    boolean insertAt(List<Integer> sum, int index, Operand operand, ExpressionTerms.Join join) {
+        if (!canInsertAt(sum, index, join)) {
+            return refuse(sum.isEmpty() && !rows.isEmpty() ? ROWS_REFUSE_TERMS : MOVE_CHANGES_VALUE);
         }
         changed();
         List<Piece> pieces = new ArrayList<>(sumAt(sum));
-        pieces.add(new Piece(pieces.isEmpty() ? ExpressionTerms.Join.FIRST : join, operand, ONE, ONE));
-        replaceSum(sum, pieces);
+        pieces.add(index, new Piece(join, operand, ONE, ONE));
+        replaceSum(sum, signed(pieces));
         return true;
+    }
+
+    /**
+     * Whether insertAt would take a term of that sign at the slot, so a drag shows only a drop the builder takes
+     * (decision drags-indicate-only-a-drop-the-builder-takes).
+     *
+     * @param sum   the sum's place, empty for the whole value
+     * @param index the slot
+     * @param join  plus or minus
+     * @return whether the insert lands
+     */
+    boolean canInsertAt(List<Integer> sum, int index, ExpressionTerms.Join join) {
+        boolean beside = sum.isEmpty() && !rows.isEmpty();
+        boolean inSum = index >= 0 && index <= sumAt(sum).size();
+        boolean subtractedFirst = index == 0 && join == ExpressionTerms.Join.MINUS;
+        return !beside && inSum && !subtractedFirst;
     }
 
     /**
@@ -489,7 +507,8 @@ final class ExpressionBuilder {
     }
 
     private boolean addTerm(List<Integer> sum, Operand operand) {
-        return add(sum, operand, ExpressionTerms.Join.PLUS);
+        return insertAt(sum, sum.isEmpty() && !rows.isEmpty() ? 0 : sumAt(sum).size(), operand,
+                ExpressionTerms.Join.PLUS);
     }
 
     /**
