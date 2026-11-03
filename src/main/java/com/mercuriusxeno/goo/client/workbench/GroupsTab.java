@@ -21,6 +21,8 @@ import java.util.regex.Pattern;
  * (decision goo-workbench-opens-the-in-game-manager-screen).
  */
 public final class GroupsTab {
+    // An iterator keyed #name fills the group name.
+    private static final String FILLING_MARK = "#";
     private static final String GROUPS = "groups";
     private static final String GROUP = "group";
     private static final String NAME = "name";
@@ -231,19 +233,26 @@ public final class GroupsTab {
 
     /**
      * @param name a group's name
-     * @return the iterators whose source names it, by key, in file order
+     * @return the iterator that fills it and the iterators whose source names it, by key, in file order
      */
     public List<String> referents(String name) {
         // Decision group-card-lists-its-referents-as-iterator-links.
+        // Decision group-referent-previews-shorthand-members-then-its-value: the iterator filling the group counts.
         List<String> found = new ArrayList<>();
         for (JsonElement element : draft.sectionEntries(CONVERSIONS)) {
             JsonObject entry = element.getAsJsonObject();
             String key = text(entry, KEY);
-            if (key != null && sourceOf(key, text(entry, TEXT)).filter(name::equals).isPresent()) {
+            if (key != null && (fills(key, name) || sourceOf(key, text(entry, TEXT)).filter(name::equals)
+                    .isPresent())) {
                 found.add(key);
             }
         }
         return List.copyOf(found);
+    }
+
+    // An iterator's key is the group it fills after its mark.
+    private static boolean fills(String key, String group) {
+        return key.equals(FILLING_MARK + group);
     }
 
     // The group an iterator's assignment copies from, empty for a mutator or a line no form reads.
