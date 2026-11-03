@@ -440,6 +440,37 @@ class ExpressionBuilderPaneTest {
         assertEquals(List.of(), row.written);
     }
 
+    /**
+     * The trash strip draws a one-pixel lighter red border along its four edges and a can inside it, at rest and while
+     * lit (decision trash-strip-draws-a-can-and-a-lighter-red-border).
+     */
+    @Test
+    void trashStripDrawsACanInsideALighterRedBorder() {
+        assertTrue((ExpressionBuilderPane.TRASH_BORDER >> 8 & 0xFF) > (ExpressionBuilderPane.TRASH_REST >> 8 & 0xFF),
+                "the border reads lighter than the fill");
+        Builder builder = Builder.item("$waxed + $edited");
+        DrawnFrame rest = builder.frame();
+        assertBorderAndCan(rest, fills(rest, ExpressionBuilderPane.TRASH_REST).getFirst());
+        double[] rail = railOf(rest, List.of(1));
+        assertTrue(rest.targets.click(rail[0], rail[1]));
+        assertTrue(rest.targets.drag(AREA.left() + 1, rail[1]));
+        DrawnFrame lit = builder.frame();
+        assertBorderAndCan(lit, fills(lit, ExpressionBuilderPane.TRASH_LIT).getFirst());
+        rest.targets.release();
+    }
+
+    private static void assertBorderAndCan(DrawnFrame frame, int[] strip) {
+        List<int[]> border = fills(frame, ExpressionBuilderPane.TRASH_BORDER);
+        assertTrue(border.stream().anyMatch(side -> side[0] == strip[0] && side[2] == strip[0] + 1), "left edge");
+        assertTrue(border.stream().anyMatch(side -> side[2] == strip[2] && side[0] == strip[2] - 1), "right edge");
+        assertTrue(border.stream().anyMatch(side -> side[1] == strip[1] && side[3] == strip[1] + 1), "top edge");
+        assertTrue(border.stream().anyMatch(side -> side[3] == strip[3] && side[1] == strip[3] - 1), "bottom edge");
+        List<int[]> can = fills(frame, ExpressionBuilderPane.TRASH_CAN);
+        assertFalse(can.isEmpty(), "no can drawn");
+        can.forEach(piece -> assertTrue(piece[0] > strip[0] && piece[2] < strip[2] && piece[1] > strip[1]
+                && piece[3] < strip[3], "a can piece outside the strip: " + java.util.Arrays.toString(piece)));
+    }
+
     private static void assertRests(DrawnFrame frame) {
         assertEquals(1, fills(frame, ExpressionBuilderPane.TRASH_REST).size(), "the strip rests");
         assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_LIT), "the strip lit");
