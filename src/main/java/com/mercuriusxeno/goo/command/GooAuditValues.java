@@ -37,6 +37,10 @@ final class GooAuditValues {
      */
     private static final String MSG_NO_CONFLICTS = "  No base/recipe value conflicts.";
     /**
+     * All values message when no item holds a goo value.
+     */
+    private static final String MSG_NO_VALUES = "  No item holds a goo value.";
+    /**
      * Conflicts chat prefix.
      */
     private static final String MSG_CONFLICTS_CHAT_PREFIX = "  Conflicts: ";
@@ -185,8 +189,9 @@ final class GooAuditValues {
         Map<Identifier, GooValue> effective = values.table().getEffectiveValues();
         List<Identifier> sorted = new ArrayList<>(effective.keySet());
         Collections.sort(sorted);
+        // Decision flagless-section-shows-one-all-clear-line.
         GooAuditReport.appendSectionBody(report, HDR_ALL_PREFIX + sorted.size() + HDR_ALL_SUFFIX,
-                GooAuditReport.EMPTY_LINE, sorted, id -> formatValueLine(values, id, effective.get(id)));
+                MSG_NO_VALUES, sorted, id -> formatValueLine(values, id, effective.get(id)));
     }
 
     /**
