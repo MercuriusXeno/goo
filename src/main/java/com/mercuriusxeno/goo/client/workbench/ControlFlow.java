@@ -330,30 +330,27 @@ final class ControlFlow {
     }
 
     /**
-     * A parenthetical's "(" or ")", bold and larger than the words beside it, centered on the line; where it stands
-     * taller than the line the boxes holding it grow around it (decision parentheses-draw-bold-and-larger).
+     * @param font  the font
+     * @param paren a parenthesis
+     * @return the width its segment takes: the parenthesis drawn bold and larger and a button's padding either side
+     *     (decisions parentheses-draw-bold-and-larger, parens-are-segments-bounding-the-parenthetical)
+     */
+    static int parenSegmentWidth(Font font, String paren) {
+        return parenLettering(font).width(boldParen(paren)) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+    }
+
+    /**
+     * A parenthetical's "(" or ")" as its container's segment, bold and larger than the words beside it, centered in
+     * the segment (decisions parentheses-draw-bold-and-larger, parens-are-segments-bounding-the-parenthetical).
      *
      * @param paren the parenthesis
      * @param color its color
      */
-    void paren(String paren, int color) {
+    void parenSegment(String paren, int color) {
+        ButtonPainter.Box box = nextSegment(parenSegmentWidth(font, paren));
         Lettering large = parenLettering(font);
-        Component bold = boldParen(paren);
-        int width = large.width(bold);
-        reserve(width);
-        int top = large.centeredTop(y, line);
-        large.draw(graphics, bold, x, top, color);
-        markPiece(width, top, large.lineHeight());
-        x += width + GAP;
-    }
-
-    /**
-     * @param font  the font
-     * @param paren a parenthesis
-     * @return the width it takes drawn bold and larger, as {@link #paren} draws it
-     */
-    static int parenWidth(Font font, String paren) {
-        return parenLettering(font).width(boldParen(paren));
+        large.draw(graphics, boldParen(paren), box.left() + ButtonPainter.PADDING,
+                large.centeredTop(box.top(), box.height()), color);
     }
 
     private static Lettering parenLettering(Font font) {
@@ -792,32 +789,41 @@ final class ControlFlow {
     }
 
     /**
-     * Tints the box from the place given to the pieces drawn since: on one line, from there to the last piece; across
-     * lines, from there to the area's right edge, a border and a pixel in per depth so a box inside a box shows its
-     * own edge (decisions parentheticals-alternate-gray-tones-by-depth,
-     * drag-rail-containers-keep-a-pixel-between-borders).
-     *
-     * @param start  where the box's first piece stood
-     * @param tones  the box's fill and the border around it
-     * @param depth  how many boxes hold it, its own and a type row's included
+     * Opens a container whose segments and inner containers span more than one segment run, as a parenthetical's
+     * "(" run, its terms and its ")" run do; closeContainer answers their union.
      */
-    void tintFrom(BuilderOverlays.Anchor start, BoxTones tones, int depth) {
-        GroupsPane.Bounds box = boxFrom(start, depth);
-        int border = tones.border();
-        graphics.fill(box.left() + 1, box.top(), box.right() - 1, box.top() + 1, border);
-        graphics.fill(box.left() + 1, box.bottom() - 1, box.right() - 1, box.bottom(), border);
-        graphics.fill(box.left(), box.top(), box.left() + 1, box.bottom(), border);
-        graphics.fill(box.right() - 1, box.top(), box.right(), box.bottom(), border);
-        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, box.bottom() - 1, tones.fill());
+    void openContainer() {
+        contents.push(new int[] {Integer.MAX_VALUE, Integer.MIN_VALUE});
     }
 
     /**
-     * A box's colors (decision parentheticals-alternate-gray-tones-by-depth).
+     * Ends the container openContainer opened: on one line it spans from its first segment to its last; across lines
+     * it reaches the area's right edge, inside any box holding it. Its top and bottom are its tallest piece's, with
+     * no padding (decision containers-segment-into-click-to-edit-buttons); the boxes holding it size around it.
      *
-     * @param fill   inside its border
-     * @param border its one-pixel edge
+     * @param first its first segment run's bounds
+     * @return its bounds
      */
-    record BoxTones(int fill, int border) {
+    GroupsPane.Bounds closeContainer(GroupsPane.Bounds first) {
+        int[] held = contents.pop();
+        boolean oneLine = first.top() == segmentsTop;
+        int containerRight = oneLine ? x - GAP : right - openBoxes * BOX_STEP;
+        for (int[] holder : contents) {
+            holder[0] = Math.min(holder[0], held[0]);
+            holder[1] = Math.max(holder[1], held[1]);
+        }
+        return new GroupsPane.Bounds(first.left(), held[0], containerRight, held[1]);
+    }
+
+    /**
+     * Fills a container in its depth's tone, as a parenthetical's tint (decision
+     * parentheticals-alternate-gray-tones-by-depth).
+     *
+     * @param box  the container
+     * @param tone the fill
+     */
+    void tint(GroupsPane.Bounds box, int tone) {
+        graphics.fill(box.left(), box.top(), box.right(), box.bottom(), tone);
     }
 
     /**
@@ -941,6 +947,14 @@ final class ControlFlow {
         ButtonPainter.drawFrame(graphics, box);
         nextSegmentLeft = box.right() - 1;
         return box;
+    }
+
+    /**
+     * @return where a drop slot stands on the right border of the segment drawn last, its cursor drawn a half gap
+     *     left of the slot, on that border
+     */
+    BuilderOverlays.Anchor afterSegment() {
+        return new BuilderOverlays.Anchor(nextSegmentLeft + GAP / HALF, y);
     }
 
     /**
