@@ -104,10 +104,49 @@ class ValuesManagerScreenTest {
             explainer.toggle();
             DrawnFrame frame = frame();
             String key = frame.targets.hovered(20, 25).orElseThrow();
-            String text = String.join(" ", explainer.tooltipFor(key).orElseThrow().stream()
-                    .map(line -> ((TooltipLine.Text) line).text().getString()).toList());
+            String text = explainer.tooltipFor(key).orElseThrow().getString();
             assertTrue(text.startsWith("Search for items, view their explicit or derived values, and recipe ratios"
                     + " to help make decisions on values."), text);
+        }
+
+        /**
+         * A span the paragraph sets between backticks draws styled with no backtick shown, the text around it plain.
+         */
+        @Test
+        void backtickedSpanDrawsStyledWithoutItsBackticks() {
+            explainer.toggle();
+            String key = frame().targets.hovered(20, 25).orElseThrow();
+            Component shown = explainer.tooltipFor(key).orElseThrow();
+            assertFalse(shown.getString().contains("`"), shown.getString());
+            List<String> styled = new ArrayList<>();
+            shown.visit((style, piece) -> {
+                if (ExplainerMode.CODE_STYLE.equals(style)) {
+                    styled.add(piece);
+                }
+                return java.util.Optional.empty();
+            }, net.minecraft.network.chat.Style.EMPTY);
+            assertEquals(List.of("anchor items", "Anchor items"), styled);
+        }
+
+        /**
+         * A click anywhere in the mode leaves it, the next frame drawing no shadow.
+         */
+        @Test
+        void clickAnywhereLeavesTheMode() {
+            explainer.toggle();
+            assertTrue(frame().targets.click(300, 200));
+            assertEquals(List.of(), fills(frame(), DragMask.SHADOW));
+        }
+
+        /**
+         * A paragraph too tall at full size for either side of its tab draws shrunk, one that fits draws at full
+         * size.
+         */
+        @Test
+        void paragraphFittingNeitherSideShrinks() {
+            GroupsPane.Bounds tab = new GroupsPane.Bounds(300, 20, 340, 34);
+            assertEquals(List.of(ExplainerTooltip.SHRUNK, 1f), List.of(ExplainerTooltip.scaleFor(180, tab, 200),
+                    ExplainerTooltip.scaleFor(150, tab, 200)));
         }
 
         /**

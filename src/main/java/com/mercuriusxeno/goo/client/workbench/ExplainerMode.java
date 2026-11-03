@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
-import java.util.ArrayList;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,9 +16,11 @@ import java.util.Optional;
  */
 final class ExplainerMode {
     private static final String HOVER_PREFIX = "explainer:";
-    // The characters a tooltip line holds before the text wraps, a readable width for a paragraph.
-    private static final int LINE_CHARACTERS = 50;
-    private static final String WORD_BREAK = " ";
+    private static final String CODE_MARK = "`";
+    // A negative split limit keeps a span a backtick ends, so the spans alternate plain and styled.
+    private static final int KEEP_EMPTY_SPANS = -1;
+    /** The style a span the operator set between backticks draws in. */
+    static final Style CODE_STYLE = Style.EMPTY.withColor(ChatFormatting.GOLD);
 
     private final List<ExplainerTargets.Target> targets;
     private boolean active;
@@ -67,7 +71,7 @@ final class ExplainerMode {
         }
         List<DragMask.Rect> holes = targets.stream().map(target -> target.bounds().get()).toList();
         DragMask.draw(graphics, new DragMask.Rect(0, 0, width, height), holes);
-        clicks.addShield(0, 0, width, height, () -> { });
+        clicks.addShield(0, 0, width, height, this::leave);
         for (int index = 0; index < holes.size(); index++) {
             DragMask.Rect hole = holes.get(index);
             clicks.addHover(hole.left(), hole.top(), hole.right() - hole.left(), hole.bottom() - hole.top(),
@@ -79,27 +83,21 @@ final class ExplainerMode {
      * @param hoverKey what a hovered area names
      * @return the target's text wrapped to a readable width, empty where the key names no target
      */
-    Optional<List<TooltipLine>> tooltipFor(String hoverKey) {
+    Optional<Component> tooltipFor(String hoverKey) {
         return targets.stream().filter(target -> hoverKey.equals(HOVER_PREFIX + target.key())).findFirst()
-                .map(target -> wrapped(target.text()).stream()
-                        .<TooltipLine>map(line -> new TooltipLine.Text(Component.literal(line))).toList());
+                .map(target -> styled(target.text()));
     }
 
-    // Breaks the text at the last space before each line fills.
-    static List<String> wrapped(String text) {
-        List<String> lines = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-        for (String word : text.split(WORD_BREAK)) {
-            if (!line.isEmpty() && line.length() + 1 + word.length() > LINE_CHARACTERS) {
-                lines.add(line.toString());
-                line.setLength(0);
+    // The operator's backticks mark styling: each span between a pair draws in the code style, the backticks unshown.
+    private static Component styled(String text) {
+        MutableComponent shown = Component.empty();
+        boolean code = false;
+        for (String span : text.split(CODE_MARK, KEEP_EMPTY_SPANS)) {
+            if (!span.isEmpty()) {
+                shown.append(Component.literal(span).setStyle(code ? CODE_STYLE : Style.EMPTY));
             }
-            if (!line.isEmpty()) {
-                line.append(' ');
-            }
-            line.append(word);
+            code = !code;
         }
-        lines.add(line.toString());
-        return lines;
+        return shown;
     }
 }

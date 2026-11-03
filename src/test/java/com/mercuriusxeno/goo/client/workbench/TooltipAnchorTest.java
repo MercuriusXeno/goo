@@ -35,6 +35,28 @@ class TooltipAnchorTest {
     }
 
     /**
+     * A tooltip too tall for the room on either side of an element at the top of a short screen stays on the screen,
+     * on the side with more room, as the Audit tab's explainer text must.
+     */
+    @Test
+    void tooltipFittingNeitherSideStaysOnTheScreen() {
+        GroupsPane.Bounds element = new GroupsPane.Bounds(300, 20, 340, 34);
+        TooltipAnchor.Point point = TooltipAnchor.place(element, 60, 180, SCREEN_WIDTH, 200);
+        assertEquals(new TooltipAnchor.Point(300 + TooltipAnchor.PAD, 200 - TooltipAnchor.PAD - 180), point);
+    }
+
+    /**
+     * An element near the top whose tooltip has no room below but room above opens above, and one with room below
+     * opens below even when its tooltip is tall.
+     */
+    @Test
+    void tallTooltipOpensOnTheSideThatHoldsIt() {
+        GroupsPane.Bounds top = new GroupsPane.Bounds(40, 20, 90, 34);
+        assertEquals(new TooltipAnchor.Point(40 + TooltipAnchor.PAD, 34 + TooltipAnchor.GAP),
+                TooltipAnchor.place(top, 60, 150, SCREEN_WIDTH, 200));
+    }
+
+    /**
      * An element too near the right for the tooltip to fit slides the tooltip left until its frame meets the
      * screen's right edge.
      */

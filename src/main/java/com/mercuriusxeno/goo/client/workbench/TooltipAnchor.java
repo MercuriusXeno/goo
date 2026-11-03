@@ -38,12 +38,33 @@ final class TooltipAnchor {
      */
     static Point place(GroupsPane.Bounds element, int tooltipWidth, int tooltipHeight, int screenWidth,
                        int screenHeight) {
-        int y = element.bottom() + GAP;
-        if (y + tooltipHeight + PAD > screenHeight) {
-            y = element.top() - GAP - tooltipHeight;
-        }
         int x = Math.min(element.left() + PAD, screenWidth - PAD - tooltipWidth);
-        return new Point(Math.max(x, PAD), y);
+        return new Point(Math.max(x, PAD), topOf(element, tooltipHeight, screenHeight));
+    }
+
+    // Below where it fits, above where only that fits, and otherwise on the side with more room, kept on the screen.
+    private static int topOf(GroupsPane.Bounds element, int tooltipHeight, int screenHeight) {
+        int below = element.bottom() + GAP;
+        int roomBelow = screenHeight - PAD - below;
+        int above = element.top() - GAP - tooltipHeight;
+        int roomAbove = element.top() - GAP - PAD;
+        if (tooltipHeight <= roomBelow) {
+            return below;
+        }
+        if (tooltipHeight <= roomAbove) {
+            return above;
+        }
+        int onScreen = roomBelow >= roomAbove ? Math.min(below, screenHeight - PAD - tooltipHeight) : PAD;
+        return Math.max(onScreen, PAD);
+    }
+
+    /**
+     * @param element      the bounds of the element the tooltip explains
+     * @param screenHeight the screen's height
+     * @return the tallest tooltip text that fits on one side of the element
+     */
+    static int roomFor(GroupsPane.Bounds element, int screenHeight) {
+        return Math.max(screenHeight - PAD - element.bottom() - GAP, element.top() - GAP - PAD);
     }
 
     /**
