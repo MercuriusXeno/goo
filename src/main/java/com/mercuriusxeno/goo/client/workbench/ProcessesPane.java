@@ -19,8 +19,9 @@ import java.util.function.Supplier;
  * an entry's first line and its sentence of controls at full width below (decision mutator-rows-take-an-extra-line),
  * which build the entry with nothing typed but a number or a search (decision
  * expression-builder-composes-every-form-without-typing), and Delete drops the entry, as
- * index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The rows scroll
- * under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
+ * index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The mutators column
+ * takes 60 percent of the width and the iterators column 40 (decision mutators-iterators-split-sixty-forty).
+ * The rows scroll under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
 final class ProcessesPane {
     private static final int ROW_HEIGHT = 13;
@@ -50,6 +51,9 @@ final class ProcessesPane {
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
     private static final int HALF = 2;
+    // The mutators column takes three fifths of the pane and the iterators column two.
+    private static final int MUTATORS_FIFTHS = 3;
+    private static final int FIFTHS = 5;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
     /** An Invalid verdict's color. */
@@ -221,8 +225,8 @@ final class ProcessesPane {
             search.setPosition(pane.left(), pane.top());
         }
         nameBoxPlaced = false;
-        // Decision conversions-columns-split-50-50.
-        columnsMiddle = pane.left() + (pane.right() - pane.left()) / HALF;
+        // Decision mutators-iterators-split-sixty-forty.
+        columnsMiddle = pane.left() + (pane.right() - pane.left()) * MUTATORS_FIFTHS / FIFTHS;
         processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
                 .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
                         pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
