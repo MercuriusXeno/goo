@@ -614,6 +614,22 @@ final class ExpressionBuilder {
     }
 
     /**
+     * Moves a type row to a row slot; its own slots either side leave the rows standing
+     * (decision type-rows-drag-by-a-rail-to-reorder-or-trash).
+     *
+     * @param row  the row's index
+     * @param slot the slot it drops into: before the row at that index, or the rows' count for the end
+     */
+    void moveRow(int row, int slot) {
+        if (slot == row || slot == row + 1) {
+            return;
+        }
+        changed();
+        Row moving = rows.remove(row);
+        rows.add(slot > row ? slot - 1 : slot, moving);
+    }
+
+    /**
      * @param row the row's index
      */
     void removeRow(int row) {

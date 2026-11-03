@@ -62,6 +62,7 @@ final class ExpressionBuilderPane {
     /** The cursor's blue, see-through, over the term the held () would wrap. */
     static final int WRAP_MARK = 0x804090FF;
     private static final String RAIL_HOVER_PREFIX = "goo-term-rail:";
+    private static final String ROW_RAIL_HOVER_PREFIX = "goo-row-rail:";
     private static final int HALF = 2;
     private static final int NEST_DARKER = 0x28000000;
     private static final int NEST_LIGHTER = 0x28FFFFFF;
@@ -77,10 +78,6 @@ final class ExpressionBuilderPane {
     private static final String WHOLE_VALUE = "the whole value";
     private static final String OPEN_PAREN = "(";
     private static final String CLOSE_PAREN = ")";
-    // decision remove-draws-as-a-red-x
-    private static final String REMOVE = "X";
-    // The operator's ruling: every X's tooltip reads the one word Delete, and no other control explains itself.
-    private static final String DELETE_HINT = "Delete";
     private static final String ADD_TYPE = "+?";
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
@@ -103,6 +100,9 @@ final class ExpressionBuilderPane {
     // The term boxes the last frame laid, and the () handle while it drags.
     private final List<TermBox> boxes = new ArrayList<>();
     private @Nullable Wrapping wrapping;
+    // The row slots the last frame laid, and the type row a rail holds while it drags.
+    private final List<RowSlot> rowSlots = new ArrayList<>();
+    private @Nullable RowDrag rowDragging;
     // The trash strip the last frame drew.
     private GroupsPane.@Nullable Bounds trash;
     private int frames;
@@ -185,6 +185,7 @@ final class ExpressionBuilderPane {
         builder = null;
         dragging = null;
         wrapping = null;
+        rowDragging = null;
     }
 
     /**
@@ -208,9 +209,11 @@ final class ExpressionBuilderPane {
     boolean keyPressed(int key) {
         // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: Escape drops the held term back.
         // Decision parenthetical-handle-drags-onto-a-term: Escape drops the held () and wraps nothing.
-        if (key == GLFW.GLFW_KEY_ESCAPE && (dragging != null || wrapping != null)) {
+        // Decision type-rows-drag-by-a-rail-to-reorder-or-trash: Escape drops the held row back.
+        if (key == GLFW.GLFW_KEY_ESCAPE && (dragging != null || wrapping != null || rowDragging != null)) {
             dragging = null;
             wrapping = null;
+            rowDragging = null;
             return true;
         }
         return overlays.keyPressed(key);
@@ -222,6 +225,14 @@ final class ExpressionBuilderPane {
      */
     static String railHoverKey(List<Integer> path) {
         return RAIL_HOVER_PREFIX + path;
+    }
+
+    /**
+     * @param row a type row's index
+     * @return the hover key its drag rail answers with, which names no tooltip
+     */
+    static String rowRailHoverKey(int row) {
+        return ROW_RAIL_HOVER_PREFIX + row;
     }
 
     /**
@@ -267,6 +278,7 @@ final class ExpressionBuilderPane {
         frames++;
         slots.clear();
         boxes.clear();
+        rowSlots.clear();
         int stripLeft = area.right() - TRASH_WIDTH;
         ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
@@ -278,15 +290,36 @@ final class ExpressionBuilderPane {
         trash = new GroupsPane.Bounds(stripLeft, top - 1, area.right(), bottom);
         drawTrash(graphics, trash);
         drawDropCursor(graphics);
+        drawRowCursor(graphics, stripLeft - BuilderOverlays.GAP);
         drawWrapMark(graphics);
         return bottom - top;
     }
 
     // Decision terms-and-type-rows-drag-to-a-trash-strip.
     private void drawTrash(GuiGraphicsExtractor graphics, GroupsPane.Bounds strip) {
-        Drag held = dragging;
-        int tone = held == null ? TRASH_REST : held.overTrash ? TRASH_HOVER : TRASH_LIT;
+        int tone = dragOverTrash() ? TRASH_HOVER : TRASH_REST;
+        if (tone == TRASH_REST && (dragging != null || rowDragging != null)) {
+            tone = TRASH_LIT;
+        }
         graphics.fill(strip.left(), strip.top(), strip.right(), strip.bottom(), tone);
+    }
+
+    // Whether the term or type row held stands over the trash strip.
+    private boolean dragOverTrash() {
+        Drag term = dragging;
+        RowDrag row = rowDragging;
+        return term != null && term.overTrash || row != null && row.overTrash;
+    }
+
+    // A blinking blue bar along the row slot the held type row would drop into.
+    // Decision type-rows-drag-by-a-rail-to-reorder-or-trash.
+    private void drawRowCursor(GuiGraphicsExtractor graphics, int right) {
+        RowDrag held = rowDragging;
+        if (held == null || held.target == null || frames / BLINK_FRAMES % HALF != 0) {
+            return;
+        }
+        BuilderOverlays.Anchor at = held.target.at();
+        graphics.fill(at.x(), at.y() - 1, right, at.y() + 1, DROP_CURSOR);
     }
 
     // Whether the pointer stands over the trash strip the last frame drew.
@@ -317,9 +350,33 @@ final class ExpressionBuilderPane {
         if (held == null) {
             return;
         }
-        List<ExpressionLines.Run> runs = operandRuns(held.piece);
-        int left = (int) held.x + PREVIEW_OFFSET;
-        int top = (int) held.y;
+        drawPreview(new Preview(graphics, font, targets), operandRuns(held.piece), held.x, held.y);
+    }
+
+    // The held type row drawn at the pointer, its goo icon and colon, over everything else.
+    // Decision type-rows-drag-by-a-rail-to-reorder-or-trash.
+    private void drawHeldRow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
+        RowDrag held = rowDragging;
+        if (held == null) {
+            return;
+        }
+        drawPreview(new Preview(graphics, font, targets), List.of(
+                new ExpressionLines.Run(ExpressionLines.Kind.TYPE, BLANK, held.type),
+                new ExpressionLines.Run(ExpressionLines.Kind.OPERATOR, ExpressionLines.COLON, null)), held.x, held.y);
+    }
+
+    /**
+     * Where a held piece's preview draws.
+     */
+    private record Preview(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
+    }
+
+    private void drawPreview(Preview preview, List<ExpressionLines.Run> runs, double pointerX, double pointerY) {
+        GuiGraphicsExtractor graphics = preview.graphics();
+        Font font = preview.font();
+        ClickTargets targets = preview.targets();
+        int left = (int) pointerX + PREVIEW_OFFSET;
+        int top = (int) pointerY;
         int width = ExpressionLines.width(font, runs) + ButtonPainter.PADDING + ButtonPainter.PADDING;
         int height = ExpressionLines.lineHeight(runs);
         graphics.fill(left, top, left + width, top + height, PREVIEW_COLOR);
@@ -339,6 +396,7 @@ final class ExpressionBuilderPane {
         if (builder != null) {
             overlays.draw(graphics, font, targets);
             drawHeldTerm(graphics, font, targets);
+            drawHeldRow(graphics, font, targets);
             drawHeldHandle(graphics, font);
         }
     }
@@ -412,6 +470,7 @@ final class ExpressionBuilderPane {
     private void drawAddType(ControlFlow flow, ExpressionBuilder edited) {
         Set<String> held = BuilderGrammar.heldTypes(edited);
         flow.indent();
+        rowSlots.add(new RowSlot(edited.rows().size(), flow.anchor()));
         if (held.size() < GooTypes.order().size()) {
             flow.squareControl(ADD_TYPE, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
                     null, held));
@@ -442,9 +501,11 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // Each row one indent in: [type]: then its terms inline, wrapping one indent further in, and the row's X at the
-    // right end of its last line.
+    // Each row one indent in: its rail, [type]: then its terms inline, wrapping one indent further in; a row slot
+    // stands before each row and before [+?].
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
+    // Decision type-rows-drag-by-a-rail-to-reorder-or-trash: the rail left of the goo icon, and no x, the trash
+    // strip deleting the row.
     private void drawRows(ControlFlow flow, ExpressionBuilder edited) {
         List<ExpressionBuilder.Row> rows = edited.rows();
         Set<String> held = BuilderGrammar.heldTypes(edited);
@@ -452,17 +513,83 @@ final class ExpressionBuilderPane {
             ExpressionBuilder.Row row = rows.get(index);
             int at = index;
             flow.indent();
+            rowSlots.add(new RowSlot(index, flow.anchor()));
+            flow.rail(rowRailHoverKey(index), new RowDrag(index, row.type()), typeLeadWidth(flow.font(), row.type()));
             flow.typeIcon(row.type(), anchor -> overlays.openPicker(anchor,
                     type -> apply(b -> b.setRowType(at, type)), null, held));
             flow.text(ExpressionLines.COLON, GRAY);
             drawSum(flow, List.of(index), row.pieces(), new Place(BuilderGrammar.NUMBER_SORT, row.type()));
-            if (rows.size() > 1) {
-                flow.alignRight(ButtonPainter.width(flow.font(), REMOVE));
-                flow.coloredControl(REMOVE, RED, DELETE_HINT, anchor -> apply(b -> b.removeRow(at)));
-            }
             flow.outdent(ControlFlow.INDENT);
         }
         drawAddType(flow, edited);
+    }
+
+    // The goo type button and colon after a row's rail, which the rail keeps on its line.
+    private static int typeLeadWidth(Font font, String type) {
+        return GooTypeIcons.sizeOf(type) + ButtonPainter.PADDING + ButtonPainter.PADDING + BuilderOverlays.GAP
+                + font.width(ExpressionLines.COLON);
+    }
+
+    /**
+     * Where a dragged type row would drop.
+     *
+     * @param index the slot: before the row at that index, or the rows' count for the end
+     * @param at    where the slot stands, the row's first piece
+     */
+    private record RowSlot(int index, BuilderOverlays.Anchor at) {
+        // A slot stands at its row's top edge, so the pointer on a row's upper half drops before it.
+        double distanceTo(double y) {
+            return Math.abs(y - at.y());
+        }
+    }
+
+    // The row slot the last frame laid nearest the pointer's line, null where it laid none.
+    private @Nullable RowSlot nearestRowSlot(double y) {
+        return rowSlots.stream().min(java.util.Comparator.comparingDouble(slot -> slot.distanceTo(y))).orElse(null);
+    }
+
+    /**
+     * A type row held by its rail: which row, its type, where the pointer stands and the row slot it would drop into,
+     * or the trash strip (decision type-rows-drag-by-a-rail-to-reorder-or-trash).
+     */
+    private final class RowDrag implements ClickTargets.PointerGrab {
+        private final int row;
+        private final String type;
+        private double x;
+        private double y;
+        private @Nullable RowSlot target;
+        private boolean overTrash;
+
+        RowDrag(int row, String type) {
+            this.row = row;
+            this.type = type;
+        }
+
+        @Override
+        public void moved(double movedX, double movedY) {
+            rowDragging = this;
+            x = movedX;
+            y = movedY;
+            overTrash = overTrash(x, y);
+            target = overTrash ? null : nearestRowSlot(y);
+        }
+
+        @Override
+        public void released() {
+            RowSlot dropped = target;
+            boolean held = rowDragging == this;
+            rowDragging = null;
+            if (held && overTrash) {
+                apply(b -> b.removeRow(row));
+            } else if (held && dropped != null && !isOrigin(dropped)) {
+                apply(b -> b.moveRow(row, dropped.index()));
+            }
+        }
+
+        // The slots either side of the row drop it where it stands.
+        private boolean isOrigin(RowSlot slot) {
+            return slot.index() == row || slot.index() == row + 1;
+        }
     }
 
     // The whole value's terms on the line after the kind, one indent in.

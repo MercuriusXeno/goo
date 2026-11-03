@@ -32,6 +32,8 @@ class ExpressionBuilderPaneTest {
     private static final GroupsPane.Bounds AREA = new GroupsPane.Bounds(0, 0, 590, 390);
     // Where the builder's lines end, short of the trash strip by a gap.
     private static final int CONTENT_RIGHT = AREA.right() - ExpressionBuilderPane.TRASH_WIDTH - BuilderOverlays.GAP;
+    // A type row's rail and the gap after it, which stand before its goo type button.
+    private static final int ROW_RAIL = ControlFlow.RAIL_WIDTH + BuilderOverlays.GAP;
 
     /**
      * An open builder, each frame it draws and each string it writes.
@@ -308,6 +310,101 @@ class ExpressionBuilderPaneTest {
         assertEquals("$base", builder.written.getLast());
     }
 
+    private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
+
+    // Where a type row's rail answers, found by its hover across the screen.
+    private static double[] rowRailOf(DrawnFrame frame, int row) {
+        String key = ExpressionBuilderPane.rowRailHoverKey(row);
+        for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
+            for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
+                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                    return new double[] {x, y};
+                }
+            }
+        }
+        throw new AssertionError("no rail for row " + row + " in " + frame.targets.hoverKeys());
+    }
+
+    // Each goo icon blit as its x and y.
+    private static List<int[]> iconBlits(DrawnFrame frame) {
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(),
+                org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(),
+                anyInt(), anyInt(), anyInt(), anyInt());
+        return IntStream.range(0, xs.getAllValues().size())
+                .mapToObj(index -> new int[] {xs.getAllValues().get(index), ys.getAllValues().get(index)}).toList();
+    }
+
+    /**
+     * Each type row draws a rail left of its goo icon and no X (decision type-rows-drag-by-a-rail-to-reorder-or-trash).
+     */
+    @Test
+    void typeRowsDrawARailLeftOfTheirIconAndNoX() {
+        DrawnFrame frame = Builder.item(TWO_TYPES).frame();
+        for (int row = 0; row < 2; row++) {
+            double[] rail = rowRailOf(frame, row);
+            int line = (int) rail[1] / ControlFlow.LINE;
+            int icon = iconBlits(frame).stream().filter(blit -> blit[1] / ControlFlow.LINE == line)
+                    .mapToInt(blit -> blit[0]).min().orElseThrow(() -> new AssertionError("no icon on " + line));
+            assertTrue(rail[0] < icon, "row " + row + "'s rail at " + rail[0] + " vs its icon at " + icon);
+        }
+        assertTrue(frame.texts().stream().noneMatch("X"::equals), frame.drawn().toString());
+    }
+
+    /**
+     * A type row's rail drag draws the drop cursor at the row slot under the pointer and the release there reorders
+     * the rows; a release on the trash strip removes the type (decision type-rows-drag-by-a-rail-to-reorder-or-trash).
+     */
+    @Test
+    void typeRowDragReordersTheRowsAndTheTrashStripRemovesOne() {
+        Builder builder = Builder.item(TWO_TYPES);
+        DrawnFrame frame = builder.frame();
+        double[] rail = rowRailOf(frame, 0);
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        DrawnFrame.Text add = frame.find("+?");
+        assertTrue(frame.targets.drag(rail[0], add.y()));
+        DrawnFrame dragging = builder.frame();
+        List<Integer> cursor = cursorTops(dragging);
+        assertEquals(1, cursor.size(), "one drop cursor: " + cursor);
+        assertTrue(Math.abs(cursor.getFirst() - add.y()) < ControlFlow.LINE, cursor + " vs " + add);
+        frame.targets.release();
+        assertEquals("{\"pulse\": \"2\", \"metal\": \"5\"}", builder.written.getLast());
+        Builder trashing = Builder.item(TWO_TYPES);
+        DrawnFrame opened = trashing.frame();
+        double[] first = rowRailOf(opened, 0);
+        assertTrue(opened.targets.click(first[0], first[1]));
+        assertTrue(opened.targets.drag(AREA.right() - 1, first[1]));
+        assertEquals(1, fills(trashing.frame(), ExpressionBuilderPane.TRASH_HOVER).size());
+        opened.targets.release();
+        assertEquals("{\"pulse\": \"2\"}", trashing.written.getLast());
+    }
+
+    /**
+     * A type row released on its own slot, or dropped by Escape, writes nothing (decision
+     * type-rows-drag-by-a-rail-to-reorder-or-trash).
+     */
+    @Test
+    void typeRowReleasedOnItsOwnSlotOrEscapedWritesNothing() {
+        Builder builder = Builder.item(TWO_TYPES);
+        DrawnFrame frame = builder.frame();
+        double[] rail = rowRailOf(frame, 1);
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        assertTrue(frame.targets.drag(rail[0], rail[1]));
+        builder.frame();
+        frame.targets.release();
+        assertEquals(List.of(), builder.written);
+        DrawnFrame again = builder.frame();
+        double[] first = rowRailOf(again, 0);
+        assertTrue(again.targets.click(first[0], first[1]));
+        assertTrue(again.targets.drag(first[0], again.find("+?").y()));
+        builder.frame();
+        assertTrue(builder.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE));
+        assertTrue(cursorTops(builder.frame()).isEmpty(), "the drop cursor goes with the drag");
+        again.targets.release();
+        assertEquals(List.of(), builder.written);
+    }
+
     // Whether a fill in the color covers the text's top-left.
     private static boolean filledAround(DrawnFrame frame, int color, DrawnFrame.Text text) {
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
@@ -438,7 +535,7 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text colon = rowColon(frame, 1);
             int typeX = iconXs(frame, 1).getFirst();
-            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, typeX);
+            assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.PADDING, typeX);
             assertTrue(colon.x() > typeX, colon + " after the type at " + typeX);
             DrawnFrame.Text food = frame.findFirst("food");
             assertEquals(colon.y(), food.y(), frame.drawn().toString());
@@ -476,15 +573,12 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
-        void beetrootsJellyRowReadsKindPlusThenTheRowInlineEndingOnTheRowsX() {
+        void beetrootsJellyRowReadsKindPlusThenTheRowInline() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
-            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "+", "saturation", "'s", "x", "12", SUM_ADD,
-                    "X"), lineTexts(frame, 1), frame.drawn().toString());
-            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
-            DrawnFrame.Text rowX = line(frame, 1).getLast();
-            assertEquals(CONTENT_RIGHT - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING,
-                    rowX.x());
+            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "+", "saturation", "'s", "x", "12", SUM_ADD),
+                    lineTexts(frame, 1), frame.drawn().toString());
+            assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
             assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),
                     "jelly between 's and the ratio at " + jelly);
@@ -550,10 +644,7 @@ class ExpressionBuilderPaneTest {
             DrawnFrame.Text open = frame.find("(");
             int head = open.y() / ControlFlow.LINE;
             assertEquals(List.of("-", "(", "food"), lineTexts(frame, head).subList(0, 3), frame.drawn().toString());
-            // The row's own X, which the type-row rail retires, is the line's one X.
-            assertEquals(List.of(CONTENT_RIGHT - ButtonPainter.width(DrawnFrame.font(), "X") + ButtonPainter.PADDING),
-                    line(frame, head).stream().filter(text -> text.text().equals("X")).map(DrawnFrame.Text::x)
-                            .toList(), frame.drawn().toString());
+            assertFalse(lineTexts(frame, head).contains("X"), frame.drawn().toString());
             assertEquals(List.of(":", "dye", "'s", "1", ":", "1"), lineTexts(frame, head - 1),
                     frame.drawn().toString());
             assertEquals(open.y(), frame.find(")").y(), frame.drawn().toString());
@@ -682,7 +773,7 @@ class ExpressionBuilderPaneTest {
         Builder builder = Builder.item("{\"metal\": \"5\"}");
         DrawnFrame frame = builder.frame();
         int lineTop = frame.findFirst(ExpressionLines.COLON).y() - 5;
-        int typeLeft = AREA.left() + ControlFlow.INDENT;
+        int typeLeft = AREA.left() + ControlFlow.INDENT + ROW_RAIL;
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
@@ -898,20 +989,6 @@ class ExpressionBuilderPaneTest {
 
         private static List<DrawnFrame.Text> removes(DrawnFrame frame) {
             return frame.drawn().stream().filter(text -> text.text().equals(X)).toList();
-        }
-
-        @Test
-        void rowRemovesDrawAsRedXsReadingDelete() {
-            Builder builder = Builder.item("{\"metal\": \"5\", \"pulse\": \"2\"}");
-            DrawnFrame frame = builder.frame();
-            assertFalse(frame.texts().contains("remove"), frame.texts().toString());
-            List<DrawnFrame.Text> xs = removes(frame);
-            assertEquals(2, xs.size(), frame.texts().toString());
-            xs.forEach(x -> assertEquals(ExpressionBuilderPane.RED, x.color()));
-            assertEquals(BuilderOverlays.hintKey("Delete"),
-                    frame.targets.hovered(xs.getFirst().x() + 1, xs.getFirst().y() + 1).orElseThrow());
-            clickAt(frame, xs.getFirst());
-            assertFalse(builder.written.getLast().contains("metal"), builder.written.toString());
         }
 
         /**

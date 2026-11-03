@@ -19,7 +19,8 @@ final class ControlFlow {
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
-    private static final int RAIL_WIDTH = 4;
+    /** A drag rail's width. */
+    static final int RAIL_WIDTH = 4;
     private static final int RAIL_INSET = 3;
     private static final int RAIL_COLOR = 0xFF7080A0;
     static final int OUTLINE_COLOR = 0x60FFFFFF;
