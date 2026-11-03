@@ -31,6 +31,18 @@ final class ExpressionBuilderPane {
     static final int RED = 0xFFFF5555;
     /** The done control's check mark and word. */
     static final int GREEN = 0xFF80E080;
+    // Decision parentheticals-alternate-gray-tones-by-depth: a parenthetical's box reads as a box, its border clearly
+    // off its fill, and each box keeps room inside its outline and between it and the next.
+    /** A parenthetical box's border. */
+    static final int NEST_BORDER = 0xC0A8B4D0;
+    /** The room from a box's border to its rail. */
+    static final int BOX_PADDING = 5;
+    /** The room between sibling term boxes. */
+    static final int TERM_MARGIN = 8;
+    // The room a box adds inside its border past what the flow leaves, and past its last piece.
+    private static final int BOX_INSIDE = BOX_PADDING - ControlFlow.RAIL_MARGIN - 1;
+    // The room a box adds after itself past the gap the flow leaves, less the two border pixels.
+    private static final int BOX_AFTER = TERM_MARGIN - BuilderOverlays.GAP + 2;
     /** The builder's panel fill. */
     static final int PANEL_COLOR = 0x30FFFFFF;
     // Decision terms-and-type-rows-drag-to-a-trash-strip: the strip along the builder's right edge, dim at rest,
@@ -716,21 +728,27 @@ final class ExpressionBuilderPane {
             // its own with its join, its controls too wide to share the rest of a line.
             flow.wrapLine();
         }
+        int lead = leadWidth(flow.font(), path, piece);
+        // Decision parentheticals-alternate-gray-tones-by-depth: the box's padding opens with its rail.
+        flow.fit(BOX_INSIDE + ControlFlow.RAIL_ADVANCE + lead);
         BuilderOverlays.Anchor start = flow.anchor();
-        flow.rail(railHoverKey(path), new Drag(path, piece), leadWidth(flow.font(), path, piece));
+        flow.space(BOX_INSIDE);
+        flow.rail(railHoverKey(path), new Drag(path, piece), lead);
         if (path.getLast() > 0) {
             drawJoin(flow, path, piece);
         }
         if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
             drawNest(flow, new Nested(path, piece, start), nest, place);
-            return;
+        } else {
+            drawOperand(flow, path, piece, place);
+            if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
+                drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+            }
+            flow.space(BOX_INSIDE);
+            flow.outlineFrom(start);
+            boxes.add(new TermBox(path, flow.boxFrom(start, depthOf(path, place))));
         }
-        drawOperand(flow, path, piece, place);
-        if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
-            drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
-        }
-        flow.outlineFrom(start);
-        boxes.add(new TermBox(path, flow.boxFrom(start, depthOf(path, place))));
+        flow.space(BOX_AFTER);
     }
 
     // The join and the operand after a term's rail, which the rail keeps on its line.
@@ -906,7 +924,8 @@ final class ExpressionBuilderPane {
         flow.text(CLOSE_PAREN, GRAY);
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         int depth = depthOf(path, place);
-        flow.tintFrom(nested.start(), nestTone(depth), depth);
+        flow.space(BOX_INSIDE);
+        flow.tintFrom(nested.start(), new ControlFlow.BoxTones(nestTone(depth), NEST_BORDER), depth);
         boxes.add(new TermBox(path, flow.boxFrom(nested.start(), depth)));
     }
 

@@ -24,7 +24,8 @@ final class ControlFlow {
     private static final int RAIL_INSET = 3;
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: the rail stands a pixel inside its term's
     // outline, so the two never share a pixel, and three grip lines mark it as a rail.
-    private static final int RAIL_MARGIN = 1;
+    /** The room left of a rail, between it and an outline. */
+    static final int RAIL_MARGIN = 1;
     private static final int GRIP_LINES = 3;
     private static final int GRIP_PITCH = 2;
     /** How far a rail moves the next piece: its margin, its width and a gap. */
@@ -144,6 +145,25 @@ final class ControlFlow {
             lineLeft = left + INDENT;
             x = lineLeft;
         }
+    }
+
+    /**
+     * Starts a fresh line where pieces this wide do not fit the rest of the current one, so a unit and its room
+     * open together.
+     *
+     * @param width the pieces' width
+     */
+    void fit(int width) {
+        reserve(width);
+    }
+
+    /**
+     * Leaves room before the next piece.
+     *
+     * @param width the room
+     */
+    void space(int width) {
+        x += width;
     }
 
     private void reserve(int width) {
@@ -463,13 +483,27 @@ final class ControlFlow {
      * lines, from there to the area's right edge, a pixel in per depth so a box inside a box shows its own edge
      * (decision parentheticals-alternate-gray-tones-by-depth).
      *
-     * @param start where the box's first piece stood
-     * @param tint  the box's color
-     * @param depth how many boxes hold it, its own included
+     * @param start  where the box's first piece stood
+     * @param tones  the box's fill and the border around it
+     * @param depth  how many boxes hold it, its own included
      */
-    void tintFrom(BuilderOverlays.Anchor start, int tint, int depth) {
+    void tintFrom(BuilderOverlays.Anchor start, BoxTones tones, int depth) {
         GroupsPane.Bounds box = boxFrom(start, depth);
-        graphics.fill(box.left(), box.top(), box.right(), box.bottom(), tint);
+        int border = tones.border();
+        graphics.fill(box.left(), box.top(), box.right(), box.top() + 1, border);
+        graphics.fill(box.left(), box.bottom() - 1, box.right(), box.bottom(), border);
+        graphics.fill(box.left(), box.top() + 1, box.left() + 1, box.bottom() - 1, border);
+        graphics.fill(box.right() - 1, box.top() + 1, box.right(), box.bottom() - 1, border);
+        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, box.bottom() - 1, tones.fill());
+    }
+
+    /**
+     * A box's colors (decision parentheticals-alternate-gray-tones-by-depth).
+     *
+     * @param fill   inside its border
+     * @param border its one-pixel edge
+     */
+    record BoxTones(int fill, int border) {
     }
 
     /**

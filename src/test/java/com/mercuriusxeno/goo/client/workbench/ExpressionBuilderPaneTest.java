@@ -34,6 +34,8 @@ class ExpressionBuilderPaneTest {
     private static final int CONTENT_RIGHT = AREA.right() - ExpressionBuilderPane.TRASH_WIDTH - BuilderOverlays.GAP;
     // A type row's rail and the gap after it, which stand before its goo type button.
     private static final int ROW_RAIL = ControlFlow.RAIL_ADVANCE;
+    // The room a term box leaves inside its border before its rail's own margin.
+    private static final int BOX_ROOM = ExpressionBuilderPane.BOX_PADDING - ControlFlow.RAIL_MARGIN - 1;
 
     /**
      * An open builder, each frame it draws and each string it writes.
@@ -339,6 +341,40 @@ class ExpressionBuilderPaneTest {
                 "the rail's ends touch the outline: " + java.util.Arrays.toString(rail));
     }
 
+    /**
+     * A parenthetical's box draws a one-pixel border in its own color around its fill, its rail the box padding in
+     * from that border, and sibling term boxes stand the term margin apart; both read wider than before (decision
+     * parentheticals-alternate-gray-tones-by-depth).
+     */
+    @Test
+    void parentheticalBoxesDrawABorderAndTermBoxesTakeRoom() {
+        assertTrue(ExpressionBuilderPane.BOX_PADDING > 2, "the padding was 2 before");
+        assertTrue(ExpressionBuilderPane.TERM_MARGIN > 4, "the margin was 4 before");
+        DrawnFrame frame = Builder.item("$waxed + $edited + ($base - $waxed)").frame();
+        int[] fill = fills(frame, ExpressionBuilderPane.nestTone(1)).getFirst();
+        List<int[]> border = fills(frame, ExpressionBuilderPane.NEST_BORDER);
+        assertEquals(4, border.size(), "the border's four sides");
+        int borderLeft = border.stream().mapToInt(side -> side[0]).min().orElseThrow();
+        int borderTop = border.stream().mapToInt(side -> side[1]).min().orElseThrow();
+        int borderRight = border.stream().mapToInt(side -> side[2]).max().orElseThrow();
+        int borderBottom = border.stream().mapToInt(side -> side[3]).max().orElseThrow();
+        assertTrue(borderLeft < fill[0] && borderTop < fill[1] && borderRight > fill[2] && borderBottom > fill[3],
+                "the border encloses the fill " + java.util.Arrays.toString(fill));
+        int railLeft = fills(frame, ControlFlow.RAIL_COLOR).stream().filter(rail -> rail[0] > borderLeft
+                && rail[1] >= borderTop && rail[3] <= borderBottom).mapToInt(rail -> rail[0]).min().orElseThrow();
+        assertEquals(borderLeft + ExpressionBuilderPane.BOX_PADDING, railLeft, "the parenthetical's rail");
+        double[] waxed = railOf(frame, List.of(0));
+        double[] edited = railOf(frame, List.of(1));
+        // The vertical outline sides on the line, left to right: waxed's left and right, then edited's.
+        List<int[]> sides = fills(frame, ControlFlow.OUTLINE_COLOR).stream()
+                .filter(side -> side[2] - side[0] == 1 && side[1] <= waxed[1] && side[3] > waxed[1])
+                .sorted(java.util.Comparator.comparingInt(side -> side[0])).toList();
+        assertTrue(sides.size() >= 3 && sides.get(2)[0] < edited[0], "outline sides " + sides.size());
+        int waxedRight = sides.get(1)[2];
+        int editedLeft = sides.get(2)[0];
+        assertEquals(ExpressionBuilderPane.TERM_MARGIN, editedLeft - waxedRight, "the room between sibling boxes");
+    }
+
     private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
 
     // Where a type row's rail answers, found by its hover across the screen.
@@ -583,13 +619,14 @@ class ExpressionBuilderPaneTest {
             assertTrue(saturation.y() > food.y(), frame.drawn().toString());
             // A wrapped term's line opens on its rail, one indent in under the type.
             double[] saturationRail = railOf(frame, List.of(0, 1));
-            assertEquals(typeLeft + ControlFlow.INDENT, (int) saturationRail[0], frame.drawn().toString());
+            assertEquals(typeLeft + ControlFlow.INDENT + BOX_ROOM, (int) saturationRail[0], frame.drawn().toString());
             assertEquals(saturation.y() / ControlFlow.LINE, (int) saturationRail[1] / ControlFlow.LINE);
             DrawnFrame.Text dye = frame.find("dye");
             DrawnFrame.Text minus = frame.drawn().stream().filter(text -> text.text().equals("-")
                     && text.y() > dye.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             double[] parentheticalRail = railOf(frame, List.of(1, 1));
-            assertEquals(typeLeft + ControlFlow.INDENT, (int) parentheticalRail[0], frame.drawn().toString());
+            assertEquals(typeLeft + ControlFlow.INDENT + BOX_ROOM, (int) parentheticalRail[0],
+                    frame.drawn().toString());
             assertEquals(minus.y() / ControlFlow.LINE, (int) parentheticalRail[1] / ControlFlow.LINE);
             assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("(") && text.y() == minus.y()),
                     frame.drawn().toString());
