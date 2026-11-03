@@ -395,13 +395,15 @@ class ExpressionBuilderPaneTest {
         }
 
         // Leaf's parenthetical is subtracted, so neither it nor dye ahead of it draws a move that would land it first
-        // and drop its minus; the parenthetical takes a line of its own, "-" "(" and its X, then its terms inline.
+        // and drop its minus; the parenthetical takes a line of its own, "-" "(" then its terms inline, its X last
+        // (decision term-operators-right-pack).
         @Test
-        void parentheticalLineReadsJoinParenAndXThenItsTermsInline() {
+        void parentheticalLineReadsJoinParenThenItsTermsInlineAndItsXLast() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
             int head = open.y() / ControlFlow.LINE;
-            assertEquals(List.of("-", "(", "X", "food"), lineTexts(frame, head).subList(0, 4),
+            assertEquals(List.of("-", "(", "food"), lineTexts(frame, head).subList(0, 3), frame.drawn().toString());
+            assertTrue(lineTexts(frame, head).indexOf(")") < lineTexts(frame, head).lastIndexOf("X"),
                     frame.drawn().toString());
             assertEquals(List.of(":", "dye", "'s", "1", ":", "1", "()", "X"), lineTexts(frame, head - 1),
                     frame.drawn().toString());
@@ -790,6 +792,87 @@ class ExpressionBuilderPaneTest {
                     .orElseThrow()).toList();
             assertTrue(hints.contains(BuilderOverlays.hintKey("Delete")),
                     hints.toString());
+        }
+
+        // The right edge of the X's button.
+        private static int rightOf(DrawnFrame frame, DrawnFrame.Text x) {
+            return x.x() + DrawnFrame.font().width(X) + ButtonPainter.PADDING;
+        }
+
+        // Each fill in the color, as left, top, right, bottom.
+        private static List<int[]> fills(DrawnFrame frame, int color) {
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
+                    rights.capture(), bottoms.capture(), eq(color));
+            return IntStream.range(0, lefts.getAllValues().size()).mapToObj(index -> new int[] {
+                    lefts.getAllValues().get(index), tops.getAllValues().get(index),
+                    rights.getAllValues().get(index), bottoms.getAllValues().get(index)}).toList();
+        }
+
+        /**
+         * The last term's X is the last button inside its outlined box, its right edge one border pixel in from the
+         * box's right edge, on the rail's line (decision term-operators-right-pack).
+         */
+        @Test
+        void termXStandsAtItsBoxRightEndOppositeItsRail() {
+            DrawnFrame frame = Builder.item("$waxed + $edited").frame();
+            double[] rail = railOf(frame, List.of(1));
+            int boxRight = fills(frame, ControlFlow.OUTLINE_COLOR).stream()
+                    .filter(fill -> fill[2] - fill[0] == 1 && fill[3] - fill[1] == ControlFlow.LINE)
+                    .filter(fill -> fill[0] > rail[0] && fill[1] <= rail[1] && fill[3] > rail[1])
+                    .mapToInt(fill -> fill[2]).max().orElseThrow();
+            DrawnFrame.Text x = removes(frame).getLast();
+            assertEquals(boxRight - 1, rightOf(frame, x), "the X stands outside its box");
+            assertTrue(Math.abs(x.y() - rail[1]) < ControlFlow.LINE, x + " off the rail's line " + rail[1]);
+        }
+
+        /**
+         * No X stands between a parenthetical's "(" and its first term's rail (decision term-operators-right-pack).
+         */
+        @Test
+        void noXStandsAfterAParentheticalsOpenParen() {
+            DrawnFrame frame = Builder.item("$base + ($waxed - $edited)").frame();
+            DrawnFrame.Text open = frame.find("(");
+            double[] rail = railOf(frame, List.of(1, 0));
+            assertTrue(removes(frame).stream().noneMatch(x -> Math.abs(x.y() - open.y()) < ControlFlow.LINE
+                    && x.x() > open.x() && x.x() < rail[0]), frame.drawn().toString());
+        }
+
+        /**
+         * A one-line parenthetical's X stands at its box's right end, on its line (decision
+         * term-operators-right-pack).
+         */
+        @Test
+        void oneLineParentheticalXStandsAtItsBoxRightEnd() {
+            Builder builder = Builder.item("$base + ($waxed - $edited)");
+            DrawnFrame frame = builder.frame();
+            int[] box = fills(frame, ExpressionBuilderPane.nestTone(1)).getFirst();
+            assertEquals(ControlFlow.LINE, box[3] - box[1], "the box spans more than one line");
+            DrawnFrame.Text x = removes(frame).stream().filter(remove -> rightOf(frame, remove) == box[2] - 1
+                    && remove.y() >= box[1] && remove.y() < box[3]).findFirst()
+                    .orElseThrow(() -> new AssertionError(frame.drawn() + " vs box right " + box[2]));
+            clickAt(frame, x);
+            assertEquals("$base", builder.written.getLast(), "the X at the box's right end is not the box's own");
+        }
+
+        /**
+         * A parenthetical wrapping across lines carries its X at its box's top right (decision
+         * term-operators-right-pack).
+         */
+        @Test
+        void multiLineParentheticalXStandsAtItsBoxTopRight() {
+            Builder builder = Builder.item("$base + ($waxed - $edited + $base + $waxed + $edited)");
+            DrawnFrame frame = builder.frame(new GroupsPane.Bounds(0, 0, 220, 390));
+            int[] box = fills(frame, ExpressionBuilderPane.nestTone(1)).getFirst();
+            assertTrue(box[3] - box[1] > ControlFlow.LINE, "the box spans one line");
+            DrawnFrame.Text x = removes(frame).stream().filter(remove -> rightOf(frame, remove) == box[2] - 1
+                    && remove.y() >= box[1] && remove.y() < box[1] + ControlFlow.LINE).findFirst()
+                    .orElseThrow(() -> new AssertionError(frame.drawn() + " vs box " + java.util.Arrays.toString(box)));
+            clickAt(frame, x);
+            assertEquals("$base", builder.written.getLast(), "the X at the box's top right is not the box's own");
         }
 
         @Test
