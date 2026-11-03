@@ -43,6 +43,8 @@ final class ExpressionBuilderPane {
     private static final int BOX_INSIDE = BOX_PADDING - ControlFlow.RAIL_MARGIN - 1;
     // The room a box adds after itself past the gap the flow leaves, less the two border pixels.
     private static final int BOX_AFTER = TERM_MARGIN - BuilderOverlays.GAP + 2;
+    // How far below a line's top its centered buttons start.
+    private static final int BUTTON_ABOVE = (ControlFlow.LINE - ButtonPainter.HEIGHT) / 2;
     /** The builder's panel fill. */
     static final int PANEL_COLOR = 0x30FFFFFF;
     // Decision terms-and-type-rows-drag-to-a-trash-strip: the strip along the builder's right edge, dim at rest,
@@ -298,13 +300,21 @@ final class ExpressionBuilderPane {
         drawValue(flow, edited);
         drawClosing(flow, edited);
         int bottom = flow.bottom();
-        graphics.fill(area.left() - 1, top - 1, area.right(), bottom, PANEL_COLOR);
-        trash = new GroupsPane.Bounds(stripLeft, top - 1, area.right(), bottom);
-        drawTrash(graphics, trash);
+        drawPanel(graphics, new GroupsPane.Bounds(area.left(), top, area.right(), bottom));
         drawDropCursor(graphics);
         drawRowCursor(graphics, stripLeft - BuilderOverlays.GAP);
         drawWrapMark(graphics);
         return bottom - top;
+    }
+
+    // The gray box behind the builder and the trash strip along its right edge, over the lines it laid.
+    // Decision spacing-rules-are-one-set-across-every-pane: the box stands the box margin outside its buttons, which
+    // a line centers below its top.
+    private void drawPanel(GuiGraphicsExtractor graphics, GroupsPane.Bounds laid) {
+        int panelTop = laid.top() + BUTTON_ABOVE - RowLayout.BOX_MARGIN;
+        graphics.fill(laid.left() - RowLayout.BOX_MARGIN, panelTop, laid.right(), laid.bottom(), PANEL_COLOR);
+        trash = new GroupsPane.Bounds(laid.right() - TRASH_WIDTH, panelTop, laid.right(), laid.bottom());
+        drawTrash(graphics, trash);
     }
 
     // Decision terms-and-type-rows-drag-to-a-trash-strip.

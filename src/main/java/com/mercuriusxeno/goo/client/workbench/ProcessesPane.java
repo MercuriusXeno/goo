@@ -32,13 +32,15 @@ final class ProcessesPane {
     private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename";
     private static final String DELETE_HINT = "Delete";
-    private static final int PENCIL_GAP = 3;
-    // A button stands a pixel under the rule above its row and its label five under that.
-    private static final int BUTTON_INSET = 1;
-    private static final int HEAD_TEXT_NUDGE = 4;
+    // Decision spacing-rules-are-one-set-across-every-pane: the pencil a button gap past the name, and the head
+    // line's buttons the rule gap under the rule above, its text on their labels' line.
+    private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
+    private static final int BUTTON_INSET = RowLayout.RULE_GAP;
+    private static final int HEAD_TEXT_NUDGE = BUTTON_INSET + ButtonPainter.TEXT_NUDGE;
     // The kind dropdown's line centers a button two pixels under the line's top.
     private static final int KIND_LINE_INSET = 2;
-    private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT + 1;
+    // The sentence line centers its buttons, so they stand the rule gap under the head line's.
+    private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT;
     private static final int ROW_GAP = 1;
     /**
      * A row whose sentence takes one line, from its top to the next row's

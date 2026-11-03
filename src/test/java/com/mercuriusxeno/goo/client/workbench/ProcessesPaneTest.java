@@ -276,6 +276,43 @@ class ProcessesPaneTest {
         assertEquals(edge, rightOf(add), add.toString());
     }
 
+    /**
+     * A mutator's and an iterator's rename pencil stands the rule gap under the rule above its row and the button
+     * gap past its name, and the row above keeps its last buttons the rule gap over that rule (decision
+     * spacing-rules-are-one-set-across-every-pane).
+     */
+    @Test
+    void rowsKeepTheRuleAndButtonGaps() {
+        pane = chainedIterators(mock(ManagerActions.class));
+        DrawnFrame frame = frame();
+        assertRowSpacing(frame, "waxed", "rust", "$oak");
+        assertRowSpacing(frame, "#twice", "#bare", "+ optional mutation");
+    }
+
+    // The second row's pencil against the rule above it, and the first row's last button against that rule.
+    private static void assertRowSpacing(DrawnFrame frame, String firstName, String secondName, String lastButton) {
+        DrawnFrame.Text first = first(frame, firstName);
+        DrawnFrame.Text second = first(frame, secondName);
+        DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")
+                && text.x() > second.x() && Math.abs(text.y() - second.y()) <= 1).findFirst()
+                .orElseThrow(() -> new AssertionError("no pencil by " + second + " in " + frame.drawn()));
+        int pencilTop = pencil.y() - ButtonPainter.TEXT_NUDGE;
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
+                eq(RowLayout.SEPARATOR_COLOR));
+        int rule = java.util.stream.IntStream.range(0, tops.getAllValues().size())
+                .filter(index -> lefts.getAllValues().get(index) <= second.x())
+                .map(index -> tops.getAllValues().get(index)).filter(top -> top < pencilTop).max().orElseThrow();
+        assertEquals(rule + 1 + RowLayout.RULE_GAP, pencilTop, secondName + "'s pencil under the rule at " + rule);
+        assertEquals(second.x() + DrawnFrame.font().width(second.text()) + RowLayout.BUTTON_GAP,
+                pencil.x() - ButtonPainter.PADDING, secondName + "'s pencil past its name");
+        DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals(lastButton)
+                && text.y() > first.y() && text.y() < second.y()).reduce((earlier, later) -> later).orElseThrow();
+        int lastBottom = last.y() - ButtonPainter.TEXT_NUDGE + ButtonPainter.HEIGHT;
+        assertEquals(RowLayout.RULE_GAP, rule - lastBottom, firstName + "'s last button over the rule");
+    }
+
     private static DrawnFrame.Text onLineOf(DrawnFrame frame, DrawnFrame.Text anchor, String label) {
         return frame.drawn().stream().filter(text -> text.y() == anchor.y() && text.text().equals(label)).findFirst()
                 .orElseThrow(() -> new AssertionError(label + " on " + anchor + ": " + frame.drawn()));

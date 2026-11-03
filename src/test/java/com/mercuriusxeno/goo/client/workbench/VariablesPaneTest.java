@@ -618,6 +618,20 @@ class VariablesPaneTest {
                 && text.x() < leaf.x()), frame.drawn().toString());
     }
 
+    /**
+     * A prefab's rename pencil stands the button gap past its name (decision
+     * spacing-rules-are-one-set-across-every-pane).
+     */
+    @Test
+    void prefabPencilStandsTheButtonGapPastItsName() {
+        DrawnFrame frame = new DrawnFrame();
+        readByEgg(mock(ManagerActions.class)).extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text name = frame.find("$base");
+        DrawnFrame.Text pencil = frame.findFirst("✎");
+        assertEquals(name.x() + DrawnFrame.font().width(name.text()) + RowLayout.BUTTON_GAP,
+                pencil.x() - ButtonPainter.PADDING, frame.drawn().toString());
+    }
+
     private static final List<String> PREVIEWED_TYPES = List.of("rock", "yore", "opulent", "crystal");
 
     // A prefab summing two others whose preview reads four goo types, the screenshot's $mundane_trim.

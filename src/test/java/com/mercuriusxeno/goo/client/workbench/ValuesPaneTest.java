@@ -241,6 +241,23 @@ class ValuesPaneTest {
             assertEquals(LIST_RIGHT, value.x() + DrawnFrame.font().width(value.text()), value.toString());
         }
 
+        // Decision spacing-rules-are-one-set-across-every-pane: an entry row's x keeps the rule gap over the rule
+        // below its row.
+        @Test
+        void itemsRemoveButtonKeepsTheRuleGapOverTheRuleBelow() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text stick = frame.find("Stick");
+            DrawnFrame.Text remove = frame.drawn().stream().filter(text -> text.text().equals("✗")
+                    && text.y() > stick.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            int removeBottom = remove.y() - ButtonPainter.TEXT_NUDGE + ButtonPainter.HEIGHT;
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).fill(anyInt(), tops.capture(), anyInt(), anyInt(),
+                    eq(RowLayout.SEPARATOR_COLOR));
+            int rule = tops.getAllValues().stream().filter(top -> top >= removeBottom).min(Integer::compare)
+                    .orElseThrow(() -> new AssertionError("no rule under " + removeBottom + ": " + tops.getAllValues()));
+            assertEquals(RowLayout.RULE_GAP, rule - removeBottom, "the x over the rule at " + rule);
+        }
+
         // Decision items-row-is-name-recipe-space-between-and-value-right-packed.
         @Test
         void narrowRowDropsItsRecipeUnderTheNameAndKeepsTheValueRightPacked() {

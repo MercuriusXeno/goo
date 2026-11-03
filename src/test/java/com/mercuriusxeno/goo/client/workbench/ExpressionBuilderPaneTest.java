@@ -375,6 +375,21 @@ class ExpressionBuilderPaneTest {
         assertEquals(ExpressionBuilderPane.TERM_MARGIN, editedLeft - waxedRight, "the room between sibling boxes");
     }
 
+    /**
+     * The builder's gray box stands the box margin outside its first button, left and above (decision
+     * spacing-rules-are-one-set-across-every-pane).
+     */
+    @Test
+    void builderBoxKeepsTheBoxMarginOutsideItsContents() {
+        DrawnFrame frame = Builder.item("$waxed").frame();
+        int[] panel = fills(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
+        DrawnFrame.Text kind = frame.drawn().getFirst();
+        int buttonLeft = kind.x() - ButtonPainter.PADDING;
+        int buttonTop = kind.y() - ButtonPainter.TEXT_NUDGE;
+        assertEquals(RowLayout.BOX_MARGIN, buttonLeft - panel[0], "the box's left margin");
+        assertEquals(RowLayout.BOX_MARGIN, buttonTop - panel[1], "the box's top margin");
+    }
+
     private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
 
     // Where a type row's rail answers, found by its hover across the screen.

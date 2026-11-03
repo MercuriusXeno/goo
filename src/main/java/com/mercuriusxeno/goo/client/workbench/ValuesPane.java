@@ -362,7 +362,8 @@ final class ValuesPane {
                     expression.left(), expressionTop + height, RED);
             height += LINE_HEIGHT;
         }
-        return head + height + RowLayout.RULE_PADDING;
+        // Decision spacing-rules-are-one-set-across-every-pane: the x keeps the rule gap over the rule below.
+        return head + height + RowLayout.RULE_SPAN;
     }
 
     // The red x marks the entry for removal; a marked entry's gold arrow in its place restores it until the save.
@@ -857,7 +858,7 @@ final class ValuesPane {
     private int measureRow(Font font, ValuesTab.ManagerEntry entry, ValuesTab.EntryRow row, int width) {
         int expression = ReadValueButton.height(font, expressionRuns(row), expressionWidth(font, entry, width));
         int head = placeHead(font, entry, new GroupsPane.Bounds(0, 0, width, 0)).height();
-        return head + expression + (row.error().isEmpty() ? 0 : LINE_HEIGHT) + RowLayout.RULE_PADDING;
+        return head + expression + (row.error().isEmpty() ? 0 : LINE_HEIGHT) + RowLayout.RULE_SPAN;
     }
 
     // The entry's value curated, a plain left click on it opening the builder in its place, with the row selected,

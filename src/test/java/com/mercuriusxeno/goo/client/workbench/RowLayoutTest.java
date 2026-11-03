@@ -30,6 +30,18 @@ class RowLayoutTest {
     }
 
     /**
+     * One set of spacing constants serves every pane: a rule's gap, a button's gap and the builder box's margin
+     * (decision spacing-rules-are-one-set-across-every-pane).
+     */
+    @Test
+    void oneSpacingSetNamesTheRuleButtonAndBoxGaps() {
+        assertEquals(2, RowLayout.RULE_GAP);
+        assertEquals(3, RowLayout.BUTTON_GAP);
+        assertEquals(3, RowLayout.BOX_MARGIN);
+        assertEquals(RowLayout.RULE_GAP, RowLayout.RULE_PADDING, "a sprite row's rule keeps the rule gap");
+    }
+
+    /**
      * Rows holding a sprite step their 18px plus the rule's padding, so the separator above a row stands that padding
      * below the sprite in the row above it, its sprite a pixel below its top (decision rule-takes-padding-above-it).
      */
