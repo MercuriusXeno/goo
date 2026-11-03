@@ -527,7 +527,7 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // Its rail, [join] where it follows another term, the operand and its ratio in one outlined unit, then [()] [x].
+    // Its rail, [join] where it follows another term, the operand, its ratio, [()] and [x] in one outlined unit.
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, int count,
                           Place place) {
@@ -549,9 +549,10 @@ final class ExpressionBuilderPane {
         if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
             drawFactor(flow, piece, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         }
-        flow.outlineFrom(start);
         flow.control(WRAP, null, at -> apply(b -> b.wrap(path)));
+        // Decision term-operators-right-pack: the x is the box's last piece, opposite the rail.
         drawRemove(flow, path, count);
+        flow.outlineFrom(start);
     }
 
     // A sum keeps its last term.
@@ -625,21 +626,27 @@ final class ExpressionBuilderPane {
                 place.inRow() ? null : () -> apply(b -> b.setMember(path, null))));
     }
 
-    // "(" after the term's join with its x, its terms inline, each edited in place, a wrap inside it one indent
-    // further in, then ")" and the parenthetical's factor back at the outer indent; the box from its rail to its
-    // factor tints by depth.
+    // "(" after the term's join, its terms inline, each edited in place, a wrap inside it one indent further in,
+    // then ")" and the parenthetical's factor back at the outer indent, and its x last; the box from its rail to
+    // its x tints by depth.
     // Decision sum-of-terms-leaves-the-builder.
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
+    // Decision term-operators-right-pack: the x stands at the box's right end on one line, at its top right across
+    // lines.
     private void drawNest(ControlFlow flow, Nested nested, ExpressionBuilder.Nest nest, int count, Place place) {
         List<Integer> path = nested.path();
         flow.text(OPEN_PAREN, GRAY);
-        drawRemove(flow, path, count);
+        ControlFlow.Hold hold = count > 1 ? flow.holdRight(ButtonPainter.width(flow.font(), REMOVE)) : null;
         flow.shift(ControlFlow.INDENT);
         drawSum(flow, path, nest.pieces(), place);
         flow.shift(-ControlFlow.INDENT);
         flow.text(CLOSE_PAREN, GRAY);
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         int depth = place.inRow() ? path.size() - 1 : path.size();
+        if (hold != null) {
+            flow.heldControl(hold, nested.start(), depth, new ControlFlow.Colored(REMOVE, RED, DELETE_HINT,
+                    at -> apply(b -> b.remove(path))));
+        }
         flow.tintFrom(nested.start(), nestTone(depth), depth);
     }
 
