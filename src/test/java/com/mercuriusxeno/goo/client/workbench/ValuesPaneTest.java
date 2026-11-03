@@ -1003,28 +1003,17 @@ class ValuesPaneTest {
     }
 
     /**
-     * Hovering the group button answers a tooltip of the group's members as item icons in member order, eight at
-     * most, then ..+n counting the rest; a group of eight or fewer shows every member and no ..+n (decision
-     * group-link-hovers-member-icons-then-plus-n).
+     * Hovering the group button previews its group (decisions group-link-hovers-member-icons-then-plus-n,
+     * group-referent-previews-shorthand-members-then-its-value).
      */
     @Test
-    void groupButtonHoversItsMemberIconsThenPlusN() {
-        List<String> eleven = java.util.stream.IntStream.range(0, 11)
-                .mapToObj(index -> index == 0 ? "minecraft:torch" : "minecraft:light" + index).toList();
-        assertEquals(new TooltipLine.MemberIcons(eleven.subList(0, 8), "..+3"), hoveredGroupTooltip(eleven));
-        List<String> five = eleven.subList(0, 5);
-        assertEquals(new TooltipLine.MemberIcons(five, ""), hoveredGroupTooltip(five));
-    }
-
-    private static TooltipLine hoveredGroupTooltip(List<String> members) {
-        ValuesPane pane = groupedPane(mock(ManagerActions.class), members);
+    void groupButtonHoversItsGroupsPreview() {
+        ValuesPane pane = groupedPane(mock(ManagerActions.class), List.of("minecraft:torch"));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         DrawnFrame.Text label = frame.find("#lights");
-        String key = frame.targets.hovered(label.x() + 1, label.y() + 1).orElseThrow();
-        List<TooltipLine> lines = pane.groupTooltipFor(key).orElseThrow();
-        assertEquals(1, lines.size());
-        return lines.getFirst();
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("lights")),
+                frame.targets.hovered(label.x() + 1, label.y() + 1));
     }
 
     /**

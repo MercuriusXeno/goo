@@ -550,6 +550,9 @@ class VariablesPaneTest {
         assertTrue(itemXs(card).getLast() < plank.x(), "stick before plank on the card");
         assertTrue(plank.x() < logs.x(), plank + " before " + logs);
         assertTrue(plank.y() > woodLink.y(), "the card's chips draw on the card");
+        // Decision group-referent-previews-shorthand-members-then-its-value: the group chip previews its group.
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("logs")),
+                card.targets.hovered(logs.x() + 1, logs.y() + 1));
     }
 
     /**
