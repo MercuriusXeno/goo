@@ -19,12 +19,27 @@ public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmo
     }
 
     /**
-     * A goo type's amount, which {@link GooAmountTooltipComponent} draws.
+     * A goo type's amount, which {@link GooAmountTooltipComponent} draws as one cell of its run's grid.
      *
      * @param type   the goo type's id
      * @param amount the amount as the value reads it
      */
-    record GooAmount(String type, String amount) implements TooltipLine, TooltipComponent {
+    record GooAmount(String type, String amount) implements TooltipLine {
+    }
+
+    /**
+     * A run of goo amounts a tooltip lays as one grid, which {@link GooAmountGrid} draws (decision
+     * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+     *
+     * @param amounts the amounts, in the value's type order
+     */
+    record GooAmounts(List<GooAmount> amounts) implements TooltipComponent {
+        /**
+         * @param amounts the amounts, in the value's type order
+         */
+        public GooAmounts {
+            amounts = List.copyOf(amounts);
+        }
     }
 
     /**
