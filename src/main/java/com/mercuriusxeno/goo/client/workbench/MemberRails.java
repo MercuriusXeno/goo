@@ -96,8 +96,12 @@ final class MemberRails {
             return;
         }
         int top = listTop + slotAt(heldY) * GroupsPane.CARD_HEIGHT;
+        // The row lights only where the detail column shows it, so a row scrolled past its edge lights its visible
+        // part or nothing.
+        DragMask.Rect row = new DragMask.Rect(detail.left(), top, detail.right(), top + GroupsPane.CARD_HEIGHT)
+                .within(new DragMask.Rect(detail.left(), detail.top(), detail.right(), detail.bottom()));
         DragMask.draw(graphics, new DragMask.Rect(0, 0, graphics.guiWidth(), graphics.guiHeight()),
-                List.of(new DragMask.Rect(detail.left(), top, detail.right(), top + GroupsPane.CARD_HEIGHT)));
+                row.isEmpty() ? List.of() : List.of(row));
     }
 
     private int slotAt(double y) {
