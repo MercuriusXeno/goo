@@ -32,18 +32,8 @@ final class ExpressionBuilderPane {
     static final int RED = 0xFFFF5555;
     /** The done control's check mark and word. */
     static final int GREEN = 0xFF80E080;
-    // Decision parentheticals-alternate-gray-tones-by-depth: a parenthetical's box reads as a box, its border clearly
-    // off its fill, and each box keeps room inside its outline and between it and the next.
-    /** A parenthetical box's border. */
-    static final int NEST_BORDER = 0xC0A8B4D0;
-    /** The room from a box's border to its rail. */
-    static final int BOX_PADDING = 5;
-    /** The room between sibling term boxes. */
+    /** The room between sibling term containers. */
     static final int TERM_MARGIN = 8;
-    // The room a box adds inside its border past what the flow leaves, and past its last piece.
-    private static final int BOX_INSIDE = BOX_PADDING - 2;
-    // The room a box adds after itself past the gap the flow leaves, less the two border pixels.
-    private static final int BOX_AFTER = TERM_MARGIN - BuilderOverlays.GAP + 2;
     // How far below a line's top its centered buttons start.
     private static final int BUTTON_ABOVE = (ControlFlow.LINE - ButtonPainter.HEIGHT) / 2;
     /** The builder's panel fill. */
@@ -103,8 +93,6 @@ final class ExpressionBuilderPane {
     private static final int PREVIEW_COLOR = 0xE0182030;
     private static final int PREVIEW_TEXT = 0xFFFFFFFF;
     private static final String RATIO = ":";
-    // The clear pixel either side of a ratio's colon (decision ratio-colon-takes-no-spaces, as corrected).
-    private static final int COLON_CLEARS = 2;
     private static final String WHOLE_VALUE = "the whole value";
     private static final String OPEN_PAREN = "(";
     private static final String CLOSE_PAREN = ")";
@@ -855,8 +843,14 @@ final class ExpressionBuilderPane {
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawSum(ControlFlow flow, List<Integer> sum, List<ExpressionBuilder.Piece> pieces, Place place) {
         for (int index = 0; index < pieces.size(); index++) {
-            // A slot before a term stands in front of it; the sum's last slot stands behind its last term.
-            slots.add(new Slot(sum, index, flow.anchor(), place, index));
+            if (index > 0) {
+                // The room between sibling containers stays, as the operator ruled when the containers were
+                // segmented; a parenthetical's first and last terms stand a gap from its parens.
+                flow.space(TERM_MARGIN - BuilderOverlays.GAP);
+            }
+            // A slot stands behind the term before it, on that term's last line, so its cursor spans that term's
+            // container; the sum's first slot stands in front of its first term.
+            slots.add(new Slot(sum, index, flow.anchor(), place, Math.max(0, index - 1)));
             drawTerm(flow, placeOf(sum, index), pieces.get(index), place);
         }
         slots.add(new Slot(sum, pieces.size(), flow.anchor(), place, pieces.size() - 1));
@@ -869,8 +863,9 @@ final class ExpressionBuilderPane {
      * @param index  the slot in it: before the term at that index, or the sum's size for its end
      * @param at     where the slot stands, the next piece's place on its line
      * @param place  where the sum stands, which names the terms a term inserted there takes
-     * @param beside the index in the sum of the term or parenthetical the slot stands in front of or behind, whose
-     *               box its cursor and hole span (decision drop-indicators-size-to-the-container-they-land-beside)
+     * @param beside the index in the sum of the term or parenthetical the slot stands behind, or in front of for the
+     *               sum's first slot, whose container its cursor and hole span (decision
+     *               drop-indicators-size-to-the-container-they-land-beside)
      */
     private record Slot(List<Integer> sum, int index, BuilderOverlays.Anchor at, Place place, int beside) {
         double distanceTo(double x, double y) {
@@ -983,14 +978,12 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // Its rail, [join] where it follows another term, the operand and its ratio in one outlined unit; the trash strip
-    // deletes it, so it carries no x (decision term-operators-right-pack).
+    // A plain term or a parenthetical, each one segmented container; the trash strip deletes it, so it carries no x
+    // (decision term-operators-right-pack).
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         if (!(piece.operand() instanceof ExpressionBuilder.Nest nest)) {
             drawPlainTerm(flow, path, piece, place);
-            // The room between sibling containers stays, as the operator ruled when the containers were segmented.
-            flow.space(TERM_MARGIN - BuilderOverlays.GAP);
             return;
         }
         if (path.getLast() > 0) {
@@ -998,24 +991,7 @@ final class ExpressionBuilderPane {
             // the rest of the line goes with its join onto a line of its own.
             flow.fit(termWidth(flow.letters(), path, piece));
         }
-        BuilderOverlays.Anchor start = drawLead(flow, path, piece);
-        drawNest(flow, new Nested(path, piece, start), nest, place);
-        flow.space(BOX_AFTER);
-    }
-
-    // A parenthetical's rail and its join, kept on one line with its "("; answers where the box starts.
-    // Decision rails-fill-the-left-edge-of-their-box: the rail stands flush inside the box's left border, the padding
-    // opening right of it; a parenthetical's rail draws once its box's height is known.
-    private BuilderOverlays.Anchor drawLead(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
-        int lead = leadWidth(flow.letters(), piece);
-        // Decision terms-inline-again-under-the-indentation-rules: a parenthetical keeps its lead and wraps inside.
-        flow.fit(ControlFlow.RAIL_ADVANCE + lead);
-        BuilderOverlays.Anchor start = flow.anchor();
-        termRails.put(railName(path), path);
-        flow.railTarget(railName(path), new Drag(path, piece), lead);
-        // Decision every-term-carries-its-sign-as-a-segment: a first parenthetical carries its sign too.
-        drawJoin(flow, path, piece);
-        return start;
+        drawNest(flow, path, piece, place);
     }
 
     // A term no parenthetical holds open, as one segmented container: [join] where it follows another term, its rail,
@@ -1033,12 +1009,21 @@ final class ExpressionBuilderPane {
         drawOperand(flow, path, piece, place);
         if (!(piece.operand() instanceof ExpressionBuilder.Kept)
                 && BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            ScaleChange change = (op, factor) -> apply(b -> b.setScale(path, op, factor));
-            ratioSegment(flow, piece.multiplier(), MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
-            flow.textSegment(RATIO, GRAY);
-            ratioSegment(flow, piece.divisor(), DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
+            drawRatioSegments(flow, path, piece);
         }
         boxes.add(new TermBox(path, flow.closeSegments()));
+    }
+
+    // A reference's or a sum's factor as its container's multiplier, colon and divisor segments, each side a number
+    // box setting its own side alone.
+    // Decision factor-reads-as-a-ratio.
+    // Decision ratio-holds-multiplier-and-divisor-together.
+    // Decision ratio-colon-takes-no-spaces.
+    private void drawRatioSegments(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
+        ScaleChange change = (op, factor) -> apply(b -> b.setScale(path, op, factor));
+        ratioSegment(flow, piece.multiplier(), MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
+        flow.textSegment(RATIO, GRAY);
+        ratioSegment(flow, piece.divisor(), DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
     }
 
     // The runs a plain term's operand segment holds, which set the container's height.
@@ -1069,51 +1054,50 @@ final class ExpressionBuilderPane {
         return ControlFlow.abutted(widths.stream().mapToInt(Integer::intValue).toArray());
     }
 
-    // The join and the "(" after a parenthetical's rail, which the rail keeps on its line.
+    // A parenthetical's lead run, its sign, rail and "(" abutted, which wrap together.
     private static int leadWidth(Lettering letters, ExpressionBuilder.Piece piece) {
-        return ButtonPainter.width(letters, joinLabel(piece)) + BuilderOverlays.GAP
-                + ControlFlow.parenWidth(letters.font(), OPEN_PAREN);
+        return ControlFlow.abutted(ButtonPainter.width(letters, joinLabel(piece)), ControlFlow.RAIL_SEGMENT_WIDTH,
+                ControlFlow.parenSegmentWidth(letters.font(), OPEN_PAREN));
+    }
+
+    // A parenthetical's closing run, ")" and its ratio abutted, which wrap together.
+    private static int closeWidth(Lettering letters, ExpressionBuilder.Piece piece) {
+        int close = ControlFlow.parenSegmentWidth(letters.font(), CLOSE_PAREN);
+        if (BuilderGrammar.factorOf(piece) == BuilderGrammar.Factor.HIDDEN) {
+            return close;
+        }
+        return ControlFlow.abutted(close, ButtonPainter.width(letters, piece.multiplier()),
+                ControlFlow.textSegmentWidth(letters, RATIO), ButtonPainter.width(letters, piece.divisor()));
     }
 
     // The width a term takes laid on one line and the room after it: a plain term's segments, or a parenthetical's
-    // rail, join and "(", its terms, ")", its ratio and the room its box adds inside and after it.
+    // lead run, its terms and its closing run.
     private int termWidth(Lettering letters, List<Integer> path, ExpressionBuilder.Piece piece) {
         if (!(piece.operand() instanceof ExpressionBuilder.Nest nest)) {
             return plainTermWidth(letters, piece) + TERM_MARGIN;
         }
-        int width = ControlFlow.RAIL_ADVANCE + leadWidth(letters, piece) + BuilderOverlays.GAP;
+        int width = leadWidth(letters, piece) + BuilderOverlays.GAP;
         for (int index = 0; index < nest.pieces().size(); index++) {
             width += termWidth(letters, placeOf(path, index), nest.pieces().get(index));
         }
-        width += ControlFlow.parenWidth(letters.font(), CLOSE_PAREN) + BuilderOverlays.GAP;
-        if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            width += ButtonPainter.width(letters, piece.multiplier()) + letters.inkWidth(RATIO) + COLON_CLEARS
-                    + ButtonPainter.width(letters, piece.divisor()) + BuilderOverlays.GAP;
-        }
-        return width + BOX_INSIDE + BOX_AFTER;
+        return width + closeWidth(letters, piece) + TERM_MARGIN;
     }
 
     private static int depthOf(List<Integer> path, Place place) {
         return place.inRow() ? path.size() - 1 : path.size();
     }
 
-    // How many boxes hold a term, its own and its type row's included.
-    private static int boxDepthOf(List<Integer> path, Place place) {
-        return depthOf(path, place) + (place.inRow() ? 1 : 0);
-    }
-
-    // The most boxes any piece of the value stands inside: a type row's, then each parenthetical's, a plain term's
-    // segments standing in no box of their own (decision containers-segment-into-click-to-edit-buttons).
+    // The most boxes any piece of the value stands inside: a type row's alone, since a term's and a parenthetical's
+    // segments stand in no box of their own (decision containers-segment-into-click-to-edit-buttons).
     private static int boxDepth(ExpressionBuilder edited) {
-        if (!edited.isPerType()) {
-            return termsDepth(edited.terms());
-        }
-        return edited.rows().stream().mapToInt(row -> 1 + termsDepth(row.pieces())).max().orElse(0);
+        return edited.isPerType() ? 1 : 0;
     }
 
-    private static int termsDepth(List<ExpressionBuilder.Piece> pieces) {
-        return pieces.stream().mapToInt(piece -> piece.operand() instanceof ExpressionBuilder.Nest nest
-                ? 1 + termsDepth(nest.pieces()) : 0).max().orElse(0);
+    // The height a parenthetical's own segments stand: a 16 px item sprite's line where any term inside it shows one.
+    private int nestHeight(ControlFlow flow, ExpressionBuilder.Nest nest) {
+        return nest.pieces().stream().mapToInt(piece -> piece.operand() instanceof ExpressionBuilder.Nest inner
+                ? nestHeight(flow, inner) : flow.segmentsHeight(operandSegmentRuns(piece))).max()
+                .orElse(ControlFlow.LINE);
     }
 
     /**
@@ -1213,12 +1197,7 @@ final class ExpressionBuilderPane {
         return piece.join() == ExpressionTerms.Join.MINUS ? MINUS_SIGN : PLUS_SIGN;
     }
 
-    // A parenthetical's join, a button after its rail.
-    private void drawJoin(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
-        flow.control(joinLabel(piece), null, at -> flipJoin(path, piece));
-    }
-
-    // A plain term's join, the segment its container opens on.
+    // A term's or a parenthetical's join, the segment its container opens on.
     private void drawJoinSegment(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
         flow.labelSegment(joinLabel(piece), null, at -> flipJoin(path, piece));
     }
@@ -1284,46 +1263,45 @@ final class ExpressionBuilderPane {
                 place.inRow() ? null : () -> apply(b -> b.setMember(path, null))));
     }
 
-    // "(" after the term's join, its terms inline, each edited in place, a wrap inside it one indent further in,
-    // then ")" and the parenthetical's factor back at the outer indent; the box from its rail tints by depth.
+    // A parenthetical as one segmented container: its sign, rail and "(" as one run, its terms inline, each edited in
+    // place, a wrap inside it one indent further in, then ")" and its ratio's multiplier, colon and divisor as one run
+    // back at the outer indent; the container's union tints by depth, with no border or padding.
     // Decision sum-of-terms-leaves-the-builder.
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
-    private void drawNest(ControlFlow flow, Nested nested, ExpressionBuilder.Nest nest, Place place) {
-        List<Integer> path = nested.path();
+    // Decision parens-are-segments-bounding-the-parenthetical.
+    // Decision parentheticals-alternate-gray-tones-by-depth.
+    private void drawNest(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
+        ExpressionBuilder.Nest nest = (ExpressionBuilder.Nest) piece.operand();
+        Lettering letters = flow.letters();
+        int height = nestHeight(flow, nest);
+        flow.openContainer();
+        flow.openSegments(leadWidth(letters, piece), height);
+        drawJoinSegment(flow, path, piece);
+        termRails.put(railName(path), path);
+        flow.railSegment(railName(path), new Drag(path, piece));
         // Decision parentheses-draw-bold-and-larger.
-        flow.paren(OPEN_PAREN, GRAY);
+        flow.parenSegment(OPEN_PAREN, GRAY);
+        GroupsPane.Bounds lead = flow.closeSegments();
         // Decision terms-inline-again-under-the-indentation-rules: the terms follow "(" and ")" follows the last;
-        // a line that runs out inside wraps one indent in from the parenthetical's rail, the indent returning at its
+        // a line that runs out inside wraps one indent in from the parenthetical's left, the indent returning at its
         // exit.
-        int inner = nested.start().x() - flow.leftEdge() + ControlFlow.INDENT;
+        int inner = lead.left() - flow.leftEdge() + ControlFlow.INDENT;
         flow.shift(inner);
         drawSum(flow, path, nest.pieces(), place);
-        flow.paren(CLOSE_PAREN, GRAY);
+        flow.openSegments(closeWidth(letters, piece), height);
+        flow.parenSegment(CLOSE_PAREN, GRAY);
         // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
-        // right of its ")" too, where its factor would otherwise push it onto the next line and leave the pointer
-        // past ")" nearest the inner sum's end.
-        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor(), place,
+        // right of its ")" too, so the pointer just past ")" drops outside it rather than at the inner sum's end.
+        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.afterSegment(), place,
                 path.getLast()));
-        drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+        if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
+            drawRatioSegments(flow, path, piece);
+        }
+        flow.closeSegments();
         flow.shift(-inner);
-        int depth = depthOf(path, place);
-        int boxDepth = boxDepthOf(path, place);
-        flow.space(BOX_INSIDE);
-        flow.tintFrom(nested.start(), new ControlFlow.BoxTones(nestTone(depth), NEST_BORDER), boxDepth);
-        GroupsPane.Bounds box = flow.boxFrom(nested.start(), boxDepth);
-        flow.drawRail(nested.start().x(), box.top() + 1, box.bottom() - 1);
-        flow.closeBox();
+        GroupsPane.Bounds box = flow.closeContainer(lead);
+        flow.tint(box, nestTone(depthOf(path, place)));
         boxes.add(new TermBox(path, box));
-    }
-
-    /**
-     * A parenthetical as it draws: its place, its term and where its rail stood.
-     *
-     * @param path  its place
-     * @param piece its term, which carries its factor
-     * @param start where its rail stood, its box's top left
-     */
-    private record Nested(List<Integer> path, ExpressionBuilder.Piece piece, BuilderOverlays.Anchor start) {
     }
 
     /**
@@ -1334,19 +1312,9 @@ final class ExpressionBuilderPane {
         void changed(ExpressionBuilder.Op side, String factor);
     }
 
-    // An unscaled number shows no factor, and a reference's or a sum's factor reads as a ratio, multiplier:divisor,
-    // each a number box.
-    // Decision factor-reads-as-a-ratio.
-    // Decision scale-shows-the-ratio-at-once: an unscaled reference or sum draws 1:1 at rest, either side set first.
-    // Decision ratio-holds-multiplier-and-divisor-together: each box sets its own side alone, so 2:3 draws 2:3.
+    // The whole value's ratio, multiplier:divisor, each a number box, its colon a clear pixel from each.
+    // Decision scale-shows-the-ratio-at-once: the whole value draws 1:1 at rest, either side set first.
     // Decision ratio-colon-takes-no-spaces.
-    private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, ScaleChange change) {
-        if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            drawRatio(flow, piece.multiplier(), piece.divisor(), change);
-        }
-    }
-
-    // The colon stands flush between the multiplier's box and the divisor's.
     private void drawRatio(ControlFlow flow, String multiplier, String divisor, ScaleChange change) {
         ratioSide(flow, multiplier, MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
         flow.textBetween(RATIO, GRAY);
