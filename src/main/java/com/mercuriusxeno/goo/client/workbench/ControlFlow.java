@@ -297,6 +297,18 @@ final class ControlFlow {
     }
 
     /**
+     * Words drawn flush against the piece before them and the piece after, no gap on either side, as a ratio's colon
+     * stands between its two boxes (decision ratio-colon-takes-no-spaces).
+     *
+     * @param text  the words
+     * @param color their color
+     */
+    void textBetween(String text, int color) {
+        textFlush(text, color);
+        x -= GAP;
+    }
+
+    /**
      * A parenthetical's "(" or ")", bold and larger than the words beside it, centered on the line; where it stands
      * taller than the line the boxes holding it grow around it (decision parentheses-draw-bold-and-larger).
      *
