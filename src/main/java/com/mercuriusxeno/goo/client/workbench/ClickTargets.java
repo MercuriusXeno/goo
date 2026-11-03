@@ -19,6 +19,8 @@ import java.util.function.DoubleConsumer;
  */
 final class ClickTargets {
     private final List<Target> targets = new ArrayList<>();
+    // The grab areas that name what they drag, which no hover reads.
+    private final List<NamedGrab> namedGrabs = new ArrayList<>();
     private @Nullable Clip clip;
     private @Nullable PointerGrab grabbed;
     private double pressedX;
@@ -50,11 +52,18 @@ final class ClickTargets {
     private record Clip(int left, int top, int right, int bottom) {
     }
 
+    private record NamedGrab(int left, int top, int right, int bottom, String name) {
+        boolean contains(double x, double y) {
+            return x >= left && x < right && y >= top && y < bottom;
+        }
+    }
+
     /**
      * Forgets every area, as a new frame begins.
      */
     void clear() {
         targets.clear();
+        namedGrabs.clear();
         clip = null;
     }
 
@@ -253,6 +262,36 @@ final class ClickTargets {
             grabbed = grab;
             grab.moved(pressedX, pressedY);
         });
+    }
+
+    /**
+     * A grab area naming what it drags, as a term's rail names its term, while hovering it names nothing (decision
+     * drag-rails-hover-nothing).
+     *
+     * @param left   the area's left edge
+     * @param top    the area's top edge
+     * @param width  its width
+     * @param height its height
+     * @param grab   what the press, each drag and the release move
+     * @param name   what it drags
+     */
+    void addGrab(int left, int top, int width, int height, PointerGrab grab, String name) {
+        addGrab(left, top, width, height, grab);
+        namedGrabs.add(new NamedGrab(left, top, left + width, top + height, name));
+    }
+
+    /**
+     * @param x the cursor's x
+     * @param y the cursor's y
+     * @return what the topmost named grab area under the cursor drags, empty where none stands
+     */
+    Optional<String> grabNamed(double x, double y) {
+        for (int index = namedGrabs.size() - 1; index >= 0; index--) {
+            if (namedGrabs.get(index).contains(x, y)) {
+                return Optional.of(namedGrabs.get(index).name());
+            }
+        }
+        return Optional.empty();
     }
 
     /**

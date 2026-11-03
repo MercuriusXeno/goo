@@ -487,15 +487,15 @@ class ValuesPaneTest {
         }
 
         private static double[] railOf(DrawnFrame frame, List<Integer> path) {
-            String key = ExpressionBuilderPane.railHoverKey(path);
+            String key = ExpressionBuilderPane.railName(path);
             for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
                 for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
-                    if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                    if (frame.targets.grabNamed(x, y).filter(key::equals).isPresent()) {
                         return new double[] {x, y};
                     }
                 }
             }
-            throw new AssertionError("no rail for " + path + " in " + frame.targets.hoverKeys());
+            throw new AssertionError("no rail for " + path);
         }
 
         // The trash strip's middle on a y, read off its rest-tone fill.

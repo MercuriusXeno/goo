@@ -499,21 +499,21 @@ final class ControlFlow {
     }
 
     /**
-     * A rail's grab and hover, opening its box, its drawing left for drawRail once its box's height is known, as a
+     * A rail's grab, opening its box, its drawing left for drawRail once its box's height is known, as a
      * parenthetical's or a type row's spans every line it takes; closeBox ends the box (decision
-     * terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
+     * terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor). The rail hovers nothing, a control apart from the
+     * thing it drags (decision drag-rails-hover-nothing).
      *
-     * @param hoverKey what hovering names, which no tooltip reads
+     * @param name     what the rail drags
      * @param grab     what the press, each drag and the release move
      * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
      * @return the rail's left edge
      */
-    int railTarget(String hoverKey, ClickTargets.PointerGrab grab, int keepWith) {
+    int railTarget(String name, ClickTargets.PointerGrab grab, int keepWith) {
         reserve(RAIL_ADVANCE + keepWith);
         markPiece(RAIL_WIDTH);
         int railLeft = x;
-        targets.addGrab(x, y, RAIL_WIDTH, LINE, grab);
-        targets.addHover(x, y, RAIL_WIDTH, LINE, hoverKey);
+        targets.addGrab(x, y, RAIL_WIDTH, LINE, grab, name);
         x += RAIL_ADVANCE;
         openBoxes++;
         return railLeft;
