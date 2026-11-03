@@ -18,6 +18,8 @@ record Lettering(Font font, float scale) {
     // A font's line holds an empty row under its glyphs, so centering the ink centers one row lower than the line.
     private static final int GLYPH_GAP = 1;
     private static final int HALF = 2;
+    // The font advances one pixel past each glyph's ink, so a run's width ends a pixel past its last glyph.
+    private static final int TRAILING_ADVANCE = 1;
 
     /**
      * @param font the font
@@ -40,6 +42,16 @@ record Lettering(Font font, float scale) {
      */
     int width(String text) {
         return isFull() ? font.width(text) : (int) Math.ceil(font.width(text) * scale);
+    }
+
+    /**
+     * @param text words
+     * @return the width their glyphs' ink takes at this scale, the font's trailing advance after the last glyph left
+     *     out, rounded up to a whole pixel
+     */
+    int inkWidth(String text) {
+        int advance = Math.max(0, font.width(text) - TRAILING_ADVANCE);
+        return isFull() ? advance : (int) Math.ceil(advance * scale);
     }
 
     /**

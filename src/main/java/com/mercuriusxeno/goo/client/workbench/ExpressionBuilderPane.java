@@ -103,6 +103,8 @@ final class ExpressionBuilderPane {
     private static final int PREVIEW_COLOR = 0xE0182030;
     private static final int PREVIEW_TEXT = 0xFFFFFFFF;
     private static final String RATIO = ":";
+    // The clear pixel either side of a ratio's colon (decision ratio-colon-takes-no-spaces, as corrected).
+    private static final int COLON_CLEARS = 2;
     private static final String WHOLE_VALUE = "the whole value";
     private static final String OPEN_PAREN = "(";
     private static final String CLOSE_PAREN = ")";
@@ -1060,7 +1062,7 @@ final class ExpressionBuilderPane {
                     + BuilderOverlays.GAP;
         }
         if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            width += ButtonPainter.width(letters, piece.multiplier()) + letters.width(RATIO)
+            width += ButtonPainter.width(letters, piece.multiplier()) + letters.inkWidth(RATIO) + COLON_CLEARS
                     + ButtonPainter.width(letters, piece.divisor()) + BuilderOverlays.GAP;
         }
         return width + BOX_INSIDE + BOX_AFTER;
