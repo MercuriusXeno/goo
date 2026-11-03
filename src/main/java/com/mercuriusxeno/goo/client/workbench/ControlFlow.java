@@ -409,6 +409,13 @@ final class ControlFlow {
     }
 
     /**
+     * @return the left edge the next lines start at
+     */
+    int leftEdge() {
+        return left;
+    }
+
+    /**
      * @return how far past the line's left edge the next piece starts
      */
     int column() {

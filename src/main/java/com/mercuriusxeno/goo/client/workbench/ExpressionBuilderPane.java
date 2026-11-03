@@ -695,11 +695,25 @@ final class ExpressionBuilderPane {
     // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
     private void drawSum(ControlFlow flow, List<Integer> sum, List<ExpressionBuilder.Piece> pieces, Place place) {
         for (int index = 0; index < pieces.size(); index++) {
+            if (index > 0) {
+                breakBeforeTerm(flow, sum, place);
+            }
             slots.add(new Slot(sum, index, flow.anchor()));
             drawTerm(flow, placeOf(sum, index), pieces.get(index), place);
         }
         slots.add(new Slot(sum, pieces.size(), flow.anchor()));
         drawSumAdd(flow, sum, place);
+    }
+
+    // Decision each-subsequent-term-starts-a-new-line: a type row's later terms each start a line one indent under
+    // its type, and a parenthetical's each start a line at its inner indent; the whole value's stay inline.
+    private static void breakBeforeTerm(ControlFlow flow, List<Integer> sum, Place place) {
+        boolean rowSum = place.inRow() && sum.size() == 1;
+        if (rowSum) {
+            flow.wrapLine();
+        } else if (sum.size() > (place.inRow() ? 1 : 0)) {
+            flow.newLine();
+        }
     }
 
     /**
@@ -999,15 +1013,21 @@ final class ExpressionBuilderPane {
     private void drawNest(ControlFlow flow, Nested nested, ExpressionBuilder.Nest nest, Place place) {
         List<Integer> path = nested.path();
         flow.text(OPEN_PAREN, GRAY);
-        flow.shift(ControlFlow.INDENT);
+        // Decision each-subsequent-term-starts-a-new-line: the later terms and the ")" of a parenthetical holding
+        // several stand one indent in from its rail, each on a line of its own.
+        int inner = nested.start().x() - flow.leftEdge() + ControlFlow.INDENT;
+        flow.shift(inner);
         drawSum(flow, path, nest.pieces(), place);
-        flow.shift(-ControlFlow.INDENT);
+        if (nest.pieces().size() > 1) {
+            flow.newLine();
+        }
         flow.text(CLOSE_PAREN, GRAY);
         // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
         // right of its ")" too, where its factor would otherwise push it onto the next line and leave the pointer
         // past ")" nearest the inner sum's end.
         slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor()));
         drawFactor(flow, nested.piece(), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+        flow.shift(-inner);
         int depth = depthOf(path, place);
         flow.space(BOX_INSIDE);
         flow.tintFrom(nested.start(), new ControlFlow.BoxTones(nestTone(depth), NEST_BORDER), depth);

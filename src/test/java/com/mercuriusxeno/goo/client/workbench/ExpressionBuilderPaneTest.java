@@ -510,6 +510,32 @@ class ExpressionBuilderPaneTest {
         }
     }
 
+    /**
+     * A type row's first term follows its colon and each later term starts a line one indent under the type; a
+     * parenthetical's first term follows its "(" and each later one starts a line one indent in from its rail, its
+     * ")" on a line of its own at that indent (decision each-subsequent-term-starts-a-new-line).
+     */
+    @Test
+    void eachSubsequentTermStartsANewLine() {
+        DrawnFrame row = Builder.item("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\"}").frame();
+        double[] first = railOf(row, List.of(0, 0));
+        double[] second = railOf(row, List.of(0, 1));
+        double[] rowRail = rowRailOf(row, 0);
+        assertEquals((int) rowRail[1] / ControlFlow.LINE, (int) first[1] / ControlFlow.LINE, "the first term");
+        assertTrue(second[1] >= first[1] + ControlFlow.LINE, "the second term shares the first's line");
+        assertEquals((int) rowRail[0] + ControlFlow.INDENT, (int) second[0], "the second term's indent");
+        DrawnFrame nested = Builder.item("$dye.leaf - ($food.jelly + $saturation.jelly * 12)").frame();
+        double[] parenthetical = railOf(nested, List.of(1));
+        double[] inner = railOf(nested, List.of(1, 0));
+        double[] innerSecond = railOf(nested, List.of(1, 1));
+        assertEquals((int) parenthetical[1] / ControlFlow.LINE, (int) inner[1] / ControlFlow.LINE, "after (");
+        assertTrue(innerSecond[1] >= inner[1] + ControlFlow.LINE, "the inner second term shares a line");
+        assertEquals((int) parenthetical[0] + ControlFlow.INDENT, (int) innerSecond[0], "the inner indent");
+        DrawnFrame.Text close = nested.find(")");
+        assertTrue(close.y() > innerSecond[1], ") shares the last term's line");
+        assertEquals((int) parenthetical[0] + ControlFlow.INDENT, close.x(), ") stands at the inner indent");
+    }
+
     private static void assertRests(DrawnFrame frame) {
         assertEquals(1, fills(frame, ExpressionBuilderPane.TRASH_REST).size(), "the strip rests");
         assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_LIT), "the strip lit");
@@ -672,11 +698,11 @@ class ExpressionBuilderPaneTest {
 
     /**
      * Over beetroot's leaf value, the builder offers no "+ sum of terms" and draws no "the sum of:"; its parenthetical
-     * reads "(", its two terms inline, then ")" past them (decisions sum-of-terms-leaves-the-builder,
-     * builder-inlines-terms-under-indentation-rules-with-a-colon).
+     * reads "(" and its first term on one line, its second term on the line below and ")" below that (decisions
+     * sum-of-terms-leaves-the-builder, each-subsequent-term-starts-a-new-line).
      */
     @Test
-    void parentheticalReadsItsTermsInlineBetweenItsParens() {
+    void parentheticalReadsItsFirstTermAfterItsParenAndEachLaterTermBelow() {
         DrawnFrame frame = Builder.item("$dye.leaf - ($food.jelly + $saturation.jelly * 12)").frame();
         assertFalse(frame.texts().contains("+ sum of terms") || frame.texts().contains("the sum of:"),
                 frame.texts().toString());
@@ -684,9 +710,8 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text close = frame.find(")");
         DrawnFrame.Text food = frame.find("food");
         DrawnFrame.Text saturation = frame.find("saturation");
-        assertEquals(List.of(open.y(), open.y(), open.y()), List.of(food.y(), saturation.y(), close.y()),
-                frame.drawn().toString());
-        assertTrue(open.x() < food.x() && food.x() < saturation.x() && saturation.x() < close.x(),
+        assertEquals(open.y(), food.y(), frame.drawn().toString());
+        assertTrue(open.x() < food.x() && saturation.y() > food.y() && close.y() > saturation.y(),
                 frame.drawn().toString());
     }
 
@@ -783,8 +808,10 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             assertEquals(List.of(dropdown("by type")), lineTexts(frame, 0), frame.drawn().toString());
             // Decision operand-times-number-terms-edit-like-every-term: saturation's 12 reads in its ratio box.
-            assertEquals(List.of(":", "food", "'s", "1", ":", "1", "+", "saturation", "'s", "12", ":", "1",
-                    SUM_ADD), lineTexts(frame, 1), frame.drawn().toString());
+            // Decision each-subsequent-term-starts-a-new-line: saturation starts the row's next line.
+            assertEquals(List.of(":", "food", "'s", "1", ":", "1"), lineTexts(frame, 1), frame.drawn().toString());
+            assertEquals(List.of("+", "saturation", "'s", "12", ":", "1", SUM_ADD), lineTexts(frame, 2),
+                    frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
             assertTrue(line(frame, 1).get(2).x() < jelly && jelly < line(frame, 1).get(3).x(),
@@ -854,8 +881,10 @@ class ExpressionBuilderPaneTest {
             assertFalse(lineTexts(frame, head).contains("X"), frame.drawn().toString());
             assertEquals(List.of(":", "dye", "'s", "1", ":", "1"), lineTexts(frame, head - 1),
                     frame.drawn().toString());
-            assertEquals(open.y(), frame.find(")").y(), frame.drawn().toString());
-            assertTrue(frame.find(")").x() > frame.find("saturation").x(), frame.drawn().toString());
+            // Decision each-subsequent-term-starts-a-new-line: ")" stands below the parenthetical's last term.
+            DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals("saturation")
+                    && text.y() > open.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            assertTrue(frame.find(")").y() > last.y(), frame.drawn().toString());
         }
 
         @Test
