@@ -400,7 +400,7 @@ final class GroupsPane {
         if (laid.value().isEmpty()) {
             return;
         }
-        int top = building ? ControlFlow.textTop(laid.valueTop())
+        int top = building ? ControlFlow.besideBuilderTop(font, laid.valueTop())
                 : ReadValueButton.textTop(font, laid.value(), laid.valueTop());
         graphics.text(font, VALUE_LABEL, left, top, GRAY);
     }

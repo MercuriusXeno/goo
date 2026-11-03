@@ -403,8 +403,8 @@ final class ExpressionLines {
      * @return the height the runs take, at least one line
      */
     static int height(Font font, List<Run> runs, int width) {
-        return lay(runs, new Cursor(font, 0, 0, width, lineHeight(runs), null, GooTypeIcons::sizeOf))
-                * lineHeight(runs);
+        return lay(runs, new Cursor(Lettering.full(font), new Span(0, 0, width, lineHeight(runs)), null,
+                GooTypeIcons::sizeOf)) * lineHeight(runs);
     }
 
     /**
@@ -423,11 +423,24 @@ final class ExpressionLines {
      * @return the width the runs take laid on one line
      */
     static int width(Font font, List<Run> runs, ToIntFunction<String> typeSize) {
+        return width(Lettering.full(font), runs, typeSize);
+    }
+
+    /**
+     * @param lettering the font and the scale the runs' text draws at
+     * @param runs      a value's runs
+     * @return the width the runs take laid on one line
+     */
+    static int width(Lettering lettering, List<Run> runs) {
+        return width(lettering, runs, GooTypeIcons::sizeOf);
+    }
+
+    private static int width(Lettering lettering, List<Run> runs, ToIntFunction<String> typeSize) {
         int width = 0;
         for (Run run : runs) {
             if (run.kind() != Kind.BREAK) {
                 boolean gapped = width != 0 && run.kind() != Kind.SUFFIX;
-                width += (gapped ? RUN_GAP : 0) + runWidth(font, run, typeSize);
+                width += (gapped ? RUN_GAP : 0) + runWidth(lettering, run, typeSize);
             }
         }
         return width;
@@ -451,15 +464,40 @@ final class ExpressionLines {
      * @param painter where they draw
      */
     static void draw(Font font, List<Run> runs, int x, int y, int width, Painter painter) {
-        lay(runs, new Cursor(font, x, y, width, lineHeight(runs), painter, GooTypeIcons::sizeOf));
+        lay(runs, new Cursor(Lettering.full(font), new Span(x, y, width, lineHeight(runs)), painter,
+                GooTypeIcons::sizeOf));
     }
 
-    private static int runWidth(Font font, Run run, ToIntFunction<String> typeSize) {
+    /**
+     * Draws the runs lettered at a scale on lines of the height given, as the builder draws its terms (decision
+     * builder-font-and-spacing-shrink-padding-untouched).
+     *
+     * @param lettering the font and the scale the runs' text draws at
+     * @param runs      a value's runs
+     * @param line      the lines' left edge, the first line's top, the width the lines fill and each line's height
+     * @param painter   where they draw
+     */
+    static void draw(Lettering lettering, List<Run> runs, Span line, Painter painter) {
+        lay(runs, new Cursor(lettering, line, painter, GooTypeIcons::sizeOf));
+    }
+
+    /**
+     * Where runs lay.
+     *
+     * @param left       the lines' left edge
+     * @param top        the first line's top
+     * @param width      the width the lines fill
+     * @param lineHeight each line's height
+     */
+    record Span(int left, int top, int width, int lineHeight) {
+    }
+
+    private static int runWidth(Lettering lettering, Run run, ToIntFunction<String> typeSize) {
         return switch (run.kind()) {
             case TYPE -> typeSize.applyAsInt(String.valueOf(run.ref()));
-            case ITEM -> ITEM_SPRITE_SIZE + ICON_TEXT_GAP + font.width(run.text());
+            case ITEM -> ITEM_SPRITE_SIZE + ICON_TEXT_GAP + lettering.width(run.text());
             case BREAK -> 0;
-            default -> font.width(run.text());
+            default -> lettering.width(run.text());
         };
     }
 
@@ -485,14 +523,14 @@ final class ExpressionLines {
     private static void fitWithSuffix(List<Run> runs, int index, Cursor cursor) {
         int suffix = index + 1;
         if (suffix < runs.size() && runs.get(suffix).kind() == Kind.SUFFIX) {
-            cursor.fitTogether(width(cursor.font, runs.subList(index, suffix + 1), cursor.typeSize));
+            cursor.fitTogether(width(cursor.lettering, runs.subList(index, suffix + 1), cursor.typeSize));
         }
     }
 
     private static void placeOperandOrSymbol(List<Run> runs, int index, Cursor cursor) {
         Run run = runs.get(index);
         if (opensJoinedParenthetical(runs, index)) {
-            cursor.fitTogether(width(cursor.font, runs.subList(index, closingParen(runs, index + 1) + 1),
+            cursor.fitTogether(width(cursor.lettering, runs.subList(index, closingParen(runs, index + 1) + 1),
                     cursor.typeSize));
         }
         if (isSymbol(run, CLOSE)) {
@@ -531,7 +569,7 @@ final class ExpressionLines {
 
     // Where the next run lands as the runs lay across their lines.
     private static final class Cursor {
-        private final Font font;
+        private final Lettering lettering;
         private final int left;
         private final int top;
         private final int width;
@@ -544,13 +582,12 @@ final class ExpressionLines {
         // Where the current line's runs start: the left edge, or one indent step in under a type row's head.
         private int lineLeft;
 
-        Cursor(Font font, int left, int top, int width, int lineHeight, @Nullable Painter painter,
-               ToIntFunction<String> typeSize) {
-            this.font = font;
-            this.left = left;
-            this.top = top;
-            this.width = width;
-            this.lineHeight = lineHeight;
+        Cursor(Lettering lettering, Span span, @Nullable Painter painter, ToIntFunction<String> typeSize) {
+            this.lettering = lettering;
+            this.left = span.left();
+            this.top = span.top();
+            this.width = span.width();
+            this.lineHeight = span.lineHeight();
             this.painter = painter;
             this.typeSize = typeSize;
             this.at = left;
@@ -589,7 +626,7 @@ final class ExpressionLines {
         }
 
         void placeWhole(Run run) {
-            int runWidth = runWidth(font, run, typeSize);
+            int runWidth = runWidth(lettering, run, typeSize);
             if (start() + runWidth > left + width && at > lineLeft) {
                 newLine();
             }
@@ -601,14 +638,14 @@ final class ExpressionLines {
         // Against the run before, no gap and no wrap between them.
         void placeFlush(Run run) {
             drawPiece(run, run.text(), at);
-            at += runWidth(font, run, typeSize);
+            at += runWidth(lettering, run, typeSize);
         }
 
         void placeText(Run run) {
             String rest = run.text();
             int start = start();
             while (!rest.isEmpty()) {
-                String piece = font.plainSubstrByWidth(rest, left + width - start);
+                String piece = lettering.fitting(rest, left + width - start);
                 if (piece.isEmpty() && start > lineLeft) {
                     newLine();
                     start = lineLeft;
@@ -616,7 +653,7 @@ final class ExpressionLines {
                 }
                 piece = piece.isEmpty() ? rest.substring(0, 1) : piece;
                 drawPiece(run, piece, start);
-                start += font.width(piece);
+                start += lettering.width(piece);
                 rest = rest.substring(piece.length());
                 if (!rest.isEmpty()) {
                     newLine();
@@ -626,8 +663,13 @@ final class ExpressionLines {
             at = start;
         }
 
+        // A text line's text stands at its top; an icon line's centers on its sprite, and a line of any other
+        // height, as the builder's, centers its glyphs in the line.
         private int textOffset() {
-            return lineHeight == ICON_LINE_HEIGHT ? iconLineTextOffset(font) : 0;
+            if (lineHeight == ICON_LINE_HEIGHT) {
+                return lettering.centeredTop(ICON_NUDGE, ITEM_SPRITE_SIZE);
+            }
+            return lineHeight == TEXT_LINE_HEIGHT ? 0 : lettering.centeredTop(0, lineHeight);
         }
 
         private void drawPiece(Run run, String piece, int x) {
@@ -641,35 +683,42 @@ final class ExpressionLines {
                 case TYPE -> {
                     int size = typeSize.applyAsInt(String.valueOf(run.ref()));
                     GooTypeIcons.draw(graphics, painter.targets(), String.valueOf(run.ref()), x,
-                            typeIconTop(lineTop, size), size);
+                            lineTop + GooTypeIcons.centered(lineHeight, size), size);
                 }
-                case ITEM -> drawItem(font, run, piece, x, lineTop, painter);
-                case LINK -> drawLink(font, run, piece, x, textTop, painter);
-                case ERROR -> graphics.text(font, piece, x, textTop, RED);
+                case ITEM -> drawItem(lettering, run, piece, new int[] {x, lineTop}, painter);
+                case LINK -> drawLink(lettering, run, piece, new int[] {x, textTop}, painter);
+                case ERROR -> lettering.draw(graphics, piece, x, textTop, RED);
                 // Decision read-view-reads-type-equals-possessive-terms.
-                case OPERATOR -> graphics.text(font, piece, x, textTop, painter.symbolColor());
-                default -> graphics.text(font, piece, x, textTop, painter.textColor());
+                case OPERATOR -> lettering.draw(graphics, piece, x, textTop, painter.symbolColor());
+                default -> lettering.draw(graphics, piece, x, textTop, painter.textColor());
             }
         }
     }
 
     // Decision holding-shift-underlines-every-link.
-    private static void drawLink(Font font, Run run, String piece, int x, int textTop, Painter painter) {
-        painter.graphics().text(font, piece, x, textTop, painter.linkColor());
-        ButtonPainter.underlineWhileShiftHeld(painter.graphics(), painter.targets(), x, textTop, font.width(piece),
-                painter.linkColor());
+    // The piece's place is its x and its text's top.
+    private static void drawLink(Lettering lettering, Run run, String piece, int[] place, Painter painter) {
+        int x = place[0];
+        int textTop = place[1];
+        int pieceWidth = lettering.width(piece);
+        lettering.draw(painter.graphics(), piece, x, textTop, painter.linkColor());
+        ButtonPainter.underlineWhileShiftHeld(painter.graphics(), painter.targets(), lettering, x, textTop,
+                pieceWidth, painter.linkColor());
         // Decision every-prefab-reference-hovers-its-value; a link sink's own area, laid after, stands over it.
-        painter.targets().addHover(x, textTop, font.width(piece), TEXT_LINE_HEIGHT,
+        painter.targets().addHover(x, textTop, pieceWidth, TEXT_LINE_HEIGHT,
                 PrefabHovers.hoverKey(String.valueOf(run.ref())));
-        painter.links().landed(String.valueOf(run.ref()), x, textTop, font.width(piece));
+        painter.links().landed(String.valueOf(run.ref()), x, textTop, pieceWidth);
     }
 
-    private static void drawItem(Font font, Run run, String piece, int x, int top, Painter painter) {
+    // The piece's place is its x and its line's top; its text centers on its sprite.
+    private static void drawItem(Lettering lettering, Run run, String piece, int[] place, Painter painter) {
+        int x = place[0];
+        int top = place[1];
         ItemIcons icons = painter.icons();
         if (icons != null) {
             painter.graphics().item(icons.of(String.valueOf(run.ref())), x, top + ICON_NUDGE);
         }
-        painter.graphics().text(font, piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, top + iconLineTextOffset(font),
-                painter.textColor());
+        lettering.draw(painter.graphics(), piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP,
+                lettering.centeredTop(top + ICON_NUDGE, ITEM_SPRITE_SIZE), painter.textColor());
     }
 }

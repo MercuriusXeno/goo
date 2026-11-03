@@ -318,7 +318,8 @@ final class ExpressionBuilderPane {
         startFrame();
         visible = visibleArea(graphics);
         int stripLeft = area.right() - TRASH_WIDTH;
-        ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
+        // Decision builder-font-and-spacing-shrink-padding-untouched: the builder letters its words smaller.
+        ControlFlow flow = ControlFlow.lettered(graphics, font, targets, icons,
                 new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
         // Decision drag-rail-containers-keep-a-pixel-between-borders: the lines grow taller per box depth.
         flow.padForBoxes(boxDepth(edited));
@@ -598,9 +599,9 @@ final class ExpressionBuilderPane {
     // right end.
     private void drawClosing(ControlFlow flow, ExpressionBuilder edited) {
         boolean changed = edited.written().filter(written -> !written.equals(openedText)).isPresent();
-        int width = ButtonPainter.width(flow.font(), CANCEL);
+        int width = ButtonPainter.width(flow.letters(), CANCEL);
         if (changed) {
-            width += BuilderOverlays.GAP + ButtonPainter.width(flow.font(), DONE);
+            width += BuilderOverlays.GAP + ButtonPainter.width(flow.letters(), DONE);
         }
         flow.alignRight(width);
         flow.coloredControl(CANCEL, RED, null, at -> cancel());
@@ -703,7 +704,7 @@ final class ExpressionBuilderPane {
             BuilderOverlays.Anchor start = flow.anchor();
             rowSlots.add(new RowSlot(index, start));
             flow.railTarget(rowRailName(index), new RowDrag(index, row.type()),
-                    typeLeadWidth(flow.font(), row.type()));
+                    typeLeadWidth(flow.letters(), row.type()));
             flow.typeIcon(row.type(), anchor -> overlays.openPicker(anchor,
                     type -> apply(b -> b.setRowType(at, type)), null, held));
             flow.text(ExpressionLines.COLON, GRAY);
@@ -722,9 +723,9 @@ final class ExpressionBuilderPane {
     }
 
     // The goo type button and colon after a row's rail, which the rail keeps on its line.
-    private static int typeLeadWidth(Font font, String type) {
+    private static int typeLeadWidth(Lettering letters, String type) {
         return ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type)) + BuilderOverlays.GAP
-                + font.width(ExpressionLines.COLON);
+                + letters.width(ExpressionLines.COLON);
     }
 
     /**
@@ -951,7 +952,7 @@ final class ExpressionBuilderPane {
         if (path.getLast() > 0 && piece.operand() instanceof ExpressionBuilder.Nest) {
             // Decision builder-inlines-terms-under-indentation-rules-with-a-colon: a parenthetical that does not fit
             // the rest of the line goes with its join onto a line of its own.
-            flow.fit(termWidth(flow.font(), path, piece));
+            flow.fit(termWidth(flow.letters(), path, piece));
         }
         BuilderOverlays.Anchor start = drawLead(flow, path, piece);
         if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
@@ -966,8 +967,11 @@ final class ExpressionBuilderPane {
     // Decision rails-fill-the-left-edge-of-their-box: the rail stands flush inside the box's left border, the padding
     // opening right of it; a parenthetical's rail draws once its box's height is known.
     private BuilderOverlays.Anchor drawLead(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
-        int lead = leadWidth(flow.font(), path, piece);
-        flow.fit(ControlFlow.RAIL_ADVANCE + lead);
+        int lead = leadWidth(flow.letters(), path, piece);
+        // Decision terms-inline-again-under-the-indentation-rules: a plain term wraps whole, its ratio with it, so
+        // no term's box splits across lines; a parenthetical keeps its lead and wraps inside.
+        flow.fit(piece.operand() instanceof ExpressionBuilder.Nest ? ControlFlow.RAIL_ADVANCE + lead
+                : termWidth(flow.letters(), path, piece) - BOX_AFTER);
         BuilderOverlays.Anchor start = flow.anchor();
         flow.railTarget(railName(path), new Drag(path, piece), lead);
         if (path.getLast() > 0) {
@@ -993,34 +997,34 @@ final class ExpressionBuilderPane {
     }
 
     // The join and the operand after a term's rail, which the rail keeps on its line.
-    private int leadWidth(Font font, List<Integer> path, ExpressionBuilder.Piece piece) {
-        int join = path.getLast() > 0 ? ButtonPainter.width(font, PLUS_SIGN) + BuilderOverlays.GAP : 0;
+    private int leadWidth(Lettering letters, List<Integer> path, ExpressionBuilder.Piece piece) {
+        int join = path.getLast() > 0 ? ButtonPainter.width(letters, PLUS_SIGN) + BuilderOverlays.GAP : 0;
         int operand = switch (piece.operand()) {
-            case ExpressionBuilder.Num num -> ButtonPainter.width(font, num.digits());
-            case ExpressionBuilder.Ref ref -> ExpressionLines.width(font, refRuns(ref)) + ButtonPainter.PADDING
+            case ExpressionBuilder.Num num -> ButtonPainter.width(letters, num.digits());
+            case ExpressionBuilder.Ref ref -> ExpressionLines.width(letters, refRuns(ref)) + ButtonPainter.PADDING
                     + ButtonPainter.PADDING;
-            case ExpressionBuilder.Nest _ -> font.width(OPEN_PAREN);
-            case ExpressionBuilder.Kept _ -> ExpressionLines.width(font, operandRuns(piece));
+            case ExpressionBuilder.Nest _ -> letters.width(OPEN_PAREN);
+            case ExpressionBuilder.Kept _ -> ExpressionLines.width(letters, operandRuns(piece));
         };
         return join + operand;
     }
 
     // The width a term takes laid on one line: its rail, join and operand, a parenthetical's terms between its
     // parens, a member's 's and goo type, its ratio, and the room its box adds inside and after it.
-    private int termWidth(Font font, List<Integer> path, ExpressionBuilder.Piece piece) {
-        int width = ControlFlow.RAIL_ADVANCE + leadWidth(font, path, piece) + BuilderOverlays.GAP;
+    private int termWidth(Lettering letters, List<Integer> path, ExpressionBuilder.Piece piece) {
+        int width = ControlFlow.RAIL_ADVANCE + leadWidth(letters, path, piece) + BuilderOverlays.GAP;
         if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
             for (int index = 0; index < nest.pieces().size(); index++) {
-                width += termWidth(font, placeOf(path, index), nest.pieces().get(index));
+                width += termWidth(letters, placeOf(path, index), nest.pieces().get(index));
             }
-            width += font.width(CLOSE_PAREN) + BuilderOverlays.GAP;
+            width += letters.width(CLOSE_PAREN) + BuilderOverlays.GAP;
         } else if (piece.operand() instanceof ExpressionBuilder.Ref ref && ref.member() != null) {
-            width += font.width(POSSESSIVE) + ButtonPainter.iconWidth(GooTypeIcons.sizeOf(ref.member()))
+            width += letters.width(POSSESSIVE) + ButtonPainter.iconWidth(GooTypeIcons.sizeOf(ref.member()))
                     + BuilderOverlays.GAP;
         }
         if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            width += ButtonPainter.width(font, piece.multiplier()) + font.width(RATIO)
-                    + ButtonPainter.width(font, piece.divisor()) + BuilderOverlays.GAP * RATIO_GAPS;
+            width += ButtonPainter.width(letters, piece.multiplier()) + letters.width(RATIO)
+                    + ButtonPainter.width(letters, piece.divisor()) + BuilderOverlays.GAP * RATIO_GAPS;
         }
         return width + BOX_INSIDE + BOX_AFTER;
     }
