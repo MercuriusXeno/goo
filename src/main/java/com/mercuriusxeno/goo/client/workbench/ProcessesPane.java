@@ -32,13 +32,15 @@ final class ProcessesPane {
     private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename";
     private static final String DELETE_HINT = "Delete";
-    private static final int PENCIL_GAP = 3;
-    // A button stands a pixel under the rule above its row and its label five under that.
-    private static final int BUTTON_INSET = 1;
-    private static final int HEAD_TEXT_NUDGE = 4;
+    // Decision spacing-rules-are-one-set-across-every-pane: the pencil a button gap past the name, and the head
+    // line's buttons the rule gap under the rule above, its text on their labels' line.
+    private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
+    private static final int BUTTON_INSET = RowLayout.RULE_GAP;
+    private static final int HEAD_TEXT_NUDGE = BUTTON_INSET + ButtonPainter.TEXT_NUDGE;
     // The kind dropdown's line centers a button two pixels under the line's top.
     private static final int KIND_LINE_INSET = 2;
-    private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT + 1;
+    // The sentence line centers its buttons, so they stand the rule gap under the head line's.
+    private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT;
     private static final int ROW_GAP = 1;
     /**
      * A row whose sentence takes one line, from its top to the next row's
@@ -47,14 +49,9 @@ final class ProcessesPane {
     static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.LINE + ROW_GAP;
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
-    // The mutators column takes three fifths of the pane, the iterators column the other two.
-    // Decision mutators-side-takes-60-percent-of-the-pane.
-    private static final int MUTATOR_FIFTHS = 3;
-    private static final int FIFTHS = 5;
     private static final int HALF = 2;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
     /** An Invalid verdict's color. */
     static final int RED = 0xFFFF5555;
     /** A Valid verdict's color. */
@@ -63,7 +60,8 @@ final class ProcessesPane {
     private static final String CROSS = "✘";
     private static final String REASON_GAP = ": ";
     private static final String NO_REASON = "";
-    private static final int ROW_COLOR = 0x20FFFFFF;
+    /** A mutator or iterator row's box fill. */
+    static final int ROW_COLOR = 0x20FFFFFF;
     private static final String DELETE = "✗";
     // A section key starts with an underscore and holds no newline, so a newline parts it from the entry's key.
     private static final char MARK_SEPARATOR = '\n';
@@ -223,7 +221,8 @@ final class ProcessesPane {
             search.setPosition(pane.left(), pane.top());
         }
         nameBoxPlaced = false;
-        columnsMiddle = pane.left() + (pane.right() - pane.left()) * MUTATOR_FIFTHS / FIFTHS;
+        // Decision conversions-columns-split-50-50.
+        columnsMiddle = pane.left() + (pane.right() - pane.left()) / HALF;
         processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
                 .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
                         pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
@@ -397,10 +396,8 @@ final class ProcessesPane {
         int kindX = markX - MutatorControls.kindWidth(font) - PENCIL_GAP;
         int nameRoom = kindX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
         drawName(frame, section, row.key(), new NameSlot(y, nameRoom));
-        if (ProcessesTab.isIterator(row.key())) {
-            // Decision iterator-reads-loops-over-and-applies-then-its-chain.
-            graphics.text(font, MutatorControls.LOOPS_OVER, kindX, y + HEAD_TEXT_NUDGE, GRAY);
-        } else {
+        // Decision iterator-reads-copies-then-mutates-using-and: an iterator's name line holds its name alone.
+        if (!ProcessesTab.isIterator(row.key())) {
             controls.drawKind(graphics, font, section, row.key(), kindX, y + BUTTON_INSET - KIND_LINE_INSET,
                     frame.targets());
         }

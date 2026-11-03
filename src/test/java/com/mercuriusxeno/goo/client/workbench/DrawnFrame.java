@@ -93,6 +93,33 @@ final class DrawnFrame {
 
     /**
      * @param label a drawn string
+     * @return the first place it was drawn, as a name line's rename pencil draws before its value's pencil
+     */
+    Text findFirst(String label) {
+        return drawn().stream().filter(text -> text.text().equals(label)).findFirst()
+                .orElseThrow(() -> new AssertionError(label + " not drawn in " + texts()));
+    }
+
+    /**
+     * Clicks inside the text first drawn as the label.
+     *
+     * @param label a drawn string
+     */
+    void clickFirst(String label) {
+        Text text = findFirst(label);
+        assertTrue(targets.click(text.x() + 1, text.y() + 1), label + " took no click");
+    }
+
+    /**
+     * @param label a drawn string
+     * @return how many times it was drawn
+     */
+    long count(String label) {
+        return texts().stream().filter(label::equals).count();
+    }
+
+    /**
+     * @param label a drawn string
      * @return whether a fill one pixel tall in the link color spans the text last drawn as the label, under its top
      *     and within its line
      */

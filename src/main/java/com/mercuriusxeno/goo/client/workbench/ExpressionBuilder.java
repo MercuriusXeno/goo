@@ -104,20 +104,26 @@ final class ExpressionBuilder {
      * @param operand    what it stands on
      * @param multiplier the number multiplying it, 1 for none
      * @param divisor    the number dividing it, 1 for none
+     * @param timesAfter whether the multiplier writes after the operand, as "$x * 12", rather than before it as a
+     *                   count, as "12 $x"; the term keeps the form the file wrote
      */
-    record Piece(ExpressionTerms.Join join, Operand operand, String multiplier, String divisor) {
+    record Piece(ExpressionTerms.Join join, Operand operand, String multiplier, String divisor, boolean timesAfter) {
+        Piece(ExpressionTerms.Join join, Operand operand, String multiplier, String divisor) {
+            this(join, operand, multiplier, divisor, false);
+        }
+
         Piece withOperand(Operand changed) {
-            return new Piece(join, changed, multiplier, divisor);
+            return new Piece(join, changed, multiplier, divisor, timesAfter);
         }
 
         Piece withJoin(ExpressionTerms.Join changed) {
-            return new Piece(changed, operand, multiplier, divisor);
+            return new Piece(changed, operand, multiplier, divisor, timesAfter);
         }
 
         // Decision ratio-holds-multiplier-and-divisor-together: a side set leaves the other standing.
         Piece withSide(Op side, String factor) {
-            return side == Op.MULTIPLY ? new Piece(join, operand, factor, divisor)
-                    : new Piece(join, operand, multiplier, factor);
+            return side == Op.MULTIPLY ? new Piece(join, operand, factor, divisor, timesAfter)
+                    : new Piece(join, operand, multiplier, factor, timesAfter);
         }
 
         boolean isUnscaled() {
@@ -350,15 +356,136 @@ final class ExpressionBuilder {
         int to = from + by;
         changed();
         pieces.add(to, pieces.remove(from));
-        for (int index = 0; index < pieces.size(); index++) {
-            Piece piece = pieces.get(index);
+        replaceSum(sum, signed(pieces));
+    }
+
+    /**
+     * Moves a term to a slot of any sum, its own, a parenthetical's inside it or one outside it; the first term of
+     * each sum takes no sign and a term leaving first place takes plus. A drop into the term itself, one that would
+     * empty its sum, or one landing a subtracted term first is refused.
+     * Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
+     *
+     * @param from    the term's place
+     * @param toSum   the sum it drops into, as its place reads before the term leaves
+     * @param toIndex the slot in that sum, before the term at that index, or the sum's size for its end
+     * @return whether the term moved
+     */
+    boolean moveTo(List<Integer> from, List<Integer> toSum, int toIndex) {
+        if (!canMoveTo(from, toSum, toIndex)) {
+            return refuse(MOVE_CHANGES_VALUE);
+        }
+        Leaving leaving = leavingOf(from);
+        List<Integer> fromSum = leaving.path().subList(0, leaving.path().size() - 1);
+        int fromIndex = leaving.path().getLast();
+        List<Piece> left = new ArrayList<>(sumAt(fromSum));
+        left.remove(fromIndex);
+        int slot = slotAfterLeaving(fromSum, fromIndex, toSum, toIndex);
+        List<Integer> target = sumAfterLeaving(fromSum, fromIndex, toSum);
+        Piece moving = leaving.moving();
+        changed();
+        replaceSum(fromSum, signed(left));
+        List<Piece> landing = new ArrayList<>(sumAt(target));
+        landing.add(Math.min(slot, landing.size()), moving);
+        replaceSum(target, signed(landing));
+        return true;
+    }
+
+    /**
+     * Whether moveTo would take the drop, sharing its refusals: a drop on the term's own slots either side, into the
+     * term itself, one emptying the whole value or a type row, a whole term beside type rows, or one landing a
+     * subtracted term first (decision drags-indicate-only-a-drop-the-builder-takes).
+     *
+     * @param from    the term's place
+     * @param toSum   the sum it would drop into
+     * @param toIndex the slot in that sum
+     * @return whether the drop moves the term
+     */
+    boolean canMoveTo(List<Integer> from, List<Integer> toSum, int toIndex) {
+        List<Integer> ownSum = from.subList(0, from.size() - 1);
+        boolean origin = toSum.equals(ownSum) && (toIndex == from.getLast() || toIndex == from.getLast() + 1);
+        if (origin) {
+            return false;
+        }
+        Leaving leaving = leavingOf(from);
+        List<Integer> fromSum = leaving.path().subList(0, leaving.path().size() - 1);
+        int fromIndex = leaving.path().getLast();
+        List<Piece> source = sumAt(fromSum);
+        if (dropBreaksTheTree(leaving.path(), toSum, source.size())) {
+            return false;
+        }
+        List<Piece> left = new ArrayList<>(source);
+        left.remove(fromIndex);
+        return !landsSubtractedFirst(left, fromIndex, leaving.moving(),
+                slotAfterLeaving(fromSum, fromIndex, toSum, toIndex));
+    }
+
+    /**
+     * What leaves its place as a term moves: the term, or the parenthetical its last term empties.
+     *
+     * @param path   the place that empties
+     * @param moving the term that lands
+     */
+    private record Leaving(List<Integer> path, Piece moving) {
+    }
+
+    // Decision terms-and-type-rows-drag-to-a-trash-strip: the parenthetical its last term leaves goes too, the term
+    // landing where the parenthetical would.
+    private Leaving leavingOf(List<Integer> from) {
+        List<Integer> fromSum = from.subList(0, from.size() - 1);
+        List<Piece> source = sumAt(fromSum);
+        if (source.size() == 1 && isParenthetical(fromSum)) {
+            return new Leaving(fromSum, source.getFirst());
+        }
+        return new Leaving(from, source.get(from.getLast()));
+    }
+
+    // The slot in the target sum once the leaving term is out of its own sum.
+    private static int slotAfterLeaving(List<Integer> fromSum, int fromIndex, List<Integer> toSum, int toIndex) {
+        return toSum.equals(fromSum) && toIndex > fromIndex ? toIndex - 1 : toIndex;
+    }
+
+    // A sum inside a parenthetical, rather than the whole value's or a type row's.
+    private boolean isParenthetical(List<Integer> sum) {
+        boolean rowSum = !rows.isEmpty() && sum.size() == 1;
+        return !sum.isEmpty() && !rowSum;
+    }
+
+    // A drop into the term itself, one emptying its sum, or a whole term dropped beside type rows.
+    private boolean dropBreaksTheTree(List<Integer> from, List<Integer> toSum, int sourceSize) {
+        boolean intoItself = toSum.size() >= from.size() && toSum.subList(0, from.size()).equals(from);
+        boolean beside = toSum.isEmpty() && !rows.isEmpty();
+        return intoItself || sourceSize <= 1 || beside;
+    }
+
+    // The term leaving first place hands it to a subtracted term, or the term lands first itself subtracted.
+    private static boolean landsSubtractedFirst(List<Piece> left, int fromIndex, Piece moving, int slot) {
+        boolean handsOver = fromIndex == 0 && left.getFirst().join() == ExpressionTerms.Join.MINUS;
+        return handsOver || slot == 0 && moving.join() == ExpressionTerms.Join.MINUS;
+    }
+
+    // The target sum's place once the term leaves: a later sibling parenthetical moves one index earlier.
+    private static List<Integer> sumAfterLeaving(List<Integer> fromSum, int fromIndex, List<Integer> toSum) {
+        List<Integer> target = new ArrayList<>(toSum);
+        int depth = fromSum.size();
+        boolean underFromSum = toSum.size() > depth && toSum.subList(0, depth).equals(fromSum);
+        if (underFromSum && toSum.get(depth) > fromIndex) {
+            target.set(depth, toSum.get(depth) - 1);
+        }
+        return target;
+    }
+
+    // The first term takes no sign and every later one a sign, a term leaving first place taking plus.
+    private static List<Piece> signed(List<Piece> pieces) {
+        List<Piece> signed = new ArrayList<>(pieces);
+        for (int index = 0; index < signed.size(); index++) {
+            Piece piece = signed.get(index);
             if (index == 0) {
-                pieces.set(index, piece.withJoin(ExpressionTerms.Join.FIRST));
+                signed.set(index, piece.withJoin(ExpressionTerms.Join.FIRST));
             } else if (piece.join() == ExpressionTerms.Join.FIRST) {
-                pieces.set(index, piece.withJoin(ExpressionTerms.Join.PLUS));
+                signed.set(index, piece.withJoin(ExpressionTerms.Join.PLUS));
             }
         }
-        replaceSum(sum, pieces);
+        return signed;
     }
 
     private boolean addTerm(List<Integer> sum, Operand operand) {
@@ -533,10 +660,43 @@ final class ExpressionBuilder {
     }
 
     /**
+     * Moves a type row to a row slot; its own slots either side leave the rows standing
+     * (decision type-rows-drag-by-a-rail-to-reorder-or-trash).
+     *
+     * @param row  the row's index
+     * @param slot the slot it drops into: before the row at that index, or the rows' count for the end
+     */
+    void moveRow(int row, int slot) {
+        if (!canMoveRow(row, slot)) {
+            return;
+        }
+        changed();
+        Row moving = rows.remove(row);
+        rows.add(slot > row ? slot - 1 : slot, moving);
+    }
+
+    /**
+     * @param row  the row's index
+     * @param slot the slot it would drop into
+     * @return whether moveRow would reorder the rows: false on its own slots either side
+     */
+    boolean canMoveRow(int row, int slot) {
+        return slot != row && slot != row + 1 && slot >= 0 && slot <= rows.size();
+    }
+
+    /**
+     * @param row the row's index
+     * @return whether removeRow would delete it: the rows keep their last
+     */
+    boolean canRemoveRow(int row) {
+        return rows.size() > 1 && row >= 0 && row < rows.size();
+    }
+
+    /**
      * @param row the row's index
      */
     void removeRow(int row) {
-        if (rows.size() == 1) {
+        if (!canRemoveRow(row)) {
             refuse(LAST_ROW);
             return;
         }
@@ -711,15 +871,20 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Removes a term; a sum keeps its last term.
+     * Removes a term; the whole value and a type row keep their last term, and a parenthetical losing its last
+     * term goes with it (decision terms-and-type-rows-drag-to-a-trash-strip).
      *
      * @param path the term's place
      */
     void remove(List<Integer> path) {
+        if (!canRemove(path)) {
+            refuse(LAST_TERM);
+            return;
+        }
         List<Integer> sum = path.subList(0, path.size() - 1);
         List<Piece> pieces = new ArrayList<>(sumAt(sum));
         if (pieces.size() == 1) {
-            refuse(LAST_TERM);
+            remove(sum);
             return;
         }
         changed();
@@ -729,6 +894,19 @@ final class ExpressionBuilder {
             pieces.set(0, pieces.getFirst().withJoin(ExpressionTerms.Join.FIRST));
         }
         replaceSum(sum, pieces);
+    }
+
+    /**
+     * Whether remove would delete the term, sharing its refusal: the whole value and a type row keep their last term,
+     * and a parenthetical's last term goes as its parenthetical does (decision
+     * drags-indicate-only-a-drop-the-builder-takes).
+     *
+     * @param path the term's place
+     * @return whether removing it deletes something
+     */
+    boolean canRemove(List<Integer> path) {
+        List<Integer> sum = path.subList(0, path.size() - 1);
+        return sumAt(sum).size() > 1 || isParenthetical(sum) && canRemove(sum);
     }
 
     private Piece pieceAt(List<Integer> path) {
@@ -796,7 +974,7 @@ final class ExpressionBuilder {
         List<ExpressionTerms.Factor> factors = new ArrayList<>();
         if (ONE.equals(piece.multiplier())) {
             factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, atom));
-        } else if (atom instanceof ExpressionTerms.Number) {
+        } else if (atom instanceof ExpressionTerms.Number || piece.timesAfter()) {
             factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, atom));
             factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.TIMES, multiplier));
         } else {
@@ -847,8 +1025,21 @@ final class ExpressionBuilder {
         if (factors.size() == 1) {
             return operandOf(factors.getFirst().atom()).map(operand -> new Piece(join, operand, ONE, ONE));
         }
-        return factors.size() == PAIR && factors.getFirst().atom() instanceof ExpressionTerms.Number count
-                ? countedOf(join, count, factors.get(1)) : Optional.empty();
+        if (factors.size() != PAIR) {
+            return Optional.empty();
+        }
+        return factors.getFirst().atom() instanceof ExpressionTerms.Number count
+                ? countedOf(join, count, factors.get(1)) : timesOf(join, factors.getFirst(), factors.get(1));
+    }
+
+    // Decision operand-times-number-terms-edit-like-every-term: an operand times a number, as
+    // "$saturation.jelly * 12", is the operand with that number as its multiplier.
+    private static Optional<Piece> timesOf(ExpressionTerms.Join join, ExpressionTerms.Factor operand,
+                                           ExpressionTerms.Factor second) {
+        if (second.scale() != ExpressionTerms.Scale.TIMES || !(second.atom() instanceof ExpressionTerms.Number times)) {
+            return Optional.empty();
+        }
+        return operandOf(operand.atom()).map(atom -> new Piece(join, atom, times.digits(), ONE, true));
     }
 
     private static Optional<Piece> countedOf(ExpressionTerms.Join join, ExpressionTerms.Number count,

@@ -31,6 +31,18 @@ class GooTypeIconsTest {
     }
 
     /**
+     * A goo type button's tooltip is the type's name alone, the same component a plain icon's hover reads (decision
+     * goo-type-tooltip-reads-the-name-alone).
+     */
+    @Test
+    void pickableTypeButtonsTooltipIsTheNameAlone() {
+        for (String type : GooTypes.BUNDLED.stream().map(GooTypes::id).toList()) {
+            Component pick = GooTypeIcons.tooltipFor(GooTypeIcons.pickHoverKey(type)).orElseThrow();
+            assertEquals(GooTypeIcons.tooltipFor(GooTypeIcons.hoverKey(type)).orElseThrow(), pick, type);
+        }
+    }
+
+    /**
      * The hover area an icon leaves carries a tooltip naming its type through the type's translation key.
      */
     @Test

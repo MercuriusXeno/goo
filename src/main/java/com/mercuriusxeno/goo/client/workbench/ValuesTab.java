@@ -68,6 +68,7 @@ public final class ValuesTab {
     private Filter filter = Filter.ITEMS;
     private String search = NO_TEXT;
     private @Nullable String selected;
+    private @Nullable Index frozen;
 
     /**
      * A Values tab over a draft of its own, as a test drives it.
@@ -334,13 +335,101 @@ public final class ValuesTab {
      * @return its source badge
      */
     public Source sourceOf(String id) {
+        if (frozen != null) {
+            return frozen.sourceOf(id);
+        }
         Map<String, List<String>> groups = groupsOf();
         Source source = null;
+        boolean ownEntryStands = !isMarked(id);
         for (JsonObject entry : valueEntries()) {
-            source = sourceFrom(entry, id, groups, source);
+            source = sourceFrom(entry, id, groups, source, ownEntryStands);
         }
         Source found = source != null ? source : unentered(id);
         return new Source(found.label(), found.kind(), restricted(groups).contains(id));
+    }
+
+    /**
+     * Reads the draft once into lookups every read answers from until thaw, as a frame measuring every Items row
+     * reads each row's source, entry and key; nothing may change the draft while frozen.
+     */
+    public void freeze() {
+        frozen = new Index();
+    }
+
+    /**
+     * Drops the lookups freeze built, so every read goes back to the draft.
+     */
+    public void thaw() {
+        frozen = null;
+    }
+
+    /**
+     * The draft read once: each item's name, each value member by key, every key the file holds, each item's source
+     * as sourceOf reads it, and the restricted items.
+     */
+    private final class Index {
+        private final Map<String, String> names = new HashMap<>();
+        private final Map<String, JsonObject> valueMembers = new HashMap<>();
+        private final Set<String> keys = new HashSet<>();
+        // Each item's last own entry standing, which overrides any group's.
+        private final Map<String, Source> owned = new HashMap<>();
+        // Each item's first group entry, standing where no own entry does.
+        private final Map<String, Source> grouped = new HashMap<>();
+        private final Set<String> restricted;
+
+        Index() {
+            entries.forEach(entry -> names.putIfAbsent(entry.id(), entry.name()));
+            for (JsonElement element : draft.members()) {
+                JsonObject member = element.getAsJsonObject();
+                String key = keyOf(member);
+                if (key != null) {
+                    keys.add(key);
+                    if (VALUE_KIND.equals(kindOf(member))) {
+                        valueMembers.putIfAbsent(key, member);
+                    }
+                }
+            }
+            Map<String, List<String>> groups = groupsOf();
+            restricted = restricted(groups);
+            valueEntries().forEach(entry -> readSource(entry, groups));
+        }
+
+        // The same reading sourceFrom makes of one entry, for every item it names at once.
+        private void readSource(JsonObject entry, Map<String, List<String>> groups) {
+            String key = String.valueOf(keyOf(entry));
+            String shown = ManagerDraft.shownText(entry.get(TEXT).getAsString());
+            if (shown.isBlank()) {
+                return;
+            }
+            boolean denied = DENIED.equals(shown);
+            if (!key.startsWith(TAG_PREFIX)) {
+                String id = namespaced(key);
+                if (!isMarked(id)) {
+                    owned.put(id, itemSource(denied));
+                }
+                return;
+            }
+            String group = key.substring(TAG_PREFIX.length());
+            groups.getOrDefault(group, List.of()).forEach(id -> grouped.putIfAbsent(id, groupSource(group, denied)));
+        }
+
+        String nameOf(String id) {
+            return names.getOrDefault(id, id);
+        }
+
+        @Nullable JsonObject valueMember(String key) {
+            return valueMembers.get(key);
+        }
+
+        boolean holdsKey(String key) {
+            return keys.contains(key);
+        }
+
+        Source sourceOf(String id) {
+            Source found = owned.getOrDefault(id, grouped.get(id));
+            Source shown = found != null ? found : unentered(id);
+            return new Source(shown.label(), shown.kind(), restricted.contains(id));
+        }
     }
 
     // The file's top-level value entries, then its conversions', which value an item or a group as an entry does;
@@ -360,18 +449,36 @@ public final class ValuesTab {
         return found;
     }
 
-    // An item's own entry overrides what stands; a group's entry stands only where nothing named the item first.
+    /**
+     * An item entry read against the item asked about.
+     *
+     * @param named    whether its key names the item
+     * @param unmarked whether the item's entry stands unmarked for removal
+     * @param blank    whether its text is blank
+     * @param denied   whether it denies the item
+     */
+    private record OwnEntry(boolean named, boolean unmarked, boolean blank, boolean denied) {
+    }
+
+    private static @Nullable Source ownSource(OwnEntry entry, @Nullable Source standing) {
+        return entry.named() && entry.unmarked() && !entry.blank() ? itemSource(entry.denied()) : standing;
+    }
+
+    // An item's own entry overrides what stands, unless it is blank or marked for removal, which leave the value the
+    // item takes without it; a group's entry stands only where nothing named the item first.
+    // Decision removed-entry-shows-the-derived-value-and-no-restore-on-empty.
     private static @Nullable Source sourceFrom(JsonObject entry, String id, Map<String, List<String>> groups,
-                                               @Nullable Source standing) {
+                                               @Nullable Source standing, boolean ownEntryStands) {
         String key = String.valueOf(keyOf(entry));
-        boolean denied = DENIED.equals(ManagerDraft.shownText(entry.get(TEXT).getAsString()));
-        if (!key.startsWith(TAG_PREFIX)) {
-            return namespaced(key).equals(id) ? itemSource(denied) : standing;
-        }
-        String group = key.substring(TAG_PREFIX.length());
+        String shown = ManagerDraft.shownText(entry.get(TEXT).getAsString());
+        boolean denied = DENIED.equals(shown);
         // A #tag entry Add tag wrote with no value yet values no member, as the loader skips it (decision
         // add-tag-picks-a-game-tag-and-writes-its-entry).
-        boolean unvalued = ManagerDraft.shownText(entry.get(TEXT).getAsString()).isBlank();
+        boolean unvalued = shown.isBlank();
+        if (!key.startsWith(TAG_PREFIX)) {
+            return ownSource(new OwnEntry(namespaced(key).equals(id), ownEntryStands, unvalued, denied), standing);
+        }
+        String group = key.substring(TAG_PREFIX.length());
         return standing == null && !unvalued && groups.getOrDefault(group, List.of()).contains(id)
                 ? groupSource(group, denied) : standing;
     }
@@ -494,8 +601,8 @@ public final class ValuesTab {
      * @return its row as the Items list draws it: its expression, its resolved amounts and the loader's error
      */
     public EntryRow rowOf(String id) {
-        String name = entries.stream().filter(entry -> entry.id().equals(id)).map(ManagerEntry::name).findFirst()
-                .orElse(id);
+        String name = frozen != null ? frozen.nameOf(id) : entries.stream()
+                .filter(entry -> entry.id().equals(id)).map(ManagerEntry::name).findFirst().orElse(id);
         String key = entryKeyOf(id);
         JsonObject member = valueMember(key);
         JsonObject answer = resolved.get(key);
@@ -568,6 +675,26 @@ public final class ValuesTab {
     }
 
     /**
+     * Drops an item's entry from the draft outright, as a cancelled edit on an item that had none leaves nothing
+     * (decision cancelling-a-new-entry-leaves-nothing).
+     *
+     * @param id an item's namespaced id
+     */
+    public void dropEntry(String id) {
+        JsonObject member = valueMember(entryKeyOf(id));
+        if (member == null) {
+            return;
+        }
+        JsonArray kept = new JsonArray();
+        draft.members().forEach(element -> {
+            if (element != member) {
+                kept.add(element);
+            }
+        });
+        draft.replaceMembers(kept);
+    }
+
+    /**
      * @param id an item whose own entry the save is to remove
      */
     public void markRemoval(String id) {
@@ -632,6 +759,9 @@ public final class ValuesTab {
     }
 
     private @Nullable JsonObject valueMember(String key) {
+        if (frozen != null) {
+            return frozen.valueMember(key);
+        }
         for (JsonElement element : draft.members()) {
             JsonObject member = element.getAsJsonObject();
             if (VALUE_KIND.equals(member.has(KIND) ? member.get(KIND).getAsString() : VALUE_KIND)
@@ -650,12 +780,19 @@ public final class ValuesTab {
      * @return the key the file holds or would hold the entry under
      */
     private String entryKeyOf(String id) {
-        for (JsonElement element : draft.members()) {
-            if (id.equals(keyOf(element.getAsJsonObject()))) {
-                return id;
-            }
+        if (frozen != null ? frozen.holdsKey(id) : holdsKey(id)) {
+            return id;
         }
         return id.startsWith(DEFAULT_NAMESPACE) ? id.substring(DEFAULT_NAMESPACE.length()) : id;
+    }
+
+    private boolean holdsKey(String key) {
+        for (JsonElement element : draft.members()) {
+            if (key.equals(keyOf(element.getAsJsonObject()))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static @Nullable String keyOf(JsonObject member) {

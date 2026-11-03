@@ -39,9 +39,13 @@ final class ExpressionLines {
     private static final String NOTHING = "";
     private static final String PLUS = "+";
     private static final String MINUS = "-";
-    // Decision read-view-reads-type-equals-possessive-terms: times reads x, and a type row reads =.
+    // Decision read-view-reads-type-equals-possessive-terms: times reads x.
     private static final String TIMES = "x";
-    private static final String EQUALS = "=";
+    /**
+     * What follows a type row's type, its terms inline after it (decision
+     * builder-inlines-terms-under-indentation-rules-with-a-colon).
+     */
+    static final String COLON = ":";
     private static final String POSSESSIVE = "'s";
     private static final String DIVIDE = "/";
     private static final String OPEN = "(";
@@ -74,10 +78,10 @@ final class ExpressionLines {
         OPERATOR,
         /** Plain text. */
         TEXT,
+        /** Text drawn flush against the run before it, as a member's 's against its prefab. */
+        SUFFIX,
         /** The end of a line, as a per-type object ends each type's row. */
         BREAK,
-        /** The end of a line whose next lines start one indent step in, as a type row's terms do. */
-        INDENTED_BREAK,
         /** Text the terms could not read, drawn red as the file spells it. */
         ERROR
     }
@@ -152,15 +156,13 @@ final class ExpressionLines {
     static List<Run> runs(ExpressionTerms.Value value, Function<String, String> names) {
         List<Run> runs = new ArrayList<>();
         if (value instanceof ExpressionTerms.PerType perType) {
-            // Decision read-view-reads-type-equals-possessive-terms: {type} = on the row's head line, its terms
-            // indented on the line below.
+            // Decision builder-inlines-terms-under-indentation-rules-with-a-colon: {type}: then the row's terms inline.
             for (ExpressionTerms.TypeRow row : perType.rows()) {
                 if (!runs.isEmpty()) {
                     runs.add(new Run(Kind.BREAK, NOTHING, null));
                 }
                 runs.add(type(row.type()));
-                runs.add(operator(EQUALS));
-                runs.add(new Run(Kind.INDENTED_BREAK, NOTHING, null));
+                runs.add(operator(COLON));
                 addSum(runs, row.sum(), names);
             }
         } else if (value instanceof ExpressionTerms.Expression expression) {
@@ -312,8 +314,9 @@ final class ExpressionLines {
             case ExpressionTerms.Prefab prefab -> {
                 runs.add(new Run(Kind.LINK, prefab.name(), prefab.name()));
                 // Decision read-view-reads-type-equals-possessive-terms: a member reads as the prefab's own.
+                // Decision possessive-sits-flush-against-its-word-button.
                 if (prefab.type() != null) {
-                    runs.add(text(POSSESSIVE));
+                    runs.add(new Run(Kind.SUFFIX, POSSESSIVE, null));
                 }
                 addType(runs, prefab.type());
             }
@@ -421,8 +424,9 @@ final class ExpressionLines {
     static int width(Font font, List<Run> runs, ToIntFunction<String> typeSize) {
         int width = 0;
         for (Run run : runs) {
-            if (run.kind() != Kind.BREAK && run.kind() != Kind.INDENTED_BREAK) {
-                width += (width == 0 ? 0 : RUN_GAP) + runWidth(font, run, typeSize);
+            if (run.kind() != Kind.BREAK) {
+                boolean gapped = width != 0 && run.kind() != Kind.SUFFIX;
+                width += (gapped ? RUN_GAP : 0) + runWidth(font, run, typeSize);
             }
         }
         return width;
@@ -453,26 +457,75 @@ final class ExpressionLines {
         return switch (run.kind()) {
             case TYPE -> typeSize.applyAsInt(String.valueOf(run.ref()));
             case ITEM -> ITEM_SPRITE_SIZE + ICON_TEXT_GAP + font.width(run.text());
-            case BREAK, INDENTED_BREAK -> 0;
+            case BREAK -> 0;
             default -> font.width(run.text());
         };
     }
 
     // Answers how many lines the runs take; a text run wider than a line breaks across lines, and any other run
     // starts a fresh line where it does not fit.
+    // Decision builder-inlines-terms-under-indentation-rules-with-a-colon: a type row's wrap stands one indent in
+    // under its type; a parenthetical that does not fit the rest of the line takes a line of its own with its join;
+    // a wrap inside it stands one indent further in, back out past its closing paren.
     private static int lay(List<Run> runs, Cursor cursor) {
-        for (Run run : runs) {
-            if (run.kind() == Kind.BREAK) {
-                cursor.breakLine(0);
-            } else if (run.kind() == Kind.INDENTED_BREAK) {
-                cursor.breakLine(ControlFlow.INDENT);
-            } else if (run.kind() == Kind.TEXT || run.kind() == Kind.ERROR) {
-                cursor.placeText(run);
-            } else {
-                cursor.placeWhole(run);
+        for (int index = 0; index < runs.size(); index++) {
+            Run run = runs.get(index);
+            switch (run.kind()) {
+                case BREAK -> cursor.breakLine(0);
+                case SUFFIX -> cursor.placeFlush(run);
+                case TEXT, ERROR -> cursor.placeText(run);
+                default -> placeOperandOrSymbol(runs, index, cursor);
             }
         }
         return cursor.lines;
+    }
+
+    // Decision possessive-sits-flush-against-its-word-button: a word wraps with the suffix flush against it.
+    private static void fitWithSuffix(List<Run> runs, int index, Cursor cursor) {
+        int suffix = index + 1;
+        if (suffix < runs.size() && runs.get(suffix).kind() == Kind.SUFFIX) {
+            cursor.fitTogether(width(cursor.font, runs.subList(index, suffix + 1), cursor.typeSize));
+        }
+    }
+
+    private static void placeOperandOrSymbol(List<Run> runs, int index, Cursor cursor) {
+        Run run = runs.get(index);
+        if (opensJoinedParenthetical(runs, index)) {
+            cursor.fitTogether(width(cursor.font, runs.subList(index, closingParen(runs, index + 1) + 1),
+                    cursor.typeSize));
+        }
+        if (isSymbol(run, CLOSE)) {
+            cursor.wrapAt(-ControlFlow.INDENT);
+        }
+        fitWithSuffix(runs, index, cursor);
+        cursor.placeWhole(run);
+        if (isSymbol(run, COLON) || isSymbol(run, OPEN)) {
+            cursor.wrapAt(ControlFlow.INDENT);
+        }
+    }
+
+    private static boolean isSymbol(Run run, String symbol) {
+        return run.kind() == Kind.OPERATOR && symbol.equals(run.text());
+    }
+
+    // A + or - joining a parenthesized term.
+    private static boolean opensJoinedParenthetical(List<Run> runs, int index) {
+        Run run = runs.get(index);
+        boolean join = isSymbol(run, PLUS) || isSymbol(run, MINUS);
+        return join && index + 1 < runs.size() && isSymbol(runs.get(index + 1), OPEN);
+    }
+
+    // The index of the ) closing the ( at open, or the last run where none does.
+    private static int closingParen(List<Run> runs, int open) {
+        int depth = 0;
+        for (int index = open; index < runs.size(); index++) {
+            depth += isSymbol(runs.get(index), OPEN) ? 1 : 0;
+            depth -= isSymbol(runs.get(index), CLOSE) ? 1 : 0;
+            if (depth == 0) {
+                return index;
+            }
+        }
+        return runs.size() - 1;
     }
 
     // Where the next run lands as the runs lay across their lines.
@@ -514,6 +567,18 @@ final class ExpressionLines {
             newLine();
         }
 
+        // Moves where a wrapped line starts, leaving the current line standing.
+        void wrapAt(int step) {
+            lineLeft = Math.max(left, lineLeft + step);
+        }
+
+        // Starts a fresh line where pieces this wide do not fit the rest of the current one.
+        void fitTogether(int piecesWidth) {
+            if (start() + piecesWidth > left + width && at > lineLeft) {
+                newLine();
+            }
+        }
+
         private int lineTop() {
             return top + (lines - 1) * lineHeight;
         }
@@ -530,6 +595,12 @@ final class ExpressionLines {
             int start = start();
             drawPiece(run, run.text(), start);
             at = start + runWidth;
+        }
+
+        // Against the run before, no gap and no wrap between them.
+        void placeFlush(Run run) {
+            drawPiece(run, run.text(), at);
+            at += runWidth(font, run, typeSize);
         }
 
         void placeText(Run run) {

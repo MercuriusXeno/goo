@@ -7,8 +7,11 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Draws the Groups tab: each group's card, its #name with its pencil or "tag" and its x, its members as item icons
@@ -27,9 +30,12 @@ import java.util.Optional;
  */
 final class GroupsPane {
     // Decision group-list-takes-60-percent-and-labels-span-the-pane: the list takes three fifths of the pane.
-    private static final int LIST_PARTS = 3;
-    private static final int PARTS = 5;
-    private static final int GAP = 12;
+    // Decision member-list-takes-30-percent-with-no-indent, as the operator restated it: the group list takes 65
+    // percent and the members panel 35.
+    private static final int LIST_PARTS = 13;
+    private static final int PARTS = 20;
+    /** The room between the group list and the member detail. */
+    static final int GAP = 12;
     /** A group row's height, its sprites' and margin. */
     static final int ROW_HEIGHT = 18;
     private static final int LINE_HEIGHT = 10;
@@ -55,7 +61,6 @@ final class GroupsPane {
     private static final int RED = 0xFFFF5555;
     private static final int LINK = ButtonPainter.LINK;
     private static final int SELECTED_COLOR = 0x60FFFFFF;
-    private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final String NEW_GROUP = "+ Custom";
     private static final String NEW_GROUP_HINT = "group name, Enter";
     private static final String SEARCH_HINT = "Search groups";
@@ -73,11 +78,16 @@ final class GroupsPane {
     private static final String TAG_WORD = "tag";
     private static final String MEMBERS_COLON = "Members:";
     private static final String USED_BY = "Used by ";
+    private static final String VALUE_LABEL = "Value:";
+    // A resolved value as ExpressionLines.resolvedRuns reads it: "type amount" pairs joined by commas.
+    private static final String AMOUNT_SEPARATOR = " ";
+    private static final String TYPES_SEPARATOR = ", ";
+    // A key suffix no group name spells, so a card's Used by line expands apart from its Members line.
+    private static final String REFERENTS_KEY = ":usedBy";
     // Decision detail-is-members-plus-or-tag-members-with-the-tag-id.
     private static final String TAG_MEMBERS_LABEL = "Tag members";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
-    private static final String NO_WORTH = "empty";
     private static final String LINE_LABEL = "This member's line: count times the group's value, plus its extra";
     private static final String COUNT_START = "count ";
     private static final String EXTRA_LABEL = "extra:";
@@ -314,32 +324,109 @@ final class GroupsPane {
         }
     }
 
+    /**
+     * Where a card's lines stand below its name line.
+     *
+     * @param members   the Members line
+     * @param referents the Used by line
+     * @param usedByTop the Used by line's top
+     * @param worthTop  the goo value line's top
+     * @param worth     the evaluated goo value's runs, empty where none resolved
+     * @param value     the value expression's runs, empty where none is set
+     * @param body      where the value's button or builder stands, past its Value: label
+     */
+    private record CardLayout(MembersLine members, ReferentsLine referents, int usedByTop, int worthTop,
+                              List<ExpressionLines.Run> worth, List<ExpressionLines.Run> value, Bounds body) {
+        int valueTop() {
+            return body.top();
+        }
+    }
+
+    // Decision group-card-shows-its-goo-value-above-a-labelled-builder: the goo value line, then the value past
+    // Value:, the label left out where the button itself reads Value: Not explicitly set.
+    private CardLayout layCard(Font font, GroupCard card) {
+        Bounds area = card.area();
+        List<ExpressionLines.Run> runs = GroupsTab.rowRuns(card.row(), icons::nameOf);
+        MembersLine members = layMembers(font, card.row(), runs.subList(1, runs.size()), area);
+        ReferentsLine referents = layReferents(font, card.row().name(), groups.referents(card.row().name()),
+                area.left() + ControlFlow.INDENT, area.right());
+        int usedByTop = area.top() + ROW_HEIGHT + members.height();
+        int worthTop = usedByTop + referents.height();
+        List<ExpressionLines.Run> worth = worthRuns(card);
+        int valueTop = worthTop + (worth.isEmpty() ? 0 : ExpressionLines.height(font, worth, worthWidth(area)));
+        List<ExpressionLines.Run> value = valueRuns(card.base(), null);
+        int labelWidth = value.isEmpty() ? 0 : font.width(VALUE_LABEL) + BuilderOverlays.GAP;
+        Bounds body = new Bounds(area.left() + ControlFlow.INDENT + labelWidth, valueTop, area.right(),
+                area.bottom());
+        return new CardLayout(members, referents, usedByTop, worthTop, worth, value, body);
+    }
+
+    private static int worthWidth(Bounds area) {
+        return area.right() - area.left() - ControlFlow.INDENT;
+    }
+
     // A card: #name with its pencil, or "tag" for a tag referent, and its x on line 1; "Members:" and the member
-    // icons, the rest behind ..+n, one indent in on line 2; then the value one indent in with no label. Answers its
-    // height. Decision group-card-is-name-then-members-then-value.
+    // icons, the rest behind ..+n, one indent in on line 2; Used by; the goo value; then Value: and the value.
+    // Answers its height. Decision group-card-is-name-then-members-then-value.
     private int drawGroupCard(GuiGraphicsExtractor graphics, Font font, GroupCard card, ClickTargets targets) {
         Bounds area = card.area();
         String target = BASE_TARGET + card.row().name();
         boolean buildingHere = target.equals(building) && builder.isOpen();
-        List<ExpressionLines.Run> runs = GroupsTab.rowRuns(card.row(), icons::nameOf);
-        MembersLine members = layMembers(font, card.row(), runs.subList(1, runs.size()), area);
-        List<String> referents = groups.referents(card.row().name());
-        int usedByTop = area.top() + ROW_HEIGHT + members.height();
-        int valueTop = usedByTop + (referents.isEmpty() ? 0 : ROW_HEIGHT);
-        Bounds body = new Bounds(area.left() + ControlFlow.INDENT, valueTop, area.right(), area.bottom());
-        List<ExpressionLines.Run> value = valueRuns(card.base(), NO_WORTH);
-        int readHeight = buildingHere ? 0 : ExpressionLines.height(font, value, body.right() - body.left());
+        CardLayout laid = layCard(font, card);
+        int readHeight = buildingHere ? 0
+                : ReadValueButton.height(font, laid.value(), laid.body().right() - laid.body().left());
+        int readBottom = laid.valueTop() + readHeight;
         if (card.selected()) {
-            graphics.fill(area.left(), area.top(), area.right(), valueTop + readHeight, SELECTED_COLOR);
+            graphics.fill(area.left(), area.top(), area.right(), readBottom, SELECTED_COLOR);
         }
-        targets.add(area.left(), area.top(), area.right() - area.left(), valueTop + readHeight - area.top(),
+        targets.add(area.left(), area.top(), area.right() - area.left(), readBottom - area.top(),
                 () -> pickGroup(card.row().name()));
         drawCardHead(graphics, font, card, targets);
-        drawMembers(graphics, font, card.row().name(), members, targets);
-        drawReferents(graphics, font, referents, area.left() + ControlFlow.INDENT, usedByTop, targets);
-        int valueHeight = drawBuilt(graphics, font, body, valueTop, new Built(target, card.base(), NO_WORTH,
-                typed -> apply(groups.baseRequest(typed)), () -> pickGroup(card.row().name())), targets);
-        return valueTop + valueHeight + HALF - area.top();
+        drawMembers(graphics, font, card.row().name(), laid.members(), targets);
+        drawReferents(graphics, font, laid.referents(), area.left() + ControlFlow.INDENT, laid.usedByTop(), targets);
+        ExpressionLines.draw(font, laid.worth(), area.left() + ControlFlow.INDENT, laid.worthTop(), worthWidth(area),
+                new ExpressionLines.Painter(graphics, icons, targets, WHITE, LINK, (link, x, y, width) -> { }));
+        int valueHeight = drawBuilt(graphics, font, laid.body(), laid.valueTop(), new Built(target, card.base(),
+                null, typed -> apply(groups.baseRequest(typed)), () -> pickGroup(card.row().name())), targets);
+        drawValueLabel(graphics, font, laid, area.left() + ControlFlow.INDENT, buildingHere);
+        return laid.valueTop() + valueHeight + HALF - area.top();
+    }
+
+    // Value: on the line of the builder's kind dropdown, or of the read button's first line.
+    private static void drawValueLabel(GuiGraphicsExtractor graphics, Font font, CardLayout laid, int left,
+                                       boolean building) {
+        if (laid.value().isEmpty()) {
+            return;
+        }
+        int top = building ? ControlFlow.textTop(laid.valueTop())
+                : ReadValueButton.textTop(font, laid.value(), laid.valueTop());
+        graphics.text(font, VALUE_LABEL, left, top, GRAY);
+    }
+
+    // The group's evaluated goo value, type icons beside amounts, read off a member the group values with no tweak
+    // of its own, as no group's own evaluation reaches the manager; none where no such member resolved.
+    // Decision group-card-shows-its-goo-value-above-a-labelled-builder.
+    private List<ExpressionLines.Run> worthRuns(GroupCard card) {
+        Optional<GroupsTab.Group> group = card.group();
+        if (group.isEmpty() || card.base().isBlank()) {
+            return List.of();
+        }
+        Set<String> tweaked = new HashSet<>();
+        group.get().tweaks().forEach(tweak -> tweaked.add(tweak.member()));
+        String name = card.row().name();
+        return group.get().members().stream().map(GroupsTab.Member::id).filter(id -> !tweaked.contains(id))
+                .filter(id -> valuedByGroup(id, name)).map(values::worthOf).filter(worth -> !worth.isEmpty())
+                .findFirst().map(GroupsPane::resolvedRuns).orElse(List.of());
+    }
+
+    private boolean valuedByGroup(String id, String group) {
+        ValuesTab.Source source = values.sourceOf(id);
+        return source.kind() == ValuesTab.SourceKind.GROUP && group.equals(source.label());
+    }
+
+    private static List<ExpressionLines.Run> resolvedRuns(Map<String, String> worth) {
+        return ExpressionLines.resolvedRuns(worth.entrySet().stream().map(amount -> amount.getKey() + AMOUNT_SEPARATOR
+                + amount.getValue()).collect(java.util.stream.Collectors.joining(TYPES_SEPARATOR)));
     }
 
     // Line 1: the #name, red where it names an unknown member, its pencil or "tag", and the x at the right end; the
@@ -413,20 +500,60 @@ final class GroupsPane {
         return new MembersLine(area, members, itemsX, fit, end, perRow, expanded);
     }
 
+    /**
+     * Where a card's Used by line lays its iterator links.
+     *
+     * @param referents the iterators sourcing the group
+     * @param itemsX    the first link's x, past the label
+     * @param fit       how many links show and whether ..+n follows
+     * @param slots     each shown link's slot, then the end button's
+     * @param endLabel  ..+n, Hide, or none where every link fits
+     * @param key       the line's key among the expanded lists
+     */
+    private record ReferentsLine(List<String> referents, int itemsX, UsedByLine.Fit fit, List<UsedByLine.Slot> slots,
+                                 Optional<String> endLabel, String key) {
+        int height() {
+            return referents.isEmpty() ? 0 : (UsedByLine.lastRow(slots, endLabel.isPresent()) + 1) * ROW_HEIGHT;
+        }
+    }
+
+    // The links that fit the line, then ..+n counting the rest, as every used-by line cuts short; an expanded line
+    // flows onto as many rows as it needs and ends on Hide (decisions
+    // diagnose-and-correct-group-referents-without-the-ellipsis, more-button-reads-dot-dot-plus-n).
+    private ReferentsLine layReferents(Font font, String name, List<String> referents, int left, int right) {
+        int itemsX = left + font.width(USED_BY);
+        int room = right - itemsX;
+        String key = name + REFERENTS_KEY;
+        List<Integer> widths = referents.stream().map(iterator -> ButtonPainter.width(font, iterator)).toList();
+        boolean expanded = expandedRows.expanded(key);
+        UsedByLine.Fit fit = expanded ? UsedByLine.expanded(referents.size())
+                : UsedByLine.fitSlots(widths, ICON_GAP, room,
+                        hidden -> ButtonPainter.width(font, UsedByLine.moreLabel(hidden)));
+        Optional<String> endLabel = UsedByLine.endLabel(fit, expanded);
+        List<UsedByLine.Slot> slots = UsedByLine.flow(widths.subList(0, fit.shown()), ICON_GAP, room,
+                endLabel.map(label -> ButtonPainter.width(font, label)).orElse(0));
+        return new ReferentsLine(referents, itemsX, fit, slots, endLabel, key);
+    }
+
     // "Used by" then a link to each iterator whose source is the group, which a shift + left click follows to its
     // row on the Conversions pane; nothing draws for a group nothing iterates.
     // Decision group-card-lists-its-referents-as-iterator-links.
-    private void drawReferents(GuiGraphicsExtractor graphics, Font font, List<String> referents, int left, int top,
+    private void drawReferents(GuiGraphicsExtractor graphics, Font font, ReferentsLine line, int left, int top,
                                ClickTargets targets) {
-        if (referents.isEmpty()) {
+        if (line.referents().isEmpty()) {
             return;
         }
         graphics.text(font, USED_BY, left, top + TEXT_NUDGE, GRAY);
-        int x = left + font.width(USED_BY);
-        for (String iterator : referents) {
-            x = ButtonPainter.drawFollow(graphics, font, iterator, x, top, ROW_HEIGHT, targets,
-                    () -> actions.openMutator(iterator), null).right() + ICON_GAP;
+        for (int index = 0; index < line.fit().shown(); index++) {
+            String iterator = line.referents().get(index);
+            UsedByLine.Slot slot = line.slots().get(index);
+            ButtonPainter.drawFollow(graphics, font, iterator, line.itemsX() + slot.x(),
+                    top + slot.row() * ROW_HEIGHT, ROW_HEIGHT, targets, () -> actions.openMutator(iterator), null);
         }
+        UsedByLine.Slot end = line.slots().getLast();
+        boolean expanded = expandedRows.expanded(line.key());
+        line.endLabel().ifPresent(label -> ButtonPainter.draw(graphics, font, label, line.itemsX() + end.x(),
+                top + end.row() * ROW_HEIGHT, ROW_HEIGHT, targets, () -> toggle(line.key(), expanded)));
     }
 
     // Line 2: "Members:" then the member icons named on hover, ending on ..+n or Hide (decisions
@@ -444,8 +571,8 @@ final class GroupsPane {
 
     /**
      * @param pane the Groups pane's bounds
-     * @return the list column's width, three fifths of the pane (decision
-     *     group-list-takes-60-percent-and-labels-span-the-pane)
+     * @return the list column's width, seven tenths of the pane (decision
+     *     member-list-takes-30-percent-with-no-indent)
      */
     static int listWidth(Bounds pane) {
         return (pane.right() - pane.left()) * LIST_PARTS / PARTS;
@@ -529,17 +656,16 @@ final class GroupsPane {
         graphics.enableScissor(detail.left(), detail.top(), detail.right(), detail.bottom());
         targets.clip(detail.left(), detail.top(), detail.right(), detail.bottom());
         int y = detail.top() - detailBar.offset();
-        // Decision detail-is-members-plus-or-tag-members-with-the-tag-id: the detail is membership alone, its rows
-        // indented under the heading.
+        // Decision detail-is-members-plus-or-tag-members-with-the-tag-id: the detail is membership alone.
+        // Decision member-list-takes-30-percent-with-no-indent: its rows stand at the detail's left.
         if (group.tag()) {
             y = drawTagMembersHead(graphics, font, detail.left(), y, group.name());
         } else {
             y = drawAddMember(graphics, font, detail, y, targets);
         }
-        Bounds rows = new Bounds(detail.left() + ControlFlow.INDENT, detail.top(), detail.right(), detail.bottom());
-        y = drawCards(graphics, font, rows, y, targets);
+        y = drawCards(graphics, font, detail, y, targets);
         if (!group.tag()) {
-            y = drawMemberLine(graphics, font, rows, group, y + SECTION_GAP, targets);
+            y = drawMemberLine(graphics, font, detail, group, y + SECTION_GAP, targets);
         }
         targets.unclip();
         graphics.disableScissor();
@@ -579,38 +705,40 @@ final class GroupsPane {
      *
      * @param target  which value it is, the builder standing open over it while building names it
      * @param shown   the value as the draft spells it
-     * @param empty   what the read view says while it is blank
+     * @param empty   what the read view says while it is blank, null for Value: Not explicitly set
      * @param writes  takes each change
      * @param opening runs before the builder opens, selecting what the value belongs to
      */
-    private record Built(String target, String shown, String empty, Writes writes, Runnable opening) {
+    private record Built(String target, String shown, @Nullable String empty, Writes writes, Runnable opening) {
     }
 
-    private List<ExpressionLines.Run> valueRuns(String shown, String empty) {
-        return shown.isBlank() ? ExpressionLines.textRuns(empty) : ExpressionLines.shownRuns(shown, icons::nameOf);
+    // A blank value reads its empty text, or, with none, has no runs, which reads Value: Not explicitly set.
+    // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
+    private List<ExpressionLines.Run> valueRuns(String shown, @Nullable String empty) {
+        if (!shown.isBlank()) {
+            return ExpressionLines.shownRuns(shown, icons::nameOf);
+        }
+        return empty == null ? List.of() : ExpressionLines.textRuns(empty);
     }
 
-    // A value drawn curated in a read view, a plain left click opening the builder over it in its place and a
-    // shift + left click on a ref opening its prefab; answers its height.
+    // A value drawn curated in its read-mode button, a plain left click opening the builder over it in its place
+    // and a shift + left click on a ref opening its prefab; answers its height.
     // Decision shift-left-click-follows-plain-left-modifies.
+    // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
     private int drawBuilt(GuiGraphicsExtractor graphics, Font font, Bounds detail, int y, Built built,
                           ClickTargets targets) {
         if (built.target().equals(building) && builder.isOpen()) {
             return builder.extract(graphics, font, detail, y, targets);
         }
-        int width = detail.right() - detail.left();
         String shown = built.shown();
-        List<ExpressionLines.Run> runs = valueRuns(shown, built.empty());
-        int height = ExpressionLines.height(font, runs, width);
-        graphics.fill(detail.left(), y, detail.right(), y + height, READ_VIEW_COLOR);
-        targets.add(detail.left(), y, width, height, () -> {
+        Runnable open = () -> {
             built.opening().run();
             building = built.target();
             builder.open(shown, built.writes()::wrote, this::closeBuilder);
-        });
-        ExpressionLines.draw(font, runs, detail.left(), y, width, new ExpressionLines.Painter(graphics, icons,
-                targets, WHITE, LINK, ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
-        return height;
+        };
+        return ReadValueButton.draw(graphics, font, valueRuns(shown, built.empty()), new ReadValueButton.Place(detail.left(), y,
+                detail.right(), open), new ExpressionLines.Painter(graphics, icons, targets, WHITE, LINK,
+                ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
     }
 
     // Answers the y below the cards; a card cut by the pane's edge is not drawn, so no icon shows half.
