@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -237,16 +238,68 @@ class ProcessesPaneTest {
         assertEquals(2, adds.size(), frame.texts().toString());
         DrawnFrame.Text twiceCopies = twice.y() < bare.y() ? copies.getFirst() : copies.getLast();
         DrawnFrame.Text twiceAdd = twice.y() < bare.y() ? adds.getFirst() : adds.getLast();
-        DrawnFrame.Text then = frame.find("then mutates using");
+        DrawnFrame.Text then = frame.find("mutated by");
         DrawnFrame.Text and = frame.find("and");
         List<Integer> descending = List.of(twice.y(), twiceCopies.y(), then.y(), and.y(), twiceAdd.y());
         assertEquals(descending.stream().sorted().distinct().toList(), descending, frame.drawn().toString());
         assertEquals(twice.x() + ControlFlow.INDENT, twiceCopies.x(), frame.drawn().toString());
-        assertEquals(1, frame.count("then mutates using"), frame.texts().toString());
+        assertEquals(1, frame.count("mutated by"), frame.texts().toString());
+        assertFalse(frame.texts().contains("then mutates using"), frame.texts().toString());
         DrawnFrame.Text bareAdd = twice.y() < bare.y() ? adds.getLast() : adds.getFirst();
         assertTrue(bareAdd.y() > bare.y(), bareAdd + " under " + bare);
         assertTrue(frame.targets.click(bareAdd.x() + 1, bareAdd.y() + 1));
         assertTrue(frame().texts().containsAll(List.of("waxed", "rust")), "the mutator pick lists the mutators");
+    }
+
+    /**
+     * Each mutation line right packs against the iterator box's right edge: its x ends at the edge, the mutator
+     * buttons share one x, each line's words stand one gap left of its button, and "+ optional mutation" ends at the
+     * edge too (decision iterator-reads-copies-then-mutates-using-and).
+     */
+    @Test
+    void iteratorMutationLinesRightPackWithTheirButtonsAligned() {
+        pane = chainedIterators(mock(ManagerActions.class));
+        DrawnFrame frame = frame();
+        DrawnFrame.Text then = frame.find("mutated by");
+        DrawnFrame.Text and = frame.find("and");
+        DrawnFrame.Text waxed = onLineOf(frame, then, "waxed");
+        DrawnFrame.Text rust = onLineOf(frame, and, "rust");
+        int edge = boxRightAt(frame, then.x(), then.y());
+        assertEquals(edge, rightOf(onLineOf(frame, then, "x")), frame.drawn().toString());
+        assertEquals(edge, rightOf(onLineOf(frame, and, "x")), frame.drawn().toString());
+        assertEquals(waxed.x(), rust.x(), waxed + " vs " + rust);
+        int buttonLeft = waxed.x() - ButtonPainter.PADDING;
+        assertEquals(buttonLeft - BuilderOverlays.GAP, then.x() + DrawnFrame.font().width(then.text()), then.toString());
+        assertEquals(buttonLeft - BuilderOverlays.GAP, and.x() + DrawnFrame.font().width(and.text()), and.toString());
+        DrawnFrame.Text add = frame.drawn().stream().filter(text -> text.text().equals("+ optional mutation")
+                && text.y() > and.y()).findFirst().orElseThrow();
+        assertEquals(edge, rightOf(add), add.toString());
+    }
+
+    private static DrawnFrame.Text onLineOf(DrawnFrame frame, DrawnFrame.Text anchor, String label) {
+        return frame.drawn().stream().filter(text -> text.y() == anchor.y() && text.text().equals(label)).findFirst()
+                .orElseThrow(() -> new AssertionError(label + " on " + anchor + ": " + frame.drawn()));
+    }
+
+    private static int rightOf(DrawnFrame.Text button) {
+        return button.x() + DrawnFrame.font().width(button.text()) + ButtonPainter.PADDING;
+    }
+
+    // The right edge of the row box filled across a point.
+    private static int boxRightAt(DrawnFrame frame, int x, int y) {
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
+                eq(ProcessesPane.ROW_COLOR));
+        for (int index = 0; index < tops.getAllValues().size(); index++) {
+            if (lefts.getAllValues().get(index) <= x && rights.getAllValues().get(index) > x
+                    && tops.getAllValues().get(index) <= y && bottoms.getAllValues().get(index) > y) {
+                return rights.getAllValues().get(index);
+            }
+        }
+        throw new AssertionError("no row box at " + y);
     }
 
     /**

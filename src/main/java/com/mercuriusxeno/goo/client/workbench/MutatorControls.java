@@ -36,10 +36,10 @@ final class MutatorControls {
     private static final String ADDITIVE = "additive";
     private static final String STACK = "stack";
     private static final String SOURCE_SHARE = "1";
-    // Decision iterator-reads-copies-then-mutates-using-and: the source after copies, the first mutator after then
-    // mutates using, each later one after and, and the button that adds one naming it optional.
+    // Decision iterator-reads-copies-then-mutates-using-and, as the operator restated it: the source after copies,
+    // the first mutator after mutated by, each later one after and, and the button that adds one naming it optional.
     private static final String COPIES = "copies";
-    private static final String THEN_MUTATES_USING = "then mutates using";
+    private static final String MUTATED_BY = "mutated by";
     private static final String AND = "and";
     private static final String ADD_MUTATION = "+ optional mutation";
     // Decision mutator-body-indents-under-its-name-line: the arrow in place of the word becomes.
@@ -270,24 +270,33 @@ final class MutatorControls {
     }
 
     // The processes the assignment applies in order, each removable on its own line under the source, the first
-    // after "then mutates using" and each later one after "and", then "+ optional mutation" on a line of its own.
+    // after "mutated by" and each later one after "and", then "+ optional mutation" on a line of its own; each line
+    // right packs, its x at the box's right edge and every mutator button at one x, the words just left of it.
     // Decision each-chained-mutator-takes-its-own-indented-line.
     // Decision iterator-reads-copies-then-mutates-using-and.
     private void drawChain(Entry entry, List<String> chain) {
         ControlFlow flow = entry.flow();
+        Font font = flow.font();
         String section = entry.section();
         String key = entry.key();
+        int removeWidth = ButtonPainter.width(font, REMOVE_LINK);
+        int widest = chain.stream().mapToInt(link -> ButtonPainter.width(font, link.substring(STACK_MARK.length())))
+                .max().orElse(0);
         for (int index = 0; index < chain.size(); index++) {
             int link = index;
+            String words = index == 0 ? MUTATED_BY : AND;
             flow.newLine();
-            flow.text(index == 0 ? THEN_MUTATES_USING : AND, GRAY);
+            flow.alignRight(font.width(words) + BuilderOverlays.GAP + widest + BuilderOverlays.GAP + removeWidth);
+            flow.text(words, GRAY);
             String applied = chain.get(index).substring(STACK_MARK.length());
             // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
             flow.followLink(applied, PrefabHovers.hoverKey(applied), () -> actions.openMutator(applied));
+            flow.alignRight(removeWidth);
             flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                     at -> edit(() -> processes.removeAssignmentLink(section, key, link)));
         }
         flow.newLine();
+        flow.alignRight(ButtonPainter.width(font, ADD_MUTATION));
         flow.control(ADD_MUTATION, null, at -> openNames(at, SearchDropdown.overMutators(
                 processes.processNames(section)), name -> processes.addAssignmentLink(section, key, STACK_MARK + name)));
     }
