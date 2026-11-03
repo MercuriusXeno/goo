@@ -244,12 +244,12 @@ class GroupsPaneTest {
 
         // Decision member-list-takes-30-percent-with-no-indent.
         @Test
-        void listTakesSeventyPercentAndItsNamesDrawMoreCharacters() {
+        void listTakesSixtyFivePercentAndItsNamesDrawMoreCharacters() {
             DrawnFrame frame = frame();
             DrawnFrame.Text listed = startingWith(frame, "#" + LONG_GROUP).getFirst();
-            int seventyPercent = PANE.left() + (PANE.right() - PANE.left()) * 7 / 10;
-            assertEquals(seventyPercent, GroupsPane.listWidth(PANE));
-            assertEquals(seventyPercent + GroupsPane.GAP, detailScissorLeft(frame));
+            int sixtyFivePercent = PANE.left() + (PANE.right() - PANE.left()) * 13 / 20;
+            assertEquals(sixtyFivePercent, GroupsPane.listWidth(PANE));
+            assertEquals(sixtyFivePercent + GroupsPane.GAP, detailScissorLeft(frame));
             assertTrue(listed.x() < GroupsPane.listWidth(PANE), listed.toString());
             assertTrue(listed.text().length() * 6 > 78, "the list name drew " + listed.text());
         }

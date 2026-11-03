@@ -30,9 +30,10 @@ import java.util.Set;
  */
 final class GroupsPane {
     // Decision group-list-takes-60-percent-and-labels-span-the-pane: the list takes three fifths of the pane.
-    // Decision member-list-takes-30-percent-with-no-indent: the list takes seven tenths, the member detail three.
-    private static final int LIST_PARTS = 7;
-    private static final int PARTS = 10;
+    // Decision member-list-takes-30-percent-with-no-indent, as the operator restated it: the group list takes 65
+    // percent and the members panel 35.
+    private static final int LIST_PARTS = 13;
+    private static final int PARTS = 20;
     /** The room between the group list and the member detail. */
     static final int GAP = 12;
     /** A group row's height, its sprites' and margin. */
