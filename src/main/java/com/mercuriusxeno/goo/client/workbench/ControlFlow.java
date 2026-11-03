@@ -21,6 +21,11 @@ final class ControlFlow {
     private static final int HALF = 2;
     /** A drag rail's width. */
     static final int RAIL_WIDTH = 6;
+    /**
+     * How far each box depth steps in from the box holding it: its border and a pixel of padding (decision
+     * drag-rail-containers-keep-a-pixel-between-borders).
+     */
+    static final int BOX_STEP = 2;
     // Decision rails-fill-the-left-edge-of-their-box: the rail takes its box's whole left edge, flush inside the
     // border, and three grip lines mark it as a rail.
     private static final int GRIP_LINES = 3;
@@ -52,6 +57,10 @@ final class ControlFlow {
     private int pieceLeft;
     private int pieceTop;
     private int pieceWidth;
+    // The room above and below each line's pieces that its boxes' borders and padding take; y is the pieces' top.
+    private int pad;
+    // The boxes open around the next piece: a rail opens one and closeBox ends it.
+    private int openBoxes;
 
     /**
      * @param graphics the frame's graphics
@@ -108,10 +117,28 @@ final class ControlFlow {
     }
 
     /**
+     * Grows every line after the current one by a border and a pixel of padding above and below its pieces per box
+     * depth, so the boxes drawn later nest inline, each clear of the box holding it and of the buttons inside it
+     * (decision drag-rail-containers-keep-a-pixel-between-borders). The current line holds no box, as a builder's
+     * kind line holds none, so it keeps its top and the labels beside it their line.
+     *
+     * @param depth the most boxes any piece stands inside
+     */
+    void padForBoxes(int depth) {
+        pad = depth * BOX_STEP;
+    }
+
+    // One line to the next: the pieces' line and the pad above and below it, then a clear row where boxes pad the
+    // lines, so a box on one line stands clear of a box on the next.
+    private int pitch() {
+        return pad == 0 ? LINE : LINE + pad + pad + 1;
+    }
+
+    /**
      * @return the y below the last line
      */
     int bottom() {
-        return y + LINE;
+        return y + LINE + pad;
     }
 
     /**
@@ -126,7 +153,7 @@ final class ControlFlow {
      */
     void newLine() {
         if (x > lineLeft || lineLeft > left) {
-            y += LINE;
+            y += pitch();
         }
         lineLeft = left;
         x = left;
@@ -138,7 +165,7 @@ final class ControlFlow {
      */
     void wrapLine() {
         if (x > lineLeft) {
-            y += LINE;
+            y += pitch();
             lineLeft = left + INDENT;
             x = lineLeft;
         }
@@ -173,9 +200,11 @@ final class ControlFlow {
         x += width;
     }
 
+    // A piece inside boxes ends a clear pixel short of the innermost box's right border across lines.
     private void reserve(int width) {
-        if (x + width > right && x > lineLeft) {
-            y += LINE;
+        int piecesRight = openBoxes == 0 ? right : right - openBoxes * BOX_STEP - 1;
+        if (x + width > piecesRight && x > lineLeft) {
+            y += pitch();
             lineLeft = left + INDENT;
             x = lineLeft;
         }
@@ -418,7 +447,7 @@ final class ControlFlow {
      */
     void alignRight(int width) {
         if (x + width > right && x > lineLeft) {
-            y += LINE;
+            y += pitch();
             lineLeft = left;
         }
         x = right - width;
@@ -470,21 +499,9 @@ final class ControlFlow {
     }
 
     /**
-     * A term's drag rail: a narrow grip a line tall, a press on it grabbing the pointer until the release (decision
+     * A rail's grab and hover, opening its box, its drawing left for drawRail once its box's height is known, as a
+     * parenthetical's or a type row's spans every line it takes; closeBox ends the box (decision
      * terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
-     *
-     * @param hoverKey what hovering names, which no tooltip reads
-     * @param grab     what the press, each drag and the release move
-     * @param keepWith the width of the pieces that follow it, which wrap with it rather than leave it a line's end
-     */
-    void rail(String hoverKey, ClickTargets.PointerGrab grab, int keepWith) {
-        int railLeft = railTarget(hoverKey, grab, keepWith);
-        drawRail(railLeft, y + 1, y + LINE - 1);
-    }
-
-    /**
-     * A rail's grab and hover, its drawing left for drawRail once its box's height is known, as a parenthetical's or a
-     * type row's spans every line it takes.
      *
      * @param hoverKey what hovering names, which no tooltip reads
      * @param grab     what the press, each drag and the release move
@@ -498,7 +515,26 @@ final class ControlFlow {
         targets.addGrab(x, y, RAIL_WIDTH, LINE, grab);
         targets.addHover(x, y, RAIL_WIDTH, LINE, hoverKey);
         x += RAIL_ADVANCE;
+        openBoxes++;
         return railLeft;
+    }
+
+    /**
+     * Ends the box the last open rail opened, so the pieces after it take the room it held.
+     */
+    void closeBox() {
+        openBoxes--;
+    }
+
+    /**
+     * Draws a rail down its box's left edge on the box's first line, as a term's box takes that line alone.
+     *
+     * @param start where the rail stood
+     * @param depth how many boxes hold it, its own and a type row's included
+     */
+    void drawRailOnLine(BuilderOverlays.Anchor start, int depth) {
+        int inset = (depth - 1) * BOX_STEP;
+        drawRail(start.x(), start.y() - pad + inset + 1, start.y() + LINE + pad - inset - 1);
     }
 
     /**
@@ -535,27 +571,24 @@ final class ControlFlow {
      * one unit (decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor).
      *
      * @param start where the first piece stood
+     * @param depth how many boxes hold it, its own and a type row's included
      */
-    void outlineFrom(BuilderOverlays.Anchor start) {
+    void outlineFrom(BuilderOverlays.Anchor start, int depth) {
         if (start.y() != y) {
             return;
         }
-        int left = start.x() - 1;
-        int right = x - GAP + 1;
-        graphics.fill(left, y, right, y + 1, OUTLINE_COLOR);
-        graphics.fill(left, y + LINE - 1, right, y + LINE, OUTLINE_COLOR);
-        graphics.fill(left, y, left + 1, y + LINE, OUTLINE_COLOR);
-        graphics.fill(right - 1, y, right, y + LINE, OUTLINE_COLOR);
+        outlineBox(boxFrom(start, depth), OUTLINE_COLOR);
     }
 
     /**
      * Tints the box from the place given to the pieces drawn since: on one line, from there to the last piece; across
-     * lines, from there to the area's right edge, a pixel in per depth so a box inside a box shows its own edge
-     * (decision parentheticals-alternate-gray-tones-by-depth).
+     * lines, from there to the area's right edge, a border and a pixel in per depth so a box inside a box shows its
+     * own edge (decisions parentheticals-alternate-gray-tones-by-depth,
+     * drag-rail-containers-keep-a-pixel-between-borders).
      *
      * @param start  where the box's first piece stood
      * @param tones  the box's fill and the border around it
-     * @param depth  how many boxes hold it, its own included
+     * @param depth  how many boxes hold it, its own and a type row's included
      */
     void tintFrom(BuilderOverlays.Anchor start, BoxTones tones, int depth) {
         GroupsPane.Bounds box = boxFrom(start, depth);
@@ -577,13 +610,18 @@ final class ControlFlow {
     }
 
     /**
+     * A box at depth one borders its lines' outer edges, and each depth in steps a border and a pixel of padding in
+     * from the box holding it, above, below and at the area's right (decision
+     * drag-rail-containers-keep-a-pixel-between-borders).
+     *
      * @param start where the box's first piece stood
-     * @param depth how many boxes hold it, its own included
+     * @param depth how many boxes hold it, its own and a type row's included
      * @return the box from the place given to the pieces drawn since, as tintFrom fills it
      */
     GroupsPane.Bounds boxFrom(BuilderOverlays.Anchor start, int depth) {
-        int boxRight = start.y() == y ? x - GAP + 1 : right - depth;
-        return new GroupsPane.Bounds(start.x() - 1, start.y(), boxRight, y + LINE);
+        int inset = (depth - 1) * BOX_STEP;
+        int boxRight = start.y() == y ? x - GAP + 1 : right - inset;
+        return new GroupsPane.Bounds(start.x() - 1, start.y() - pad + inset, boxRight, y + LINE + pad - inset);
     }
 
     /**
