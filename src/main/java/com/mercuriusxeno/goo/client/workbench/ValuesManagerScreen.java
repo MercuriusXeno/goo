@@ -8,12 +8,15 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.client.ClientHooks;
 import org.lwjgl.glfw.GLFW;
 import java.util.EnumMap;
 import java.util.List;
@@ -489,9 +492,7 @@ public final class ValuesManagerScreen extends Screen {
                 statusIsError ? RED : GRAY);
         draftPane.extract(graphics, font, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
-        targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
-                .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, tooltipElements(lines),
-                        mouseX, mouseY, ItemStack.EMPTY));
+        extractTooltip(graphics, mouseX, mouseY);
         // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
         linkCursor.frame(targets, mouseX, mouseY, graphics::requestCursor);
     }
@@ -500,6 +501,25 @@ public final class ValuesManagerScreen extends Screen {
     public void removed() {
         linkCursor.release();
         super.removed();
+    }
+
+    // Decision tooltips-anchor-below-their-element-and-grow-upward-when-short-of-room.
+    static Optional<ClientTooltipPositioner> anchoredTooltip(ClickTargets targets, double mouseX, double mouseY) {
+        return targets.hoveredArea(mouseX, mouseY).map(area -> TooltipAnchor.anchoredTo(area.bounds()));
+    }
+
+    // The tooltip draws on a stratum of its own over the frame, placed by the hovered area's bounds rather than the
+    // cursor.
+    private void extractTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        Optional<List<TooltipLine>> hoveredLines = targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines);
+        Optional<ClientTooltipPositioner> positioner = anchoredTooltip(targets, mouseX, mouseY);
+        if (hoveredLines.isEmpty() || positioner.isEmpty()) {
+            return;
+        }
+        List<ClientTooltipComponent> components = ClientHooks.gatherTooltipComponentsFromElements(ItemStack.EMPTY,
+                tooltipElements(hoveredLines.get()), mouseX, width, height, font);
+        graphics.nextStratum();
+        graphics.tooltip(font, components, mouseX, mouseY, positioner.get(), null);
     }
 
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,

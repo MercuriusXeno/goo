@@ -73,6 +73,25 @@ class ValuesManagerScreenTest {
         assertEquals(List.of("follow", "modify"), ran);
     }
 
+    /**
+     * Two cursor positions over one hovered area place its tooltip at one point, the point the area's bounds anchor
+     * (decision tooltips-anchor-below-their-element-and-grow-upward-when-short-of-room).
+     */
+    @Test
+    void tooltipStaysPutAsTheCursorMovesOverOneElement() {
+        ClickTargets targets = new ClickTargets();
+        targets.addHover(40, 20, 50, 14, "stick");
+        List<org.joml.Vector2ic> points = new ArrayList<>();
+        for (int mouseX : new int[] {42, 85}) {
+            int mouseY = mouseX == 42 ? 22 : 31;
+            points.add(ValuesManagerScreen.anchoredTooltip(targets, mouseX, mouseY).orElseThrow()
+                    .positionTooltip(400, 300, mouseX, mouseY, 60, 30));
+        }
+        TooltipAnchor.Point anchored = TooltipAnchor.place(new GroupsPane.Bounds(40, 20, 90, 34), 60, 30, 400, 300);
+        assertEquals(List.of(new org.joml.Vector2i(anchored.x(), anchored.y()),
+                new org.joml.Vector2i(anchored.x(), anchored.y())), points);
+    }
+
     @Nested
     class RightClickOnATextBox {
         private final Font font = mock(Font.class);
