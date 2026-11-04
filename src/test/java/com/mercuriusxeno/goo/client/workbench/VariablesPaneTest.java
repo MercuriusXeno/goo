@@ -1037,4 +1037,25 @@ class VariablesPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         assertTrue(frame.texts().stream().anyMatch(text -> text.matches("^\\.\\.\\+\\d+$")), frame.texts().toString());
     }
+
+    /**
+     * A prefab being edited draws its builder's gray panel wholly below its Used by item icons, so the panel never
+     * covers an icon's bottom row; it covered one row before.
+     */
+    @Test
+    void builderPanelStandsBelowTheUsedByIcons() {
+        variables.readEvaluated("""
+                {"constants": [{"name": "prefab0", "kind": "scalar", "value": "8",
+                                "direct": ["minecraft:apple", "minecraft:bread"]}]}
+                """);
+        variables.startEditing("prefab0");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), itemTops.capture());
+        int panelTop = fillTopsAt(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
+        for (int top : itemTops.getAllValues()) {
+            assertTrue(top + SPRITE <= panelTop, "icon " + top + ".." + (top + SPRITE) + " vs panel top " + panelTop);
+        }
+    }
 }
