@@ -632,10 +632,20 @@ public final class ValuesTab {
      * @param typed the edit box's text
      */
     public void edit(String typed) {
-        if (selected == null) {
-            return;
+        if (selected != null) {
+            edit(selected, typed);
         }
-        String key = entryKeyOf(selected);
+    }
+
+    /**
+     * Writes text as one entry's expression, adding the entry where the file holds none, whatever the list selects,
+     * so a builder standing open over one entry writes to that entry alone.
+     *
+     * @param id    the entry's id
+     * @param typed the text
+     */
+    public void edit(String id, String typed) {
+        String key = entryKeyOf(id);
         JsonObject member = valueMember(key);
         if (member != null) {
             member.addProperty(TEXT, ManagerDraft.storedText(typed));
