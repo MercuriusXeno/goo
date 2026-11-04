@@ -1039,6 +1039,60 @@ class VariablesPaneTest {
     }
 
     /**
+     * The [+] right of the search box opens a name box with its done check and gold arrow; Enter on a free name adds
+     * $name to the draft with no value, lists it and opens its builder, and a name the list holds adds nothing
+     * (decision goo-workbench-opens-the-in-game-manager-screen: the page's Variables pane added constants).
+     */
+    @Test
+    void plusRightOfTheSearchNamesANewPrefabAndOpensItsBuilder() {
+        List<AbstractWidget> widgets = new java.util.ArrayList<>();
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesTab prefabs = new VariablesTab(draft);
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        DrawnFrame.Text plus = list.find("+");
+        assertTrue(plus.x() > VIEW.left() + 180, plus + " stands right of the search box");
+        list.click("+");
+        DrawnFrame naming = new DrawnFrame();
+        read.extract(naming.graphics, DrawnFrame.font(), VIEW, naming.targets, 0, 0);
+        EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(each -> each.visible && each != read.searchBox()).findFirst()
+                .orElseThrow(() -> new AssertionError("no name box stood open"));
+        assertNameBoxButtons(naming, box);
+        verify(actions).focus(box);
+        GroupsPaneTest.GroupCards.focus(box);
+        box.setValue("fresh_prefab");
+        assertTrue(read.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER));
+        assertEquals(java.util.Optional.of(""), prefabs.expressionOf("fresh_prefab").map(ManagerDraft::shownText));
+        assertEquals(java.util.Optional.of("fresh_prefab"), prefabs.editing());
+        verify(actions).draftChanged();
+        DrawnFrame opened = new DrawnFrame();
+        read.extract(opened.graphics, DrawnFrame.font(), VIEW, opened.targets, 0, 0);
+        DrawnFrame settled = new DrawnFrame();
+        read.extract(settled.graphics, DrawnFrame.font(), VIEW, settled.targets, 0, 0);
+        assertTrue(settled.texts().contains("$fresh_prefab"), settled.texts().toString());
+        assertTrue(settled.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
+                settled.texts().toString());
+
+        assertTrue(settled.targets.click(plus.x() + 1, plus.y() + 1), "the + stands where it stood");
+        read.extract(new DrawnFrame().graphics, DrawnFrame.font(), VIEW, new ClickTargets(), 0, 0);
+        box.setValue("prefab0");
+        assertTrue(read.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER));
+        assertEquals(PREFABS + 1, prefabs.blocks().size(), "a taken name adds nothing");
+    }
+
+    /**
      * A prefab being edited draws its builder's gray panel wholly below its Used by item icons, so the panel never
      * covers an icon's bottom row; it covered one row before.
      */
