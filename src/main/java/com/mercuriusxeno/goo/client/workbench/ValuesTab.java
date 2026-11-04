@@ -618,7 +618,8 @@ public final class ValuesTab {
             answer.getAsJsonObject(VALUE).entrySet().forEach(type -> amounts.put(type.getKey(),
                     type.getValue().getAsString()));
         }
-        return amounts;
+        // Decision value-lists-order-highest-first-ties-by-type-key.
+        return AmountOrder.highestFirst(amounts);
     }
 
     private static String errorOf(@Nullable JsonObject answer) {

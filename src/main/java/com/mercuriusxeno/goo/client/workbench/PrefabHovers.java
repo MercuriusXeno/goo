@@ -65,8 +65,12 @@ final class PrefabHovers {
         Map<String, String> tree = value.map(VariablesTab.PrefabValue::tree).orElse(Map.of());
         Optional<Map<String, String>> types = typeExpressions(text);
         if (types.isPresent()) {
-            return types.get().entrySet().stream().map(type -> type.getKey() + EQUALS
-                    + reduced(type.getValue(), tree.getOrDefault(type.getKey(), NO_TEXT)))
+            // Decision value-lists-order-highest-first-ties-by-type-key: each type in its resolved amount's order.
+            Map<String, String> amounts = new LinkedHashMap<>();
+            types.get().keySet().forEach(type -> amounts.put(type, tree.getOrDefault(type, NO_TEXT)));
+            Map<String, String> expressions = types.get();
+            return AmountOrder.highestFirst(amounts).entrySet().stream().map(type -> type.getKey() + EQUALS
+                    + reduced(expressions.get(type.getKey()), type.getValue()))
                     .collect(Collectors.joining(TYPE_SEPARATOR));
         }
         return reduced(ManagerDraft.shownText(text), value.map(VariablesTab.PrefabValue::scalar).orElse(NO_TEXT));
