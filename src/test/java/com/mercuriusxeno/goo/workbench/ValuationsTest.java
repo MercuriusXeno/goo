@@ -92,6 +92,22 @@ class ValuationsTest {
         assertTrue(entryNamed(entries, "pail").get("error").getAsString().contains("no_such_item"));
     }
 
+    /**
+     * An entry holding an amount below zero, which the game loads no value for, resolves in the workbench to its
+     * value as it stands, the negative amount beside the rest, so the row shows the amount to fix.
+     */
+    @Test
+    void negativeAmountResolvesAsItStands() throws IOException {
+        BaseValuesModel model = everyForm().withTopLevel("beetroot",
+                ValueEntries.perType(Map.of("jelly", "180", "leaf", "6 - 180")));
+        JsonArray entries = JsonParser.parseString(Valuations.resolved(model)).getAsJsonObject()
+                .getAsJsonArray("entries");
+        JsonObject beetroot = entryNamed(entries, "beetroot");
+        assertEquals("180", beetroot.getAsJsonObject("value").get("jelly").getAsString());
+        assertEquals("-174", beetroot.getAsJsonObject("value").get("leaf").getAsString());
+        assertTrue(beetroot.get("error").isJsonNull(), beetroot.toString());
+    }
+
     private static JsonObject entryNamed(JsonArray entries, String key) {
         return entries.asList().stream().map(entry -> entry.getAsJsonObject())
                 .filter(entry -> key.equals(entry.get("key").getAsString())).findFirst().orElseThrow();
