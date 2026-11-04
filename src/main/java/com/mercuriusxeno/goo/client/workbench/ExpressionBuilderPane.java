@@ -1352,7 +1352,10 @@ final class ExpressionBuilderPane {
     // Decision amount-modes-name-what-the-amount-comes-from.
     // Decision term-number-opens-number-prefab-relative-modes.
     private void drawNumber(ControlFlow flow, List<Integer> path, ExpressionBuilder.Num num, Place place) {
-        Consumer<BuilderOverlays.Anchor> openBox = at -> overlays.openNumber(at, num.digits(),
+        // Decision number-box-takes-a-mixed-number: the box reads the number over its divisor, as 2 1/2.
+        ExpressionBuilder edited = builder;
+        String shown = edited != null ? edited.numberText(path) : num.digits();
+        Consumer<BuilderOverlays.Anchor> openBox = at -> overlays.openMixedNumber(at, shown,
                 digits -> apply(b -> b.setNumber(path, digits)));
         List<BuilderOverlays.Option> modes = amountModes(path, place, openBox);
         flow.labelSegment(num.digits(), null, modes.size() > 1 ? at -> overlays.openOptions(at, modes) : openBox);

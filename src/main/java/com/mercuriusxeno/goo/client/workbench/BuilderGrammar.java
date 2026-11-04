@@ -20,6 +20,7 @@ final class BuilderGrammar {
     static final String GOO_SORT = "goo";
     private static final Pattern DIGITS = Pattern.compile("\\d{0,9}");
     private static final Pattern ZERO = Pattern.compile("0+");
+    private static final Pattern MIXED_TYPING = Pattern.compile("\\d{0,9}(?: \\d{0,9})?(?:/\\d{0,9})?");
 
     private final boolean prefab;
     private final List<Prefab> readable;
@@ -189,5 +190,14 @@ final class BuilderGrammar {
      */
     static boolean acceptsTyped(String typed, boolean refusesZero) {
         return DIGITS.matcher(typed).matches() && !(refusesZero && ZERO.matcher(typed).matches());
+    }
+
+    /**
+     * @param typed the term number box's text after a key
+     * @return whether the box takes it: a whole, a fraction or a whole then a space and a fraction, each part as it
+     *     is typed (decision number-box-takes-a-mixed-number)
+     */
+    static boolean acceptsTypedMixed(String typed) {
+        return MIXED_TYPING.matcher(typed).matches();
     }
 }
