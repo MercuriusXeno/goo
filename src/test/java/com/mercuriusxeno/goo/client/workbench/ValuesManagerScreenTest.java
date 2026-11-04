@@ -42,13 +42,124 @@ class ValuesManagerScreenTest {
     private static final Map<String, String> CANNED = Map.of(WorkbenchOperations.MODEL, MODEL);
 
     /**
-     * The X is a square ending at the right margin and the topbar starts one gap left of it (decision
-     * x-in-the-top-right-closes-the-manager).
+     * The X is a square ending at the right margin, the [?] a square one gap left of it and the topbar starts one gap
+     * left of the [?] (decisions x-in-the-top-right-closes-the-manager,
+     * question-button-toggles-explainer-mode-with-the-drag-mask).
      */
     @Test
     void closeXEndsAtTheRightMarginAndTheTopbarStandsLeftOfIt() {
         ValuesManagerScreen.TitleRow row = ValuesManagerScreen.titleRowOf(400);
-        assertEquals(new ValuesManagerScreen.TitleRow(378, 392, 376), row);
+        assertEquals(new ValuesManagerScreen.TitleRow(378, 392, 362, 360), row);
+    }
+
+    /**
+     * Explainer mode over five tabs laid 50 pixels apart on the tab row (decisions
+     * question-button-toggles-explainer-mode-with-the-drag-mask, explainer-lines-are-the-operators-tab-descriptions).
+     */
+    @Nested
+    class ExplainerModeOverTheTabs {
+        private final ExplainerMode explainer = new ExplainerMode(ExplainerTargets.forTabs(tab ->
+                new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)));
+
+        private List<DragMask.Rect> fills(DrawnFrame frame, int color) {
+            org.mockito.ArgumentCaptor<Integer> lefts = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            org.mockito.ArgumentCaptor<Integer> tops = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            org.mockito.ArgumentCaptor<Integer> rights = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            org.mockito.ArgumentCaptor<Integer> bottoms = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            org.mockito.Mockito.verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(),
+                    tops.capture(), rights.capture(), bottoms.capture(), org.mockito.ArgumentMatchers.eq(color));
+            List<DragMask.Rect> rects = new ArrayList<>();
+            for (int index = 0; index < lefts.getAllValues().size(); index++) {
+                rects.add(new DragMask.Rect(lefts.getAllValues().get(index), tops.getAllValues().get(index),
+                        rights.getAllValues().get(index), bottoms.getAllValues().get(index)));
+            }
+            return rects;
+        }
+
+        private DrawnFrame frame() {
+            DrawnFrame frame = new DrawnFrame();
+            explainer.extract(frame.graphics, DrawnFrame.SCREEN_WIDTH, DrawnFrame.SCREEN_HEIGHT, frame.targets);
+            return frame;
+        }
+
+        /**
+         * One press of [?] shadows the screen and lights one hole over each tab.
+         */
+        @Test
+        void pressDrawsTheMaskWithAHolePerTab() {
+            explainer.toggle();
+            DrawnFrame frame = frame();
+            assertFalse(fills(frame, DragMask.SHADOW).isEmpty(), "the shadow covers the screen");
+            List<DragMask.Rect> tabs = java.util.Arrays.stream(ManagerTab.values()).map(tab ->
+                    new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)).toList();
+            assertEquals(tabs, fills(frame, DragMask.HIGHLIGHT));
+        }
+
+        /**
+         * Hovering the Items tab in the mode opens a tooltip reading the Items paragraph, starting at its first
+         * sentence.
+         */
+        @Test
+        void hoveringItemsInTheModeShowsTheItemsParagraph() {
+            explainer.toggle();
+            DrawnFrame frame = frame();
+            String key = frame.targets.hovered(20, 25).orElseThrow();
+            String text = explainer.tooltipFor(key).orElseThrow().getString();
+            assertTrue(text.startsWith("Search for items, view their explicit or derived values, and recipe ratios"
+                    + " to help make decisions on values."), text);
+        }
+
+        /**
+         * A span the paragraph sets between backticks draws styled with no backtick shown, the text around it plain.
+         */
+        @Test
+        void backtickedSpanDrawsStyledWithoutItsBackticks() {
+            explainer.toggle();
+            String key = frame().targets.hovered(20, 25).orElseThrow();
+            Component shown = explainer.tooltipFor(key).orElseThrow();
+            assertFalse(shown.getString().contains("`"), shown.getString());
+            List<String> styled = new ArrayList<>();
+            shown.visit((style, piece) -> {
+                if (ExplainerMode.CODE_STYLE.equals(style)) {
+                    styled.add(piece);
+                }
+                return java.util.Optional.empty();
+            }, net.minecraft.network.chat.Style.EMPTY);
+            assertEquals(List.of("anchor items", "Anchor items"), styled);
+        }
+
+        /**
+         * A click anywhere in the mode leaves it, the next frame drawing no shadow.
+         */
+        @Test
+        void clickAnywhereLeavesTheMode() {
+            explainer.toggle();
+            assertTrue(frame().targets.click(300, 200));
+            assertEquals(List.of(), fills(frame(), DragMask.SHADOW));
+        }
+
+        /**
+         * A paragraph too tall at full size for either side of its tab draws shrunk, one that fits draws at full
+         * size.
+         */
+        @Test
+        void paragraphFittingNeitherSideShrinks() {
+            GroupsPane.Bounds tab = new GroupsPane.Bounds(300, 20, 340, 34);
+            assertEquals(List.of(ExplainerTooltip.SHRUNK, 1f), List.of(ExplainerTooltip.scaleFor(180, tab, 200),
+                    ExplainerTooltip.scaleFor(150, tab, 200)));
+        }
+
+        /**
+         * A second press of [?] draws no shadow and hovers no explainer text.
+         */
+        @Test
+        void secondPressDrawsNoMask() {
+            explainer.toggle();
+            explainer.toggle();
+            DrawnFrame frame = frame();
+            assertEquals(List.of(), fills(frame, DragMask.SHADOW));
+            assertEquals(java.util.Optional.empty(), frame.targets.hovered(20, 25));
+        }
     }
 
     /**
@@ -71,6 +182,25 @@ class ValuesManagerScreenTest {
         ValuesManagerScreen.clickTargets(targets,
                 new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
         assertEquals(List.of("follow", "modify"), ran);
+    }
+
+    /**
+     * Two cursor positions over one hovered area place its tooltip at one point, the point the area's bounds anchor
+     * (decision tooltips-anchor-below-their-element-and-grow-upward-when-short-of-room).
+     */
+    @Test
+    void tooltipStaysPutAsTheCursorMovesOverOneElement() {
+        ClickTargets targets = new ClickTargets();
+        targets.addHover(40, 20, 50, 14, "stick");
+        List<org.joml.Vector2ic> points = new ArrayList<>();
+        for (int mouseX : new int[] {42, 85}) {
+            int mouseY = mouseX == 42 ? 22 : 31;
+            points.add(ValuesManagerScreen.anchoredTooltip(targets, mouseX, mouseY).orElseThrow()
+                    .positionTooltip(400, 300, mouseX, mouseY, 60, 30));
+        }
+        TooltipAnchor.Point anchored = TooltipAnchor.place(new GroupsPane.Bounds(40, 20, 90, 34), 60, 30, 400, 300);
+        assertEquals(List.of(new org.joml.Vector2i(anchored.x(), anchored.y()),
+                new org.joml.Vector2i(anchored.x(), anchored.y())), points);
     }
 
     @Nested

@@ -306,10 +306,10 @@ final class ExpressionBuilder {
      * @return whether the insert lands
      */
     boolean canInsertAt(List<Integer> sum, int index, ExpressionTerms.Join join) {
+        // Decision every-term-carries-its-sign-as-a-segment: a term inserted first keeps its sign.
         boolean beside = sum.isEmpty() && !rows.isEmpty();
         boolean inSum = index >= 0 && index <= sumAt(sum).size();
-        boolean subtractedFirst = index == 0 && join == ExpressionTerms.Join.MINUS;
-        return !beside && inSum && !subtractedFirst;
+        return !beside && inSum && join != ExpressionTerms.Join.FIRST;
     }
 
     /**
@@ -334,31 +334,17 @@ final class ExpressionBuilder {
     /**
      * @param path the term's place
      * @param by   how many places later, negative for earlier
-     * @return whether the move keeps the sum's value: it stays inside the sum and lands no subtracted term first,
-     *     since a first term takes no sign
+     * @return whether the move stays inside the sum; every term carries its sign, the first included, so a move keeps
+     *     the sum's value (decision every-term-carries-its-sign-as-a-segment)
      */
     boolean canMove(List<Integer> path, int by) {
-        List<Piece> pieces = sumAt(path.subList(0, path.size() - 1));
-        int from = path.getLast();
-        int to = from + by;
-        if (to < 0 || to >= pieces.size()) {
-            return false;
-        }
-        return !landsSubtractedFirst(pieces, from, to);
-    }
-
-    // Whether the swap puts a subtracted term in first place: the one moving up into it, or the one the first term
-    // moves down past.
-    private static boolean landsSubtractedFirst(List<Piece> pieces, int from, int to) {
-        if (to == 0) {
-            return pieces.get(from).join() == ExpressionTerms.Join.MINUS;
-        }
-        return from == 0 && pieces.get(to).join() == ExpressionTerms.Join.MINUS;
+        int to = path.getLast() + by;
+        return to >= 0 && to < sumAt(path.subList(0, path.size() - 1)).size();
     }
 
     /**
-     * Moves a term within its sum, the term leaving first taking plus; a move that would change the sum's value is
-     * refused (decision builder-is-kind-plus-then-rows-of-terms-with-term-operators).
+     * Moves a term within its sum, each term keeping its sign; a move past the sum's ends is refused (decision
+     * builder-is-kind-plus-then-rows-of-terms-with-term-operators).
      *
      * @param path the term's place
      * @param by   how many places later, negative for earlier
@@ -378,9 +364,9 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Moves a term to a slot of any sum, its own, a parenthetical's inside it or one outside it; the first term of
-     * each sum takes no sign and a term leaving first place takes plus. A drop into the term itself, one that would
-     * empty its sum, or one landing a subtracted term first is refused.
+     * Moves a term to a slot of any sum, its own, a parenthetical's inside it or one outside it, carrying its sign
+     * (decision every-term-carries-its-sign-as-a-segment). A drop into the term itself or one that would empty its
+     * sum is refused.
      * Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor.
      *
      * @param from    the term's place
@@ -410,8 +396,8 @@ final class ExpressionBuilder {
 
     /**
      * Whether moveTo would take the drop, sharing its refusals: a drop on the term's own slots either side, into the
-     * term itself, one emptying the whole value or a type row, a whole term beside type rows, or one landing a
-     * subtracted term first (decision drags-indicate-only-a-drop-the-builder-takes).
+     * term itself, one emptying the whole value or a type row, or a whole term beside type rows (decision
+     * drags-indicate-only-a-drop-the-builder-takes).
      *
      * @param from    the term's place
      * @param toSum   the sum it would drop into
@@ -426,15 +412,7 @@ final class ExpressionBuilder {
         }
         Leaving leaving = leavingOf(from);
         List<Integer> fromSum = leaving.path().subList(0, leaving.path().size() - 1);
-        int fromIndex = leaving.path().getLast();
-        List<Piece> source = sumAt(fromSum);
-        if (dropBreaksTheTree(leaving.path(), toSum, source.size())) {
-            return false;
-        }
-        List<Piece> left = new ArrayList<>(source);
-        left.remove(fromIndex);
-        return !landsSubtractedFirst(left, fromIndex, leaving.moving(),
-                slotAfterLeaving(fromSum, fromIndex, toSum, toIndex));
+        return !dropBreaksTheTree(leaving.path(), toSum, sumAt(fromSum).size());
     }
 
     /**
@@ -475,12 +453,6 @@ final class ExpressionBuilder {
         return intoItself || sourceSize <= 1 || beside;
     }
 
-    // The term leaving first place hands it to a subtracted term, or the term lands first itself subtracted.
-    private static boolean landsSubtractedFirst(List<Piece> left, int fromIndex, Piece moving, int slot) {
-        boolean handsOver = fromIndex == 0 && left.getFirst().join() == ExpressionTerms.Join.MINUS;
-        return handsOver || slot == 0 && moving.join() == ExpressionTerms.Join.MINUS;
-    }
-
     // The target sum's place once the term leaves: a later sibling parenthetical moves one index earlier.
     private static List<Integer> sumAfterLeaving(List<Integer> fromSum, int fromIndex, List<Integer> toSum) {
         List<Integer> target = new ArrayList<>(toSum);
@@ -492,18 +464,24 @@ final class ExpressionBuilder {
         return target;
     }
 
-    // The first term takes no sign and every later one a sign, a term leaving first place taking plus.
+    // Every term keeps its sign wherever it lands: a first term added reads FIRST, a subtracted one MINUS, written as
+    // a leading minus; a term leaving first place takes plus (decision every-term-carries-its-sign-as-a-segment).
     private static List<Piece> signed(List<Piece> pieces) {
         List<Piece> signed = new ArrayList<>(pieces);
         for (int index = 0; index < signed.size(); index++) {
             Piece piece = signed.get(index);
             if (index == 0) {
-                signed.set(index, piece.withJoin(ExpressionTerms.Join.FIRST));
+                signed.set(index, piece.withJoin(firstJoin(piece.join())));
             } else if (piece.join() == ExpressionTerms.Join.FIRST) {
                 signed.set(index, piece.withJoin(ExpressionTerms.Join.PLUS));
             }
         }
         return signed;
+    }
+
+    // A first term's join: MINUS where subtracted, FIRST where added.
+    private static ExpressionTerms.Join firstJoin(ExpressionTerms.Join join) {
+        return join == ExpressionTerms.Join.MINUS ? ExpressionTerms.Join.MINUS : ExpressionTerms.Join.FIRST;
     }
 
     private boolean addTerm(List<Integer> sum, Operand operand) {
@@ -848,7 +826,10 @@ final class ExpressionBuilder {
         if (!isNumber(factor)) {
             return;
         }
-        String trimmed = factor.trim();
+        // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a side set to 0 or 1 returns to 1,
+        // so the file writes no factor for it.
+        String trimmed = new java.math.BigInteger(factor.trim()).compareTo(java.math.BigInteger.ONE) <= 0 ? ONE
+                : factor.trim();
         if (comesApart(path, side, trimmed) && whole.getFirst().operand() instanceof Nest nest) {
             changed();
             whole.clear();
@@ -865,7 +846,7 @@ final class ExpressionBuilder {
     }
 
     /**
-     * @param piece the term's index, past the first
+     * @param piece the term's index
      * @param join  plus or minus
      */
     void setJoin(int piece, ExpressionTerms.Join join) {
@@ -873,12 +854,15 @@ final class ExpressionBuilder {
     }
 
     /**
-     * @param path the term's place, past its sum's first
+     * Sets a term's sign, a sum's first term's included, which a minus writes as a leading minus (decision
+     * every-term-carries-its-sign-as-a-segment).
+     *
+     * @param path the term's place
      * @param join plus or minus
      */
     void setJoin(List<Integer> path, ExpressionTerms.Join join) {
-        if (path.getLast() > 0 && join != ExpressionTerms.Join.FIRST) {
-            editPiece(path, piece -> piece.withJoin(join));
+        if (join != ExpressionTerms.Join.FIRST) {
+            editPiece(path, piece -> piece.withJoin(path.getLast() == 0 ? firstJoin(join) : join));
         }
     }
 
@@ -907,18 +891,14 @@ final class ExpressionBuilder {
             return;
         }
         changed();
-        int at = path.getLast();
-        pieces.remove(at);
-        if (at == 0) {
-            pieces.set(0, pieces.getFirst().withJoin(ExpressionTerms.Join.FIRST));
-        }
-        replaceSum(sum, pieces);
+        pieces.remove((int) path.getLast());
+        replaceSum(sum, signed(pieces));
     }
 
     /**
      * Whether remove would delete the term, sharing its refusal: the whole value and a type row keep their last term,
-     * and a parenthetical's last term goes as its parenthetical does (decision
-     * drags-indicate-only-a-drop-the-builder-takes).
+     * and a parenthetical's last term goes as its parenthetical does; the term taking first place keeps its sign
+     * (decisions drags-indicate-only-a-drop-the-builder-takes, every-term-carries-its-sign-as-a-segment).
      *
      * @param path the term's place
      * @return whether removing it deletes something
@@ -978,8 +958,17 @@ final class ExpressionBuilder {
         return pieces.isEmpty() ? NOTHING : ExpressionTerms.write(sumOf(pieces));
     }
 
+    // A subtracted first term writes as a leading minus on its first factor, which the game's grammar reads as that
+    // factor negated (decision every-term-carries-its-sign-as-a-segment).
     private static ExpressionTerms.Sum sumOf(List<Piece> pieces) {
-        return new ExpressionTerms.Sum(pieces.stream().map(ExpressionBuilder::termOf).toList());
+        List<ExpressionTerms.Term> terms = new ArrayList<>(pieces.stream().map(ExpressionBuilder::termOf).toList());
+        if (!terms.isEmpty() && terms.getFirst().join() == ExpressionTerms.Join.MINUS) {
+            List<ExpressionTerms.Factor> factors = new ArrayList<>(terms.getFirst().factors());
+            ExpressionTerms.Factor lead = factors.getFirst();
+            factors.set(0, new ExpressionTerms.Factor(lead.scale(), new ExpressionTerms.Negated(lead.atom())));
+            terms.set(0, new ExpressionTerms.Term(ExpressionTerms.Join.FIRST, List.copyOf(factors)));
+        }
+        return new ExpressionTerms.Sum(List.copyOf(terms));
     }
 
     // A multiplier writes before its operand as a count, as "3 $iron_ingot" does, save beside a number, which
@@ -1023,8 +1012,19 @@ final class ExpressionBuilder {
         return id.startsWith(DEFAULT_NAMESPACE) ? id.substring(DEFAULT_NAMESPACE.length()) : id;
     }
 
+    // A leading minus reads as the first term's MINUS sign on the factor it negates.
     private static List<Piece> piecesOf(ExpressionTerms.Sum sum) {
-        return sum.terms().stream().map(ExpressionBuilder::pieceOf).toList();
+        List<ExpressionTerms.Term> terms = new ArrayList<>(sum.terms());
+        if (terms.isEmpty()) {
+            return List.of();
+        }
+        ExpressionTerms.Term first = terms.getFirst();
+        if (first.factors().getFirst().atom() instanceof ExpressionTerms.Negated negated) {
+            List<ExpressionTerms.Factor> factors = new ArrayList<>(first.factors());
+            factors.set(0, new ExpressionTerms.Factor(factors.getFirst().scale(), negated.atom()));
+            terms.set(0, new ExpressionTerms.Term(ExpressionTerms.Join.MINUS, List.copyOf(factors)));
+        }
+        return terms.stream().map(ExpressionBuilder::pieceOf).toList();
     }
 
     // A term reads as a piece where it holds the shape termOf writes; any other shape is kept whole.

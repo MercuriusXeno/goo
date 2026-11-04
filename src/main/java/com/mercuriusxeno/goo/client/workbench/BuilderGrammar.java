@@ -37,10 +37,8 @@ final class BuilderGrammar {
      * How a term's factor shows.
      */
     enum Factor {
-        /** A number with no factor shows none. */
+        /** A term with no factor shows none, 1x implied (decision one-x-is-implied-so-an-unscaled-term-draws-no-ratio). */
         HIDDEN,
-        /** A reference or a sum with no factor draws the ratio 1:1. */
-        ONE_TO_ONE,
         /** A factor other than 1 shows with its operation. */
         SHOWN
     }
@@ -168,22 +166,28 @@ final class BuilderGrammar {
 
     /**
      * @param piece a term
-     * @return how its factor shows
+     * @return whether the bay's x and / scale it: a reference or a parenthetical, never a bare number, which the
+     *     grammar scales not (decision x-and-slash-drag-from-the-bay-onto-a-term)
      */
-    static Factor factorOf(ExpressionBuilder.Piece piece) {
-        if (!piece.isUnscaled()) {
-            return Factor.SHOWN;
-        }
-        return piece.operand() instanceof ExpressionBuilder.Ref || piece.operand() instanceof ExpressionBuilder.Nest
-                ? Factor.ONE_TO_ONE : Factor.HIDDEN;
+    static boolean takesFactor(ExpressionBuilder.Piece piece) {
+        return piece.operand() instanceof ExpressionBuilder.Ref || piece.operand() instanceof ExpressionBuilder.Nest;
     }
 
     /**
-     * @param typed  what the number box holds
-     * @param factor whether the box holds a factor, which is never 0
-     * @return whether the box takes it: digits alone, and no zero factor
+     * @param piece a term
+     * @return how its factor shows
      */
-    static boolean acceptsTyped(String typed, boolean factor) {
-        return DIGITS.matcher(typed).matches() && !(factor && ZERO.matcher(typed).matches());
+    static Factor factorOf(ExpressionBuilder.Piece piece) {
+        return piece.isUnscaled() ? Factor.HIDDEN : Factor.SHOWN;
+    }
+
+    /**
+     * @param typed       what the number box holds
+     * @param refusesZero whether the box refuses a 0, as a conversion formula's ratio does; a term's factor box takes
+     *                    one, which erases its side (decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment)
+     * @return whether the box takes it: digits alone, and no 0 where the box refuses one
+     */
+    static boolean acceptsTyped(String typed, boolean refusesZero) {
+        return DIGITS.matcher(typed).matches() && !(refusesZero && ZERO.matcher(typed).matches());
     }
 }

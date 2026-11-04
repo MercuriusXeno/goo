@@ -56,7 +56,7 @@ class ControlFlowTest {
         ControlFlow flow = new ControlFlow(graphics, font(), new ClickTargets(), null, 0, 400, 0);
         flow.typeIcon("metal", at -> { });
         int width = GooTypeIcons.sizeOf("metal") + 2;
-        verify(graphics).fill(0, 0, width, ControlFlow.LINE, ButtonPainter.BORDER);
+        verify(graphics).fill(0, 0, width, ControlFlow.FULL_LINE, ButtonPainter.BORDER);
         assertEquals(width + BuilderOverlays.GAP, flow.column());
     }
 

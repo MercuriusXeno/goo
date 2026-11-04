@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.workbench;
 
-import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -8,20 +7,16 @@ import java.util.Optional;
 
 /**
  * The tooltip every referent to a group shows on hover, a #group link and an iterator link alike since an iterator
- * fills its group: the group's members in shorthand on one line, cut with an ellipsis, then its value's amounts
- * where it has one, which the tooltip lays as a grid (decisions group-referent-previews-shorthand-members-then-its-
+ * fills its group: the group's members as sprites on one line, cut at eight with +n for the rest, then its value's
+ * amounts where it has one, which the tooltip lays as a grid (decisions group-referent-previews-shorthand-members-then-its-
  * value, group-link-hovers-member-icons-then-plus-n, every-linkable-thing-hovers-its-preview-value).
  */
 final class GroupHovers {
     // A hover key no prefab name, item id or hint spells.
     private static final String HOVER_PREFIX = "goo-group:";
     private static final String ITERATOR_MARK = "#";
-    private static final String NAMESPACE = "minecraft:";
-    private static final String SEPARATOR = ", ";
-    private static final String ELLIPSIS = "…";
-    private static final String NO_TEXT = "";
-    // How many characters the member line reads before it cuts.
-    private static final int MEMBER_LINE_LIMIT = 36;
+    // How many member sprites the line draws before +n stands for the rest.
+    private static final int SHOWN_MEMBERS = 8;
 
     private GroupHovers() {
     }
@@ -57,23 +52,10 @@ final class GroupHovers {
         List<String> members = group.map(found -> found.members().stream().map(GroupsTab.Member::id).toList())
                 .orElseGet(() -> values.groupMembers(name));
         List<TooltipLine> lines = new ArrayList<>();
-        lines.add(new TooltipLine.Text(Component.literal(shorthand(members))));
+        lines.add(new TooltipLine.Members(members.subList(0, Math.min(members.size(), SHOWN_MEMBERS)),
+                Math.max(0, members.size() - SHOWN_MEMBERS)));
         Map<String, String> worth = group.map(found -> GroupsPane.worthOf(found, values)).orElse(Map.of());
         worth.forEach((type, amount) -> lines.add(new TooltipLine.GooAmount(type, amount)));
         return Optional.of(lines);
-    }
-
-    // The members by their ids without the minecraft namespace, as many as the line holds, then an ellipsis.
-    private static String shorthand(List<String> members) {
-        StringBuilder line = new StringBuilder();
-        for (String member : members) {
-            String shown = member.startsWith(NAMESPACE) ? member.substring(NAMESPACE.length()) : member;
-            String joined = (line.isEmpty() ? NO_TEXT : SEPARATOR) + shown;
-            if (line.length() + joined.length() > MEMBER_LINE_LIMIT) {
-                return line.isEmpty() ? ELLIPSIS : line + SEPARATOR + ELLIPSIS;
-            }
-            line.append(joined);
-        }
-        return line.toString();
     }
 }

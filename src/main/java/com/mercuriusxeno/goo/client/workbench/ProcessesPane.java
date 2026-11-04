@@ -45,7 +45,7 @@ final class ProcessesPane {
      * A row whose sentence takes one line, from its top to the next row's
      * (decision mutator-delete-clears-a-thinner-rule-and-lines-tighten).
      */
-    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.LINE + ROW_GAP;
+    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.FULL_LINE + ROW_GAP;
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
     private static final int HALF = 2;
@@ -255,7 +255,7 @@ final class ProcessesPane {
         graphics.text(frame.font(), iterators ? ITERATORS : MUTATORS, column.left(), column.top() + HEADING_NUDGE,
                 WHITE);
         drawCreate(frame, section.section(), iterators, column.top());
-        int listTop = column.top() + ControlFlow.LINE + GAP;
+        int listTop = column.top() + ControlFlow.FULL_LINE + GAP;
         ScrollBar bar = columnBar(iterators);
         GroupsPane.Bounds rows = new GroupsPane.Bounds(column.left(), listTop,
                 column.right() - ScrollBar.WIDTH - ScrollBar.GAP, column.bottom());
