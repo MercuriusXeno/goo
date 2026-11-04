@@ -826,7 +826,10 @@ final class ExpressionBuilder {
         if (!isNumber(factor)) {
             return;
         }
-        String trimmed = factor.trim();
+        // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a side set to 0 or 1 returns to 1,
+        // so the file writes no factor for it.
+        String trimmed = new java.math.BigInteger(factor.trim()).compareTo(java.math.BigInteger.ONE) <= 0 ? ONE
+                : factor.trim();
         if (comesApart(path, side, trimmed) && whole.getFirst().operand() instanceof Nest nest) {
             changed();
             whole.clear();

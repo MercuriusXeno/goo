@@ -2394,6 +2394,59 @@ class ExpressionBuilderPaneTest {
             }
         }
 
+        // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a drop's box closed at 1, by Enter,
+        // by a click elsewhere or by Escape, leaves the term as it stood.
+        @Test
+        void aDropsBoxClosedAtOneLeavesTheTermAsItStood() {
+            for (int close = 0; close < 3; close++) {
+                Builder builder = Builder.item("$bush + $magic");
+                EditBox box = FactorBay.dropOn(builder, "x", "$magic");
+                if (close == 0) {
+                    builder.commitNumber("1");
+                } else if (close == 1) {
+                    focusFlag(box, true);
+                    builder.frame();
+                    focusFlag(box, false);
+                } else {
+                    assertTrue(builder.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE), "Escape closes the box");
+                }
+                builder.frame();
+                DrawnFrame after = builder.frame();
+                assertFalse(after.texts().contains("1x"), "close " + close + " left 1x in " + after.texts());
+                assertEquals(List.of(), builder.written, "close " + close + " changed the text");
+            }
+        }
+
+        // EditBox.setFocused reaches the game client, which a unit test holds none of, so the flag is set directly, as
+        // a click elsewhere clears it.
+        private static void focusFlag(EditBox box, boolean focused) {
+            try {
+                java.lang.reflect.Field flag = AbstractWidget.class.getDeclaredField("focused");
+                flag.setAccessible(true);
+                flag.setBoolean(box, focused);
+            } catch (ReflectiveOperationException unreachable) {
+                throw new AssertionError(unreachable);
+            }
+        }
+
+        // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a standing side committed at 0 or 1
+        // goes, its segment with it.
+        @Test
+        void aStandingSideSetToZeroOrOneIsErased() {
+            Builder builder = Builder.item("3 $plank / 4");
+            DrawnFrame frame = builder.frame();
+            clickAt(frame, frame.findFirst("3x"));
+            builder.commitNumber("0");
+            assertEquals("$plank / 4", builder.written.getLast());
+            DrawnFrame divided = builder.frame();
+            assertFalse(divided.texts().stream().anyMatch(text -> text.endsWith("x") && text.length() > 1),
+                    "a multiplier segment in " + divided.texts());
+            clickAt(divided, divided.findFirst("/4"));
+            builder.commitNumber("1");
+            assertEquals("$plank", builder.written.getLast());
+            assertFalse(builder.frame().texts().contains("/4"), "the divisor segment stays");
+        }
+
         // Decision ratio-holds-multiplier-and-divisor-together: the divisor's box sets the divisor alone.
         @Test
         void committingTheDivisorKeepsTheMultiplier() {
