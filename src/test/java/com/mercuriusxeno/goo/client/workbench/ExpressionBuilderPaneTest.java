@@ -737,6 +737,38 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * A builder's lines stand apart, so nothing on one line touches anything on the next: the operator saw a relative
+     * value's terms overlap its kind dropdown and wrapped lines of terms touch once the box padding went.
+     */
+    @Nested
+    class LinesStandApart {
+
+        @Test
+        void anItemTermStandsClearOfTheKindDropdown() {
+            DrawnFrame frame = Builder.item("anvil + $waxed").frame();
+            int kindBottom = frame.buttonAround(frame.drawn().getFirst())[3];
+            int termTop = frame.buttonAround(frame.find("anvil"))[1];
+            assertTrue(termTop > kindBottom, "the term's top " + termTop + " against the kind's bottom "
+                    + kindBottom);
+        }
+
+        @Test
+        void wrappedLinesOfTermsStandTheLineGapApart() {
+            DrawnFrame frame = Builder.item("$waxed + $edited + $base + $waxed + $edited + $base").frame(
+                    new GroupsPane.Bounds(0, 0, 200, 390));
+            List<int[]> rails = IntStream.range(0, 6).mapToObj(index -> railOf(frame, List.of(index)))
+                    .map(rail -> frame.buttonAround((int) rail[0], (int) rail[1])).toList();
+            List<Integer> tops = rails.stream().map(rail -> rail[1]).distinct().sorted().toList();
+            assertTrue(tops.size() > 1, "the terms wrap: " + tops);
+            int height = rails.getFirst()[3] - rails.getFirst()[1];
+            for (int line = 1; line < tops.size(); line++) {
+                assertEquals(ControlFlow.BUILDER_LINE_GAP, tops.get(line) - tops.get(line - 1) - height,
+                        "the room between line " + (line - 1) + " and line " + line);
+            }
+        }
+    }
+
+    /**
      * A goo type row draws no box: its rail is the first segment of its goo type button, and its colon and terms
      * follow on the line (decisions type-row-rail-sits-on-the-goo-type-button-with-no-box,
      * containers-segment-into-click-to-edit-buttons).
@@ -906,17 +938,18 @@ class ExpressionBuilderPaneTest {
         }
 
         /**
-         * Two goo type rows stand as close as their buttons allow: the pulse row's rail segment the button gap below
-         * the metal row's, no box between them, the row pitch below the 34 px it was (decision
-         * type-row-rail-sits-on-the-goo-type-button-with-no-box, and the operator's ruling that the gap between type
-         * rows stays).
+         * Two goo type rows stand apart, the pulse row's rail segment the line gap and the button gap below the metal
+         * row's, so no row's elements touch the next's, the row pitch below the 34 px it was (decisions
+         * type-row-rail-sits-on-the-goo-type-button-with-no-box, type-rows-stand-apart-in-the-builder, and the
+         * operator's ruling of 2026-11-04 restoring the gaps between rows).
          */
         @Test
-        void typeRowsStandAsCloseAsTheirButtonsAllow() {
+        void typeRowsStandTheLineAndButtonGapsApart() {
             DrawnFrame frame = Builder.item(TWO_TYPES).frame();
             List<int[]> rows = IntStream.range(0, 2).mapToObj(row -> rowRailOf(frame, row))
                     .map(rail -> frame.buttonAround((int) rail[0], (int) rail[1])).toList();
-            assertEquals(RowLayout.BUTTON_GAP, rows.get(1)[1] - rows.get(0)[3], "the clear room between rows");
+            assertEquals(ControlFlow.BUILDER_LINE_GAP + RowLayout.BUTTON_GAP, rows.get(1)[1] - rows.get(0)[3],
+                    "the clear room between rows");
             List<DrawnFrame.Text> colons = frame.drawn().stream().filter(text -> text.text().equals(":")).toList();
             int colonX = colons.stream().mapToInt(DrawnFrame.Text::x).min().orElseThrow();
             List<Integer> rowColons = colons.stream().filter(colon -> colon.x() == colonX).map(DrawnFrame.Text::y)

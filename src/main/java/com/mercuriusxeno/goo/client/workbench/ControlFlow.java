@@ -25,6 +25,12 @@ final class ControlFlow {
      * their native size (decision builder-font-and-spacing-shrink-padding-untouched, as the operator ruled).
      */
     static final int LINE = ButtonPainter.HEIGHT;
+    /**
+     * The room between one builder line's pieces and the next line's, the 5 px the boxes' padding left before the
+     * containers were segmented, so containers on different lines never touch (the operator's ruling of
+     * 2026-11-04).
+     */
+    static final int BUILDER_LINE_GAP = 5;
     /** The scale the expression builder letters its words at. */
     static final float BUILDER_SCALE = 0.75f;
     /**
@@ -69,6 +75,9 @@ final class ControlFlow {
     // rows, the builder's smaller lettering and LINE for the expression builder.
     private final Lettering letters;
     private final int line;
+    // The room between one line's pieces and the next line's: none for the Mutators rows, BUILDER_LINE_GAP for the
+    // expression builder.
+    private final int lineGap;
     // How far a piece taller than the line, as a 16 px item sprite on the builder's line, reaches past it above and
     // below; the step to the next line grows by it.
     private int lineOverhang;
@@ -154,6 +163,7 @@ final class ControlFlow {
         this.font = letters.font();
         this.letters = letters;
         this.line = line;
+        this.lineGap = letters.isFull() ? 0 : BUILDER_LINE_GAP;
         this.targets = targets;
         this.icons = icons;
         this.followRef = followRef;
@@ -174,11 +184,10 @@ final class ControlFlow {
         return Lettering.full(font).centeredTop(lineTop, LINE);
     }
 
-    // Steps to the next line, the line and what its tallest piece reached past it above and below, forgetting that
-    // reach; containers draw no padding, so no line grows for one (decision
-    // containers-segment-into-click-to-edit-buttons).
+    // Steps to the next line: the line, what its tallest piece reached past it above and below, and the room between
+    // lines, forgetting that reach.
     private void advanceLine() {
-        y += line + lineOverhang + lineOverhang;
+        y += line + lineOverhang + lineOverhang + lineGap;
         lineOverhang = 0;
     }
 
