@@ -164,6 +164,21 @@ class WorkbenchOperationsTest {
         }
 
         /**
+         * Where no live file stands, as in a fresh tree whose draft was seeded from the bundled values, discard copies
+         * that seed back over the draft, and the draft reads unchanged: the operator's revert answered "No live file
+         * stands to discard back to" and kept the broken draft.
+         */
+        @Test
+        void discardWithNoLiveFileRestoresTheSeed() throws IOException {
+            Files.delete(paths.baseValues());
+            answered(WorkbenchOperations.SAVE_MODEL, posted(sample()));
+            assertNotEquals("{\n}\n", Files.readString(paths.draft()), "the save wrote the draft");
+            JsonObject discarded = answeredJson(WorkbenchOperations.DISCARD, "{}");
+            assertEquals("{\n}\n", Files.readString(paths.draft()));
+            assertFalse(discarded.getAsJsonObject("draft").get("differs").getAsBoolean());
+        }
+
+        /**
          * The model a read or a save answers carries the members and no checks member
          * (decision values-checks-go-with-the-checks-tab).
          */
