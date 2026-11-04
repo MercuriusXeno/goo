@@ -82,6 +82,13 @@ final class DrawnFrame {
         return matches.getLast();
     }
 
+    /**
+     * @return every text as it landed on the screen, in drawing order
+     */
+    List<Placed> placements() {
+        return List.copyOf(placed);
+    }
+
     /** The mocked screen's width. */
     static final int SCREEN_WIDTH = 600;
     /** The mocked screen's height. */

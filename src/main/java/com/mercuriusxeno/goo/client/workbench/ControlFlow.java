@@ -2,12 +2,8 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.Style;
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -33,12 +29,8 @@ final class ControlFlow {
     static final int BUILDER_LINE_GAP = 5;
     /** The scale the expression builder letters its words at. */
     static final float BUILDER_SCALE = 0.75f;
-    /**
-     * The scale a parenthetical's "(" and ")" draw at, bold, larger than the builder's words so the parentheticals
-     * read at a glance (decision parentheses-draw-bold-and-larger).
-     */
-    static final float PAREN_SCALE = 1.25f;
-    private static final Style BOLD = Style.EMPTY.withBold(true);
+    // A parenthetical container's border, and the clear pixel inside it, either side of its contents.
+    private static final int FRAME = 1 + 1;
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
@@ -65,6 +57,8 @@ final class ControlFlow {
     /** How far one indent step moves a line's left edge. */
     static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
+    // The gray a member's 's draws in after its name.
+    private static final int SUFFIX_COLOR = 0xFFA0A0A0;
     private static final int LINK = ButtonPainter.LINK;
     private static final String DROPDOWN_MARKER = " ▼";
     private static final String NONE_CHOSEN = "pick one";
@@ -92,9 +86,6 @@ final class ControlFlow {
     private int pieceLeft;
     private int pieceTop;
     private int pieceWidth;
-    // Each open container's contents as top and bottom, the innermost first: every piece drawn widens every open
-    // container's contents, and a container closing widens the ones holding it by its own bounds.
-    private final Deque<int[]> contents = new ArrayDeque<>();
     // Every rail the flow laid this frame, which paintRails draws and arms once the pane knows which can drag.
     private final List<LaidRail> laidRails = new ArrayList<>();
     // The segmented container open: its left, its top and height, and the left the next segment's border takes.
@@ -307,35 +298,114 @@ final class ControlFlow {
     }
 
     /**
-     * @param font  the font
-     * @param paren a parenthesis
-     * @return the width its segment takes: the parenthesis drawn bold and larger and a button's padding either side
-     *     (decisions parentheses-draw-bold-and-larger, parens-are-segments-bounding-the-parenthetical)
+     * @param font          the font
+     * @param contentHeight the height of what a parenthetical's container holds
+     * @return its parens' lettering: regular weight, never bold, their glyphs' ink as tall as the contents, so a
+     *     nested parenthetical's parens draw smaller than the ones holding it (the operator's rulings of 2026-11-04)
      */
-    static int parenSegmentWidth(Font font, String paren) {
-        return parenLettering(font).width(boldParen(paren)) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+    static Lettering parenLettering(Font font, int contentHeight) {
+        return new Lettering(font, contentHeight / (float) Lettering.inkRows(font));
     }
 
     /**
-     * A parenthetical's "(" or ")" as its container's segment, bold and larger than the words beside it, centered in
-     * the segment (decisions parentheses-draw-bold-and-larger, parens-are-segments-bounding-the-parenthetical).
-     *
-     * @param paren the parenthesis
-     * @param color its color
+     * @param font          the font
+     * @param open          the opening parenthesis
+     * @param close         the closing parenthesis
+     * @param contentHeight the height of what the container holds
+     * @return the width a parenthetical's container adds around its terms: each border, the clear pixel inside it,
+     *     each paren's glyphs and the clear pixel between each paren and the terms
      */
-    void parenSegment(String paren, int color) {
-        ButtonPainter.Box box = nextSegment(parenSegmentWidth(font, paren));
-        Lettering large = parenLettering(font);
-        large.draw(graphics, boldParen(paren), box.left() + ButtonPainter.PADDING,
-                large.centeredTop(box.top(), box.height()), color);
+    static int parenFrameWidth(Font font, String open, String close, int contentHeight) {
+        Lettering parens = parenLettering(font, contentHeight);
+        return FRAME + parens.inkWidth(open) + CLEAR + CLEAR + parens.inkWidth(close) + FRAME;
     }
 
-    private static Lettering parenLettering(Font font) {
-        return new Lettering(font, PAREN_SCALE);
+    /**
+     * Where a parenthetical's container opened, which closeParenthetical reads.
+     *
+     * @param left          its left border's x
+     * @param lineTop       the top of the line it opened on
+     * @param contentHeight the height of what it holds
+     * @param parens        its parens' lettering
+     */
+    record OpenParenthetical(int left, int lineTop, int contentHeight, Lettering parens) {
     }
 
-    private static Component boldParen(String paren) {
-        return Component.literal(paren).withStyle(BOLD);
+    /**
+     * Opens a parenthetical's container: a 1 px border, a clear pixel, its "(" as tall as the contents, and a clear
+     * pixel before the terms that follow, the contents centered on the line (the operator's rulings of 2026-11-04).
+     *
+     * @param open          the opening parenthesis
+     * @param contentHeight the height of what the container holds
+     * @param color         the parens' color
+     * @return where the container opened
+     */
+    OpenParenthetical openParenthetical(String open, int contentHeight, int color) {
+        Lettering parens = parenLettering(font, contentHeight);
+        int openInk = parens.inkWidth(open);
+        reserve(FRAME + openInk + CLEAR);
+        int left = x;
+        lineOverhang = Math.max(lineOverhang, reachPast(contentHeight));
+        parens.draw(graphics, open, left + FRAME, contentTop(contentHeight), color);
+        x = left + FRAME + openInk + CLEAR;
+        return new OpenParenthetical(left, y, contentHeight, parens);
+    }
+
+    /**
+     * Closes a parenthetical's container: a clear pixel past its last term, its ")", a clear pixel and the border.
+     *
+     * @param opened where the container opened
+     * @param close  the closing parenthesis
+     * @param color  the parens' color
+     * @return the container's bounds, its border's outer edges: on one line its own, across lines reaching the area's
+     *     right edge
+     */
+    GroupsPane.Bounds closeParenthetical(OpenParenthetical opened, String close, int color) {
+        int closeInk = opened.parens().inkWidth(close);
+        x += CLEAR - GAP;
+        reserve(closeInk + FRAME);
+        int contentHeight = opened.contentHeight();
+        opened.parens().draw(graphics, close, x, contentTop(contentHeight), color);
+        int boxRight = x + closeInk + FRAME;
+        lineOverhang = Math.max(lineOverhang, reachPast(contentHeight));
+        int top = opened.lineTop() - (contentHeight - line) / HALF - FRAME;
+        int bottom = contentTop(contentHeight) + contentHeight + FRAME;
+        x = boxRight + GAP;
+        return new GroupsPane.Bounds(opened.left(), top, opened.lineTop() == y ? boxRight : right, bottom);
+    }
+
+    // Where contents this tall stand on the current line, centered on it.
+    private int contentTop(int contentHeight) {
+        return y - (contentHeight - line) / HALF;
+    }
+
+    // How far a container around contents this tall reaches past its line above and below.
+    private int reachPast(int contentHeight) {
+        return Math.max(0, (contentHeight - line) / HALF + FRAME);
+    }
+
+    /**
+     * @param contentHeight the height of what a parenthetical's container holds
+     * @return the container's height: its contents and its border and clear pixel above and below
+     */
+    static int parenContainerHeight(int contentHeight) {
+        return FRAME + contentHeight + FRAME;
+    }
+
+    /**
+     * Fills a parenthetical's container in its depth's tone inside a 1 px border (decision
+     * parentheticals-alternate-gray-tones-by-depth).
+     *
+     * @param box    the container, its border's outer edges
+     * @param tone   the fill
+     * @param border the border's color
+     */
+    void boxed(GroupsPane.Bounds box, int tone, int border) {
+        graphics.fill(box.left(), box.top(), box.right(), box.top() + 1, border);
+        graphics.fill(box.left(), box.bottom() - 1, box.right(), box.bottom(), border);
+        graphics.fill(box.left(), box.top() + 1, box.left() + 1, box.bottom() - 1, border);
+        graphics.fill(box.right() - 1, box.top() + 1, box.right(), box.bottom() - 1, border);
+        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, box.bottom() - 1, tone);
     }
 
     // A piece filling its line's height, as a goo type's button stands.
@@ -343,15 +413,11 @@ final class ControlFlow {
         markPiece(width, y, line);
     }
 
-    // A piece standing from top for height pixels, which the open boxes size around.
+    // A piece standing from top for height pixels, which a hover laid over it spans.
     private void markPiece(int width, int top, int height) {
         pieceLeft = x;
         pieceTop = y;
         pieceWidth = width;
-        for (int[] box : contents) {
-            box[0] = Math.min(box[0], top);
-            box[1] = Math.max(box[1], top + height);
-        }
     }
 
     // A button's piece: its frame, inset from its line's top and bottom.
@@ -689,44 +755,6 @@ final class ControlFlow {
     }
 
     /**
-     * Opens a container whose segments and inner containers span more than one segment run, as a parenthetical's
-     * "(" run, its terms and its ")" run do; closeContainer answers their union.
-     */
-    void openContainer() {
-        contents.push(new int[] {Integer.MAX_VALUE, Integer.MIN_VALUE});
-    }
-
-    /**
-     * Ends the container openContainer opened: on one line it spans from its first segment to its last; across lines
-     * it reaches the area's right edge. Its top and bottom are its tallest piece's, with no padding (decision
-     * containers-segment-into-click-to-edit-buttons); the containers holding it size around it.
-     *
-     * @param first its first segment run's bounds
-     * @return its bounds
-     */
-    GroupsPane.Bounds closeContainer(GroupsPane.Bounds first) {
-        int[] held = contents.pop();
-        boolean oneLine = first.top() == segmentsTop;
-        int containerRight = oneLine ? x - GAP : right;
-        for (int[] holder : contents) {
-            holder[0] = Math.min(holder[0], held[0]);
-            holder[1] = Math.max(holder[1], held[1]);
-        }
-        return new GroupsPane.Bounds(first.left(), held[0], containerRight, held[1]);
-    }
-
-    /**
-     * Fills a container in its depth's tone, as a parenthetical's tint (decision
-     * parentheticals-alternate-gray-tones-by-depth).
-     *
-     * @param box  the container
-     * @param tone the fill
-     */
-    void tint(GroupsPane.Bounds box, int tone) {
-        graphics.fill(box.left(), box.top(), box.right(), box.bottom(), tone);
-    }
-
-    /**
      * A button whose press grabs the pointer, as a handle dragged onto a term does, a rail with its grips flush inside
      * its left border so it reads as a thing to drag (decisions parenthetical-handle-drags-onto-a-term,
      * parenthetical-handle-carries-a-rail-and-hovers-its-drop).
@@ -776,34 +804,23 @@ final class ControlFlow {
     }
 
     /**
-     * @param letters    the words' font and scale
-     * @param possessive the words before the icon, as a member's 's, empty for none
-     * @param type       the goo type's id
+     * @param type the goo type's id
      * @return the segment's width: a type-icon button's, the icon and its border either side (decision
-     *     type-icon-buttons-shrink-their-padding), widened where words stand before the icon by their glyphs, a clear
-     *     pixel before them and a clear pixel either side of the icon
+     *     type-icon-buttons-shrink-their-padding)
      */
-    static int typeSegmentWidth(Lettering letters, String possessive, String type) {
-        int icon = ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type));
-        return possessive.isEmpty() ? icon : 1 + CLEAR + letters.inkWidth(possessive) + icon + 1;
+    static int typeSegmentWidth(String type) {
+        return ButtonPainter.iconWidth(GooTypeIcons.sizeOf(type));
     }
 
     /**
      * @param letters the words' font and scale
      * @param runs    curated runs a segment holds
-     * @return the segment's width: the runs and a button's padding either side
+     * @param suffix  words drawn flush after the runs in the same segment, as a member's 's, empty for none
+     * @return the segment's width: the runs, the words and a button's padding either side
      */
-    static int runsSegmentWidth(Lettering letters, List<ExpressionLines.Run> runs) {
-        return ExpressionLines.width(letters, runs) + ButtonPainter.PADDING + ButtonPainter.PADDING;
-    }
-
-    /**
-     * @param runs runs a segmented container holds
-     * @return the height the container stands: the builder's line, or a 16 px item sprite's taller line
-     */
-    int segmentsHeight(List<ExpressionLines.Run> runs) {
-        return runs.stream().anyMatch(run -> run.kind() == ExpressionLines.Kind.ITEM) ? ExpressionLines.ICON_LINE_HEIGHT
-                : line;
+    static int runsSegmentWidth(Lettering letters, List<ExpressionLines.Run> runs, String suffix) {
+        return ExpressionLines.width(letters, runs) + letters.width(suffix) + ButtonPainter.PADDING
+                + ButtonPainter.PADDING;
     }
 
     /**
@@ -829,14 +846,6 @@ final class ControlFlow {
         ButtonPainter.drawFrame(graphics, box);
         nextSegmentLeft = box.right() - 1;
         return box;
-    }
-
-    /**
-     * @return where a drop slot stands on the right border of the segment drawn last, its cursor drawn a half gap
-     *     left of the slot, on that border
-     */
-    BuilderOverlays.Anchor afterSegment() {
-        return new BuilderOverlays.Anchor(nextSegmentLeft + GAP / HALF, y);
     }
 
     /**
@@ -867,35 +876,30 @@ final class ControlFlow {
     }
 
     /**
-     * A segment holding words that take no click, a clear pixel either side of their glyphs, as a ratio's colon
-     * stands between its two boxes (decision ratio-colon-takes-no-spaces, as the operator corrected it).
+     * Words that take no click between two segments, a clear pixel from each, as a ratio's colon stands between its
+     * boxes: plain text rather than a segment, since only what a click edits reads as a button (decision
+     * ratio-colon-takes-no-spaces, as the operator corrected it, and the operator's ruling of 2026-11-04).
      *
      * @param text  the words
      * @param color their color
      */
-    void textSegment(String text, int color) {
-        ButtonPainter.Box box = nextSegment(textSegmentWidth(letters, text));
-        letters.draw(graphics, text, box.left() + 1 + CLEAR, wordsTop(), color);
+    void textBetweenSegments(String text, int color) {
+        int textLeft = nextSegmentLeft + 1 + CLEAR;
+        letters.draw(graphics, text, textLeft, wordsTop(), color);
+        nextSegmentLeft = textLeft + letters.inkWidth(text) + CLEAR;
     }
 
     /**
-     * A segment holding a goo type's icon, words before it where given, as a member's 's and its type or a type
-     * row's goo type, whose click edits the type.
+     * A segment holding a goo type's icon, as a member's type or a type row's goo type, whose click edits the type.
      *
-     * @param possessive the words before the icon, empty for none
-     * @param type       the goo type's id
-     * @param pressed    takes where it was clicked
+     * @param type    the goo type's id
+     * @param pressed takes where it was clicked
      */
-    void typeSegment(String possessive, String type, Consumer<BuilderOverlays.Anchor> pressed) {
-        ButtonPainter.Box box = nextSegment(typeSegmentWidth(letters, possessive, type));
-        int iconLeft = box.left() + ButtonPainter.ICON_PADDING;
-        if (!possessive.isEmpty()) {
-            int wordsLeft = box.left() + 1 + CLEAR;
-            letters.draw(graphics, possessive, wordsLeft, wordsTop(), WHITE);
-            iconLeft = wordsLeft + letters.inkWidth(possessive) + ButtonPainter.ICON_PADDING;
-        }
+    void typeSegment(String type, Consumer<BuilderOverlays.Anchor> pressed) {
+        ButtonPainter.Box box = nextSegment(typeSegmentWidth(type));
         int size = GooTypeIcons.sizeOf(type);
-        GooTypeIcons.blit(graphics, type, iconLeft, box.top() + GooTypeIcons.centered(box.height(), size));
+        GooTypeIcons.blit(graphics, type, box.left() + ButtonPainter.ICON_PADDING,
+                box.top() + GooTypeIcons.centered(box.height(), size));
         targets.add(box.left(), box.top(), box.width(), box.height(),
                 () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)), GooTypeIcons.pickHoverKey(type));
     }
@@ -905,17 +909,22 @@ final class ControlFlow {
      * click on a reference among them opening its prefab (decision shift-left-click-follows-plain-left-modifies).
      *
      * @param runs    the runs
+     * @param suffix  words drawn flush after the runs in the same segment, as a member's 's, empty for none
      * @param pressed takes where they were clicked, null for no click
      */
-    void runsSegment(List<ExpressionLines.Run> runs, @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
-        ButtonPainter.Box box = nextSegment(runsSegmentWidth(letters, runs));
+    void runsSegment(List<ExpressionLines.Run> runs, String suffix, @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
+        ButtonPainter.Box box = nextSegment(runsSegmentWidth(letters, runs, suffix));
         if (pressed != null) {
             targets.add(box.left(), box.top(), box.width(), box.height(),
                     () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)), null);
         }
+        int runsWidth = ExpressionLines.width(letters, runs);
         ExpressionLines.draw(letters, runs, new ExpressionLines.Span(box.left() + ButtonPainter.PADDING, box.top(),
-                ExpressionLines.width(letters, runs) + 1, box.height()), new ExpressionLines.Painter(graphics, icons,
+                runsWidth + 1, box.height()), new ExpressionLines.Painter(graphics, icons,
                 targets, pressed == null ? WHITE : LINK, LINK, ExpressionLines.followedOnShiftClick(targets, followRef)));
+        if (!suffix.isEmpty()) {
+            letters.draw(graphics, suffix, box.left() + ButtonPainter.PADDING + runsWidth, wordsTop(), SUFFIX_COLOR);
+        }
     }
 
     /**
@@ -926,10 +935,6 @@ final class ControlFlow {
     GroupsPane.Bounds closeSegments() {
         int containerRight = nextSegmentLeft + 1;
         int bottom = segmentsTop + segmentsHeight;
-        for (int[] box : contents) {
-            box[0] = Math.min(box[0], segmentsTop);
-            box[1] = Math.max(box[1], bottom);
-        }
         x = containerRight + GAP;
         return new GroupsPane.Bounds(segmentsLeft, segmentsTop, containerRight, bottom);
     }
