@@ -93,13 +93,16 @@ final class ControlFlow {
     private final @Nullable ItemIcons icons;
     private final Consumer<String> followRef;
     private int left;
-    private final int right;
+    // The right edge pieces stand short of: the area's, or a parenthetical box's inside its clear pixel and border.
+    private int right;
     private int lineLeft;
     private int x;
     private int y;
     private int pieceLeft;
     private int pieceTop;
     private int pieceWidth;
+    // The parenthetical boxes standing open, the innermost first, each the right edge of its widest line so far.
+    private final java.util.Deque<int[]> openBoxes = new java.util.ArrayDeque<>();
     // Every rail the flow laid this frame, which paintRails draws and arms once the pane knows which can drag.
     private final List<LaidRail> laidRails = new ArrayList<>();
     // The segmented container open: its left, its top and height, and the left the next segment's border takes.
@@ -325,6 +328,17 @@ final class ControlFlow {
     }
 
     /**
+     * @param font          the font
+     * @param open          the opening parenthesis
+     * @param contentHeight the height of what the container holds
+     * @return the width a parenthetical's box takes before its first term: its border, a clear pixel, its "(" and a
+     *     clear pixel
+     */
+    static int parenOpeningWidth(Font font, String open, int contentHeight) {
+        return FRAME + parenLettering(font, contentHeight).inkWidth(open) + CLEAR;
+    }
+
+    /**
      * Where a parenthetical's container opened, which closeParenthetical reads.
      *
      * @param left          its left border's x
@@ -332,12 +346,23 @@ final class ControlFlow {
      * @param contentHeight the height of what it holds
      * @param parens        its parens' lettering
      */
-    record OpenParenthetical(int left, int lineTop, int contentHeight, Lettering parens) {
+    record OpenParenthetical(int left, int lineTop, int contentHeight, Lettering parens, Edges outer) {
+    }
+
+    /**
+     * The left edge wrapped lines start from and the right edge pieces stand short of, as a box saves them.
+     *
+     * @param left  the left edge
+     * @param right the right edge
+     */
+    record Edges(int left, int right) {
     }
 
     /**
      * Opens a parenthetical's container: a 1 px border, a clear pixel, its "(" as tall as the contents, and a clear
-     * pixel before the terms that follow, the contents centered on the line (the operator's rulings of 2026-11-04).
+     * pixel before the terms that follow, the contents centered on the line. The container is one box, like a div:
+     * every line its terms wrap onto starts where the first term does, right after "(", and stands short of the
+     * area's right edge by the box's clear pixel and border (the operator's rulings of 2026-11-04).
      *
      * @param open          the opening parenthesis
      * @param contentHeight the height of what the container holds
@@ -352,7 +377,12 @@ final class ControlFlow {
         lineOverhang = Math.max(lineOverhang, reachPast(contentHeight));
         parens.drawFlat(graphics, open, left + FRAME, contentTop(contentHeight), color);
         x = left + FRAME + openInk + CLEAR;
-        return new OpenParenthetical(left, y, contentHeight, parens);
+        Edges outer = new Edges(this.left, right);
+        // A wrap starts its line an indent past the left edge, so the left edge stands an indent short of the terms.
+        this.left = x - INDENT;
+        right -= FRAME;
+        openBoxes.push(new int[] {x});
+        return new OpenParenthetical(left, y, contentHeight, parens, outer);
     }
 
     /**
@@ -361,21 +391,32 @@ final class ControlFlow {
      * @param opened where the container opened
      * @param close  the closing parenthesis
      * @param color  the parens' color
-     * @return the container's bounds, its border's outer edges: on one line its own, across lines reaching the area's
-     *     right edge
+     * @return the box's bounds, its border's outer edges: from its first line's top to its last line's bottom, its
+     *     right a clear pixel and its border past its widest line; what follows stands right of it on its last line
      */
     GroupsPane.Bounds closeParenthetical(OpenParenthetical opened, String close, int color) {
         int closeInk = opened.parens().inkWidth(close);
         x += CLEAR - GAP;
-        reserve(closeInk + FRAME);
+        reserve(closeInk);
         int contentHeight = opened.contentHeight();
         opened.parens().drawFlat(graphics, close, x, contentTop(contentHeight), color);
-        int boxRight = x + closeInk + FRAME;
+        int widest = Math.max(openBoxes.pop()[0], x + closeInk);
+        int boxRight = widest + FRAME;
         lineOverhang = Math.max(lineOverhang, reachPast(contentHeight));
         int top = opened.lineTop() - (contentHeight - line) / HALF - FRAME;
         int bottom = contentTop(contentHeight) + contentHeight + FRAME;
+        left = opened.outer().left();
+        right = opened.outer().right();
         x = boxRight + GAP;
-        return new GroupsPane.Bounds(opened.left(), top, opened.lineTop() == y ? boxRight : right, bottom);
+        widenOpenBoxes(boxRight);
+        return new GroupsPane.Bounds(opened.left(), top, boxRight, bottom);
+    }
+
+    // A container closing inside parenthetical boxes widens each box's widest line to the container's right edge.
+    private void widenOpenBoxes(int containerRight) {
+        for (int[] box : openBoxes) {
+            box[0] = Math.max(box[0], containerRight);
+        }
     }
 
     // Where contents this tall stand on the current line, centered on it.
@@ -1010,6 +1051,7 @@ final class ControlFlow {
         if (ringed) {
             drawRing(new GroupsPane.Bounds(segmentsLeft, segmentsTop, containerRight, bottom));
         }
+        widenOpenBoxes(containerRight);
         x = containerRight + GAP;
         return new GroupsPane.Bounds(segmentsLeft, segmentsTop, containerRight, bottom);
     }

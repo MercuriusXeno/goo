@@ -978,7 +978,8 @@ class ExpressionBuilderPaneTest {
             int[] railSegment = frame.buttonAround((int) rail[0], (int) rail[1]);
             int[] sign = frame.buttonAround(frame.findFirst("+"));
             assertEquals(railSegment[2] - 1, sign[0], "the sign right of the rail");
-            assertTrue(sign[2] < box[0], "the rail and the sign before the container");
+            // The operator's ruling of 2026-11-04: the rail and the sign touch the container, no gap.
+            assertEquals(box[0], sign[2], "the rail and the sign touch the container's left border");
         }
 
         @Test
@@ -993,6 +994,50 @@ class ExpressionBuilderPaneTest {
             assertTrue(scales.get(0) > scales.get(1), "the outer ( larger than the inner: " + scales);
             float term = frame.placed("$waxed").scale();
             assertTrue(scales.get(1) > term, "the inner ( larger than the term text");
+        }
+
+        /**
+         * A parenthetical whose terms wrap is one box, like a div: its rail and sign touch its left border, every
+         * line of its terms starts at the same left right after "(", its right edge stands a clear pixel and its
+         * border past its widest line, it grows down to hold its last line, and the term after it stands outside it
+         * (the operator's ruling of 2026-11-04).
+         */
+        @Test
+        void aWrappedParentheticalIsOneBoxHoldingEveryLine() {
+            DrawnFrame frame = Builder.item("$base + ($waxed + $edited + $waxed + $edited + $waxed + $edited) + $base")
+                    .frame(new GroupsPane.Bounds(0, 0, 260, 390));
+            int[] box = border(frame);
+            // Each inner term's whole container: its rail segment's ring to its ring's right side, the ring's top
+            // side spanning it.
+            List<int[]> inner = IntStream.range(0, 6).mapToObj(index -> railOf(frame, List.of(1, index)))
+                    .map(rail -> ringAround(frame.buttonAround((int) rail[0], (int) rail[1])))
+                    .map(ring -> new int[] {ring[0], ring[1], fills(frame, ControlFlow.TERM_BORDER).stream()
+                            .filter(side -> side[0] == ring[0] && side[1] == ring[1]).mapToInt(side -> side[2])
+                            .max().orElseThrow(), ring[3]}).toList();
+            List<Integer> lineTops = inner.stream().map(ring -> ring[1]).distinct().sorted().toList();
+            assertTrue(lineTops.size() > 1, "the parenthetical's terms wrap: " + lineTops);
+            int contentLeft = inner.getFirst()[0];
+            for (int top : lineTops.subList(1, lineTops.size())) {
+                int lineLeft = inner.stream().filter(ring -> ring[1] == top).mapToInt(ring -> ring[0]).min()
+                        .orElseThrow();
+                assertEquals(contentLeft, lineLeft, "the line at " + top + " starts where the first one does");
+            }
+            DrawnFrame.Placed close = frame.placed(")");
+            int closeRight = close.x() + new Lettering(DrawnFrame.font(), close.scale()).inkWidth(")");
+            int widest = Math.max(closeRight, inner.stream().mapToInt(ring -> ring[2]).max().orElseThrow());
+            assertEquals(widest + 2, box[2], "the box's right a clear pixel and its border past its widest line");
+            int lastBottom = Math.max(inner.getLast()[3], close.y() + 1);
+            assertTrue(box[3] >= inner.getLast()[3] + 2 && box[3] >= lastBottom, "the box holds its last line");
+            assertEquals(inner.getFirst()[1] - 2, box[1], "the box's top a clear pixel above its first line");
+            double[] rail = railOf(frame, List.of(1));
+            int[] sign = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals("+")
+                    && text.x() > rail[0] && Math.abs(text.y() - rail[1]) < HALF_LINE).min(
+                    java.util.Comparator.comparingInt(DrawnFrame.Text::x)).orElseThrow());
+            assertEquals(box[0], sign[2], "the sign touches the box's left border");
+            double[] after = railOf(frame, List.of(2));
+            int[] next = ringAround(frame.buttonAround((int) after[0], (int) after[1]));
+            assertTrue(next[0] >= box[2] || next[1] >= box[3], "the term after the box stands inside it: "
+                    + java.util.Arrays.toString(next) + " against " + java.util.Arrays.toString(box));
         }
 
         @Test
