@@ -248,7 +248,7 @@ final class GooValueLoader {
         final Map<Identifier, GooValue> effectiveValues;
         final Set<Identifier> deniedItems;
         final Set<Identifier> restrictedItems;
-        final Map<String, Integer> constants;
+        final Map<String, GooFraction> constants;
         final Map<String, GooValue> treeConstants;
         final Map<String, Set<Identifier>> pseudoTags;
         /**
@@ -262,7 +262,7 @@ final class GooValueLoader {
                    Map<Identifier, GooValue> effectiveValues,
                    Set<Identifier> deniedItems,
                    Set<Identifier> restrictedItems,
-                   Map<String, Integer> constants,
+                   Map<String, GooFraction> constants,
                    Map<String, GooValue> treeConstants,
                    Map<String, Set<Identifier>> pseudoTags) {
             this.baseValues = baseValues;

@@ -57,7 +57,7 @@ public final class GooConversion {
      * @return parsed conversion structures
      */
     public static ParsedConversions parseBlock(Map<String, String> entries,
-                                               Map<String, Integer> constants,
+                                               Map<String, GooFraction> constants,
                                                Map<String, GooValue> treeConstants) {
         return ConversionFormulaParser.parseBlock(entries, constants, treeConstants);
     }

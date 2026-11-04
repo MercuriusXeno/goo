@@ -116,6 +116,28 @@ public record GooFraction(long numerator, long denominator) implements Comparabl
     }
 
     /**
+     * The exact product of this and another fraction.
+     *
+     * @param factor the multiplier
+     * @return this * factor
+     */
+    public GooFraction times(GooFraction factor) {
+        return new GooFraction(Math.multiplyExact(numerator, factor.numerator),
+                Math.multiplyExact(denominator, factor.denominator));
+    }
+
+    /**
+     * The exact quotient of this and another fraction.
+     *
+     * @param divisor the divisor, never zero
+     * @return this / divisor
+     */
+    public GooFraction dividedBy(GooFraction divisor) {
+        return new GooFraction(Math.multiplyExact(numerator, divisor.denominator),
+                Math.multiplyExact(denominator, divisor.numerator));
+    }
+
+    /**
      * The fraction with its sign flipped.
      *
      * @return -this
