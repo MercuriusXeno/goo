@@ -69,7 +69,7 @@ public class GooValueRegistry {
     /**
      * Named constants from _constants block, resolved during value parsing.
      */
-    private final Map<String, Integer> constants = new HashMap<>();
+    private final Map<String, GooFraction> constants = new HashMap<>();
     /**
      * Tree constants from _constants block: GooValue objects keyed by name.
      */
@@ -393,7 +393,7 @@ public class GooValueRegistry {
         if (tree != null) {
             return tree.toString();
         }
-        Integer scalar = constants.get(name);
+        GooFraction scalar = constants.get(name);
         return scalar == null ? null : scalar.toString();
     }
 

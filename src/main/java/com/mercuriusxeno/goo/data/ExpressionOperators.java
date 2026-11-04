@@ -68,7 +68,7 @@ final class ExpressionOperators {
     static ExprVal applyOp(ExprVal lhs, String op,
                            ExprVal rhs) {
         if (lhs.isScalar() && rhs.isScalar()) {
-            return new ScalarVal(intOp(lhs.toInt(), op, rhs.toInt()));
+            return new ScalarVal(GooScalarExpressionEvaluator.apply(lhs.toScalar(), op, rhs.toScalar()));
         }
         if (!lhs.isScalar() && !rhs.isScalar()) {
             return applyGooGooOp(lhs, op, rhs);
@@ -110,7 +110,7 @@ final class ExpressionOperators {
     private static ExprVal applyMixedOp(ExprVal lhs, String op,
                                         ExprVal rhs) {
         GooValue gv = lhs.isScalar() ? rhs.toGooValue() : lhs.toGooValue();
-        int scalar = lhs.isScalar() ? lhs.toInt() : rhs.toInt();
+        GooFraction scalar = lhs.isScalar() ? lhs.toScalar() : rhs.toScalar();
         return switch (op) {
             case OP_MULTIPLY -> new GooVal(multiplyGooValue(gv, scalar));
             case OP_DIVIDE -> divideMixed(lhs.isScalar(), gv, scalar);
@@ -130,12 +130,18 @@ final class ExpressionOperators {
      * @param scalar      the scalar operand
      * @return the division result
      */
-    private static ExprVal divideMixed(boolean lhsIsScalar, GooValue gv, int scalar) {
+    private static ExprVal divideMixed(boolean lhsIsScalar, GooValue gv, GooFraction scalar) {
         if (lhsIsScalar) {
             LOGGER.warn(LOG_CANNOT_DIV_SCALAR);
             return new GooVal(GooValue.EMPTY);
         }
-        return new GooVal(gv.divide(scalar));
+        // A zero divisor leaves the value as it stood, as GooValue.divide does.
+        if (scalar.isZero()) {
+            return new GooVal(gv);
+        }
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> result = new HashMap<>();
+        gv.exactAll().forEach((type, amount) -> result.put(type, amount.dividedBy(scalar)));
+        return new GooVal(GooValue.ofExact(result));
     }
 
     /**
@@ -146,50 +152,21 @@ final class ExpressionOperators {
      */
     static ExprVal negate(ExprVal val) {
         if (val.isScalar()) {
-            return new ScalarVal(-val.toInt());
+            return new ScalarVal(val.toScalar().negated());
         }
-        return new GooVal(multiplyGooValue(val.toGooValue(), NEGATE));
+        return new GooVal(multiplyGooValue(val.toGooValue(), GooFraction.of(NEGATE)));
     }
 
     /**
-     * Multiplies every type in a GooValue by a scalar.
+     * Multiplies every type in a GooValue by an exact scalar.
      *
      * @param value  the GooValue to scale
      * @param scalar the multiplier to apply per type
      * @return a new GooValue with scaled amounts
      */
-    private static GooValue multiplyGooValue(GooValue value, int scalar) {
+    private static GooValue multiplyGooValue(GooValue value, GooFraction scalar) {
         Map<ResourceKey<GooTypeDefinition>, GooFraction> result = new HashMap<>();
         value.exactAll().forEach((type, amount) -> result.put(type, amount.times(scalar)));
         return GooValue.ofExact(result);
-    }
-
-    /**
-     * Applies an arithmetic operator to two integer operands.
-     *
-     * @param a  the left operand
-     * @param op the operator string (+, -, *, /)
-     * @param b  the right operand
-     * @return the result of the arithmetic operation
-     */
-    private static int intOp(int a, String op, int b) {
-        return switch (op) {
-            case OP_PLUS -> a + b;
-            case OP_MINUS -> a - b;
-            case OP_MULTIPLY -> a * b;
-            case OP_DIVIDE -> safeDivide(a, b);
-            default -> a;
-        };
-    }
-
-    /**
-     * Divides a by b, returning 0 when b is zero to avoid ArithmeticException.
-     *
-     * @param a the dividend
-     * @param b the divisor
-     * @return the quotient, or 0 if b is zero
-     */
-    private static int safeDivide(int a, int b) {
-        return b == 0 ? 0 : a / b;
     }
 }

@@ -5,34 +5,23 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import java.util.Map;
 
 /**
- * Resolves item reference operands in integer expressions.
- * Handles dot-notation (e.g. minecraft:coal.blaze) to extract a single
- * goo type value from an item's GooValue.
+ * Resolves item reference operands in scalar expressions. Handles dot-notation (e.g. minecraft:coal.blaze) to
+ * extract a single goo type's exact amount from an item's GooValue
+ * (decision values-are-fractions-melt-floors-fabricate-ceils).
  */
 final class ItemOperandResolver {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    /**
-     * Dot separator for type extraction.
-     */
     private static final String DOT = ".";
-    /**
-     * Colon separator for namespaced IDs.
-     */
     private static final String COLON = ":";
-    /**
-     * Sentinel indicating no valid dot position was found.
-     */
     private static final int NO_DOT = -1;
-    /**
-     * Log warning for item reference without .type.
-     */
-    private static final String WARN_ITEM_NO_TYPE = "Item reference without .type in int expression: {}";
+    private static final String WARN_ITEM_NO_TYPE = "Item reference without .type in scalar expression: {}";
 
     private ItemOperandResolver() {
     }
@@ -43,58 +32,43 @@ final class ItemOperandResolver {
      *
      * @param token      the item reference token
      * @param baseValues item values for lookups
-     * @return the resolved integer value
+     * @return the resolved exact amount
      */
-    static int resolveItemOperand(String token, Map<Identifier, GooValue> baseValues) {
+    static GooFraction resolveItemOperand(String token, Map<Identifier, GooValue> baseValues) {
         if (token.contains(DOT)) {
-            int extracted = tryItemDotExtraction(token, baseValues);
-            if (extracted != Integer.MIN_VALUE) {
+            GooFraction extracted = tryItemDotExtraction(token, baseValues);
+            if (extracted != null) {
                 return extracted;
             }
         }
         return resolveBareName(token);
     }
 
-    /**
-     * Handles a bare (non-dot-notation) item token: namespaced IDs without a .type
-     * suffix get a warning and return 0, plain numbers are parsed as integers.
-     *
-     * @param token the bare item reference or numeric literal
-     * @return 0 for namespaced IDs missing a type, or the parsed integer
-     */
-    private static int resolveBareName(String token) {
+    // A namespaced id missing its .type warns and answers zero; a plain number reads as itself.
+    private static GooFraction resolveBareName(String token) {
         if (token.contains(COLON)) {
             LOGGER.warn(WARN_ITEM_NO_TYPE, token);
-            return 0;
+            return GooFraction.ZERO;
         }
-        return Integer.parseInt(token);
+        return GooFraction.of(Long.parseLong(token));
     }
 
-    /**
-     * Attempts to extract a single goo type value from an item via dot notation
-     * (e.g. minecraft:coal.blaze). Returns {@link Integer#MIN_VALUE} if the suffix
-     * is not a valid goo type or the item is unknown.
-     *
-     * @param token      the full dot-notation token
-     * @param baseValues item values for lookups
-     * @return the extracted type value, or Integer.MIN_VALUE if not resolvable
-     */
-    private static int tryItemDotExtraction(String token,
-                                            Map<Identifier, GooValue> baseValues) {
+    // The item's one type, or null where the suffix names no goo type or no valid dot stands.
+    private static @Nullable GooFraction tryItemDotExtraction(String token, Map<Identifier, GooValue> baseValues) {
         int dotIdx = findTypeDot(token);
         if (dotIdx < 0) {
-            return Integer.MIN_VALUE;
+            return null;
         }
-        return resolveItemType(token, dotIdx, baseValues);
+        String typeSuffix = token.substring(dotIdx + 1);
+        try {
+            ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
+            return lookupItemValue(token.substring(0, dotIdx), type, baseValues);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
-    /**
-     * Finds the position of the dot separating the item ID from its type suffix.
-     * Returns {@link #NO_DOT} if no valid type-dot exists (dot at edges, or dot before a colon).
-     *
-     * @param token the full dot-notation token
-     * @return the dot index, or NO_DOT if no valid type-dot is found
-     */
+    // The dot separating the item id from its type suffix, NO_DOT at either edge or before the colon.
     private static int findTypeDot(String token) {
         int dotIdx = token.lastIndexOf('.');
         if (dotIdx <= 0 || dotIdx >= token.length() - 1) {
@@ -105,38 +79,18 @@ final class ItemOperandResolver {
     }
 
     /**
-     * Resolves the goo type and item lookup for a dot-notation token once the dot
-     * position is known. Returns {@link Integer#MIN_VALUE} for unrecognized types.
-     *
-     * @param token      the full dot-notation token
-     * @param dotIdx     position of the type-separating dot
-     * @param baseValues item values for lookups
-     * @return the extracted type value, or Integer.MIN_VALUE if the type is invalid
-     */
-    private static int resolveItemType(String token, int dotIdx,
-                                       Map<Identifier, GooValue> baseValues) {
-        String typeSuffix = token.substring(dotIdx + 1);
-        try {
-            ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
-            return lookupItemValue(token.substring(0, dotIdx), type, baseValues);
-        } catch (IllegalArgumentException ignored) {
-            return Integer.MIN_VALUE;
-        }
-    }
-
-    /**
      * @param itemId     the namespaced item identifier string
      * @param type       the goo type to extract
      * @param baseValues item values for lookups
-     * @return the item's amount for the given type
+     * @return the item's exact amount for the given type
      * @throws UnresolvedItemReference where the item holds no value, which leaves the whole entry unvalued
      */
-    private static int lookupItemValue(String itemId, ResourceKey<GooTypeDefinition> type,
-                                       Map<Identifier, GooValue> baseValues) {
+    private static GooFraction lookupItemValue(String itemId, ResourceKey<GooTypeDefinition> type,
+                                               Map<Identifier, GooValue> baseValues) {
         GooValue value = baseValues.get(Identifier.parse(itemId));
         if (value == null) {
             throw new UnresolvedItemReference(itemId);
         }
-        return value.exact(type).floor();
+        return value.exact(type);
     }
 }
