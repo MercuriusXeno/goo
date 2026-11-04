@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.Processes;
+import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.Optional;
 final class ConversionHovers {
     // A hover key no prefab name, item id or hint spells; a newline parts the section from the entry's key.
     private static final String HOVER_PREFIX = "goo-conversion:";
+    private static final String NAMED_PREFIX = "goo-conversion-named:";
     private static final char KEY_SEPARATOR = '\n';
     private static final String NOTHING_TARGET = "0";
     private static final String DIVIDE = "/";
@@ -38,23 +40,45 @@ final class ConversionHovers {
     }
 
     /**
+     * A cut name's hover: the whole name, then the entry's formula below it (decisions
+     * conversion-controls-hover-their-formula, values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
+     *
+     * @param section the entry's block
+     * @param key     the entry's key
+     * @return the hover key whose tooltip shows the entry's whole name above its formula
+     */
+    static String namedHoverKey(String section, String key) {
+        return NAMED_PREFIX + section + KEY_SEPARATOR + key;
+    }
+
+    /**
      * @param processes the Conversions tab's state
      * @param variables the Prefabs tab's state, which an additive's prefab reads
      * @param hoverKey  what the hovered area names
      * @return the entry's formula lines; empty where the area is no conversion's or its formula reads nothing
      */
     static Optional<List<TooltipLine>> tooltipFor(ProcessesTab processes, VariablesTab variables, String hoverKey) {
-        if (!hoverKey.startsWith(HOVER_PREFIX)) {
+        boolean named = hoverKey.startsWith(NAMED_PREFIX);
+        if (!named && !hoverKey.startsWith(HOVER_PREFIX)) {
             return Optional.empty();
         }
-        String entry = hoverKey.substring(HOVER_PREFIX.length());
+        String entry = hoverKey.substring((named ? NAMED_PREFIX : HOVER_PREFIX).length());
         int separator = entry.indexOf(KEY_SEPARATOR);
         if (separator < 0) {
             return Optional.empty();
         }
         String section = entry.substring(0, separator);
-        return linesOf(new Lookup(processes, variables, section), processes.formOf(section,
-                entry.substring(separator + 1)), 1, 0);
+        String key = entry.substring(separator + 1);
+        Optional<List<TooltipLine>> formula = linesOf(new Lookup(processes, variables, section),
+                processes.formOf(section, key), 1, 0);
+        return named ? Optional.of(withName(key, formula.orElse(List.of()))) : formula;
+    }
+
+    private static List<TooltipLine> withName(String key, List<TooltipLine> formula) {
+        List<TooltipLine> lines = new ArrayList<>();
+        lines.add(new TooltipLine.Text(Component.literal(key)));
+        lines.addAll(formula);
+        return lines;
     }
 
     /**

@@ -162,6 +162,18 @@ class MutatorControlsTest {
         }
 
         /**
+         * A stack's link to the mutator it applies hovers that mutator's formula, as an additive's prefab link hovers
+         * its value (decision every-linkable-thing-hovers-its-preview-value).
+         */
+        @Test
+        void stacksMutatorLinkHoversThatMutatorsFormula() {
+            DrawnFrame frame = frame(new Processes.Stack(2, "smelt"));
+            DrawnFrame.Text applied = frame.find("smelt");
+            assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "smelt")),
+                    frame.targets.hovered(applied.x() + 1, applied.y() + 1));
+        }
+
+        /**
          * A row starting at x 40 draws its kind dropdown at 40, unindented, then the source type's button, then the
          * ratio (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
          */

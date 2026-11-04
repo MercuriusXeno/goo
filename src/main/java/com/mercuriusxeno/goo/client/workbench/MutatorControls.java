@@ -213,6 +213,8 @@ final class MutatorControls {
         nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), null,
                 SearchDropdown.overMutators(otherProcesses(entry)),
                 formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
+        // Decision every-linkable-thing-hovers-its-preview-value: the mutator a stack applies hovers its formula.
+        flow.hoverLast(ConversionHovers.hoverKey(entry.section(), stack.formula()));
         flow.text(TIMES_MARK, GRAY);
         numberControl(flow, stack.count(), null,
                 count -> processes.setStackCount(entry.section(), entry.key(), count));
