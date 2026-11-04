@@ -371,7 +371,7 @@ final class VariablesPane {
 
     // The builder over the block being edited, each change written to the draft and evaluated afresh, so the value
     // shown is the value the builder holds (decision expression-builder-composes-every-form-without-typing); answers
-    // the height it took.
+    // the height it took. The builder starts its panel's overhang lower, so the panel clears the head's Used by icons.
     private int drawBuilder(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                             GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         if (!builder.isOpen() || !block.name().equals(building)) {
@@ -385,7 +385,8 @@ final class VariablesPane {
                 actions.draftChanged();
             });
         }
-        return builder.extract(graphics, font, bounds, y, targets);
+        return ExpressionBuilderPane.PANEL_ABOVE + builder.extract(graphics, font, bounds,
+                y + ExpressionBuilderPane.PANEL_ABOVE, targets);
     }
 
     // The listed blocks clipped to the list's bounds; answers the y the last one ended at.

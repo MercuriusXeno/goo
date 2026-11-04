@@ -38,6 +38,8 @@ final class ExpressionBuilderPane {
     static final int NEST_BORDER = 0xC0A8B4D0;
     // How far below a line's top its centered buttons start.
     private static final int BUTTON_ABOVE = (ControlFlow.LINE - ButtonPainter.HEIGHT) / 2;
+    /** How far the builder's panel reaches above the top it is drawn at, the box margin outside its first buttons. */
+    static final int PANEL_ABOVE = RowLayout.BOX_MARGIN - BUTTON_ABOVE;
     /** The builder's panel fill. */
     static final int PANEL_COLOR = 0x30FFFFFF;
     // Decision terms-and-type-rows-drag-to-a-trash-strip: the strip along the builder's right edge, dim at rest,
@@ -371,7 +373,7 @@ final class ExpressionBuilderPane {
     // Decision spacing-rules-are-one-set-across-every-pane: the box stands the box margin outside its buttons, which
     // a line centers below its top.
     private void drawPanel(GuiGraphicsExtractor graphics, GroupsPane.Bounds laid) {
-        int panelTop = laid.top() + BUTTON_ABOVE - RowLayout.BOX_MARGIN;
+        int panelTop = laid.top() - PANEL_ABOVE;
         graphics.fill(laid.left() - RowLayout.BOX_MARGIN, panelTop, laid.right(), laid.bottom(), PANEL_COLOR);
         trash = new GroupsPane.Bounds(laid.right() - TRASH_WIDTH, panelTop, laid.right(), laid.bottom());
         drawTrash(graphics, trash);
