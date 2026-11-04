@@ -133,16 +133,13 @@ final class DrawnFrame {
      *     icon stands around the icon
      */
     int[] buttonAround(int x, int y) {
-        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-        verify(graphics, atLeast(0)).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
-                org.mockito.ArgumentMatchers.eq(ButtonPainter.BORDER));
+        // A button's border, or a button's fill grown by the pixel a border takes, as a term's segment fills between
+        // its seams with no border of its own (decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
+        List<int[]> boxes = new ArrayList<>(fillsOf(ButtonPainter.BORDER));
+        fillsOf(ButtonPainter.FILL).forEach(fill -> boxes.add(new int[] {fill[0] - 1, fill[1] - 1, fill[2] + 1,
+            fill[3] + 1}));
         int[] around = null;
-        for (int index = 0; index < lefts.getAllValues().size(); index++) {
-            int[] box = {lefts.getAllValues().get(index), tops.getAllValues().get(index),
-                rights.getAllValues().get(index), bottoms.getAllValues().get(index)};
+        for (int[] box : boxes) {
             boolean holds = box[0] <= x && x < box[2] && box[1] <= y && y < box[3];
             if (holds && (around == null || box[2] - box[0] < around[2] - around[0])) {
                 around = box;
@@ -150,6 +147,25 @@ final class DrawnFrame {
         }
         assertTrue(around != null, "no button around " + x + "," + y);
         return around;
+    }
+
+    /**
+     * @param color a fill's color
+     * @return each fill drawn in it, as left, top, right and bottom
+     */
+    List<int[]> fillsOf(int color) {
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics, atLeast(0)).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
+                org.mockito.ArgumentMatchers.eq(color));
+        List<int[]> fills = new ArrayList<>();
+        for (int index = 0; index < lefts.getAllValues().size(); index++) {
+            fills.add(new int[] {lefts.getAllValues().get(index), tops.getAllValues().get(index),
+                rights.getAllValues().get(index), bottoms.getAllValues().get(index)});
+        }
+        return fills;
     }
 
     /**

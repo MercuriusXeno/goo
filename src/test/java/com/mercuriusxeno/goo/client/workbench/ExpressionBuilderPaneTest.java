@@ -264,14 +264,28 @@ class ExpressionBuilderPaneTest {
         double[] outer = railOf(frame, List.of(1));
         double[] inner = railOf(frame, List.of(1, 0));
         DrawnFrame.Text open = frame.drawn().stream().filter(text -> text.text().equals("(")).findFirst().orElseThrow();
-        assertTrue(onOneLine(open, frame.find("$base")), "the inner parenthetical's terms share the outer's ( line");
+        DrawnFrame.Placed outerOpen = placedAt(frame, "(", 0);
+        double openMiddle = outerOpen.y() + outerOpen.scale() * Lettering.inkRows(DrawnFrame.font()) / 2.0;
+        DrawnFrame.Text base = frame.find("$base");
+        double baseMiddle = base.y() + LETTERS.lineHeight() / 2.0;
+        assertTrue(Math.abs(openMiddle - baseMiddle) < HALF_LINE, "the inner parenthetical's terms share the "
+                + "outer's ( line, the ( centered on it at " + openMiddle + " against " + baseMiddle);
         assertTrue(inner[0] > outer[0], "the inner rail stands right of the outer one");
     }
 
     // Where a term's or a parenthetical's container opens: its rail's segment (the operator's ruling of 2026-11-04
     // placing the rail left of the sign).
     private static int containerLeft(DrawnFrame frame, double[] rail) {
-        return frame.buttonAround((int) rail[0], (int) rail[1])[0];
+        int framed = frame.buttonAround((int) rail[0], (int) rail[1])[0];
+        boolean ringed = fills(frame, ControlFlow.TERM_BORDER).stream().anyMatch(side -> side[0] == framed - 1
+                && side[1] <= rail[1] && rail[1] < side[3]);
+        return ringed ? framed - 1 : framed;
+    }
+
+    // A term's ringed container round the frame of a piece in it: the frame grown by the pixel the 2 px ring adds
+    // (decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
+    private static int[] ringAround(int[] framed) {
+        return new int[] {framed[0] - 1, framed[1] - 1, framed[2] + 1, framed[3] + 1};
     }
 
     // Whether two texts stand on one builder line, their tops within half a line.
@@ -474,8 +488,8 @@ class ExpressionBuilderPaneTest {
         // Edited's container opens on its rail's segment; waxed's ends on the last segment left of it.
         double[] edited = railOf(frame, List.of(1));
         int editedLeft = containerLeft(frame, edited);
-        int waxedRight = fills(frame, ButtonPainter.BORDER).stream().filter(segment -> segment[2] <= editedLeft
-                && segment[1] <= edited[1] && edited[1] < segment[3]).mapToInt(segment -> segment[2]).max()
+        int waxedRight = fills(frame, ControlFlow.TERM_BORDER).stream().filter(side -> side[2] <= editedLeft
+                && side[1] <= edited[1] && edited[1] < side[3]).mapToInt(side -> side[2]).max()
                 .orElseThrow();
         assertEquals(ExpressionBuilderPane.TERM_MARGIN, editedLeft - waxedRight, "the room between siblings");
     }
@@ -654,30 +668,118 @@ class ExpressionBuilderPaneTest {
         }
 
         /**
-         * The rail, the sign, the name with its 's, the type and the multiplier abut, each segment's left border the
-         * right border of the one before; the colon, which takes no click, stands as plain text a clear pixel from
-         * the multiplier and the divisor rather than as a segment; no outline rings them (the operator's rulings of
-         * 2026-11-04: the rail left of the sign, the 's in the name's segment, only clickable things as buttons).
+         * The rail, the sign, the name with its 's, the type and the multiplier abut, a 2 px seam between each two;
+         * the colon, which takes no click, stands as plain text a clear pixel from the multiplier's fill and the
+         * divisor's rather than as a segment; no ring of the retired box outline color stands round them (the
+         * operator's rulings of 2026-11-04: the rail left of the sign, the 's in the name's segment, only clickable
+         * things as buttons).
          */
         @Test
         void termSegmentsAbutSharingTheirBordersWithNoRing() {
             DrawnFrame frame = Builder.item(TERM).frame();
             List<int[]> segments = segments(frame);
             for (int index = 1; index < 5; index++) {
-                assertEquals(segments.get(index - 1)[2] - 1, segments.get(index)[0], "segment " + index
-                        + " shares its left border with the one before: " + segments.stream()
-                        .map(java.util.Arrays::toString).toList());
+                assertEquals(segments.get(index - 1)[2], segments.get(index)[0], "segment " + index
+                        + " abuts the one before: " + segments.stream().map(java.util.Arrays::toString).toList());
             }
             DrawnFrame.Text colon = frame.findFirst(":");
-            assertEquals(List.of(segments.get(4)[2] + 1, colon.x() + LETTERS.inkWidth(":") + 1),
-                    List.of(colon.x(), segments.get(5)[0]), "the colon a clear pixel from each box");
-            assertTrue(fills(frame, ButtonPainter.BORDER).stream().noneMatch(fill -> fill[0] <= colon.x()
+            assertEquals(List.of(segments.get(4)[2], colon.x() + LETTERS.inkWidth(":")),
+                    List.of(colon.x(), segments.get(5)[0]), "the colon a clear pixel from each side's fill");
+            assertTrue(fills(frame, ButtonPainter.FILL).stream().noneMatch(fill -> fill[0] <= colon.x()
                     && colon.x() < fill[2] && fill[1] <= colon.y() && colon.y() < fill[3]), "the colon in a segment");
             assertArrayEquals(segments.get(2), frame.buttonAround(frame.findFirst("'s")), "the 's in the name's segment");
             int left = segments.getFirst()[0];
             int right = segments.getLast()[2];
             assertEquals(List.of(), fills(frame, RETIRED_OUTLINE).stream().filter(fill -> fill[0] <= left
                     && fill[2] >= right).map(java.util.Arrays::toString).toList(), "an outline rings the segments");
+        }
+
+        // The term's container: its segments' union grown by the pixel its 2 px ring adds outside their frames.
+        private static int[] ringOf(List<int[]> segments) {
+            return new int[] {segments.getFirst()[0] - 1, segments.getFirst()[1] - 1, segments.getLast()[2] + 1,
+                segments.getFirst()[3] + 1};
+        }
+
+        // A color's brightness as the sum of its red, green and blue.
+        private static int luminance(int color) {
+            return (color >> 16 & 0xFF) + (color >> 8 & 0xFF) + (color & 0xFF);
+        }
+
+        /**
+         * The term's container draws a 2 px ring in TERM_BORDER, brighter than a segment's border, round its
+         * segments, from the rail's side to the divisor's (decision
+         * term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
+         */
+        @Test
+        void termContainerDrawsATwoPixelBrighterRing() {
+            assertTrue(luminance(ControlFlow.TERM_BORDER) > luminance(ButtonPainter.BORDER), "the ring reads brighter");
+            DrawnFrame frame = Builder.item(TERM).frame();
+            int[] ring = ringOf(segments(frame));
+            List<List<Integer>> sides = fills(frame, ControlFlow.TERM_BORDER).stream()
+                    .map(side -> java.util.Arrays.stream(side).boxed().toList()).toList();
+            assertEquals(List.of(List.of(ring[0], ring[1], ring[2], ring[1] + 2),
+                    List.of(ring[0], ring[3] - 2, ring[2], ring[3]),
+                    List.of(ring[0], ring[1] + 2, ring[0] + 2, ring[3] - 2),
+                    List.of(ring[2] - 2, ring[1] + 2, ring[2], ring[3] - 2)), sides, "the ring's four 2 px sides");
+        }
+
+        /**
+         * Each seam between two of the term's segments is 2 px, SEAM_LIGHT on its left pixel and the darker
+         * SEAM_DARK on its right, from the container's top to its bottom, the right segment's fill starting past the
+         * dark pixel (decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
+         */
+        @Test
+        void eachSeamIsTwoPixelsLightThenDark() {
+            assertTrue(luminance(ControlFlow.SEAM_DARK) < luminance(ControlFlow.SEAM_LIGHT), "the dark pixel darker");
+            DrawnFrame frame = Builder.item(TERM).frame();
+            List<int[]> segments = segments(frame);
+            int[] ring = ringOf(segments);
+            List<int[]> lights = fills(frame, ControlFlow.SEAM_LIGHT);
+            List<int[]> darks = fills(frame, ControlFlow.SEAM_DARK);
+            for (int index = 1; index < 5; index++) {
+                int seam = segments.get(index)[0];
+                assertTrue(lights.stream().anyMatch(fill -> java.util.Arrays.equals(fill,
+                        new int[] {seam - 1, ring[1], seam, ring[3]})), "no light pixel left of seam " + index);
+                assertTrue(darks.stream().anyMatch(fill -> java.util.Arrays.equals(fill,
+                        new int[] {seam, ring[1], seam + 1, ring[3]})), "no dark pixel right of seam " + index);
+                int fillLeft = segments.get(index)[0] + 1;
+                assertTrue(fills(frame, ButtonPainter.FILL).stream().anyMatch(fill -> fill[0] == fillLeft
+                        && fill[1] == ring[1] + 2), "segment " + index + "'s fill past its dark pixel");
+            }
+            assertEquals(4, lights.size(), "a light pixel a seam, none beside the colon");
+        }
+
+        /**
+         * Only a term rings: a parenthetical's lead and ratio segments and its container, a type row's goo type
+         * button and the () handle keep their 1 px frames, no ring or seam color inside them (decision
+         * term-draws-a-two-pixel-brighter-border-with-two-tone-seams: terms only).
+         */
+        @Test
+        void onlyATermRings() {
+            DrawnFrame frame = Builder.item("3 ($waxed + $edited) / 2 + $base").frame();
+            List<int[]> framed = new ArrayList<>();
+            double[] rail = railOf(frame, List.of(0));
+            framed.add(frame.buttonAround((int) rail[0], (int) rail[1]));
+            framed.add(frame.buttonAround(frame.findFirst("3")));
+            framed.add(frame.buttonAround(frame.findFirst("2")));
+            framed.addAll(fills(frame, ExpressionBuilderPane.NEST_BORDER));
+            DrawnFrame typed = Builder.item(TWO_TYPES).frame();
+            double[] rowRail = rowRailOf(typed, 0);
+            List<int[]> rowFramed = List.of(typed.buttonAround((int) rowRail[0], (int) rowRail[1]),
+                    typed.buttonAround(handles(typed).getFirst()));
+            for (int color : List.of(ControlFlow.TERM_BORDER, ControlFlow.SEAM_LIGHT, ControlFlow.SEAM_DARK)) {
+                assertEquals(List.of(), fills(frame, color).stream().filter(fill -> framed.stream()
+                        .anyMatch(box -> overlaps(fill, box))).map(java.util.Arrays::toString).toList(),
+                        "a ring or seam in a parenthetical's own frames");
+                assertEquals(List.of(), fills(typed, color).stream().filter(fill -> rowFramed.stream()
+                        .anyMatch(box -> overlaps(fill, box))).map(java.util.Arrays::toString).toList(),
+                        "a ring or seam in a type button or the handle");
+            }
+        }
+
+        // Whether two rectangles, as left, top, right, bottom with the right and bottom outside, share a pixel.
+        private static boolean overlaps(int[] one, int[] other) {
+            return one[0] < other[2] && other[0] < one[2] && one[1] < other[3] && other[1] < one[3];
         }
 
         /**
@@ -722,23 +824,20 @@ class ExpressionBuilderPaneTest {
         }
 
         /**
-         * The term's container is exactly its segments' union, the () handle's mark over it reading from the
-         * rail's left to the divisor's right and from the tallest segment's top to its bottom.
+         * The term's container is exactly its ringed segments' union, the () handle's mark over it reading from the
+         * ring's outer left to its outer right and top to bottom.
          */
         @Test
         void termContainerIsExactlyItsSegmentsUnion() {
             Builder builder = Builder.item(TERM);
             DrawnFrame frame = builder.frame();
-            List<int[]> segments = segments(frame);
+            int[] ring = ringOf(segments(frame));
             clickAt(frame, handles(frame).getFirst());
             DrawnFrame.Text waxed = frame.find("$waxed");
             assertTrue(frame.targets.drag(waxed.x() + 1, waxed.y() + 1));
             List<int[]> marks = fills(builder.frame(), ExpressionBuilderPane.WRAP_MARK);
             assertEquals(1, marks.size(), "one wrap mark");
-            int top = segments.stream().mapToInt(segment -> segment[1]).min().orElseThrow();
-            int bottom = segments.stream().mapToInt(segment -> segment[3]).max().orElseThrow();
-            assertEquals(List.of(segments.getFirst()[0], top, segments.getLast()[2], bottom),
-                    java.util.Arrays.stream(marks.getFirst()).boxed().toList(), "the container's bounds");
+            assertArrayEquals(ring, marks.getFirst(), "the container's bounds");
             frame.targets.release();
         }
     }
@@ -767,7 +866,8 @@ class ExpressionBuilderPaneTest {
                     .map(rail -> frame.buttonAround((int) rail[0], (int) rail[1])).toList();
             List<Integer> tops = rails.stream().map(rail -> rail[1]).distinct().sorted().toList();
             assertTrue(tops.size() > 1, "the terms wrap: " + tops);
-            int height = rails.getFirst()[3] - rails.getFirst()[1];
+            // Each term's ringed container stands a pixel past its rail's frame above and below.
+            int height = rails.getFirst()[3] - rails.getFirst()[1] + 2;
             for (int line = 1; line < tops.size(); line++) {
                 assertEquals(ControlFlow.BUILDER_LINE_GAP, tops.get(line) - tops.get(line - 1) - height,
                         "the room between line " + (line - 1) + " and line " + line);
@@ -855,10 +955,12 @@ class ExpressionBuilderPaneTest {
             int[] firstRail = frame.buttonAround((int) first[0], (int) first[1]);
             int[] lastDivisor = frame.buttonAround(frame.drawn().get(frame.drawn().indexOf(frame.find(")")) - 1));
             assertEquals(box[0] + 2, open.x(), "( a clear pixel inside the left border");
-            assertEquals(open.x() + parens.inkWidth("(") + 1, firstRail[0], "the first term a clear pixel past (");
-            assertEquals(lastDivisor[2] + 1, close.x(), ") a clear pixel past the last term");
+            int[] firstTerm = ringAround(firstRail);
+            int[] lastTerm = ringAround(lastDivisor);
+            assertEquals(open.x() + parens.inkWidth("(") + 1, firstTerm[0], "the first term a clear pixel past (");
+            assertEquals(lastTerm[2] + 1, close.x(), ") a clear pixel past the last term");
             assertEquals(close.x() + parens.inkWidth(")") + 2, box[2], ") a clear pixel inside the right border");
-            assertEquals(List.of(box[1] + 2, box[3] - 2), List.of(firstRail[1], firstRail[3]),
+            assertEquals(List.of(box[1] + 2, box[3] - 2), List.of(firstTerm[1], firstTerm[3]),
                     "the terms a clear pixel inside the top and bottom borders");
             assertTrue(frame.buttonAround(frame.findFirst("3"))[0] > box[2], "the ratio after the container");
             double[] rail = railOf(frame, List.of(0));
@@ -916,8 +1018,8 @@ class ExpressionBuilderPaneTest {
                     || text.text().equals("-")) && text.x() > rail[0] && Math.abs(text.y() - rail[1]) < HALF_LINE)
                     .min(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
                     .orElseThrow(() -> new AssertionError("no sign after the rail at " + rail[0]));
-            assertEquals(frame.buttonAround((int) rail[0], (int) rail[1])[2] - 1, frame.buttonAround(sign)[0],
-                    "the sign's segment shares its left border with the rail's");
+            assertEquals(frame.buttonAround((int) rail[0], (int) rail[1])[2], frame.buttonAround(sign)[0],
+                    "the sign's segment abuts the rail's, the seam between them");
             return sign;
         }
 
@@ -980,8 +1082,9 @@ class ExpressionBuilderPaneTest {
         @Test
         void typeRowsStandTheLineAndButtonGapsApart() {
             DrawnFrame frame = Builder.item(TWO_TYPES).frame();
-            List<int[]> rows = IntStream.range(0, 2).mapToObj(row -> rowRailOf(frame, row))
-                    .map(rail -> frame.buttonAround((int) rail[0], (int) rail[1])).toList();
+            // Each row's tallest piece, its term's ringed container.
+            List<int[]> rows = List.of("5", "2").stream().map(amount -> ringAround(frame.buttonAround(
+                    frame.findFirst(amount)))).toList();
             assertEquals(ControlFlow.BUILDER_LINE_GAP + RowLayout.BUTTON_GAP, rows.get(1)[1] - rows.get(0)[3],
                     "the clear room between rows");
             List<DrawnFrame.Text> colons = frame.drawn().stream().filter(text -> text.text().equals(":")).toList();
@@ -1053,8 +1156,10 @@ class ExpressionBuilderPaneTest {
         List<int[]> cursors = fills(held, ExpressionBuilderPane.DROP_CURSOR);
         assertEquals(1, cursors.size(), "one cursor");
         int[] cursor = cursors.getFirst();
-        assertEquals(List.of(baseRail[1], baseRail[3]), List.of(cursor[1], cursor[3]),
-                "the cursor as tall as the term's segments");
+        // The term's container: its rail's frame grown by the pixel its ring adds above and below (decision
+        // term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
+        assertEquals(List.of(baseRail[1] - 1, baseRail[3] + 1), List.of(cursor[1], cursor[3]),
+                "the cursor as tall as the term's ringed container");
         assertHoleStandsAPixelAround(held, cursor);
         frame.targets.release();
         assertEquals("$edited + $waxed + $base", builder.written.getLast());
@@ -1072,7 +1177,8 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text colon = frame.drawn().get(frame.drawn().indexOf(sides.get(1)) - 1);
         int multiplierRight = frame.buttonAround(sides.get(0))[2];
         int divisorLeft = frame.buttonAround(sides.get(1))[0];
-        assertEquals(List.of(multiplierRight + 1, colon.x() + LETTERS.inkWidth(":") + 1),
+        // Each side's fill stands a pixel inside its frame, so a clear pixel stands between it and the colon.
+        assertEquals(List.of(multiplierRight, colon.x() + LETTERS.inkWidth(":")),
                 List.of(colon.x(), divisorLeft), frame.drawn().toString());
     }
 
