@@ -225,27 +225,33 @@ final class VariablesPane {
      * @return whether the pane took the key
      */
     boolean keyPressed(int key) {
-        if (nameBox != null && nameBox.isFocused() && naming) {
-            if (isEnter(key)) {
-                createPrefab(nameBox.getValue());
-                return true;
-            }
-            if (key == GLFW.GLFW_KEY_ESCAPE) {
-                stopNaming();
-                return true;
-            }
+        return nameKey(key) || renameKey(key) || builder.keyPressed(key);
+    }
+
+    private boolean nameKey(int key) {
+        EditBox named = nameBox;
+        return naming && named != null && named.isFocused()
+                && boxKey(key, () -> createPrefab(named.getValue()), this::stopNaming);
+    }
+
+    private boolean renameKey(int key) {
+        EditBox renamed = rename;
+        String from = renaming;
+        return from != null && renamed != null && renamed.isFocused()
+                && boxKey(key, () -> submitRename(from, renamed.getValue().trim()), this::stopRenaming);
+    }
+
+    // Enter runs the box's done and Escape its cancel; answers whether either ran.
+    private static boolean boxKey(int key, Runnable done, Runnable cancel) {
+        if (isEnter(key)) {
+            done.run();
+            return true;
         }
-        if (rename != null && rename.isFocused() && renaming != null) {
-            if (isEnter(key)) {
-                submitRename(renaming, rename.getValue().trim());
-                return true;
-            }
-            if (key == GLFW.GLFW_KEY_ESCAPE) {
-                stopRenaming();
-                return true;
-            }
+        if (key == GLFW.GLFW_KEY_ESCAPE) {
+            cancel.run();
+            return true;
         }
-        return builder.keyPressed(key);
+        return false;
     }
 
     private static boolean isEnter(int key) {
@@ -437,14 +443,14 @@ final class VariablesPane {
 
     private void showBoxes(boolean renameShown) {
         boolean open = visible && deleting == null;
-        if (search != null) {
-            search.visible = open;
-        }
-        if (rename != null) {
-            rename.visible = open && renameShown;
-        }
-        if (nameBox != null) {
-            nameBox.visible = open && naming;
+        showBox(search, open);
+        showBox(rename, open && renameShown);
+        showBox(nameBox, open && naming);
+    }
+
+    private static void showBox(@Nullable EditBox box, boolean shown) {
+        if (box != null) {
+            box.visible = shown;
         }
     }
 
