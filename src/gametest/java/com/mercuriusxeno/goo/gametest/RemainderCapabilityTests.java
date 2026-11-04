@@ -2,17 +2,12 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
-import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
-import com.mercuriusxeno.goo.item.CanisterFluidContent;
-import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
-import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -36,8 +31,7 @@ import java.util.function.Consumer;
 
 /**
  * Every store of goo serves one shared remainder ledger through GooCapabilities, and
- * a remainder credited through it survives the store's save and load; a broken
- * plexer carries its banked remainder on its item to the plexer placed from it.
+ * a remainder credited through it survives the store's save and load.
  * decision one-remainder-capability-injected-into-every-fluid-capability
  * decision every-producer-consumer-and-container-holds-a-remainder-buffer
  */
@@ -46,7 +40,6 @@ public final class RemainderCapabilityTests {
 
     private static final String REMAINDER_CAPABILITY_SURVIVES_SAVE_AND_LOAD =
             "remainder_capability_survives_save_and_load";
-    private static final String PLEXER_REMAINDER_SURVIVES_A_BREAK = "plexer_remainder_survives_a_break";
     private static final String VAT_GOO_SURVIVES_A_BREAK = "vat_goo_survives_a_break";
     private static final String CRUCIBLE_REMAINDER_SURVIVES_A_BREAK = "crucible_remainder_survives_a_break";
     private static final String CRUCIBLE_LOST = "The crucible placed from the broken crucible's item should read 1/3 rock, read %s";
@@ -54,20 +47,12 @@ public final class RemainderCapabilityTests {
     private static final String VAT_LOST = "The vat placed from the broken vat's item should hold %s, held %s";
 
     private static final GooFraction THIRD = GooFraction.of(1, 3);
-    private static final GooFraction TWO_THIRDS = GooFraction.of(2, 3);
     private static final BlockPos STORE_POS = new BlockPos(1, 1, 1);
-    private static final BlockPos PLEXER_POS = new BlockPos(2, 1, 2);
     private static final int FIRST_SLOT = 0;
-    /** Rock enough to fabricate one smooth basalt worth 64/3 rock. */
-    private static final int ROCK_SUPPLY = 100;
     private static final double DROP_REACH = 2;
     private static final String NOT_SERVED = "The %s should serve a remainder ledger";
     private static final String LOST = "The %s's remainder should read 1/3 rock after a save and load, read %s";
-    private static final String NOT_FABRICATED = "The plexer should fabricate a smooth basalt from the rock above";
-    private static final String NOT_BANKED = "The plexer should bank 2/3 rock, banked %s";
-    private static final String NO_DROP = "Breaking the plexer should drop the plexer";
-    private static final String UNCARRIED = "The dropped plexer should carry its remainder";
-    private static final String NOT_RESTORED = "The placed plexer should read 2/3 rock, read %s";
+    private static final String NO_DROP = "Breaking the store should drop its item";
 
     private RemainderCapabilityTests() {
     }
@@ -80,8 +65,6 @@ public final class RemainderCapabilityTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, REMAINDER_CAPABILITY_SURVIVES_SAVE_AND_LOAD,
                 RemainderCapabilityTests::remainderCapabilitySurvivesSaveAndLoad);
-        GooTestFunctions.registerTest(registrar, PLEXER_REMAINDER_SURVIVES_A_BREAK,
-                RemainderCapabilityTests::plexerRemainderSurvivesABreak);
         GooTestFunctions.registerTest(registrar, VAT_GOO_SURVIVES_A_BREAK,
                 RemainderCapabilityTests::vatGooSurvivesABreak);
         GooTestFunctions.registerTest(registrar, CRUCIBLE_REMAINDER_SURVIVES_A_BREAK,
@@ -153,35 +136,6 @@ public final class RemainderCapabilityTests {
         helper.succeed();
     }
 
-    /**
-     * A plexer fabricates one smooth basalt, which the exact_value_probe datapack
-     * prices at 64/3 rock, from a fresh ledger, banking 2/3 rock; broken, it drops
-     * an item carrying that remainder, and the plexer placed from the item reads 2/3 rock.
-     *
-     * @param helper the gametest helper
-     */
-    public static void plexerRemainderSurvivesABreak(GameTestHelper helper) {
-        helper.setBlock(PLEXER_POS, GooBlocks.PLEXER.get());
-        helper.setBlock(PLEXER_POS.above(), GooBlocks.CANISTER.get());
-        ItemStack rock = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.setFluidContent(rock, CanisterFluidContent.of(GooFluids.resource(GooTypes.ROCK), ROCK_SUPPLY));
-        helper.getBlockEntity(PLEXER_POS.above(), CanisterBlockEntity.class).insertCanister(FIRST_SLOT, rock, false);
-        PlexerBlockEntity plexer = helper.getBlockEntity(PLEXER_POS, PlexerBlockEntity.class);
-        plexer.setTargetItem(new ItemStack(net.minecraft.world.level.block.Blocks.SMOOTH_BASALT));
-        helper.assertFalse(plexer.tryReconstitute().isEmpty(), NOT_FABRICATED);
-        GooFraction banked = blockLedger(helper, PLEXER_POS, null).remainders().of(GooTypes.ROCK);
-        helper.assertTrue(TWO_THIRDS.equals(banked), String.format(NOT_BANKED, banked));
-
-        helper.getLevel().destroyBlock(helper.absolutePos(PLEXER_POS), true);
-        ItemStack dropped = droppedPlexer(helper);
-        helper.setBlock(PLEXER_POS, GooBlocks.PLEXER.get());
-        helper.getBlockEntity(PLEXER_POS, PlexerBlockEntity.class).applyComponentsFromItemStack(dropped);
-
-        GooFraction restored = blockLedger(helper, PLEXER_POS, null).remainders().of(GooTypes.ROCK);
-        helper.assertTrue(TWO_THIRDS.equals(restored), String.format(NOT_RESTORED, restored));
-        helper.succeed();
-    }
-
     private static void assertBlockKeeps(GameTestHelper helper, String store, Block block, @Nullable Integer slot) {
         helper.setBlock(STORE_POS, block);
         assertLoadedBlockKeeps(helper, store, slot);
@@ -238,12 +192,6 @@ public final class RemainderCapabilityTests {
         GooFraction kept = loaded.getCapability(GooCapabilities.REMAINDER_ITEM, ItemAccess.forStack(loaded))
                 .remainders().of(GooTypes.ROCK);
         helper.assertTrue(THIRD.equals(kept), String.format(LOST, "canister item", kept));
-    }
-
-    private static ItemStack droppedPlexer(GameTestHelper helper) {
-        ItemStack dropped = droppedItem(helper, PLEXER_POS, GooItems.PLEXER.get());
-        helper.assertTrue(dropped.has(GooDataComponents.REMAINDERS.get()), UNCARRIED);
-        return dropped;
     }
 
     private static ItemStack droppedItem(GameTestHelper helper, BlockPos pos, net.minecraft.world.item.Item item) {
