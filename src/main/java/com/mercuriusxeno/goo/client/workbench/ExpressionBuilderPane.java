@@ -991,7 +991,8 @@ final class ExpressionBuilderPane {
     // Decision terms-inline-again-under-the-indentation-rules.
     private void drawPlainTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         Lettering letters = flow.letters();
-        flow.openSegments(plainTermWidth(letters, piece), segmentsHeightOf(piece));
+        // Decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams: a term's container rings.
+        flow.openTerm(plainTermWidth(letters, piece), segmentsHeightOf(piece));
         // The rail opens every term's container, its sign right after it, the first term's too (decision
         // every-term-carries-its-sign-as-a-segment, and the operator's ruling of 2026-11-04 placing the rail left of
         // the sign).
@@ -1039,10 +1040,14 @@ final class ExpressionBuilderPane {
         if (piece.operand() instanceof ExpressionBuilder.Ref ref && ref.member() != null) {
             widths.add(ControlFlow.typeSegmentWidth(ref.member()));
         }
-        if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
-            widths.addAll(ratioWidths(letters, piece));
+        int colon = 0;
+        if (!(piece.operand() instanceof ExpressionBuilder.Kept)
+                && BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
+            widths.add(ButtonPainter.width(letters, piece.multiplier()));
+            widths.add(ButtonPainter.width(letters, piece.divisor()));
+            colon = letters.inkWidth(RATIO);
         }
-        return ControlFlow.abutted(widths.stream().mapToInt(Integer::intValue).toArray());
+        return ControlFlow.ringedWidth(colon, widths.stream().mapToInt(Integer::intValue).toArray());
     }
 
     // A ratio's multiplier, colon and divisor as the abutted widths they take, none where the factor hides.
@@ -1088,8 +1093,8 @@ final class ExpressionBuilderPane {
     // where a term shows one, or an inner parenthetical's container.
     private int contentHeight(ExpressionBuilder.Nest nest) {
         return nest.pieces().stream().mapToInt(piece -> piece.operand() instanceof ExpressionBuilder.Nest inner
-                ? ControlFlow.parenContainerHeight(contentHeight(inner)) : segmentsHeightOf(piece)).max()
-                .orElse(ControlFlow.LINE);
+                ? ControlFlow.parenContainerHeight(contentHeight(inner))
+                : ControlFlow.ringedHeight(segmentsHeightOf(piece))).max().orElse(ControlFlow.LINE);
     }
 
     // A plain term's segments' height: the builder's line, or a 16 px item sprite's taller line.

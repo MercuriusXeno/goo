@@ -29,6 +29,20 @@ final class ControlFlow {
     static final int BUILDER_LINE_GAP = 5;
     /** The scale the expression builder letters its words at. */
     static final float BUILDER_SCALE = 0.75f;
+    // A term seam's width, and the two borders a framed segment's width counts.
+    private static final int SEAM = 2;
+    private static final int FRAME_BORDERS = 2;
+    // A term container's ring.
+    private static final int RING = 2;
+    /**
+     * A term container's ring, brighter than a segment's border (decision
+     * term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
+     */
+    static final int TERM_BORDER = 0xFF9AB4E0;
+    /** A term seam's left pixel. */
+    static final int SEAM_LIGHT = 0xFF6A86B4;
+    /** A term seam's right pixel, darker than its left. */
+    static final int SEAM_DARK = 0xFF0C121C;
     // A parenthetical container's border, and the clear pixel inside it, either side of its contents.
     private static final int FRAME = 1 + 1;
     private static final int GAP = BuilderOverlays.GAP;
@@ -93,6 +107,11 @@ final class ControlFlow {
     private int segmentsTop;
     private int segmentsHeight;
     private int nextSegmentLeft;
+    // A term's container stands ringed, its segments' fills between two-tone seams: the first column the next
+    // segment's fill or words take, and whether a seam stands due before the next segment.
+    private boolean ringed;
+    private int nextInterior;
+    private boolean seamDue;
 
     /**
      * @param graphics the frame's graphics
@@ -833,6 +852,7 @@ final class ControlFlow {
      */
     void openSegments(int width, int height) {
         reserve(width);
+        ringed = false;
         segmentsLeft = x;
         segmentsHeight = height;
         segmentsTop = y - (height - line) / HALF;
@@ -840,12 +860,72 @@ final class ControlFlow {
         lineOverhang = Math.max(lineOverhang, y - segmentsTop);
     }
 
-    // The next segment's frame, its left border the right border of the one before.
+    /**
+     * Opens a term's container: a 2 px ring in TERM_BORDER, brighter than a segment's border, around its segments,
+     * each segment's fill standing between 2 px seams, SEAM_LIGHT left of each seam and SEAM_DARK right of it, so
+     * the term reads as one raised unit (decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams). Each
+     * segment keeps the room a framed segment of its width would give its content.
+     *
+     * @param width  the container's width, as ringedWidth answers it
+     * @param height the tallest segment's height, as a framed segment stands; the ring adds a pixel above and below
+     */
+    void openTerm(int width, int height) {
+        reserve(width);
+        ringed = true;
+        segmentsLeft = x;
+        segmentsHeight = ringedHeight(height);
+        segmentsTop = y - (segmentsHeight - line) / HALF;
+        nextInterior = x + RING;
+        seamDue = false;
+        lineOverhang = Math.max(lineOverhang, y - segmentsTop);
+    }
+
+    /**
+     * @param height a framed segment's height
+     * @return a term container's height around segments that tall: its ring a pixel wider than a frame above and
+     *     below
+     */
+    static int ringedHeight(int height) {
+        return height + RING - 1 + RING - 1;
+    }
+
+    /**
+     * @param textInk the glyphs' ink width of the words standing between segments, as a ratio's colon, 0 for none
+     * @param widths  each segment's width as a framed segment of it stands
+     * @return a term container's width: its ring, each segment's fill, a 2 px seam between each two, and the words
+     *     with a clear pixel either side in place of a seam
+     */
+    static int ringedWidth(int textInk, int... widths) {
+        int total = RING + RING - FRAME_BORDERS;
+        for (int width : widths) {
+            total += width;
+        }
+        return total + textInk;
+    }
+
+    // The next segment: in a term, its fill after a two-tone seam, answering the frame a framed segment of its width
+    // would stand in, so its content stands where it would; otherwise its frame, its left border the right border of
+    // the one before.
     private ButtonPainter.Box nextSegment(int width) {
-        ButtonPainter.Box box = new ButtonPainter.Box(nextSegmentLeft, segmentsTop, width, segmentsHeight);
-        ButtonPainter.drawFrame(graphics, box);
-        nextSegmentLeft = box.right() - 1;
-        return box;
+        if (!ringed) {
+            ButtonPainter.Box box = new ButtonPainter.Box(nextSegmentLeft, segmentsTop, width, segmentsHeight);
+            ButtonPainter.drawFrame(graphics, box);
+            nextSegmentLeft = box.right() - 1;
+            return box;
+        }
+        int bottom = segmentsTop + segmentsHeight;
+        if (seamDue) {
+            graphics.fill(nextInterior, segmentsTop, nextInterior + 1, bottom, SEAM_LIGHT);
+            graphics.fill(nextInterior + 1, segmentsTop, nextInterior + SEAM, bottom, SEAM_DARK);
+            nextInterior += SEAM;
+        }
+        int fillRight = nextInterior + width - FRAME_BORDERS;
+        graphics.fill(nextInterior, segmentsTop + RING, fillRight, bottom - RING, ButtonPainter.FILL);
+        ButtonPainter.Box framed = new ButtonPainter.Box(nextInterior - 1, segmentsTop + 1, width,
+                segmentsHeight - FRAME_BORDERS);
+        nextInterior = fillRight;
+        seamDue = true;
+        return framed;
     }
 
     /**
@@ -884,6 +964,13 @@ final class ControlFlow {
      * @param color their color
      */
     void textBetweenSegments(String text, int color) {
+        if (ringed) {
+            int textLeft = nextInterior + CLEAR;
+            letters.draw(graphics, text, textLeft, wordsTop(), color);
+            nextInterior = textLeft + letters.inkWidth(text) + CLEAR;
+            seamDue = false;
+            return;
+        }
         int textLeft = nextSegmentLeft + 1 + CLEAR;
         letters.draw(graphics, text, textLeft, wordsTop(), color);
         nextSegmentLeft = textLeft + letters.inkWidth(text) + CLEAR;
@@ -933,10 +1020,21 @@ final class ControlFlow {
      * @return the container's bounds, the union of its segments
      */
     GroupsPane.Bounds closeSegments() {
-        int containerRight = nextSegmentLeft + 1;
+        int containerRight = ringed ? nextInterior + RING : nextSegmentLeft + 1;
         int bottom = segmentsTop + segmentsHeight;
+        if (ringed) {
+            drawRing(new GroupsPane.Bounds(segmentsLeft, segmentsTop, containerRight, bottom));
+        }
         x = containerRight + GAP;
         return new GroupsPane.Bounds(segmentsLeft, segmentsTop, containerRight, bottom);
+    }
+
+    // A term's 2 px ring, drawn over the seams' ends so it runs unbroken round the container.
+    private void drawRing(GroupsPane.Bounds box) {
+        graphics.fill(box.left(), box.top(), box.right(), box.top() + RING, TERM_BORDER);
+        graphics.fill(box.left(), box.bottom() - RING, box.right(), box.bottom(), TERM_BORDER);
+        graphics.fill(box.left(), box.top() + RING, box.left() + RING, box.bottom() - RING, TERM_BORDER);
+        graphics.fill(box.right() - RING, box.top() + RING, box.right(), box.bottom() - RING, TERM_BORDER);
     }
 
     /**
