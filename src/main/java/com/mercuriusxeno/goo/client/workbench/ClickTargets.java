@@ -178,6 +178,29 @@ final class ClickTargets {
     }
 
     /**
+     * Whether an overlay stands over the point: something laid after the frame's first shield, an open list's choice
+     * or its own shield, covers it. The first shield itself spans the whole screen to close the list on a press
+     * elsewhere, so a point it alone covers stands under no overlay.
+     * Decision open-dropdown-intercepts-clicks-before-the-pane-behind-it.
+     *
+     * @param x the press's x
+     * @param y the press's y
+     * @return whether an overlay takes a press there before any widget behind it
+     */
+    boolean overlayAt(double x, double y) {
+        int firstShield = 0;
+        while (firstShield < targets.size() && !targets.get(firstShield).actions().shield()) {
+            firstShield++;
+        }
+        for (int index = targets.size() - 1; index > firstShield; index--) {
+            if (targets.get(index).contains(x, y)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * An area that names what hovering it shows and takes no click, so a click passes to the area under it.
      *
      * @param left     the area's left edge

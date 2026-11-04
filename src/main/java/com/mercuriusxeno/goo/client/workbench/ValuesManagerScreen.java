@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save, a [?] that toggles explainer mode and an X that closes it, a tab bar carrying every
@@ -435,10 +436,31 @@ public final class ValuesManagerScreen extends Screen {
         if (explainer.leave()) {
             return true;
         }
-        if (emptyBoxUnder(children(), event) || super.mouseClicked(event, doubleClick)) {
+        return routePress(targets, event, press -> emptyBoxUnder(children(), press)
+                || super.mouseClicked(press, doubleClick), () -> setFocused(null));
+    }
+
+    /**
+     * Where a press goes once the draft and the explainer have passed it: an open overlay over the point takes it
+     * through the click targets alone, so no widget behind the overlay takes it; elsewhere the widgets take it first,
+     * then the click targets with the focus cleared.
+     * Decision open-dropdown-intercepts-clicks-before-the-pane-behind-it.
+     *
+     * @param targets the frame's click areas
+     * @param event   the press
+     * @param widgets offers the press to the screen's widgets, answering whether one took it
+     * @param unfocus clears the screen's focus
+     * @return whether anything took the press
+     */
+    static boolean routePress(ClickTargets targets, MouseButtonEvent event, Predicate<MouseButtonEvent> widgets,
+                              Runnable unfocus) {
+        if (targets.overlayAt(event.x(), event.y())) {
+            return clickTargets(targets, event);
+        }
+        if (widgets.test(event)) {
             return true;
         }
-        setFocused(null);
+        unfocus.run();
         return clickTargets(targets, event);
     }
 
