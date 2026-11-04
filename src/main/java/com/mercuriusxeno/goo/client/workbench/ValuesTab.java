@@ -8,6 +8,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -58,6 +59,10 @@ public final class ValuesTab {
     // A new entry stands above the sections the file closes with, as the page and the server write one.
     private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", CONVERSIONS_SECTION);
     private static final String[] LAYOUT_FIELDS = {"keySeparator", "leading", "trailing", "closingGap"};
+
+    private static final Comparator<ManagerEntrySource.ItemName> BY_NAME_THEN_ID = Comparator
+            .comparing(ManagerEntrySource.ItemName::name, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(ManagerEntrySource.ItemName::id);
 
     private final ManagerDraft draft;
     private final List<ManagerEntry> entries = new ArrayList<>();
@@ -117,7 +122,10 @@ public final class ValuesTab {
     public void readEntries(ManagerEntrySource source) {
         entries.clear();
         tagMembers.clear();
-        source.items().forEach(item -> entries.add(new ManagerEntry(item.id(), item.name(), false)));
+        // Items list by display name ignoring case, ties by id, whatever order the source feeds them (decision
+        // items-tab-lists-items-by-translated-name).
+        source.items().stream().sorted(BY_NAME_THEN_ID)
+                .forEach(item -> entries.add(new ManagerEntry(item.id(), item.name(), false)));
         source.itemTags().forEach(tag -> {
             entries.add(new ManagerEntry(TAG_PREFIX + tag.id(), tag.members().size() + MEMBERS_SUFFIX, true));
             tagMembers.put(GroupsTab.referentName(tag.id()), tag.members());

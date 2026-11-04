@@ -300,6 +300,10 @@ class ValuesPaneTest {
         // below its row.
         @Test
         void itemsRemoveButtonKeepsTheRuleGapOverTheRuleBelow() {
+            // A Torch lists after Stick by name, so a rule stands under the stick's row.
+            values.readEntries(new ListedEntrySource(List.of(
+                    new ManagerEntrySource.ItemName("minecraft:stick", "Stick"),
+                    new ManagerEntrySource.ItemName("minecraft:torch", "Torch")), List.of()));
             DrawnFrame frame = frame();
             DrawnFrame.Text stick = frame.find("Stick");
             DrawnFrame.Text remove = frame.drawn().stream().filter(text -> text.text().equals("✗")
@@ -392,7 +396,8 @@ class ValuesPaneTest {
             DrawnFrame frame = frame();
             DrawnFrame.Text stick = frame.find("Stick");
             DrawnFrame.Text wood = frame.find("$wood");
-            DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")).findFirst()
+            DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")
+                    && Math.abs(text.y() - wood.y()) < ExpressionLines.TEXT_LINE_HEIGHT).findFirst()
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             assertTrue(cross.y() > stick.y() && Math.abs(cross.y() - wood.y()) < ExpressionLines.TEXT_LINE_HEIGHT,
                     cross + " vs " + wood);
@@ -952,9 +957,10 @@ class ValuesPaneTest {
         assertEquals(2, headSprites, "the planks sprite and the log input");
         assertEquals(1, frame.count(ButtonPainter.RESTORE), frame.texts().toString());
         DrawnFrame.Text gravel = frame.find("Gravel");
-        assertTrue(frame.find(ButtonPainter.RESTORE).y() < gravel.y(), "the one restore arrow is the planks'");
-        assertTrue(frame.drawn().stream().noneMatch(text -> text.text().equals("✗") && text.y() > gravel.y()),
-                frame.drawn().toString());
+        // Gravel lists before Oak Planks by name, so an arrow under the planks' name is the planks'.
+        assertTrue(gravel.y() < planks.y() && frame.find(ButtonPainter.RESTORE).y() > planks.y(),
+                "the one restore arrow is the planks'");
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.text().equals("✗")), frame.drawn().toString());
         assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals(ReadValueButton.NOT_SET)
                 && text.y() > gravel.y()), frame.drawn().toString());
     }
