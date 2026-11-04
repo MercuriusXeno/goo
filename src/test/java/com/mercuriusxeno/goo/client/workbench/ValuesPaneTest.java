@@ -73,11 +73,53 @@ class ValuesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
         pane.extract(frame.graphics, font, bounds, frame.targets);
         assertEquals(List.of(), frame.texts().stream().filter("Tags"::equals).toList());
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
         ValuesPane.Chip fractional = ValuesPane.layChips(labels, font::width,
                 ValuesPane.chipsLeft(labels, font::width, bounds), 0, values.filter()).chips().get(2);
         frame.targets.click(fractional.left() + 1, fractional.top() + 1);
         assertEquals(ValuesTab.Filter.FRACTIONAL, values.filter());
+    }
+
+    /**
+     * A Negative chip stands right of Fractional, sharing its border, carrying the count of items holding an amount
+     * below zero, red while that count is above zero and white at zero, and a click on it lists the negative items
+     * (decision items-filter-set-takes-a-negative-chip).
+     */
+    @Test
+    void negativeChipCountsTheNegativeItemsRightOfFractional() {
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 1");
+        List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, String::length, LEFT, TOP,
+                ValuesTab.Filter.ITEMS).chips();
+        assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL,
+                ValuesTab.Filter.NEGATIVE), chips.stream().map(ValuesPane.Chip::filter).toList());
+        assertEquals(chips.get(2).left() + chips.get(2).width() - 1, chips.get(3).left());
+
+        Font font = sixPixelFont();
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:beetroot", "Beetroot")), List.of()));
+        values.readResolved("""
+                {"entries": [{"key": "beetroot", "value": {"jelly": "180", "leaf": "-174"}, "denied": false}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, bounds, frame.targets);
+        assertEquals(ValuesPane.RED, frame.find("Negative 1").color());
+        List<String> drawnLabels = List.of("Items", "Uncovered 0", "Fractional", "Negative 1");
+        ValuesPane.Chip negative = ValuesPane.layChips(drawnLabels, font::width,
+                ValuesPane.chipsLeft(drawnLabels, font::width, bounds), 0, values.filter()).chips().get(3);
+        frame.targets.click(negative.left() + 1, negative.top() + 1);
+        assertEquals(ValuesTab.Filter.NEGATIVE, values.filter());
+
+        DrawnFrame empty = new DrawnFrame();
+        ValuesTab none = new ValuesTab();
+        new ValuesPane(none, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of))
+                .extract(empty.graphics, font, bounds, empty.targets);
+        assertEquals(0xFFFFFFFF, empty.find("Negative 0").color());
     }
 
     /**
@@ -106,7 +148,7 @@ class ValuesPaneTest {
         net.minecraft.client.gui.components.EditBox search = widgets.stream()
                 .filter(net.minecraft.client.gui.components.EditBox.class::isInstance)
                 .map(net.minecraft.client.gui.components.EditBox.class::cast).findFirst().orElseThrow();
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
         List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, font::width,
                 ValuesPane.chipsLeft(labels, font::width, bounds), bounds.top(), values.filter()).chips();
         chips.forEach(chip -> assertEquals(search.getY(), chip.top(), chip.toString()));
@@ -381,7 +423,7 @@ class ValuesPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, sixPixelFont(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
         ValuesPane.Chip selected = ValuesPane.layChips(labels, sixPixelFont()::width,
                 ValuesPane.chipsLeft(labels, sixPixelFont()::width, new GroupsPane.Bounds(0, 0, 500, 200)), 0,
                 values.filter()).chips().getFirst();

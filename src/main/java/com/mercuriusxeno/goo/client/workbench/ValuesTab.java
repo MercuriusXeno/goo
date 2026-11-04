@@ -235,11 +235,36 @@ public final class ValuesTab {
             case ITEMS -> !entry.tag();
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
             case FRACTIONAL -> fractionalItem(entry);
+            case NEGATIVE -> negativeItem(entry);
         };
     }
 
     private boolean fractionalItem(ManagerEntry entry) {
         return !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::fractional);
+    }
+
+    private boolean negativeItem(ManagerEntry entry) {
+        return !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::negative);
+    }
+
+    /**
+     * @return how many items the resolve reply holds with an amount below zero
+     *     (decision items-filter-set-takes-a-negative-chip)
+     */
+    public int negativeCount() {
+        return (int) entries.stream().filter(this::negativeItem).count();
+    }
+
+    // The server answers an amount as a whole number or a reduced n/d with the sign on the numerator (decision
+    // items-filter-set-takes-a-negative-chip).
+    private static boolean negative(String amount) {
+        int divider = amount.indexOf(FRACTION_DIVIDER);
+        String numerator = divider < 0 ? amount : amount.substring(0, divider);
+        try {
+            return Long.parseLong(numerator.trim()) < 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     // The server answers an amount as a whole number or a reduced n/d (decision
@@ -259,8 +284,9 @@ public final class ValuesTab {
     }
 
     /**
-     * Which items the sidebar lists, as the page's chips choose them; tags live on the Groups tab as referents
-     * (decision items-selector-set-reads-items-and-uncovered).
+     * Which items the sidebar lists, as the page's chips choose them: every item, the uncovered, the fractional and
+     * the negative; tags live on the Groups tab as referents (decisions items-selector-set-reads-items-and-uncovered,
+     * items-filter-set-takes-a-negative-chip).
      */
     public enum Filter {
         /** Every item. */
@@ -268,7 +294,9 @@ public final class ValuesTab {
         /** The items the draft leaves with no value. */
         UNCOVERED,
         /** The items where any one goo type's amount has a part under 1. */
-        FRACTIONAL
+        FRACTIONAL,
+        /** The items where any one goo type's amount reads below zero. */
+        NEGATIVE
     }
 
     /**

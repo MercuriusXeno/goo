@@ -77,6 +77,7 @@ final class ValuesPane {
     private static final String ITEMS_CHIP = "Items";
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String FRACTIONAL_CHIP = "Fractional";
+    private static final String NEGATIVE_CHIP = "Negative ";
     private static final String SEARCH_HINT = "Search items";
     private static final int SEARCH_WIDTH = 180;
     private static final int LINK = ButtonPainter.LINK;
@@ -254,18 +255,25 @@ final class ValuesPane {
     private int drawSearchLine(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds line,
                                ClickTargets targets) {
         int uncovered = values.uncoveredCount();
-        List<String> labels = List.of(ITEMS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP);
+        int negative = values.negativeCount();
+        List<String> labels = List.of(ITEMS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP,
+                NEGATIVE_CHIP + negative);
         int left = chipsLeft(labels, font::width, line);
         ChipLayout layout = layChips(labels, font::width, left, line.top(), values.filter());
         for (Chip chip : layout.chips()) {
-            drawChip(graphics, font, chip, chip.filter() == ValuesTab.Filter.UNCOVERED && uncovered > 0 ? RED : WHITE,
-                    targets);
+            drawChip(graphics, font, chip, warns(chip.filter(), uncovered, negative) ? RED : WHITE, targets);
         }
         if (search != null) {
             search.setPosition(line.left(), line.top());
             search.setWidth(Math.max(1, left - GAP - line.left()));
         }
         return Math.max(layout.bottom(), line.top() + BOX_HEIGHT);
+    }
+
+    // Uncovered and Negative draw red while they count an item (decision items-filter-set-takes-a-negative-chip).
+    private static boolean warns(ValuesTab.Filter filter, int uncovered, int negative) {
+        return filter == ValuesTab.Filter.UNCOVERED && uncovered > 0
+                || filter == ValuesTab.Filter.NEGATIVE && negative > 0;
     }
 
     /**
