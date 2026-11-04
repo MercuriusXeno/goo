@@ -389,6 +389,23 @@ final class BuilderOverlays {
      * @param factor  whether the box holds a factor
      */
     void openNumber(Anchor at, String current, Consumer<String> commits, boolean factor) {
+        openBox(at, current, commits, typed -> BuilderGrammar.acceptsTyped(typed, factor));
+    }
+
+    /**
+     * Opens the number box for a term's number, which takes a whole, a fraction or a whole then a fraction as it is
+     * typed (decision number-box-takes-a-mixed-number).
+     *
+     * @param at      where the control was clicked
+     * @param current the mixed number the box starts from
+     * @param commits takes the box's text on Enter or blur, a blank box committing nothing
+     */
+    void openMixedNumber(Anchor at, String current, Consumer<String> commits) {
+        openBox(at, current, commits, BuilderGrammar::acceptsTypedMixed);
+    }
+
+    private void openBox(Anchor at, String current, Consumer<String> commits,
+                         java.util.function.Predicate<String> accepts) {
         closeLists();
         numberCommits = typed -> {
             if (!typed.isBlank()) {
@@ -396,7 +413,7 @@ final class BuilderOverlays {
             }
         };
         if (numberField != null) {
-            numberField.setFilter(typed -> BuilderGrammar.acceptsTyped(typed, factor));
+            numberField.setFilter(accepts);
             numberField.setValue(current);
             numberOpener = at;
             Placement placed = placeNumber(at, Integer.MAX_VALUE, Integer.MAX_VALUE);

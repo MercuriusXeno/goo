@@ -1,12 +1,14 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import org.jspecify.annotations.Nullable;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -37,7 +39,17 @@ final class ExpressionBuilder {
     private static final String TERMS_REFUSE_ROWS = "This entry holds whole-value terms, so a per-type row cannot"
             + " join them: remove the terms first.";
     private static final String TYPE_TAKEN = "This entry already holds a row for that goo type.";
-    private static final String NOT_A_NUMBER = "A number box holds digits alone.";
+    private static final String NOT_A_NUMBER = "A number box holds a whole number, a fraction or both, as 2 1/2.";
+    private static final String NOT_DIGITS = "This box holds digits alone.";
+    // A whole, a fraction, or a whole, a space and a fraction (decision number-box-takes-a-mixed-number).
+    private static final Pattern MIXED_NUMBER = Pattern.compile("(\\d+)|(?:(\\d+) +)?(\\d+)/(\\d+)");
+    private static final int WHOLE_ALONE = 1;
+    private static final int WHOLE_BEFORE = 2;
+    private static final int NUMERATOR = 3;
+    private static final int DENOMINATOR = 4;
+    private static final String NO_NUMBER = "";
+    private static final String FRACTION_BAR = "/";
+    private static final String MIXED_GAP = " ";
     private static final String MOVE_CHANGES_VALUE = "A first term takes no sign, so a subtracted term cannot move"
             + " first: change its sign first.";
     /** The whole kind holding one number, the kind {@link #switchToWhole()} starts. */
@@ -500,9 +512,59 @@ final class ExpressionBuilder {
      * @param digits the number the term holds in place of its operand
      */
     void setNumber(List<Integer> path, String digits) {
-        if (isNumber(digits)) {
-            editPiece(path, piece -> piece.withOperand(new Num(digits.trim())));
+        Optional<BigInteger[]> fraction = mixedNumber(digits);
+        if (fraction.isEmpty()) {
+            refuse(NOT_A_NUMBER);
+            return;
         }
+        String numerator = fraction.get()[0].toString();
+        String denominator = fraction.get()[1].toString();
+        editPiece(path, piece -> piece.withOperand(new Num(numerator)).withSide(Op.DIVIDE, denominator));
+    }
+
+    /**
+     * The number box's text for a number term: its number over its divisor as a mixed number, "2 1/2" for 5 / 2
+     * (decision number-box-takes-a-mixed-number).
+     *
+     * @param path the term's place
+     * @return the box's text, empty where the term holds no number
+     */
+    String numberText(List<Integer> path) {
+        Piece piece = pieceAt(path);
+        if (!(piece.operand() instanceof Num num)) {
+            return NO_NUMBER;
+        }
+        BigInteger numerator = new BigInteger(num.digits());
+        BigInteger denominator = new BigInteger(piece.divisor());
+        BigInteger[] split = numerator.divideAndRemainder(denominator);
+        if (split[1].signum() == 0) {
+            return split[0].toString();
+        }
+        String part = split[1] + FRACTION_BAR + denominator;
+        return split[0].signum() == 0 ? part : split[0] + MIXED_GAP + part;
+    }
+
+    // A whole, a fraction n/d, or a whole then a fraction, reduced to its numerator and denominator; empty for a
+    // zero denominator or any other text (decision number-box-takes-a-mixed-number).
+    private static Optional<BigInteger[]> mixedNumber(String text) {
+        Matcher matcher = MIXED_NUMBER.matcher(text.trim());
+        if (!matcher.matches()) {
+            return Optional.empty();
+        }
+        String alone = matcher.group(WHOLE_ALONE);
+        if (alone != null) {
+            return Optional.of(new BigInteger[] {new BigInteger(alone), BigInteger.ONE});
+        }
+        String before = matcher.group(WHOLE_BEFORE);
+        BigInteger whole = before != null ? new BigInteger(before) : BigInteger.ZERO;
+        BigInteger numerator = new BigInteger(matcher.group(NUMERATOR));
+        BigInteger denominator = new BigInteger(matcher.group(DENOMINATOR));
+        if (denominator.signum() == 0) {
+            return Optional.empty();
+        }
+        BigInteger total = whole.multiply(denominator).add(numerator);
+        BigInteger common = total.gcd(denominator);
+        return Optional.of(new BigInteger[] {total.divide(common), denominator.divide(common)});
     }
 
     /**
@@ -707,9 +769,7 @@ final class ExpressionBuilder {
      * @param digits the amount
      */
     void setRowNumber(int row, String digits) {
-        if (isNumber(digits)) {
-            setRowOperand(row, new Num(digits.trim()));
-        }
+        setNumber(List.of(row, 0), digits);
     }
 
     /**
@@ -920,7 +980,7 @@ final class ExpressionBuilder {
         if (DIGITS.matcher(text.trim()).matches()) {
             return true;
         }
-        refuse(NOT_A_NUMBER);
+        refuse(NOT_DIGITS);
         return false;
     }
 

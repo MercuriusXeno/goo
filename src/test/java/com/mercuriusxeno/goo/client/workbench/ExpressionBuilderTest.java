@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -118,6 +119,42 @@ class ExpressionBuilderTest {
             assertEquals("anvil - $iron_block", builder.text());
         }
     }
+
+    /**
+     * A number box takes a whole, a fraction n/d, or a whole then a fraction, reduced to one exact fraction: the
+     * numerator stands as the number and the denominator as the term's divisor, and the box reads it back as a mixed
+     * number (decision number-box-takes-a-mixed-number).
+     */
+    @Nested
+    class MixedNumbers {
+        @Test
+        void mixedNumberWritesItsExactFractionAndReadsBackMixed() {
+            ExpressionBuilder builder = ExpressionBuilder.of("1");
+            builder.setNumber(0, "2 1/2");
+            assertEquals(Optional.of("5 / 2"), builder.written());
+            assertEquals("2 1/2", ExpressionBuilder.of(builder.text()).numberText(List.of(0)));
+            builder.setNumber(0, "1/2");
+            assertEquals(Optional.of("1 / 2"), builder.written());
+            assertEquals("1/2", ExpressionBuilder.of(builder.text()).numberText(List.of(0)));
+            builder.setNumber(0, "3");
+            assertEquals(Optional.of("3"), builder.written());
+            assertEquals("3", builder.numberText(List.of(0)));
+            assertEquals(new com.google.gson.JsonPrimitive(3),
+                    ExpressionTerms.writeValue(ExpressionTerms.parseShown(builder.text()).orElseThrow()));
+        }
+
+        @Test
+        void numberBoxRefusesAZeroDenominatorAndOtherText() {
+            ExpressionBuilder builder = ExpressionBuilder.of("4");
+            for (String refused : List.of("2 1/0", "2.5", "abc")) {
+                builder.setNumber(0, refused);
+                assertEquals("4", builder.text(), refused);
+                assertEquals(Optional.of(NUMBER_BOX_HOLDS), builder.refusal(), refused);
+            }
+        }
+    }
+
+    private static final String NUMBER_BOX_HOLDS = "A number box holds a whole number, a fraction or both, as 2 1/2.";
 
     /**
      * The last term or row goes like any other, and a builder holding nothing writes nothing, since the resolver
