@@ -1089,7 +1089,7 @@ final class ExpressionBuilderPane {
         if (!(piece.operand() instanceof ExpressionBuilder.Nest nest)) {
             return plainTermWidth(letters, piece) + TERM_MARGIN;
         }
-        int width = leadWidth(letters, piece) + BuilderOverlays.GAP
+        int width = leadWidth(letters, piece)
                 + ControlFlow.parenFrameWidth(letters.font(), OPEN_PAREN, CLOSE_PAREN, contentHeight(nest))
                 + BuilderOverlays.GAP;
         for (int index = 0; index < nest.pieces().size(); index++) {
@@ -1295,17 +1295,18 @@ final class ExpressionBuilderPane {
         Lettering letters = flow.letters();
         int content = contentHeight(nest);
         int height = ControlFlow.parenContainerHeight(content);
-        flow.openSegments(leadWidth(letters, piece), height);
+        // The rail and sign touch the box's left border, so they wrap with its "(" (the operator's ruling of
+        // 2026-11-04).
+        flow.openSegments(leadWidth(letters, piece) + ControlFlow.parenOpeningWidth(letters.font(), OPEN_PAREN,
+                content), height);
         termRails.put(railName(path), path);
         flow.railSegment(railName(path), new Drag(path, piece));
         drawJoinSegment(flow, path, piece);
         GroupsPane.Bounds lead = flow.closeSegments();
+        flow.space(-BuilderOverlays.GAP);
         ControlFlow.OpenParenthetical opened = flow.openParenthetical(OPEN_PAREN, content, GRAY);
-        int inner = opened.left() - flow.leftEdge() + ControlFlow.INDENT;
-        flow.shift(inner);
         drawSum(flow, path, nest.pieces(), place);
         GroupsPane.Bounds container = flow.closeParenthetical(opened, CLOSE_PAREN, GRAY);
-        flow.shift(-inner);
         // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
         // right of its container too, so the pointer just past ")" drops outside it rather than at the inner sum's
         // end.
