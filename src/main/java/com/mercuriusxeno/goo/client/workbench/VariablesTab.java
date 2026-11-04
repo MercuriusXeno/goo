@@ -149,7 +149,9 @@ public final class VariablesTab {
             result.getAsJsonObject(TREE).entrySet().forEach(type -> tree.put(type.getKey(),
                     type.getValue().getAsString()));
         }
-        return Optional.of(new PrefabValue(name, tree, textOf(result, VALUE), textOf(result, ERROR)));
+        // Decision value-lists-order-highest-first-ties-by-type-key.
+        return Optional.of(new PrefabValue(name, AmountOrder.highestFirst(tree), textOf(result, VALUE),
+                textOf(result, ERROR)));
     }
 
     /**
