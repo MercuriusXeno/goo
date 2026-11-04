@@ -110,6 +110,7 @@ final class GroupsPane {
     private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
     private @Nullable String revealPending;
     private @Nullable RevealedRow revealedRow;
+    private final RevealGlow glow = new RevealGlow();
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
     private @Nullable String building;
@@ -260,17 +261,20 @@ final class GroupsPane {
             }
             y += height;
         }
+        glow.draw(graphics, left, top - listBar.offset(), rowRight);
         targets.unclip();
         graphics.disableScissor();
         listBar.measureAndDraw(graphics, targets, y, left + listWidth, top, bounds.bottom());
         centerRevealedRow();
     }
 
-    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.
-    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
+    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list, glowing it
+    // from the next frame.
+    // Decisions shift-follow-centers-the-target-in-its-scrolling-view, followed-target-glows-briefly.
     private void centerRevealedRow() {
         if (revealedRow != null) {
             listBar.center(revealedRow.top(), revealedRow.height());
+            glow.start(revealedRow.top(), revealedRow.height());
             revealedRow = null;
             revealPending = null;
         }

@@ -112,6 +112,7 @@ final class VariablesPane {
     private @Nullable String renaming;
     private @Nullable String deleting;
     private @Nullable String jumpPending;
+    private final RevealGlow glow = new RevealGlow();
     private boolean visible;
     private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
 
@@ -397,6 +398,7 @@ final class VariablesPane {
             RowLayout.drawSeparatorAbove(graphics, index, y + SEPARATOR_ROW, bounds.left(), bounds.right());
             y += drawBlock(graphics, font, blocks.get(index), bounds, y, targets);
         }
+        glow.draw(graphics, bounds.left(), bounds.top() - bar.offset(), bounds.right());
         targets.unclip();
         graphics.disableScissor();
         return y;
@@ -420,11 +422,13 @@ final class VariablesPane {
         }
     }
 
-    // Once the jumped block has drawn, editing, and the bar has measured this frame, centers the block in the list.
-    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
+    // Once the jumped block has drawn, editing, and the bar has measured this frame, centers the block in the list,
+    // glowing it from the next frame.
+    // Decisions shift-follow-centers-the-target-in-its-scrolling-view, followed-target-glows-briefly.
     private void applyPendingJump() {
         if (jumpPending != null && blockTops.containsKey(jumpPending)) {
             bar.center(blockTops.get(jumpPending), blockHeights.get(jumpPending));
+            glow.start(blockTops.get(jumpPending), blockHeights.get(jumpPending));
             jumpPending = null;
         }
     }

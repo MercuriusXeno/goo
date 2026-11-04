@@ -97,6 +97,9 @@ final class ProcessesPane {
     private int columnsMiddle;
     private @Nullable String revealPending;
     private @Nullable RevealedRow revealedRow;
+    private final RevealGlow glow = new RevealGlow();
+    // Which column the glowing row stands in.
+    private boolean glowIterators;
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
     private @Nullable Naming naming;
@@ -263,6 +266,9 @@ final class ProcessesPane {
         frame.targets().clip(column.left(), listTop, column.right(), column.bottom());
         int y = drawRows(new Frame(graphics, frame.font(), rows, frame.targets()), section, iterators,
                 listTop - bar.offset());
+        if (iterators == glowIterators) {
+            glow.draw(graphics, rows.left(), listTop - bar.offset(), rows.right());
+        }
         frame.targets().unclip();
         graphics.disableScissor();
         bar.measureAndDraw(graphics, frame.targets(), y, column.right(), listTop, column.bottom());
@@ -522,10 +528,13 @@ final class ProcessesPane {
         revealPending = key;
     }
 
-    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.
+    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list, glowing it
+    // from the next frame (decision followed-target-glows-briefly).
     private void centerRevealedRow() {
         if (revealedRow != null) {
             columnBar(revealedRow.iterators()).center(revealedRow.top(), revealedRow.height());
+            glowIterators = revealedRow.iterators();
+            glow.start(revealedRow.top(), revealedRow.height());
             revealedRow = null;
             revealPending = null;
         }

@@ -103,6 +103,7 @@ final class ValuesPane {
     private @Nullable String building;
     private boolean visible;
     private int revealRow = NO_REVEAL;
+    private final RevealGlow glow = new RevealGlow();
 
     ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions, ExpressionBuilderPane builder) {
         this.values = values;
@@ -345,6 +346,7 @@ final class ValuesPane {
                 y += measured;
             }
         }
+        glow.draw(graphics, list.left(), list.top() - listBar.offset(), right);
         return y;
     }
 
@@ -785,7 +787,10 @@ final class ValuesPane {
             content += rowHeight(font, listed.get(index), width);
         }
         listBar.measure(content, list.bottom() - list.top());
-        listBar.center(targetTop, rowHeight(font, listed.get(target), width));
+        int height = rowHeight(font, listed.get(target), width);
+        listBar.center(targetTop, height);
+        // Decision followed-target-glows-briefly.
+        glow.start(targetTop, height);
     }
 
     /**
