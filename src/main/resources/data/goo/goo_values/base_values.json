@@ -1,6 +1,6 @@
 {
     "_constants": {
-        "base": 192,
+        "base": 6,
         "low": "2 $base",
         "medium": "3 $low",
         "high": "4 $medium",
