@@ -92,7 +92,6 @@ final class ExpressionBuilderPane {
     private static final int PREVIEW_COLOR = 0xE0182030;
     private static final int PREVIEW_TEXT = 0xFFFFFFFF;
     private static final String RATIO = ":";
-    private static final String WHOLE_VALUE = "the whole value";
     private static final String OPEN_PAREN = "(";
     private static final String CLOSE_PAREN = ")";
     private static final String ADD_TYPE = "+?";
@@ -811,19 +810,34 @@ final class ExpressionBuilderPane {
         List<ExpressionBuilder.Piece> pieces = edited.terms();
         flow.indent();
         drawSum(flow, List.of(), pieces, new Place(sort, null));
+        if (pieces.size() > 1) {
+            drawWholeRatio(flow, pieces.size() - 1);
+        }
         // Decision parenthetical-handle-drags-onto-a-term: the () handle below the terms, where [+?] stands for rows.
         flow.indent(0);
         drawHandle(flow);
         drawSignHandles(flow);
         flow.outdent(ControlFlow.INDENT);
-        // Decision scale-shows-the-ratio-at-once: several terms draw the whole value's ratio 1:1 on a line of its
-        // own; setting a side wraps the value as one sum scaled by it.
-        if (pieces.size() > 1) {
-            flow.newLine();
-            flow.text(WHOLE_VALUE, GRAY);
-            drawRatio(flow, ExpressionBuilder.ONE_TEXT, ExpressionBuilder.ONE_TEXT,
-                    (op, factor) -> apply(b -> b.scaleWhole(op, factor)));
-        }
+    }
+
+    // Several terms draw the whole value's ratio 1:1 right after the last term on its line, a gap past its container,
+    // as tall as it, with no label, moving whole to the next line when short of room; setting a side wraps the value
+    // as one sum scaled by it.
+    // Decision whole-value-ratio-draws-after-the-last-term-unlabelled.
+    // Decision scale-shows-the-ratio-at-once.
+    private void drawWholeRatio(ControlFlow flow, int last) {
+        Lettering letters = flow.letters();
+        GroupsPane.Bounds beside = boxes.stream().filter(drawn -> drawn.path().equals(List.of(last)))
+                .map(TermBox::box).findFirst().orElseThrow();
+        String one = ExpressionBuilder.ONE_TEXT;
+        flow.openSegments(ControlFlow.abutted(ButtonPainter.width(letters, one),
+                ControlFlow.textSegmentWidth(letters, RATIO), ButtonPainter.width(letters, one)),
+                beside.bottom() - beside.top());
+        ScaleChange change = (op, factor) -> apply(b -> b.scaleWhole(op, factor));
+        ratioSegment(flow, one, MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
+        flow.textBetweenSegments(RATIO, GRAY);
+        ratioSegment(flow, one, DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
+        flow.closeSegments();
     }
 
     // A sum's terms inline, each wrapping one indent in where the line runs out; a drop slot stands before each term
@@ -1317,21 +1331,7 @@ final class ExpressionBuilderPane {
         void changed(ExpressionBuilder.Op side, String factor);
     }
 
-    // The whole value's ratio, multiplier:divisor, each a number box, its colon a clear pixel from each.
-    // Decision scale-shows-the-ratio-at-once: the whole value draws 1:1 at rest, either side set first.
-    // Decision ratio-colon-takes-no-spaces.
-    private void drawRatio(ControlFlow flow, String multiplier, String divisor, ScaleChange change) {
-        ratioSide(flow, multiplier, MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
-        flow.textBetween(RATIO, GRAY);
-        ratioSide(flow, divisor, DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
-    }
-
-    private void ratioSide(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op side,
-                           ScaleChange change) {
-        flow.control(shown, hint, openSide(shown, side, change));
-    }
-
-    // A plain term's multiplier or divisor, a segment of its container.
+    // A multiplier or divisor, a segment of its term's or ratio's run.
     private void ratioSegment(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op side,
                               ScaleChange change) {
         flow.labelSegment(shown, hint, openSide(shown, side, change));
