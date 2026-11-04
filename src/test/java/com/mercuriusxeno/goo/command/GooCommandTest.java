@@ -11,7 +11,9 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.permissions.PermissionSet;
 import org.junit.jupiter.api.Test;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.StringJoiner;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,6 +33,7 @@ class GooCommandTest {
     private static final String ORPHANS = "orphans";
     private static final String LOOKUP = "lookup";
     private static final String INVENTORY = "inventory";
+    private static final int TIED_GROUPS = 4;
 
     /**
      * A closed gate leaves lab and orphans out of the tree.
@@ -93,13 +96,27 @@ class GooCommandTest {
 
     /**
      * The chat line reads the highest amount first, then tied amounts by type id ascending
-     * (decision chat-value-line-orders-highest-first-ties-by-type-key).
+     * (decision chat-value-line-orders-highest-first-ties-by-type-key). GooValue iterates in identity-hash order,
+     * which changes from run to run, so the value spans every bundled type in four tied groups: an unsorted line
+     * matches the expected one by chance far less than once in a trillion runs.
      */
     @Test
     void chatLineReadsHighestAmountFirstThenTiesByTypeId() {
-        GooValue value = new GooValue(Map.of(GooTypes.ZOO, 2, GooTypes.METAL, 5, GooTypes.JELLY, 2));
-        String line = GooCommand.formatGooValue(registriesHoldingEveryType(), "minecraft:egg", value).getString();
-        assertEquals("minecraft:egg: metal x5, jelly x2, zoo x2 (total: 9)", line);
+        Map<ResourceKey<GooTypeDefinition>, Integer> amounts = new HashMap<>();
+        for (int index = 0; index < GooTypes.BUNDLED.size(); index++) {
+            amounts.put(GooTypes.BUNDLED.get(index), index % TIED_GROUPS + 1);
+        }
+        StringJoiner expected = new StringJoiner(", ", "minecraft:egg: ", " (total: 63)");
+        for (int amount = TIED_GROUPS; amount >= 1; amount--) {
+            for (ResourceKey<GooTypeDefinition> type : GooTypes.BUNDLED) {
+                if (amounts.get(type) == amount) {
+                    expected.add(GooTypes.id(type) + " x" + amount);
+                }
+            }
+        }
+        String line = GooCommand.formatGooValue(registriesHoldingEveryType(), "minecraft:egg", new GooValue(amounts))
+                .getString();
+        assertEquals(expected.toString(), line);
     }
 
     @SuppressWarnings("unchecked")
