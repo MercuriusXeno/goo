@@ -70,6 +70,9 @@ final class ExpressionBuilderPane {
     // Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators.
     private static final String PLUS_SIGN = "+";
     private static final String MINUS_SIGN = "-";
+    // Decision x-and-slash-drag-from-the-bay-onto-a-term.
+    private static final String TIMES_SIGN = "x";
+    private static final String DIVIDE_SIGN = "/";
     private static final String POSSESSIVE = "'s";
     private static final String WRAP = "()";
     private static final String TRASH_HINT = "Drag items here to remove";
@@ -122,6 +125,8 @@ final class ExpressionBuilderPane {
     private @Nullable Wrapping wrapping;
     // The + or - the bay's buttons hold while it drags.
     private @Nullable SignDrag signDragging;
+    // The x or / the bay's buttons hold while it drags.
+    private @Nullable FactorDrag factorDragging;
     // Where the last frame's lines ended, short of the trash strip.
     private int linesRight;
     // What each rail laid this frame drags, by the name it drags: a term's path or a type row's index.
@@ -215,6 +220,7 @@ final class ExpressionBuilderPane {
         dragging = null;
         wrapping = null;
         rowDragging = null;
+        factorDragging = null;
     }
 
     /**
@@ -239,13 +245,21 @@ final class ExpressionBuilderPane {
         // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: Escape drops the held term back.
         // Decision parenthetical-handle-drags-onto-a-term: Escape drops the held () and wraps nothing.
         // Decision type-rows-drag-by-a-rail-to-reorder-or-trash: Escape drops the held row back.
-        if (key == GLFW.GLFW_KEY_ESCAPE && (dragging != null || wrapping != null || rowDragging != null)) {
+        // Decision x-and-slash-drag-from-the-bay-onto-a-term: Escape drops the held x or / and scales nothing.
+        if (key == GLFW.GLFW_KEY_ESCAPE && holdsADrop()) {
             dragging = null;
             wrapping = null;
             rowDragging = null;
+            factorDragging = null;
             return true;
         }
         return overlays.keyPressed(key);
+    }
+
+    // Whether a term, the () handle, a type row or the bay's x or / stands held, which Escape drops.
+    private boolean holdsADrop() {
+        boolean termOrHandle = dragging != null || wrapping != null;
+        return termOrHandle || rowDragging != null || factorDragging != null;
     }
 
     /**
@@ -506,8 +520,10 @@ final class ExpressionBuilderPane {
         if (sign != null) {
             return slotHoles(slot -> takesInsert(slot, sign.join));
         }
-        return wrapping == null ? null : boxes.stream().map(wrappable -> new DragMask.Rect(wrappable.box().left(),
-                wrappable.box().top(), wrappable.box().right(), wrappable.box().bottom())).toList();
+        if (factorDragging != null) {
+            return boxes.stream().filter(TermBox::takesFactor).map(TermBox::rect).toList();
+        }
+        return wrapping == null ? null : boxes.stream().map(TermBox::rect).toList();
     }
 
     private List<DragMask.Rect> slotHoles(java.util.function.Predicate<Slot> takes) {
@@ -608,6 +624,7 @@ final class ExpressionBuilderPane {
             drawHeldRow(graphics, font, targets);
             drawHeldHandle(graphics, font);
             drawHeldSign(graphics, font);
+            drawHeldFactor(graphics, font);
         }
     }
 
@@ -926,9 +943,63 @@ final class ExpressionBuilderPane {
 
     // Decision plus-and-minus-are-draggable-buttons-in-the-control-bay: a + and a - in the bay beside the () handle,
     // each dragged to the slot where its term goes.
+    // Decision x-and-slash-drag-from-the-bay-onto-a-term: an x and a / beside them, each dragged onto a term to give
+    // it a multiplier or a divisor, hovering the names the factor's sides carry.
     private void drawSignHandles(ControlFlow flow) {
         flow.grabControl(PLUS_SIGN, new SignDrag(ExpressionTerms.Join.PLUS), null);
         flow.grabControl(MINUS_SIGN, new SignDrag(ExpressionTerms.Join.MINUS), null);
+        flow.grabControl(TIMES_SIGN, new FactorDrag(ExpressionBuilder.Op.MULTIPLY), MULTIPLIER_HINT);
+        flow.grabControl(DIVIDE_SIGN, new FactorDrag(ExpressionBuilder.Op.DIVIDE), DIVISOR_HINT);
+    }
+
+    /**
+     * An x or / held from the bay: where the pointer stands and the term under it that takes a factor, a reference
+     * or a parenthetical, never a bare number (decision x-and-slash-drag-from-the-bay-onto-a-term).
+     */
+    private final class FactorDrag implements ClickTargets.PointerGrab {
+        private final ExpressionBuilder.Op side;
+        private double x;
+        private double y;
+        private @Nullable TermBox target;
+
+        FactorDrag(ExpressionBuilder.Op side) {
+            this.side = side;
+        }
+
+        @Override
+        public void moved(double movedX, double movedY) {
+            factorDragging = this;
+            x = movedX;
+            y = movedY;
+            target = boxes.stream().filter(TermBox::takesFactor).filter(term -> term.holds(x, y))
+                    .min(java.util.Comparator.comparingLong(TermBox::area)).orElse(null);
+        }
+
+        // A release on a term opens the number box at that side of its factor, its value selected whole, a commit
+        // scaling that side of that term alone; a release off every term scales nothing.
+        @Override
+        public void released() {
+            TermBox dropped = target;
+            boolean held = factorDragging == this;
+            factorDragging = null;
+            if (held && dropped != null && dropped.factors() != null) {
+                Factors factors = dropped.factors();
+                boolean multiplies = side == ExpressionBuilder.Op.MULTIPLY;
+                String shown = multiplies ? factors.piece().multiplier() : factors.piece().divisor();
+                List<Integer> path = dropped.path();
+                openSide(shown, side, (op, factor) -> apply(b -> b.setScale(path, op, factor)))
+                        .accept(multiplies ? factors.multiplier() : factors.divisor());
+            }
+        }
+    }
+
+    // The held x or / drawn at the pointer, over everything else.
+    private void drawHeldFactor(GuiGraphicsExtractor graphics, Font font) {
+        FactorDrag held = factorDragging;
+        if (held != null) {
+            drawHeldLabel(graphics, font, held.side == ExpressionBuilder.Op.MULTIPLY ? TIMES_SIGN : DIVIDE_SIGN,
+                    held.x, held.y);
+        }
     }
 
     /**
@@ -1014,11 +1085,12 @@ final class ExpressionBuilderPane {
         flow.railSegment(railName(path), new Drag(path, piece));
         drawJoinSegment(flow, path, piece);
         drawOperand(flow, path, piece, place);
+        Factors factors = null;
         if (!(piece.operand() instanceof ExpressionBuilder.Kept)
                 && BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            drawRatioSegments(flow, path, piece);
+            factors = drawRatioSegments(flow, path, piece);
         }
-        boxes.add(new TermBox(path, flow.closeSegments()));
+        boxes.add(new TermBox(path, flow.closeSegments(), BuilderGrammar.takesFactor(piece) ? factors : null));
     }
 
     // A reference's or a sum's factor as its multiplier's and divisor's segments, each side a number box setting its
@@ -1027,11 +1099,25 @@ final class ExpressionBuilderPane {
     // Decision factor-reads-as-a-ratio.
     // Decision ratio-holds-multiplier-and-divisor-together.
     // Decision ratio-colon-takes-no-spaces.
-    private void drawRatioSegments(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
+    private Factors drawRatioSegments(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
         ScaleChange change = (op, factor) -> apply(b -> b.setScale(path, op, factor));
-        ratioSegment(flow, piece.multiplier(), MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
+        BuilderOverlays.Anchor multiplier = ratioSegment(flow, piece.multiplier(), MULTIPLIER_HINT,
+                ExpressionBuilder.Op.MULTIPLY, change);
         flow.textBetweenSegments(RATIO, GRAY);
-        ratioSegment(flow, piece.divisor(), DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
+        BuilderOverlays.Anchor divisor = ratioSegment(flow, piece.divisor(), DIVISOR_HINT,
+                ExpressionBuilder.Op.DIVIDE, change);
+        return new Factors(piece, multiplier, divisor);
+    }
+
+    /**
+     * Where a term's factor sides stand, so a bay drop opens a side's number box where a click on it would.
+     *
+     * @param piece      the term
+     * @param multiplier where its multiplier's box opens
+     * @param divisor    where its divisor's box opens
+     */
+    private record Factors(ExpressionBuilder.Piece piece, BuilderOverlays.Anchor multiplier,
+                           BuilderOverlays.Anchor divisor) {
     }
 
     // The runs a plain term's operand segment holds, which set the container's height.
@@ -1120,10 +1206,20 @@ final class ExpressionBuilderPane {
     /**
      * Where a term drew, which the () handle wraps when dropped inside it.
      *
-     * @param path the term's place
-     * @param box  the box it spans
+     * @param path    the term's place
+     * @param box     the box it spans
+     * @param factors where its factor's sides stand, null where the bay's x and / scale it not
      */
-    private record TermBox(List<Integer> path, GroupsPane.Bounds box) {
+    private record TermBox(List<Integer> path, GroupsPane.Bounds box, @Nullable Factors factors) {
+        // Decision x-and-slash-drag-from-the-bay-onto-a-term: a reference or a parenthetical takes the bay's x and /.
+        boolean takesFactor() {
+            return factors != null;
+        }
+
+        DragMask.Rect rect() {
+            return new DragMask.Rect(box.left(), box.top(), box.right(), box.bottom());
+        }
+
         boolean holds(double x, double y) {
             return x >= box.left() && x < box.right() && y >= box.top() && y < box.bottom();
         }
@@ -1313,15 +1409,16 @@ final class ExpressionBuilderPane {
         slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor(), place,
                 path.getLast()));
         int right = container.right();
+        Factors factors = null;
         if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
             flow.openSegments(ControlFlow.abutted(ratioWidths(letters, piece).stream().mapToInt(Integer::intValue)
                     .toArray()), height);
-            drawRatioSegments(flow, path, piece);
+            factors = drawRatioSegments(flow, path, piece);
             right = Math.max(right, flow.closeSegments().right());
         }
         flow.boxed(container, nestTone(depthOf(path, place)), NEST_BORDER);
         boxes.add(new TermBox(path, new GroupsPane.Bounds(lead.left(), Math.min(lead.top(), container.top()), right,
-                Math.max(lead.bottom(), container.bottom()))));
+                Math.max(lead.bottom(), container.bottom())), factors));
     }
 
     /**
@@ -1333,9 +1430,9 @@ final class ExpressionBuilderPane {
     }
 
     // A multiplier or divisor, a segment of its term's or ratio's run.
-    private void ratioSegment(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op side,
-                              ScaleChange change) {
-        flow.labelSegment(shown, hint, openSide(shown, side, change));
+    private BuilderOverlays.Anchor ratioSegment(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op side,
+                                                ScaleChange change) {
+        return flow.labelSegment(shown, hint, openSide(shown, side, change));
     }
 
     // A side committed unchanged changes nothing.

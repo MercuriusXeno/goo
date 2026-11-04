@@ -973,12 +973,15 @@ final class ControlFlow {
      * @param label   its label
      * @param hint    what it does, shown on hover
      * @param pressed takes where it was clicked
+     * @return where the segment stands, which its click hands pressed, so a popup opened for it another way stands
+     *     where its click's would
      */
-    void labelSegment(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
+    BuilderOverlays.Anchor labelSegment(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
         ButtonPainter.Box box = nextSegment(ButtonPainter.width(letters, label));
         ButtonPainter.drawLabel(graphics, letters, label, box, LINK);
-        ButtonPainter.reserve(targets, box, () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)),
-                BuilderOverlays.hintKey(hint));
+        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+        ButtonPainter.reserve(targets, box, () -> pressed.accept(at), BuilderOverlays.hintKey(hint));
+        return at;
     }
 
     /**

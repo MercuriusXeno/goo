@@ -168,6 +168,15 @@ final class BuilderGrammar {
 
     /**
      * @param piece a term
+     * @return whether the bay's x and / scale it: a reference or a parenthetical, never a bare number, which the
+     *     grammar scales not (decision x-and-slash-drag-from-the-bay-onto-a-term)
+     */
+    static boolean takesFactor(ExpressionBuilder.Piece piece) {
+        return piece.operand() instanceof ExpressionBuilder.Ref || piece.operand() instanceof ExpressionBuilder.Nest;
+    }
+
+    /**
+     * @param piece a term
      * @return how its factor shows
      */
     static Factor factorOf(ExpressionBuilder.Piece piece) {
