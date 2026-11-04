@@ -188,16 +188,8 @@ final class ClickTargets {
      * @return whether an overlay takes a press there before any widget behind it
      */
     boolean overlayAt(double x, double y) {
-        int firstShield = 0;
-        while (firstShield < targets.size() && !targets.get(firstShield).actions().shield()) {
-            firstShield++;
-        }
-        for (int index = targets.size() - 1; index > firstShield; index--) {
-            if (targets.get(index).contains(x, y)) {
-                return true;
-            }
-        }
-        return false;
+        return targets.stream().dropWhile(target -> !target.actions().shield()).skip(1)
+                .anyMatch(target -> target.contains(x, y));
     }
 
     /**
