@@ -97,14 +97,14 @@ class ValuesTabTest {
         }
 
         /**
-         * The filters read Items, Uncovered and Fractional; a blank search lists every item and no tag under Items,
+         * The filters read Items, Uncovered, Fractional and Negative; a blank search lists every item and no tag under Items,
          * while entries() still answers each item tag after #, named by its member count, for the pickers
          * (decision items-selector-set-reads-items-and-uncovered).
          */
         @Test
         void blankSearchListsItemsAndTagsUnderTheirFilters() {
-            assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL),
-                    List.of(ValuesTab.Filter.values()));
+            assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL,
+                    ValuesTab.Filter.NEGATIVE), List.of(ValuesTab.Filter.values()));
             assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
             List<ValuesTab.ManagerEntry> tags = tab.entries().stream().filter(ValuesTab.ManagerEntry::tag).toList();
             assertEquals(List.of("#minecraft:logs"), ids(tags));
@@ -134,6 +134,23 @@ class ValuesTabTest {
                     """);
             tab.filter(ValuesTab.Filter.FRACTIONAL);
             assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
+        }
+
+        /**
+         * The Negative filter lists the items where any one goo type's amount reads below zero, whole or n/d,
+         * leaving out items whose every amount is zero or above and every tag, and counts them for its chip
+         * (decision items-filter-set-takes-a-negative-chip).
+         */
+        @Test
+        void negativeFilterListsTheItemsWithAnAmountBelowZero() {
+            tab.readResolved("""
+                    {"entries": [{"key": "stick", "value": {"leaf": "-174", "jelly": "180"}, "denied": false},
+                                 {"key": "torch", "value": {"glow": "-3/2"}, "denied": false},
+                                 {"key": "goo:gasket", "value": {"metal": "4", "leaf": "0"}, "denied": false}]}
+                    """);
+            tab.filter(ValuesTab.Filter.NEGATIVE);
+            assertEquals(List.of("minecraft:stick", "minecraft:torch"), ids(tab.listed()));
+            assertEquals(2, tab.negativeCount());
         }
     }
 
