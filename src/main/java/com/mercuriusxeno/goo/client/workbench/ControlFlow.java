@@ -346,7 +346,7 @@ final class ControlFlow {
         reserve(FRAME + openInk + CLEAR);
         int left = x;
         lineOverhang = Math.max(lineOverhang, reachPast(contentHeight));
-        parens.draw(graphics, open, left + FRAME, contentTop(contentHeight), color);
+        parens.drawFlat(graphics, open, left + FRAME, contentTop(contentHeight), color);
         x = left + FRAME + openInk + CLEAR;
         return new OpenParenthetical(left, y, contentHeight, parens);
     }
@@ -365,7 +365,7 @@ final class ControlFlow {
         x += CLEAR - GAP;
         reserve(closeInk + FRAME);
         int contentHeight = opened.contentHeight();
-        opened.parens().draw(graphics, close, x, contentTop(contentHeight), color);
+        opened.parens().drawFlat(graphics, close, x, contentTop(contentHeight), color);
         int boxRight = x + closeInk + FRAME;
         lineOverhang = Math.max(lineOverhang, reachPast(contentHeight));
         int top = opened.lineTop() - (contentHeight - line) / HALF - FRAME;

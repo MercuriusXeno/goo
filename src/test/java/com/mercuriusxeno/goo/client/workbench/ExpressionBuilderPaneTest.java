@@ -1087,6 +1087,8 @@ class ExpressionBuilderPaneTest {
         for (String paren : List.of("(", ")")) {
             DrawnFrame.Placed drawn = frame.placed(paren);
             assertFalse(drawn.bold(), paren + " draws bold");
+            // The operator's ruling of 2026-11-04: the shadow under a paren looks wrong.
+            assertFalse(drawn.shadow(), paren + " draws a drop shadow");
             assertTrue(drawn.scale() > term, paren + " at " + drawn.scale() + " against the term's " + term);
         }
     }

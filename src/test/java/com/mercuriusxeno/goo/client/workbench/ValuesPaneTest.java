@@ -390,8 +390,8 @@ class ValuesPaneTest {
         verify(frame.graphics).fill(selected.left() + 1, selected.top() + 1, selected.left() + selected.width() - 1,
                 selected.top() + selected.height() - 1, 0xFFFFFFFF);
         assertNotEquals(0xFFFFFFFF, (int) colors.getValue(), "the label contrasts its white fill");
-        assertEquals(List.of(), frame.texts().stream().filter("Items"::equals).toList(),
-                "no shadowed Items label draws under it");
+        assertEquals(List.of(), frame.placements().stream().filter(placed -> placed.text().equals("Items")
+                && placed.shadow()).toList(), "no shadowed Items label draws under it");
     }
 
     private static Font sixPixelFont() {
