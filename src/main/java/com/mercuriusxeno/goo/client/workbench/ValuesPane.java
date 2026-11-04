@@ -59,6 +59,8 @@ final class ValuesPane {
     private static final int GRAY = 0xFFA0A0A0;
     /** The color of no value, the one red source. */
     static final int RED = 0xFFFF5555;
+    // The break a loader error wraps at.
+    private static final String WORD_BREAK = " ";
     private static final int GREEN = 0xFF80E080;
     private static final int DERIVED_COLOR = 0xFFA0C8F0;
     /** The room between two runs of an Items row's value. */
@@ -360,9 +362,8 @@ final class ValuesPane {
         if (entered) {
             drawRemoval(graphics, font, entry.id(), row.right(), expressionTop, targets);
         }
-        if (!shown.error().isEmpty()) {
-            graphics.text(font, font.plainSubstrByWidth(shown.error(), expression.right() - expression.left()),
-                    expression.left(), expressionTop + height, RED);
+        for (String line : errorLines(font, shown.error(), expression.right() - expression.left())) {
+            graphics.text(font, line, expression.left(), expressionTop + height, RED);
             height += LINE_HEIGHT;
         }
         // Decision spacing-rules-are-one-set-across-every-pane: the x keeps the rule gap over the rule below.
@@ -438,7 +439,8 @@ final class ValuesPane {
     }
 
     // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right: the values' shared column
-    // stands one gap past the widest name the list draws, then "=" and a gap, so every value starts at one x.
+    // stands one gap past the widest name the list draws, then the item's sprite, "=" and a gap each, so every value
+    // starts at one x.
     // Measured again only when the listed rows or the row width change.
     private void measureRecipeColumn(Font font, List<ValuesTab.ManagerEntry> listed, int rowWidth) {
         ColumnInputs inputs = new ColumnInputs(rowWidth, listed);
@@ -452,7 +454,7 @@ final class ValuesPane {
             int width = font.width(entry.name());
             widest = Math.max(widest, width <= cap ? width : font.width(headName(font, entry, rowWidth)));
         }
-        valueColumn = ROW_PAD + widest + HEAD_GAP + font.width(EQUALS) + ICON_GAP;
+        valueColumn = ROW_PAD + widest + HEAD_GAP + ICON_SIZE + ICON_GAP + font.width(EQUALS) + ICON_GAP;
     }
 
     private Map<String, String> worthShown(String id, ValuesTab.Source source) {
@@ -531,9 +533,11 @@ final class ValuesPane {
         return worth.isEmpty() ? 0 : width - RUN_STEP;
     }
 
-    // "=" just left of the value column and the goo value after it, or the no-value or denied words in its place.
+    // The item's own sprite and "=" just left of the value column and the goo value after it, or the sprite and the
+    // no-value or denied words in the value's place.
     private void drawValue(GuiGraphicsExtractor graphics, Font font, String id, ValuesTab.Source shown, int left,
                            HeadLine line, ClickTargets targets) {
+        graphics.item(icons.of(id), left - ICON_GAP - font.width(EQUALS) - ICON_GAP - ICON_SIZE, line.spriteTop());
         if (!carriesRuns(shown.kind())) {
             String label = font.plainSubstrByWidth(headLabel(shown), Math.max(1, line.right() - left));
             graphics.text(font, label, left, line.textTop(), colorOf(shown.kind()));
@@ -844,7 +848,28 @@ final class ValuesPane {
     private int measureRow(Font font, ValuesTab.ManagerEntry entry, ValuesTab.EntryRow row, int width) {
         int expression = ReadValueButton.height(font, expressionRuns(row), expressionWidth(font, entry, width));
         int head = placeHead(font, entry, new GroupsPane.Bounds(0, 0, width, 0)).height();
-        return head + expression + (row.error().isEmpty() ? 0 : LINE_HEIGHT) + RowLayout.RULE_SPAN;
+        int error = errorLines(font, row.error(), expressionWidth(font, entry, width)).size() * LINE_HEIGHT;
+        return head + expression + error + RowLayout.RULE_SPAN;
+    }
+
+    // A loader error's lines, wrapped at word breaks to the room given, so the whole error reads inside the row; a
+    // word wider than the room stands on a line of its own, cut to it.
+    static List<String> errorLines(Font font, String error, int width) {
+        List<String> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : error.split(WORD_BREAK)) {
+            String joined = line.isEmpty() ? word : line + WORD_BREAK + word;
+            if (!line.isEmpty() && font.width(joined) > width) {
+                lines.add(line.toString());
+                line = new StringBuilder(word);
+            } else {
+                line = new StringBuilder(joined);
+            }
+        }
+        if (!line.isEmpty()) {
+            lines.add(line.toString());
+        }
+        return lines.stream().map(wrapped -> font.plainSubstrByWidth(wrapped, width)).toList();
     }
 
     // The entry's value curated, a plain left click on it opening the builder in its place, with the row selected,
@@ -873,7 +898,8 @@ final class ValuesPane {
     }
 
     // The builder's Cancel writes back the text it opened on; for an item that had no entry that text is blank, and
-    // the entry the edit added drops rather than standing blank.
+    // the entry the edit added drops rather than standing blank. Every write goes to the entry the builder opened
+    // over, whatever row the list selects meanwhile.
     // Decision cancelling-a-new-entry-leaves-nothing.
     private void openBuilder(ValuesTab.EntryRow row) {
         values.select(row.id());
@@ -883,7 +909,7 @@ final class ValuesPane {
             if (!hadEntry && typed.isBlank()) {
                 values.dropEntry(row.id());
             } else {
-                values.edit(typed);
+                values.edit(row.id(), typed);
             }
             actions.markUnsaved();
         }, () -> {

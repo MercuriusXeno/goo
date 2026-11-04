@@ -339,7 +339,7 @@ class MutatorControlsTest {
             // Decision iterator-reads-copies-then-mutates-using-and: the words right pack, ending at one x.
             assertEquals(then.x() + DrawnFrame.font().width(then.text()), and.x() + DrawnFrame.font().width(and.text()),
                     frame.drawn().toString());
-            assertEquals(List.of(source.y() + ControlFlow.LINE, then.y() + ControlFlow.LINE),
+            assertEquals(List.of(source.y() + ControlFlow.FULL_LINE, then.y() + ControlFlow.FULL_LINE),
                     List.of(then.y(), and.y()), frame.drawn().toString());
             assertEquals(List.of(then.y(), and.y()), List.of(smelt.y(), melt.y()), frame.drawn().toString());
             assertTrue(smelt.x() > then.x() && melt.x() > and.x(), frame.drawn().toString());
@@ -350,7 +350,7 @@ class MutatorControlsTest {
             assertEquals(melt.y(), removes.get(1).y());
             assertTrue(removes.get(1).x() > melt.x());
             DrawnFrame.Text add = frame.find("+ optional mutation");
-            assertEquals(melt.y() + ControlFlow.LINE, add.y(), add + " vs " + melt);
+            assertEquals(melt.y() + ControlFlow.FULL_LINE, add.y(), add + " vs " + melt);
             int firstHeight = bottom;
             frame("#gems", List.of("@rust", "@melt"));
             assertEquals(firstHeight, bottom, "two-link chains take equal heights");

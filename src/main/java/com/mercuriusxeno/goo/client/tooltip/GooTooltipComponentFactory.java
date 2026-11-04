@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.tooltip;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.workbench.GooAmountGrid;
+import com.mercuriusxeno.goo.client.workbench.MembersTooltipComponent;
 import com.mercuriusxeno.goo.client.workbench.RunsTooltipComponent;
 import com.mercuriusxeno.goo.client.workbench.TooltipLine;
 import net.neoforged.api.distmarker.Dist;
@@ -32,5 +33,7 @@ public final class GooTooltipComponentFactory {
         event.register(TooltipLine.GooAmounts.class, GooAmountGrid::new);
         // decision conversion-controls-hover-their-formula
         event.register(TooltipLine.Runs.class, RunsTooltipComponent::new);
+        // decision group-link-hovers-member-icons-then-plus-n
+        event.register(TooltipLine.Members.class, MembersTooltipComponent::new);
     }
 }

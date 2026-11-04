@@ -22,8 +22,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * One frame a pane drew onto mocked graphics with a mocked font six pixels a character wide: the texts it drew, as
- * strings or as styled Components, where each stood, in which color and whether bold, and its click areas, so a test
- * clicks a control by its label.
+ * strings or as styled Components, where each stood, at what scale, in which color, whether bold and whether with a
+ * drop shadow, and its click areas, so a test clicks a control by its label.
  */
 final class DrawnFrame {
     final GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
@@ -41,6 +41,11 @@ final class DrawnFrame {
             return null;
         }).when(graphics).text(any(Font.class), anyString(), anyInt(), anyInt(), anyInt());
         doAnswer(call -> {
+            place(call.getArgument(1), false, call.getArgument(2), call.getArgument(3), call.getArgument(4),
+                    call.getArgument(5));
+            return null;
+        }).when(graphics).text(any(Font.class), anyString(), anyInt(), anyInt(), anyInt(), anyBoolean());
+        doAnswer(call -> {
             Component styled = call.getArgument(1);
             place(styled.getString(), styled.getStyle().isBold(), call.getArgument(2), call.getArgument(3),
                     call.getArgument(4));
@@ -48,14 +53,21 @@ final class DrawnFrame {
         }).when(graphics).text(any(Font.class), any(Component.class), anyInt(), anyInt(), anyInt());
     }
 
+    // Records a text where it landed on the screen, the pose it drew under applied.
     private void place(String text, boolean bold, int x, int y, int color) {
+        place(text, bold, x, y, color, true);
+    }
+
+    // The font's plain text call draws a drop shadow; the call naming the shadow draws one only where asked.
+    private void place(String text, boolean bold, int x, int y, int color, boolean shadow) {
         Matrix3x2fStack pose = graphics.pose();
         // A mocked pose a test swaps in answers zeros, which reads as no pose at all.
         boolean posed = pose != null && pose.m00() != 0;
         float scale = posed ? pose.m00() : 1;
         float left = posed ? pose.m20() : 0;
         float top = posed ? pose.m21() : 0;
-        placed.add(new Placed(text, scale, Math.round(left + scale * x), Math.round(top + scale * y), color, bold));
+        placed.add(new Placed(text, scale, bold, Math.round(left + scale * x), Math.round(top + scale * y), color,
+                shadow));
     }
 
     /**
@@ -69,14 +81,15 @@ final class DrawnFrame {
     /**
      * One text as it landed on the screen, the pose it drew under applied.
      *
-     * @param text  the string
-     * @param scale the pose's scale
-     * @param x     its left edge on the screen
-     * @param y     its top edge on the screen
-     * @param color its color
-     * @param bold  whether it drew as a Component styled bold
+     * @param text   the string
+     * @param scale  the pose's scale
+     * @param bold   whether it drew as a Component styled bold
+     * @param x      its left edge on the screen
+     * @param y      its top edge on the screen
+     * @param color  its color
+     * @param shadow whether it drew with the font's drop shadow
      */
-    record Placed(String text, float scale, int x, int y, int color, boolean bold) {
+    record Placed(String text, float scale, boolean bold, int x, int y, int color, boolean shadow) {
     }
 
     /**
@@ -87,6 +100,13 @@ final class DrawnFrame {
         List<Placed> matches = placed.stream().filter(text -> text.text().equals(label)).toList();
         assertTrue(!matches.isEmpty(), label + " not drawn in " + texts());
         return matches.getLast();
+    }
+
+    /**
+     * @return every text as it landed on the screen, in drawing order
+     */
+    List<Placed> placements() {
+        return List.copyOf(placed);
     }
 
     /** The mocked screen's width. */
@@ -103,6 +123,57 @@ final class DrawnFrame {
      * @param color its color
      */
     record Text(String text, int x, int y, int color) {
+    }
+
+    /**
+     * @param label a text drawn inside a button
+     * @return the smallest button border around the text's top-left, as left, top, right and bottom, since a lettered
+     *     label centers in its button rather than standing a fixed padding in
+     */
+    int[] buttonAround(Text label) {
+        return buttonAround(label.x(), label.y());
+    }
+
+    /**
+     * @param x a point's x
+     * @param y a point's y
+     * @return the smallest button border around the point, as left, top, right and bottom, as a segment holding an
+     *     icon stands around the icon
+     */
+    int[] buttonAround(int x, int y) {
+        // A button's border, or a button's fill grown by the pixel a border takes, as a term's segment fills between
+        // its seams with no border of its own (decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
+        List<int[]> boxes = new ArrayList<>(fillsOf(ButtonPainter.BORDER));
+        fillsOf(ButtonPainter.FILL).forEach(fill -> boxes.add(new int[] {fill[0] - 1, fill[1] - 1, fill[2] + 1,
+            fill[3] + 1}));
+        int[] around = null;
+        for (int[] box : boxes) {
+            boolean holds = box[0] <= x && x < box[2] && box[1] <= y && y < box[3];
+            if (holds && (around == null || box[2] - box[0] < around[2] - around[0])) {
+                around = box;
+            }
+        }
+        assertTrue(around != null, "no button around " + x + "," + y);
+        return around;
+    }
+
+    /**
+     * @param color a fill's color
+     * @return each fill drawn in it, as left, top, right and bottom
+     */
+    List<int[]> fillsOf(int color) {
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics, atLeast(0)).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
+                org.mockito.ArgumentMatchers.eq(color));
+        List<int[]> fills = new ArrayList<>();
+        for (int index = 0; index < lefts.getAllValues().size(); index++) {
+            fills.add(new int[] {lefts.getAllValues().get(index), tops.getAllValues().get(index),
+                rights.getAllValues().get(index), bottoms.getAllValues().get(index)});
+        }
+        return fills;
     }
 
     /**

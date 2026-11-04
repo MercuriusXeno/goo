@@ -192,12 +192,21 @@ class ValuesPaneTest {
         private static final int ROW_HEIGHT_OF_LINE = 9;
         private static final int AMOUNT_DROP = 3;
 
-        // The shared column every value starts at: one gap past the widest name, then "=" and a gap.
+        // The shared column every value starts at: one gap past the widest name, then the item's sprite, "=" and a
+        // gap each.
         private int valueColumn() {
             int widest = List.of("Stick", "Oak Planks", "Gravel", "Cobblestone").stream()
                     .mapToInt(DrawnFrame.font()::width).max().orElseThrow();
-            return PANE.left() + ValuesPane.ROW_PAD + widest + ValuesPane.HEAD_GAP + DrawnFrame.font().width("=")
-                    + ValuesPane.ICON_GAP;
+            return PANE.left() + ValuesPane.ROW_PAD + widest + ValuesPane.HEAD_GAP + RowLayout.SPRITE_SIZE
+                    + ValuesPane.ICON_GAP + DrawnFrame.font().width("=") + ValuesPane.ICON_GAP;
+        }
+
+        // The item's own sprite stands between its name and its "=".
+        private static void assertOwnSpriteBetweenNameAndEquals(DrawnFrame.Text name, DrawnFrame.Text equals,
+                                                                int sprite) {
+            assertTrue(sprite >= name.x() + DrawnFrame.font().width(name.text())
+                    && sprite + RowLayout.SPRITE_SIZE <= equals.x(), "the sprite at " + sprite + " between " + name
+                    + " and " + equals);
         }
 
         // Each goo icon's x drawn on the line at a y.
@@ -217,9 +226,9 @@ class ValuesPaneTest {
         }
 
         /**
-         * A derived row reads its name, =, its goo value at the shared value column, and its recipe right packed at
-         * the row's right with no sprite or = before it; an explicit entry draws its value and no recipe piece
-         * (decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right).
+         * A derived row reads its name, its own sprite, =, its goo value at the shared value column, and its recipe
+         * right packed at the row's right with no sprite or = before it; an explicit entry draws its sprite and value
+         * and no recipe piece (decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right).
          */
         @Test
         void rowReadsItemEqualsGooValuesThenTheRecipeAtTheFarRight() {
@@ -233,10 +242,13 @@ class ValuesPaneTest {
                     && equals.x() + DrawnFrame.font().width("=") < valueColumn(), "= between the name and the value");
             assertEquals(List.of(valueColumn()), gooIconXsAround(frame, planks.y()), "the value at the column");
             List<Integer> sprites = itemXsAround(frame, planks.y());
-            assertEquals(1, sprites.size(), "the log input alone, no planks sprite: " + sprites);
-            assertEquals(LIST_RIGHT, sprites.getFirst() + RowLayout.SPRITE_SIZE + 1, "the recipe at the far right");
+            assertEquals(2, sprites.size(), "the planks sprite and the log input: " + sprites);
+            assertOwnSpriteBetweenNameAndEquals(planks, equals, sprites.getFirst());
+            assertEquals(LIST_RIGHT, sprites.getLast() + RowLayout.SPRITE_SIZE + 1, "the recipe at the far right");
             DrawnFrame.Text stick = frame.find("Stick");
-            assertEquals(List.of(), itemXsAround(frame, stick.y()), "an explicit entry draws no recipe piece");
+            List<Integer> stickSprites = itemXsAround(frame, stick.y());
+            assertEquals(1, stickSprites.size(), "an explicit entry's own sprite alone, no recipe piece");
+            assertOwnSpriteBetweenNameAndEquals(stick, onLine(frame, stick).get(1), stickSprites.getFirst());
             assertEquals(List.of(valueColumn()), gooIconXsAround(frame, stick.y()), "its value at the column");
             assertTrue(frame.texts().stream().noneMatch(text -> text.equals("|") || text.equals("✔")
                     || text.equals("?")), frame.texts().toString());
@@ -273,7 +285,8 @@ class ValuesPaneTest {
             DrawnFrame.Text planks = frame.find("Oak Planks");
             assertEquals(List.of("Oak Planks", "=", "2"), onLine(frame, planks).stream().map(DrawnFrame.Text::text)
                     .toList(), frame.drawn().toString());
-            assertEquals(List.of(), itemXsAround(frame, planks.y()), "the recipe left the name line");
+            assertEquals(1, itemXsAround(frame, planks.y()).size(), "the recipe left the name line, its own sprite "
+                    + "stays: " + itemXsAround(frame, planks.y()));
             List<Integer> dropped = itemXsAround(frame, planks.y() + ValuesPane.ROW_HEIGHT);
             assertEquals(1, dropped.size(), "the recipe on the second line: " + dropped);
             assertEquals(listRight, dropped.getFirst() + RowLayout.SPRITE_SIZE + 1, "still at the far right");
@@ -297,7 +310,7 @@ class ValuesPaneTest {
             assertTrue(builder.isOpen());
             DrawnFrame open = frame();
             DrawnFrame.Text kind = open.find(ControlFlow.dropdownLabel("by type"));
-            assertEquals(gravel.x() - ButtonPainter.PADDING, kind.x() - ButtonPainter.PADDING, kind + " vs " + gravel);
+            assertEquals(gravel.x() - ButtonPainter.PADDING, open.buttonAround(kind)[0], kind + " vs " + gravel);
         }
 
         // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
@@ -377,8 +390,8 @@ class ValuesPaneTest {
         verify(frame.graphics).fill(selected.left() + 1, selected.top() + 1, selected.left() + selected.width() - 1,
                 selected.top() + selected.height() - 1, 0xFFFFFFFF);
         assertNotEquals(0xFFFFFFFF, (int) colors.getValue(), "the label contrasts its white fill");
-        assertEquals(List.of(), frame.texts().stream().filter("Items"::equals).toList(),
-                "no shadowed Items label draws under it");
+        assertEquals(List.of(), frame.placements().stream().filter(placed -> placed.text().equals("Items")
+                && placed.shadow()).toList(), "no shadowed Items label draws under it");
     }
 
     private static Font sixPixelFont() {
@@ -536,6 +549,80 @@ class ValuesPaneTest {
                     + "\"leaf\": \"$dye.leaf - ($saturation.jelly * 12) + $food.jelly\"}", written(),
                     "dragged from the parenthetical at " + after[0]);
         }
+    }
+
+    /**
+     * The builder writes to the entry it opened over, whatever row the list selects while it stands open: the
+     * operator, editing beetroot soup, saw the soup's value land in beetroot's entry.
+     */
+    @org.junit.jupiter.api.Nested
+    class BuilderWritesItsOwnEntry {
+        private static final String BEETROOT = "minecraft:beetroot";
+        private static final String SOUP = "minecraft:beetroot_soup";
+
+        @Test
+        void editAfterSelectingAnotherRowLandsOnTheOpenedEntry() {
+            ValuesTab values = new ValuesTab();
+            values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName(BEETROOT, "Beetroot"),
+                    new ManagerEntrySource.ItemName(SOUP, "Beetroot Soup")), List.of()));
+            values.readModel("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "beetroot", "keySeparator": null, "kind": "VALUE", "text": "4", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null},
+                      {"key": "beetroot_soup", "keySeparator": null, "kind": "VALUE", "text": "6", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null}]}
+                    """);
+            ManagerActions actions = mock(ManagerActions.class);
+            ItemIcons icons = mock(ItemIcons.class);
+            ValuesPane pane = new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons,
+                    List::of, List::of));
+            DrawnFrame read = new DrawnFrame();
+            pane.extract(read.graphics, DrawnFrame.font(), SHORT_VIEW, read.targets);
+            read.click("6");
+            DrawnFrame building = new DrawnFrame();
+            pane.extract(building.graphics, DrawnFrame.font(), SHORT_VIEW, building.targets);
+            building.click("Beetroot");
+            DrawnFrame selected = new DrawnFrame();
+            pane.extract(selected.graphics, DrawnFrame.font(), SHORT_VIEW, selected.targets);
+            assertTrue(selected.texts().contains("✗ Cancel"), "the builder stands open: " + selected.texts());
+            selected.clickFirst("+");
+            assertEquals(List.of("4", "-6"), List.of(values.rowOf(BEETROOT).expression(),
+                    values.rowOf(SOUP).expression()), "beetroot's and the soup's values after the soup's edit");
+        }
+    }
+
+    /**
+     * An Items row's loader error wraps onto as many lines as it takes inside the row, so the whole error reads: the
+     * operator saw beetroot's error run off the screen.
+     */
+    @Test
+    void longRowErrorWrapsWhole() {
+        String error = "beetroot: unrecognized token 'beetroot'; beetroot: unrecognized token 'bowl'";
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName("minecraft:beetroot",
+                "Beetroot")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "beetroot", "keySeparator": null, "kind": "VALUE", "text": "\\"beetroot + bowl\\"",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "beetroot", "value": null, "denied": false, "error": "%s"}]}
+                """.formatted(error));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
+                List::of));
+        GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 240, 300);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), narrow, frame.targets);
+        List<DrawnFrame.Text> lines = frame.drawn().stream().filter(text -> text.color() == RED
+                && !text.text().equals("✗")).toList();
+        assertEquals(error, lines.stream().map(DrawnFrame.Text::text).collect(Collectors.joining(" ")),
+                "the error's lines read the whole error: " + lines);
+        assertTrue(lines.size() > 1, "the error wraps: " + lines);
+        assertEquals(List.of(), lines.stream().filter(line -> line.x() + line.text().length() * 6 > narrow.right())
+                .toList(), "a line past the row's right edge");
     }
 
     private static final int FOLLOWED_ITEMS = 40;
@@ -788,8 +875,9 @@ class ValuesPaneTest {
         ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), ys.capture());
         long headSprites = ys.getAllValues().stream().filter(y -> Math.abs(y - planks.y()) < LINE_HEIGHT).count();
-        // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right: no planks sprite.
-        assertEquals(1, headSprites, "the log input alone");
+        // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right: the planks' own sprite
+        // before its "=" and the log input at the far right.
+        assertEquals(2, headSprites, "the planks sprite and the log input");
         assertEquals(1, frame.count(ButtonPainter.RESTORE), frame.texts().toString());
         DrawnFrame.Text gravel = frame.find("Gravel");
         assertTrue(frame.find(ButtonPainter.RESTORE).y() < gravel.y(), "the one restore arrow is the planks'");
