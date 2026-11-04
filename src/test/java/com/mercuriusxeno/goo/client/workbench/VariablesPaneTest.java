@@ -579,8 +579,8 @@ class VariablesPaneTest {
 
     /**
      * A typed prefab's name line carries Used by with the stick's icon and the ✗ at the line's right end; below it
-     * Value: reads each type row, and each row carries its own evaluated amount in parentheses at its end
-     * (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
+     * Value: stands beside the amount line, highest first as (6, 4), and each type row below reads its terms with no
+     * amount at its end (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
      */
     @Test
     void typedHeadCarriesUsedByAndEachTypeRowItsOwnAmount() {
@@ -614,11 +614,102 @@ class VariablesPaneTest {
         assertTrue(itemXs.getValue() > usedBy.x(), "the stick's icon follows Used by");
         DrawnFrame.Text value = frame.find("Value:");
         assertTrue(value.y() > name.y(), value + " below " + name);
-        DrawnFrame.Text leaf = frame.find("(4)");
-        DrawnFrame.Text glow = frame.find("(6)");
-        assertTrue(leaf.y() >= value.y() && glow.y() > leaf.y(), frame.drawn().toString());
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("4") && text.y() == leaf.y()
-                && text.x() < leaf.x()), frame.drawn().toString());
+        DrawnFrame.Text glowAmount = frame.find("(6,");
+        DrawnFrame.Text leafAmount = frame.find("4)");
+        assertEquals(List.of(value.y(), value.y()), List.of(glowAmount.y(), leafAmount.y()), frame.drawn().toString());
+        DrawnFrame.Text leafRow = frame.find("4");
+        DrawnFrame.Text glowRow = frame.find("6");
+        assertTrue(value.y() < leafRow.y() && leafRow.y() < glowRow.y(), frame.drawn().toString());
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() > value.y()
+                && (text.text().contains("(") || text.text().contains(")"))), frame.drawn().toString());
+    }
+
+    // A prefab of four type rows, each a plain amount, resolving to the four amounts typedPreview's does.
+    private static VariablesPane fourTypeRows() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "trim", "keySeparator": null, "kind": "VALUE",
+                     "text": "{\\"rock\\": 192, \\"yore\\": 336, \\"opulent\\": 32256, \\"crystal\\": 96768}",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "trim", "kind": "tree", "tree": {"rock": "192", "yore": "336",
+                                "opulent": "32256", "crystal": "96768"}, "value": null, "error": null,
+                                "direct": [], "usedBy": [], "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        return new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    private static final List<String> FOUR_AMOUNTS = List.of("(96768,", "32256,", "336,", "192)");
+
+    /**
+     * A typed prefab's amounts stand on Value:'s line above its type rows, each type's icon beside its amount, and
+     * no type row's line carries a paren (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount; the
+     * operator's ruling of 2026-11-04 stands Value: beside the amounts).
+     */
+    @Test
+    void typedValueDrawsItsAmountsOnTheirOwnLineAboveTheExpression() {
+        DrawnFrame frame = new DrawnFrame();
+        fourTypeRows().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, 2000, 400),
+                frame.targets, 0, 0);
+        DrawnFrame.Text value = frame.find("Value:");
+        List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::find).toList();
+        assertEquals(value.y(), amounts.getFirst().y(), frame.drawn().toString());
+        List<Integer> rowLines = frame.drawn().stream().filter(text -> text.text().equals(":"))
+                .map(DrawnFrame.Text::y).toList();
+        assertEquals(4, rowLines.size(), frame.drawn().toString());
+        int firstRow = rowLines.stream().mapToInt(Integer::intValue).min().orElseThrow();
+        assertTrue(amounts.stream().allMatch(amount -> amount.y() < firstRow), amounts + " vs row " + firstRow);
+        assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT,
+                firstRow - ExpressionLines.ICON_LINE_HEIGHT / 2), frame.drawn().toString());
+        assertTrue(frame.drawn().stream().noneMatch(text -> rowLines.contains(text.y())
+                && (text.text().contains("(") || text.text().contains(")"))), frame.drawn().toString());
+    }
+
+    /**
+     * An expression prefab's amount draws in parentheses on Value:'s line and the expression on the line below,
+     * which holds no paren (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
+     */
+    @Test
+    void scalarExpressionDrawsItsAmountOnItsOwnLineAboveTheExpression() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null},
+                    {"key": "beam", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood * 24\\"", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "wood", "kind": "scalar", "value": "8", "error": null},
+                               {"name": "beam", "kind": "scalar", "value": "192", "error": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text beamValue = frame.drawn().stream().filter(text -> text.text().equals("Value:"))
+                .reduce((first, last) -> last).orElseThrow();
+        DrawnFrame.Text amount = frame.find("(192)");
+        DrawnFrame.Text wood = linkText(frame, "$wood");
+        assertEquals(beamValue.y(), amount.y(), frame.drawn().toString());
+        assertTrue(wood.y() > amount.y(), wood + " below " + amount);
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() == wood.y() && text.text().contains("(")),
+                frame.drawn().toString());
     }
 
     /**
@@ -679,35 +770,48 @@ class VariablesPaneTest {
         DrawnFrame.Text value = frame.find("Value:");
         assertTrue(frame.texts().stream().noneMatch(text -> PREVIEWED_TYPES.stream().anyMatch(text::contains)),
                 frame.texts().toString());
+        // The amount line lays its four icons in two rows (decision
+        // prefab-head-is-name-pencil-used-by-then-value-with-its-amount), so the second row stands an icon line down.
         assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT,
-                value.y() + ButtonPainter.HEIGHT), frame.drawn().toString());
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().startsWith("192") && text.y() == value.y()),
+                value.y() + ExpressionLines.ICON_LINE_HEIGHT + ButtonPainter.HEIGHT), frame.drawn().toString());
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().startsWith("(96768") && text.y() == value.y()),
                 frame.drawn().toString());
     }
 
     /**
-     * At every width the preview's closing paren draws with its last amount, never alone on a line, and at some
-     * width that pair wraps below the first amount (decision prefab-head-is-name-pencil-used-by-then-value-with-its-
-     * amount).
+     * At every width the four amounts lay as the tooltip's grid, ceil(sqrt(4)) = 2 columns filled row by row, the
+     * second row's icons under the first row's, the open paren on the first amount and the close paren on the last,
+     * never a paren alone (decisions prefab-head-is-name-pencil-used-by-then-value-with-its-amount,
+     * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
      */
     @Test
-    void previewsClosingParenWrapsWithItsLastAmount() {
-        boolean wrapped = false;
+    void typedAmountLineLaysAsTheTooltipGrid() {
         for (int width = 200; width <= 700; width++) {
             int right = width;
             DrawnFrame frame = new DrawnFrame();
             typedPreview().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, right, 4000),
                     frame.targets, 0, 0);
-            assertTrue(frame.drawn().stream().noneMatch(text -> text.text().trim().equals(")")),
-                    "at " + right + ": " + frame.drawn());
-            DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().startsWith("96768"))
-                    .findFirst().orElseThrow(() -> new AssertionError("at " + right + ": " + frame.drawn()));
-            assertTrue(last.text().endsWith(")"), last.toString());
-            DrawnFrame.Text first = frame.drawn().stream().filter(text -> text.text().contains("192"))
-                    .findFirst().orElseThrow();
-            wrapped |= last.y() > first.y();
+            List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::find).toList();
+            assertEquals(List.of(amounts.get(0).y(), amounts.get(2).y()), List.of(amounts.get(1).y(),
+                    amounts.get(3).y()), "at " + right + ": " + amounts);
+            assertTrue(amounts.get(2).y() > amounts.get(0).y(), "at " + right + ": " + amounts);
+            List<int[]> icons = blitsAt(frame);
+            assertEquals(PREVIEWED_TYPES.size(), icons.size(), "at " + right);
+            assertEquals(List.of(icons.get(0)[0], icons.get(1)[0]), List.of(icons.get(2)[0], icons.get(3)[0]),
+                    "at " + right + ": the second row's icons stand under the first's");
+            assertTrue(frame.drawn().stream().noneMatch(text -> text.text().trim().equals("(")
+                    || text.text().trim().equals(")")), "at " + right + ": " + frame.drawn());
         }
-        assertTrue(wrapped, "some width wraps the last amount below the first");
+    }
+
+    // Each goo icon's x and y, in draw order.
+    private static List<int[]> blitsAt(DrawnFrame frame) {
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(), anyFloat(), anyFloat(),
+                anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        return IntStream.range(0, xs.getAllValues().size())
+                .mapToObj(index -> new int[] {xs.getAllValues().get(index), ys.getAllValues().get(index)}).toList();
     }
 
     private static DrawnFrame.Text greenText(DrawnFrame frame, String label) {
