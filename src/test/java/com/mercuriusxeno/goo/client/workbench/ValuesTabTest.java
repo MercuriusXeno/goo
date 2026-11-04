@@ -196,6 +196,16 @@ class ValuesTabTest {
         }
 
         /**
+         * A prefab's Used by icon carries the item's file key, bare for minecraft, and following it opens the item
+         * the key names at its own place in the list, as a namespaced id does.
+         */
+        @Test
+        void openingABareFileKeyFindsItsMinecraftItem() {
+            assertEquals(1, tab.open("torch"));
+            assertEquals("minecraft:torch", tab.selectedRow().orElseThrow().id());
+        }
+
+        /**
          * An item's amounts read from the resolve reply by its namespaced id, empty for an item nothing values.
          */
         @Test
