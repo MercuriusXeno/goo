@@ -97,6 +97,28 @@ class ValuesTabTest {
         }
 
         /**
+         * The items list by their display name ignoring case, ties by id, whatever order the source fed them, the tags
+         * following the items (decision items-tab-lists-items-by-translated-name).
+         */
+        @Test
+        void itemsListByTheirDisplayNameIgnoringCaseTiesById() {
+            ValuesTab fresh = new ValuesTab();
+            fresh.readEntries(new ListedEntrySource(
+                    List.of(new ManagerEntrySource.ItemName("minecraft:zinc", "Zinc"),
+                            new ManagerEntrySource.ItemName("minecraft:apple", "apple"),
+                            new ManagerEntrySource.ItemName("minecraft:bread", "Bread"),
+                            new ManagerEntrySource.ItemName("minecraft:cake", "Cake"),
+                            new ManagerEntrySource.ItemName("goo:cake", "Cake")),
+                    List.of(ListedEntrySource.sizedTag("minecraft:planks", 3))));
+            List<String> order = List.of("minecraft:apple", "minecraft:bread", "goo:cake", "minecraft:cake",
+                    "minecraft:zinc");
+            List<String> withTag = new java.util.ArrayList<>(order);
+            withTag.add("#minecraft:planks");
+            assertEquals(withTag, ids(fresh.entries()));
+            assertEquals(order, ids(fresh.listed()));
+        }
+
+        /**
          * The filters read Items, Uncovered, Fractional and Negative; a blank search lists every item and no tag under Items,
          * while entries() still answers each item tag after #, named by its member count, for the pickers
          * (decision items-selector-set-reads-items-and-uncovered).
@@ -105,7 +127,7 @@ class ValuesTabTest {
         void blankSearchListsItemsAndTagsUnderTheirFilters() {
             assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL,
                     ValuesTab.Filter.NEGATIVE), List.of(ValuesTab.Filter.values()));
-            assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
+            assertEquals(List.of("goo:gasket", "minecraft:stick", "minecraft:torch"), ids(tab.listed()));
             List<ValuesTab.ManagerEntry> tags = tab.entries().stream().filter(ValuesTab.ManagerEntry::tag).toList();
             assertEquals(List.of("#minecraft:logs"), ids(tags));
             assertEquals("2 members", tags.getFirst().name());
@@ -207,7 +229,7 @@ class ValuesTabTest {
         void openingAnItemSelectsItUnderTheItemsFilter() {
             tab.filter(ValuesTab.Filter.UNCOVERED);
             tab.search("logs");
-            assertEquals(2, tab.open("goo:gasket"));
+            assertEquals(0, tab.open("goo:gasket"));
             assertEquals(ValuesTab.Filter.ITEMS, tab.filter());
             assertEquals("goo:gasket", tab.selectedRow().orElseThrow().id());
         }
@@ -218,7 +240,7 @@ class ValuesTabTest {
          */
         @Test
         void openingABareFileKeyFindsItsMinecraftItem() {
-            assertEquals(1, tab.open("torch"));
+            assertEquals(2, tab.open("torch"));
             assertEquals("minecraft:torch", tab.selectedRow().orElseThrow().id());
         }
 
@@ -405,7 +427,7 @@ class ValuesTabTest {
             tab.filter(ValuesTab.Filter.UNCOVERED);
             assertEquals(List.of("minecraft:torch"), ids(tab.listed()));
             tab.filter(ValuesTab.Filter.ITEMS);
-            assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
+            assertEquals(List.of("goo:gasket", "minecraft:stick", "minecraft:torch"), ids(tab.listed()));
         }
     }
 
