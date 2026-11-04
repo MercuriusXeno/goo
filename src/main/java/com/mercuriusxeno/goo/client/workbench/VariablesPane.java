@@ -73,9 +73,6 @@ final class VariablesPane {
     private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
     private static final String VALUE_LABEL = "Value:";
-    private static final String AMOUNT_OPEN = "(";
-    private static final String AMOUNT_CLOSE = ")";
-    private static final String AMOUNT_COMMA = ",";
     private static final String RENAME = "✎";
     private static final String DELETE = "✗";
     private static final String CONFIRM_DELETE = "Delete";
@@ -259,97 +256,52 @@ final class VariablesPane {
     }
 
     /**
-     * The read view's runs with each evaluated amount in parentheses after what it evaluates: a scalar's after the
-     * expression, a typed prefab's after each type row's terms, a failed evaluation's error after the expression
-     * (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
+     * The read view's expression runs, a failed evaluation's error after them; the evaluated amount draws on its own
+     * line above them, through {@link #amountLine}.
+     * Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
      *
-     * @param runs     the expression's runs
-     * @param resolved what the prefab resolves to: "type amount" pairs joined by commas, or a scalar
-     * @param error    why it failed to resolve, empty where it resolved
-     * @return the runs with the amounts placed
+     * @param runs  the expression's runs
+     * @param error why it failed to resolve, empty where it resolved
+     * @return the runs the read view draws below the amount line
      */
-    static List<ExpressionLines.Run> amountedRuns(List<ExpressionLines.Run> runs, String resolved, String error) {
-        Map<String, String> typed = typedAmounts(resolved);
-        List<ExpressionLines.Run> amounted = new java.util.ArrayList<>();
-        String lastRow = amountTypeRows(runs, typed, amounted);
+    static List<ExpressionLines.Run> expressionRuns(List<ExpressionLines.Run> runs, String error) {
         if (error.isEmpty()) {
-            // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount: a plain number previews nothing,
-            // its amount being the number itself.
-            if (!isPlainNumber(runs)) {
-                addAmount(amounted, lastRow == null ? resolved : typed.get(lastRow));
-            }
-        } else {
-            amounted.add(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, error, null));
+            return runs;
         }
-        return amounted;
+        List<ExpressionLines.Run> failed = new java.util.ArrayList<>(runs);
+        failed.add(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, error, null));
+        return failed;
     }
 
-    // Copies the runs, each type row's amount before the break that ends it; answers the last row's type, null where
-    // the value holds no type rows.
-    private static @Nullable String amountTypeRows(List<ExpressionLines.Run> runs, Map<String, String> typed,
-                                                   List<ExpressionLines.Run> amounted) {
-        String rowType = null;
-        for (int index = 0; index < runs.size(); index++) {
-            ExpressionLines.Run run = runs.get(index);
-            if (run.kind() == ExpressionLines.Kind.BREAK && rowType != null) {
-                addAmount(amounted, typed.get(rowType));
-            }
-            amounted.add(run);
-            if (startsTypeRow(runs, index)) {
-                rowType = run.ref();
-            }
+    /**
+     * The evaluated amount a read view draws above its expression: a typed prefab's amounts highest first, a
+     * scalar's one amount, and none for a plain number, whose amount is the number itself, nor for a failed or
+     * unanswered evaluation.
+     * Decisions prefab-head-is-name-pencil-used-by-then-value-with-its-amount,
+     * value-lists-order-highest-first-ties-by-type-key.
+     *
+     * @param runs  the expression's runs
+     * @param block the prefab's block, carrying its kind, what it resolves to and its error
+     * @return the amount line
+     */
+    static AmountGridLine amountLine(List<ExpressionLines.Run> runs, VariablesTab.ConstantBlock block) {
+        String resolved = block.resolved();
+        if (!block.error().isEmpty() || resolved.isEmpty() || isPlainNumber(runs)) {
+            return AmountGridLine.NONE;
         }
-        return rowType;
-    }
-
-    // A type row opens on its type, then the colon its terms follow.
-    private static boolean startsTypeRow(List<ExpressionLines.Run> runs, int index) {
-        int colon = index + 1;
-        return colon < runs.size() && runs.get(index).kind() == ExpressionLines.Kind.TYPE
-                && runs.get(colon).kind() == ExpressionLines.Kind.OPERATOR
-                && ExpressionLines.COLON.equals(runs.get(colon).text());
+        if (!VariablesTab.TREE_KIND.equals(block.kind())) {
+            return AmountGridLine.scalar(resolved);
+        }
+        Map<String, String> typed = typedAmounts(resolved);
+        return typed.isEmpty() ? AmountGridLine.NONE : AmountGridLine.typed(AmountOrder.highestFirst(typed));
     }
 
     private static boolean isPlainNumber(List<ExpressionLines.Run> runs) {
         return runs.size() == 1 && runs.getFirst().kind() == ExpressionLines.Kind.NUMBER;
     }
 
-    // The amount in parentheses, each goo type as its icon beside its amount and commas between the pairs. Every
-    // piece places whole, the open paren joined to the first amount and the close paren to the last, so a wrap
-    // moves the last amount down with its paren.
-    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
-    private static void addAmount(List<ExpressionLines.Run> runs, @Nullable String amount) {
-        if (amount == null || amount.isEmpty()) {
-            return;
-        }
-        List<ExpressionLines.Run> amounts = closedAmounts(ExpressionLines.resolvedRuns(amount));
-        ExpressionLines.Run first = amounts.getFirst();
-        if (first.kind() == ExpressionLines.Kind.TYPE) {
-            amounts.addFirst(amountRun(AMOUNT_OPEN));
-        } else {
-            amounts.set(0, amountRun(AMOUNT_OPEN + first.text()));
-        }
-        runs.addAll(amounts);
-    }
-
-    // Each amount placed whole, a comma after each but the last and the close paren after the last.
-    private static List<ExpressionLines.Run> closedAmounts(List<ExpressionLines.Run> pieces) {
-        List<ExpressionLines.Run> amounts = new java.util.ArrayList<>();
-        for (int index = 0; index < pieces.size(); index++) {
-            ExpressionLines.Run piece = pieces.get(index);
-            boolean last = index == pieces.size() - 1;
-            amounts.add(piece.kind() == ExpressionLines.Kind.TYPE ? piece
-                    : amountRun(piece.text() + (last ? AMOUNT_CLOSE : AMOUNT_COMMA)));
-        }
-        return amounts;
-    }
-
-    private static ExpressionLines.Run amountRun(String text) {
-        return new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, text, null);
-    }
-
     private static Map<String, String> typedAmounts(String resolved) {
-        Map<String, String> amounts = new HashMap<>();
+        Map<String, String> amounts = new java.util.LinkedHashMap<>();
         for (String part : resolved.split(RESOLVED_SEPARATOR)) {
             int space = part.indexOf(' ');
             if (space > 0) {
@@ -542,29 +494,32 @@ final class VariablesPane {
         return Math.max(BARE_HEAD_HEIGHT, usedBy - TEXT_NUDGE);
     }
 
-    // Value: one indent in, then the read view inline with each evaluated amount in parentheses; a prefab with no
-    // expression reads Value: Not explicitly set as the button itself. Answers its height.
-    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
+    // Value: one indent in, beside the read view: the evaluated amount on its own line, then the expression below it;
+    // a prefab with no expression reads Value: Not explicitly set as the button itself. Answers its height.
+    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount; the operator's ruling of 2026-11-04
+    // stands Value: on the amount line.
     // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
     private int drawValueLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                               GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int labelX = bounds.left() + ControlFlow.INDENT;
-        List<ExpressionLines.Run> runs = readRuns(block);
-        int viewX = runs.isEmpty() ? labelX : labelX + font.width(VALUE_LABEL) + VALUE_GAP;
-        int height = drawReadView(graphics, font, block, runs, new GroupsPane.Bounds(viewX, bounds.top(),
+        ReadValueButton.Content content = readContent(block);
+        boolean set = !content.runs().isEmpty();
+        int viewX = set ? labelX + font.width(VALUE_LABEL) + VALUE_GAP : labelX;
+        int height = drawReadView(graphics, font, block, content, new GroupsPane.Bounds(viewX, bounds.top(),
                 bounds.right(), bounds.bottom()), y, targets);
-        if (!runs.isEmpty()) {
-            graphics.text(font, VALUE_LABEL, labelX, ReadValueButton.textTop(font, runs, y), GRAY);
+        if (set) {
+            graphics.text(font, VALUE_LABEL, labelX,
+                    ReadValueButton.textTop(font, content.amount(), content.runs(), y), GRAY);
         }
         return height;
     }
 
-    private List<ExpressionLines.Run> readRuns(VariablesTab.ConstantBlock block) {
+    private ReadValueButton.Content readContent(VariablesTab.ConstantBlock block) {
         if (block.expression().isBlank()) {
-            return List.of();
+            return new ReadValueButton.Content(AmountGridLine.NONE, List.of());
         }
-        return amountedRuns(ExpressionLines.shownRuns(block.expression(), icons::nameOf), block.resolved(),
-                block.error());
+        List<ExpressionLines.Run> runs = ExpressionLines.shownRuns(block.expression(), icons::nameOf);
+        return new ReadValueButton.Content(amountLine(runs, block), expressionRuns(runs, block.error()));
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
@@ -603,8 +558,9 @@ final class VariablesPane {
     // Decision shift-left-click-follows-plain-left-modifies.
     // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
-                             List<ExpressionLines.Run> runs, GroupsPane.Bounds bounds, int y, ClickTargets targets) {
-        return ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(bounds.left(), y, bounds.right(),
+                             ReadValueButton.Content content, GroupsPane.Bounds bounds, int y,
+                             ClickTargets targets) {
+        return ReadValueButton.draw(graphics, font, content, new ReadValueButton.Place(bounds.left(), y, bounds.right(),
                 () -> startEditing(block.name())), new ExpressionLines.Painter(graphics, icons, targets,
                 block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
                         targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)),

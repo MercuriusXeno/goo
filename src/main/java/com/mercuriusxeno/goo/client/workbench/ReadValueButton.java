@@ -29,10 +29,21 @@ final class ReadValueButton {
      * @return the height the button takes
      */
     static int height(Font font, List<ExpressionLines.Run> runs, int width) {
+        return height(font, AmountGridLine.NONE, runs, width);
+    }
+
+    /**
+     * @param font   the font
+     * @param amount the amount line above the expression, none where the value draws none
+     * @param runs   the expression's runs, empty where no explicit value stands
+     * @param width  the room the button spans, pencil included
+     * @return the height the button takes
+     */
+    static int height(Font font, AmountGridLine amount, List<ExpressionLines.Run> runs, int width) {
         if (runs.isEmpty()) {
             return ButtonPainter.HEIGHT;
         }
-        int contentHeight = ExpressionLines.height(font, runs, contentWidth(font, width));
+        int contentHeight = amount.height() + ExpressionLines.height(font, runs, contentWidth(font, width));
         return Math.max(ButtonPainter.HEIGHT, contentHeight + CONTENT_INSET + CONTENT_INSET);
     }
 
@@ -43,8 +54,22 @@ final class ReadValueButton {
      * @return the top of the button's first line of text, so a label beside it stands on that line
      */
     static int textTop(Font font, List<ExpressionLines.Run> runs, int top) {
-        return runs.isEmpty() ? top + ButtonPainter.TEXT_NUDGE
-                : top + CONTENT_INSET + ExpressionLines.textOffset(font, runs);
+        return textTop(font, AmountGridLine.NONE, runs, top);
+    }
+
+    /**
+     * @param font   the font
+     * @param amount the amount line above the expression, none where the value draws none
+     * @param runs   the expression's runs, empty where no explicit value stands
+     * @param top    the button's top
+     * @return the top of the button's first line of text, the amount line's where one draws
+     */
+    static int textTop(Font font, AmountGridLine amount, List<ExpressionLines.Run> runs, int top) {
+        if (runs.isEmpty()) {
+            return top + ButtonPainter.TEXT_NUDGE;
+        }
+        return top + CONTENT_INSET + (amount.isEmpty() ? ExpressionLines.textOffset(font, runs)
+                : amount.textOffset(font));
     }
 
     private static int contentWidth(Font font, int width) {
@@ -77,18 +102,48 @@ final class ReadValueButton {
      */
     static int draw(GuiGraphicsExtractor graphics, Font font, List<ExpressionLines.Run> runs, Place place,
                     ExpressionLines.Painter painter, ClickTargets targets) {
-        int height = height(font, runs, place.right() - place.left());
+        return draw(graphics, font, new Content(AmountGridLine.NONE, runs), place, painter, targets);
+    }
+
+    /**
+     * What a read value's button holds: the amount line, then the expression below it.
+     *
+     * @param amount the amount line, none where the value draws none
+     * @param runs   the expression's runs, empty where no explicit value stands
+     */
+    record Content(AmountGridLine amount, List<ExpressionLines.Run> runs) {
+    }
+
+    /**
+     * Draws the button with the amount line above the expression and takes its clicks.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param content  the amount line and the expression's runs
+     * @param place    where it draws and what a click does
+     * @param painter  how the amount line's and the expression's runs paint
+     * @param targets  the frame's click areas
+     * @return the height it took
+     */
+    static int draw(GuiGraphicsExtractor graphics, Font font, Content content, Place place,
+                    ExpressionLines.Painter painter, ClickTargets targets) {
+        List<ExpressionLines.Run> runs = content.runs();
+        AmountGridLine amount = content.amount();
+        int height = height(font, amount, runs, place.right() - place.left());
         int frameRight = runs.isEmpty() ? place.left() + ButtonPainter.width(font, NOT_SET)
                 : place.right() - ButtonPainter.width(font, PENCIL) + 1;
         ButtonPainter.Box frame = new ButtonPainter.Box(place.left(), place.top(), frameRight - place.left(), height);
         ButtonPainter.drawFrame(graphics, frame);
         ButtonPainter.reserve(targets, frame, place.open(), null);
-        drawPencil(graphics, font, frame, textTop(font, runs, place.top()), targets, place.open());
+        drawPencil(graphics, font, frame, textTop(font, amount, runs, place.top()), targets, place.open());
         if (runs.isEmpty()) {
             graphics.text(font, NOT_SET, place.left() + ButtonPainter.PADDING, place.top() + ButtonPainter.TEXT_NUDGE,
                     NOT_SET_COLOR);
         } else {
-            ExpressionLines.draw(font, runs, place.left() + ButtonPainter.PADDING, place.top() + CONTENT_INSET,
+            int contentLeft = place.left() + ButtonPainter.PADDING;
+            int contentTop = place.top() + CONTENT_INSET;
+            amount.draw(font, contentLeft, contentTop, painter);
+            ExpressionLines.draw(font, runs, contentLeft, contentTop + amount.height(),
                     contentWidth(font, place.right() - place.left()), painter);
         }
         return height;
