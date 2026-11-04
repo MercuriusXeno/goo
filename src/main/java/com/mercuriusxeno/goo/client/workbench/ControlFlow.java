@@ -300,21 +300,6 @@ final class ControlFlow {
         x += width + GAP;
     }
 
-    /**
-     * Words drawn between the piece before them and the piece after, one clear pixel from each, as a ratio's colon
-     * stands between its two boxes (decision ratio-colon-takes-no-spaces, as the operator corrected it: the space
-     * reduced, not removed).
-     *
-     * @param text  the words
-     * @param color their color
-     */
-    void textBetween(String text, int color) {
-        x += CLEAR - GAP;
-        int ink = letters.inkWidth(text);
-        letters.draw(graphics, text, x, wordsTop(), color);
-        markText(ink);
-        x += ink + CLEAR;
-    }
 
     /**
      * @param font          the font

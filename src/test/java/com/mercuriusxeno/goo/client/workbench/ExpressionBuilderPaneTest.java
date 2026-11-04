@@ -190,6 +190,8 @@ class ExpressionBuilderPaneTest {
         assertEquals(1, found.size(), frame.drawn().toString());
         assertTrue(found.getFirst().y() > frame.find("$edited").y(), frame.drawn().toString());
         assertTrue(found.getFirst().y() > frame.find("$waxed").y(), frame.drawn().toString());
+        // Decision whole-value-ratio-draws-after-the-last-term-unlabelled: the handle line stands below the ratio's.
+        assertTrue(found.getFirst().y() > frame.find(":").y() + HALF_LINE, frame.drawn().toString());
     }
 
     /**
@@ -1720,8 +1722,11 @@ class ExpressionBuilderPaneTest {
             Builder builder = Builder.prefab(PREFABS, "$waxed + $edited");
             DrawnFrame frame = builder.frame();
             DrawnFrame.Text handle = frame.find("()");
-            List<DrawnFrame.Text> bay = frame.drawn().stream().filter(text -> text.y() == handle.y())
-                    .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+            // The bay's line is the builder's last, so Cancel stands at its right end past the bay's buttons
+            // (decision whole-value-ratio-draws-after-the-last-term-unlabelled moved the ratio off a line of its own).
+            List<DrawnFrame.Text> bay = frame.drawn().stream().filter(text -> text.y() == handle.y()
+                    && !text.text().equals("✗ Cancel")).sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                    .toList();
             assertEquals(List.of("()", "+", "-"), bay.stream().map(DrawnFrame.Text::text).toList(), bay.toString());
             assertEquals(0, frame.count(SUM_ADD), frame.texts().toString());
             DrawnFrame.Text minus = bay.getLast();
@@ -2023,14 +2028,45 @@ class ExpressionBuilderPaneTest {
             assertOneToOneAtRest(Builder.item("{\"metal\": \"$base\"}").frame());
         }
 
+        // Decision whole-value-ratio-draws-after-the-last-term-unlabelled: the whole value's m:d follows its last
+        // term on that term's line, a gap past its container, with no "the whole value" label.
         @Test
         void wholeValueDrawsOneToOneAfterItsTerms() {
             DrawnFrame frame = Builder.item("$waxed + $edited").frame();
             List<List<DrawnFrame.Text>> ratios = ratios(frame);
             assertEquals(3, ratios.size(), frame.texts().toString());
-            DrawnFrame.Text edited = frame.find("$edited");
-            assertTrue(ratios.getLast().getFirst().y() > edited.y(), frame.drawn().toString());
+            int[] edited = ringAround(frame.buttonAround(frame.find("$edited")));
+            int editedRight = fills(frame, ControlFlow.TERM_BORDER).stream().filter(side -> side[1] == edited[1])
+                    .mapToInt(side -> side[2]).max().orElseThrow();
+            int[] multiplier = frame.buttonAround(ratios.getLast().getFirst());
+            assertEquals(List.of(edited[1], editedRight + BuilderOverlays.GAP), List.of(multiplier[1], multiplier[0]),
+                    "the multiplier on the last term's line a gap past its container");
             assertOneToOneAtRest(frame);
+            assertFalse(frame.texts().contains("the whole value"), frame.texts().toString());
+        }
+
+        // Decision whole-value-ratio-draws-after-the-last-term-unlabelled: a ratio short of room at the line's end
+        // moves whole to the next line, at the indent a wrapped term takes.
+        @Test
+        void wholeValueRatioShortOfRoomMovesWholeToTheNextLine() {
+            for (int right = 150; right < 400; right++) {
+                Builder builder = Builder.item("$waxed + $edited");
+                DrawnFrame frame = builder.frame(new GroupsPane.Bounds(0, 0, right, 390));
+                int[] waxed = ringAround(frame.buttonAround(frame.find("$waxed")));
+                int[] edited = ringAround(frame.buttonAround(frame.find("$edited")));
+                List<DrawnFrame.Text> sides = ratios(frame).getLast();
+                int[] multiplier = frame.buttonAround(sides.getFirst());
+                int[] divisor = frame.buttonAround(sides.getLast());
+                if (edited[1] != waxed[1] || multiplier[1] == edited[1]) {
+                    continue;
+                }
+                int firstLeft = containerLeft(frame, railOf(frame, List.of(0)));
+                assertEquals(List.of(edited[3] + ControlFlow.BUILDER_LINE_GAP, firstLeft + ControlFlow.INDENT),
+                        List.of(multiplier[1], multiplier[0]), "the ratio a line below at the wrap indent");
+                assertEquals(multiplier[1], divisor[1], "the ratio moves whole");
+                return;
+            }
+            throw new AssertionError("no width wrapped the ratio alone");
         }
 
         private static Builder wholeValueCommitted(int side) {
