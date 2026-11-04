@@ -433,10 +433,7 @@ public final class ValuesManagerScreen extends Screen {
             return clickTargets(targets, event);
         }
         // The mode is modal: a click anywhere, the [?] included, leaves it and reaches nothing beneath.
-        if (explainer.leave()) {
-            return true;
-        }
-        return routePress(targets, event, press -> emptyBoxUnder(children(), press)
+        return explainer.leave() || routePress(targets, event, press -> emptyBoxUnder(children(), press)
                 || super.mouseClicked(press, doubleClick), () -> setFocused(null));
     }
 
