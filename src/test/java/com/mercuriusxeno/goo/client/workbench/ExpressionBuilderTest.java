@@ -513,6 +513,22 @@ class ExpressionBuilderTest {
             assertEquals("2 $x / 3", builder.text());
         }
 
+        // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a side set to 0 or to 1 returns to 1,
+        // so the file writes no factor for it.
+        @Test
+        void aSideSetToZeroOrOneReturnsToOne() {
+            for (String erased : List.of("0", "1", "00")) {
+                for (ExpressionBuilder.Op side : ExpressionBuilder.Op.values()) {
+                    ExpressionBuilder builder = ExpressionBuilder.of("3 $plank / 4");
+                    builder.setScale(0, side, erased);
+                    String expected = side == ExpressionBuilder.Op.MULTIPLY ? "$plank / 4" : "3 $plank";
+                    assertEquals(expected, builder.text(), side + " set to " + erased);
+                    assertFalse(builder.text().contains("* 0") || builder.text().contains("/ 0")
+                            || builder.text().contains("* 1") || builder.text().contains("/ 1"), builder.text());
+                }
+            }
+        }
+
         @Test
         void sumKeepsItsMultiplierWhenItsDivisorIsSet() {
             ExpressionBuilder builder = ExpressionBuilder.of("$medium - 4 $food.jelly");

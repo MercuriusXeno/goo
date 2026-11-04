@@ -105,11 +105,13 @@ class BuilderGrammarTest {
         }
 
         @Test
-        void numberBoxTakesDigitsAndNoZeroFactor() {
+        void numberBoxTakesDigitsAndAZero() {
             assertTrue(BuilderGrammar.acceptsTyped("192", false));
-            assertTrue(BuilderGrammar.acceptsTyped("0", false));
             assertFalse(BuilderGrammar.acceptsTyped("1a", false));
             assertFalse(BuilderGrammar.acceptsTyped("-3", false));
+            // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a term's factor box takes a 0,
+            // which erases its side; a conversion formula's ratio box still refuses one.
+            assertTrue(BuilderGrammar.acceptsTyped("0", false));
             assertFalse(BuilderGrammar.acceptsTyped("0", true));
             assertTrue(BuilderGrammar.acceptsTyped("10", true));
             assertTrue(BuilderGrammar.acceptsTyped("", true));

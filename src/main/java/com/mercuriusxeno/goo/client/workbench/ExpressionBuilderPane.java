@@ -1442,13 +1442,14 @@ final class ExpressionBuilderPane {
         void changed(ExpressionBuilder.Op side, String factor);
     }
 
-    // A side committed unchanged changes nothing.
+    // A side committed unchanged changes nothing; its box takes a 0, which erases the side (decision
+    // factor-left-at-one-or-set-to-one-or-zero-erases-its-segment).
     private Consumer<BuilderOverlays.Anchor> openSide(String shown, ExpressionBuilder.Op side, ScaleChange change) {
         return at -> overlays.openNumber(at, shown, factor -> {
             if (!factor.equals(shown)) {
                 change.changed(side, factor);
             }
-        }, true);
+        });
     }
 
     private SearchDropdown termList(String sort) {

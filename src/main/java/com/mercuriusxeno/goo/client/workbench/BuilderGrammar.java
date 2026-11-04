@@ -182,11 +182,12 @@ final class BuilderGrammar {
     }
 
     /**
-     * @param typed  what the number box holds
-     * @param factor whether the box holds a factor, which is never 0
-     * @return whether the box takes it: digits alone, and no zero factor
+     * @param typed       what the number box holds
+     * @param refusesZero whether the box refuses a 0, as a conversion formula's ratio does; a term's factor box takes
+     *                    one, which erases its side (decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment)
+     * @return whether the box takes it: digits alone, and no 0 where the box refuses one
      */
-    static boolean acceptsTyped(String typed, boolean factor) {
-        return DIGITS.matcher(typed).matches() && !(factor && ZERO.matcher(typed).matches());
+    static boolean acceptsTyped(String typed, boolean refusesZero) {
+        return DIGITS.matcher(typed).matches() && !(refusesZero && ZERO.matcher(typed).matches());
     }
 }
