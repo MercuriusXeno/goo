@@ -108,6 +108,12 @@ class PrefabHoversTest {
                       "text": "{\\"metal\\": \\"1/2\\", \\"weird\\": \\"3\\", \\"pulse\\": \\"3\\"}",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null},
                      {"key": "broken", "keySeparator": null, "kind": "VALUE", "text": "\\"$missing + 1\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "coral", "keySeparator": null, "kind": "VALUE",
+                      "text": "{\\"zoo\\": \\"2 $base\\", \\"deep\\": \\"2 $base\\"}",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "dead_coral", "keySeparator": null, "kind": "VALUE",
+                      "text": "{\\"deep\\": \\"$coral.deep\\", \\"nether\\": \\"$coral.zoo\\"}",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null}
                 ]}
@@ -122,7 +128,11 @@ class PrefabHoversTest {
                   {"name": "blend", "kind": "tree", "tree": {"metal": "1/2", "weird": "3", "pulse": "3"},
                    "value": null, "error": null, "usedBy": [], "readers": []},
                   {"name": "broken", "kind": "scalar", "value": null, "error": "Unknown constant $missing",
-                   "usedBy": [], "readers": []}
+                   "usedBy": [], "readers": []},
+                  {"name": "coral", "kind": "tree", "tree": {"zoo": "12", "deep": "12"}, "value": null,
+                   "error": null, "usedBy": [], "readers": []},
+                  {"name": "dead_coral", "kind": "tree", "tree": {"deep": "12", "nether": "12"}, "value": null,
+                   "error": null, "usedBy": [], "readers": []}
                 ]}
                 """;
         private final VariablesTab variables;
@@ -146,41 +156,67 @@ class PrefabHoversTest {
             return new TooltipLine.Text(Component.literal(text));
         }
 
-        /**
-         * A scalar prefab reads $name = its expression, the reduced value in parentheses where it differs from the
-         * expression, on one head line with no Used by (decision
-         * prefab-tooltip-reads-name-equals-expression-then-reduced-value).
-         */
-        @Test
-        void scalarReadsNameEqualsExpressionThenItsReducedValue() {
-            assertEquals(List.of(text("$base = 6")), lines("base"));
-            assertEquals(List.of(text("$double = $base * 2 (12)")), lines("double"));
+        // Each line as text: a grid as its cells, a type icon as {type}, a suffix flush against the run before it.
+        private List<Object> read(String name) {
+            return lines(name).stream().map(line -> line instanceof TooltipLine.RunsGrid grid
+                    ? (Object) grid.cells().stream().map(Tooltip::cellText).toList() : (Object) line).toList();
+        }
+
+        private static String cellText(List<ExpressionLines.Run> cell) {
+            StringBuilder text = new StringBuilder();
+            for (ExpressionLines.Run run : cell) {
+                if (!text.isEmpty() && run.kind() != ExpressionLines.Kind.SUFFIX) {
+                    text.append(' ');
+                }
+                text.append(run.kind() == ExpressionLines.Kind.TYPE ? "{" + run.ref() + "}" : run.text());
+            }
+            return text.toString();
         }
 
         /**
-         * A typed prefab over a prefab reads type = $prefab, the scalar in its own parentheses right of the prefab
-         * name, and no (type: scalar) (decision prefab-tooltip-reads-name-equals-expression-then-reduced-value).
+         * A typed prefab reads its recipe, each type's cell {type}: its terms with a member read as the prefab's own,
+         * then its reduction in parentheses, each type's cell {type}: its amount, the closing parenthesis on the last
+         * cell, both laid as grids (decisions read-view-reads-type-equals-possessive-terms,
+         * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
          */
         @Test
-        void typedPrefabPutsTheScalarRightOfThePrefabName() {
-            assertEquals(List.of(text("$x = leaf = $stick (6)")), lines("x"));
+        void typedPrefabReadsItsRecipeThenItsReduction() {
+            assertEquals(List.of(List.of("{deep} : $coral's {deep}", "{nether} : $coral's {zoo}"),
+                    List.of("( {deep} : 12,", "{nether} : 12)")), read("dead_coral"));
         }
 
         /**
-         * A tree prefab's head line lists its types highest amount first, ties by type key, whatever order its
-         * expression and the evaluate reply held them in (decision value-lists-order-highest-first-ties-by-type-key).
+         * A typed prefab over a scalar prefab reads {type}: $prefab, its amount in the reduction.
          */
         @Test
-        void treePrefabListsItsTypesHighestFirstTiesByTypeKey() {
-            assertEquals(List.of(text("$blend = pulse = 3, weird = 3, metal = 1/2")), lines("blend"));
+        void typedPrefabOverAScalarReadsItsAmountInTheReduction() {
+            assertEquals(List.of(List.of("{leaf} : $stick"), List.of("( {leaf} : 6)")), read("x"));
         }
 
         /**
-         * An errored prefab reads its head line, then its error.
+         * A scalar prefab reads its expression, then its reduced value in parentheses where it differs from it.
          */
         @Test
-        void erroredPrefabReadsItsHeadLineThenItsError() {
-            assertEquals(List.of(text("$broken = $missing + 1"), text("Unknown constant $missing")), lines("broken"));
+        void scalarReadsItsExpressionThenItsReducedValue() {
+            assertEquals(List.of(List.of("6")), read("base"));
+            assertEquals(List.of(List.of("$base x 2"), List.of("( 12)")), read("double"));
+        }
+
+        /**
+         * A typed prefab's cells list its types highest amount first, ties by type key, and a reduction reading as
+         * the recipe does stands out (decision value-lists-order-highest-first-ties-by-type-key).
+         */
+        @Test
+        void typedPrefabListsItsTypesHighestFirstTiesByTypeKey() {
+            assertEquals(List.of(List.of("{pulse} : 3", "{weird} : 3", "{metal} : 1 / 2")), read("blend"));
+        }
+
+        /**
+         * An errored prefab reads its recipe, then its error.
+         */
+        @Test
+        void erroredPrefabReadsItsRecipeThenItsError() {
+            assertEquals(List.of(List.of("$missing + 1"), text("Unknown constant $missing")), read("broken"));
         }
     }
 }
