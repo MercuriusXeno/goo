@@ -1143,6 +1143,23 @@ class VariablesPaneTest {
     }
 
     /**
+     * A follow into the Prefabs pane empties a search that hides its target and draws the target's block (decision
+     * following-a-link-clears-the-panes-search-bar).
+     */
+    @Test
+    void jumpToClearsTheSearchAndDrawsTheTarget() {
+        searchBox().setValue("prefab1");
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, font, TALL_VIEW, searched.targets, 0, 0);
+        assertFalse(searched.texts().contains("$prefab5"), "the search hides the target");
+        pane.jumpTo("prefab5");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        assertEquals("", searchBox().getValue());
+        assertTrue(frame.texts().contains("$prefab5"), frame.texts().toString());
+    }
+
+    /**
      * The [+] right of the search box opens a name box with its done check and gold arrow; Enter on a free name adds
      * $name to the draft with no value, lists it and opens its builder, and a name the list holds adds nothing
      * (decision goo-workbench-opens-the-in-game-manager-screen: the page's Variables pane added constants).

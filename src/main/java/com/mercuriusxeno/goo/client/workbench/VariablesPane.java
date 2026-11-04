@@ -197,6 +197,11 @@ final class VariablesPane {
      */
     void jumpTo(String name) {
         deleting = null;
+        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
+        if (search != null) {
+            search.setValue(NO_TEXT);
+        }
+        variables.search(NO_TEXT);
         startEditing(name);
         jumpPending = name;
     }
@@ -439,17 +444,14 @@ final class VariablesPane {
         showBoxes(renaming != null);
     }
 
-    // A free name adds the prefab and opens its builder centered in the list, the search cleared so the list holds
-    // it; a blank, illegal or held name leaves the box open.
+    // A free name adds the prefab and opens its builder centered in the list, the jump clearing the search so the
+    // list holds it; a blank, illegal or held name leaves the box open.
     private void createPrefab(String typed) {
         Optional<String> created = variables.createPrefab(typed);
         if (created.isEmpty()) {
             return;
         }
         stopNaming();
-        if (search != null) {
-            search.setValue(NO_TEXT);
-        }
         actions.draftChanged();
         jumpTo(created.get());
     }

@@ -527,6 +527,11 @@ final class ProcessesPane {
      * @param key the mutator's key
      */
     void reveal(String key) {
+        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
+        if (search != null) {
+            search.setValue(NO_TEXT);
+        }
+        processes.search(NO_TEXT);
         revealPending = key;
     }
 

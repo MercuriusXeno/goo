@@ -656,6 +656,11 @@ final class GroupsPane {
      * @param name the group's name
      */
     void reveal(String name) {
+        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
+        if (search != null) {
+            search.setValue(NO_TEXT);
+        }
+        groups.search(NO_TEXT, values.entries());
         pickGroup(name);
         revealPending = name;
     }
