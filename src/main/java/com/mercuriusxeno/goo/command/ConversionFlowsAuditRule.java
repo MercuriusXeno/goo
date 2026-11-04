@@ -30,6 +30,7 @@ public final class ConversionFlowsAuditRule implements GooAuditRule {
     private static final String GAINS = ", gains ";
     private static final String PER_CRAFT = " per craft";
     private static final String PATH_JOIN = " then ";
+    private static final String ALL_CLEAR = INDENT + "No crafting path loses one goo type and gains another.";
 
     @Override
     public GooAuditSection run(GooAuditInputs inputs) {
@@ -47,7 +48,7 @@ public final class ConversionFlowsAuditRule implements GooAuditRule {
             lines.addAll(flows);
         });
         return new GooAuditSection(SECTION, SECTION + HEADER_OPEN + linesByPair.size() + HEADER_SUFFIX,
-                List.copyOf(lines), 0, List.of());
+                GooAuditSection.orAllClear(lines, ALL_CLEAR), 0, List.of());
     }
 
     private static String pathText(GooConversionFlows.Flow flow) {

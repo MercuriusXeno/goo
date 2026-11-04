@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,7 +33,7 @@ class ProcessesPaneTest {
                  {"key": "copper", "keySeparator": null, "kind": "VALUE", "text": "[\\"copper_block\\"]",
                   "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                "leading": null, "trailing": null, "closingGap": null},
-              {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+              {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                  {"key": "#exposed", "keySeparator": null, "kind": "VALUE", "text": "\\"#copper @waxed\\"",
                   "entries": [], "leading": null, "trailing": null, "closingGap": null},
                  {"key": "waxed", "keySeparator": null, "kind": "VALUE", "text": "\\"+$oak\\"",
@@ -45,7 +46,7 @@ class ProcessesPaneTest {
     private static final String LONG_NAME = "copper_oxidation_and_waxing_end1";
     private static final String DESCRIBED = """
             {"sections": [
-              {"section": "_post_conversions", "processes": [
+              {"section": "_conversions", "processes": [
                  {"key": "#exposed", "kind": "ASSIGNMENT", "text": "\\"#copper @waxed\\"", "parsed": true},
                  {"key": "waxed", "kind": "ADDITIVE", "text": "\\"+$oak\\"", "parsed": true},
                  {"key": "copper_oxidation_and_waxing_end1", "kind": "ADDITIVE", "text": "\\"+$oak\\"",
@@ -93,43 +94,16 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Conversions and post-conversions draw as sub-tabs, post-conversions shown first; a press on Conversions shows
-     * its entries alone, and revealing an entry shows the sub-tab holding it (the operator's ruling).
+     * The pane leads with its entries under no sub-tab: the first row under Mutators is the first mutator, and no
+     * Conversions or Post conversions control draws (decision conversions-is-the-one-section-and-the-pane-name).
      */
     @Test
-    void subTabsShowOneSectionPostConversionsFirst() {
-        String conversions = """
-                {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
-                   {"key": "melted", "keySeparator": null, "kind": "VALUE", "text": "\\"+$oak\\"",
-                    "entries": [], "leading": null, "trailing": null, "closingGap": null}],
-                 "leading": null, "trailing": null, "closingGap": null},
-                """;
-        ManagerDraft draft = new ManagerDraft();
-        draft.read(MODEL.replace("{\"key\": \"_post_conversions\"", conversions + "{\"key\": \"_post_conversions\""));
-        ProcessesTab processes = new ProcessesTab(draft);
-        processes.readDescribed(DESCRIBED.replace("{\"sections\": [", """
-                {"sections": [{"section": "_conversions", "processes": [
-                   {"key": "melted", "kind": "ADDITIVE", "text": "\\"+$oak\\"", "parsed": true}]},"""));
-        ManagerActions actions = mock(ManagerActions.class);
-        pane = new ProcessesPane(processes, draft, actions, null, () -> List.of("oak"));
-        assertEquals("_post_conversions", pane.shownSection());
-        DrawnFrame post = frame();
-        List<String> postTexts = post.texts();
-        assertEquals("waxed", postTexts.get(postTexts.indexOf("Mutators") + 2), "the first row under Mutators: "
-                + postTexts);
-        // A filled chip's label draws with no shadow, through the overload the frame does not record, so each tab's
-        // label is read while it stands hollow.
-        assertTrue(post.texts().containsAll(List.of("Conversions", "waxed")), post.texts().toString());
-        assertFalse(post.texts().contains("melted") || post.texts().contains("Post conversions"),
-                post.texts().toString());
-        post.click("Conversions");
-        DrawnFrame pre = frame();
-        assertTrue(pre.texts().containsAll(List.of("Post conversions", "melted")), pre.texts().toString());
-        assertFalse(pre.texts().contains("waxed"), pre.texts().toString());
-        pane.reveal("waxed");
-        assertTrue(frame().texts().contains("waxed"));
+    void paneLeadsWithItsEntriesUnderNoSubTab() {
+        DrawnFrame frame = frame();
+        List<String> texts = frame.texts();
+        assertEquals("waxed", texts.get(texts.indexOf("Mutators") + 2), "the first row under Mutators: " + texts);
+        assertFalse(texts.contains("Conversions") || texts.contains("Post conversions"), texts.toString());
     }
-
     /**
      * A row's pencil opens the name box in the name's place (decision rename-is-a-pencil-and-delete-a-red-x-everywhere).
      */
@@ -156,7 +130,7 @@ class ProcessesPaneTest {
     void mutatorsLeftIteratorsRightEachScrollingAlone() {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 590, 390);
-        int middle = (bounds.right() - bounds.left()) * 2 / 5;
+        int middle = (bounds.right() - bounds.left()) * 3 / 5;
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
         DrawnFrame.Text mutators = frame.find("Mutators");
@@ -182,25 +156,222 @@ class ProcessesPaneTest {
     }
 
     /**
-     * In a pane 500 wide, the iterators column starts at two fifths, 200, plus half the column gap, the mutators rows'
-     * x stands left of 200, and the wheel scrolls the column it turns over (decision
-     * mutators-column-shrinks-a-fifth-for-iterators).
+     * In a pane 500 wide, the iterators column starts at three fifths, 300, plus half the column gap, the mutators
+     * rows' x stands left of 300, and the wheel scrolls the column it turns over (decision
+     * mutators-iterators-split-sixty-forty).
      */
     @Test
-    void mutatorsTakeTwoFifthsAndIteratorsThree() {
+    void wheelScrollsTheColumnItTurnsOver() {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 390);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
-        assertEquals(200 + 12 / 2, frame.find("Iterators").x());
+        assertEquals(300 + 12 / 2, frame.find("Iterators").x());
         DrawnFrame.Text firstMutator = first(frame, "m00");
-        assertTrue(rowControl(frame, "m00", "✗").x() < 200, frame.drawn().toString());
-        assertTrue(firstMutator.x() < 200);
-        pane.scroll(250, -3);
-        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 250 scrolls the iterators");
+        assertTrue(rowControl(frame, "m00", "✗").x() < 300, frame.drawn().toString());
+        assertTrue(firstMutator.x() < 300);
+        pane.scroll(320, -3);
+        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 320 scrolls the iterators");
         assertEquals(0, pane.columnBar(false).offset());
-        pane.scroll(150, -3);
-        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 150 scrolls the mutators");
+        pane.scroll(280, -3);
+        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 280 scrolls the mutators");
+    }
+
+    /**
+     * An additive's prefab reads after $ and an iterator's source group after #, and the additive's prefab pick
+     * lists its prefabs after $ (decision hash-marks-groups-and-dollar-marks-prefabs-everywhere).
+     */
+    @Test
+    void conversionsMarkPrefabsWithDollarAndGroupsWithHash() {
+        DrawnFrame frame = frame();
+        assertTrue(frame.texts().contains("$oak"), frame.texts().toString());
+        assertTrue(frame.texts().contains(ControlFlow.dropdownLabel("#copper")), frame.texts().toString());
+        frame.click("$oak");
+        assertTrue(frame().texts().contains("$oak"), "the prefab pick lists $oak");
+        assertEquals(2, frame().count("$oak"), frame().texts().toString());
+    }
+
+    /**
+     * An iterator's own name previews the group it fills and its source previews the group it copies (decision
+     * group-referent-previews-shorthand-members-then-its-value).
+     */
+    @Test
+    void iteratorNameAndSourcePreviewTheirGroups() {
+        DrawnFrame frame = frame();
+        DrawnFrame.Text name = frame.find("#exposed");
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
+                frame.targets.hovered(name.x() + 1, name.y() + 1));
+        DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#copper"));
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("copper")),
+                frame.targets.hovered(source.x() + 1, source.y() + 1));
+    }
+
+    // A Mutators pane over the iterators #twice, applying waxed then rust, and #bare, applying nothing.
+    private ProcessesPane chainedIterators(ManagerActions actions) {
+        String entry = """
+                {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "\\"%s\\"", "entries": [], "leading": null,
+                 "trailing": null, "closingGap": null}""";
+        String described = """
+                {"key": "%s", "kind": "%s", "text": "\\"%s\\"", "parsed": true}""";
+        ManagerDraft chained = new ManagerDraft();
+        chained.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "copper", "keySeparator": null, "kind": "VALUE", "text": "[\\"copper_block\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s]
+                   , "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ",
+                entry.formatted("#twice", "#copper @waxed @rust"), entry.formatted("#bare", "#copper"),
+                entry.formatted("waxed", "+$oak"), entry.formatted("rust", "+$oak"))));
+        ProcessesTab tab = new ProcessesTab(chained);
+        tab.readDescribed("""
+                {"sections": [{"section": "_conversions", "processes": [%s]}]}""".formatted(String.join(", ",
+                described.formatted("#twice", "ASSIGNMENT", "#copper @waxed @rust"),
+                described.formatted("#bare", "ASSIGNMENT", "#copper"),
+                described.formatted("waxed", "ADDITIVE", "+$oak"), described.formatted("rust", "ADDITIVE", "+$oak"))));
+        return new ProcessesPane(tab, chained, actions, null, () -> List.of("oak"));
+    }
+
+    /**
+     * An iterator reads #X on its name line, "copies" and its source one indent in on the next, then "then mutates
+     * using" before its first mutator and "and" before each later one, each a line down, then "+ optional
+     * mutation"; one applying nothing reads "copies" and the button alone, which opens the mutator pick (decision
+     * iterator-reads-copies-then-mutates-using-and).
+     */
+    @Test
+    void iteratorReadsCopiesThenMutatesUsingAnd() {
+        pane = chainedIterators(mock(ManagerActions.class));
+        DrawnFrame frame = frame();
+        assertFalse(frame.texts().contains("loops over") || frame.texts().contains("and applies"),
+                frame.texts().toString());
+        DrawnFrame.Text twice = first(frame, "#twice");
+        DrawnFrame.Text bare = first(frame, "#bare");
+        List<DrawnFrame.Text> copies = frame.drawn().stream().filter(text -> text.text().equals("copies")).toList();
+        List<DrawnFrame.Text> adds = frame.drawn().stream().filter(text -> text.text().equals("+ optional mutation"))
+                .toList();
+        assertEquals(2, copies.size(), frame.texts().toString());
+        assertEquals(2, adds.size(), frame.texts().toString());
+        DrawnFrame.Text twiceCopies = twice.y() < bare.y() ? copies.getFirst() : copies.getLast();
+        DrawnFrame.Text twiceAdd = twice.y() < bare.y() ? adds.getFirst() : adds.getLast();
+        DrawnFrame.Text then = frame.find("mutated by");
+        DrawnFrame.Text and = frame.find("and");
+        List<Integer> descending = List.of(twice.y(), twiceCopies.y(), then.y(), and.y(), twiceAdd.y());
+        assertEquals(descending.stream().sorted().distinct().toList(), descending, frame.drawn().toString());
+        assertEquals(twice.x() + ControlFlow.INDENT, twiceCopies.x(), frame.drawn().toString());
+        assertEquals(1, frame.count("mutated by"), frame.texts().toString());
+        assertFalse(frame.texts().contains("then mutates using"), frame.texts().toString());
+        DrawnFrame.Text bareAdd = twice.y() < bare.y() ? adds.getLast() : adds.getFirst();
+        assertTrue(bareAdd.y() > bare.y(), bareAdd + " under " + bare);
+        assertTrue(frame.targets.click(bareAdd.x() + 1, bareAdd.y() + 1));
+        assertTrue(frame().texts().containsAll(List.of("waxed", "rust")), "the mutator pick lists the mutators");
+    }
+
+    /**
+     * Each mutation line right packs against a column edge a gap left of the row's validity marker: its x ends at
+     * the edge, the mutator buttons share one x, each line's words stand one gap left of its button, and
+     * "+ optional mutation" ends at the edge too (decisions iterator-reads-copies-then-mutates-using-and,
+     * mutator-chain-forms-a-column-left-of-the-validity-marker).
+     */
+    @Test
+    void iteratorMutationLinesRightPackWithTheirButtonsAligned() {
+        pane = chainedIterators(mock(ManagerActions.class));
+        DrawnFrame frame = frame();
+        DrawnFrame.Text then = frame.find("mutated by");
+        DrawnFrame.Text and = frame.find("and");
+        DrawnFrame.Text waxed = onLineOf(frame, then, "waxed");
+        DrawnFrame.Text rust = onLineOf(frame, and, "rust");
+        DrawnFrame.Text marker = frame.drawn().stream().filter(text -> text.text().equals("✔") && text.x() > then.x())
+                .findFirst().orElseThrow();
+        int edge = marker.x() - BuilderOverlays.GAP;
+        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the column ends inside the box");
+        assertEquals(edge, rightOf(onLineOf(frame, then, "x")), frame.drawn().toString());
+        assertEquals(edge, rightOf(onLineOf(frame, and, "x")), frame.drawn().toString());
+        assertEquals(waxed.x(), rust.x(), waxed + " vs " + rust);
+        int buttonLeft = waxed.x() - ButtonPainter.PADDING;
+        assertEquals(buttonLeft - BuilderOverlays.GAP, then.x() + DrawnFrame.font().width(then.text()), then.toString());
+        assertEquals(buttonLeft - BuilderOverlays.GAP, and.x() + DrawnFrame.font().width(and.text()), and.toString());
+        DrawnFrame.Text add = frame.drawn().stream().filter(text -> text.text().equals("+ optional mutation")
+                && text.y() > and.y()).findFirst().orElseThrow();
+        assertEquals(edge, rightOf(add), add.toString());
+    }
+
+    /**
+     * A mutator's and an iterator's rename pencil stands the rule gap under the rule above its row and the button
+     * gap past its name, and the row above keeps its last buttons the rule gap over that rule (decision
+     * spacing-rules-are-one-set-across-every-pane).
+     */
+    @Test
+    void rowsKeepTheRuleAndButtonGaps() {
+        pane = chainedIterators(mock(ManagerActions.class));
+        DrawnFrame frame = frame();
+        assertRowSpacing(frame, "waxed", "rust", "$oak");
+        assertRowSpacing(frame, "#twice", "#bare", "+ optional mutation");
+    }
+
+    // The second row's pencil against the rule above it, and the first row's last button against that rule.
+    private static void assertRowSpacing(DrawnFrame frame, String firstName, String secondName, String lastButton) {
+        DrawnFrame.Text first = first(frame, firstName);
+        DrawnFrame.Text second = first(frame, secondName);
+        DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")
+                && text.x() > second.x() && Math.abs(text.y() - second.y()) <= 1).findFirst()
+                .orElseThrow(() -> new AssertionError("no pencil by " + second + " in " + frame.drawn()));
+        int pencilTop = pencil.y() - ButtonPainter.TEXT_NUDGE;
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
+                eq(RowLayout.SEPARATOR_COLOR));
+        int rule = java.util.stream.IntStream.range(0, tops.getAllValues().size())
+                .filter(index -> lefts.getAllValues().get(index) <= second.x())
+                .map(index -> tops.getAllValues().get(index)).filter(top -> top < pencilTop).max().orElseThrow();
+        assertEquals(rule + 1 + RowLayout.RULE_GAP, pencilTop, secondName + "'s pencil under the rule at " + rule);
+        assertEquals(second.x() + DrawnFrame.font().width(second.text()) + RowLayout.BUTTON_GAP,
+                pencil.x() - ButtonPainter.PADDING, secondName + "'s pencil past its name");
+        DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals(lastButton)
+                && text.y() > first.y() && text.y() < second.y()).reduce((earlier, later) -> later).orElseThrow();
+        int lastBottom = last.y() - ButtonPainter.TEXT_NUDGE + ButtonPainter.HEIGHT;
+        assertEquals(RowLayout.RULE_GAP, rule - lastBottom, firstName + "'s last button over the rule");
+    }
+
+    private static DrawnFrame.Text onLineOf(DrawnFrame frame, DrawnFrame.Text anchor, String label) {
+        return frame.drawn().stream().filter(text -> text.y() == anchor.y() && text.text().equals(label)).findFirst()
+                .orElseThrow(() -> new AssertionError(label + " on " + anchor + ": " + frame.drawn()));
+    }
+
+    private static int rightOf(DrawnFrame.Text button) {
+        return button.x() + DrawnFrame.font().width(button.text()) + ButtonPainter.PADDING;
+    }
+
+    // The right edge of the row box filled across a point.
+    private static int boxRightAt(DrawnFrame frame, int x, int y) {
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
+                eq(ProcessesPane.ROW_COLOR));
+        for (int index = 0; index < tops.getAllValues().size(); index++) {
+            if (lefts.getAllValues().get(index) <= x && rights.getAllValues().get(index) > x
+                    && tops.getAllValues().get(index) <= y && bottoms.getAllValues().get(index) > y) {
+                return rights.getAllValues().get(index);
+            }
+        }
+        throw new AssertionError("no row box at " + y);
+    }
+
+    /**
+     * A mutator's sentence draws on the line under its name line, unindented, its kind dropdown at the name's x
+     * (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
+     */
+    @Test
+    void mutatorSentenceStartsAtTheNameWithItsKind() {
+        DrawnFrame frame = frame();
+        List<DrawnFrame.Text> drawn = frame.drawn();
+        DrawnFrame.Text waxed = first(frame, "waxed");
+        DrawnFrame.Text kind = drawn.get(drawn.indexOf(waxed) + 4);
+        assertEquals(ControlFlow.dropdownLabel("add"), kind.text(), drawn.toString());
+        assertTrue(kind.y() > waxed.y(), kind + " below " + waxed);
+        assertEquals(waxed.x() + ButtonPainter.PADDING, kind.x(), drawn.toString());
     }
 
     // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane.
@@ -222,11 +393,11 @@ class ProcessesPaneTest {
         ManagerDraft draft = new ManagerDraft();
         draft.read("""
                 {"path": "base_values.json", "members": [
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
                    "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ", entries)));
         ProcessesTab tab = new ProcessesTab(draft);
         tab.readDescribed("""
-                {"sections": [{"section": "_post_conversions", "processes": [%s]}]}"""
+                {"sections": [{"section": "_conversions", "processes": [%s]}]}"""
                 .formatted(String.join(", ", processes)));
         return new ProcessesPane(tab, draft, mock(ManagerActions.class), null, () -> List.of("oak"));
     }
@@ -241,7 +412,7 @@ class ProcessesPaneTest {
         for (int width : new int[] {590, 464}) {
             DrawnFrame frame = new DrawnFrame();
             pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
-            int middle = width * 2 / 5;
+            int middle = width * 3 / 5;
             List<DrawnFrame.Text> drawn = frame.drawn();
             List<DrawnFrame.Text> crosses = drawn.stream().filter(text -> text.text().equals("✗")).toList();
             assertEquals(3, crosses.size(), drawn.toString());
@@ -283,13 +454,37 @@ class ProcessesPaneTest {
         return frame(590);
     }
 
-    // A pane 740 wide gives the mutators column its two fifths, 296, the room a 20-character cut name takes.
+    // A pane 740 wide gives the mutators column its three fifths, 444, more than a 20-character cut name takes.
     private static final int WIDE_PANE = 740;
 
     private DrawnFrame frame(int width) {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
         return frame;
+    }
+
+    /**
+     * The mutators column takes 60 percent of the pane and the iterators column 40, the gap centered on the split,
+     * and each column's scroll bar stands at its own right edge (decision mutators-iterators-split-sixty-forty).
+     */
+    @Test
+    void columnsSplitThePaneSixtyForty() {
+        int width = 590;
+        DrawnFrame frame = frame(width);
+        int middle = width * 3 / 5;
+        int halfGap = 6;
+        assertEquals(middle + halfGap, frame.find("Iterators").x());
+        assertEquals(0, frame.find("Mutators").x());
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeast(1)).fill(lefts.capture(), anyInt(), rights.capture(), anyInt(),
+                eq(0xC0C0C0C0));
+        List<List<Integer>> thumbs = new ArrayList<>();
+        for (int index = 0; index < lefts.getAllValues().size(); index++) {
+            thumbs.add(List.of(lefts.getAllValues().get(index), rights.getAllValues().get(index)));
+        }
+        assertEquals(List.of(List.of(middle - halfGap - ScrollBar.WIDTH, middle - halfGap),
+                List.of(width - ScrollBar.WIDTH, width)), thumbs);
     }
 
     @Test
@@ -311,15 +506,14 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Every row's top line draws its name with a pencil just past it, then its kind dropdown and mark at the same
-     * column lefts, and a red x at the row's right end, under no header (the operator's ruling: pencil by the name,
-     * x at the row end).
+     * Every row's top line draws its name with a pencil just past it, its mark at one column left, and a red x at the
+     * row's right end, under no header (the operator's ruling: pencil by the name, x at the row end).
      */
     @Test
     void everyRowDrawsItsColumnsAtTheSameLefts() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
-        int middle = 590 * 2 / 5;
+        int middle = 590 * 3 / 5;
         for (String column : List.of("✗", "✔")) {
             for (boolean right : new boolean[] {false, true}) {
                 List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)
@@ -331,8 +525,6 @@ class ProcessesPaneTest {
         assertEquals(nameLeft, drawn.stream().filter(text -> text.text().startsWith("copper_oxid")).findFirst()
                 .orElseThrow().x());
         assertTrue(frame.find("#exposed").x() >= middle, "the iterator stands in the right column");
-        int kindLeft = frame.find(ControlFlow.dropdownLabel("additive")).x();
-        assertTrue(kindLeft > nameLeft + 20 * 6, "the kind stands past the name column at " + kindLeft);
         List<DrawnFrame.Text> pencils = drawn.stream().filter(text -> text.text().equals("✎")).toList();
         assertEquals(3, pencils.size(), frame.texts().toString());
         DrawnFrame.Text waxed = first(frame, "waxed");
@@ -385,18 +577,17 @@ class ProcessesPaneTest {
 
     /**
      * With a section whose payload carries a summary, the Mutators heading stands on the columns' first row under the
-     * sub-tabs and the search box, and the first text below the sub-tabs is that heading (decision
-     * mutators-pane-draws-no-entry-count).
+     * search box, and it is the first text the pane draws (decisions mutators-pane-draws-no-entry-count,
+     * conversions-is-the-one-section-and-the-pane-name).
      */
     @Test
-    void mutatorsHeadingStandsOnTheFirstRowUnderTheSubTabs() {
+    void mutatorsHeadingStandsOnTheFirstRowUnderTheSearchBox() {
         DrawnFrame frame = frame();
         DrawnFrame.Text heading = frame.find("Mutators");
         assertEquals(ProcessesPane.SEARCH_ROW + ProcessesPane.HEADING_NUDGE, heading.y());
-        DrawnFrame.Text tab = frame.find("Conversions");
-        List<DrawnFrame.Text> below = frame.drawn().stream().filter(text -> text.y() > tab.y())
+        List<DrawnFrame.Text> drawn = frame.drawn().stream()
                 .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::y)).toList();
-        assertEquals("Mutators", below.getFirst().text(), below.toString());
+        assertEquals("Mutators", drawn.getFirst().text(), drawn.toString());
     }
 
     /**
@@ -440,7 +631,7 @@ class ProcessesPaneTest {
     }
 
     private List<String> postConversionKeys() {
-        return draft.sectionEntries("_post_conversions").asList().stream()
+        return draft.sectionEntries("_conversions").asList().stream()
                 .map(entry -> entry.getAsJsonObject().get("key").getAsString()).toList();
     }
 
@@ -469,7 +660,7 @@ class ProcessesPaneTest {
         DrawnFrame.Text again = rowControl(restored, key, "✗");
         assertEquals(ProcessesPane.RED, again.color());
         assertTrue(restored.targets.click(again.x() + 1, again.y() + 1));
-        assertEquals(List.of("_post_conversions\n" + key), draft.removals().marked(RemovalMarks.Tab.MUTATORS));
+        assertEquals(List.of("_conversions\n" + key), draft.removals().marked(RemovalMarks.Tab.MUTATORS));
         pane.applyRemovals();
         assertFalse(postConversionKeys().contains(key), postConversionKeys().toString());
     }

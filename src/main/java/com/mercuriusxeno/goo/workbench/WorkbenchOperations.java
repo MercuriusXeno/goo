@@ -72,7 +72,6 @@ public final class WorkbenchOperations {
     // The exit code a run reports when it was interrupted or could not start, since the runner gave none.
     private static final int RUN_FAILED_EXIT = -1;
     private static final String NO_DRAFT_AT = "No draft stands to promote at ";
-    private static final String NO_LIVE_FILE_AT = "No live file stands to discard back to at ";
     private static final String NO_INVENTORY_WRITTEN = "The inventory dump wrote no ";
     private static final String NO_CONSTANT_NAMED = "No constant is named $";
     private static final String NO_OPERATION_NAMED = "No workbench operation is named ";
@@ -375,10 +374,16 @@ public final class WorkbenchOperations {
         return draft;
     }
 
+    // A draft differs from what the game reads: the live file, or the seed where no live file stands.
     private boolean draftDiffers() throws IOException {
         Path draft = paths.draft();
-        return Files.isRegularFile(draft)
-                && (!Files.isRegularFile(paths.baseValues()) || Files.mismatch(draft, paths.baseValues()) >= 0);
+        if (!Files.isRegularFile(draft)) {
+            return false;
+        }
+        if (!Files.isRegularFile(paths.baseValues())) {
+            return !java.util.Arrays.equals(Files.readAllBytes(draft), seed.read());
+        }
+        return Files.mismatch(draft, paths.baseValues()) >= 0;
     }
 
     private WorkbenchReply modelReply(BaseValuesModel model) throws IOException {
@@ -406,19 +411,19 @@ public final class WorkbenchOperations {
     }
 
     /**
-     * Copies the live file back over the draft, dropping every unpromoted change
-     * (decision workbench-authors-a-draft-and-promotes-by-rename).
+     * Copies what the game reads back over the draft, dropping every unpromoted change: the live file, or the seed
+     * the draft started from where no live file stands (decision workbench-authors-a-draft-and-promotes-by-rename).
      *
-     * @return the draft's model, or a conflict where no live file stands
+     * @return the draft's model
      */
     private WorkbenchReply discard() throws IOException {
+        byte[] restored;
         synchronized (draftLock) {
-            if (!Files.isRegularFile(paths.baseValues())) {
-                return WorkbenchReply.of(CONFLICT, WorkbenchReply.TEXT, NO_LIVE_FILE_AT + paths.baseValues());
-            }
-            Files.copy(paths.baseValues(), paths.draft(), StandardCopyOption.REPLACE_EXISTING);
+            restored = Files.isRegularFile(paths.baseValues()) ? Files.readAllBytes(paths.baseValues()) : seed.read();
+            Files.createDirectories(paths.draft().getParent());
+            Files.write(paths.draft(), restored);
         }
-        applier.apply(Files.readString(paths.baseValues()));
+        applier.apply(new String(restored, java.nio.charset.StandardCharsets.UTF_8));
         return modelReply(datafixedDraft());
     }
 

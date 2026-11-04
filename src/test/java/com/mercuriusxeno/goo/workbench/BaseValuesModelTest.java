@@ -10,6 +10,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -206,6 +207,64 @@ class BaseValuesModelTest {
         assertNoKeyOfASection(model, terminus);
     }
 
+    /**
+     * A file carrying the one conversions key, and a hand-kept file still carrying the legacy post-conversions key,
+     * both read the entry under _conversions and write that key alone (decision
+     * conversions-is-the-one-section-and-the-pane-name).
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"_conversions", "_post_conversions"})
+    void eitherConversionsKeyReadsAsTheOneSectionAndWritesConversions(String key) {
+        BaseValuesModel model = BaseValuesModel.parse("""
+                {
+                    "%s": {
+                        "waxed": "+$waxed"
+                    }
+                }
+                """.formatted(key));
+        assertEquals(List.of("waxed"), model.member("_conversions").entries().stream()
+                .map(BaseValuesModel.Member::key).toList());
+        String written = model.serialize();
+        assertTrue(written.contains("\"_conversions\""), written);
+        assertFalse(written.contains("_post_conversions"), written);
+    }
+
+    /**
+     * A legacy file holding both keys reads the old pre-derivation entries, then the post-derivation ones, as the
+     * one section.
+     */
+    @Test
+    void legacyFileWithBothKeysFoldsThemIntoOneSection() {
+        BaseValuesModel model = BaseValuesModel.parse("""
+                {
+                    "_conversions": {
+                        "melted": "+$oak"
+                    },
+                    "_post_conversions": {
+                        "waxed": "+$waxed"
+                    }
+                }
+                """);
+        assertEquals(List.of("melted", "waxed"), model.member("_conversions").entries().stream()
+                .map(BaseValuesModel.Member::key).toList());
+        assertFalse(model.serialize().contains("_post_conversions"), model.serialize());
+    }
+
+    /**
+     * The bundled file carries the one _conversions section and no _post_conversions.
+     */
+    @Test
+    void bundledFileCarriesTheOneConversionsSection() throws java.io.IOException {
+        try (java.io.InputStream bundled = BaseValuesModelTest.class.getResourceAsStream(
+                "/data/goo/goo_values/base_values.json")) {
+            assertNotNull(bundled);
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(
+                    bundled, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+            assertFalse(json.getAsJsonObject("_conversions").isEmpty(), "the conversions section holds entries");
+            assertFalse(json.has("_post_conversions"), json.keySet().toString());
+        }
+    }
+
     private static List<String> groupMembers(BaseValuesModel model, String group) {
         return model.member("_groups").entries().stream().filter(entry -> group.equals(entry.key())).findFirst()
                 .map(entry -> com.google.gson.JsonParser.parseString(entry.text()).getAsJsonArray().asList()
@@ -222,9 +281,7 @@ class BaseValuesModelTest {
                 .map(BaseValuesModel.Member::key).filter(key -> !key.startsWith("#")).forEach(items::add);
         model.member("_groups").entries().forEach(group -> items.addAll(groupMembers(model, group.key())));
         java.util.Set<String> processes = new java.util.HashSet<>();
-        for (String section : List.of("_conversions", "_post_conversions")) {
-            model.member(section).entries().forEach(entry -> processes.add(entry.key()));
-        }
+        model.member("_conversions").entries().forEach(entry -> processes.add(entry.key()));
         for (String id : terminus) {
             assertTrue(items.contains(id), id + " is no item entry or group member");
             assertFalse(id.startsWith("#") || processes.contains(id), id + " is a group or process key");

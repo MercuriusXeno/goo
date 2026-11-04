@@ -12,8 +12,8 @@ import java.util.Map;
  * it, block by block in the order the parser applies them (decision workbench-authors-base-values-whole).
  */
 final class ProcessesJson {
-    private static final String PRE = "_conversions";
-    private static final String POST = "_post_conversions";
+    // Decision conversions-is-the-one-section-and-the-pane-name.
+    private static final String CONVERSIONS = "_conversions";
     private static final String SECTIONS = "sections";
     private static final String SECTION = "section";
     private static final String PROCESSES = "processes";
@@ -32,11 +32,11 @@ final class ProcessesJson {
 
     /**
      * @param model the model
-     * @return both blocks' entries with their forms and the parser's verdict
+     * @return the conversions block's entries with their forms and the parser's verdict
      */
     static String described(BaseValuesModel model) {
         JsonArray sections = new JsonArray();
-        for (String section : List.of(PRE, POST)) {
+        for (String section : List.of(CONVERSIONS)) {
             List<Processes.Process> read = Processes.read(model, section);
             Verdict verdict = verdict(model, section, read);
             JsonArray processes = new JsonArray();
@@ -76,20 +76,20 @@ final class ProcessesJson {
      * read again one entry longer at a time to find the entry it stops at.
      *
      * @param model   the model
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param read    the block's entries, in the order the parser applies them
      * @return the parsed block, the index it stopped at and the parser's message
      */
     private static Verdict verdict(BaseValuesModel model, String section, List<Processes.Process> read) {
         try {
-            return new Verdict(parsedBlock(model, section), READ_EVERY_ENTRY, null);
+            return new Verdict(parsedBlock(model), READ_EVERY_ENTRY, null);
         } catch (IllegalArgumentException whole) {
             GooConversion.ParsedConversions last = GooConversion.parseBlock(Map.of());
             BaseValuesModel prefix = withoutEntries(model, section);
             for (int i = 0; i < read.size(); i++) {
                 prefix = Processes.with(prefix, section, read.get(i).key(), read.get(i).text());
                 try {
-                    last = parsedBlock(prefix, section);
+                    last = parsedBlock(prefix);
                 } catch (IllegalArgumentException stop) {
                     return new Verdict(last, i, stop.getMessage());
                 }
@@ -98,9 +98,8 @@ final class ProcessesJson {
         }
     }
 
-    private static GooConversion.ParsedConversions parsedBlock(BaseValuesModel model, String section) {
-        GooBaseValuesPreview.Conversions parsed = GooBaseValuesPreview.conversions(model.serialize());
-        return PRE.equals(section) ? parsed.pre() : parsed.post();
+    private static GooConversion.ParsedConversions parsedBlock(BaseValuesModel model) {
+        return GooBaseValuesPreview.conversions(model.serialize());
     }
 
     private static BaseValuesModel withoutEntries(BaseValuesModel model, String section) {

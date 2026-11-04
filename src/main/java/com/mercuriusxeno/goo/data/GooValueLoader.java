@@ -30,6 +30,8 @@ final class GooValueLoader {
 
     // --- Log messages ---
 
+    private static final String LOG_UNRESOLVED_ITEM = "{} names {}, which holds no value, so it loads no value";
+
     private static final String LOG_LOADED_PACKS = "Loaded {} base goo values from {} pack(s)";
     private static final String LOG_READ_PACK_FAIL = "Failed to read base_values.json from pack {}: {}";
     private static final String LOG_NEGATIVE_BASE = "Negative goo in base value for {}: {} -- skipped";
@@ -50,7 +52,6 @@ final class GooValueLoader {
             GooConstantParser.parseConstants(json, state);
             parseItemValues(json, state);
             GooConversionLoader.parseConversions(json, state);
-            GooConversionLoader.applyConversions(state.preConversions, state.baseValues, state.pseudoTags);
         }
     }
 
@@ -111,7 +112,6 @@ final class GooValueLoader {
         GooConstantParser.parseConstants(merged, state);
         parseItemValues(merged, state);
         GooConversionLoader.parseConversions(merged, state);
-        GooConversionLoader.applyConversions(state.preConversions, state.baseValues, state.pseudoTags);
         state.effectiveValues.putAll(state.baseValues);
         if (Goo.LOGGER.isInfoEnabled()) {
             Goo.LOGGER.info(LOG_LOADED_PACKS, state.baseValues.size(), layers.size());
@@ -162,7 +162,13 @@ final class GooValueLoader {
         if (isDeniedEntry(value)) {
             state.deniedItems.add(itemId);
         } else {
-            GooValue resolved = resolveItemEntry(value, state);
+            GooValue resolved;
+            try {
+                resolved = resolveItemEntry(value, state);
+            } catch (UnresolvedItemReference unresolved) {
+                Goo.LOGGER.warn(LOG_UNRESOLVED_ITEM, itemId, unresolved.item());
+                return;
+            }
             if (resolved.hasNegative()) {
                 Goo.LOGGER.error(LOG_NEGATIVE_BASE, itemId, resolved);
             } else {
@@ -211,7 +217,6 @@ final class GooValueLoader {
         state.constants.clear();
         state.treeConstants.clear();
         state.pseudoTags.clear();
-        state.preConversions = null;
         state.postConversions = null;
         state.lastMergedBaseValues = null;
     }
@@ -250,7 +255,6 @@ final class GooValueLoader {
          * The clique roots _roots names, in file order (decision audit-proposes-root-candidates-and-flags-bleed).
          */
         final Set<Identifier> rootItems = new java.util.LinkedHashSet<>();
-        GooConversion.ParsedConversions preConversions;
         GooConversion.ParsedConversions postConversions;
         JsonObject lastMergedBaseValues;
 

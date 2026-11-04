@@ -16,7 +16,9 @@ final class RemovalMarks {
     enum Tab {
         PREFABS,
         GROUPS,
-        MUTATORS
+        MUTATORS,
+        /** An Items row's own entry (decision items-row-is-one-line-then-its-expression-inline). */
+        ITEMS
     }
 
     private final Map<Tab, Set<String>> marks = new EnumMap<>(Tab.class);

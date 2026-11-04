@@ -21,7 +21,7 @@ class ExpressionLinesTest {
         case "bucket" -> "Bucket";
         default -> "Unnamed";
     };
-    private static final List<String> RAW_MARKS = List.of("{", "}", "\"", "$", "minecraft:");
+    private static final List<String> RAW_MARKS = List.of("{", "}", "\"", "minecraft:");
 
     private static ExpressionLines.Run run(ExpressionLines.Kind kind, String text) {
         return new ExpressionLines.Run(kind, text, null);
@@ -94,29 +94,131 @@ class ExpressionLinesTest {
         assertEquals(List.of("Anvil", "-", "Bucket"), runs.stream().map(ExpressionLines.Run::text).toList());
     }
 
+    private static final String BEETROOT = "{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", "
+            + "\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\"}";
+
+    private static ExpressionLines.Run type(String type) {
+        return new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", type);
+    }
+
+    private static ExpressionLines.Run link(String prefab) {
+        // Decision diagnose-and-correct-prefabs-drawn-without-their-dollar: a prefab draws after its $.
+        return new ExpressionLines.Run(ExpressionLines.Kind.LINK, "$" + prefab, prefab);
+    }
+
+    private static ExpressionLines.Run symbol(String symbol) {
+        return run(ExpressionLines.Kind.OPERATOR, symbol);
+    }
+
+    // A per-type prefab's member reads as its link, 's, then the member's icon.
+    private static List<ExpressionLines.Run> possessive(String prefab, String member) {
+        return List.of(link(prefab), run(ExpressionLines.Kind.SUFFIX, "'s"), type(member));
+    }
+
     /**
-     * Kelp's per-type object draws a row per type: the type's icon, then its sum with the prefab as a link and its
-     * type as an icon.
+     * Beetroot reads each type row as its icon then a colon, its terms inline after it, each per-type prefab as its
+     * link, 's and its member's icon, so it reads {jelly}: food's {jelly} + saturation's {jelly} x 12 and
+     * {leaf}: dye's {leaf} - (food's {jelly} + saturation's {jelly} x 12) (decisions
+     * read-view-reads-type-equals-possessive-terms, builder-inlines-terms-under-indentation-rules-with-a-colon).
      */
     @Test
-    void perTypeObjectDrawsARowPerTypeIcon() {
-        ExpressionTerms.Value kelp = ExpressionTerms.parseValue(JsonParser.parseString(
-                "{\"jelly\": \"3 $food.jelly / 2\", \"leaf\": \"3 $food.jelly / 2\"}")).orElseThrow();
-        List<ExpressionLines.Run> runs = ExpressionLines.runs(kelp, NAMES);
-        List<ExpressionLines.Run> row = List.of(
-                new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, "3", null),
-                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "food", "food"),
-                new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "jelly"),
-                run(ExpressionLines.Kind.OPERATOR, "/"),
-                run(ExpressionLines.Kind.NUMBER, "2"));
-        List<ExpressionLines.Run> expected = new java.util.ArrayList<>();
-        expected.add(new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "jelly"));
-        expected.addAll(row);
-        expected.add(run(ExpressionLines.Kind.BREAK, ""));
-        expected.add(new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "leaf"));
-        expected.addAll(row);
+    void beetrootReadsTypeColonThenPossessiveTermsInline() {
+        ExpressionTerms.Value beetroot = ExpressionTerms.parseValue(JsonParser.parseString(BEETROOT)).orElseThrow();
+        List<ExpressionLines.Run> inner = new java.util.ArrayList<>(possessive("food", "jelly"));
+        inner.add(symbol("+"));
+        inner.addAll(possessive("saturation", "jelly"));
+        inner.add(symbol("x"));
+        inner.add(run(ExpressionLines.Kind.NUMBER, "12"));
+        List<ExpressionLines.Run> expected = new java.util.ArrayList<>(List.of(type("jelly"), symbol(":")));
+        expected.addAll(inner);
+        expected.addAll(List.of(run(ExpressionLines.Kind.BREAK, ""), type("leaf"), symbol(":")));
+        expected.addAll(possessive("dye", "leaf"));
+        expected.addAll(List.of(symbol("-"), symbol("(")));
+        expected.addAll(inner);
+        expected.add(symbol(")"));
+        List<ExpressionLines.Run> runs = ExpressionLines.runs(beetroot, NAMES);
         assertEquals(expected, runs);
         assertCurated(runs);
+    }
+
+    /**
+     * A scalar prefab reads as its link alone, with no 's.
+     */
+    @Test
+    void scalarPrefabReadsAsABareLink() {
+        assertEquals(List.of(link("stick"), symbol("+"), run(ExpressionLines.Kind.NUMBER, "2")),
+                ExpressionLines.shownRuns("$stick + 2", NAMES));
+    }
+
+    /**
+     * A per-type prefab's 's draws flush against its link, no gap between (decision
+     * possessive-sits-flush-against-its-word-button).
+     */
+    @Test
+    void possessiveDrawsFlushAgainstItsLink() {
+        DrawnFrame frame = drawn("{\"jelly\": \"$food.jelly\"}", 400);
+        DrawnFrame.Text food = frame.find("$food");
+        DrawnFrame.Text possessive = frame.find("'s");
+        assertEquals(food.x() + DrawnFrame.font().width(food.text()), possessive.x(), frame.drawn().toString());
+    }
+
+    private static DrawnFrame drawn(String shown, int width) {
+        DrawnFrame frame = new DrawnFrame();
+        ExpressionLines.draw(DrawnFrame.font(), ExpressionLines.shownRuns(shown, NAMES), 10, 20, width,
+                new ExpressionLines.Painter(frame.graphics, null, frame.targets, 0xFFFFFFFF, ButtonPainter.LINK,
+                        (variable, x, y, width1) -> { }));
+        return frame;
+    }
+
+    /**
+     * The symbols draw in the symbol color, not the text color, and each type row's first term draws on the type's
+     * line right after its colon (decision builder-inlines-terms-under-indentation-rules-with-a-colon).
+     */
+    @Test
+    void symbolsDrawInTheirOwnColorAndTermsInlineAfterTheColon() {
+        DrawnFrame frame = drawn(BEETROOT, 400);
+        for (String symbol : List.of(":", "+", "x", "-", "(", ")")) {
+            assertEquals(ExpressionLines.SYMBOL_COLOR, frame.find(symbol).color(), symbol);
+        }
+        DrawnFrame.Text colon = frame.findFirst(":");
+        DrawnFrame.Text food = frame.findFirst("$food");
+        assertEquals(colon.y(), food.y(), frame.drawn().toString());
+        assertTrue(food.x() > colon.x(), food + " after " + colon);
+        assertEquals(frame.find(":").y(), frame.find("$dye").y(), frame.drawn().toString());
+        assertTrue(frame.find("$dye").y() > food.y(), frame.drawn().toString());
+        assertEquals(0, frame.count("="), frame.texts().toString());
+    }
+
+    /**
+     * At a narrow width a type row's continuation wraps one indent in under the type; a parenthetical that does not
+     * fit the rest of the line goes with its join to a line of its own; a wrap inside it indents again, and the
+     * indent returns past its closing paren (decision builder-inlines-terms-under-indentation-rules-with-a-colon).
+     */
+    @Test
+    void narrowRowsWrapUnderTheIndentationRules() {
+        int left = 10;
+        int oneIndent = left + ControlFlow.INDENT;
+        int twoIndents = oneIndent + ControlFlow.INDENT;
+        DrawnFrame jelly = drawn("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\"}", 120);
+        DrawnFrame.Text food = jelly.find("$food");
+        DrawnFrame.Text saturation = jelly.find("$saturation");
+        assertEquals(food.y() + ExpressionLines.ICON_LINE_HEIGHT, saturation.y(), jelly.drawn().toString());
+        assertEquals(oneIndent, saturation.x(), jelly.drawn().toString());
+
+        DrawnFrame leaf = drawn("{\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)"
+                + " + $saturation.jelly\"}", 120);
+        DrawnFrame.Text dye = leaf.find("$dye");
+        DrawnFrame.Text minus = leaf.find("-");
+        DrawnFrame.Text open = leaf.find("(");
+        assertEquals(List.of(dye.y() + ExpressionLines.ICON_LINE_HEIGHT, oneIndent), List.of(minus.y(), minus.x()),
+                leaf.drawn().toString());
+        assertEquals(minus.y(), open.y(), leaf.drawn().toString());
+        DrawnFrame.Text inner = leaf.findFirst("$saturation");
+        assertEquals(List.of(minus.y() + ExpressionLines.ICON_LINE_HEIGHT, twoIndents), List.of(inner.y(), inner.x()),
+                leaf.drawn().toString());
+        DrawnFrame.Text after = leaf.find("$saturation");
+        assertTrue(after.y() > leaf.find(")").y(), leaf.drawn().toString());
+        assertEquals(oneIndent, after.x(), leaf.drawn().toString());
     }
 
     /**
@@ -139,14 +241,14 @@ class ExpressionLinesTest {
     @Test
     void linkUnderlinesWhileShiftIsHeldAndNotWhileUp() {
         List<ExpressionLines.Run> runs = List.of(run(ExpressionLines.Kind.NUMBER, "2"),
-                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "wood", "wood"));
+                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "$wood", "wood"));
         DrawnFrame held = new DrawnFrame().holdingShift();
         paint(held, runs);
-        assertTrue(held.underlined("wood"));
+        assertTrue(held.underlined("$wood"));
         assertFalse(held.underlined("2"));
         DrawnFrame up = new DrawnFrame();
         paint(up, runs);
-        assertFalse(up.underlined("wood"));
+        assertFalse(up.underlined("$wood"));
     }
 
     private static void paint(DrawnFrame frame, List<ExpressionLines.Run> runs) {
@@ -163,7 +265,7 @@ class ExpressionLinesTest {
         List<ExpressionLines.Run> runs = ExpressionLines.runs(anvil, NAMES);
         assertEquals(List.of(new ExpressionLines.Run(ExpressionLines.Kind.ITEM, "Anvil", "anvil"),
                 run(ExpressionLines.Kind.OPERATOR, "-"),
-                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "iron_block", "iron_block")), runs);
+                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "$iron_block", "iron_block")), runs);
         assertCurated(runs);
     }
 

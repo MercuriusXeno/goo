@@ -22,12 +22,38 @@ class RowLayoutTest {
      * Items rows and Groups cards hold a 16px sprite in an 18px row.
      */
     @Test
-    void spriteRowsStepEighteen() {
+    void spriteRowsHoldSixteenInEighteen() {
         assertEquals(16, RowLayout.SPRITE_SIZE);
-        for (int rowHeight : List.of(ValuesPane.ROW_HEIGHT, GroupsPane.CARD_HEIGHT, GroupsPane.ROW_HEIGHT)) {
+        for (int rowHeight : List.of(ValuesPane.ROW_HEIGHT, GroupsPane.ROW_HEIGHT, RowLayout.SPRITE_ROW_HEIGHT)) {
             assertEquals(18, rowHeight);
-            assertEquals(18, RowLayout.rowTop(TOP, 1, rowHeight) - RowLayout.rowTop(TOP, 0, rowHeight));
-            assertEquals(18, RowLayout.rowTop(TOP, 3, rowHeight) - RowLayout.rowTop(TOP, 2, rowHeight));
+        }
+    }
+
+    /**
+     * One set of spacing constants serves every pane: a rule's gap, a button's gap and the builder box's margin
+     * (decision spacing-rules-are-one-set-across-every-pane).
+     */
+    @Test
+    void oneSpacingSetNamesTheRuleButtonAndBoxGaps() {
+        assertEquals(2, RowLayout.RULE_GAP);
+        assertEquals(3, RowLayout.BUTTON_GAP);
+        assertEquals(3, RowLayout.BOX_MARGIN);
+        assertEquals(RowLayout.RULE_GAP, RowLayout.RULE_PADDING, "a sprite row's rule keeps the rule gap");
+    }
+
+    /**
+     * Rows holding a sprite step their 18px plus the rule's padding, so the separator above a row stands that padding
+     * below the sprite in the row above it, its sprite a pixel below its top (decision rule-takes-padding-above-it).
+     */
+    @Test
+    void separatorStandsThePaddingBelowTheSpriteAbove() {
+        assertTrue(RowLayout.RULE_PADDING > 0);
+        for (int index = 1; index < ROWS; index++) {
+            int above = RowLayout.rowTop(TOP, index - 1, RowLayout.SPRITE_ROW_PITCH);
+            int spriteBottom = above + 1 + RowLayout.SPRITE_SIZE;
+            int rule = RowLayout.separatorAbove(index, RowLayout.rowTop(TOP, index, RowLayout.SPRITE_ROW_PITCH))
+                    .getAsInt();
+            assertEquals(RowLayout.RULE_PADDING, rule - spriteBottom);
         }
     }
 

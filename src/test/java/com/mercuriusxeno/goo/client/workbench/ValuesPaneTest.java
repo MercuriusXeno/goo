@@ -24,9 +24,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests the Values pane's layouts with no Screen: the Items, Tags and Uncovered set above the search box, and an
- * Items row's title line and equality line (decisions items-filters-sit-on-their-own-line-as-one-set,
- * items-row-second-line-is-the-equality-expression).
+ * Tests the Values pane's layouts with no Screen: the filter set on the search box's line, and an Items row's one
+ * head line with its expression inline below it (decisions filter-buttons-stand-right-of-the-search-bar,
+ * items-row-is-one-line-then-its-expression-inline).
  */
 class ValuesPaneTest {
     private static final int LEFT = 10;
@@ -37,14 +37,10 @@ class ValuesPaneTest {
     // The goo type icons' side today, and the side they widen to.
     private static final int SMALL_ICON = 11;
     private static final int[] ICON_SIZES = {SMALL_ICON, 12};
-    // The second line's top, under the row's top pixel and its title line.
-    private static final int LINE_TWO = TOP + ValuesPane.ROW_PAD + ValuesPane.TITLE_HEIGHT;
-    // A row of title and equality line alone: its lines plus a pixel above and below.
-    private static final int TWO_LINES = 2 + ValuesPane.TITLE_HEIGHT + ValuesPane.ROW_HEIGHT;
 
     /**
      * The Items, Uncovered and Fractional boxes stand on one line, each sharing its inner border with the next, the
-     * search box sits one line below them, the one box filled is the filter the tab holds, the pane draws no Tags
+     * one box filled is the filter the tab holds, the pane draws no Tags
      * box, and a click on the last lists the fractional items (decisions items-filters-sit-on-their-own-line-as-one-set,
      * items-selector-set-reads-items-and-uncovered, items-filter-set-takes-a-fractional-chip).
      */
@@ -65,7 +61,7 @@ class ValuesPaneTest {
         }
         assertEquals(List.of(false, true, false), chips.stream().map(ValuesPane.Chip::filled).toList());
         ValuesPane.Chip first = chips.getFirst();
-        assertEquals(first.top() + first.height() + ValuesPane.CHIP_LINE_GAP, layout.searchTop());
+        assertEquals(first.top() + first.height(), layout.bottom());
 
         Font font = sixPixelFont();
         ValuesTab values = new ValuesTab();
@@ -74,13 +70,303 @@ class ValuesPaneTest {
         ValuesPane pane = new ValuesPane(values, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, font, new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
+        pane.extract(frame.graphics, font, bounds, frame.targets);
         assertEquals(List.of(), frame.texts().stream().filter("Tags"::equals).toList());
-        ValuesPane.Chip fractional = ValuesPane.layChips(List.of("Items", "Uncovered 0", "Fractional"),
-                font::width, 0, 0, values.filter()).chips().get(2);
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        ValuesPane.Chip fractional = ValuesPane.layChips(labels, font::width,
+                ValuesPane.chipsLeft(labels, font::width, bounds), 0, values.filter()).chips().get(2);
         frame.targets.click(fractional.left() + 1, fractional.top() + 1);
         assertEquals(ValuesTab.Filter.FRACTIONAL, values.filter());
     }
+
+    /**
+     * The Items, Uncovered and Fractional chips stand on the search box's line right of it, each a click away from
+     * its filter, and the first row starts under that line (decision filter-buttons-stand-right-of-the-search-bar).
+     */
+    @Test
+    void filtersStandRightOfTheSearchBoxOnItsLine() {
+        Font font = DrawnFrame.font();
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        List<net.minecraft.client.gui.components.AbstractWidget> widgets = new java.util.ArrayList<>();
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        pane.init(font);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, bounds, frame.targets);
+        net.minecraft.client.gui.components.EditBox search = widgets.stream()
+                .filter(net.minecraft.client.gui.components.EditBox.class::isInstance)
+                .map(net.minecraft.client.gui.components.EditBox.class::cast).findFirst().orElseThrow();
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, font::width,
+                ValuesPane.chipsLeft(labels, font::width, bounds), bounds.top(), values.filter()).chips();
+        chips.forEach(chip -> assertEquals(search.getY(), chip.top(), chip.toString()));
+        assertTrue(chips.getFirst().left() > search.getX() + search.getWidth(), chips.getFirst() + " vs search right "
+                + (search.getX() + search.getWidth()));
+        int chipsBottom = chips.getFirst().top() + chips.getFirst().height();
+        assertTrue(frame.find("Stick").y() > chipsBottom, frame.find("Stick") + " vs " + chipsBottom);
+        for (ValuesPane.Chip chip : chips.reversed()) {
+            assertTrue(frame.targets.click(chip.left() + 1, chip.top() + 1), chip.toString());
+            assertEquals(chip.filter(), values.filter());
+        }
+    }
+
+    /**
+     * Items is one inlined editor: a row reads its name, = and its value, then its right-packed recipe on one line, its
+     * expression one indent in on the next with no label, a click there opening the builder in its place, an entry row's x at the
+     * expression line's right end, and the loader error under it, the rows spanning the pane with no detail column
+     * (decision items-row-is-one-line-then-its-expression-inline).
+     */
+    @org.junit.jupiter.api.Nested
+    class InlineRows {
+        private static final GroupsPane.Bounds PANE = new GroupsPane.Bounds(0, 0, 500, 300);
+        private static final int LIST_RIGHT = PANE.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        private final ValuesTab values = new ValuesTab();
+        private final ManagerActions actions = mock(ManagerActions.class);
+        private final ExpressionBuilderPane builder;
+        private final ValuesPane pane;
+
+        InlineRows() {
+            values.readEntries(new ListedEntrySource(List.of(
+                    new ManagerEntrySource.ItemName("minecraft:stick", "Stick"),
+                    new ManagerEntrySource.ItemName("minecraft:oak_planks", "Oak Planks"),
+                    new ManagerEntrySource.ItemName("minecraft:gravel", "Gravel"),
+                    new ManagerEntrySource.ItemName("minecraft:cobblestone", "Cobblestone")), List.of()));
+            values.readModel("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood\\"", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null},
+                      {"key": "cobblestone", "keySeparator": null, "kind": "VALUE", "text": "\\"$missing\\"",
+                       "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                    """);
+            values.readResolved("""
+                    {"entries": [{"key": "stick", "value": {"metal": "4"}, "denied": false},
+                      {"key": "oak_planks", "value": {"glow": "2"}, "denied": false},
+                      {"key": "cobblestone", "value": null, "denied": false, "error": "Unknown constant $missing"}]}
+                    """);
+            values.readDerivedFrom("""
+                    {"items": {"minecraft:oak_planks": {"inputs": [{"id": "minecraft:oak_log", "count": 1}],
+                      "output": 4}}}
+                    """);
+            ItemIcons icons = mock(ItemIcons.class);
+            builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+            pane = new ValuesPane(values, icons, actions, builder);
+        }
+
+        // The log input's 1/4 count draws a half-scale stack under the frame's pose.
+        private DrawnFrame frame() {
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), PANE, frame.targets);
+            return frame;
+        }
+
+        // A row's texts, the small amounts a few pixels under its words (decision
+        // goo-amounts-draw-smaller-and-a-pixel-lower-everywhere).
+        private static List<DrawnFrame.Text> onLine(DrawnFrame frame, DrawnFrame.Text anchor) {
+            return frame.drawn().stream().filter(text -> Math.abs(text.y() - anchor.y()) <= AMOUNT_DROP)
+                    .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+        }
+
+        private static List<Integer> itemXsAround(DrawnFrame frame, int y) {
+            ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
+            List<Integer> found = new java.util.ArrayList<>();
+            for (int index = 0; index < xs.getAllValues().size(); index++) {
+                if (Math.abs(ys.getAllValues().get(index) - y) < ROW_HEIGHT_OF_LINE) {
+                    found.add(xs.getAllValues().get(index));
+                }
+            }
+            return found;
+        }
+
+        private static final int ROW_HEIGHT_OF_LINE = 9;
+        private static final int AMOUNT_DROP = 3;
+
+        // The shared column every value starts at: one gap past the widest name, then the item's sprite, "=" and a
+        // gap each.
+        private int valueColumn() {
+            int widest = List.of("Stick", "Oak Planks", "Gravel", "Cobblestone").stream()
+                    .mapToInt(DrawnFrame.font()::width).max().orElseThrow();
+            return PANE.left() + ValuesPane.ROW_PAD + widest + ValuesPane.HEAD_GAP + RowLayout.SPRITE_SIZE
+                    + ValuesPane.ICON_GAP + DrawnFrame.font().width("=") + ValuesPane.ICON_GAP;
+        }
+
+        // The item's own sprite stands between its name and its "=".
+        private static void assertOwnSpriteBetweenNameAndEquals(DrawnFrame.Text name, DrawnFrame.Text equals,
+                                                                int sprite) {
+            assertTrue(sprite >= name.x() + DrawnFrame.font().width(name.text())
+                    && sprite + RowLayout.SPRITE_SIZE <= equals.x(), "the sprite at " + sprite + " between " + name
+                    + " and " + equals);
+        }
+
+        // Each goo icon's x drawn on the line at a y.
+        private static List<Integer> gooIconXsAround(DrawnFrame frame, int y) {
+            ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(),
+                    org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(),
+                    anyInt(), anyInt(), anyInt(), anyInt());
+            List<Integer> found = new java.util.ArrayList<>();
+            for (int index = 0; index < xs.getAllValues().size(); index++) {
+                if (Math.abs(ys.getAllValues().get(index) - y) < ROW_HEIGHT_OF_LINE) {
+                    found.add(xs.getAllValues().get(index));
+                }
+            }
+            return found;
+        }
+
+        /**
+         * A derived row reads its name, its own sprite, =, its goo value at the shared value column, and its recipe
+         * right packed at the row's right with no sprite or = before it; an explicit entry draws its sprite and value
+         * and no recipe piece (decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right).
+         */
+        @Test
+        void rowReadsItemEqualsGooValuesThenTheRecipeAtTheFarRight() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text planks = frame.find("Oak Planks");
+            List<DrawnFrame.Text> line = onLine(frame, planks);
+            assertEquals(List.of("Oak Planks", "=", "2"), line.stream().map(DrawnFrame.Text::text).toList(),
+                    frame.drawn().toString());
+            DrawnFrame.Text equals = line.get(1);
+            assertTrue(equals.x() > planks.x() + DrawnFrame.font().width(planks.text())
+                    && equals.x() + DrawnFrame.font().width("=") < valueColumn(), "= between the name and the value");
+            assertEquals(List.of(valueColumn()), gooIconXsAround(frame, planks.y()), "the value at the column");
+            List<Integer> sprites = itemXsAround(frame, planks.y());
+            assertEquals(2, sprites.size(), "the planks sprite and the log input: " + sprites);
+            assertOwnSpriteBetweenNameAndEquals(planks, equals, sprites.getFirst());
+            assertEquals(LIST_RIGHT, sprites.getLast() + RowLayout.SPRITE_SIZE + 1, "the recipe at the far right");
+            DrawnFrame.Text stick = frame.find("Stick");
+            List<Integer> stickSprites = itemXsAround(frame, stick.y());
+            assertEquals(1, stickSprites.size(), "an explicit entry's own sprite alone, no recipe piece");
+            assertOwnSpriteBetweenNameAndEquals(stick, onLine(frame, stick).get(1), stickSprites.getFirst());
+            assertEquals(List.of(valueColumn()), gooIconXsAround(frame, stick.y()), "its value at the column");
+            assertTrue(frame.texts().stream().noneMatch(text -> text.equals("|") || text.equals("✔")
+                    || text.equals("?")), frame.texts().toString());
+        }
+
+        // Decision spacing-rules-are-one-set-across-every-pane: an entry row's x keeps the rule gap over the rule
+        // below its row.
+        @Test
+        void itemsRemoveButtonKeepsTheRuleGapOverTheRuleBelow() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text stick = frame.find("Stick");
+            DrawnFrame.Text remove = frame.drawn().stream().filter(text -> text.text().equals("✗")
+                    && text.y() > stick.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            int removeBottom = remove.y() - ButtonPainter.TEXT_NUDGE + ButtonPainter.HEIGHT;
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).fill(anyInt(), tops.capture(), anyInt(), anyInt(),
+                    eq(RowLayout.SEPARATOR_COLOR));
+            int rule = tops.getAllValues().stream().filter(top -> top >= removeBottom).min(Integer::compare)
+                    .orElseThrow(() -> new AssertionError("no rule under " + removeBottom + ": " + tops.getAllValues()));
+            assertEquals(RowLayout.RULE_GAP, rule - removeBottom, "the x over the rule at " + rule);
+        }
+
+        /**
+         * Where the value would meet the recipe, the recipe drops to a second line, still right packed, the value
+         * keeping its place after the name (decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-
+         * far-right).
+         */
+        @Test
+        void narrowRowDropsItsRecipeToASecondLineAtTheFarRight() {
+            GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 110, 300);
+            int listRight = narrow.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), narrow, frame.targets);
+            DrawnFrame.Text planks = frame.find("Oak Planks");
+            assertEquals(List.of("Oak Planks", "=", "2"), onLine(frame, planks).stream().map(DrawnFrame.Text::text)
+                    .toList(), frame.drawn().toString());
+            assertEquals(1, itemXsAround(frame, planks.y()).size(), "the recipe left the name line, its own sprite "
+                    + "stays: " + itemXsAround(frame, planks.y()));
+            List<Integer> dropped = itemXsAround(frame, planks.y() + ValuesPane.ROW_HEIGHT);
+            assertEquals(1, dropped.size(), "the recipe on the second line: " + dropped);
+            assertEquals(listRight, dropped.getFirst() + RowLayout.SPRITE_SIZE + 1, "still at the far right");
+        }
+
+        // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
+        @Test
+        void unvaluedRowsReadNotExplicitlySetAndOpenTheBuilderInPlace() {
+            DrawnFrame frame = frame();
+            List<DrawnFrame.Text> unset = frame.drawn().stream()
+                    .filter(text -> text.text().equals(ReadValueButton.NOT_SET)).toList();
+            assertEquals(2, unset.size(), "the planks recipes value and the gravel nothing values: " + frame.texts());
+            assertTrue(frame.texts().stream().noneMatch(List.of("edit to override", "no value", "no entry", "empty")
+                    ::contains), frame.texts().toString());
+            DrawnFrame.Text gravel = unset.getLast();
+            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, gravel.x());
+            assertTrue(gravel.y() > frame.find("Gravel").y(), frame.drawn().toString());
+            DrawnFrame.Text pencil = pencilBeside(frame, gravel);
+            assertTrue(pencil.x() > gravel.x() + DrawnFrame.font().width(gravel.text()), pencil + " vs " + gravel);
+            frame.click(ReadValueButton.NOT_SET);
+            assertTrue(builder.isOpen());
+            DrawnFrame open = frame();
+            DrawnFrame.Text kind = open.find(ControlFlow.dropdownLabel("by type"));
+            assertEquals(gravel.x() - ButtonPainter.PADDING, open.buttonAround(kind)[0], kind + " vs " + gravel);
+        }
+
+        // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
+        @Test
+        void valuedRowFramesItsExpressionAndItsPencilOpensTheBuilder() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text wood = frame.find("$wood");
+            DrawnFrame.Text pencil = pencilBeside(frame, wood);
+            assertTrue(pencil.x() > wood.x() + DrawnFrame.font().width(wood.text()), pencil + " vs " + wood);
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(),
+                    bottoms.capture(), eq(ButtonPainter.BORDER));
+            boolean expressionFramed = IntStream.range(0, lefts.getAllValues().size()).anyMatch(index ->
+                    lefts.getAllValues().get(index) < wood.x()
+                            && rights.getAllValues().get(index) > wood.x() + DrawnFrame.font().width(wood.text())
+                            && rights.getAllValues().get(index) <= pencil.x()
+                            && tops.getAllValues().get(index) <= wood.y()
+                            && bottoms.getAllValues().get(index) >= wood.y() + LINE_HEIGHT);
+            assertTrue(expressionFramed, "no frame spans the expression short of its pencil");
+            assertTrue(frame.targets.click(pencil.x() + 1, pencil.y() + 1));
+            assertTrue(builder.isOpen());
+            assertTrue(frame().texts().stream().anyMatch(text -> text.equals(ControlFlow.dropdownLabel("by type"))
+                    || text.endsWith(ControlFlow.dropdownLabel(""))), "the builder's kind dropdown draws");
+        }
+
+        private DrawnFrame.Text pencilBeside(DrawnFrame frame, DrawnFrame.Text text) {
+            return frame.drawn().stream().filter(drawn -> drawn.text().equals(ReadValueButton.PENCIL)
+                    && Math.abs(drawn.y() - text.y()) < ExpressionLines.TEXT_LINE_HEIGHT).findFirst()
+                    .orElseThrow(() -> new AssertionError("no pencil beside " + text + " in " + frame.drawn()));
+        }
+
+        @Test
+        void entryRowsXMarksTheEntryAndTheErrorDrawsUnderTheExpression() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text stick = frame.find("Stick");
+            DrawnFrame.Text wood = frame.find("$wood");
+            DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")).findFirst()
+                    .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            assertTrue(cross.y() > stick.y() && Math.abs(cross.y() - wood.y()) < ExpressionLines.TEXT_LINE_HEIGHT,
+                    cross + " vs " + wood);
+            assertEquals(LIST_RIGHT - 6 - ButtonPainter.PADDING, cross.x());
+            assertTrue(frame.targets.click(cross.x() + 1, cross.y() + 1));
+            assertTrue(values.isMarked("minecraft:stick"));
+            DrawnFrame marked = frame();
+            DrawnFrame.Text arrow = marked.find("↺");
+            assertEquals(List.of(cross.x(), cross.y()), List.of(arrow.x(), arrow.y()));
+            DrawnFrame.Text error = marked.find("Unknown constant $missing");
+            assertEquals(RED, error.color());
+            assertTrue(error.y() > marked.find("$missing").y(), error + " under the expression");
+        }
+    }
+
+    private static final int RED = 0xFFFF5555;
 
     /**
      * The selected chip draws its dark label with no drop shadow, so the label contrasts both its light fill and
@@ -95,29 +381,17 @@ class ValuesPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, sixPixelFont(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        ValuesPane.Chip selected = ValuesPane.layChips(List.of("Items", "Uncovered 0", "Fractional"),
-                sixPixelFont()::width, 0, 0, values.filter()).chips().getFirst();
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        ValuesPane.Chip selected = ValuesPane.layChips(labels, sixPixelFont()::width,
+                ValuesPane.chipsLeft(labels, sixPixelFont()::width, new GroupsPane.Bounds(0, 0, 500, 200)), 0,
+                values.filter()).chips().getFirst();
         ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics).text(any(Font.class), eq("Items"), anyInt(), anyInt(), colors.capture(), eq(false));
         verify(frame.graphics).fill(selected.left() + 1, selected.top() + 1, selected.left() + selected.width() - 1,
                 selected.top() + selected.height() - 1, 0xFFFFFFFF);
         assertNotEquals(0xFFFFFFFF, (int) colors.getValue(), "the label contrasts its white fill");
-        assertEquals(List.of(), frame.texts().stream().filter("Items"::equals).toList(),
-                "no shadowed Items label draws under it");
-    }
-
-    /**
-     * The Items equality line's = and its equivalency's + draw at the line's text top, which stands at the sprite's
-     * top plus half of 16 less the font's line height (decision operators-center-on-the-sprite).
-     */
-    @Test
-    void equalityOperatorsCenterOnTheSprite() {
-        for (int lineHeight : new int[] {8, 9}) {
-            ValuesPane.Equality line = ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, 400), List.of(),
-                    new ValuesPane.RowText(ValuesTab.SourceKind.DERIVED, lineHeight, 0, EQUALS_WIDTH), SMALL_ICON)
-                    .equality();
-            assertEquals(line.spriteTop() + (16 - lineHeight + 1) / 2, line.textTop(), "line height " + lineHeight);
-        }
+        assertEquals(List.of(), frame.placements().stream().filter(placed -> placed.text().equals("Items")
+                && placed.shadow()).toList(), "no shadowed Items label draws under it");
     }
 
     private static Font sixPixelFont() {
@@ -125,68 +399,6 @@ class ValuesPaneTest {
         when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
         when(font.plainSubstrByWidth(anyString(), anyInt())).thenAnswer(call -> call.getArgument(0));
         return font;
-    }
-
-    /**
-     * With the builder open over a value in a pane too short to show it whole, the wheel over the detail column
-     * scrolls the builder with the rest of the column, so its done control comes into the pane and answers there
-     * (decision every-tab-draws-a-scroll-bar).
-     */
-    @Test
-    void detailColumnScrollsTheOpenBuilderToItsDoneControl() {
-        Font font = sixPixelFont();
-        ValuesTab values = new ValuesTab();
-        values.readEntries(new ListedEntrySource(
-                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
-        values.readModel("""
-                {"path": "base_values.json", "members": [
-                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"1 + 2 + 3 + 4 + 5 + 6\\"",
-                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
-                """);
-        values.select("minecraft:stick");
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
-        ValuesPane pane = new ValuesPane(values, icons, actions, builder);
-        builder.open("1 + 2 + 3 + 4 + 5 + 6", typed -> { }, () -> { });
-        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 80);
-        ClickTargets targets = new ClickTargets();
-        pane.extract(graphics, font, bounds, targets);
-        for (int notch = 0; notch < 40; notch++) {
-            pane.scroll(400, 0, -1);
-        }
-        DrawnFrame scrolled = new DrawnFrame();
-        pane.extract(scrolled.graphics, font, bounds, scrolled.targets);
-        DrawnFrame.Text cancel = scrolled.find("✗ Cancel");
-        assertTrue(cancel.y() >= bounds.top() && cancel.y() < bounds.bottom(), cancel + " stands in the pane");
-        assertTrue(scrolled.targets.takesClick(cancel.x() + 1, cancel.y() + 1), "cancel answers in the pane");
-    }
-
-    /**
-     * The selected item's page draws a Remove entry button where the file holds its entry, and pressing it drops the
-     * entry and has the draft read afresh, so the item falls back to what recipes derive.
-     */
-    @Test
-    void removeEntryButtonDropsTheSelectedEntry() {
-        ValuesTab values = new ValuesTab();
-        values.readEntries(new ListedEntrySource(
-                List.of(new ManagerEntrySource.ItemName("minecraft:netherite_ingot", "Netherite Ingot")), List.of()));
-        values.readModel("""
-                {"path": "base_values.json", "members": [
-                  {"key": "netherite_ingot", "keySeparator": null, "kind": "VALUE", "text": "\\"$netherite\\"",
-                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
-                """);
-        values.select("minecraft:netherite_ingot");
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        ValuesPane pane = new ValuesPane(values, icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
-        DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        frame.click("Remove entry");
-        assertTrue(!values.selectedHasEntry());
-        verify(actions).draftChanged();
     }
 
     /**
@@ -211,14 +423,206 @@ class ValuesPaneTest {
         ValuesPane pane = new ValuesPane(values, icons, actions, builder);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        assertTrue(!frame.rightClick("wood"));
+        assertTrue(!frame.rightClick("$wood"));
         verify(actions, never()).openVariable(anyString());
         assertTrue(!builder.isOpen());
-        frame.shiftClick("wood");
+        frame.shiftClick("$wood");
         verify(actions).openVariable("wood");
         assertTrue(!builder.isOpen());
-        frame.click("wood");
+        frame.click("$wood");
         assertTrue(builder.isOpen());
+    }
+
+    /**
+     * The builder open in an Items row over the operator's beetroot value, driven through the pane's click targets as
+     * the screen drives them: the press, each drag and the release.
+     */
+    @org.junit.jupiter.api.Nested
+    class BuilderDragsInARow {
+        private static final String BEETROOT = "minecraft:beetroot";
+        private static final String OPENED = "{\\\"jelly\\\": \\\"$food.jelly + $saturation.jelly * 12\\\", "
+                + "\\\"leaf\\\": \\\"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\\\"}";
+        private final ValuesTab values = new ValuesTab();
+        private final ValuesPane pane;
+
+        BuilderDragsInARow() {
+            values.readEntries(new ListedEntrySource(
+                    List.of(new ManagerEntrySource.ItemName(BEETROOT, "Beetroot")), List.of()));
+            load(OPENED);
+            values.select(BEETROOT);
+            ManagerActions actions = mock(ManagerActions.class);
+            ItemIcons icons = mock(ItemIcons.class);
+            pane = new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
+                    List::of));
+        }
+
+        // The beetroot's entry, its text escaped for the model's JSON.
+        private void load(String text) {
+            values.readModel("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "beetroot", "keySeparator": null, "kind": "VALUE", "text": "%s", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null}]}
+                    """.formatted(text));
+        }
+
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the last term out takes the
+        // parenthetical with it.
+        @Test
+        void lastTermDraggedOutOfAParentheticalTakesItAlong() {
+            load("\\\"$waxed + ($edited)\\\"");
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+            frame.click("$waxed");
+            DrawnFrame builder = frame();
+            double[] rail = railOf(builder, List.of(1, 0));
+            assertTrue(builder.targets.click(rail[0], rail[1]));
+            DrawnFrame.Text close = builder.drawn().stream().filter(text -> text.text().equals(")")).findFirst()
+                    .orElseThrow();
+            assertTrue(builder.targets.drag(close.x() + 20, close.y() + 1));
+            frame();
+            assertTrue(builder.targets.release());
+            assertEquals("$waxed + $edited", written());
+        }
+
+        private DrawnFrame frame() {
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+            return frame;
+        }
+
+        // Opens the builder by a plain click on the read view's first ref, and answers the builder's first frame.
+        private DrawnFrame opened() {
+            frame().click("$food");
+            return frame();
+        }
+
+        private static double[] railOf(DrawnFrame frame, List<Integer> path) {
+            String key = ExpressionBuilderPane.railName(path);
+            for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
+                for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
+                    if (frame.targets.grabNamed(x, y).filter(key::equals).isPresent()) {
+                        return new double[] {x, y};
+                    }
+                }
+            }
+            throw new AssertionError("no rail for " + path);
+        }
+
+        // The trash strip's middle on a y, read off its rest-tone fill.
+        private static double stripX(DrawnFrame frame) {
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), anyInt(), rights.capture(), anyInt(),
+                    eq(ExpressionBuilderPane.TRASH_REST));
+            return (lefts.getValue() + rights.getValue()) / 2.0;
+        }
+
+        private String written() {
+            return values.rowOf(BEETROOT).expression();
+        }
+
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags.
+        @Test
+        void parentheticalReleasedOnTheTrashStripGoes() {
+            DrawnFrame frame = opened();
+            double[] rail = railOf(frame, List.of(1, 1));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            assertTrue(frame.targets.drag(stripX(frame), rail[1]));
+            frame();
+            assertTrue(frame.targets.release());
+            assertEquals("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", \"leaf\": \"$dye.leaf\"}", written());
+        }
+
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags.
+        @Test
+        void termDraggedOutOfTheParentheticalLandsAfterIt() {
+            DrawnFrame frame = opened();
+            double[] rail = railOf(frame, List.of(1, 1, 0));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            double[] after = railOf(frame, List.of(1, 1));
+            DrawnFrame.Text close = frame.drawn().stream().filter(text -> text.text().equals(")")).findFirst()
+                    .orElseThrow();
+            assertTrue(frame.targets.drag(close.x() + 20, close.y() + 1));
+            frame();
+            assertTrue(frame.targets.release());
+            assertEquals("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", "
+                    + "\"leaf\": \"$dye.leaf - ($saturation.jelly * 12) + $food.jelly\"}", written(),
+                    "dragged from the parenthetical at " + after[0]);
+        }
+    }
+
+    /**
+     * The builder writes to the entry it opened over, whatever row the list selects while it stands open: the
+     * operator, editing beetroot soup, saw the soup's value land in beetroot's entry.
+     */
+    @org.junit.jupiter.api.Nested
+    class BuilderWritesItsOwnEntry {
+        private static final String BEETROOT = "minecraft:beetroot";
+        private static final String SOUP = "minecraft:beetroot_soup";
+
+        @Test
+        void editAfterSelectingAnotherRowLandsOnTheOpenedEntry() {
+            ValuesTab values = new ValuesTab();
+            values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName(BEETROOT, "Beetroot"),
+                    new ManagerEntrySource.ItemName(SOUP, "Beetroot Soup")), List.of()));
+            values.readModel("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "beetroot", "keySeparator": null, "kind": "VALUE", "text": "4", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null},
+                      {"key": "beetroot_soup", "keySeparator": null, "kind": "VALUE", "text": "6", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null}]}
+                    """);
+            ManagerActions actions = mock(ManagerActions.class);
+            ItemIcons icons = mock(ItemIcons.class);
+            ValuesPane pane = new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons,
+                    List::of, List::of));
+            DrawnFrame read = new DrawnFrame();
+            pane.extract(read.graphics, DrawnFrame.font(), SHORT_VIEW, read.targets);
+            read.click("6");
+            DrawnFrame building = new DrawnFrame();
+            pane.extract(building.graphics, DrawnFrame.font(), SHORT_VIEW, building.targets);
+            building.click("Beetroot");
+            DrawnFrame selected = new DrawnFrame();
+            pane.extract(selected.graphics, DrawnFrame.font(), SHORT_VIEW, selected.targets);
+            assertTrue(selected.texts().contains("✗ Cancel"), "the builder stands open: " + selected.texts());
+            selected.clickFirst("+");
+            assertEquals(List.of("4", "-6"), List.of(values.rowOf(BEETROOT).expression(),
+                    values.rowOf(SOUP).expression()), "beetroot's and the soup's values after the soup's edit");
+        }
+    }
+
+    /**
+     * An Items row's loader error wraps onto as many lines as it takes inside the row, so the whole error reads: the
+     * operator saw beetroot's error run off the screen.
+     */
+    @Test
+    void longRowErrorWrapsWhole() {
+        String error = "beetroot: unrecognized token 'beetroot'; beetroot: unrecognized token 'bowl'";
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName("minecraft:beetroot",
+                "Beetroot")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "beetroot", "keySeparator": null, "kind": "VALUE", "text": "\\"beetroot + bowl\\"",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "beetroot", "value": null, "denied": false, "error": "%s"}]}
+                """.formatted(error));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
+                List::of));
+        GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 240, 300);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), narrow, frame.targets);
+        List<DrawnFrame.Text> lines = frame.drawn().stream().filter(text -> text.color() == RED
+                && !text.text().equals("✗")).toList();
+        assertEquals(error, lines.stream().map(DrawnFrame.Text::text).collect(Collectors.joining(" ")),
+                "the error's lines read the whole error: " + lines);
+        assertTrue(lines.size() > 1, "the error wraps: " + lines);
+        assertEquals(List.of(), lines.stream().filter(line -> line.x() + line.text().length() * 6 > narrow.right())
+                .toList(), "a line past the row's right edge");
     }
 
     private static final int FOLLOWED_ITEMS = 40;
@@ -256,6 +660,63 @@ class ValuesPaneTest {
         return new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of));
     }
 
+    private static final int LARGE_LIST = 3000;
+    private static final int LARGE_GROUPS = 40;
+    private static final int GROUP_SIZE = 25;
+    // A frame scanning every row ran 3.5 seconds and an indexed one under 25 ms alone; the whole suite's load slows
+    // the indexed frame past 80 ms, so the budget sits well clear of that and well under the scan.
+    private static final long FRAME_BUDGET_MS = 250;
+    private static final int WARM_FRAMES = 8;
+
+    // An Items pane the size of a modded game's: thousands of items, each listed item valued by its own entry and a
+    // group of items valued by each group entry.
+    private static ValuesPane largeList() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(IntStream.range(0, LARGE_LIST).mapToObj(index ->
+                new ManagerEntrySource.ItemName("minecraft:large_%04d".formatted(index), "Large %04d".formatted(index)))
+                .toList(), List.of()));
+        String own = IntStream.range(0, LARGE_LIST / 2).mapToObj(index -> """
+                {"key": "large_%04d", "keySeparator": null, "kind": "VALUE", "text": "\\"%d $base\\"", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}""".formatted(index, index))
+                .collect(Collectors.joining(", "));
+        String groupEntries = IntStream.range(0, LARGE_GROUPS).mapToObj(group -> """
+                {"key": "#group_%d", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": 4}", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}""".formatted(group))
+                .collect(Collectors.joining(", "));
+        String groups = IntStream.range(0, LARGE_GROUPS).mapToObj(group -> """
+                {"key": "group_%d", "keySeparator": null, "kind": "VALUE", "text": "[%s]", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}""".formatted(group,
+                IntStream.range(0, GROUP_SIZE).mapToObj(member -> "\\\"large_%04d\\\"".formatted(
+                        LARGE_LIST / 2 + group * GROUP_SIZE + member)).collect(Collectors.joining(", "))))
+                .collect(Collectors.joining(", "));
+        values.readModel("{\"path\": \"base_values.json\", \"members\": [" + own + ", " + groupEntries
+                + ", {\"key\": \"_groups\", \"kind\": \"SECTION\", \"text\": \"\", \"entries\": [" + groups + "]}]}");
+        values.readResolved("{\"entries\": [" + IntStream.range(0, LARGE_LIST).mapToObj(index ->
+                "{\"key\": \"large_%04d\", \"value\": {\"glow\": \"%d\"}, \"denied\": false}".formatted(index, index + 1))
+                .collect(Collectors.joining(", ")) + "]}");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        return new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    /**
+     * A frame of the Items list over thousands of items draws within a frame budget, its fastest of several warm
+     * frames graded so a loaded machine does not fail it: every click waits on the next frame.
+     */
+    @Test
+    void largeItemsListDrawsAFrameWithinBudget() {
+        ValuesPane pane = largeList();
+        Font font = DrawnFrame.font();
+        long fastest = Long.MAX_VALUE;
+        for (int run = 0; run < WARM_FRAMES; run++) {
+            DrawnFrame frame = new DrawnFrame();
+            long started = System.nanoTime();
+            pane.extract(frame.graphics, font, SHORT_VIEW, frame.targets);
+            fastest = Math.min(fastest, (System.nanoTime() - started) / 1_000_000);
+        }
+        assertTrue(fastest < FRAME_BUDGET_MS, "fastest frame took " + fastest + " ms over " + LARGE_LIST + " items");
+    }
+
     // Each row's height, read off a list tall enough to draw every row unscrolled.
     private static List<Integer> rowHeights() {
         DrawnFrame tall = new DrawnFrame();
@@ -264,23 +725,6 @@ class ValuesPaneTest {
                 .toList());
         return IntStream.range(0, FOLLOWED_ITEMS - 1).mapToObj(index -> tops.get(index + 1) - tops.get(index))
                 .toList();
-    }
-
-    // The first shown row that puts the target row's middle closest to the view's middle, walking up from the row.
-    private static int centeredFirstRow(List<Integer> heights, int target, int view) {
-        double half = view / 2.0;
-        int best = target;
-        double above = 0;
-        double bestMiss = Math.abs(heights.get(target) / 2.0 - half);
-        for (int first = target - 1; first >= 0 && above + heights.get(target) / 2.0 < half; first--) {
-            above += heights.get(first);
-            double miss = Math.abs(above + heights.get(target) / 2.0 - half);
-            if (miss < bestMiss) {
-                best = first;
-                bestMiss = miss;
-            }
-        }
-        return best;
     }
 
     /**
@@ -295,14 +739,185 @@ class ValuesPaneTest {
         ValuesPane pane = manyItems();
         DrawnFrame first = new DrawnFrame();
         pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int nameBelowRowTop = first.find(itemName(0)).y() - first.firstScissor()[1];
         int target = 25;
         pane.reveal("minecraft:item_%02d".formatted(target));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         int[] list = frame.firstScissor();
-        int expected = centeredFirstRow(heights, target, list[3] - list[1]);
-        assertTrue(expected < target, "the target already stands centered at the top");
-        assertEquals(expected, pane.listBar().offset());
+        int rowTop = frame.find(itemName(target)).y() - nameBelowRowTop;
+        double rowMiddle = rowTop + heights.get(target) / 2.0;
+        double listMiddle = (list[1] + list[3]) / 2.0;
+        assertTrue(Math.abs(rowMiddle - listMiddle) <= 1, rowMiddle + " vs the list's middle " + listMiddle);
+    }
+
+    /**
+     * A builder opened on a row taller than the Items list scrolls, wheel notch by wheel notch, until its Cancel and
+     * Done stand inside the list (decision items-list-scrolls-by-pixel).
+     */
+    @Test
+    void openBuilderTallerThanTheListScrollsItsDoneIntoView() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:gravel", "Gravel")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "gravel", "keySeparator": null, "kind": "VALUE", "text": "\\"2\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.getArgument(0));
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        GroupsPane.Bounds tall = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame closed = new DrawnFrame();
+        pane.extract(closed.graphics, DrawnFrame.font(), tall, closed.targets);
+        closed.click("2");
+        DrawnFrame open = new DrawnFrame();
+        pane.extract(open.graphics, DrawnFrame.font(), tall, open.targets);
+        open.click("2");
+        ArgumentCaptor<net.minecraft.client.gui.components.AbstractWidget> focused =
+                ArgumentCaptor.forClass(net.minecraft.client.gui.components.AbstractWidget.class);
+        verify(actions, atLeastOnce()).focus(focused.capture());
+        ((net.minecraft.client.gui.components.EditBox) focused.getValue()).setValue("3");
+        assertTrue(pane.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER), "no number box stood open");
+        GroupsPane.Bounds squat = new GroupsPane.Bounds(0, 0, 500, 50);
+        for (int notch = 0; notch < 20; notch++) {
+            DrawnFrame scrolled = new DrawnFrame();
+            pane.extract(scrolled.graphics, DrawnFrame.font(), squat, scrolled.targets);
+            pane.scroll(0, 0, -1);
+        }
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), squat, frame.targets);
+        int[] list = frame.firstScissor();
+        for (String label : List.of("✓ Done", "✗ Cancel")) {
+            DrawnFrame.Text button = frame.find(label);
+            assertTrue(button.y() >= list[1] && button.y() + LINE_HEIGHT <= list[3],
+                    button + " outside the list " + java.util.Arrays.toString(list));
+        }
+    }
+
+    /**
+     * Opening the builder on an item with no entry, adding a type row and pressing Cancel leaves the draft with no
+     * entry for the item, and its row reads Value: Not explicitly set again (decision
+     * cancelling-a-new-entry-leaves-nothing).
+     */
+    @Test
+    void cancellingANewEntryLeavesTheItemWithNoEntry() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:gravel", "Gravel")), List.of()));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        GroupsPane.Bounds view = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame closed = new DrawnFrame();
+        pane.extract(closed.graphics, DrawnFrame.font(), view, closed.targets);
+        closed.click(ReadValueButton.NOT_SET);
+        DrawnFrame open = new DrawnFrame();
+        pane.extract(open.graphics, DrawnFrame.font(), view, open.targets);
+        open.click("+?");
+        DrawnFrame picking = new DrawnFrame();
+        pane.extract(picking.graphics, DrawnFrame.font(), view, picking.targets);
+        pickType(picking, "metal");
+        assertTrue(values.hasEntry("minecraft:gravel"), "the type row wrote an entry");
+        DrawnFrame changed = new DrawnFrame();
+        pane.extract(changed.graphics, DrawnFrame.font(), view, changed.targets);
+        changed.click("✗ Cancel");
+        assertTrue(!values.hasEntry("minecraft:gravel"), "the cancelled entry stands in the draft");
+        DrawnFrame after = new DrawnFrame();
+        pane.extract(after.graphics, DrawnFrame.font(), view, after.targets);
+        assertTrue(after.texts().contains(ReadValueButton.NOT_SET), after.texts().toString());
+    }
+
+    /**
+     * A derived item whose override is marked for removal draws its recipe equivalency, the value it takes once the
+     * save applies the removal, beside the gold restore arrow; an item whose entry is empty draws no ✗ and no
+     * restore arrow, marked or not, and reads Value: Not explicitly set (decision
+     * removed-entry-shows-the-derived-value-and-no-restore-on-empty).
+     */
+    @Test
+    void markedOverrideDrawsItsDerivedValueAndAnEmptyEntryOffersNoRestore() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(List.of(
+                new ManagerEntrySource.ItemName("minecraft:oak_planks", "Oak Planks"),
+                new ManagerEntrySource.ItemName("minecraft:gravel", "Gravel")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "oak_planks", "keySeparator": null, "kind": "VALUE", "text": "\\"5\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "gravel", "keySeparator": null, "kind": "VALUE", "text": "\\"\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "oak_planks", "value": {"glow": "5"}, "denied": false}]}
+                """);
+        values.readDerivedFrom("""
+                {"items": {"minecraft:oak_planks": {"inputs": [{"id": "minecraft:oak_log", "count": 1}],
+                  "output": 4}}}
+                """);
+        values.markRemoval("minecraft:oak_planks");
+        values.markRemoval("minecraft:gravel");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(mock(Matrix3x2fStack.class));
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        DrawnFrame.Text planks = frame.find("Oak Planks");
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), ys.capture());
+        long headSprites = ys.getAllValues().stream().filter(y -> Math.abs(y - planks.y()) < LINE_HEIGHT).count();
+        // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right: the planks' own sprite
+        // before its "=" and the log input at the far right.
+        assertEquals(2, headSprites, "the planks sprite and the log input");
+        assertEquals(1, frame.count(ButtonPainter.RESTORE), frame.texts().toString());
+        DrawnFrame.Text gravel = frame.find("Gravel");
+        assertTrue(frame.find(ButtonPainter.RESTORE).y() < gravel.y(), "the one restore arrow is the planks'");
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.text().equals("✗") && text.y() > gravel.y()),
+                frame.drawn().toString());
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals(ReadValueButton.NOT_SET)
+                && text.y() > gravel.y()), frame.drawn().toString());
+    }
+
+    // Clicks the type picker's cell for a goo type, found by its hover across the screen.
+    private static void pickType(DrawnFrame frame, String type) {
+        String key = GooTypeIcons.hoverKey(type);
+        for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y += 2) {
+            for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x += 2) {
+                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                    assertTrue(frame.targets.click(x, y));
+                    return;
+                }
+            }
+        }
+        throw new AssertionError(type + " not in the picker: " + frame.targets.hoverKeys());
+    }
+
+    /**
+     * One wheel notch moves the Items list by the pixel step, not by a row (decision items-list-scrolls-by-pixel).
+     */
+    @Test
+    void wheelNotchMovesTheItemsListByThePixelStep() {
+        GroupsPane.Bounds view = new GroupsPane.Bounds(0, 0, 500, 600);
+        ValuesPane pane = manyItems();
+        DrawnFrame before = new DrawnFrame();
+        pane.extract(before.graphics, DrawnFrame.font(), view, before.targets);
+        int notches = 3;
+        for (int notch = 0; notch < notches; notch++) {
+            pane.scroll(0, 0, -1);
+        }
+        DrawnFrame after = new DrawnFrame();
+        pane.extract(after.graphics, DrawnFrame.font(), view, after.targets);
+        String row = itemName(5);
+        assertEquals(notches * ValuesPane.SCROLL_STEP, before.find(row).y() - after.find(row).y());
     }
 
     /**
@@ -322,7 +937,8 @@ class ValuesPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), squat, frame.targets);
         int[] list = frame.firstScissor();
         assertTrue(heights.get(target) > list[3] - list[1], "row " + target + " fits the list");
-        assertEquals(target, pane.listBar().offset());
+        int nameBelowRowTop = first.find(itemName(0)).y() - first.firstScissor()[1];
+        assertEquals(list[1], frame.find(itemName(target)).y() - nameBelowRowTop);
     }
 
     /**
@@ -372,12 +988,12 @@ class ValuesPaneTest {
         ValuesPane pane = groupedPane(actions, List.of("torch"));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        DrawnFrame.Text label = frame.find("lights");
+        DrawnFrame.Text label = frame.find("#lights");
         int left = label.x() - ButtonPainter.PADDING;
         int top = label.y() - 3;
-        int right = left + ButtonPainter.width(DrawnFrame.font(), "lights");
+        int right = left + ButtonPainter.width(DrawnFrame.font(), "#lights");
         verify(frame.graphics).fill(left, top, right, top + ButtonPainter.HEIGHT, ButtonPainter.BORDER);
-        frame.shiftClick("lights");
+        frame.shiftClick("#lights");
         verify(actions, atLeastOnce()).openGroup("lights");
     }
 
@@ -390,10 +1006,10 @@ class ValuesPaneTest {
         ValuesPane pane = groupedPane(mock(ManagerActions.class), List.of("torch"));
         DrawnFrame held = new DrawnFrame().holdingShift();
         pane.extract(held.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), held.targets);
-        assertTrue(held.underlined("lights"));
+        assertTrue(held.underlined("#lights"));
         DrawnFrame up = new DrawnFrame();
         pane.extract(up.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), up.targets);
-        assertTrue(!up.underlined("lights"));
+        assertTrue(!up.underlined("#lights"));
     }
 
     /**
@@ -422,10 +1038,10 @@ class ValuesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         assertTrue(values.selectedRow().isEmpty());
-        frame.shiftClick("lights");
+        frame.shiftClick("#lights");
         verify(actions).openGroup("lights");
         assertTrue(values.selectedRow().isEmpty());
-        frame.click("lights");
+        frame.click("#lights");
         verify(actions).openGroup("lights");
         assertEquals("minecraft:torch", values.selectedRow().orElseThrow().id());
         assertTrue(!builder.isOpen());
@@ -455,7 +1071,7 @@ class ValuesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         assertTrue(frame.texts().contains("="), frame.texts().toString());
-        frame.shiftClick("saplings");
+        frame.shiftClick("#saplings");
         verify(actions, atLeastOnce()).openGroup("saplings");
 
         GroupsTab groups = new GroupsTab(draft);
@@ -472,175 +1088,24 @@ class ValuesPaneTest {
     }
 
     /**
-     * Hovering the group button answers a tooltip of the group's members as item icons in member order, eight at
-     * most, then ..+n counting the rest; a group of eight or fewer shows every member and no ..+n (decision
-     * group-link-hovers-member-icons-then-plus-n).
+     * Hovering the group button previews its group (decisions group-link-hovers-member-icons-then-plus-n,
+     * group-referent-previews-shorthand-members-then-its-value).
      */
     @Test
-    void groupButtonHoversItsMemberIconsThenPlusN() {
-        List<String> eleven = java.util.stream.IntStream.range(0, 11)
-                .mapToObj(index -> index == 0 ? "minecraft:torch" : "minecraft:light" + index).toList();
-        assertEquals(new TooltipLine.MemberIcons(eleven.subList(0, 8), "..+3"), hoveredGroupTooltip(eleven));
-        List<String> five = eleven.subList(0, 5);
-        assertEquals(new TooltipLine.MemberIcons(five, ""), hoveredGroupTooltip(five));
-    }
-
-    private static TooltipLine hoveredGroupTooltip(List<String> members) {
-        ValuesPane pane = groupedPane(mock(ManagerActions.class), members);
+    void groupButtonHoversItsGroupsPreview() {
+        ValuesPane pane = groupedPane(mock(ManagerActions.class), List.of("minecraft:torch"));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        DrawnFrame.Text label = frame.find("lights");
-        String key = frame.targets.hovered(label.x() + 1, label.y() + 1).orElseThrow();
-        List<TooltipLine> lines = pane.groupTooltipFor(key).orElseThrow();
-        assertEquals(1, lines.size());
-        return lines.getFirst();
-    }
-
-    /**
-     * An item worth five goo types, at a width fitting two runs, lays them across three value lines; layValueRuns
-     * answers one row for an empty worth, which the row layout does not count (decisions
-     * items-rows-read-valued-derived-or-no-value-with-values-inline, goo-runs-follow-on-their-own-lines-after-line-two).
-     */
-    @Test
-    void valueRunsWrapOntoAsManyRowsAsTheWidthNeeds() {
-        int run = 40;
-        int width = run + ValuesPane.RUN_GAP + run + 2;
-        ValuesPane.ValueRuns five = ValuesPane.layValueRuns(List.of(run, run, run, run, run), width);
-        assertEquals(3, five.rows());
-        int second = run + ValuesPane.RUN_GAP;
-        assertEquals(List.of(new ValuesPane.Spot(0, 0), new ValuesPane.Spot(second, 0), new ValuesPane.Spot(0, 1),
-                new ValuesPane.Spot(second, 1), new ValuesPane.Spot(0, 2)), five.spots());
-        assertEquals(1, ValuesPane.layValueRuns(List.of(), width).rows());
-    }
-
-    // An Items row at LEFT, TOP running to RIGHT, for a font whose glyph line is LINE_HEIGHT tall, its goo type icons
-    // iconSize pixels on a side.
-    private static ValuesPane.EntryLayout lay(ValuesTab.SourceKind kind, List<Integer> runWidths, int symbolWidth,
-                                              int iconSize) {
-        return ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, TOP + 200), runWidths,
-                new ValuesPane.RowText(kind, LINE_HEIGHT, symbolWidth, EQUALS_WIDTH), iconSize);
-    }
-
-    private static ValuesPane.EntryLayout lay(ValuesTab.SourceKind kind, List<Integer> runWidths) {
-        return lay(kind, runWidths, 0, SMALL_ICON);
-    }
-
-    /**
-     * Each value disposition reads as its own symbol: valued a green check, derived a green equals, grouped a green
-     * hash, no value a red question mark, denied a green cancel circle drawn at the check's size, within a pixel, for
-     * a font whose check is 8 wide on a 9-pixel line (decisions
-     * items-row-title-carries-a-disposition-symbol-at-the-right-edge,
-     * denied-symbol-is-a-green-cancel-circle-at-symbol-size).
-     */
-    @Test
-    void eachDispositionReadsAsItsSymbolAndColor() {
-        int green = 0xFF80E080;
-        ValuesPane.Disposition check = ValuesPane.dispositionOf(ValuesTab.SourceKind.ENTRY);
-        assertEquals(new ValuesPane.Disposition("✔", green, false), check);
-        assertEquals(new ValuesPane.Disposition("=", green, false),
-                ValuesPane.dispositionOf(ValuesTab.SourceKind.DERIVED));
-        assertEquals(new ValuesPane.Disposition("#", green, false),
-                ValuesPane.dispositionOf(ValuesTab.SourceKind.GROUP));
-        assertEquals(new ValuesPane.Disposition("?", ValuesPane.RED, false),
-                ValuesPane.dispositionOf(ValuesTab.SourceKind.NONE));
-        ValuesPane.Disposition denied = ValuesPane.dispositionOf(ValuesTab.SourceKind.DENIED);
-        assertEquals(green, denied.color());
-        assertTrue(denied.drawn());
-        java.util.function.ToIntFunction<String> width = glyph -> glyph.equals("✔") ? 8 : 4;
-        ValuesPane.SymbolSize checkSize = ValuesPane.symbolSize(check, width, LINE_HEIGHT);
-        ValuesPane.SymbolSize deniedSize = ValuesPane.symbolSize(denied, width, LINE_HEIGHT);
-        assertTrue(Math.abs(checkSize.width() - deniedSize.width()) <= 1, checkSize + " against " + deniedSize);
-        assertTrue(Math.abs(checkSize.height() - deniedSize.height()) <= 1, checkSize + " against " + deniedSize);
-    }
-
-    /**
-     * The symbol stands right-aligned at the row's right edge on the title line, and the name is cut to end a gap
-     * before it; a row drawing no symbol takes the line's full width (decision
-     * items-row-title-carries-a-disposition-symbol-at-the-right-edge).
-     */
-    @Test
-    void symbolStandsAtTheRightEdgeAndCutsTheName() {
-        int symbolWidth = 7;
-        ValuesPane.Title title = lay(ValuesTab.SourceKind.ENTRY, List.of(40), symbolWidth, SMALL_ICON).title();
-        assertEquals(RIGHT - symbolWidth, title.symbolLeft());
-        assertEquals(title.symbolLeft() - ValuesPane.SYMBOL_GAP, title.nameLeft() + title.nameWidth());
-        ValuesPane.Title bare = lay(ValuesTab.SourceKind.NONE, List.of()).title();
-        assertEquals(RIGHT, bare.nameLeft() + bare.nameWidth());
-    }
-
-    /**
-     * The title stands on the row's first line a pixel under its top, from the row's left edge, and the sprite leads
-     * the second line, top-aligned in it, with the equals sign after it (decisions
-     * items-row-second-line-is-the-equality-expression, items-row-pads-a-hair-all-round).
-     */
-    @Test
-    void titleLeadsAndTheSpriteLeadsLineTwo() {
-        ValuesPane.EntryLayout layout = lay(ValuesTab.SourceKind.DERIVED, List.of(40));
-        assertEquals(LEFT + ValuesPane.ROW_PAD, layout.title().nameLeft());
-        assertEquals(TOP + ValuesPane.ROW_PAD, layout.title().nameTop());
-        ValuesPane.Equality line = layout.equality();
-        assertEquals(LEFT + ValuesPane.ROW_PAD, line.spriteLeft());
-        assertEquals(LINE_TWO + 1, line.spriteTop());
-        assertEquals(line.spriteLeft() + RowLayout.SPRITE_SIZE + ValuesPane.ICON_GAP, line.equalsLeft());
-        assertEquals(line.equalsLeft() + EQUALS_WIDTH + ValuesPane.ICON_GAP, line.besideLeft());
-        assertEquals(LINE_TWO + (ValuesPane.ROW_HEIGHT - LINE_HEIGHT + 1) / 2, line.textTop());
-    }
-
-    /**
-     * A valued item's goo runs start on line 2, right of the sprite and the equals sign, centered on the line, and
-     * the row is its two lines plus a pixel above and below (decisions
-     * goo-runs-follow-on-their-own-lines-after-line-two, items-row-pads-a-hair-all-round).
-     */
-    @Test
-    void valuedRowRunsBesideItsSpriteOnLineTwo() {
-        ValuesPane.EntryLayout layout = lay(ValuesTab.SourceKind.ENTRY, List.of(40, 40));
-        assertEquals(layout.equality().besideLeft(), layout.runsLeft());
-        int valueLine = SMALL_ICON + 2;
-        assertEquals(LINE_TWO + (ValuesPane.ROW_HEIGHT - valueLine) / 2, layout.runsTop());
-        assertEquals(TWO_LINES, layout.height());
-    }
-
-    /**
-     * A valued item whose runs wrap continues them on value lines under its first, the row growing to the last line
-     * plus a pixel (decision goo-runs-follow-on-their-own-lines-after-line-two).
-     */
-    @Test
-    void valuedRowWrapsUnderItsFirstValueLine() {
-        ValuesPane.EntryLayout layout = lay(ValuesTab.SourceKind.ENTRY, List.of(100, 100, 100));
-        int valueLine = SMALL_ICON + 2;
-        assertEquals(layout.runsTop() + valueLine, layout.lineTop(1));
-        assertEquals(layout.lineTop(1) + valueLine + ValuesPane.ROW_PAD - TOP, layout.height());
-    }
-
-    /**
-     * A derived or grouped item's goo runs start on line 3 at the row's left edge, and the row is its three lines
-     * plus a pixel above and below (decisions goo-runs-follow-on-their-own-lines-after-line-two,
-     * items-row-pads-a-hair-all-round).
-     */
-    @Test
-    void derivedAndGroupedRowsRunOnLineThree() {
-        for (ValuesTab.SourceKind kind : List.of(ValuesTab.SourceKind.DERIVED, ValuesTab.SourceKind.GROUP)) {
-            ValuesPane.EntryLayout layout = lay(kind, List.of(40));
-            assertEquals(LEFT + ValuesPane.ROW_PAD, layout.runsLeft());
-            assertEquals(LINE_TWO + ValuesPane.ROW_HEIGHT, layout.runsTop());
-            assertEquals(TWO_LINES + SMALL_ICON + 2, layout.height());
-        }
-    }
-
-    /**
-     * A no-value or denied row is two lines high: its title and its equality line, plus a pixel above and below
-     * (decisions items-row-second-line-is-the-equality-expression, items-row-pads-a-hair-all-round).
-     */
-    @Test
-    void noValueAndDeniedRowsAreTwoLinesHigh() {
-        assertEquals(TWO_LINES, lay(ValuesTab.SourceKind.NONE, List.of()).height());
-        assertEquals(TWO_LINES, lay(ValuesTab.SourceKind.DENIED, List.of()).height());
+        DrawnFrame.Text label = frame.find("#lights");
+        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("lights")),
+                frame.targets.hovered(label.x() + 1, label.y() + 1));
     }
 
     /**
      * The recipe equivalency spaces each input sprite with a small + between inputs and ends on the last input at any
-     * output count; a hanging sign's row and detail page draw the chain decorated 1/3, the stripped log undecorated,
-     * one + each and no " / n" run (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     * output count; a hanging sign's row draws the chain decorated 1/3, the stripped log undecorated, one + and no
+     * " / n" run (decisions recipe-equivalency-reads-output-equals-grouped-inputs-over-n,
+     * items-row-is-one-line-then-its-expression-inline).
      */
     @Test
     void equivalencySpacesInputsWithPlusesAtAnyOutput() {
@@ -681,10 +1146,47 @@ class ValuesPaneTest {
                 decorations.capture());
         assertEquals(List.of(), decorations.getAllValues());
         for (String part : List.of("1", "3")) {
-            assertEquals(2, frame.texts().stream().filter(part::equals).count(), part);
+            assertEquals(1, frame.texts().stream().filter(part::equals).count(), part);
         }
-        assertEquals(2, frame.texts().stream().filter("+"::equals).count());
+        assertEquals(1, frame.texts().stream().filter("+"::equals).count());
         assertTrue(frame.texts().stream().noneMatch(text -> text.matches("\\s*/\\s*\\d+")), frame.texts().toString());
+    }
+
+    /**
+     * An item the solver values backward draws its inverted recipe, the solving recipe's output less each other input
+     * with a minus between, and never a bare "derived" (decisions
+     * items-rows-read-valued-derived-or-no-value-with-values-inline,
+     * derivation-solves-whichever-side-of-a-recipe-is-unknown).
+     */
+    @Test
+    void solvedItemDrawsItsInvertedRecipe() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:poppy", "Poppy")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": []}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "poppy", "value": {"zoo": "5"}, "denied": false}]}
+                """);
+        values.readDerivedFrom("""
+                {"items": {"minecraft:poppy": {"inputs": [], "output": 1,
+                  "solvedFrom": {"id": "minecraft:suspicious_stew", "count": 1},
+                  "less": [{"id": "minecraft:bowl", "count": 1}, {"id": "minecraft:brown_mushroom", "count": 1}]}}}
+                """);
+        assertEquals(new ValuesTab.Recipe(List.of(), 1, new ValuesTab.Input("minecraft:suspicious_stew", 1),
+                List.of(new ValuesTab.Input("minecraft:bowl", 1), new ValuesTab.Input("minecraft:brown_mushroom", 1))),
+                values.derivedFrom("minecraft:poppy"));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(new Matrix3x2fStack(4));
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        assertEquals(2, frame.texts().stream().filter("-"::equals).count(), frame.texts().toString());
+        assertTrue(frame.texts().stream().noneMatch("+"::equals), frame.texts().toString());
+        assertTrue(frame.texts().stream().noneMatch("derived"::equals), frame.texts().toString());
     }
 
     /**
@@ -749,56 +1251,49 @@ class ValuesPaneTest {
         assertTrue(at >= 0, texts.toString());
         assertEquals(List.of("20", "1", "4"), texts.subList(at, at + 3));
         assertTrue(!texts.contains("81/4"), texts.toString());
+        // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere.
+        assertEquals(SmallDigits.SCALE, frame.placed("20").scale(), "the amount draws through SmallDigits");
     }
 
     /**
-     * A run is its type icon at whatever size the texture gives, its gap and the amount's width (decision
-     * items-value-line-draws-type-icons-at-eleven-texels).
+     * A recipe input's whole count draws through SmallDigits in the sprite's corner, smaller than a stack count
+     * (decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere).
+     */
+    @Test
+    void recipeCountDrawsThroughSmallDigits() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_hanging_sign", "Oak Hanging Sign")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": []}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "oak_hanging_sign", "value": {"leaf": "8"}, "denied": false}]}
+                """);
+        values.readDerivedFrom("""
+                {"items": {"minecraft:oak_hanging_sign": {"inputs": [{"id": "minecraft:chain", "count": 7}],
+                  "output": 1}}}
+                """);
+        values.select("minecraft:oak_hanging_sign");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        assertEquals(SmallDigits.SCALE, frame.placed("7").scale());
+    }
+
+    /**
+     * A run is its type icon at whatever size the texture gives, its gap a pixel short and the small amount (decisions items-value-line-draws-type-icons-at-eleven-texels,
+     * goo-amounts-draw-smaller-and-a-pixel-lower-everywhere).
      */
     @Test
     void runIsItsIconBesideItsAmountAtAnySize() {
         Font font = sixPixelFont();
         for (int icon : ICON_SIZES) {
-            assertEquals(icon + ValuesPane.RUN_ICON_GAP + font.width("1.5k"), ValuesPane.runWidth(font, "1.5k", icon));
+            assertEquals(icon + ValuesPane.RUN_ICON_GAP - 1 + SmallDigits.width(font, "1.5k"),
+                    ValuesPane.runWidth(font, "1.5k", icon));
         }
-    }
-
-    /**
-     * Each value line is its icon plus a pixel above and below, whatever the icon's size: the icon one pixel under the
-     * line's top and the amount centered on it (decision value-line-is-as-tall-as-its-icon).
-     */
-    @Test
-    void valueLinesAreTheIconPlusAPixelAboveAndBelow() {
-        int run = 150;
-        List<Integer> oneLine = List.of(run);
-        List<Integer> twoLines = List.of(run, run);
-        for (int icon : ICON_SIZES) {
-            int line = icon + 2;
-            assertEquals(TWO_LINES + line, lay(ValuesTab.SourceKind.DERIVED, oneLine, 0, icon).height());
-            ValuesPane.EntryLayout two = lay(ValuesTab.SourceKind.DERIVED, twoLines, 0, icon);
-            assertEquals(TWO_LINES + 2 * line, two.height());
-            assertEquals(LINE_TWO + ValuesPane.ROW_HEIGHT + line, two.lineTop(1));
-            assertEquals(two.lineTop(1) + 1, two.iconTop(1));
-            assertEquals(two.lineTop(1) + (line - LINE_HEIGHT + 1) / 2, two.amountTop(1));
-        }
-    }
-
-    /**
-     * The detail page stacks the selected item's card, the Value label a gap under the card's bottom, the value on the
-     * line under the label, and the loader error as the last line, which grows the page by one line only when there
-     * is an error (decision detail-pane-top-is-the-items-card-verbatim).
-     */
-    @Test
-    void detailPageStacksTheCardTheValueAndTheErrorLast() {
-        int cardHeight = TWO_LINES + SMALL_ICON + 2;
-        int valueHeight = 30;
-        ValuesPane.Page bare = ValuesPane.layPage(TOP, cardHeight, valueHeight, false);
-        assertEquals(TOP + cardHeight + ValuesPane.GAP, bare.labelTop());
-        assertEquals(bare.labelTop() + ValuesPane.LABEL_LINE_HEIGHT, bare.valueTop());
-        assertTrue(bare.errorTop() >= bare.valueTop() + valueHeight);
-        ValuesPane.Page erred = ValuesPane.layPage(TOP, cardHeight, valueHeight, true);
-        assertEquals(bare.errorTop(), erred.errorTop());
-        assertEquals(erred.errorTop() + ValuesPane.LINE_HEIGHT, erred.end());
-        assertEquals(bare.end() + ValuesPane.LINE_HEIGHT, erred.end());
     }
 }

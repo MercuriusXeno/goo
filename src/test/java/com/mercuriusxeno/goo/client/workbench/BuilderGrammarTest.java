@@ -92,22 +92,26 @@ class BuilderGrammarTest {
                     BuilderGrammar.heldTypes(ExpressionBuilder.of("{\"metal\": \"5\", \"pulse\": \"2\"}")));
         }
 
+        // Decision one-x-is-implied-so-an-unscaled-term-draws-no-ratio: an unscaled number, reference or
+        // parenthetical shows no factor; a scaled one shows it.
         @Test
-        void numberShowsNoFactorAndAReferenceOffersOne() {
-            assertEquals(BuilderGrammar.Factor.HIDDEN,
-                    BuilderGrammar.factorOf(ExpressionBuilder.of("192").terms().getFirst()));
-            assertEquals(BuilderGrammar.Factor.ONE_TO_ONE,
-                    BuilderGrammar.factorOf(ExpressionBuilder.of("$base").terms().getFirst()));
+        void unscaledTermsShowNoFactorAndAScaledOneShowsIt() {
+            for (String unscaled : List.of("192", "$base", "($base)")) {
+                assertEquals(BuilderGrammar.Factor.HIDDEN,
+                        BuilderGrammar.factorOf(ExpressionBuilder.of(unscaled).terms().getFirst()), unscaled);
+            }
             assertEquals(BuilderGrammar.Factor.SHOWN,
                     BuilderGrammar.factorOf(ExpressionBuilder.of("3 $base").terms().getFirst()));
         }
 
         @Test
-        void numberBoxTakesDigitsAndNoZeroFactor() {
+        void numberBoxTakesDigitsAndAZero() {
             assertTrue(BuilderGrammar.acceptsTyped("192", false));
-            assertTrue(BuilderGrammar.acceptsTyped("0", false));
             assertFalse(BuilderGrammar.acceptsTyped("1a", false));
             assertFalse(BuilderGrammar.acceptsTyped("-3", false));
+            // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a term's factor box takes a 0,
+            // which erases its side; a conversion formula's ratio box still refuses one.
+            assertTrue(BuilderGrammar.acceptsTyped("0", false));
             assertFalse(BuilderGrammar.acceptsTyped("0", true));
             assertTrue(BuilderGrammar.acceptsTyped("10", true));
             assertTrue(BuilderGrammar.acceptsTyped("", true));

@@ -61,6 +61,49 @@ class GroupsTabTest {
         return JsonParser.parseString(text).getAsJsonObject();
     }
 
+    /**
+     * A group's referents are the iterators whose source names it; a group no assignment sources has none (decision
+     * group-card-lists-its-referents-as-iterator-links).
+     */
+    @Test
+    void referentsAreTheIteratorsSourcingTheGroup() {
+        ManagerDraft sourced = new ManagerDraft();
+        sourced.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "exposed_metal", "keySeparator": null, "kind": "VALUE", "text": "\\"metal / 4 -> 0\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "#exposed", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#copper @exposed_metal\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}""");
+        GroupsTab groups = new GroupsTab(sourced);
+        assertEquals(List.of("#exposed"), groups.referents("copper"));
+        assertEquals(List.of(), groups.referents("logs"));
+    }
+
+    /**
+     * A group an iterator fills lists that iterator among its referents, and a group both filled by one iterator and
+     * read by another lists both (decision group-referent-previews-shorthand-members-then-its-value).
+     */
+    @Test
+    void referentsListTheIteratorThatFillsTheGroup() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "#exposed", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#copper\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null},
+                     {"key": "#waxed_exposed", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#exposed\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}""");
+        GroupsTab groups = new GroupsTab(draft);
+        assertEquals(List.of("#waxed_exposed"), groups.referents("waxed_exposed"));
+        assertEquals(List.of("#exposed", "#waxed_exposed"), groups.referents("exposed"));
+    }
+
     @Nested
     class Searching {
         private static final String THREE_GROUPS = """
@@ -177,7 +220,7 @@ class GroupsTabTest {
                    "leading": null, "trailing": null, "closingGap": null},
                   {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "\\"$log\\"", "entries": [],
                    "leading": null, "trailing": null, "closingGap": null},
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "#stripped", "keySeparator": null, "kind": "VALUE", "text": "\\"#logs @strip\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null}
@@ -205,7 +248,7 @@ class GroupsTabTest {
                     .filter(member -> member.get("key").getAsString().startsWith("#")).findFirst().orElseThrow();
             assertEquals("#timber", value.get("key").getAsString());
             assertEquals("\"$log\"", value.get("text").getAsString());
-            assertEquals("\"#timber @strip\"", named.sectionEntries("_post_conversions").get(0).getAsJsonObject()
+            assertEquals("\"#timber @strip\"", named.sectionEntries("_conversions").get(0).getAsJsonObject()
                     .get("text").getAsString());
         }
 
@@ -374,6 +417,22 @@ class GroupsTabTest {
             tab.selectGroup("spawn_eggs");
             JsonObject request = parsed(tab.removeMemberRequest("minecraft:gone_spawn_egg"));
             assertEquals(List.of("minecraft:zombie_spawn_egg"),
+                    request.getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
+        }
+
+        /**
+         * Moving a three-member group's third member to slot 1 posts the members in the new order (decision
+         * custom-group-members-drag-by-numbered-rails).
+         */
+        @Test
+        void moveMemberPostsTheMembersInTheNewOrder() {
+            tab.readDescribed("""
+                    {"groups": [{"name": "trio", "members": [{"id": "minecraft:oak_log", "known": true},
+                      {"id": "minecraft:birch_log", "known": true}, {"id": "minecraft:spruce_log", "known": true}],
+                      "base": null, "tweaks": [], "preview": []}]}""");
+            tab.selectGroup("trio");
+            JsonObject request = parsed(tab.moveMemberRequest(2, 0));
+            assertEquals(List.of("minecraft:spruce_log", "minecraft:oak_log", "minecraft:birch_log"),
                     request.getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
         }
 

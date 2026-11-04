@@ -79,7 +79,7 @@ public class GooValueRegistry {
      */
     private final Map<String, Set<Identifier>> pseudoTags = new HashMap<>();
     /**
-     * Post-derivation conversions from _post_conversions block.
+     * Post-derivation conversions from the _conversions block.
      */
     private GooConversion.ParsedConversions postConversions;
     /**

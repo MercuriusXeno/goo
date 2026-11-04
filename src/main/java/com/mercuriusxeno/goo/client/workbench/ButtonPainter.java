@@ -25,6 +25,8 @@ final class ButtonPainter {
     static final int HEIGHT = 14;
     /** The room between the border and the label on either side. */
     static final int PADDING = 3;
+    /** The room a type-icon button leaves each side of its icon (decision type-icon-buttons-shrink-their-padding). */
+    static final int ICON_PADDING = 1;
     /** A button's border color. */
     static final int BORDER = 0xFF5070A0;
     /** A button's inner fill. */
@@ -114,11 +116,49 @@ final class ButtonPainter {
      */
     static Box drawColored(GuiGraphicsExtractor graphics, Font font, String label, int color, int x, int lineTop,
                            int lineHeight, ClickTargets targets, Runnable pressed, @Nullable String hoverKey) {
-        Box box = layout(font.width(label), x, lineTop, lineHeight);
+        return drawColored(graphics, Lettering.full(font), label, color, new Box(x, lineTop, 0, lineHeight), targets,
+                pressed, hoverKey);
+    }
+
+    /**
+     * Draws a button lettered at a scale, its label's color its own, and takes its click.
+     *
+     * @param graphics  the frame's graphics
+     * @param lettering the label's font and scale
+     * @param label     the button's label
+     * @param color     the label's color
+     * @param line      the button's left edge as left, and its line's top and height; the width is unread
+     * @param targets   the frame's click areas
+     * @param pressed   what a click does
+     * @param hoverKey  what hovering names, null for nothing
+     * @return the box it took
+     */
+    static Box drawColored(GuiGraphicsExtractor graphics, Lettering lettering, String label, int color, Box line,
+                           ClickTargets targets, Runnable pressed, @Nullable String hoverKey) {
+        Box box = layout(lettering.width(label), line.left(), line.top(), line.height());
         drawFrame(graphics, box);
-        graphics.text(font, label, box.left() + PADDING, box.top() + TEXT_NUDGE, color);
+        drawLabel(graphics, lettering, label, box, color);
         reserve(targets, box, pressed, hoverKey);
         return box;
+    }
+
+    // A full-size label stands its padding in and its nudge under the box's top; a scaled one centers its glyphs'
+    // ink in the box, between whole pixels where the halves fall there, so an operator's + or - stands in the middle
+    // of its button (the operator saw them too far left and slightly too high). Answers where the label stood, its
+    // left edge then its top, rounded to whole pixels.
+    static int[] drawLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box, int color) {
+        if (lettering.isFull()) {
+            lettering.draw(graphics, label, box.left() + PADDING, box.top() + TEXT_NUDGE, color);
+            return new int[] {box.left() + PADDING, box.top() + TEXT_NUDGE};
+        }
+        float[] origin = lettering.labelOrigin(box, label);
+        lettering.draw(graphics, label, origin, color);
+        return new int[] {Math.round(origin[0]), Math.round(origin[1])};
+    }
+
+    // The underline stands under a scaled label's glyphs as it does under the font's own.
+    private static int underlineDrop(Lettering lettering) {
+        return lettering.isFull() ? UNDERLINE_DROP : Math.round(UNDERLINE_DROP * lettering.scale());
     }
 
     /**
@@ -140,13 +180,36 @@ final class ButtonPainter {
      */
     static Box drawFollow(GuiGraphicsExtractor graphics, Font font, String label, int x, int lineTop, int lineHeight,
                           ClickTargets targets, Runnable follow, @Nullable String hoverKey) {
-        Box box = layout(font.width(label), x, lineTop, lineHeight);
+        return drawFollow(graphics, Lettering.full(font), label, new Box(x, lineTop, 0, lineHeight), targets, follow,
+                hoverKey);
+    }
+
+    /**
+     * Draws a link button lettered at a scale whose shift + left click follows it; its label underlines while shift
+     * is held.
+     *
+     * @param graphics  the frame's graphics
+     * @param lettering the label's font and scale
+     * @param label     the button's label
+     * @param line      the button's left edge as left, and its line's top and height; the width is unread
+     * @param targets   the frame's click areas
+     * @param follow    what a shift + left click does
+     * @param hoverKey  what hovering names, null for nothing
+     * @return the box it took
+     */
+    static Box drawFollow(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box line,
+                          ClickTargets targets, Runnable follow, @Nullable String hoverKey) {
+        Box box = layout(lettering.width(label), line.left(), line.top(), line.height());
         drawFrame(graphics, box);
-        graphics.text(font, label, box.left() + PADDING, box.top() + TEXT_NUDGE, LINK);
-        underlineWhileShiftHeld(graphics, targets, box.left() + PADDING, box.top() + TEXT_NUDGE, font.width(label),
-                LINK);
+        drawLinkLabel(graphics, lettering, label, box, targets);
         targets.addFollow(box.left(), box.top(), box.width(), box.height(), follow, hoverKey);
         return box;
+    }
+
+    private static void drawLinkLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
+                                      ClickTargets targets) {
+        int[] place = drawLabel(graphics, lettering, label, box, LINK);
+        underlineWhileShiftHeld(graphics, targets, lettering, place[0], place[1], lettering.width(label), LINK);
     }
 
     /**
@@ -165,10 +228,25 @@ final class ButtonPainter {
      */
     static void drawLink(GuiGraphicsExtractor graphics, Font font, String label, Box box, ClickTargets targets,
                          ClickTargets.LinkGestures gestures, @Nullable String hoverKey) {
+        drawLink(graphics, Lettering.full(font), label, box, targets, gestures, hoverKey);
+    }
+
+    /**
+     * Draws a button lettered at a scale naming a ref whose plain left click modifies it and whose shift + left click
+     * follows it; its label underlines while shift is held.
+     *
+     * @param graphics  the frame's graphics
+     * @param lettering the label's font and scale
+     * @param label     the button's label
+     * @param box       the button's box
+     * @param targets   the frame's click areas
+     * @param gestures  what a plain and a shift + left click do
+     * @param hoverKey  what hovering names, null for nothing
+     */
+    static void drawLink(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
+                         ClickTargets targets, ClickTargets.LinkGestures gestures, @Nullable String hoverKey) {
         drawFrame(graphics, box);
-        graphics.text(font, label, box.left() + PADDING, box.top() + TEXT_NUDGE, LINK);
-        underlineWhileShiftHeld(graphics, targets, box.left() + PADDING, box.top() + TEXT_NUDGE, font.width(label),
-                LINK);
+        drawLinkLabel(graphics, lettering, label, box, targets);
         targets.addLink(box.left(), box.top(), box.width(), box.height(), gestures, hoverKey);
     }
 
@@ -187,6 +265,26 @@ final class ButtonPainter {
                                         int width, int color) {
         if (targets.shiftHeld()) {
             graphics.fill(x, textTop + UNDERLINE_DROP, x + width, textTop + UNDERLINE_DROP + 1, color);
+        }
+    }
+
+    /**
+     * Draws a one-pixel line under a link's text lettered at a scale while the frame holds shift, under its glyphs
+     * as under the font's own.
+     *
+     * @param graphics  the frame's graphics
+     * @param targets   the frame's click areas, which say whether shift is held
+     * @param lettering the text's font and scale
+     * @param x         the text's left edge
+     * @param textTop   the text's top
+     * @param width     the text's width
+     * @param color     the link's color
+     */
+    static void underlineWhileShiftHeld(GuiGraphicsExtractor graphics, ClickTargets targets, Lettering lettering,
+                                        int x, int textTop, int width, int color) {
+        if (targets.shiftHeld()) {
+            int drop = underlineDrop(lettering);
+            graphics.fill(x, textTop + drop, x + width, textTop + drop + 1, color);
         }
     }
 
@@ -226,6 +324,24 @@ final class ButtonPainter {
      */
     static int width(Font font, String label) {
         return font.width(label) + PADDING + PADDING;
+    }
+
+    /**
+     * @param lettering the label's font and scale
+     * @param label     a button's label
+     * @return the width the button takes
+     */
+    static int width(Lettering lettering, String label) {
+        return lettering.width(label) + PADDING + PADDING;
+    }
+
+    /**
+     * @param iconSize a type icon's size
+     * @return the width a type-icon button takes: the icon and one pixel each side
+     */
+    static int iconWidth(int iconSize) {
+        // Decision type-icon-buttons-shrink-their-padding.
+        return iconSize + ICON_PADDING + ICON_PADDING;
     }
 
     /**

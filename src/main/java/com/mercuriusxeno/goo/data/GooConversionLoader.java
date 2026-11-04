@@ -7,13 +7,14 @@ import net.minecraft.resources.Identifier;
 import java.util.*;
 
 /**
- * Parses and applies _conversions / _post_conversions blocks from base_values.json.
+ * Parses and applies the _conversions block from base_values.json, applied after recipes derive; a hand-kept file's
+ * legacy _post_conversions block reads as part of it (decision conversions-is-the-one-section-and-the-pane-name).
  * Handles target resolution against pseudo-tags and parallel source pairing.
  */
 final class GooConversionLoader {
 
     private static final String KEY_CONVERSIONS = "_conversions";
-    private static final String KEY_POST_CONVERSIONS = "_post_conversions";
+    private static final String KEY_LEGACY_CONVERSIONS = "_post_conversions";
     private static final String PREFIX_TAG = "#";
 
     private static final String LOG_CONV_TARGET_EMPTY = "Conversion target {} resolved to no items";
@@ -23,35 +24,29 @@ final class GooConversionLoader {
     }
 
     /**
-     * Parses both _conversions and _post_conversions blocks.
+     * Parses the _conversions block, then a legacy _post_conversions block's entries after its own.
      *
      * @param json  the root JSON object containing conversion blocks
      * @param state mutable parsing state
      */
     static void parseConversions(JsonObject json, GooValueLoader.ParseState state) {
-        state.preConversions = parseConversionBlock(json, KEY_CONVERSIONS, state);
-        state.postConversions = parseConversionBlock(json, KEY_POST_CONVERSIONS, state);
+        if (!json.has(KEY_CONVERSIONS) && !json.has(KEY_LEGACY_CONVERSIONS)) {
+            state.postConversions = null;
+            return;
+        }
+        Map<String, String> entries = new LinkedHashMap<>();
+        addBlockEntries(json, KEY_CONVERSIONS, entries);
+        addBlockEntries(json, KEY_LEGACY_CONVERSIONS, entries);
+        state.postConversions = GooConversion.parseBlock(entries, state.constants, state.treeConstants);
     }
 
-    /**
-     * Parses a single conversion block by key name, with constant resolution.
-     *
-     * @param json  the root JSON object
-     * @param key   the block key (e.g. _conversions)
-     * @param state parsing state containing constants
-     * @return parsed conversions, or null if the block is absent
-     */
-    private static GooConversion.ParsedConversions parseConversionBlock(JsonObject json, String key,
-                                                                        GooValueLoader.ParseState state) {
+    private static void addBlockEntries(JsonObject json, String key, Map<String, String> entries) {
         if (!json.has(key)) {
-            return null;
+            return;
         }
-        JsonObject block = json.getAsJsonObject(key);
-        Map<String, String> entries = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> entry : block.entrySet()) {
+        for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject(key).entrySet()) {
             entries.put(entry.getKey(), entry.getValue().getAsString());
         }
-        return GooConversion.parseBlock(entries, state.constants, state.treeConstants);
     }
 
     /**

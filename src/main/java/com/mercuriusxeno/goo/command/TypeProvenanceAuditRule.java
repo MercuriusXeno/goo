@@ -42,6 +42,7 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
     private static final String BLEED_PREFIX = " enters its family through ";
     private static final String BLEED_SUFFIX = " alone: ";
     private static final String DEFAULT_NAMESPACE = "minecraft";
+    private static final String ALL_CLEAR = INDENT + "No derived item carries a type traced to a hand-keyed entry.";
 
     @Override
     public GooAuditSection run(GooAuditInputs inputs) {
@@ -59,8 +60,8 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
                 tracedTypes++;
             }
         }
-        return new GooAuditSection(SECTION, SECTION + HEADER_OPEN + tracedTypes + HEADER_SUFFIX, List.copyOf(lines),
-                flags.size(), List.copyOf(flags));
+        return new GooAuditSection(SECTION, SECTION + HEADER_OPEN + tracedTypes + HEADER_SUFFIX,
+                GooAuditSection.orAllClear(lines, ALL_CLEAR), flags.size(), List.copyOf(flags));
     }
 
     /**

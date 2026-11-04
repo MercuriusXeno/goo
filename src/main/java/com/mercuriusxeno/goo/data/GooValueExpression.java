@@ -57,10 +57,6 @@ final class GooValueExpression {
      */
     private static final String TOKEN_SEPARATOR = " ";
     /**
-     * Log: unknown item in expression.
-     */
-    private static final String LOG_UNKNOWN_ITEM = "Unknown item in expression: {}";
-    /**
      * Log: unknown constant in expression.
      */
     private static final String LOG_UNKNOWN_CONST = "Unknown constant in GooValue expression: ${}";
@@ -441,18 +437,15 @@ final class GooValueExpression {
     }
 
     /**
-     * Looks up an item's GooValue by parsing the ID string, returning EMPTY if unknown.
-     *
      * @param id         the item ID string to parse and look up
      * @param baseValues item value lookup table
-     * @return the item's GooValue, or EMPTY if not found
+     * @return the item's GooValue
+     * @throws UnresolvedItemReference where the item holds no value, which leaves the whole entry unvalued
      */
     private static GooValue lookupItem(String id, Map<Identifier, GooValue> baseValues) {
-        Identifier itemId = Identifier.parse(id);
-        GooValue value = baseValues.get(itemId);
+        GooValue value = baseValues.get(Identifier.parse(id));
         if (value == null) {
-            LOGGER.warn(LOG_UNKNOWN_ITEM, id);
-            return GooValue.EMPTY;
+            throw new UnresolvedItemReference(id);
         }
         return value;
     }

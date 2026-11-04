@@ -10,11 +10,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The Processes pane's forms for _conversions and _post_conversions, each spelled as the game's conversion
+ * The Processes pane's forms for _conversions, each spelled as the game's conversion
  * parser reads it: a formula ("metal / 4 -> yore / 9", "pulse / 4 -> yore * 2 / 3", "type / N -> 0"), an additive
- * ("+$waxed"), a stack ("2 @oxidation_metal"), and an assignment of a source group to a target group with an
- * optional scale and a chain of stacks and additives ("#exposed": "#copper @exposed_metal", a parallel copy
- * "#source * N / M") (decision workbench-authors-base-values-whole). The values manager's mutator controls edit
+ * ("+$waxed"), a stack ("2 @oxidation_metal"), and an assignment of a source group to a target group with a chain
+ * of stacks and additives ("#exposed": "#copper @exposed_metal") and no scale (decisions
+ * workbench-authors-base-values-whole, iterator-drops-its-ratio-from-row-and-grammar). The values manager's mutator controls edit
  * an entry through {@link #parse} and {@link #write}, so the draft holds what the parser reads (decision
  * expression-builder-composes-every-form-without-typing).
  */
@@ -46,10 +46,6 @@ public final class Processes {
     private static final Pattern STACK = Pattern.compile("^(?:(\\d+) )?@([A-Za-z0-9_]+)$");
     private static final int STACK_COUNT = 1;
     private static final int STACK_FORMULA = 2;
-    // An assignment's scale, "* N" or "* N / M", wherever it stands, as the game's parser finds it.
-    private static final Pattern SCALE = Pattern.compile("\\*\\s*(\\d+)(?:\\s*/\\s*(\\d+))?");
-    private static final int SCALE_MULTIPLIER = 1;
-    private static final int SCALE_DIVISOR = 2;
     private static final String WHITESPACE = "\\s+";
     private static final String ITEM_MARK = ":";
     private static final String NO_SOURCE = "";
@@ -67,7 +63,7 @@ public final class Processes {
         ADDITIVE,
         /** A formula applied a number of times. */
         STACK,
-        /** A source group's values copied to a target group, scaled and chained. */
+        /** A source group's values copied to a target group and chained. */
         ASSIGNMENT,
         /** A line no form reads, kept as the file spells it. */
         UNREAD
@@ -130,12 +126,13 @@ public final class Processes {
     }
 
     /**
-     * @param source     the source group's name, empty where the chain applies to the target's own values
-     * @param multiplier the scale's multiplier, 1 for none
-     * @param divisor    the scale's divisor, 1 for none
-     * @param chain      the processes applied in order, each "@name" of a formula, stack or additive
+     * An iterator holds no ratio; the mutators it applies carry theirs (decision
+     * iterator-drops-its-ratio-from-row-and-grammar).
+     *
+     * @param source the source group's name, empty where the chain applies to the target's own values
+     * @param chain  the processes applied in order, each "@name" of a formula, stack or additive
      */
-    public record Assignment(String source, int multiplier, int divisor, List<String> chain) implements Form {
+    public record Assignment(String source, List<String> chain) implements Form {
         @Override
         public Kind kind() {
             return Kind.ASSIGNMENT;
@@ -176,8 +173,7 @@ public final class Processes {
             case Formula formula -> formula(formula);
             case Additive additive -> additive(additive.constant());
             case Stack stack -> stack(stack.count(), stack.formula());
-            case Assignment assignment -> assignment(assignment.source(), assignment.multiplier(),
-                    assignment.divisor(), assignment.chain());
+            case Assignment assignment -> assignment(assignment.source(), assignment.chain());
             case Unread unread -> unread.text();
         };
     }
@@ -223,20 +219,17 @@ public final class Processes {
         return digits == null ? 1 : Integer.parseInt(digits);
     }
 
-    // An optional #source, an optional scale and a chain of @links, as the game's parser reads them; a token the
-    // game would drop with a warning leaves the entry unread, so the view shows it as the file spells it.
+    // An optional #source and a chain of @links; a scale, which the grammar no longer reads, or a token the game
+    // would drop with a warning leaves the entry unread, so the view shows it as the file spells it.
+    // Decision iterator-drops-its-ratio-from-row-and-grammar.
     private static Form assignmentOf(String value, String text) {
-        Matcher scale = SCALE.matcher(value);
-        boolean scaled = scale.find();
-        String remaining = scaled ? value.substring(0, scale.start()) + SPACE + value.substring(scale.end()) : value;
-        List<String> tokens = tokensOf(remaining);
+        List<String> tokens = tokensOf(value);
         String source = sourceOf(tokens);
         List<String> chain = tokens.subList(source.isEmpty() ? 0 : 1, tokens.size());
         if (!chain.stream().allMatch(link -> isNamed(link, STACK_PREFIX))) {
             return new Unread(text);
         }
-        return new Assignment(source, scaled ? Integer.parseInt(scale.group(SCALE_MULTIPLIER)) : 1,
-                scaled ? divisorOf(scale) : 1, List.copyOf(chain));
+        return new Assignment(source, List.copyOf(chain));
     }
 
     // Decision iterator-line-is-source-ratio-then-chain: a bare iterator, its text empty, holds no token, so it
@@ -254,10 +247,6 @@ public final class Processes {
     // A mark and a name after it, as "#copper" or "@waxed".
     private static boolean isNamed(String token, String mark) {
         return token.startsWith(mark) && token.length() > mark.length();
-    }
-
-    private static int divisorOf(Matcher scale) {
-        return scale.group(SCALE_DIVISOR) == null ? 1 : Integer.parseInt(scale.group(SCALE_DIVISOR));
     }
 
     /**
@@ -297,19 +286,14 @@ public final class Processes {
     }
 
     /**
-     * @param source     the source group's name
-     * @param multiplier the scale's multiplier, 1 for none
-     * @param divisor    the scale's divisor, 1 for none
-     * @param chain      the processes applied in order, each by name, an @ leading it or not
+     * @param source the source group's name
+     * @param chain  the processes applied in order, each by name, an @ leading it or not
      * @return the assignment's value
      */
-    static String assignment(String source, int multiplier, int divisor, List<String> chain) {
+    static String assignment(String source, List<String> chain) {
         List<String> parts = new ArrayList<>();
         if (!source.isEmpty()) {
             parts.add(TAG_PREFIX + source);
-        }
-        if (multiplier != 1 || divisor != 1) {
-            parts.add((TIMES + multiplier + DIVIDE + divisor).trim());
         }
         for (String link : chain) {
             parts.add(link.startsWith(STACK_PREFIX) ? link : STACK_PREFIX + link);
@@ -319,7 +303,7 @@ public final class Processes {
 
     /**
      * @param model   the model
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @param key     the entry's key
      * @param text    the entry's value text
      * @return the model with the entry set, last where it is new, since the parser applies the block in order
@@ -330,7 +314,7 @@ public final class Processes {
 
     /**
      * @param model   the model
-     * @param section _conversions or _post_conversions
+     * @param section _conversions
      * @return each entry read into its form, in the order the parser applies them
      */
     static List<Process> read(BaseValuesModel model, String section) {

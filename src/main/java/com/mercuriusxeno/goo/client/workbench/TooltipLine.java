@@ -8,7 +8,8 @@ import java.util.List;
  * One line of a tooltip the values manager shows: text, or a goo type's amount, which draws as the type's icon
  * followed by the amount (decision value-tooltips-draw-each-types-icon-before-its-amount).
  */
-public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmount, TooltipLine.MemberIcons {
+public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmount, TooltipLine.Runs,
+        TooltipLine.Members {
 
     /**
      * A line of text: a name, a scalar value, an error or a hint.
@@ -19,28 +20,58 @@ public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmo
     }
 
     /**
-     * A goo type's amount, which {@link GooAmountTooltipComponent} draws.
+     * A goo type's amount, which {@link GooAmountTooltipComponent} draws as one cell of its run's grid.
      *
      * @param type   the goo type's id
      * @param amount the amount as the value reads it
      */
-    record GooAmount(String type, String amount) implements TooltipLine, TooltipComponent {
+    record GooAmount(String type, String amount) implements TooltipLine {
     }
 
     /**
-     * A group's members as item icons in one row, which {@link MemberIconsTooltipComponent} draws (decision
-     * group-link-hovers-member-icons-then-plus-n).
+     * One line of runs, goo types as icons beside numbers and symbols, which {@link RunsTooltipComponent} draws
+     * (decision conversion-controls-hover-their-formula).
      *
-     * @param ids  the members drawn, in member order
-     * @param more the ..+n label counting the members left out, empty where every member draws
+     * @param runs the line's runs
      */
-    record MemberIcons(List<String> ids, String more) implements TooltipLine, TooltipComponent {
+    record Runs(List<ExpressionLines.Run> runs) implements TooltipLine, TooltipComponent {
         /**
-         * @param ids  the members drawn, in member order
-         * @param more the ..+n label counting the members left out, empty where every member draws
+         * @param runs the line's runs
          */
-        public MemberIcons {
+        public Runs {
+            runs = List.copyOf(runs);
+        }
+    }
+
+    /**
+     * A group's members as their sprites on one line, then +n for the members the line leaves out, which
+     * {@link MembersTooltipComponent} draws (decision group-link-hovers-member-icons-then-plus-n).
+     *
+     * @param ids  the members the line shows, in the group's order
+     * @param more how many members follow them unshown
+     */
+    record Members(List<String> ids, int more) implements TooltipLine, TooltipComponent {
+        /**
+         * @param ids  the members the line shows, in the group's order
+         * @param more how many members follow them unshown
+         */
+        public Members {
             ids = List.copyOf(ids);
+        }
+    }
+
+    /**
+     * A run of goo amounts a tooltip lays as one grid, which {@link GooAmountGrid} draws (decision
+     * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+     *
+     * @param amounts the amounts, in the value's type order
+     */
+    record GooAmounts(List<GooAmount> amounts) implements TooltipComponent {
+        /**
+         * @param amounts the amounts, in the value's type order
+         */
+        public GooAmounts {
+            amounts = List.copyOf(amounts);
         }
     }
 }

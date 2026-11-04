@@ -8,12 +8,15 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.client.ClientHooks;
 import org.lwjgl.glfw.GLFW;
 import java.util.EnumMap;
 import java.util.List;
@@ -22,7 +25,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save and an X that closes it, a tab bar carrying every
+ * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save, a [?] that toggles explainer mode and an X that closes it, a tab bar carrying every
  * tab of the page over one shared draft, each tab drawn by its pane, and a status line beneath
  * (decisions goo-workbench-opens-the-in-game-manager-screen, save-applies-the-draft-live-promote-renames-it). The
  * state lives in the tab classes and {@link ManagerConnection}; this class lays the panes out and forwards input.
@@ -50,6 +53,7 @@ public final class ValuesManagerScreen extends Screen {
     // decision topbar-discard-reads-revert
     private static final String REVERT = "Revert";
     private static final String CLOSE = "X";
+    private static final String HELP = "?";
     private static final String DRAFT_BADGE = "draft";
     private static final String READING = "Reading the draft.";
     private static final String SAVING = "saving";
@@ -71,13 +75,14 @@ public final class ValuesManagerScreen extends Screen {
     private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
             PointerHand::cursor);
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
+    private final ExplainerMode explainer = new ExplainerMode(ExplainerTargets.forTabs(this::tabBounds));
     private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
     private final VariablesPane variablesPane;
     private final ProcessesPane processesPane;
     private final AuditPane auditPane;
     private final DraftConfirm draftConfirm = new DraftConfirm();
-    private final DraftPane draftPane = new DraftPane(draftConfirm, this::runDraftAction);
+    private final DraftPane draftPane = new DraftPane(draftConfirm, this::runChoice);
     private final ManagerEntrySource entrySource;
     private final ManagerReads reads;
     private boolean unsaved;
@@ -219,6 +224,9 @@ public final class ValuesManagerScreen extends Screen {
         TitleRow row = titleRowOf(width);
         addRenderableWidget(Button.builder(Component.literal(CLOSE), button -> onClose())
                 .bounds(row.closeLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
+        // Decision question-button-toggles-explainer-mode-with-the-drag-mask.
+        addRenderableWidget(Button.builder(Component.literal(HELP), button -> explainer.toggle())
+                .bounds(row.helpLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
         int right = row.topbarRight();
         right = topbarButton(SAVE, right, () -> save(() -> { }));
         right = topbarButton(REVERT, right, () -> draftConfirm.askRevert(draft.path()));
@@ -230,9 +238,10 @@ public final class ValuesManagerScreen extends Screen {
      *
      * @param closeLeft   the X's left edge
      * @param closeRight  the X's right edge, at the screen's right margin
+     * @param helpLeft    the [?]'s left edge, the square one gap left of the X
      * @param topbarRight the right edge of the topbar's first button
      */
-    record TitleRow(int closeLeft, int closeRight, int topbarRight) {
+    record TitleRow(int closeLeft, int closeRight, int helpLeft, int topbarRight) {
     }
 
     /**
@@ -242,7 +251,8 @@ public final class ValuesManagerScreen extends Screen {
     static TitleRow titleRowOf(int screenWidth) {
         int closeRight = screenWidth - MARGIN;
         int closeLeft = closeRight - BUTTON_HEIGHT;
-        return new TitleRow(closeLeft, closeRight, closeLeft - TAB_GAP);
+        int helpLeft = closeLeft - TAB_GAP - BUTTON_HEIGHT;
+        return new TitleRow(closeLeft, closeRight, helpLeft, helpLeft - TAB_GAP);
     }
 
     /**
@@ -258,6 +268,11 @@ public final class ValuesManagerScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal(label), button -> pressed.run())
                 .bounds(right - buttonWidth, TOPBAR_Y, buttonWidth, BUTTON_HEIGHT).build());
         return right - buttonWidth - TAB_GAP;
+    }
+
+    private DragMask.Rect tabBounds(ManagerTab each) {
+        Button button = tabButtons.get(each);
+        return new DragMask.Rect(button.getX(), button.getY(), button.getRight(), button.getBottom());
     }
 
     private GroupsPane.Bounds contentBounds() {
@@ -300,6 +315,36 @@ public final class ValuesManagerScreen extends Screen {
     private void markUnsaved() {
         unsaved = true;
         setStatus(UNSAVED, false);
+    }
+
+    private void runChoice(DraftConfirm.Choice choice) {
+        switch (choice) {
+            case CONFIRM -> runDraftAction();
+            case SAVE_AND_CLOSE -> {
+                draftConfirm.cancel();
+                save(this::closeManager);
+            }
+            case CLOSE_UNSAVED -> {
+                draftConfirm.cancel();
+                closeManager();
+            }
+            case CANCEL -> draftConfirm.cancel();
+        }
+    }
+
+    /**
+     * The X and Esc reach here: unsaved changes stand the close confirm rather than closing and losing them, and Esc
+     * over a standing confirm cancels it.
+     */
+    @Override
+    public void onClose() {
+        if (draftConfirm.closesNow(unsaved)) {
+            closeManager();
+        }
+    }
+
+    private void closeManager() {
+        super.onClose();
     }
 
     /**
@@ -384,6 +429,10 @@ public final class ValuesManagerScreen extends Screen {
         if (draftPane.open()) {
             return clickTargets(targets, event);
         }
+        // The mode is modal: a click anywhere, the [?] included, leaves it and reaches nothing beneath.
+        if (explainer.leave()) {
+            return true;
+        }
         if (emptyBoxUnder(children(), event) || super.mouseClicked(event, doubleClick)) {
             return true;
         }
@@ -393,7 +442,7 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        return targets.drag(event.y()) || super.mouseDragged(event, dragX, dragY);
+        return targets.drag(event.x(), event.y()) || super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
@@ -403,6 +452,9 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE && explainer.leave()) {
+            return true;
+        }
         return paneTakesKey(event.key()) || super.keyPressed(event);
     }
 
@@ -418,7 +470,7 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-        if (draftPane.open()) {
+        if (draftPane.open() || explainer.active()) {
             return true;
         }
         switch (tab) {
@@ -458,10 +510,9 @@ public final class ValuesManagerScreen extends Screen {
         graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
                 statusIsError ? RED : GRAY);
         draftPane.extract(graphics, font, width, height, targets);
+        explainer.extract(graphics, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
-        targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
-                .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, elementsOf(lines),
-                        mouseX, mouseY, ItemStack.EMPTY));
+        extractTooltip(graphics, mouseX, mouseY);
         // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
         linkCursor.frame(targets, mouseX, mouseY, graphics::requestCursor);
     }
@@ -472,6 +523,34 @@ public final class ValuesManagerScreen extends Screen {
         super.removed();
     }
 
+    // Decision tooltips-anchor-below-their-element-and-grow-upward-when-short-of-room.
+    static Optional<ClientTooltipPositioner> anchoredTooltip(ClickTargets targets, double mouseX, double mouseY) {
+        return targets.hoveredArea(mouseX, mouseY).map(area -> TooltipAnchor.anchoredTo(area.bounds()));
+    }
+
+    // The tooltip draws on a stratum of its own over the frame, placed by the hovered area's bounds rather than the
+    // cursor.
+    private void extractTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        Optional<ClickTargets.HoveredArea> area = targets.hoveredArea(mouseX, mouseY);
+        Optional<ClientTooltipPositioner> positioner = anchoredTooltip(targets, mouseX, mouseY);
+        if (area.isEmpty() || positioner.isEmpty()) {
+            return;
+        }
+        Optional<Component> explained = explainer.tooltipFor(area.get().hoverKey());
+        Optional<List<TooltipLine>> hoveredLines = tooltipLines(area.get().hoverKey());
+        List<ClientTooltipComponent> components;
+        if (explained.isPresent()) {
+            components = ExplainerTooltip.components(font, explained.get(), area.get().bounds(), width, height);
+        } else if (hoveredLines.isPresent()) {
+            components = ClientHooks.gatherTooltipComponentsFromElements(ItemStack.EMPTY,
+                    tooltipElements(hoveredLines.get()), mouseX, width, height, font);
+        } else {
+            return;
+        }
+        graphics.nextStratum();
+        graphics.tooltip(font, components, mouseX, mouseY, positioner.get(), null);
+    }
+
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
     // then its value.
     private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
@@ -479,18 +558,44 @@ public final class ValuesManagerScreen extends Screen {
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
-                        .or(() -> valuesPane.groupTooltipFor(hoverKey));
+                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, hoverKey))
+                        .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey));
     }
 
-    // Text stays text; a goo amount reaches GooAmountTooltipComponent through the tooltip factory registered for it,
-    // and the deferred call draws the tooltip over the frame (decision
-    // value-tooltips-draw-each-types-icon-before-its-amount).
-    private static List<Either<FormattedText, TooltipComponent>> elementsOf(List<TooltipLine> lines) {
-        return lines.stream().map(line -> switch (line) {
-            case TooltipLine.Text text -> Either.<FormattedText, TooltipComponent>left(text.text());
-            case TooltipLine.GooAmount amount -> Either.<FormattedText, TooltipComponent>right(amount);
-            case TooltipLine.MemberIcons members -> Either.<FormattedText, TooltipComponent>right(members);
-        }).toList();
+    // Text stays text; a run of goo amounts folds into one grid that reaches GooAmountGrid through the tooltip factory
+    // registered for it, and the deferred call draws the tooltip over the frame (decisions
+    // value-tooltips-draw-each-types-icon-before-its-amount,
+    // tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+    static List<Either<FormattedText, TooltipComponent>> tooltipElements(List<TooltipLine> lines) {
+        List<Either<FormattedText, TooltipComponent>> elements = new java.util.ArrayList<>();
+        List<TooltipLine.GooAmount> run = new java.util.ArrayList<>();
+        for (TooltipLine line : lines) {
+            if (line instanceof TooltipLine.GooAmount amount) {
+                run.add(amount);
+                continue;
+            }
+            endRun(elements, run);
+            elements.add(elementOf(line));
+        }
+        endRun(elements, run);
+        return elements;
+    }
+
+    private static Either<FormattedText, TooltipComponent> elementOf(TooltipLine line) {
+        return switch (line) {
+            case TooltipLine.Text text -> Either.left(text.text());
+            case TooltipLine.Runs runs -> Either.right(runs);
+            case TooltipLine.Members members -> Either.right(members);
+            case TooltipLine.GooAmount amount -> Either.right(new TooltipLine.GooAmounts(List.of(amount)));
+        };
+    }
+
+    private static void endRun(List<Either<FormattedText, TooltipComponent>> elements,
+                               List<TooltipLine.GooAmount> run) {
+        if (!run.isEmpty()) {
+            elements.add(Either.right(new TooltipLine.GooAmounts(run)));
+            run.clear();
+        }
     }
 
     @Override

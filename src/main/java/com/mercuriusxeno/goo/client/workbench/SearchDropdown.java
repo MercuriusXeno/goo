@@ -33,7 +33,9 @@ final class SearchDropdown {
     // The list scrolls a row per wheel notch, so every match is reachable however few rows fit under the opener.
     private final ScrollBar bar = new ScrollBar(1);
     private int shownRows = SHOWN;
+    // The search text past any # or $ mark, and the kind that mark lists alone, null for every kind.
     private String query = NOTHING;
+    private @Nullable Kind queryKind;
     private boolean open;
 
     /**
@@ -45,7 +47,9 @@ final class SearchDropdown {
         /** A prefab, by its name. */
         PREFAB,
         /** An item tag, by its #id. */
-        TAG
+        TAG,
+        /** A mutator, by its name. */
+        MUTATOR
     }
 
     /**
@@ -80,8 +84,17 @@ final class SearchDropdown {
             inventory.stream().filter(entry -> !entry.tag() && !entry.id().startsWith(TAG_MARK))
                     .forEach(entry -> choices.add(new Choice(Kind.ITEM, entry.id(), entry.name())));
         }
-        prefabs.forEach(name -> choices.add(new Choice(Kind.PREFAB, name, name)));
+        // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: a prefab reads after $.
+        prefabs.forEach(name -> choices.add(new Choice(Kind.PREFAB, name, PrefabNames.marked(name))));
         return new SearchDropdown(choices);
+    }
+
+    /**
+     * @param mutators the mutators' names
+     * @return a dropdown over them, each read by its plain name
+     */
+    static SearchDropdown overMutators(List<String> mutators) {
+        return new SearchDropdown(mutators.stream().map(name -> new Choice(Kind.MUTATOR, name, name)).toList());
     }
 
     /**
@@ -107,16 +120,35 @@ final class SearchDropdown {
      * @param typed the search box's text
      */
     void search(String typed) {
-        query = typed.trim().toLowerCase(Locale.ROOT);
+        String searched = typed.trim().toLowerCase(Locale.ROOT);
+        queryKind = markedKind(searched);
+        query = queryKind == null ? searched : searched.substring(1);
         bar.reset();
     }
 
     /**
+     * A query opening on # lists the tags alone and one opening on $ the prefabs alone, the rest of it filtering
+     * them (decision hash-marks-groups-and-dollar-marks-prefabs-everywhere).
+     *
      * @return every choice whose label or id holds the search text, ignoring case
      */
     List<Choice> choices() {
-        return all.stream().filter(choice -> query.isEmpty() || choice.label().toLowerCase(Locale.ROOT).contains(query)
-                || choice.id().toLowerCase(Locale.ROOT).contains(query)).toList();
+        Kind marked = queryKind;
+        String text = query;
+        return all.stream().filter(choice -> marked == null || choice.kind() == marked)
+                .filter(choice -> holds(choice, text)).toList();
+    }
+
+    private static @Nullable Kind markedKind(String searched) {
+        if (searched.startsWith(TAG_MARK)) {
+            return Kind.TAG;
+        }
+        return searched.startsWith(PrefabNames.PREFAB_MARK) ? Kind.PREFAB : null;
+    }
+
+    private static boolean holds(Choice choice, String text) {
+        return text.isEmpty() || choice.label().toLowerCase(Locale.ROOT).contains(text)
+                || choice.id().toLowerCase(Locale.ROOT).contains(text);
     }
 
     /**
@@ -162,6 +194,7 @@ final class SearchDropdown {
         targets.add(x, y, width, height, () -> {
             open = true;
             query = NOTHING;
+            queryKind = null;
         });
     }
 

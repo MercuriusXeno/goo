@@ -19,8 +19,11 @@ import java.util.function.DoubleConsumer;
  */
 final class ClickTargets {
     private final List<Target> targets = new ArrayList<>();
+    // The grab areas that name what they drag, which no hover reads.
+    private final List<NamedGrab> namedGrabs = new ArrayList<>();
     private @Nullable Clip clip;
-    private @Nullable DoubleConsumer grabbed;
+    private @Nullable PointerGrab grabbed;
+    private double pressedX;
     private double pressedY;
     private boolean shiftHeld;
 
@@ -49,11 +52,18 @@ final class ClickTargets {
     private record Clip(int left, int top, int right, int bottom) {
     }
 
+    private record NamedGrab(int left, int top, int right, int bottom, String name) {
+        boolean contains(double x, double y) {
+            return x >= left && x < right && y >= top && y < bottom;
+        }
+    }
+
     /**
      * Forgets every area, as a new frame begins.
      */
     void clear() {
         targets.clear();
+        namedGrabs.clear();
         clip = null;
     }
 
@@ -198,6 +208,22 @@ final class ClickTargets {
     }
 
     /**
+     * What a grabbed area does as the cursor drags it and lets it go.
+     */
+    interface PointerGrab {
+        /**
+         * @param x the cursor's x, at the press and at each drag
+         * @param y the cursor's y
+         */
+        void moved(double x, double y);
+
+        /**
+         * The button came up.
+         */
+        void released();
+    }
+
+    /**
      * An area a press grabs, such as a scroll bar's track: the press and every drag until the release hand their y
      * to the area, wherever the cursor stands.
      *
@@ -208,21 +234,76 @@ final class ClickTargets {
      * @param drag   what the press's and each drag's y moves
      */
     void addDrag(int left, int top, int width, int height, DoubleConsumer drag) {
-        add(left, top, width, height, () -> {
-            grabbed = drag;
-            drag.accept(pressedY);
+        addGrab(left, top, width, height, new PointerGrab() {
+            @Override
+            public void moved(double x, double y) {
+                drag.accept(y);
+            }
+
+            @Override
+            public void released() {
+                // A track lets go with nothing to finish.
+            }
         });
     }
 
     /**
+     * An area a press grabs, as a term's drag rail: the press and every drag until the release hand the cursor's
+     * place to the grab, and the release tells it the button came up.
+     *
+     * @param left   the area's left edge
+     * @param top    the area's top edge
+     * @param width  its width
+     * @param height its height
+     * @param grab   what the press, each drag and the release move
+     */
+    void addGrab(int left, int top, int width, int height, PointerGrab grab) {
+        add(left, top, width, height, () -> {
+            grabbed = grab;
+            grab.moved(pressedX, pressedY);
+        });
+    }
+
+    /**
+     * A grab area naming what it drags, as a term's rail names its term, while hovering it names nothing (decision
+     * drag-rails-hover-nothing).
+     *
+     * @param left   the area's left edge
+     * @param top    the area's top edge
+     * @param width  its width
+     * @param height its height
+     * @param grab   what the press, each drag and the release move
+     * @param name   what it drags
+     */
+    void addGrab(int left, int top, int width, int height, PointerGrab grab, String name) {
+        addGrab(left, top, width, height, grab);
+        namedGrabs.add(new NamedGrab(left, top, left + width, top + height, name));
+    }
+
+    /**
+     * @param x the cursor's x
+     * @param y the cursor's y
+     * @return what the topmost named grab area under the cursor drags, empty where none stands
+     */
+    Optional<String> grabNamed(double x, double y) {
+        for (int index = namedGrabs.size() - 1; index >= 0; index--) {
+            if (namedGrabs.get(index).contains(x, y)) {
+                return Optional.of(namedGrabs.get(index).name());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * @param x the cursor's x as it drags
      * @param y the cursor's y as it drags
      * @return whether a grabbed area took the drag
      */
-    boolean drag(double y) {
+    boolean drag(double x, double y) {
         if (grabbed == null) {
             return false;
         }
-        grabbed.accept(y);
+        grabbed.moved(x, y);
         return true;
     }
 
@@ -232,9 +313,12 @@ final class ClickTargets {
      * @return whether an area was grabbed
      */
     boolean release() {
-        boolean held = grabbed != null;
+        PointerGrab held = grabbed;
         grabbed = null;
-        return held;
+        if (held != null) {
+            held.released();
+        }
+        return held != null;
     }
 
     /**
@@ -254,6 +338,7 @@ final class ClickTargets {
      * @return whether an area holding an action for the gesture took the click
      */
     boolean click(double x, double y, int button, int modifiers) {
+        pressedX = x;
         pressedY = y;
         for (int index = targets.size() - 1; index >= 0; index--) {
             Target target = targets.get(index);
@@ -311,9 +396,29 @@ final class ClickTargets {
      * @return what the topmost area under the cursor names, empty where it names nothing
      */
     Optional<String> hovered(double x, double y) {
+        return hoveredArea(x, y).map(HoveredArea::hoverKey);
+    }
+
+    /**
+     * What a hovered area names and where it stands.
+     *
+     * @param hoverKey what hovering it names
+     * @param bounds   the area, as clipped when it was added
+     */
+    record HoveredArea(String hoverKey, GroupsPane.Bounds bounds) {
+    }
+
+    /**
+     * @param x the cursor's x
+     * @param y the cursor's y
+     * @return what the topmost area under the cursor names, with its bounds, empty where it names nothing
+     */
+    Optional<HoveredArea> hoveredArea(double x, double y) {
         for (int index = targets.size() - 1; index >= 0; index--) {
-            if (targets.get(index).contains(x, y)) {
-                return Optional.ofNullable(targets.get(index).hoverKey());
+            Target target = targets.get(index);
+            if (target.contains(x, y)) {
+                return Optional.ofNullable(target.hoverKey()).map(key -> new HoveredArea(key,
+                        new GroupsPane.Bounds(target.left(), target.top(), target.right(), target.bottom())));
             }
         }
         return Optional.empty();
