@@ -1030,6 +1030,16 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
+        void tintFillsTheContainerInsideItsBorder() {
+            DrawnFrame frame = Builder.item(SCALED).frame();
+            int[] box = border(frame);
+            List<int[]> tints = fills(frame, ExpressionBuilderPane.nestTone(1));
+            assertEquals(1, tints.size(), "one tint fill");
+            assertArrayEquals(new int[] {box[0] + 1, box[1] + 1, box[2] - 1, box[3] - 1}, tints.getFirst(),
+                    "the depth tint fills the container inset by its 1 px border on every side");
+        }
+
+        @Test
         void handleDroppedOnTheContainerWrapsItAgain() {
             Builder builder = Builder.item(SCALED);
             DrawnFrame frame = builder.frame();
@@ -1407,6 +1417,27 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = Builder.item("$waxed + $edited").frame();
             float scale = frame.placed("$waxed").scale();
             assertTrue(scale < 1.0f, "the term draws at " + scale);
+        }
+
+        /**
+         * Goo type icons draw at their native size, one texel a pixel, while the builder's text draws below scale 1
+         * (the operator's ruling in decision builder-font-and-spacing-shrink-padding-untouched: icons native, lines
+         * fit them).
+         */
+        @Test
+        void gooTypeIconsDrawAtNativeSizeWhileTextShrinks() {
+            DrawnFrame frame = Builder.item("{\"metal\": \"3 $waxed.metal / 2\"}").frame();
+            ArgumentCaptor<Integer> widths = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> heights = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).blit(any(), any(), anyInt(), anyInt(),
+                    org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), widths.capture(),
+                    heights.capture(), anyInt(), anyInt(), anyInt());
+            int nativeSize = GooTypeIcons.sizeOf("metal");
+            assertEquals(2, widths.getAllValues().size(), "the row's icon and the member's");
+            assertEquals(List.of(nativeSize, nativeSize, nativeSize, nativeSize), List.of(widths.getAllValues().get(0),
+                    heights.getAllValues().get(0), widths.getAllValues().get(1), heights.getAllValues().get(1)),
+                    "each icon at its native size");
+            assertTrue(frame.placed("$waxed").scale() < 1.0f, "the term's text below scale 1");
         }
 
         /**
@@ -2323,7 +2354,9 @@ class ExpressionBuilderPaneTest {
 
         @Test
         void unscaledTermsDrawNoFactorAndTheSumNoTrailingRatio() {
-            assertNoFactor(Builder.item("$bush + $magic + $wealth").frame());
+            DrawnFrame sum = Builder.item("$bush + $magic + $wealth").frame();
+            assertNoFactor(sum);
+            assertFalse(sum.texts().contains("the whole value"), sum.texts().toString());
             assertNoFactor(Builder.item("($food + $saturation)").frame());
         }
 
