@@ -887,6 +887,48 @@ class ValuesPaneTest {
                 && text.y() > gravel.y()), frame.drawn().toString());
     }
 
+    /**
+     * An Items row draws its goo value's type icons left to right highest amount first, ties by type key, whatever
+     * order the resolve reply held them in (decision value-lists-order-highest-first-ties-by-type-key).
+     */
+    @Test
+    void itemsRowDrawsItsValueRunsHighestFirstTiesByTypeKey() {
+        ValuesTab values = new ValuesTab(new ManagerDraft());
+        values.readEntries(new ListedEntrySource(List.of(
+                new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"5\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "stick", "value": {"metal": "1/2", "weird": "3", "pulse": "3"},
+                              "denied": false}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(mock(Matrix3x2fStack.class));
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        List<String> typeKeys = List.of("pulse", "weird", "metal").stream().map(GooTypeIcons::hoverKey).toList();
+        List<Integer> lefts = typeKeys.stream().map(key -> leftOfHover(frame, key)).toList();
+        assertEquals(lefts.stream().sorted().toList(), lefts, "pulse, weird, metal from left to right: " + lefts);
+    }
+
+    // The left edge of the first area across the screen whose hover names the key.
+    private static int leftOfHover(DrawnFrame frame, String key) {
+        for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
+            for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
+                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                    return x;
+                }
+            }
+        }
+        throw new AssertionError(key + " not drawn: " + frame.targets.hoverKeys());
+    }
+
     // Clicks the type picker's cell for a goo type, found by its hover across the screen.
     private static void pickType(DrawnFrame frame, String type) {
         String key = GooTypeIcons.hoverKey(type);
