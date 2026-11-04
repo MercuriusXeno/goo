@@ -1054,6 +1054,127 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * The control bay's x and / drag onto a term, a parenthetical being a term and a bare number taking neither,
+     * and open the number box at that term's multiplier or divisor with its value selected, so a typed number scales
+     * that side of that term alone (decision x-and-slash-drag-from-the-bay-onto-a-term).
+     */
+    @Nested
+    class FactorBay {
+
+        // The bay's button reading the label, on the () handle's line.
+        private static DrawnFrame.Text bay(DrawnFrame frame, String label) {
+            DrawnFrame.Text handle = handles(frame).getFirst();
+            return frame.drawn().stream().filter(text -> text.text().equals(label) && text.y() == handle.y())
+                    .findFirst().orElseThrow(() -> new AssertionError("no " + label + " in the bay: " + frame.drawn()));
+        }
+
+        // Grabs the bay's button and drags it to a point, drawing the frame that follows.
+        private static void hold(Builder builder, DrawnFrame frame, String label, double x, double y) {
+            DrawnFrame.Text button = bay(frame, label);
+            assertTrue(frame.targets.click(button.x() + 1, button.y() + 1), "the bay's " + label + " grabs");
+            assertTrue(frame.targets.drag(x, y));
+            builder.frame();
+        }
+
+        // The number box focused last, which the builder opened.
+        private static EditBox numberBox(Builder builder) {
+            ArgumentCaptor<AbstractWidget> focused = ArgumentCaptor.forClass(AbstractWidget.class);
+            verify(builder.actions, atLeastOnce()).focus(focused.capture());
+            return (EditBox) focused.getValue();
+        }
+
+        // Drops the bay's button on a term's name and answers the number box it opened, after the frame placing it.
+        private static EditBox dropOn(Builder builder, String label, String name) {
+            DrawnFrame frame = builder.frame();
+            DrawnFrame.Text target = frame.find(name);
+            hold(builder, frame, label, target.x() + 1, target.y() + 1);
+            frame.targets.release();
+            builder.frame();
+            return numberBox(builder);
+        }
+
+        @Test
+        void xDroppedOnATermOpensItsMultiplierAndScalesItAlone() {
+            Builder builder = Builder.item("$waxed + $edited");
+            DrawnFrame before = builder.frame();
+            int multiplier = before.buttonAround(before.drawn().get(before.drawn().indexOf(before.find("$edited")) + 1))[0];
+            EditBox box = dropOn(builder, "x", "$edited");
+            assertEquals(List.of("1", "1", multiplier), List.of(box.getValue(), box.getHighlighted(), box.getX()),
+                    "the box at the multiplier, its value selected");
+            builder.commitNumber("3");
+            assertEquals("$waxed + 3 $edited", builder.written.getLast());
+        }
+
+        @Test
+        void slashDroppedOnATermOpensItsDivisorAndScalesItAlone() {
+            Builder builder = Builder.item("$waxed + $edited");
+            DrawnFrame before = builder.frame();
+            int divisor = before.buttonAround(before.drawn().get(before.drawn().indexOf(before.find("$edited")) + 3))[0];
+            EditBox box = dropOn(builder, "/", "$edited");
+            assertEquals(List.of("1", "1", divisor), List.of(box.getValue(), box.getHighlighted(), box.getX()),
+                    "the box at the divisor, its value selected");
+            builder.commitNumber("3");
+            assertEquals("$waxed + $edited / 3", builder.written.getLast());
+        }
+
+        @Test
+        void aParentheticalTakesTheDropAndANumberTakesNone() {
+            String shown = "{\"metal\": \"5 + $base + ($base)\"}";
+            Builder builder = Builder.item(shown);
+            DrawnFrame frame = builder.frame();
+            DrawnFrame.Text number = frame.findFirst("5");
+            DrawnFrame.Text reference = frame.findFirst("$base");
+            DrawnFrame.Text open = frame.find("(");
+            hold(builder, frame, "x", AREA.right() - 60, AREA.bottom() - 5);
+            List<int[]> holes = fills(builder.frame(), DragMask.HIGHLIGHT);
+            java.util.function.Predicate<DrawnFrame.Text> lit = text -> holes.stream().anyMatch(hole ->
+                    hole[0] <= text.x() && text.x() < hole[2] && hole[1] <= text.y() && text.y() < hole[3]);
+            // The reference, the parenthetical and the reference inside it each take the drop; the number none.
+            assertEquals(List.of(3, true, true, false), List.of(holes.size(), lit.test(reference), lit.test(open),
+                    lit.test(number)), "holes over the references and the parenthetical alone");
+            assertTrue(frame.targets.drag(open.x() + 1, open.y() + 1));
+            builder.frame();
+            frame.targets.release();
+            DrawnFrame placed = builder.frame();
+            int multiplier = placed.buttonAround(placed.drawn().get(placed.drawn().indexOf(placed.find(")")) + 1))[0];
+            assertEquals(multiplier, numberBox(builder).getX(), "the box at the parenthetical's multiplier");
+            Builder numbers = Builder.item(shown);
+            DrawnFrame numbered = numbers.frame();
+            DrawnFrame.Text five = numbered.findFirst("5");
+            hold(numbers, numbered, "x", five.x() + 1, five.y() + 1);
+            numbered.targets.release();
+            numbers.frame();
+            verify(numbers.actions, never()).focus(any(AbstractWidget.class));
+            assertEquals(List.of(), numbers.written, "a number scaled");
+        }
+
+        @Test
+        void aDropOffEveryTermOrEscapedScalesNothing() {
+            Builder builder = Builder.item("$waxed + $edited");
+            DrawnFrame frame = builder.frame();
+            int pointerX = AREA.right() - 60;
+            int pointerY = AREA.bottom() - 40;
+            hold(builder, frame, "x", pointerX, pointerY);
+            DrawnFrame held = builder.frame();
+            assertTrue(held.drawn().stream().anyMatch(text -> text.text().equals("x")
+                    && text.x() == pointerX + 8 + ButtonPainter.PADDING), "the x draws at the pointer");
+            frame.targets.release();
+            builder.frame();
+            Builder escaped = Builder.item("$waxed + $edited");
+            DrawnFrame second = escaped.frame();
+            DrawnFrame.Text edited = second.find("$edited");
+            hold(escaped, second, "/", edited.x() + 1, edited.y() + 1);
+            assertTrue(escaped.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE), "Escape drops the held /");
+            second.targets.release();
+            escaped.frame();
+            for (Builder each : List.of(builder, escaped)) {
+                verify(each.actions, never()).focus(any(AbstractWidget.class));
+                assertEquals(List.of(), each.written, "a drop off every term or escaped scaled something");
+            }
+        }
+    }
+
+    /**
      * A whole-value (relative) expression takes every rule a type row's expression takes: each rule's assertion runs
      * through one helper against both kinds, and the two kinds draw the same geometry relative to the container
      * (decision whole-value-expressions-take-every-type-row-rule).
@@ -1952,9 +2073,11 @@ class ExpressionBuilderPaneTest {
             List<DrawnFrame.Text> bay = frame.drawn().stream().filter(text -> text.y() == handle.y()
                     && !text.text().equals("✗ Cancel")).sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
                     .toList();
-            assertEquals(List.of("()", "+", "-"), bay.stream().map(DrawnFrame.Text::text).toList(), bay.toString());
+            // Decision x-and-slash-drag-from-the-bay-onto-a-term: the x and / stand after the + and -.
+            assertEquals(List.of("()", "+", "-", "x", "/"), bay.stream().map(DrawnFrame.Text::text).toList(),
+                    bay.toString());
             assertEquals(0, frame.count(SUM_ADD), frame.texts().toString());
-            DrawnFrame.Text minus = bay.getLast();
+            DrawnFrame.Text minus = bay.get(2);
             assertTrue(frame.targets.click(minus.x(), minus.y()), "the - grabs the pointer");
             double[] edited = railOf(frame, List.of(1));
             assertTrue(frame.targets.drag(edited[0], edited[1]));
