@@ -80,8 +80,17 @@ class ExpressionBuilderPaneTest {
         }
 
         DrawnFrame frame(GroupsPane.Bounds area) {
+            return frameAt(area, 0);
+        }
+
+        /**
+         * @param area the area the builder spans
+         * @param top  the builder's top edge, as a builder scrolled near the screen's bottom stands
+         * @return the frame the builder drew there
+         */
+        DrawnFrame frameAt(GroupsPane.Bounds area, int top) {
             DrawnFrame frame = new DrawnFrame();
-            pane.extract(frame.graphics, font, area, 0, frame.targets);
+            pane.extract(frame.graphics, font, area, top, frame.targets);
             pane.drawOverlays(frame.graphics, font, frame.targets);
             return frame;
         }
@@ -996,6 +1005,177 @@ class ExpressionBuilderPaneTest {
             builder.frame();
             frame.targets.release();
             assertEquals("(3 ($waxed + $edited) / 2) + $base", builder.written.getLast());
+        }
+    }
+
+    /**
+     * A whole-value (relative) expression takes every rule a type row's expression takes: each rule's assertion runs
+     * through one helper against both kinds, and the two kinds draw the same geometry relative to the container
+     * (decision whole-value-expressions-take-every-type-row-rule).
+     */
+    @Nested
+    class WholeValueParity {
+        private static final String TERM = "3 $waxed.metal / 2";
+        private static final String SCALED = "3 ($base + $base) / 2 + $base";
+        private static final String NESTED = "(($base) + $base) + $base";
+        private static final String MANY = "$base + $base + $base + $base + $base + $base";
+        private static final String THREE = "$base + $base + $base";
+        private static final GroupsPane.Bounds NARROW = new GroupsPane.Bounds(0, 0, 200, 390);
+
+        // The expression opened as a whole value, and as the amount of a metal row.
+        private static List<Builder> bothKinds(String expression) {
+            return List.of(Builder.item(expression), Builder.item("{\"metal\": \"" + expression + "\"}"));
+        }
+
+        // Where a sum's terms stand in each kind: the whole value's own, or the metal row's.
+        private static List<List<Integer>> sums() {
+            return List.of(List.of(), List.of(0));
+        }
+
+        // Rectangles relative to an origin, as left, top, right and bottom.
+        private static List<List<Integer>> relative(List<int[]> rects, int left, int top) {
+            return rects.stream().map(rect -> List.of(rect[0] - left, rect[1] - top, rect[2] - left, rect[3] - top))
+                    .toList();
+        }
+
+        // A plain term's segments' frames, its ring's sides and its seams, relative to its ring's top-left.
+        private static List<List<Integer>> termGeometry(DrawnFrame frame) {
+            List<int[]> segments = SegmentedTerms.segments(frame);
+            int[] ring = SegmentedTerms.ringOf(segments);
+            List<int[]> pieces = new ArrayList<>(segments);
+            pieces.addAll(fills(frame, ControlFlow.TERM_BORDER));
+            pieces.addAll(fills(frame, ControlFlow.SEAM_LIGHT));
+            pieces.addAll(fills(frame, ControlFlow.SEAM_DARK));
+            return relative(pieces, ring[0], ring[1]);
+        }
+
+        @Test
+        void aTermDrawsTheSameSegmentsRingAndSeamsInBothKinds() {
+            List<List<List<Integer>>> geometry = bothKinds(TERM).stream().map(Builder::frame)
+                    .map(WholeValueParity::termGeometry).toList();
+            assertEquals(geometry.get(1), geometry.get(0), "the whole value's term against the type row's");
+            Builder rows = Builder.item("{\"metal\": \"" + TERM + " + $base\"}");
+            DrawnFrame frame = rows.frame();
+            int[] rail = SegmentedTerms.segments(frame).getFirst();
+            assertTrue(frame.targets.click(rail[0] + 2, rail[1] + 2), "the row's term rail takes no press");
+            assertTrue(frame.targets.drag(AREA.right() - 40, frame.find("$base").y()));
+            rows.frame();
+            frame.targets.release();
+            assertEquals("{\"metal\": \"$base + " + TERM + "\"}", rows.written.getLast(), "the row's term drags");
+        }
+
+        // A parenthetical's container with one clear pixel inside its border round "(", its terms and ")", its
+        // parens regular weight and sized to its contents; answers its geometry relative to its border's top-left.
+        private static List<List<Integer>> paddedParenthetical(DrawnFrame frame, List<Integer> sum) {
+            int[] box = ParenContainers.border(frame);
+            DrawnFrame.Placed open = frame.placed("(");
+            DrawnFrame.Placed close = frame.placed(")");
+            Lettering parens = new Lettering(DrawnFrame.font(), open.scale());
+            double[] first = railOf(frame, placeOf(sum, 0, 0));
+            int[] firstTerm = ringAround(frame.buttonAround((int) first[0], (int) first[1]));
+            int[] lastTerm = ringAround(frame.buttonAround(frame.drawn().get(frame.drawn().indexOf(frame.find(")"))
+                    - 1)));
+            assertEquals(box[0] + 2, open.x(), "( a clear pixel inside the left border");
+            assertEquals(open.x() + parens.inkWidth("(") + 1, firstTerm[0], "the first term a clear pixel past (");
+            assertEquals(lastTerm[2] + 1, close.x(), ") a clear pixel past the last term");
+            assertEquals(close.x() + parens.inkWidth(")") + 2, box[2], ") a clear pixel inside the right border");
+            assertEquals(List.of(box[1] + 2, box[3] - 2), List.of(firstTerm[1], firstTerm[3]),
+                    "the terms a clear pixel inside the top and bottom borders");
+            assertFalse(open.bold() || close.bold() || open.shadow() || close.shadow(), "the parens draw plain");
+            return relative(List.of(box, firstTerm, lastTerm, new int[] {open.x(), open.y(), close.x(), close.y()}),
+                    box[0], box[1]);
+        }
+
+        // A list of indices: a sum's place, then the indices under it.
+        private static List<Integer> placeOf(List<Integer> sum, Integer... under) {
+            List<Integer> path = new ArrayList<>(sum);
+            path.addAll(List.of(under));
+            return path;
+        }
+
+        @Test
+        void aParentheticalDrawsTheSamePaddedContainerInBothKinds() {
+            List<Builder> kinds = bothKinds(SCALED);
+            List<List<List<Integer>>> geometry = IntStream.range(0, 2).mapToObj(kind ->
+                    paddedParenthetical(kinds.get(kind).frame(), sums().get(kind))).toList();
+            assertEquals(geometry.get(1), geometry.get(0), "the whole value's parenthetical against the type row's");
+        }
+
+        @Test
+        void aNestedParenthesisDrawsSmallerInBothKinds() {
+            for (Builder kind : bothKinds(NESTED)) {
+                DrawnFrame frame = kind.frame();
+                assertTrue(placedAt(frame, "(", 0).scale() > placedAt(frame, "(", 1).scale(),
+                        "the outer ( larger than the inner in " + frame.texts());
+            }
+        }
+
+        // Wrapped lines of terms stand BUILDER_LINE_GAP apart, container to container.
+        private static void assertLinesStandTheGapApart(DrawnFrame frame, List<Integer> sum) {
+            List<int[]> rings = IntStream.range(0, 6).mapToObj(index -> railOf(frame, placeOf(sum, index)))
+                    .map(rail -> ringAround(frame.buttonAround((int) rail[0], (int) rail[1]))).toList();
+            List<Integer> tops = rings.stream().map(ring -> ring[1]).distinct().sorted().toList();
+            assertTrue(tops.size() > 1, "the terms wrap: " + tops);
+            int height = rings.getFirst()[3] - rings.getFirst()[1];
+            for (int line = 1; line < tops.size(); line++) {
+                assertEquals(ControlFlow.BUILDER_LINE_GAP, tops.get(line) - tops.get(line - 1) - height,
+                        "the room between line " + (line - 1) + " and line " + line);
+            }
+        }
+
+        @Test
+        void wrappedLinesStandTheGapApartInBothKinds() {
+            List<Builder> kinds = bothKinds(MANY);
+            for (int kind = 0; kind < 2; kind++) {
+                assertLinesStandTheGapApart(kinds.get(kind).frame(NARROW), sums().get(kind));
+            }
+        }
+
+        // The list a term's name opens near the screen's bottom stands above the name's line.
+        private static void assertListOpensAbove(Builder builder) {
+            int top = DrawnFrame.SCREEN_HEIGHT - ControlFlow.LINE * 3;
+            DrawnFrame frame = builder.frameAt(AREA, top);
+            DrawnFrame.Text name = frame.findFirst("$base");
+            int[] segment = frame.buttonAround(name);
+            clickAt(frame, name);
+            builder.frameAt(AREA, top);
+            ArgumentCaptor<AbstractWidget> widgets = ArgumentCaptor.forClass(AbstractWidget.class);
+            verify(builder.actions, atLeastOnce()).addWidget(widgets.capture());
+            AbstractWidget search = widgets.getAllValues().stream().filter(widget -> widget.visible).findFirst()
+                    .orElseThrow(() -> new AssertionError("no list opened"));
+            assertTrue(search.getY() + search.getHeight() <= segment[1], "the list's search box at " + search.getY()
+                    + " stands above the name's line at " + segment[1]);
+        }
+
+        @Test
+        void aListOpenedNearTheBottomOpensAboveInBothKinds() {
+            bothKinds(THREE).forEach(WholeValueParity::assertListOpensAbove);
+        }
+
+        // A drag to the slot before a sum's third term draws its cursor exactly as tall as the term's ringed
+        // container, the mask's hole a pixel round it.
+        private static void assertCursorSpansTheContainer(Builder builder, List<Integer> sum) {
+            DrawnFrame frame = builder.frame();
+            double[] first = railOf(frame, placeOf(sum, 0));
+            double[] third = railOf(frame, placeOf(sum, 2));
+            int[] ring = ringAround(frame.buttonAround((int) third[0], (int) third[1]));
+            assertTrue(frame.targets.click(first[0], first[1]));
+            assertTrue(frame.targets.drag(containerLeft(frame, third) - 3, third[1]));
+            DrawnFrame held = builder.frame();
+            List<int[]> cursors = fills(held, ExpressionBuilderPane.DROP_CURSOR);
+            assertEquals(1, cursors.size(), "one cursor");
+            assertEquals(List.of(ring[1], ring[3]), List.of(cursors.getFirst()[1], cursors.getFirst()[3]),
+                    "the cursor as tall as the term's ringed container");
+            assertHoleStandsAPixelAround(held, cursors.getFirst());
+            frame.targets.release();
+        }
+
+        @Test
+        void theDropCursorSpansTheContainerBesideItInBothKinds() {
+            List<Builder> kinds = bothKinds(THREE);
+            for (int kind = 0; kind < 2; kind++) {
+                assertCursorSpansTheContainer(kinds.get(kind), sums().get(kind));
+            }
         }
     }
 
