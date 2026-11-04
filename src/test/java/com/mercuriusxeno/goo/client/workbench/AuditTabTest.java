@@ -33,22 +33,23 @@ class AuditTabTest {
             """;
 
     /**
-     * The flagged sections lead in the order the audit wrote them, then the quiet ones; each carries its header,
-     * its flags, its lines and the file it came from.
+     * The sections group by the file they came from, in the order the files first appear, the flagged sections
+     * leading within each file; each carries its header, its flags, its lines and its file
+     * (decision audit-headings-group-by-file-under-a-file-heading).
      */
     @Test
-    void flaggedSectionsLeadThenQuietOnes() {
+    void sectionsGroupByFileFlaggedFirstWithinEach() {
         AuditTab tab = new AuditTab();
         tab.readSections(AUDIT);
         List<AuditTab.AuditSection> sections = tab.sections();
-        assertEquals(List.of("TYPE TO TYPE PATHS, WORST FIRST", "UNDERCUT MANUAL VALUES",
-                "ROOT REMAINDERS AND ITEMS SOLVED"), sections.stream().map(AuditTab.AuditSection::header).toList());
+        assertEquals(List.of("TYPE TO TYPE PATHS, WORST FIRST", "ROOT REMAINDERS AND ITEMS SOLVED",
+                "UNDERCUT MANUAL VALUES"), sections.stream().map(AuditTab.AuditSection::header).toList());
         assertEquals("1 flag", sections.getFirst().badge());
         assertEquals(List.of("rock -> metal at 64x"), sections.getFirst().flags());
-        assertEquals("goo_audit.txt", sections.get(1).source());
-        assertEquals("goo_audit.json", sections.get(2).source());
-        assertEquals(List.of("minecraft:cobblestone  remainders 2  items solved 40"), sections.get(2).lines());
-        assertEquals("", sections.get(2).badge());
+        assertEquals("goo_audit.json", sections.get(1).source());
+        assertEquals(List.of("minecraft:cobblestone  remainders 2  items solved 40"), sections.get(1).lines());
+        assertEquals("", sections.get(1).badge());
+        assertEquals("goo_audit.txt", sections.get(2).source());
     }
 
     /**
