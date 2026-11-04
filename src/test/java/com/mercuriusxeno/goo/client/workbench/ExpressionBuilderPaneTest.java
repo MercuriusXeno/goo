@@ -2114,6 +2114,25 @@ class ExpressionBuilderPaneTest {
             assertEquals("{\"metal\": \"7\"}", builder.written.getLast());
         }
 
+        /**
+         * A scalar prefab's number box takes 1 1/3 typed whole, writes the exact fraction 4 / 3 and draws the number
+         * as 1 1/3, where it drew 4 alone (decision number-box-takes-a-mixed-number).
+         */
+        @Test
+        void scalarPrefabNumberBoxTakesAMixedNumber() {
+            Builder builder = Builder.prefab(PREFABS, "8");
+            builder.frame().click("8");
+            DrawnFrame modes = builder.frame();
+            if (modes.texts().contains("number")) {
+                modes.click("number");
+            }
+            builder.commitNumber("1 1/3");
+            assertEquals("4 / 3", builder.written.getLast(), builder.written.toString());
+            DrawnFrame shown = builder.frame();
+            assertTrue(shown.texts().contains("1 1/3"), shown.texts().toString());
+            assertFalse(shown.texts().contains("4"), shown.texts().toString());
+        }
+
         @Test
         void cancelThenDoneStandAtTheLastLinesRightEnd() {
             Builder builder = Builder.item("$waxed");
