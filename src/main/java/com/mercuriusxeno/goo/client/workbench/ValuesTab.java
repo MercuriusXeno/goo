@@ -565,10 +565,11 @@ public final class ValuesTab {
      * Lists every item, the search cleared, and selects one, as a used-by icon's click opens it
      * (decision used-by-icons-link-to-items-and-hover-their-value).
      *
-     * @param id the item's id
+     * @param key the item's id, or its file key, bare for minecraft, as a prefab's Used by icon carries it
      * @return its place in the list, for the pane to scroll it into view, 0 where the list holds it nowhere
      */
-    public int open(String id) {
+    public int open(String key) {
+        String id = namespaced(key);
         filter = Filter.ITEMS;
         search = NO_TEXT;
         selected = id;
