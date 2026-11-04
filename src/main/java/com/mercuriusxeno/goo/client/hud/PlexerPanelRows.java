@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.client.GooAmountOrder;
+import com.mercuriusxeno.goo.data.GooAmountOrder;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooFormat;
