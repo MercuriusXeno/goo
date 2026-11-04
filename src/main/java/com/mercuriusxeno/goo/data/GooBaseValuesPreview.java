@@ -109,8 +109,11 @@ public final class GooBaseValuesPreview {
         GooValueLoader.applyMergedLayers(List.of(JsonParser.parseString(json).getAsJsonObject()), state, tagResolver);
         List<String> warnings = new ArrayList<>();
         GooValueValidator.validateJson(JsonParser.parseString(json).getAsJsonObject(), warnings);
-        return new Loaded(state.baseValues, state.deniedItems, state.restrictedItems, warnings,
-                List.copyOf(state.rootItems));
+        // The game loads no value for an item holding an amount below zero; the workbench shows that value as it
+        // resolved, negative amounts and all, so the operator sees the amount to fix.
+        Map<Identifier, GooValue> values = new LinkedHashMap<>(state.baseValues);
+        values.putAll(state.negativeItems);
+        return new Loaded(values, state.deniedItems, state.restrictedItems, warnings, List.copyOf(state.rootItems));
     }
 
     /**

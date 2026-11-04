@@ -171,6 +171,8 @@ final class GooValueLoader {
             }
             if (resolved.hasNegative()) {
                 Goo.LOGGER.error(LOG_NEGATIVE_BASE, itemId, resolved);
+                // The workbench reads why the item loads no value beside its entry rather than an empty value.
+                state.negativeItems.put(itemId, resolved);
             } else {
                 state.baseValues.put(itemId, resolved);
             }
@@ -217,6 +219,7 @@ final class GooValueLoader {
         state.constants.clear();
         state.treeConstants.clear();
         state.pseudoTags.clear();
+        state.negativeItems.clear();
         state.postConversions = null;
         state.lastMergedBaseValues = null;
     }
@@ -255,6 +258,10 @@ final class GooValueLoader {
          * The clique roots _roots names, in file order (decision audit-proposes-root-candidates-and-flags-bleed).
          */
         final Set<Identifier> rootItems = new java.util.LinkedHashSet<>();
+        /**
+         * Each item whose value held an amount below zero, which loads no value, with the value it resolved to.
+         */
+        final Map<Identifier, GooValue> negativeItems = new java.util.LinkedHashMap<>();
         GooConversion.ParsedConversions postConversions;
         JsonObject lastMergedBaseValues;
 
