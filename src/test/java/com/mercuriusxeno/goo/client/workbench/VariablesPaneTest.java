@@ -997,6 +997,32 @@ class VariablesPaneTest {
     }
 
     /**
+     * Each change the builder writes over a prefab evaluates the draft afresh while the builder stays open, so the
+     * value the block shows is the value the builder holds.
+     */
+    @Test
+    void eachBuilderChangeEvaluatesThePrefabsAfresh() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesTab prefabs = new VariablesTab(draft);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ExpressionBuilderPane builder = mock(ExpressionBuilderPane.class);
+        VariablesPane editing = new VariablesPane(prefabs, draft, mock(ItemIcons.class), actions, builder);
+        editing.init(DrawnFrame.font());
+        editing.show(true);
+        prefabs.startEditing("prefab0");
+        DrawnFrame frame = new DrawnFrame();
+        editing.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.function.Consumer<String>> change =
+                ArgumentCaptor.forClass(java.util.function.Consumer.class);
+        verify(builder, atLeastOnce()).openPrefab(eq("prefab0"), anyString(), change.capture(), any());
+        change.getValue().accept("\"$base / 8\"");
+        verify(actions).draftChanged();
+    }
+
+    /**
      * A prefab used by more items than its line fits ends its used-by line on a ..+n button counting the rest
      * (decision more-button-reads-dot-dot-plus-n).
      */
