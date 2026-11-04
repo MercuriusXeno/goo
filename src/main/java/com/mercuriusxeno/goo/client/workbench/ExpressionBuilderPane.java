@@ -34,6 +34,8 @@ final class ExpressionBuilderPane {
     static final int GREEN = 0xFF80E080;
     /** The room between sibling term containers. */
     static final int TERM_MARGIN = 8;
+    /** A parenthetical container's 1 px border (decision parentheticals-alternate-gray-tones-by-depth). */
+    static final int NEST_BORDER = 0xC0A8B4D0;
     // How far below a line's top its centered buttons start.
     private static final int BUTTON_ABOVE = (ControlFlow.LINE - ButtonPainter.HEIGHT) / 2;
     /** The builder's panel fill. */
@@ -729,7 +731,7 @@ final class ExpressionBuilderPane {
             flow.openSegments(ControlFlow.abutted(ControlFlow.RAIL_SEGMENT_WIDTH,
                     ButtonPainter.iconWidth(GooTypeIcons.sizeOf(row.type()))), ControlFlow.LINE);
             flow.railSegment(rowRailName(index), new RowDrag(index, row.type()));
-            flow.typeSegment(BLANK, row.type(), anchor -> overlays.openPicker(anchor,
+            flow.typeSegment(row.type(), anchor -> overlays.openPicker(anchor,
                     type -> apply(b -> b.setRowType(at, type)), null, held));
             flow.closeSegments();
             flow.text(ExpressionLines.COLON, GRAY);
@@ -989,11 +991,13 @@ final class ExpressionBuilderPane {
     // Decision terms-inline-again-under-the-indentation-rules.
     private void drawPlainTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         Lettering letters = flow.letters();
-        flow.openSegments(plainTermWidth(letters, piece), flow.segmentsHeight(operandSegmentRuns(piece)));
-        // Decision every-term-carries-its-sign-as-a-segment: the sign opens every term's container, the first's too.
-        drawJoinSegment(flow, path, piece);
+        flow.openSegments(plainTermWidth(letters, piece), segmentsHeightOf(piece));
+        // The rail opens every term's container, its sign right after it, the first term's too (decision
+        // every-term-carries-its-sign-as-a-segment, and the operator's ruling of 2026-11-04 placing the rail left of
+        // the sign).
         termRails.put(railName(path), path);
         flow.railSegment(railName(path), new Drag(path, piece));
+        drawJoinSegment(flow, path, piece);
         drawOperand(flow, path, piece, place);
         if (!(piece.operand() instanceof ExpressionBuilder.Kept)
                 && BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
@@ -1002,15 +1006,16 @@ final class ExpressionBuilderPane {
         boxes.add(new TermBox(path, flow.closeSegments()));
     }
 
-    // A reference's or a sum's factor as its container's multiplier, colon and divisor segments, each side a number
-    // box setting its own side alone.
+    // A reference's or a sum's factor as its multiplier's and divisor's segments, each side a number box setting its
+    // own side alone, the colon between them plain text, since it takes no click (the operator's ruling of
+    // 2026-11-04: only what a click edits reads as a button).
     // Decision factor-reads-as-a-ratio.
     // Decision ratio-holds-multiplier-and-divisor-together.
     // Decision ratio-colon-takes-no-spaces.
     private void drawRatioSegments(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
         ScaleChange change = (op, factor) -> apply(b -> b.setScale(path, op, factor));
         ratioSegment(flow, piece.multiplier(), MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
-        flow.textSegment(RATIO, GRAY);
+        flow.textBetweenSegments(RATIO, GRAY);
         ratioSegment(flow, piece.divisor(), DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
     }
 
@@ -1019,67 +1024,78 @@ final class ExpressionBuilderPane {
         return piece.operand() instanceof ExpressionBuilder.Ref ref ? refRuns(ref) : operandRuns(piece);
     }
 
-    // The width a plain term's segments take abutted: its sign, rail, operand, a member's type, and its ratio.
+    // The width a plain term's segments take abutted: its rail, sign, name with its 's, a member's type, and its
+    // ratio.
     private int plainTermWidth(Lettering letters, ExpressionBuilder.Piece piece) {
         List<Integer> widths = new ArrayList<>();
-        widths.add(ButtonPainter.width(letters, joinLabel(piece)));
         widths.add(ControlFlow.RAIL_SEGMENT_WIDTH);
+        widths.add(ButtonPainter.width(letters, joinLabel(piece)));
         widths.add(switch (piece.operand()) {
             case ExpressionBuilder.Num num -> ButtonPainter.width(letters, num.digits());
-            case ExpressionBuilder.Ref ref -> ControlFlow.runsSegmentWidth(letters, refRuns(ref));
+            case ExpressionBuilder.Ref ref -> ControlFlow.runsSegmentWidth(letters, refRuns(ref), possessiveOf(ref));
             case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ ->
-                    ControlFlow.runsSegmentWidth(letters, operandRuns(piece));
+                    ControlFlow.runsSegmentWidth(letters, operandRuns(piece), BLANK);
         });
         if (piece.operand() instanceof ExpressionBuilder.Ref ref && ref.member() != null) {
-            widths.add(ControlFlow.typeSegmentWidth(letters, POSSESSIVE, ref.member()));
+            widths.add(ControlFlow.typeSegmentWidth(ref.member()));
         }
-        if (!(piece.operand() instanceof ExpressionBuilder.Kept)
-                && BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            widths.add(ButtonPainter.width(letters, piece.multiplier()));
-            widths.add(ControlFlow.textSegmentWidth(letters, RATIO));
-            widths.add(ButtonPainter.width(letters, piece.divisor()));
+        if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
+            widths.addAll(ratioWidths(letters, piece));
         }
         return ControlFlow.abutted(widths.stream().mapToInt(Integer::intValue).toArray());
     }
 
-    // A parenthetical's lead run, its sign, rail and "(" abutted, which wrap together.
-    private static int leadWidth(Lettering letters, ExpressionBuilder.Piece piece) {
-        return ControlFlow.abutted(ButtonPainter.width(letters, joinLabel(piece)), ControlFlow.RAIL_SEGMENT_WIDTH,
-                ControlFlow.parenSegmentWidth(letters.font(), OPEN_PAREN));
+    // A ratio's multiplier, colon and divisor as the abutted widths they take, none where the factor hides.
+    private static List<Integer> ratioWidths(Lettering letters, ExpressionBuilder.Piece piece) {
+        if (BuilderGrammar.factorOf(piece) == BuilderGrammar.Factor.HIDDEN) {
+            return List.of();
+        }
+        return List.of(ButtonPainter.width(letters, piece.multiplier()), ControlFlow.textSegmentWidth(letters, RATIO),
+                ButtonPainter.width(letters, piece.divisor()));
     }
 
-    // A parenthetical's closing run, ")" and its ratio abutted, which wrap together.
-    private static int closeWidth(Lettering letters, ExpressionBuilder.Piece piece) {
-        int close = ControlFlow.parenSegmentWidth(letters.font(), CLOSE_PAREN);
-        if (BuilderGrammar.factorOf(piece) == BuilderGrammar.Factor.HIDDEN) {
-            return close;
-        }
-        return ControlFlow.abutted(close, ButtonPainter.width(letters, piece.multiplier()),
-                ControlFlow.textSegmentWidth(letters, RATIO), ButtonPainter.width(letters, piece.divisor()));
+    // A reference's 's, drawn in its name's segment where it takes a member (the operator's ruling of 2026-11-04).
+    private static String possessiveOf(ExpressionBuilder.Ref ref) {
+        return ref.member() == null ? BLANK : POSSESSIVE;
+    }
+
+    // A parenthetical's lead run, its rail and sign abutted.
+    private static int leadWidth(Lettering letters, ExpressionBuilder.Piece piece) {
+        return ControlFlow.abutted(ControlFlow.RAIL_SEGMENT_WIDTH, ButtonPainter.width(letters, joinLabel(piece)));
     }
 
     // The width a term takes laid on one line and the room after it: a plain term's segments, or a parenthetical's
-    // lead run, its terms and its closing run.
+    // lead run, its container around its terms and its ratio.
     private int termWidth(Lettering letters, List<Integer> path, ExpressionBuilder.Piece piece) {
         if (!(piece.operand() instanceof ExpressionBuilder.Nest nest)) {
             return plainTermWidth(letters, piece) + TERM_MARGIN;
         }
-        int width = leadWidth(letters, piece) + BuilderOverlays.GAP;
+        int width = leadWidth(letters, piece) + BuilderOverlays.GAP
+                + ControlFlow.parenFrameWidth(letters.font(), OPEN_PAREN, CLOSE_PAREN, contentHeight(nest))
+                + BuilderOverlays.GAP;
         for (int index = 0; index < nest.pieces().size(); index++) {
             width += termWidth(letters, placeOf(path, index), nest.pieces().get(index));
         }
-        return width + closeWidth(letters, piece) + TERM_MARGIN;
+        return width + ControlFlow.abutted(ratioWidths(letters, piece).stream().mapToInt(Integer::intValue)
+                .toArray()) + TERM_MARGIN;
     }
 
     private static int depthOf(List<Integer> path, Place place) {
         return place.inRow() ? path.size() - 1 : path.size();
     }
 
-    // The height a parenthetical's own segments stand: a 16 px item sprite's line where any term inside it shows one.
-    private int nestHeight(ControlFlow flow, ExpressionBuilder.Nest nest) {
+    // The height of what a parenthetical's container holds: its tallest term's segments, a 16 px item sprite's line
+    // where a term shows one, or an inner parenthetical's container.
+    private int contentHeight(ExpressionBuilder.Nest nest) {
         return nest.pieces().stream().mapToInt(piece -> piece.operand() instanceof ExpressionBuilder.Nest inner
-                ? nestHeight(flow, inner) : flow.segmentsHeight(operandSegmentRuns(piece))).max()
+                ? ControlFlow.parenContainerHeight(contentHeight(inner)) : segmentsHeightOf(piece)).max()
                 .orElse(ControlFlow.LINE);
+    }
+
+    // A plain term's segments' height: the builder's line, or a 16 px item sprite's taller line.
+    private int segmentsHeightOf(ExpressionBuilder.Piece piece) {
+        return operandSegmentRuns(piece).stream().anyMatch(run -> run.kind() == ExpressionLines.Kind.ITEM)
+                ? ExpressionLines.ICON_LINE_HEIGHT : ControlFlow.LINE;
     }
 
     /**
@@ -1189,17 +1205,19 @@ final class ExpressionBuilderPane {
         apply(b -> b.setJoin(path, minus ? ExpressionTerms.Join.PLUS : ExpressionTerms.Join.MINUS));
     }
 
-    // A number as its segment, an item or prefab as the segment that replaces it, then 's and its goo type as one
-    // segment where it takes one; a term no control builds draws as it reads, in a segment taking no click.
+    // A number as its segment, an item or prefab as the segment that replaces it, its 's inside that segment, then
+    // its goo type's segment where it takes one; a term no control builds draws as it reads, in a segment taking no
+    // click.
     private void drawOperand(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         switch (piece.operand()) {
             case ExpressionBuilder.Num num -> drawNumber(flow, path, num, place);
             case ExpressionBuilder.Ref ref -> {
-                flow.runsSegment(refRuns(ref), at -> overlays.openDropdown(at, termList(place),
+                flow.runsSegment(refRuns(ref), possessiveOf(ref), at -> overlays.openDropdown(at, termList(place),
                         choice -> apply(b -> b.setOperand(path, refFor(choice, place)))));
                 drawMember(flow, path, ref, place);
             }
-            case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ -> flow.runsSegment(operandRuns(piece), null);
+            case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ -> flow.runsSegment(operandRuns(piece), BLANK,
+                    null);
         }
     }
 
@@ -1241,49 +1259,49 @@ final class ExpressionBuilderPane {
         if (member == null) {
             return;
         }
-        flow.typeSegment(POSSESSIVE, member, at -> overlays.openPicker(at, type -> apply(b -> b.setMember(path, type)),
+        flow.typeSegment(member, at -> overlays.openPicker(at, type -> apply(b -> b.setMember(path, type)),
                 place.inRow() ? null : () -> apply(b -> b.setMember(path, null))));
     }
 
-    // A parenthetical as one segmented container: its sign, rail and "(" as one run, its terms inline, each edited in
-    // place, a wrap inside it one indent further in, then ")" and its ratio's multiplier, colon and divisor as one run
-    // back at the outer indent; the container's union tints by depth, with no border or padding.
+    // A parenthetical: its rail and sign, then its tinted container with a 1 px border, a clear pixel between the
+    // border and "(", "(" and its terms, its terms and ")", and ")" and the border, the parens regular weight and as
+    // tall as the container's contents, so a nested one draws smaller; then its ratio after the container. Its terms
+    // stand inline, each edited in place, a wrap inside it one indent further in, the indent returning at its exit.
+    // The operator's rulings of 2026-11-04.
     // Decision sum-of-terms-leaves-the-builder.
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon.
-    // Decision parens-are-segments-bounding-the-parenthetical.
     // Decision parentheticals-alternate-gray-tones-by-depth.
     private void drawNest(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         ExpressionBuilder.Nest nest = (ExpressionBuilder.Nest) piece.operand();
         Lettering letters = flow.letters();
-        int height = nestHeight(flow, nest);
-        flow.openContainer();
+        int content = contentHeight(nest);
+        int height = ControlFlow.parenContainerHeight(content);
         flow.openSegments(leadWidth(letters, piece), height);
-        drawJoinSegment(flow, path, piece);
         termRails.put(railName(path), path);
         flow.railSegment(railName(path), new Drag(path, piece));
-        // Decision parentheses-draw-bold-and-larger.
-        flow.parenSegment(OPEN_PAREN, GRAY);
+        drawJoinSegment(flow, path, piece);
         GroupsPane.Bounds lead = flow.closeSegments();
-        // Decision terms-inline-again-under-the-indentation-rules: the terms follow "(" and ")" follows the last;
-        // a line that runs out inside wraps one indent in from the parenthetical's left, the indent returning at its
-        // exit.
-        int inner = lead.left() - flow.leftEdge() + ControlFlow.INDENT;
+        ControlFlow.OpenParenthetical opened = flow.openParenthetical(OPEN_PAREN, content, GRAY);
+        int inner = opened.left() - flow.leftEdge() + ControlFlow.INDENT;
         flow.shift(inner);
         drawSum(flow, path, nest.pieces(), place);
-        flow.openSegments(closeWidth(letters, piece), height);
-        flow.parenSegment(CLOSE_PAREN, GRAY);
-        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
-        // right of its ")" too, so the pointer just past ")" drops outside it rather than at the inner sum's end.
-        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.afterSegment(), place,
-                path.getLast()));
-        if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            drawRatioSegments(flow, path, piece);
-        }
-        flow.closeSegments();
+        GroupsPane.Bounds container = flow.closeParenthetical(opened, CLOSE_PAREN, GRAY);
         flow.shift(-inner);
-        GroupsPane.Bounds box = flow.closeContainer(lead);
-        flow.tint(box, nestTone(depthOf(path, place)));
-        boxes.add(new TermBox(path, box));
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
+        // right of its container too, so the pointer just past ")" drops outside it rather than at the inner sum's
+        // end.
+        slots.add(new Slot(path.subList(0, path.size() - 1), path.getLast() + 1, flow.anchor(), place,
+                path.getLast()));
+        int right = container.right();
+        if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
+            flow.openSegments(ControlFlow.abutted(ratioWidths(letters, piece).stream().mapToInt(Integer::intValue)
+                    .toArray()), height);
+            drawRatioSegments(flow, path, piece);
+            right = Math.max(right, flow.closeSegments().right());
+        }
+        flow.boxed(container, nestTone(depthOf(path, place)), NEST_BORDER);
+        boxes.add(new TermBox(path, new GroupsPane.Bounds(lead.left(), Math.min(lead.top(), container.top()), right,
+                Math.max(lead.bottom(), container.bottom()))));
     }
 
     /**

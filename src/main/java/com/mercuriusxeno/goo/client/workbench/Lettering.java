@@ -89,6 +89,15 @@ record Lettering(Font font, float scale) {
     }
 
     /**
+     * @param font the font
+     * @return how many rows a glyph's ink stands at the font's own size: its line less the empty row under its
+     *     glyphs and its shadow's row
+     */
+    static int inkRows(Font font) {
+        return Math.max(1, font.lineHeight - GLYPH_GAP - SHADOW_ROW);
+    }
+
+    /**
      * @return the height a line of text takes at this scale, rounded up to a whole pixel
      */
     int lineHeight() {
