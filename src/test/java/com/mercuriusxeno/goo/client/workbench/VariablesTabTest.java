@@ -58,6 +58,44 @@ class VariablesTabTest {
         return JsonParser.parseString(text).getAsJsonObject();
     }
 
+    /**
+     * Creating a prefab adds it to the end of _constants with no value, a typed $ dropped; a blank name, a name the
+     * loader's $name scan stops short of and a name already held add nothing; a file with no _constants gains one
+     * holding the prefab, which the change set posts (decision goo-workbench-opens-the-in-game-manager-screen).
+     */
+    @Nested
+    class CreatingAPrefab {
+        @Test
+        void freeNameAddsABlankPrefabAtTheEnd() {
+            assertEquals(java.util.Optional.of("fresh"), tab.createPrefab(" $fresh "));
+            assertEquals(List.of("base", "broken", "egg", "fresh"),
+                    tab.blocks().stream().map(VariablesTab.ConstantBlock::name).toList());
+            assertEquals("", tab.blocks().getLast().expression());
+        }
+
+        @Test
+        void blankIllegalAndHeldNamesAddNothing() {
+            for (String refused : List.of("", "  ", "$", "two words", "dash-ed", "base", "$egg")) {
+                assertTrue(tab.createPrefab(refused).isEmpty(), refused);
+            }
+            assertEquals(3, tab.blocks().size());
+        }
+
+        @Test
+        void fileWithNoConstantsGainsTheSection() {
+            ManagerDraft bare = new ManagerDraft();
+            bare.read("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "minecraft:stick", "keySeparator": null, "kind": "VALUE", "text": "1", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null}]}
+                    """);
+            VariablesTab fresh = new VariablesTab(bare);
+            assertEquals(java.util.Optional.of("first"), fresh.createPrefab("first"));
+            assertEquals(List.of("first"), fresh.blocks().stream().map(VariablesTab.ConstantBlock::name).toList());
+            assertTrue(bare.changeSetText().contains("\"_constants\""), bare.changeSetText());
+        }
+    }
+
     @Nested
     class Blocks {
 

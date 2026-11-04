@@ -91,6 +91,8 @@ final class VariablesPane {
     private static final String DELETE_TITLE_END = " and what reads it";
     private static final String NO_CONSTANTS = "The file names no constants.";
     private static final String SEARCH_HINT = "Search prefabs";
+    private static final String NEW_PREFAB = "+";
+    private static final String NAME_HINT = "name, Enter";
     private static final String CONSTANT_KIND = "constant";
     private static final String GROUP_KIND = "group";
     private static final String NO_TEXT = "";
@@ -110,6 +112,8 @@ final class VariablesPane {
     private @Nullable EditBox search;
     private @Nullable EditBox rename;
     private @Nullable String renaming;
+    private @Nullable EditBox nameBox;
+    private boolean naming;
     private @Nullable String deleting;
     private @Nullable String jumpPending;
     private final RevealGlow glow = new RevealGlow();
@@ -137,6 +141,12 @@ final class VariablesPane {
         rename = actions.addWidget(new EditBox(font, 0, 0, NAME_WIDTH, BOX_HEIGHT, Component.literal(NO_TEXT)));
         if (previousRename != null) {
             rename.setValue(previousRename.getValue());
+        }
+        EditBox previousName = nameBox;
+        nameBox = actions.addWidget(new EditBox(font, 0, 0, NAME_WIDTH, BOX_HEIGHT, Component.literal(NAME_HINT)));
+        nameBox.setHint(Component.literal(NAME_HINT));
+        if (previousName != null) {
+            nameBox.setValue(previousName.getValue());
         }
         show(visible);
     }
@@ -215,6 +225,16 @@ final class VariablesPane {
      * @return whether the pane took the key
      */
     boolean keyPressed(int key) {
+        if (nameBox != null && nameBox.isFocused() && naming) {
+            if (isEnter(key)) {
+                createPrefab(nameBox.getValue());
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_ESCAPE) {
+                stopNaming();
+                return true;
+            }
+        }
         if (rename != null && rename.isFocused() && renaming != null) {
             if (isEnter(key)) {
                 submitRename(renaming, rename.getValue().trim());
@@ -353,6 +373,7 @@ final class VariablesPane {
         int listTop = placeSearch(view);
         if (variables.blocks().isEmpty()) {
             graphics.text(font, NO_CONSTANTS, view.left(), listTop, GRAY);
+            drawCreate(graphics, font, view, targets);
             return;
         }
         List<VariablesTab.ConstantBlock> blocks = variables.listed();
@@ -360,6 +381,7 @@ final class VariablesPane {
                 view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
         int end = drawBlocks(graphics, font, blocks, bounds, targets);
         bar.measureAndDraw(graphics, targets, end, view.right(), bounds.top(), view.bottom());
+        drawCreate(graphics, font, view, targets);
         applyPendingJump();
         showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
         builder.drawOverlays(graphics, font, targets);
@@ -421,6 +443,57 @@ final class VariablesPane {
         if (rename != null) {
             rename.visible = open && renameShown;
         }
+        if (nameBox != null) {
+            nameBox.visible = open && naming;
+        }
+    }
+
+    // A [+] right of the search box, which opens a name box in its place with a done check and a gold arrow that run
+    // what Enter and Escape run, as the Mutators [+] does.
+    // Decision goo-workbench-opens-the-in-game-manager-screen: the page's Variables pane added constants.
+    // Decision mutators-and-iterators-each-take-a-create-control.
+    // Decisions open-name-box-takes-a-done-checkmark, open-name-box-takes-a-gold-arrow-that-cancels.
+    private void drawCreate(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds view, ClickTargets targets) {
+        int x = view.left() + SEARCH_WIDTH + RowLayout.BUTTON_GAP;
+        EditBox box = nameBox;
+        if (!naming || box == null) {
+            BuilderOverlays.control(graphics, font, NEW_PREFAB, null, x, view.top(), targets, at -> startNaming());
+            return;
+        }
+        int boxWidth = NAME_WIDTH - NameBoxButtons.width(font);
+        box.setPosition(x, view.top());
+        box.setWidth(boxWidth);
+        NameBoxButtons.draw(graphics, font, x + boxWidth, view.top(), ButtonPainter.HEIGHT, targets,
+                () -> createPrefab(box.getValue()), this::stopNaming);
+    }
+
+    private void startNaming() {
+        naming = true;
+        if (nameBox != null) {
+            nameBox.setValue(NO_TEXT);
+            showBoxes(renaming != null);
+            actions.focus(nameBox);
+        }
+    }
+
+    private void stopNaming() {
+        naming = false;
+        showBoxes(renaming != null);
+    }
+
+    // A free name adds the prefab and opens its builder centered in the list, the search cleared so the list holds
+    // it; a blank, illegal or held name leaves the box open.
+    private void createPrefab(String typed) {
+        Optional<String> created = variables.createPrefab(typed);
+        if (created.isEmpty()) {
+            return;
+        }
+        stopNaming();
+        if (search != null) {
+            search.setValue(NO_TEXT);
+        }
+        actions.draftChanged();
+        jumpTo(created.get());
     }
 
     // Once the jumped block has drawn, editing, and the bar has measured this frame, centers the block in the list,

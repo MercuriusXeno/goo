@@ -462,7 +462,7 @@ class GroupsPaneTest {
         }
 
         // EditBox.setFocused reaches the game client, which a unit test holds none of, so the flag is set directly.
-        private static void focus(EditBox box) {
+        static void focus(EditBox box) {
             try {
                 java.lang.reflect.Field focused = AbstractWidget.class.getDeclaredField("focused");
                 focused.setAccessible(true);
