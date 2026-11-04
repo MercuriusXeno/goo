@@ -21,9 +21,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * One frame a pane drew onto mocked graphics with a mocked font six pixels a character wide: the texts it drew, plain
- * or styled, where each stood, at what scale, whether bold and in which color, and its click areas, so a test clicks
- * a control by its label.
+ * One frame a pane drew onto mocked graphics with a mocked font six pixels a character wide: the texts it drew, as
+ * strings or as styled Components, where each stood, at what scale, in which color, whether bold and whether with a
+ * drop shadow, and its click areas, so a test clicks a control by its label.
  */
 final class DrawnFrame {
     final GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
@@ -71,11 +71,19 @@ final class DrawnFrame {
     }
 
     /**
+     * @param label a drawn string
+     * @return whether it last drew as a Component styled bold
+     */
+    boolean bold(String label) {
+        return placed(label).bold();
+    }
+
+    /**
      * One text as it landed on the screen, the pose it drew under applied.
      *
      * @param text   the string
      * @param scale  the pose's scale
-     * @param bold   whether it drew in a bold style
+     * @param bold   whether it drew as a Component styled bold
      * @param x      its left edge on the screen
      * @param y      its top edge on the screen
      * @param color  its color
