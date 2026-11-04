@@ -13,6 +13,7 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -525,27 +526,17 @@ class ExpressionBuilderPaneTest {
         assertTrue(frame.targets.drag(rail[0], rail[1]));
         assertTrue(cursorTops(builder.frame()).isEmpty(), "a cursor at the term's own slot");
         frame.targets.release();
-        // A type row's only term may drop nowhere, since any move would empty its row: its rail locks.
+        // A type row's only term drops in no slot, since any move would empty its row; the trash alone takes it
+        // (decision only-term-or-row-drags-to-the-trash).
         Builder rows = Builder.item(TWO_TYPES);
         DrawnFrame typed = rows.frame();
-        assertLockedRailTakesNoDrag(rows, typed, typed.find("5"));
+        double[] only = railOf(typed, List.of(0, 0));
+        double[] other = railOf(typed, List.of(1, 0));
+        assertTrue(typed.targets.click(only[0], only[1]));
+        assertTrue(typed.targets.drag(other[0], other[1]));
+        assertTrue(cursorTops(rows.frame()).isEmpty(), "a cursor at a slot emptying its row");
+        typed.targets.release();
         assertEquals(List.of(), rows.written);
-    }
-
-    // A locked rail draws dark gray left of the text its box holds, names no grab, and a press and a drag on it
-    // start no drag, so the next frame lights no drop place and draws no cursor (the operator's ruling of
-    // 2026-11-03: no rail offers a drag that does nothing).
-    private static void assertLockedRailTakesNoDrag(Builder builder, DrawnFrame frame, DrawnFrame.Text held) {
-        int[] rail = railBefore(frame, ControlFlow.LOCKED_RAIL_COLOR, held);
-        int middle = (rail[1] + rail[3]) / 2;
-        assertEquals(java.util.Optional.empty(), frame.targets.grabNamed(rail[0] + 1, middle), "the locked rail grabs");
-        frame.targets.click(rail[0] + 1, middle);
-        frame.targets.drag(AREA.right() - 1, middle);
-        DrawnFrame after = builder.frame();
-        assertEquals(List.of(), fills(after, DragMask.SHADOW), "a drag started from the locked rail");
-        assertTrue(cursorTops(after).isEmpty(), "a cursor from the locked rail");
-        assertRests(after);
-        frame.targets.release();
     }
 
     // The nearest rail drawn in the color given left of a text, on the text's line, as left, top, right and bottom.
@@ -557,21 +548,34 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * A thing the builder will neither delete nor move, a type row's only term and the only type row, draws its
-     * rail locked, and a drag from it leaves the trash strip resting (decision
-     * drags-indicate-only-a-drop-the-builder-takes, and the operator's ruling of 2026-11-03).
+     * A sum's only term and the only type row draw their rails unlocked, a held drag lights a hole over the trash
+     * strip, and the release there deletes them, leaving no term or no row (decision
+     * only-term-or-row-drags-to-the-trash).
      */
     @Test
-    void trashStripRestsForAThingTheBuilderWillNotDelete() {
-        Builder term = Builder.item("{\"metal\": \"5\"}");
+    void onlyTermAndOnlyRowDragToTheTrashAndGo() {
+        Builder term = Builder.item("$base");
         DrawnFrame frame = term.frame();
-        assertLockedRailTakesNoDrag(term, frame, frame.find("5"));
+        railBefore(frame, ControlFlow.RAIL_COLOR, frame.find("$base"));
+        double[] strip = dragToTrash(frame, List.of(0));
+        assertTrue(fills(term.frame(), DragMask.HIGHLIGHT).stream().anyMatch(hole -> hole[0] <= strip[0]
+                && strip[0] < hole[2]), "a hole lights over the strip");
+        frame.targets.release();
+        DrawnFrame emptied = term.frame();
+        assertFalse(emptied.texts().contains("$base"), emptied.texts().toString());
+        assertThrows(AssertionError.class, () -> railOf(emptied, List.of(0)), "no term's rail stands");
+
         Builder row = Builder.item("{\"metal\": \"5\"}");
         DrawnFrame rowFrame = row.frame();
-        DrawnFrame.Text colon = rowFrame.findFirst(ExpressionLines.COLON);
-        assertLockedRailTakesNoDrag(row, rowFrame, colon);
-        assertEquals(List.of(), term.written);
-        assertEquals(List.of(), row.written);
+        railBefore(rowFrame, ControlFlow.RAIL_COLOR, rowFrame.findFirst(ExpressionLines.COLON));
+        double[] rail = rowRailOf(rowFrame, 0);
+        assertTrue(rowFrame.targets.click(rail[0], rail[1]));
+        assertTrue(rowFrame.targets.drag(AREA.right() - 1, rail[1]));
+        assertEquals(1, fills(row.frame(), ExpressionBuilderPane.TRASH_HOVER).size(), "the strip lights under it");
+        rowFrame.targets.release();
+        DrawnFrame noRows = row.frame();
+        assertFalse(noRows.texts().contains("5"), noRows.texts().toString());
+        assertThrows(AssertionError.class, () -> rowRailOf(noRows, 0), "no row's rail stands");
     }
 
     /**
@@ -1618,12 +1622,6 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text possessive = frame.find("'s");
         assertArrayEquals(frame.buttonAround(food), frame.buttonAround(possessive), "the 's in the word's segment");
         assertEquals(food.x() + LETTERS.width(food.text()), possessive.x(), frame.drawn().toString());
-    }
-
-    private static void assertRests(DrawnFrame frame) {
-        assertEquals(1, fills(frame, ExpressionBuilderPane.TRASH_REST).size(), "the strip rests");
-        assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_LIT), "the strip lit");
-        assertEquals(List.of(), fills(frame, ExpressionBuilderPane.TRASH_HOVER), "the strip brightened");
     }
 
     private static final String TWO_TYPES = "{\"metal\": \"5\", \"pulse\": \"2\"}";
