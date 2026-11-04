@@ -1157,7 +1157,7 @@ final class ExpressionBuilderPane {
         widths.add(ButtonPainter.width(letters, joinLabel(piece)));
         widths.add(sideWidth(letters, path, piece, ExpressionBuilder.Op.MULTIPLY));
         widths.add(switch (piece.operand()) {
-            case ExpressionBuilder.Num num -> ButtonPainter.width(letters, num.digits());
+            case ExpressionBuilder.Num num -> ButtonPainter.width(letters, numberLabel(path, num));
             case ExpressionBuilder.Ref ref -> ControlFlow.runsSegmentWidth(letters, refRuns(ref), possessiveOf(ref));
             case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ ->
                     ControlFlow.runsSegmentWidth(letters, operandRuns(piece), BLANK);
@@ -1354,13 +1354,19 @@ final class ExpressionBuilderPane {
     // Decision amount-modes-name-what-the-amount-comes-from.
     // Decision term-number-opens-number-prefab-relative-modes.
     private void drawNumber(ControlFlow flow, List<Integer> path, ExpressionBuilder.Num num, Place place) {
-        // Decision number-box-takes-a-mixed-number: the box reads the number over its divisor, as 2 1/2.
-        ExpressionBuilder edited = builder;
-        String shown = edited != null ? edited.numberText(path) : num.digits();
+        String shown = numberLabel(path, num);
         Consumer<BuilderOverlays.Anchor> openBox = at -> overlays.openMixedNumber(at, shown,
                 digits -> apply(b -> b.setNumber(path, digits)));
         List<BuilderOverlays.Option> modes = amountModes(path, place, openBox);
-        flow.labelSegment(num.digits(), null, modes.size() > 1 ? at -> overlays.openOptions(at, modes) : openBox);
+        flow.labelSegment(shown, null, modes.size() > 1 ? at -> overlays.openOptions(at, modes) : openBox);
+    }
+
+    // A number term reads its number over its divisor as a mixed number, as 2 1/2, on its segment and in its box; a
+    // number draws no divisor segment of its own, so the label carries it.
+    // Decision number-box-takes-a-mixed-number.
+    private String numberLabel(List<Integer> path, ExpressionBuilder.Num num) {
+        ExpressionBuilder edited = builder;
+        return edited != null ? edited.numberText(path) : num.digits();
     }
 
     private List<BuilderOverlays.Option> amountModes(List<Integer> path, Place place,
