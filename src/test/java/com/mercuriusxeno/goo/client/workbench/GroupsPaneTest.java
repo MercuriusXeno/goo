@@ -96,6 +96,33 @@ class GroupsPaneTest {
     }
 
     /**
+     * Once a follow centers a group's row, the next frame fills the row's bounds in the glow color, and once the
+     * glow's frames have passed no frame fills it (decision followed-target-glows-briefly).
+     */
+    @Test
+    void revealedGroupsRowGlowsThenStops() {
+        List<Integer> tops = rowTops();
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int target = 25;
+        pane.reveal(groupName(target));
+        DrawnFrame centering = new DrawnFrame();
+        pane.extract(centering.graphics, DrawnFrame.font(), SHORT_VIEW, centering.targets);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        ValuesPaneTest.assertGlowCovers(frame, frame.find("#" + groupName(target)),
+                tops.get(target + 1) - tops.get(target));
+        for (int extracted = 1; extracted < RevealGlow.FRAMES; extracted++) {
+            DrawnFrame fading = new DrawnFrame();
+            pane.extract(fading.graphics, DrawnFrame.font(), SHORT_VIEW, fading.targets);
+        }
+        DrawnFrame after = new DrawnFrame();
+        pane.extract(after.graphics, DrawnFrame.font(), SHORT_VIEW, after.targets);
+        ValuesPaneTest.assertNoGlow(after);
+    }
+
+    /**
      * A shift + left follow to the last group stops the list at its end (decision
      * shift-follow-centers-the-target-in-its-scrolling-view).
      */

@@ -829,6 +829,46 @@ class ValuesPaneTest {
     }
 
     /**
+     * The frame after a follow centers an Items row fills the row's bounds in the glow color, and once the glow's
+     * frames have passed no frame fills it (decision followed-target-glows-briefly).
+     */
+    @Test
+    void revealedItemsRowGlowsThenStops() {
+        List<Integer> heights = rowHeights();
+        ValuesPane pane = manyItems();
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int target = 25;
+        pane.reveal("minecraft:item_%02d".formatted(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        assertGlowCovers(frame, frame.find(itemName(target)), heights.get(target));
+        for (int extracted = 1; extracted < RevealGlow.FRAMES; extracted++) {
+            DrawnFrame fading = new DrawnFrame();
+            pane.extract(fading.graphics, DrawnFrame.font(), SHORT_VIEW, fading.targets);
+        }
+        DrawnFrame after = new DrawnFrame();
+        pane.extract(after.graphics, DrawnFrame.font(), SHORT_VIEW, after.targets);
+        assertNoGlow(after);
+    }
+
+    // One glow fill spans the list's width and holds the row's name, as tall as the row.
+    static void assertGlowCovers(DrawnFrame frame, DrawnFrame.Text name, int rowHeight) {
+        List<int[]> glows = frame.fillsOf(RevealGlow.GLOW);
+        assertEquals(1, glows.size(), "glow fills: " + glows.size());
+        int[] glow = glows.getFirst();
+        assertTrue(glow[1] <= name.y() && name.y() < glow[3], java.util.Arrays.toString(glow) + " vs " + name);
+        assertEquals(rowHeight, glow[3] - glow[1]);
+        assertEquals(frame.firstScissor()[0], glow[0], "the glow starts at the list's left");
+    }
+
+    static void assertNoGlow(DrawnFrame frame) {
+        for (int age = 0; age < RevealGlow.FRAMES; age++) {
+            assertEquals(List.of(), frame.fillsOf(RevealGlow.colorAt(age)), "a glow at age " + age);
+        }
+    }
+
+    /**
      * A builder opened on a row taller than the Items list scrolls, wheel notch by wheel notch, until its Cancel and
      * Done stand inside the list (decision items-list-scrolls-by-pixel).
      */
