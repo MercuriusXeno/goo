@@ -120,12 +120,19 @@ final class BuilderOverlays {
         return placeUnder(at, NUMBER_WIDTH, BOX_HEIGHT, screenWidth, screenHeight);
     }
 
-    // Decision popups-anchor-under-the-line-that-opened-them: the popup never flips above its line; short of room it
-    // draws shorter, and only a popup that would run off the right edge shifts left.
+    // Decision popups-anchor-under-the-line-that-opened-them: the popup stands under its line; short of room there it
+    // opens above the line, its bottom on the line's top, where the room above is the larger, since a popup cut at
+    // the screen's bottom cannot be used (the operator's report of the item list running off the screen). Either way
+    // it draws shorter where the room still falls short, and a popup that would run off the right edge shifts left.
     private static Placement placeUnder(Anchor at, int width, int height, int screenWidth, int screenHeight) {
-        int top = at.y() + LINE;
+        int below = at.y() + LINE;
         int left = Math.max(0, Math.min(at.x(), screenWidth - width));
-        return new Placement(left, top, Math.max(0, Math.min(height, screenHeight - top)));
+        int roomBelow = screenHeight - below;
+        if (roomBelow >= height || roomBelow >= at.y()) {
+            return new Placement(left, below, Math.max(0, Math.min(height, roomBelow)));
+        }
+        int shown = Math.min(height, at.y());
+        return new Placement(left, at.y() - shown, shown);
     }
 
     /**

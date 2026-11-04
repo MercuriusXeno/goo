@@ -52,16 +52,19 @@ class BuilderOverlaysTest {
     @Nested
     class NearTheBottom {
         /**
-         * A popup whose line sits within its height of the screen bottom stays under the line, its height clamped so
-         * its bottom stays on the screen.
+         * A popup whose line sits too near the screen bottom to hold it below opens above the line instead, its
+         * bottom on the line's top and its whole height on the screen: the operator found beetroot soup's item list
+         * opened off the screen's bottom, unusable.
          */
         @Test
-        void everyPopupStaysUnderItsLineAndClampsItsHeight() {
+        void everyPopupShortOfRoomBelowOpensAboveItsLine() {
             BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(ANCHOR_X, SCREEN_HEIGHT - BuilderOverlays.LINE - 10);
+            BuilderOverlays.Anchor roomy = new BuilderOverlays.Anchor(ANCHOR_X, 0);
             POPUPS.forEach((popup, place) -> {
                 BuilderOverlays.Placement placed = place.apply(at);
-                assertEquals(at.y() + BuilderOverlays.LINE, placed.top(), popup);
-                assertTrue(placed.top() + placed.height() <= SCREEN_HEIGHT, popup);
+                int full = place.apply(roomy).height();
+                assertEquals(List.of(at.y() - full, full), List.of(placed.top(), placed.height()),
+                        popup + " stands above its line at its full height");
             });
         }
     }
