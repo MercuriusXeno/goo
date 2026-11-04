@@ -57,12 +57,13 @@ class ProcessesPaneTest {
     private ProcessesPane pane;
     private final List<AbstractWidget> widgets = new ArrayList<>();
     private ManagerDraft draft;
+    private ProcessesTab processes;
 
     @BeforeEach
     void readReplies() {
         draft = new ManagerDraft();
         draft.read(MODEL);
-        ProcessesTab processes = new ProcessesTab(draft);
+        processes = new ProcessesTab(draft);
         processes.readDescribed(DESCRIBED);
         ManagerActions actions = mock(ManagerActions.class);
         when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
@@ -437,17 +438,18 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Every tooltip hint a drawn Mutators frame registers reads Rename, Delete, a verdict and its reason, or a cut
-     * name in full (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
+     * Every plain tooltip hint a drawn Mutators frame registers reads Rename, Delete, or a verdict and its reason; a
+     * cut name hovers in full above its formula instead (decisions
+     * values-manager-controls-carry-no-tooltip-but-rename-delete-and-names, conversion-controls-hover-their-formula).
      */
     @Test
-    void everyTooltipHintIsRenameDeleteAVerdictOrACutName() {
+    void everyTooltipHintIsRenameDeleteOrAVerdict() {
         DrawnFrame frame = frame();
         List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
                 .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
-        assertTrue(hints.containsAll(List.of("Rename", "Delete", LONG_NAME)), hints.toString());
+        assertTrue(hints.containsAll(List.of("Rename", "Delete")), hints.toString());
         assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
-                || hint.equals(LONG_NAME) || hint.startsWith("Valid") || hint.startsWith("Invalid")), hints.toString());
+                || hint.startsWith("Valid") || hint.startsWith("Invalid")), hints.toString());
     }
 
     private DrawnFrame frame() {
@@ -539,17 +541,29 @@ class ProcessesPaneTest {
     }
 
     /**
-     * A name past 24 characters draws its first 20, an ellipsis and its last 4, and hovers whole.
+     * A name past 24 characters draws its first 20, an ellipsis and its last 4, and hovers its whole name above its
+     * formula; a whole name hovers its formula alone, where it hovered nothing (decisions
+     * conversion-controls-hover-their-formula, values-manager-controls-carry-no-tooltip-but-rename-delete-and-names;
+     * the operator's report of 2026-11-04: a stack's cut name hovered its name alone and a convert's whole name
+     * hovered nothing).
      */
     @Test
-    void longNameCutsToTwentyAnEllipsisAndFourAndHoversWhole() {
+    void mutatorNameHoversItsFormulaAndACutNameItsWholeNameAboveIt() {
         assertEquals("copper_oxidation_and…end1", ProcessesPane.shownName(LONG_NAME));
         assertEquals("waxed", ProcessesPane.shownName("waxed"));
         DrawnFrame frame = frame(WIDE_PANE);
-        frame.find("copper_oxidation_and…end1");
-        assertTrue(frame.targets.hoverKeys().contains(BuilderOverlays.hintKey(LONG_NAME)),
-                frame.targets.hoverKeys().toString());
+        DrawnFrame.Text waxed = first(frame, "waxed");
+        assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "waxed")),
+                frame.targets.hovered(waxed.x() + 1, waxed.y() + 1));
+        DrawnFrame.Text cut = frame.find("copper_oxidation_and…end1");
+        String cutKey = frame.targets.hovered(cut.x() + 1, cut.y() + 1).orElseThrow();
+        List<TooltipLine> lines = ConversionHovers.tooltipFor(processes, new VariablesTab(draft), cutKey)
+                .orElseThrow(() -> new AssertionError(cutKey + " shows no tooltip"));
+        assertEquals(new TooltipLine.Text(net.minecraft.network.chat.Component.literal(LONG_NAME)), lines.getFirst());
+        assertTrue(lines.size() > 1, "the formula follows the name: " + lines);
     }
+
+    private static final String SECTION = "_conversions";
 
     /**
      * Delete's box clears the one-pixel rule below its row, and a row of one sentence line takes the tighter pitch

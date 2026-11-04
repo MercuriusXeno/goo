@@ -447,15 +447,18 @@ final class ProcessesPane {
     private record NameSlot(int y, int room) {
     }
 
-    // The name cut to its room, hovering whole where cut, the pencil just past its last letter; the rename box
-    // stands in their place while open.
+    // The name cut to its room, the pencil just past its last letter; the rename box stands in their place while
+    // open.
     // Decision group-referent-previews-shorthand-members-then-its-value: an iterator's name previews the group it
-    // fills; a cut mutator name hovers whole, and a whole one nothing.
-    private static Optional<String> nameHoverKey(String key, String shown) {
+    // fills.
+    // Decision conversion-controls-hover-their-formula: a mutator's name hovers its formula, a cut one its whole name
+    // above it (the operator's report of 2026-11-04: a cut name hovered its name alone, a whole one nothing).
+    private static String nameHoverKey(String section, String key, String shown) {
         if (ProcessesTab.isIterator(key)) {
-            return Optional.of(GroupHovers.iteratorHoverKey(key));
+            return GroupHovers.iteratorHoverKey(key);
         }
-        return shown.equals(key) ? Optional.empty() : Optional.of(BuilderOverlays.hintKey(key));
+        return shown.equals(key) ? ConversionHovers.hoverKey(section, key)
+                : ConversionHovers.namedHoverKey(section, key);
     }
 
     private void drawName(Frame frame, String section, String key, NameSlot slot) {
@@ -469,8 +472,7 @@ final class ProcessesPane {
         String shown = fittedName(frame.font(), key, slot.room());
         ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, y + HEAD_TEXT_NUDGE,
                 draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)));
-        nameHoverKey(key, shown).ifPresent(hover -> frame.targets().addHover(x, y, frame.font().width(shown),
-                HEAD_HEIGHT, hover));
+        frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, nameHoverKey(section, key, shown));
         ButtonPainter.draw(frame.graphics(), frame.font(), RENAME, x + frame.font().width(shown) + PENCIL_GAP,
                 y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
                         ProcessesTab.isIterator(key), key)), BuilderOverlays.hintKey(RENAME_HINT));
