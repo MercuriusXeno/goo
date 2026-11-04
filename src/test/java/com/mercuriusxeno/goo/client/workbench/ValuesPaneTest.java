@@ -434,6 +434,36 @@ class ValuesPaneTest {
     }
 
     /**
+     * Each change the builder writes evaluates the draft afresh while the builder stays open, so the value the row
+     * shows is the value the builder holds.
+     */
+    @Test
+    void eachBuilderChangeEvaluatesTheDraftAfresh() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.select("minecraft:stick");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ExpressionBuilderPane builder = mock(ExpressionBuilderPane.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions, builder);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        frame.click("$wood");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.function.Consumer<String>> change =
+                ArgumentCaptor.forClass(java.util.function.Consumer.class);
+        verify(builder).open(anyString(), change.capture(), any());
+        change.getValue().accept("\"$wood / 8\"");
+        verify(actions).draftChanged();
+    }
+
+    /**
      * The builder open in an Items row over the operator's beetroot value, driven through the pane's click targets as
      * the screen drives them: the press, each drag and the release.
      */

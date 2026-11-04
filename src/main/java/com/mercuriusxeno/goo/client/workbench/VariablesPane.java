@@ -368,15 +368,16 @@ final class VariablesPane {
         }
     }
 
-    // The builder over the block being edited, each change written to the draft and done evaluating it afresh
-    // (decision expression-builder-composes-every-form-without-typing); answers the height it took.
+    // The builder over the block being edited, each change written to the draft and evaluated afresh, so the value
+    // shown is the value the builder holds (decision expression-builder-composes-every-form-without-typing); answers
+    // the height it took.
     private int drawBuilder(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                             GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         if (!builder.isOpen() || !block.name().equals(building)) {
             building = block.name();
             builder.openPrefab(block.name(), block.expression(), typed -> {
                 variables.edit(block.name(), typed);
-                actions.markUnsaved();
+                actions.draftChanged();
             }, () -> {
                 building = null;
                 variables.stopEditing();

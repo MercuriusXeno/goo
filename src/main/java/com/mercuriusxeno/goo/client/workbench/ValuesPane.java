@@ -899,7 +899,8 @@ final class ValuesPane {
 
     // The builder's Cancel writes back the text it opened on; for an item that had no entry that text is blank, and
     // the entry the edit added drops rather than standing blank. Every write goes to the entry the builder opened
-    // over, whatever row the list selects meanwhile.
+    // over, whatever row the list selects meanwhile; each write evaluates the draft afresh, so the value shown is the
+    // value the builder holds.
     // Decision cancelling-a-new-entry-leaves-nothing.
     private void openBuilder(ValuesTab.EntryRow row) {
         values.select(row.id());
@@ -911,7 +912,7 @@ final class ValuesPane {
             } else {
                 values.edit(row.id(), typed);
             }
-            actions.markUnsaved();
+            actions.draftChanged();
         }, () -> {
             building = null;
             actions.draftChanged();
