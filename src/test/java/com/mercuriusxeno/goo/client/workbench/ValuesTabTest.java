@@ -203,6 +203,19 @@ class ValuesTabTest {
             assertEquals(Map.of("leaf", "48", "metal", "3/2"), tab.worthOf("minecraft:stick"));
             assertTrue(tab.worthOf("minecraft:torch").isEmpty());
         }
+
+        /**
+         * An item's amounts read the highest first, a tie broken alphabetically by type key, the fraction last,
+         * whatever order the resolve reply held them in (decision value-lists-order-highest-first-ties-by-type-key).
+         */
+        @Test
+        void worthOfListsTheHighestAmountFirstTiesByTypeKey() {
+            tab.readResolved("""
+                    {"entries": [{"key": "stick", "value": {"metal": "1/2", "weird": "3", "pulse": "3"},
+                                  "denied": false}]}
+                    """);
+            assertEquals(List.of("pulse", "weird", "metal"), List.copyOf(tab.worthOf("minecraft:stick").keySet()));
+        }
     }
 
     @Nested

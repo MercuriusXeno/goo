@@ -104,6 +104,9 @@ class PrefabHoversTest {
                       "entries": [], "leading": null, "trailing": null, "closingGap": null},
                      {"key": "x", "keySeparator": null, "kind": "VALUE", "text": "{\\"leaf\\": \\"$stick\\"}",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "blend", "keySeparator": null, "kind": "VALUE",
+                      "text": "{\\"metal\\": \\"1/2\\", \\"weird\\": \\"3\\", \\"pulse\\": \\"3\\"}",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
                      {"key": "broken", "keySeparator": null, "kind": "VALUE", "text": "\\"$missing + 1\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null}
@@ -116,6 +119,8 @@ class PrefabHoversTest {
                   {"name": "double", "kind": "scalar", "value": "12", "error": null, "usedBy": [], "readers": []},
                   {"name": "x", "kind": "tree", "tree": {"leaf": "6"}, "value": null, "error": null,
                    "usedBy": [], "readers": []},
+                  {"name": "blend", "kind": "tree", "tree": {"metal": "1/2", "weird": "3", "pulse": "3"},
+                   "value": null, "error": null, "usedBy": [], "readers": []},
                   {"name": "broken", "kind": "scalar", "value": null, "error": "Unknown constant $missing",
                    "usedBy": [], "readers": []}
                 ]}
@@ -159,6 +164,15 @@ class PrefabHoversTest {
         @Test
         void typedPrefabPutsTheScalarRightOfThePrefabName() {
             assertEquals(List.of(text("$x = leaf = $stick (6)")), lines("x"));
+        }
+
+        /**
+         * A tree prefab's head line lists its types highest amount first, ties by type key, whatever order its
+         * expression and the evaluate reply held them in (decision value-lists-order-highest-first-ties-by-type-key).
+         */
+        @Test
+        void treePrefabListsItsTypesHighestFirstTiesByTypeKey() {
+            assertEquals(List.of(text("$blend = pulse = 3, weird = 3, metal = 1/2")), lines("blend"));
         }
 
         /**
