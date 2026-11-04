@@ -108,13 +108,6 @@ class ExpressionBuilderPaneTest {
         }
     }
 
-    // The click targets of each side of the ratio drawn last: the text before the colon and the text after it.
-    private static List<DrawnFrame.Text> ratioSides(DrawnFrame frame) {
-        List<DrawnFrame.Text> drawn = frame.drawn();
-        int colon = drawn.stream().map(DrawnFrame.Text::text).toList().lastIndexOf(":");
-        assertTrue(colon > 0, frame.texts().toString());
-        return List.of(drawn.get(colon - 1), drawn.get(colon + 1));
-    }
 
     private static void clickAt(DrawnFrame frame, DrawnFrame.Text text) {
         assertTrue(frame.targets.click(text.x() + 1, text.y() + 1), text + " took no click");
@@ -199,8 +192,6 @@ class ExpressionBuilderPaneTest {
         assertEquals(1, found.size(), frame.drawn().toString());
         assertTrue(found.getFirst().y() > frame.find("$edited").y(), frame.drawn().toString());
         assertTrue(found.getFirst().y() > frame.find("$waxed").y(), frame.drawn().toString());
-        // Decision whole-value-ratio-draws-after-the-last-term-unlabelled: the handle line stands below the ratio's.
-        assertTrue(found.getFirst().y() > frame.find(":").y() + HALF_LINE, frame.drawn().toString());
     }
 
     /**
@@ -616,15 +607,17 @@ class ExpressionBuilderPaneTest {
 
     /**
      * A prefab times a number draws as the prefab's button, its member's icon and a multiplier box reading the
-     * number, and the prefab button opens the prefab list (decision operand-times-number-terms-edit-like-every-term).
+     * number as Nx before the prefab, and the prefab button opens the prefab list (decisions
+     * operand-times-number-terms-edit-like-every-term,
+     * multiplier-reads-nx-before-the-identity-and-divisor-slash-n-after).
      */
     @Test
     void operandTimesNumberDrawsItsButtonsAndOpensTheirLists() {
         Builder builder = Builder.item("$food.jelly + $saturation.jelly * 12");
         DrawnFrame frame = builder.frame();
         DrawnFrame.Text saturation = frame.find("$saturation");
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("12") && text.y() == saturation.y()
-                && text.x() > saturation.x()), frame.drawn().toString());
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("12x") && text.y() == saturation.y()
+                && text.x() < saturation.x()), frame.drawn().toString());
         assertTrue(iconBlits(frame).stream().anyMatch(blit -> blit[0] > saturation.x()
                 && Math.abs(blit[1] - saturation.y()) < ControlFlow.LINE), "no member icon after saturation");
         clickAt(frame, saturation);
@@ -660,8 +653,9 @@ class ExpressionBuilderPaneTest {
     class SegmentedTerms {
         private static final String TERM = "3 $waxed.metal / 2";
 
-        // The term's segments left to right: its rail's, its sign's, its name's, its type's, its multiplier's and its
-        // divisor's, each as left, top, right and bottom.
+        // The term's segments left to right: its rail's, its sign's, its multiplier's (Nx), its name's, its type's and
+        // its divisor's (/n), each as left, top, right and bottom (decision
+        // multiplier-reads-nx-before-the-identity-and-divisor-slash-n-after).
         private static List<int[]> segments(DrawnFrame frame) {
             DrawnFrame.Text waxed = frame.find("$waxed");
             List<int[]> rails = new ArrayList<>(fills(frame, ControlFlow.RAIL_COLOR));
@@ -674,31 +668,24 @@ class ExpressionBuilderPaneTest {
                     && Math.abs(blit[1] - waxed.y()) < ControlFlow.LINE).findFirst()
                     .orElseThrow(() -> new AssertionError("no metal icon after " + waxed));
             return List.of(frame.buttonAround(rail[0], rail[1]), frame.buttonAround(frame.findFirst("+")),
-                    frame.buttonAround(waxed), frame.buttonAround(icon[0], icon[1]),
-                    frame.buttonAround(frame.findFirst("3")), frame.buttonAround(frame.findFirst("2")));
+                    frame.buttonAround(frame.findFirst("3x")), frame.buttonAround(waxed),
+                    frame.buttonAround(icon[0], icon[1]), frame.buttonAround(frame.findFirst("/2")));
         }
 
         /**
-         * The rail, the sign, the name with its 's, the type and the multiplier abut, a 2 px seam between each two;
-         * the colon, which takes no click, stands as plain text a clear pixel from the multiplier's fill and the
-         * divisor's rather than as a segment; no ring of the retired box outline color stands round them (the
-         * operator's rulings of 2026-11-04: the rail left of the sign, the 's in the name's segment, only clickable
-         * things as buttons).
+         * The rail, the sign, the multiplier, the name with its 's, the type and the divisor abut, a 2 px seam between
+         * each two; no ring of the retired box outline color stands round them (the operator's rulings of 2026-11-04:
+         * the rail left of the sign, the 's in the name's segment).
          */
         @Test
         void termSegmentsAbutSharingTheirBordersWithNoRing() {
             DrawnFrame frame = Builder.item(TERM).frame();
             List<int[]> segments = segments(frame);
-            for (int index = 1; index < 5; index++) {
+            for (int index = 1; index < segments.size(); index++) {
                 assertEquals(segments.get(index - 1)[2], segments.get(index)[0], "segment " + index
                         + " abuts the one before: " + segments.stream().map(java.util.Arrays::toString).toList());
             }
-            DrawnFrame.Text colon = frame.findFirst(":");
-            assertEquals(List.of(segments.get(4)[2], colon.x() + LETTERS.inkWidth(":")),
-                    List.of(colon.x(), segments.get(5)[0]), "the colon a clear pixel from each side's fill");
-            assertTrue(fills(frame, ButtonPainter.FILL).stream().noneMatch(fill -> fill[0] <= colon.x()
-                    && colon.x() < fill[2] && fill[1] <= colon.y() && colon.y() < fill[3]), "the colon in a segment");
-            assertArrayEquals(segments.get(2), frame.buttonAround(frame.findFirst("'s")), "the 's in the name's segment");
+            assertArrayEquals(segments.get(3), frame.buttonAround(frame.findFirst("'s")), "the 's in the name's segment");
             int left = segments.getFirst()[0];
             int right = segments.getLast()[2];
             assertEquals(List.of(), fills(frame, RETIRED_OUTLINE).stream().filter(fill -> fill[0] <= left
@@ -747,7 +734,7 @@ class ExpressionBuilderPaneTest {
             int[] ring = ringOf(segments);
             List<int[]> lights = fills(frame, ControlFlow.SEAM_LIGHT);
             List<int[]> darks = fills(frame, ControlFlow.SEAM_DARK);
-            for (int index = 1; index < 5; index++) {
+            for (int index = 1; index < segments.size(); index++) {
                 int seam = segments.get(index)[0];
                 assertTrue(lights.stream().anyMatch(fill -> java.util.Arrays.equals(fill,
                         new int[] {seam - 1, ring[1], seam, ring[3]})), "no light pixel left of seam " + index);
@@ -757,7 +744,7 @@ class ExpressionBuilderPaneTest {
                 assertTrue(fills(frame, ButtonPainter.FILL).stream().anyMatch(fill -> fill[0] == fillLeft
                         && fill[1] == ring[1] + 2), "segment " + index + "'s fill past its dark pixel");
             }
-            assertEquals(4, lights.size(), "a light pixel a seam, none beside the colon");
+            assertEquals(segments.size() - 1, lights.size(), "a light pixel a seam");
         }
 
         /**
@@ -771,8 +758,8 @@ class ExpressionBuilderPaneTest {
             List<int[]> framed = new ArrayList<>();
             double[] rail = railOf(frame, List.of(0));
             framed.add(frame.buttonAround((int) rail[0], (int) rail[1]));
-            framed.add(frame.buttonAround(frame.findFirst("3")));
-            framed.add(frame.buttonAround(frame.findFirst("2")));
+            framed.add(frame.buttonAround(frame.findFirst("3x")));
+            framed.add(frame.buttonAround(frame.findFirst("/2")));
             framed.addAll(fills(frame, ExpressionBuilderPane.NEST_BORDER));
             DrawnFrame typed = Builder.item(TWO_TYPES).frame();
             double[] rowRail = rowRailOf(typed, 0);
@@ -801,15 +788,15 @@ class ExpressionBuilderPaneTest {
         void eachSegmentOpensItsEditor() {
             Builder operand = Builder.item(TERM);
             DrawnFrame frame = operand.frame();
-            int[] waxed = segments(frame).get(2);
+            int[] waxed = segments(frame).get(3);
             assertTrue(frame.targets.click(waxed[0] + 1, waxed[1] + 1), "the operand takes no click");
             assertTrue(operand.frame().texts().contains("$edited"), "the term list opens");
             Builder type = Builder.item(TERM);
             DrawnFrame typed = type.frame();
-            int[] metal = segments(typed).get(3);
+            int[] metal = segments(typed).get(4);
             assertTrue(typed.targets.click(metal[2] - 2, metal[1] + 1), "the type takes no click");
             assertTrue(type.pane.listOpen(), "the goo type picker opens");
-            for (int side = 4; side <= 5; side++) {
+            for (int side : List.of(2, 5)) {
                 Builder ratio = Builder.item(TERM);
                 DrawnFrame drawn = ratio.frame();
                 int[] box = segments(drawn).get(side);
@@ -973,13 +960,15 @@ class ExpressionBuilderPaneTest {
             assertEquals(close.x() + parens.inkWidth(")") + 2, box[2], ") a clear pixel inside the right border");
             assertEquals(List.of(box[1] + 2, box[3] - 2), List.of(firstTerm[1], firstTerm[3]),
                     "the terms a clear pixel inside the top and bottom borders");
-            assertTrue(frame.buttonAround(frame.findFirst("3"))[0] > box[2], "the ratio after the container");
+            assertTrue(frame.buttonAround(frame.findFirst("/2"))[0] > box[2], "the divisor after the container");
             double[] rail = railOf(frame, List.of(0));
             int[] railSegment = frame.buttonAround((int) rail[0], (int) rail[1]);
             int[] sign = frame.buttonAround(frame.findFirst("+"));
             assertEquals(railSegment[2] - 1, sign[0], "the sign right of the rail");
-            // The operator's ruling of 2026-11-04: the rail and the sign touch the container, no gap.
-            assertEquals(box[0], sign[2], "the rail and the sign touch the container's left border");
+            // The operator's ruling of 2026-11-04: the rail, the sign and the multiplier touch the container.
+            int[] multiplier = frame.buttonAround(frame.findFirst("3x"));
+            assertEquals(List.of(sign[2] - 1, box[0]), List.of(multiplier[0], multiplier[2]),
+                    "the multiplier after the sign, touching the container's left border");
         }
 
         @Test
@@ -1096,9 +1085,8 @@ class ExpressionBuilderPaneTest {
         @Test
         void xDroppedOnATermOpensItsMultiplierAndScalesItAlone() {
             Builder builder = Builder.item("$waxed + $edited");
-            DrawnFrame before = builder.frame();
-            int multiplier = before.buttonAround(before.drawn().get(before.drawn().indexOf(before.find("$edited")) + 1))[0];
             EditBox box = dropOn(builder, "x", "$edited");
+            int multiplier = builder.frame().buttonAround(builder.frame().findFirst("1x"))[0];
             assertEquals(List.of("1", "1", multiplier), List.of(box.getValue(), box.getHighlighted(), box.getX()),
                     "the box at the multiplier, its value selected");
             builder.commitNumber("3");
@@ -1108,9 +1096,8 @@ class ExpressionBuilderPaneTest {
         @Test
         void slashDroppedOnATermOpensItsDivisorAndScalesItAlone() {
             Builder builder = Builder.item("$waxed + $edited");
-            DrawnFrame before = builder.frame();
-            int divisor = before.buttonAround(before.drawn().get(before.drawn().indexOf(before.find("$edited")) + 3))[0];
             EditBox box = dropOn(builder, "/", "$edited");
+            int divisor = builder.frame().buttonAround(builder.frame().findFirst("/1"))[0];
             assertEquals(List.of("1", "1", divisor), List.of(box.getValue(), box.getHighlighted(), box.getX()),
                     "the box at the divisor, its value selected");
             builder.commitNumber("3");
@@ -1136,7 +1123,8 @@ class ExpressionBuilderPaneTest {
             builder.frame();
             frame.targets.release();
             DrawnFrame placed = builder.frame();
-            int multiplier = placed.buttonAround(placed.drawn().get(placed.drawn().indexOf(placed.find(")")) + 1))[0];
+            int multiplier = placed.buttonAround(placed.findFirst("1x"))[0];
+            assertTrue(multiplier < placed.find("(").x(), "the parenthetical's 1x before its (");
             assertEquals(multiplier, numberBox(builder).getX(), "the box at the parenthetical's multiplier");
             Builder numbers = Builder.item(shown);
             DrawnFrame numbered = numbers.frame();
@@ -1461,9 +1449,9 @@ class ExpressionBuilderPaneTest {
         int[] parenthetical = ParenContainers.border(frame);
         double[] first = railOf(frame, List.of(0));
         assertTrue(frame.targets.click(first[0], first[1]));
-        // Just past the closing run, ")" and its ratio, whose divisor stands three texts after ")".
-        DrawnFrame.Text divisor = frame.drawn().get(frame.drawn().indexOf(close) + 3);
-        int afterClose = frame.buttonAround(divisor)[2] + 2;
+        // Just past the container, which draws no ratio at 1x (decision
+        // one-x-is-implied-so-an-unscaled-term-draws-no-ratio).
+        int afterClose = parenthetical[2] + 2;
         assertTrue(frame.targets.drag(afterClose, close.y() + HALF_LINE));
         DrawnFrame held = builder.frame(narrow);
         List<int[]> cursors = fills(held, ExpressionBuilderPane.DROP_CURSOR);
@@ -1480,7 +1468,7 @@ class ExpressionBuilderPaneTest {
     // mask-holes-fit-the-indicator-and-the-layer-interior).
     private static void assertHoleStandsAPixelAround(DrawnFrame frame, int[] cursor) {
         int[] hole = fills(frame, DragMask.HIGHLIGHT).stream().filter(lit -> lit[0] <= cursor[0] && cursor[2] <= lit[2]
-                && lit[1] <= cursor[3] && cursor[1] <= lit[3]).findFirst()
+                && lit[1] <= cursor[1] && cursor[3] <= lit[3]).findFirst()
                 .orElseThrow(() -> new AssertionError("no hole at the cursor " + java.util.Arrays.toString(cursor)));
         assertEquals(List.of(cursor[0] - 1, cursor[1] - 1, cursor[2] + 1, cursor[3] + 1),
                 java.util.Arrays.stream(hole).boxed().toList(), "the hole one pixel around the cursor");
@@ -1511,23 +1499,6 @@ class ExpressionBuilderPaneTest {
         assertHoleStandsAPixelAround(held, cursor);
         frame.targets.release();
         assertEquals("$edited + $waxed + $base", builder.written.getLast());
-    }
-
-    /**
-     * A ratio keeps one clear pixel between its colon's glyph and each of its boxes (decision
-     * ratio-colon-takes-no-spaces, as the operator corrected it: the space reduced, not removed).
-     */
-    @Test
-    void ratioKeepsAPixelBetweenItsColonAndEachBox() {
-        DrawnFrame frame = Builder.item("2 $waxed / 3").frame();
-        List<DrawnFrame.Text> sides = ratioSides(frame);
-        assertEquals(List.of("2", "3"), sides.stream().map(DrawnFrame.Text::text).toList(), frame.texts().toString());
-        DrawnFrame.Text colon = frame.drawn().get(frame.drawn().indexOf(sides.get(1)) - 1);
-        int multiplierRight = frame.buttonAround(sides.get(0))[2];
-        int divisorLeft = frame.buttonAround(sides.get(1))[0];
-        // Each side's fill stands a pixel inside its frame, so a clear pixel stands between it and the colon.
-        assertEquals(List.of(multiplierRight, colon.x() + LETTERS.inkWidth(":")),
-                List.of(colon.x(), divisorLeft), frame.drawn().toString());
     }
 
     /**
@@ -1584,7 +1555,7 @@ class ExpressionBuilderPaneTest {
          */
         @Test
         void termPastTheRightEdgeWrapsOneIndentUnderTheType() {
-            int count = 8;
+            int count = 14;
             DrawnFrame frame = Builder.item("{\"metal\": \"" + String.join(" + ", java.util.Collections.nCopies(count,
                     "$base")) + "\"}").frame();
             // The only row is locked, so its rail stands where the row's indent puts it.
@@ -1981,7 +1952,8 @@ class ExpressionBuilderPaneTest {
             // Decision operand-times-number-terms-edit-like-every-term: saturation's 12 reads in its ratio box.
             // Decision terms-inline-again-under-the-indentation-rules: saturation follows food on the row's line.
             // Decision every-term-carries-its-sign-as-a-segment: food, the row's first term, opens on its +.
-            assertEquals(List.of(":", "+", "$food", "'s", "1", ":", "1", "+", "$saturation", "'s", "12", ":", "1"),
+            // Decision multiplier-reads-nx-before-the-identity-and-divisor-slash-n-after: saturation's 12 reads 12x.
+            assertEquals(List.of(":", "+", "$food", "'s", "+", "12x", "$saturation", "'s"),
                     lineTexts(frame, 1), frame.drawn().toString());
             assertEquals(ControlFlow.INDENT + ROW_RAIL + ButtonPainter.ICON_PADDING, iconXs(frame, 1).getFirst());
             int jelly = iconXs(frame, 1).get(1);
@@ -2048,8 +2020,8 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
             int head = lineOf(frame, open.y());
-            assertEquals(List.of(":", "+", "$dye", "'s", "1", ":", "1", "-", "(", "+", "$food"),
-                    lineTexts(frame, head).subList(0, 11), frame.drawn().toString());
+            assertEquals(List.of(":", "+", "$dye", "'s", "-", "(", "+", "$food"),
+                    lineTexts(frame, head).subList(0, 8), frame.drawn().toString());
             assertFalse(lineTexts(frame, head).contains("X"), frame.drawn().toString());
             // Decision terms-inline-again-under-the-indentation-rules: ")" follows the parenthetical's last term.
             DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals("$saturation")
@@ -2117,8 +2089,7 @@ class ExpressionBuilderPaneTest {
         void cancelThenDoneStandAtTheLastLinesRightEnd() {
             Builder builder = Builder.item("$waxed");
             DrawnFrame frame = builder.frame();
-            clickAt(frame, ratioSides(frame).getFirst());
-            builder.commitNumber("3");
+            clickAt(frame, frame.findFirst("+"));
             DrawnFrame changed = builder.frame();
             DrawnFrame.Text cancel = changed.find("✗ Cancel");
             DrawnFrame.Text done = changed.find("✓ Done");
@@ -2241,12 +2212,13 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text add = typed.find("+?");
         assertEquals(BuilderOverlays.hintKey(ADD_TYPE_HINT), typed.targets.hovered(add.x() + 1, add.y() + 1)
                 .orElseThrow());
-        DrawnFrame frame = Builder.item("$waxed").frame();
-        List<DrawnFrame.Text> sides = ratioSides(frame);
+        DrawnFrame frame = Builder.item("3 $waxed / 2").frame();
+        DrawnFrame.Text multiplier = frame.findFirst("3x");
+        DrawnFrame.Text divisor = frame.findFirst("/2");
         assertEquals(BuilderOverlays.hintKey("Multiplier"),
-                frame.targets.hovered(sides.get(0).x() + 1, sides.get(0).y() + 1).orElseThrow());
+                frame.targets.hovered(multiplier.x() + 1, multiplier.y() + 1).orElseThrow());
         assertEquals(BuilderOverlays.hintKey("Divisor"),
-                frame.targets.hovered(sides.get(1).x() + 1, sides.get(1).y() + 1).orElseThrow());
+                frame.targets.hovered(divisor.x() + 1, divisor.y() + 1).orElseThrow());
     }
 
     /**
@@ -2327,159 +2299,111 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * Every reference term, sum, goo type row and multi-term whole value draws its ratio 1 : 1 at rest, either side
-     * set first (decision scale-shows-the-ratio-at-once).
+     * 1x is implied: an unscaled term draws no factor, the sum no trailing ratio; a multiplier reads Nx between the
+     * sign and the identity, a divisor /n after it, each a click-to-edit segment; a bay drop on a side at 1 draws
+     * that side's segment at 1 for as long as its number box stands open (decisions
+     * one-x-is-implied-so-an-unscaled-term-draws-no-ratio, multiplier-reads-nx-before-the-identity-and-divisor-slash-n-after,
+     * x-and-slash-drag-from-the-bay-onto-a-term).
      */
     @Nested
-    class RatioAtRest {
+    class ImpliedOne {
 
-        // The sides of every ratio drawn, the text before each colon and the text after it, in drawn order.
-        private static List<List<DrawnFrame.Text>> ratios(DrawnFrame frame) {
-            List<DrawnFrame.Text> drawn = frame.drawn();
-            List<List<DrawnFrame.Text>> ratios = new ArrayList<>();
-            for (int index = 1; index < drawn.size() - 1; index++) {
-                if (drawn.get(index).text().equals(":")) {
-                    ratios.add(List.of(drawn.get(index - 1), drawn.get(index + 1)));
-                }
+        // The texts the builder's term lines draw: everything but the kind's line and the bay's.
+        private static List<String> termTexts(DrawnFrame frame) {
+            int bay = handles(frame).getFirst().y();
+            return frame.drawn().subList(1, frame.drawn().size()).stream().filter(text -> text.y() != bay)
+                    .map(DrawnFrame.Text::text).toList();
+        }
+
+        private static void assertNoFactor(DrawnFrame frame) {
+            List<String> texts = termTexts(frame);
+            assertEquals(List.of(), texts.stream().filter(text -> text.equals("1") || text.equals(":")
+                    || text.endsWith("x") || text.startsWith("/")).toList(), "a factor drawn in " + texts);
+        }
+
+        @Test
+        void unscaledTermsDrawNoFactorAndTheSumNoTrailingRatio() {
+            assertNoFactor(Builder.item("$bush + $magic + $wealth").frame());
+            assertNoFactor(Builder.item("($food + $saturation)").frame());
+        }
+
+        // The segment holding a text, its left and right.
+        private static int[] segmentOf(DrawnFrame frame, String label) {
+            return frame.buttonAround(frame.findFirst(label));
+        }
+
+        @Test
+        void aMultiplierReadsNxBetweenTheSignAndTheIdentity() {
+            DrawnFrame frame = Builder.item("4 $food + 24 $saturation").frame();
+            for (List<String> term : List.of(List.of("4x", "$food", "0"), List.of("24x", "$saturation", "1"))) {
+                int[] factor = segmentOf(frame, term.get(0));
+                DrawnFrame.Text name = frame.findFirst(term.get(1));
+                DrawnFrame.Text sign = frame.drawn().stream().filter(text -> text.text().equals("+")
+                        && text.x() < name.x()).max(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                        .orElseThrow();
+                assertEquals(List.of(frame.buttonAround(sign)[2], frame.buttonAround(name)[0]),
+                        List.of(factor[0], factor[2]), term.get(0) + " between the sign and the name");
             }
-            return ratios;
-        }
-
-        // The ratio's sides read as the digits given, each a click target.
-        private static void assertRatioReads(DrawnFrame frame, List<DrawnFrame.Text> sides, List<String> digits) {
-            assertEquals(digits, sides.stream().map(DrawnFrame.Text::text).toList(), frame.texts().toString());
-            sides.forEach(side -> assertTrue(frame.targets.takesClick(side.x() + 1, side.y() + 1),
-                    side + " is no control"));
-        }
-
-        private static void assertOneToOneAtRest(DrawnFrame frame) {
-            assertRatioReads(frame, ratioSides(frame), List.of("1", "1"));
+            assertTrue(frame.texts().stream().noneMatch(text -> text.startsWith("/") && text.length() > 1),
+                    "a divisor drawn in " + frame.texts());
         }
 
         @Test
-        void freshReferenceTermDrawsOneToOne() {
-            assertOneToOneAtRest(Builder.item("$waxed").frame());
+        void aDivisorReadsSlashNAfterTheIdentityOrTheCloseParen() {
+            DrawnFrame frame = Builder.item("3 $plank / 4").frame();
+            int[] multiplier = segmentOf(frame, "3x");
+            int[] plank = frame.buttonAround(frame.find("$plank"));
+            int[] divisor = segmentOf(frame, "/4");
+            assertEquals(List.of(multiplier[2], plank[2]), List.of(plank[0], divisor[0]), "3x, $plank, /4 in order");
+            DrawnFrame nested = Builder.item("($medium - $food.jelly * 4) / 2").frame();
+            assertTrue(nested.findFirst("/2").x() > nested.find(")").x(), "/2 after the close paren");
         }
 
         @Test
-        void freshSumDrawsOneToOne() {
-            DrawnFrame frame = Builder.item("$base - ($waxed + $edited)").frame();
-            assertTrue(frame.texts().contains("("), frame.texts().toString());
-            List<List<DrawnFrame.Text>> ratios = ratios(frame);
-            // $base, $waxed, $edited, the sum, then the whole value.
-            assertEquals(5, ratios.size(), frame.texts().toString());
-            ratios.forEach(sides -> assertRatioReads(frame, sides, List.of("1", "1")));
+        void aFactorSegmentOpensItsBoxAndHoversItsName() {
+            Builder builder = Builder.item("3 $plank / 4");
+            DrawnFrame frame = builder.frame();
+            DrawnFrame.Text multiplier = frame.findFirst("3x");
+            DrawnFrame.Text divisor = frame.findFirst("/4");
+            assertEquals(BuilderOverlays.hintKey("Multiplier"), frame.targets.hovered(multiplier.x() + 1,
+                    multiplier.y() + 1).orElseThrow());
+            assertEquals(BuilderOverlays.hintKey("Divisor"), frame.targets.hovered(divisor.x() + 1, divisor.y() + 1)
+                    .orElseThrow());
+            clickAt(frame, multiplier);
+            assertEquals("3", FactorBay.numberBox(builder).getValue());
+            builder.commitNumber("5");
+            assertEquals("5 $plank / 4", builder.written.getLast());
         }
 
         @Test
-        void freshGooTypeRowDrawsOneToOne() {
-            assertOneToOneAtRest(Builder.item("{\"metal\": \"$base\"}").frame());
-        }
-
-        // Decision whole-value-ratio-draws-after-the-last-term-unlabelled: the whole value's m:d follows its last
-        // term on that term's line, a gap past its container, with no "the whole value" label.
-        @Test
-        void wholeValueDrawsOneToOneAfterItsTerms() {
-            DrawnFrame frame = Builder.item("$waxed + $edited").frame();
-            List<List<DrawnFrame.Text>> ratios = ratios(frame);
-            assertEquals(3, ratios.size(), frame.texts().toString());
-            int[] edited = ringAround(frame.buttonAround(frame.find("$edited")));
-            int editedRight = fills(frame, ControlFlow.TERM_BORDER).stream().filter(side -> side[1] == edited[1])
-                    .mapToInt(side -> side[2]).max().orElseThrow();
-            int[] multiplier = frame.buttonAround(ratios.getLast().getFirst());
-            assertEquals(List.of(edited[1], editedRight + BuilderOverlays.GAP), List.of(multiplier[1], multiplier[0]),
-                    "the multiplier on the last term's line a gap past its container");
-            assertOneToOneAtRest(frame);
-            assertFalse(frame.texts().contains("the whole value"), frame.texts().toString());
-        }
-
-        // Decision whole-value-ratio-draws-after-the-last-term-unlabelled: a ratio short of room at the line's end
-        // moves whole to the next line, at the indent a wrapped term takes.
-        @Test
-        void wholeValueRatioShortOfRoomMovesWholeToTheNextLine() {
-            for (int right = 150; right < 400; right++) {
-                Builder builder = Builder.item("$waxed + $edited");
-                DrawnFrame frame = builder.frame(new GroupsPane.Bounds(0, 0, right, 390));
-                int[] waxed = ringAround(frame.buttonAround(frame.find("$waxed")));
-                int[] edited = ringAround(frame.buttonAround(frame.find("$edited")));
-                List<DrawnFrame.Text> sides = ratios(frame).getLast();
-                int[] multiplier = frame.buttonAround(sides.getFirst());
-                int[] divisor = frame.buttonAround(sides.getLast());
-                if (edited[1] != waxed[1] || multiplier[1] == edited[1]) {
-                    continue;
-                }
-                int firstLeft = containerLeft(frame, railOf(frame, List.of(0)));
-                assertEquals(List.of(edited[3] + ControlFlow.BUILDER_LINE_GAP, firstLeft + ControlFlow.INDENT),
-                        List.of(multiplier[1], multiplier[0]), "the ratio a line below at the wrap indent");
-                assertEquals(multiplier[1], divisor[1], "the ratio moves whole");
-                return;
+        void aBayDropOnASideAtOneDrawsItsSegmentWhileItsBoxStandsOpen() {
+            for (List<String> side : List.of(List.of("x", "1x", "3x", "$bush + 3 $magic"),
+                    List.of("/", "/1", "/3", "$bush + $magic / 3"))) {
+                Builder builder = Builder.item("$bush + $magic");
+                EditBox box = FactorBay.dropOn(builder, side.get(0), "$magic");
+                DrawnFrame open = builder.frame();
+                int[] segment = segmentOf(open, side.get(1));
+                int[] name = open.buttonAround(open.find("$magic"));
+                assertEquals(side.get(0).equals("x") ? name[0] : name[2], side.get(0).equals("x") ? segment[2]
+                        : segment[0], side.get(1) + " beside $magic's name");
+                assertEquals(List.of("1", "1", segment[0]), List.of(box.getValue(), box.getHighlighted(), box.getX()),
+                        "the box open on " + side.get(1) + ", its 1 selected");
+                builder.commitNumber("3");
+                assertTrue(builder.frame().texts().contains(side.get(2)), side.get(2) + " stays");
+                assertEquals(side.get(3), builder.written.getLast());
             }
-            throw new AssertionError("no width wrapped the ratio alone");
         }
 
-        private static Builder wholeValueCommitted(int side) {
-            Builder builder = Builder.item("$waxed + $edited");
-            DrawnFrame frame = builder.frame();
-            clickAt(frame, ratioSides(frame).get(side));
-            builder.commitNumber("3");
-            return builder;
-        }
-
-        @Test
-        void committingTheWholeValuesDivisorFirstDividesTheSum() {
-            assertEquals("($waxed + $edited) / 3", wholeValueCommitted(1).written.getLast());
-        }
-
-        @Test
-        void committingTheWholeValuesMultiplierFirstMultipliesTheSum() {
-            assertEquals("3 ($waxed + $edited)", wholeValueCommitted(0).written.getLast());
-        }
-
-        @Test
-        void scaledWholeValueDrawsAsOneSumCarryingItsRatio() {
-            DrawnFrame frame = wholeValueCommitted(1).frame();
-            assertTrue(frame.texts().contains("("), frame.texts().toString());
-            assertRatioReads(frame, ratioSides(frame), List.of("1", "3"));
-        }
-
-        @Test
-        void committingTheDivisorFirstDividesTheTerm() {
-            Builder builder = Builder.item("$waxed");
-            DrawnFrame frame = builder.frame();
-            clickAt(frame, ratioSides(frame).get(1));
-            builder.commitNumber("3");
-            assertTrue(builder.written.getLast().endsWith(" / 3"), builder.written.toString());
-        }
-
-        // Decision ratio-holds-multiplier-and-divisor-together: the divisor box sets the divisor alone.
+        // Decision ratio-holds-multiplier-and-divisor-together: the divisor's box sets the divisor alone.
         @Test
         void committingTheDivisorKeepsTheMultiplier() {
-            Builder builder = Builder.item("2 $iron_ingot");
+            Builder builder = Builder.item("2 $iron_ingot / 3");
             DrawnFrame frame = builder.frame();
-            clickAt(frame, ratioSides(frame).get(1));
-            builder.commitNumber("3");
-            assertEquals("2 $iron_ingot / 3", builder.written.getLast());
-            DrawnFrame next = builder.frame();
-            assertRatioReads(next, ratioSides(next), List.of("2", "3"));
-        }
-
-        @Test
-        void committingTheMultiplierFirstWritesTheCountForm() {
-            Builder builder = Builder.item("$waxed");
-            DrawnFrame frame = builder.frame();
-            clickAt(frame, ratioSides(frame).getFirst());
-            builder.commitNumber("3");
-            assertEquals("3 $waxed", builder.written.getLast());
-        }
-
-        @Test
-        void factorSetBackToOneKeepsDrawingOneToOneOnTheNextOpen() {
-            Builder builder = Builder.item("3 $waxed");
-            DrawnFrame frame = builder.frame();
-            clickAt(frame, ratioSides(frame).getFirst());
-            builder.commitNumber("1");
-            builder.pane.open(builder.written.getLast(), builder.written::add, () -> { });
-            assertOneToOneAtRest(builder.frame());
+            clickAt(frame, frame.findFirst("/3"));
+            builder.commitNumber("4");
+            assertEquals("2 $iron_ingot / 4", builder.written.getLast());
+            List<String> texts = builder.frame().texts();
+            assertTrue(texts.contains("2x") && texts.contains("/4"), texts.toString());
         }
     }
 
@@ -2549,7 +2473,7 @@ class ExpressionBuilderPaneTest {
             boolean[] finished = {false};
             Builder builder = new Builder(PREFABS);
             builder.pane.open("$waxed", builder.written::add, () -> finished[0] = true);
-            clickAt(builder.frame(), ratioSides(builder.frame()).getFirst());
+            FactorBay.dropOn(builder, "x", "$waxed");
             ArgumentCaptor<AbstractWidget> focused = ArgumentCaptor.forClass(AbstractWidget.class);
             verify(builder.actions, atLeastOnce()).focus(focused.capture());
             ((EditBox) focused.getValue()).setValue("7");

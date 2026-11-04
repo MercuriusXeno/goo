@@ -234,6 +234,23 @@ final class BuilderOverlays {
     }
 
     /**
+     * @return whether the number box stands open
+     */
+    boolean numberOpen() {
+        return numberField != null && numberField.visible;
+    }
+
+    /**
+     * Stands the open number box under another place, as a factor segment a bay drop drew after the box opened
+     * (decision x-and-slash-drag-from-the-bay-onto-a-term).
+     *
+     * @param at where the segment the box edits now stands
+     */
+    void moveNumber(Anchor at) {
+        numberOpener = at;
+    }
+
+    /**
      * @param key the GLFW key pressed
      * @return whether an overlay took the key: Enter commits the number box, Escape closes a list or the box
      */

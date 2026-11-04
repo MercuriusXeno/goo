@@ -840,15 +840,6 @@ final class ControlFlow {
     }
 
     /**
-     * @param letters the words' font and scale
-     * @param text    words a segment holds that take no click, as a ratio's colon
-     * @return the segment's width: its glyphs, a clear pixel either side and its two borders
-     */
-    static int textSegmentWidth(Lettering letters, String text) {
-        return 1 + CLEAR + letters.inkWidth(text) + CLEAR + 1;
-    }
-
-    /**
      * @param type the goo type's id
      * @return the segment's width: a type-icon button's, the icon and its border either side (decision
      *     type-icon-buttons-shrink-their-padding)
@@ -916,17 +907,15 @@ final class ControlFlow {
     }
 
     /**
-     * @param textInk the glyphs' ink width of the words standing between segments, as a ratio's colon, 0 for none
-     * @param widths  each segment's width as a framed segment of it stands
-     * @return a term container's width: its ring, each segment's fill, a 2 px seam between each two, and the words
-     *     with a clear pixel either side in place of a seam
+     * @param widths each segment's width as a framed segment of it stands
+     * @return a term container's width: its ring, each segment's fill and a 2 px seam between each two
      */
-    static int ringedWidth(int textInk, int... widths) {
+    static int ringedWidth(int... widths) {
         int total = RING + RING - FRAME_BORDERS;
         for (int width : widths) {
             total += width;
         }
-        return total + textInk;
+        return total;
     }
 
     // The next segment: in a term, its fill after a two-tone seam, answering the frame a framed segment of its width
@@ -982,27 +971,6 @@ final class ControlFlow {
         BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
         ButtonPainter.reserve(targets, box, () -> pressed.accept(at), BuilderOverlays.hintKey(hint));
         return at;
-    }
-
-    /**
-     * Words that take no click between two segments, a clear pixel from each, as a ratio's colon stands between its
-     * boxes: plain text rather than a segment, since only what a click edits reads as a button (decision
-     * ratio-colon-takes-no-spaces, as the operator corrected it, and the operator's ruling of 2026-11-04).
-     *
-     * @param text  the words
-     * @param color their color
-     */
-    void textBetweenSegments(String text, int color) {
-        if (ringed) {
-            int textLeft = nextInterior + CLEAR;
-            letters.draw(graphics, text, textLeft, wordsTop(), color);
-            nextInterior = textLeft + letters.inkWidth(text) + CLEAR;
-            seamDue = false;
-            return;
-        }
-        int textLeft = nextSegmentLeft + 1 + CLEAR;
-        letters.draw(graphics, text, textLeft, wordsTop(), color);
-        nextSegmentLeft = textLeft + letters.inkWidth(text) + CLEAR;
     }
 
     /**
