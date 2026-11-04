@@ -41,6 +41,11 @@ final class DrawnFrame {
             return null;
         }).when(graphics).text(any(Font.class), anyString(), anyInt(), anyInt(), anyInt());
         doAnswer(call -> {
+            place(call.getArgument(1), false, call.getArgument(2), call.getArgument(3), call.getArgument(4),
+                    call.getArgument(5));
+            return null;
+        }).when(graphics).text(any(Font.class), anyString(), anyInt(), anyInt(), anyInt(), anyBoolean());
+        doAnswer(call -> {
             Component styled = call.getArgument(1);
             place(styled.getString(), styled.getStyle().isBold(), call.getArgument(2), call.getArgument(3),
                     call.getArgument(4));
@@ -50,26 +55,33 @@ final class DrawnFrame {
 
     // Records a text where it landed on the screen, the pose it drew under applied.
     private void place(String text, boolean bold, int x, int y, int color) {
+        place(text, bold, x, y, color, true);
+    }
+
+    // The font's plain text call draws a drop shadow; the call naming the shadow draws one only where asked.
+    private void place(String text, boolean bold, int x, int y, int color, boolean shadow) {
         Matrix3x2fStack pose = graphics.pose();
         // A mocked pose a test swaps in answers zeros, which reads as no pose at all.
         boolean posed = pose != null && pose.m00() != 0;
         float scale = posed ? pose.m00() : 1;
         float left = posed ? pose.m20() : 0;
         float top = posed ? pose.m21() : 0;
-        placed.add(new Placed(text, scale, bold, Math.round(left + scale * x), Math.round(top + scale * y), color));
+        placed.add(new Placed(text, scale, bold, Math.round(left + scale * x), Math.round(top + scale * y), color,
+                shadow));
     }
 
     /**
      * One text as it landed on the screen, the pose it drew under applied.
      *
-     * @param text  the string
-     * @param scale the pose's scale
-     * @param bold  whether it drew in a bold style
-     * @param x     its left edge on the screen
-     * @param y     its top edge on the screen
-     * @param color its color
+     * @param text   the string
+     * @param scale  the pose's scale
+     * @param bold   whether it drew in a bold style
+     * @param x      its left edge on the screen
+     * @param y      its top edge on the screen
+     * @param color  its color
+     * @param shadow whether it drew with the font's drop shadow
      */
-    record Placed(String text, float scale, boolean bold, int x, int y, int color) {
+    record Placed(String text, float scale, boolean bold, int x, int y, int color, boolean shadow) {
     }
 
     /**

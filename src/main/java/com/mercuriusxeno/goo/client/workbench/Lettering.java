@@ -153,6 +153,25 @@ record Lettering(Font font, float scale) {
     }
 
     /**
+     * Draws words with their top-left at the place given, scaled about that place, with no drop shadow under them,
+     * as a parenthetical's parens draw (the operator's ruling of 2026-11-04: the shadow under a paren looks wrong).
+     *
+     * @param graphics the frame's graphics
+     * @param text     the words
+     * @param x        their left edge
+     * @param y        their top
+     * @param color    their color
+     */
+    void drawFlat(GuiGraphicsExtractor graphics, String text, int x, int y, int color) {
+        Matrix3x2fStack pose = graphics.pose();
+        pose.pushMatrix();
+        pose.translate(x, y);
+        pose.scale(scale);
+        graphics.text(font, text, 0, 0, color, false);
+        pose.popMatrix();
+    }
+
+    /**
      * Draws words with their top-left at the place given, scaled about that place.
      *
      * @param graphics the frame's graphics
