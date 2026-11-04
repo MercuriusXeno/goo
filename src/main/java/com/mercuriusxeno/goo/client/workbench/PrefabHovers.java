@@ -9,21 +9,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
 /**
  * The tooltip every prefab reference the manager draws shows on hover: in an Items value, a Groups expression, a
- * Prefabs read view and a Mutators row, one head line "$name = expression (reduced value)" read from the draft and
- * the last evaluate reply, so it refreshes as the evaluation does (decisions every-prefab-reference-hovers-its-value,
- * prefab-tooltip-reads-name-equals-expression-then-reduced-value).
+ * Prefabs read view and a Mutators row. It reads the prefab's recipe, then its reduction in parentheses where that
+ * reads otherwise, each a grid of one cell per goo type, {type}: its terms then {type}: its amount, read from the
+ * draft and the last evaluate reply so it refreshes as the evaluation does (decisions
+ * every-prefab-reference-hovers-its-value, read-view-reads-type-equals-possessive-terms,
+ * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
  */
 final class PrefabHovers {
     // A hover key no prefab name, item id or hint spells.
     private static final String HOVER_PREFIX = "goo-prefab:";
-    private static final String EQUALS = " = ";
-    private static final String TYPE_SEPARATOR = ", ";
-    private static final String OPEN = " (";
+    private static final String OPEN = "(";
     private static final String CLOSE = ")";
+    private static final String SEPARATOR = ",";
     private static final String NO_TEXT = "";
 
     private PrefabHovers() {
@@ -40,8 +41,8 @@ final class PrefabHovers {
     /**
      * @param variables the Prefabs tab's state, holding the draft's expressions and the last evaluate reply
      * @param hoverKey  what the hovered area names
-     * @return a prefab's head line, then its error where it holds one; the bare name where the area names no
-     *     prefab, as a mutator's does; empty where the area is no reference's
+     * @return a prefab's recipe, its reduction where it reads otherwise, then its error where it holds one; the
+     *     bare name where the area names no prefab, as a mutator's does; empty where the area is no reference's
      */
     static Optional<List<TooltipLine>> tooltipFor(VariablesTab variables, String hoverKey) {
         if (!hoverKey.startsWith(HOVER_PREFIX)) {
@@ -50,39 +51,93 @@ final class PrefabHovers {
         String name = hoverKey.substring(HOVER_PREFIX.length());
         Optional<String> expression = variables.expressionOf(name);
         if (expression.isEmpty()) {
-            return Optional.of(List.of(line(name)));
+            return Optional.of(List.of(new TooltipLine.Text(Component.literal(name))));
         }
         Optional<VariablesTab.PrefabValue> value = variables.prefabValue(name);
-        List<TooltipLine> lines = new ArrayList<>();
-        lines.add(line(PrefabNames.marked(name) + EQUALS + body(expression.get(), value)));
+        List<TooltipLine> lines = new ArrayList<>(body(expression.get(), value));
         value.map(VariablesTab.PrefabValue::error).filter(error -> !error.isEmpty())
-                .ifPresent(error -> lines.add(line(error)));
+                .ifPresent(error -> lines.add(new TooltipLine.Text(Component.literal(error))));
         return Optional.of(lines);
     }
 
-    // A tree reads each type = its expression with that type's amount after it; a scalar its expression and value.
-    private static String body(String text, Optional<VariablesTab.PrefabValue> value) {
-        Map<String, String> tree = value.map(VariablesTab.PrefabValue::tree).orElse(Map.of());
+    private static List<TooltipLine> body(String text, Optional<VariablesTab.PrefabValue> value) {
         Optional<Map<String, String>> types = typeExpressions(text);
         if (types.isPresent()) {
-            // Decision value-lists-order-highest-first-ties-by-type-key: each type in its resolved amount's order.
-            Map<String, String> amounts = new LinkedHashMap<>();
-            types.get().keySet().forEach(type -> amounts.put(type, tree.getOrDefault(type, NO_TEXT)));
-            Map<String, String> expressions = types.get();
-            return AmountOrder.highestFirst(amounts).entrySet().stream().map(type -> type.getKey() + EQUALS
-                    + reduced(expressions.get(type.getKey()), type.getValue()))
-                    .collect(Collectors.joining(TYPE_SEPARATOR));
+            return typedBody(types.get(), value.map(VariablesTab.PrefabValue::tree).orElse(Map.of()));
         }
-        return reduced(ManagerDraft.shownText(text), value.map(VariablesTab.PrefabValue::scalar).orElse(NO_TEXT));
+        String shown = ManagerDraft.shownText(text);
+        String scalar = value.map(VariablesTab.PrefabValue::scalar).orElse(NO_TEXT);
+        List<TooltipLine> lines = new ArrayList<>();
+        lines.add(new TooltipLine.RunsGrid(List.of(termRuns(shown))));
+        if (!scalar.isEmpty() && !scalar.equals(shown.trim())) {
+            List<ExpressionLines.Run> reduced = new ArrayList<>();
+            reduced.add(operator(OPEN));
+            reduced.add(new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, scalar, null));
+            reduced.add(suffix(CLOSE));
+            lines.add(new TooltipLine.RunsGrid(List.of(reduced)));
+        }
+        return lines;
     }
 
-    // Decision prefab-tooltip-reads-name-equals-expression-then-reduced-value: the reduced value in its own
-    // parentheses after the expression, where it reads otherwise than the expression, and no (type: scalar).
-    private static String reduced(String expression, String value) {
-        return value.isEmpty() || value.equals(expression.trim()) ? expression : expression + OPEN + value + CLOSE;
+    // Decision value-lists-order-highest-first-ties-by-type-key: both grids read each type in its resolved amount's
+    // order. The reduction stands only where some amount reads otherwise than its expression.
+    private static List<TooltipLine> typedBody(Map<String, String> expressions, Map<String, String> tree) {
+        Map<String, String> amounts = new LinkedHashMap<>();
+        expressions.keySet().forEach(type -> amounts.put(type, tree.getOrDefault(type, NO_TEXT)));
+        List<String> order = new ArrayList<>(AmountOrder.highestFirst(amounts).keySet());
+        List<List<ExpressionLines.Run>> recipe = new ArrayList<>();
+        order.forEach(type -> recipe.add(typed(type, termRuns(expressions.get(type)))));
+        List<TooltipLine> lines = new ArrayList<>();
+        lines.add(new TooltipLine.RunsGrid(recipe));
+        boolean reduces = order.stream().anyMatch(type -> !amounts.get(type).isEmpty()
+                && !amounts.get(type).equals(expressions.get(type).trim()));
+        if (reduces) {
+            lines.add(new TooltipLine.RunsGrid(reduction(order, amounts)));
+        }
+        return lines;
     }
 
-    // A tree's text is an object of goo type to expression; anything else is a scalar's.
+    // ({type}: amount, ... {type}: amount): the opening parenthesis on the first cell, a comma closing every cell but
+    // the last, and the closing parenthesis on the last cell, so it never wraps to a row of its own.
+    private static List<List<ExpressionLines.Run>> reduction(List<String> order, Map<String, String> amounts) {
+        List<List<ExpressionLines.Run>> cells = new ArrayList<>();
+        for (int index = 0; index < order.size(); index++) {
+            List<ExpressionLines.Run> cell = new ArrayList<>();
+            if (index == 0) {
+                cell.add(operator(OPEN));
+            }
+            String type = order.get(index);
+            cell.addAll(typed(type, List.of(new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, amounts.get(type),
+                    null))));
+            cell.add(suffix(index == order.size() - 1 ? CLOSE : SEPARATOR));
+            cells.add(cell);
+        }
+        return cells;
+    }
+
+    // {type}: then the terms, as the read view writes a type row.
+    private static List<ExpressionLines.Run> typed(String type, List<ExpressionLines.Run> terms) {
+        List<ExpressionLines.Run> cell = new ArrayList<>();
+        cell.add(new ExpressionLines.Run(ExpressionLines.Kind.TYPE, NO_TEXT, type));
+        cell.add(operator(ExpressionLines.COLON));
+        cell.addAll(terms);
+        return cell;
+    }
+
+    // The terms one expression draws as, a member read as its prefab's own; text the terms cannot read draws red.
+    private static List<ExpressionLines.Run> termRuns(String expression) {
+        return ExpressionLines.shownRuns(expression, Function.identity());
+    }
+
+    private static ExpressionLines.Run operator(String text) {
+        return new ExpressionLines.Run(ExpressionLines.Kind.OPERATOR, text, null);
+    }
+
+    private static ExpressionLines.Run suffix(String text) {
+        return new ExpressionLines.Run(ExpressionLines.Kind.SUFFIX, text, null);
+    }
+
+    // A typed prefab's text is an object of goo type to expression; anything else is a scalar's.
     private static Optional<Map<String, String>> typeExpressions(String text) {
         JsonElement parsed;
         try {
@@ -97,9 +152,5 @@ final class PrefabHovers {
         parsed.getAsJsonObject().entrySet().forEach(type -> types.put(type.getKey(),
                 type.getValue().isJsonPrimitive() ? type.getValue().getAsString() : type.getValue().toString()));
         return Optional.of(types);
-    }
-
-    private static TooltipLine line(String text) {
-        return new TooltipLine.Text(Component.literal(text));
     }
 }
