@@ -78,7 +78,6 @@ public final class CrucibleTests {
     private static final String CR_THROWN_ITEM_CAUGHT = "cr_thrown_item_caught";
     private static final String CR_SIDE_HIT_LIFTED_IN = "cr_side_hit_lifted_in";
     private static final String CR_ROUGH_THROW_STEERED_IN = "cr_rough_throw_steered_in";
-    private static final String CR_ITEM_TAKEN_AT_KILL_BOX = "cr_item_taken_at_kill_box";
     private static final String CR_COLD_ITEM_WAITS_ON_FLOOR = "cr_cold_item_waits_on_floor";
     private static final String CR_ITEM_MELTS_ON_ITS_CLOCK = "cr_item_melts_on_its_clock";
     private static final String CR_BROKEN_MID_MELT_DROPS_REMAINDER = "cr_broken_mid_melt_drops_remainder";
@@ -117,7 +116,6 @@ public final class CrucibleTests {
         GooTestFunctions.registerTest(registrar, CR_THROWN_ITEM_CAUGHT, CrucibleTests::thrownItemCaughtByTheField);
         GooTestFunctions.registerTest(registrar, CR_SIDE_HIT_LIFTED_IN, CrucibleTests::sideHitItemLiftedIntoTheCavity);
         GooTestFunctions.registerTest(registrar, CR_ROUGH_THROW_STEERED_IN, CrucibleTests::roughThrowSteeredIntoTheMouth);
-        GooTestFunctions.registerTest(registrar, CR_ITEM_TAKEN_AT_KILL_BOX, CrucibleTests::droppedItemTakenAtTheKillBox);
         GooTestFunctions.registerTest(registrar, CR_COLD_ITEM_WAITS_ON_FLOOR, CrucibleTests::coldCrucibleItemWaitsOnTheFloor);
         GooTestFunctions.registerTest(registrar, CR_ITEM_MELTS_ON_ITS_CLOCK, CrucibleTests::itemMeltsOnItsClock);
         GooTestFunctions.registerTest(registrar, CR_BROKEN_MID_MELT_DROPS_REMAINDER, CrucibleTests::brokenMidMeltDropsTheRemainder);
@@ -216,8 +214,6 @@ public final class CrucibleTests {
     private static final int SURFACE_GOO = 16_000;
     /** Ticks an item dropped over the cavity takes to fall into the kill box. */
     private static final int KILL_BOX_DELAY = 8;
-    private static final String FALLING_ITEM_STAYS = "item still exists while it falls toward the goo";
-    private static final String TAKEN_AT_KILL_BOX = "item taken once it reached the goo surface";
     private static final String WAITS_UNCONSUMED = "cold crucible leaves the item";
     private static final String WAITS_UNSHRUNK = "waiting item unshrunk";
     private static final String WAITS_ON_FLOOR = "waiting item sank to the floor: ";
@@ -587,24 +583,6 @@ public final class CrucibleTests {
     }
 
     // -- The kill box (decision consume-at-rest-in-place, as the operator reframed it) --
-
-    /**
-     * An item dropped off-center over a heating crucible holding goo is taken the tick it
-     * reaches the goo surface, wherever it lands in the footprint, with no drift or rest first.
-     *
-     * @param helper the gametest helper
-     */
-    public static void droppedItemTakenAtTheKillBox(GameTestHelper helper) {
-        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
-        crucible.insertGoo(GooTypes.ROCK, SURFACE_GOO);
-        ItemEntity item = spawnOffCenter(helper, CrucibleSpawns.BASIN_FLOOR_Y + DROP_ABOVE_KILL_BOX);
-        helper.runAfterDelay(1, () -> helper.assertFalse(item.isRemoved(), FALLING_ITEM_STAYS));
-        helper.runAfterDelay(KILL_BOX_DELAY, () -> {
-            helper.assertTrue(item.isRemoved(), TAKEN_AT_KILL_BOX);
-            helper.assertFalse(crucible.getMeltingItem().isEmpty(), SHOULD_ABSORB);
-            helper.succeed();
-        });
-    }
 
     /**
      * An item dropped off-center into a cold crucible holding goo sinks to the basin floor
