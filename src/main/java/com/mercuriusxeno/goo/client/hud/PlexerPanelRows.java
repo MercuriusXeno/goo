@@ -1,14 +1,13 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.mercuriusxeno.goo.client.GooAmountOrder;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -48,14 +47,15 @@ final class PlexerPanelRows {
     /**
      * The target's exact cost in each type, as a mixed number.
      * decision tooltip-and-plexer-hud-show-a-mixed-number
+     * decision value-lists-order-highest-first-ties-by-type-key
      *
      * @param value the target's goo value
-     * @return one row per type, its icon beside its cost, ordered by type id
+     * @return one row per type, its icon beside its cost, the highest cost first, ties by type id
      */
     private static List<PanelRow> costRows(GooValue value) {
         return value.exactAll().entrySet().stream()
                 .filter(entry -> entry.getValue().isPositive())
-                .sorted(Comparator.comparing(entry -> GooTypes.id(entry.getKey())))
+                .sorted(GooAmountOrder.highestFirst())
                 .map(PlexerPanelRows::costRow)
                 .toList();
     }
