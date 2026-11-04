@@ -95,6 +95,24 @@ class ProcessesPaneTest {
     }
 
     /**
+     * A follow into the Mutators pane empties a search that hides its target and draws the target's row (decision
+     * following-a-link-clears-the-panes-search-bar).
+     */
+    @Test
+    void revealClearsTheSearchAndDrawsTheTarget() {
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search mutators".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue("wax");
+        assertFalse(frame().texts().contains("#exposed"), "the search hides the target");
+        pane.reveal("#exposed");
+        DrawnFrame revealed = frame();
+        assertEquals("", search.getValue());
+        assertTrue(revealed.texts().contains("#exposed"), revealed.texts().toString());
+    }
+
+    /**
      * The pane leads with its entries under no sub-tab: the first row under Mutators is the first mutator, and no
      * Conversions or Post conversions control draws (decision conversions-is-the-one-section-and-the-pane-name).
      */

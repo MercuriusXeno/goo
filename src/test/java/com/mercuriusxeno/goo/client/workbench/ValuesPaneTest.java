@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -732,9 +733,47 @@ class ValuesPaneTest {
                                 + "\"rock\": \"123456789\", \"blaze\": \"123456789\"}"))
                 .collect(Collectors.joining(", "));
         values.readResolved("{\"entries\": [" + resolved + "]}");
-        ManagerActions actions = mock(ManagerActions.class);
+        return manyItems(values, mock(ManagerActions.class));
+    }
+
+    private static ValuesPane manyItems(ValuesTab values, ManagerActions actions) {
         ItemIcons icons = mock(ItemIcons.class);
         return new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    /**
+     * A follow into the Items pane empties a search that hides its target and draws the target's row (decision
+     * following-a-link-clears-the-panes-search-bar).
+     */
+    @Test
+    void revealClearsTheSearchAndDrawsTheTarget() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(IntStream.range(0, FOLLOWED_ITEMS).mapToObj(index ->
+                new ManagerEntrySource.ItemName("minecraft:item_%02d".formatted(index), itemName(index))).toList(),
+                List.of()));
+        ManagerActions actions = mock(ManagerActions.class);
+        List<Object> widgets = new java.util.ArrayList<>();
+        when(actions.addWidget(any())).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ValuesPane pane = manyItems(values, actions);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        net.minecraft.client.gui.components.EditBox search = widgets.stream()
+                .filter(net.minecraft.client.gui.components.EditBox.class::isInstance)
+                .map(net.minecraft.client.gui.components.EditBox.class::cast)
+                .filter(box -> "Search items".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue(itemName(3));
+        int target = 25;
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        assertFalse(searched.texts().contains(itemName(target)), "the search hides the target");
+        pane.reveal("minecraft:item_%02d".formatted(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        assertEquals("", search.getValue());
+        assertTrue(frame.texts().contains(itemName(target)), frame.texts().toString());
     }
 
     private static final int LARGE_LIST = 3000;

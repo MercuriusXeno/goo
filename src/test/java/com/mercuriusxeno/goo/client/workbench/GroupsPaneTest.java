@@ -175,6 +175,31 @@ class GroupsPaneTest {
         assertEquals(FOLLOWED_GROUPS, groups.groupRows().size());
     }
 
+    /**
+     * A follow into the Groups pane empties a search that hides its target and draws the target's row (decision
+     * following-a-link-clears-the-panes-search-bar).
+     */
+    @Test
+    void revealClearsTheSearchAndDrawsTheTarget() {
+        GroupsTab groups = new GroupsTab(new ManagerDraft());
+        List<AbstractWidget> widgets = new ArrayList<>();
+        GroupsPane pane = manyGroups(groups, widgets);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue(groupName(7));
+        int target = 3;
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        assertFalse(searched.texts().contains("#" + groupName(target)), "the search hides the target");
+        pane.reveal(groupName(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        assertEquals("", search.getValue());
+        assertTrue(frame.texts().contains("#" + groupName(target)), frame.texts().toString());
+    }
+
     // A Groups pane over forty groups whose actions record every widget the pane stands.
     private static GroupsPane manyGroups(GroupsTab groups, List<AbstractWidget> widgets) {
         String described = IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> """
