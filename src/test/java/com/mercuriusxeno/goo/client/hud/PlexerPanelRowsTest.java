@@ -1,11 +1,19 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import static com.mercuriusxeno.goo.data.TestRecipeBuilder.fraction;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -51,5 +59,26 @@ class PlexerPanelRowsTest {
         PanelRow rock = rows.get(2);
         assertEquals(PanelPainter.gooIcon(GooTypes.ROCK), rock.icon());
         assertEquals("¹⁄₃", rock.segments().getFirst().text());
+    }
+
+    /**
+     * The cost rows read the highest amount first, ties alphabetical by type key, in place of the type-id order
+     * (decision value-lists-order-highest-first-ties-by-type-key).
+     */
+    @Test
+    void costRowsReadHighestFirstTiesByTypeKey() {
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> byTypeId = new LinkedHashMap<>();
+        byTypeId.put(GooTypes.GLOW, GooFraction.of(2));
+        byTypeId.put(GooTypes.LEAF, GooFraction.of(1, 3));
+        byTypeId.put(GooTypes.ROCK, GooFraction.of(9, 4));
+        byTypeId.put(GooTypes.BLAZE, GooFraction.of(2));
+        GooValue value = mock(GooValue.class);
+        when(value.exactAll()).thenReturn(byTypeId);
+
+        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", null, value);
+
+        assertEquals(List.of(GooTypes.ROCK, GooTypes.BLAZE, GooTypes.GLOW, GooTypes.LEAF).stream()
+                .map(PanelPainter::gooIcon).toList(), rows.subList(1, rows.size()).stream().map(PanelRow::icon)
+                .toList());
     }
 }
