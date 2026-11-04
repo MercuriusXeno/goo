@@ -1,14 +1,23 @@
 package com.mercuriusxeno.goo.command;
 
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.permissions.PermissionSet;
 import org.junit.jupiter.api.Test;
+import java.util.Map;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -80,6 +89,26 @@ class GooCommandTest {
         assertNull(workbench.getChild("stop"));
         assertTrue(workbench.canUse(sourceWith(PermissionSet.ALL_PERMISSIONS)));
         assertFalse(workbench.canUse(sourceWith(PermissionSet.NO_PERMISSIONS)));
+    }
+
+    /**
+     * The chat line reads the highest amount first, then tied amounts by type id ascending
+     * (decision chat-value-line-orders-highest-first-ties-by-type-key).
+     */
+    @Test
+    void chatLineReadsHighestAmountFirstThenTiesByTypeId() {
+        GooValue value = new GooValue(Map.of(GooTypes.ZOO, 2, GooTypes.METAL, 5, GooTypes.JELLY, 2));
+        String line = GooCommand.formatGooValue(registriesHoldingEveryType(), "minecraft:egg", value).getString();
+        assertEquals("minecraft:egg: metal x5, jelly x2, zoo x2 (total: 9)", line);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HolderLookup.Provider registriesHoldingEveryType() {
+        HolderLookup.Provider registries = mock(HolderLookup.Provider.class);
+        Holder.Reference<GooTypeDefinition> holder = mock(Holder.Reference.class);
+        when(holder.value()).thenReturn(mock(GooTypeDefinition.class));
+        when(registries.getOrThrow(any(ResourceKey.class))).thenReturn(holder);
+        return registries;
     }
 
     private static CommandSourceStack sourceWith(PermissionSet permissions) {

@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
 import com.mercuriusxeno.goo.client.tooltip.GooValuesKey;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
+import com.mercuriusxeno.goo.data.GooAmountOrder;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
