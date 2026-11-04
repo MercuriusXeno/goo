@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.command;
 
+import com.mercuriusxeno.goo.data.GooAmountOrder;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
@@ -438,16 +439,17 @@ public final class GooCommand {
 
     /**
      * Builds a chat component showing an item's goo value breakdown.
+     * Decision chat-value-line-orders-highest-first-ties-by-type-key.
      *
      * @param registries the registry access the type colors resolve through
      * @param itemName   the item identifier string
      * @param value      the item's goo value
      * @return the formatted chat component
      */
-    private static MutableComponent formatGooValue(HolderLookup.Provider registries, String itemName, GooValue value) {
+    static MutableComponent formatGooValue(HolderLookup.Provider registries, String itemName, GooValue value) {
         MutableComponent msg = Component.literal(itemName + MSG_COLON_SPACE);
         boolean first = true;
-        for (var entry : value.exactAll().entrySet()) {
+        for (var entry : value.exactAll().entrySet().stream().sorted(GooAmountOrder.highestFirst()).toList()) {
             if (!first) {
                 msg.append(Component.literal(MSG_COMMA));
             }

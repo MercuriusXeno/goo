@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.client;
+package com.mercuriusxeno.goo.data;
 
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -7,10 +7,11 @@ import java.util.Comparator;
 import java.util.Map;
 
 /**
- * The order the item tooltip's goo rows and the plexer HUD's cost rows read in: the highest amount first, ties by
- * type id ascending, the shape of {@link TypeBands#largestFirst}'s order. A crucible's and a canister's HUD
- * holdings keep their own order.
+ * The order every listed goo value reads in: the /goo command's chat line, the item tooltip's goo rows and the
+ * plexer HUD's cost rows, the highest amount first, ties by type id ascending, the shape of
+ * {@code TypeBands.largestFirst}'s order. A crucible's and a canister's HUD holdings keep their own order.
  * Decision value-lists-order-highest-first-ties-by-type-key.
+ * Decision chat-value-line-orders-highest-first-ties-by-type-key.
  */
 public final class GooAmountOrder {
 
