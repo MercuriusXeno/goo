@@ -38,10 +38,8 @@ final class ExpressionBuilder {
             + " join them: remove the terms first.";
     private static final String TYPE_TAKEN = "This entry already holds a row for that goo type.";
     private static final String NOT_A_NUMBER = "A number box holds digits alone.";
-    private static final String LAST_TERM = "A value keeps at least one term: change this one instead.";
     private static final String MOVE_CHANGES_VALUE = "A first term takes no sign, so a subtracted term cannot move"
             + " first: change its sign first.";
-    private static final String LAST_ROW = "A per-type value keeps at least one goo type: change this one instead.";
     /** The whole kind holding one number, the kind {@link #switchToWhole()} starts. */
     static final String NUMBER_SORT = "number";
 
@@ -683,22 +681,25 @@ final class ExpressionBuilder {
 
     /**
      * @param row the row's index
-     * @return whether removeRow would delete it: the rows keep their last
+     * @return whether removeRow would delete it: any row it holds, the last one included
      */
     boolean canRemoveRow(int row) {
-        return rows.size() > 1 && row >= 0 && row < rows.size();
+        return row >= 0 && row < rows.size();
     }
 
     /**
+     * Removes a type row; the last one goes too, leaving the value per type with no rows, as a fresh per-type value
+     * reads (decision only-term-or-row-drags-to-the-trash).
+     *
      * @param row the row's index
      */
     void removeRow(int row) {
         if (!canRemoveRow(row)) {
-            refuse(LAST_ROW);
             return;
         }
         changed();
         rows.remove(row);
+        perTypeChosen = true;
     }
 
     /**
@@ -874,19 +875,16 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Removes a term; the whole value and a type row keep their last term, and a parenthetical losing its last
-     * term goes with it (decision terms-and-type-rows-drag-to-a-trash-strip).
+     * Removes a term; the last term of the whole value or of a type row goes, leaving an empty sum, and a
+     * parenthetical losing its last term goes with it (decisions terms-and-type-rows-drag-to-a-trash-strip,
+     * only-term-or-row-drags-to-the-trash).
      *
      * @param path the term's place
      */
     void remove(List<Integer> path) {
-        if (!canRemove(path)) {
-            refuse(LAST_TERM);
-            return;
-        }
         List<Integer> sum = path.subList(0, path.size() - 1);
         List<Piece> pieces = new ArrayList<>(sumAt(sum));
-        if (pieces.size() == 1) {
+        if (pieces.size() == 1 && isParenthetical(sum)) {
             remove(sum);
             return;
         }
@@ -896,16 +894,15 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Whether remove would delete the term, sharing its refusal: the whole value and a type row keep their last term,
-     * and a parenthetical's last term goes as its parenthetical does; the term taking first place keeps its sign
-     * (decisions drags-indicate-only-a-drop-the-builder-takes, every-term-carries-its-sign-as-a-segment).
+     * Whether remove would delete the term: every term goes, the last of the whole value or a type row leaving an
+     * empty sum and a parenthetical's last going as its parenthetical does; the term taking first place keeps its
+     * sign (decisions only-term-or-row-drags-to-the-trash, every-term-carries-its-sign-as-a-segment).
      *
      * @param path the term's place
      * @return whether removing it deletes something
      */
     boolean canRemove(List<Integer> path) {
-        List<Integer> sum = path.subList(0, path.size() - 1);
-        return sumAt(sum).size() > 1 || isParenthetical(sum) && canRemove(sum);
+        return path.getLast() >= 0 && path.getLast() < sumAt(path.subList(0, path.size() - 1)).size();
     }
 
     private Piece pieceAt(List<Integer> path) {

@@ -120,25 +120,28 @@ class ExpressionBuilderTest {
     }
 
     /**
-     * A value never empties: the last term or row is kept, and a builder holding nothing writes nothing, since the
-     * resolver throws on an empty expression.
+     * The last term or row goes like any other, and a builder holding nothing writes nothing, since the resolver
+     * throws on an empty expression (decision only-term-or-row-drags-to-the-trash).
      */
     @Nested
     class NeverEmpty {
         @Test
-        void removingTheLastTermIsRefused() {
+        void removingTheLastTermEmptiesTheValueAndWritesNothing() {
             ExpressionBuilder builder = ExpressionBuilder.of("192");
             builder.remove(0);
-            assertTrue(builder.refusal().isPresent());
-            assertEquals("192", builder.text());
+            assertFalse(builder.refusal().isPresent());
+            assertEquals(List.of(), builder.terms());
+            assertTrue(builder.written().isEmpty());
         }
 
         @Test
-        void removingTheLastRowIsRefused() {
+        void removingTheLastRowLeavesNoRowsAndWritesNothing() {
             ExpressionBuilder builder = ExpressionBuilder.of("{\"metal\": \"5\"}");
             builder.removeRow(0);
-            assertTrue(builder.refusal().isPresent());
-            assertEquals("{\"metal\": \"5\"}", builder.text());
+            assertFalse(builder.refusal().isPresent());
+            assertEquals(List.of(), builder.rows());
+            assertTrue(builder.isPerType());
+            assertTrue(builder.written().isEmpty());
         }
 
         @Test
@@ -278,17 +281,26 @@ class ExpressionBuilderTest {
             assertTrue(sum.canMoveTo(List.of(1), List.of(), 0), "a subtracted term landing first");
             assertTrue(sum.canMoveTo(List.of(2), List.of(), 0));
             assertTrue(sum.canRemove(List.of(1)));
+            // Decision only-term-or-row-drags-to-the-trash: a whole value's or a type row's last term goes, leaving an
+            // empty sum, and the last type row goes, leaving no rows under a per-type value.
             ExpressionBuilder alone = ExpressionBuilder.of("$waxed");
-            assertFalse(alone.canRemove(List.of(0)), "a whole value's last term");
+            assertTrue(alone.canRemove(List.of(0)), "a whole value's last term");
             alone.remove(List.of(0));
-            assertEquals("$waxed", alone.text());
+            assertEquals(List.of(), alone.terms());
+            assertFalse(alone.refusal().isPresent());
             ExpressionBuilder nested = ExpressionBuilder.of("$waxed + ($edited)");
             assertTrue(nested.canRemove(List.of(1, 0)), "a parenthetical's last term goes with it");
+            nested.remove(List.of(1, 0));
+            assertWrites("$waxed", nested);
             ExpressionBuilder oneRow = ExpressionBuilder.of("{\"metal\": \"5\"}");
-            assertFalse(oneRow.canRemove(List.of(0, 0)), "a type row's last term");
-            assertFalse(oneRow.canRemoveRow(0), "the last type row");
+            assertTrue(oneRow.canRemove(List.of(0, 0)), "a type row's last term");
+            assertTrue(oneRow.canRemoveRow(0), "the last type row");
+            ExpressionBuilder emptiedRow = ExpressionBuilder.of("{\"metal\": \"5\"}");
+            emptiedRow.remove(List.of(0, 0));
+            assertEquals(List.of(), emptiedRow.rows().getFirst().pieces());
             oneRow.removeRow(0);
-            assertEquals("{\"metal\": \"5\"}", oneRow.text());
+            assertEquals(List.of(), oneRow.rows());
+            assertTrue(oneRow.isPerType(), "the value stays per type with no rows");
             ExpressionBuilder twoRows = ExpressionBuilder.of("{\"metal\": \"5\", \"pulse\": \"2\"}");
             assertTrue(twoRows.canRemoveRow(0));
             assertFalse(twoRows.canMoveRow(0, 0));

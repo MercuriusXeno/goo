@@ -419,7 +419,7 @@ final class ExpressionBuilderPane {
         graphics.fill(right - CAN_RIB_INSET - 1, bodyTop + 1, right - CAN_RIB_INSET, ribBottom, TRASH_CAN);
     }
 
-    // Decision drags-indicate-only-a-drop-the-builder-takes: the strip lights only for a thing the builder deletes.
+    // Decision only-term-or-row-drags-to-the-trash: the strip lights for any term or row held, the only one included.
     private boolean dragDeletable() {
         Drag term = dragging;
         RowDrag row = rowDragging;
@@ -799,8 +799,8 @@ final class ExpressionBuilderPane {
             this.type = type;
         }
 
-        // Decision drags-indicate-only-a-drop-the-builder-takes: a row slot the builder takes, and the strip only
-        // where the row can go.
+        // Decision drags-indicate-only-a-drop-the-builder-takes: a row slot the builder takes; every row, the only one
+        // included, lights the strip (decision only-term-or-row-drags-to-the-trash).
         @Override
         public void moved(double movedX, double movedY) {
             rowDragging = this;
@@ -897,7 +897,7 @@ final class ExpressionBuilderPane {
         }
 
         // Decision drags-indicate-only-a-drop-the-builder-takes: the slot the term would drop into is one the builder
-        // takes, and the strip counts only where the term can go.
+        // takes; every term, a sum's only one included, lights the strip (decision only-term-or-row-drags-to-the-trash).
         @Override
         public void moved(double movedX, double movedY) {
             dragging = this;
