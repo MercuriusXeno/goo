@@ -13,6 +13,22 @@ final class RowLayout {
     static final int SPRITE_SIZE = 16;
     /** A row holding a sprite. */
     static final int SPRITE_ROW_HEIGHT = 18;
+    // Decision spacing-rules-are-one-set-across-every-pane: every pane draws its gaps from these three.
+    /** The room between a rule and the buttons above or below it. */
+    static final int RULE_GAP = 2;
+    /** The room between neighbouring buttons, as the rename pencil stands past its name. */
+    static final int BUTTON_GAP = 3;
+    /** The room the builder's gray box keeps outside its contents. */
+    static final int BOX_MARGIN = 3;
+    /** The room a row leaves under its last buttons: the rule gap and the rule's own pixel. */
+    static final int RULE_SPAN = RULE_GAP + 1;
+    /**
+     * The room a sprite row keeps between its sprite and the rule below it, so no rule touches a sprite (decision
+     * rule-takes-padding-above-it).
+     */
+    static final int RULE_PADDING = RULE_GAP;
+    /** A row holding a sprite, from its top to the next one's: the row and the rule's padding. */
+    static final int SPRITE_ROW_PITCH = SPRITE_ROW_HEIGHT + RULE_PADDING;
     /** The separator's dim color. */
     static final int SEPARATOR_COLOR = 0x40FFFFFF;
 

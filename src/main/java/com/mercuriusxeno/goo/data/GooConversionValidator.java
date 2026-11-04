@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Validates _conversions and _post_conversions blocks in base_values.json for
+ * Validates the _conversions block, and a legacy _post_conversions block, in base_values.json for
  * unknown @refs, malformed formulas, and bad constant references. Extracted from
  * {@link GooValueValidator} to keep per-class method counts manageable.
  */
@@ -23,11 +23,11 @@ final class GooConversionValidator {
      */
     private static final String VALUE_DENIED = "denied";
     /**
-     * JSON block key for pre-derivation conversions.
+     * JSON block key for conversions, applied after recipes derive.
      */
     private static final String KEY_CONVERSIONS = "_conversions";
     /**
-     * JSON block key for post-derivation conversions.
+     * The legacy key a hand-kept file may still carry for the same block.
      */
     private static final String KEY_POST_CONVERSIONS = "_post_conversions";
     /**
@@ -88,7 +88,7 @@ final class GooConversionValidator {
     }
 
     /**
-     * Validates both _conversions and _post_conversions blocks.
+     * Validates the _conversions block and a legacy _post_conversions block.
      *
      * @param json           the root JSON object
      * @param knownConstants known constant names for reference validation

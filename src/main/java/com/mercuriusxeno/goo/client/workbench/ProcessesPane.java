@@ -19,8 +19,9 @@ import java.util.function.Supplier;
  * an entry's first line and its sentence of controls at full width below (decision mutator-rows-take-an-extra-line),
  * which build the entry with nothing typed but a number or a search (decision
  * expression-builder-composes-every-form-without-typing), and Delete drops the entry, as
- * index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The rows scroll
- * under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
+ * index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The mutators column
+ * takes 60 percent of the width and the iterators column 40 (decision mutators-iterators-split-sixty-forty).
+ * The rows scroll under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
 final class ProcessesPane {
     private static final int ROW_HEIGHT = 13;
@@ -32,25 +33,25 @@ final class ProcessesPane {
     private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename";
     private static final String DELETE_HINT = "Delete";
-    private static final int PENCIL_GAP = 3;
-    // A button stands a pixel under the rule above its row and its label five under that.
-    private static final int BUTTON_INSET = 1;
-    private static final int HEAD_TEXT_NUDGE = 4;
-    // The kind dropdown's line centers a button two pixels under the line's top.
-    private static final int KIND_LINE_INSET = 2;
-    private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT + 1;
+    // Decision spacing-rules-are-one-set-across-every-pane: the pencil a button gap past the name, and the head
+    // line's buttons the rule gap under the rule above, its text on their labels' line.
+    private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
+    private static final int BUTTON_INSET = RowLayout.RULE_GAP;
+    private static final int HEAD_TEXT_NUDGE = BUTTON_INSET + ButtonPainter.TEXT_NUDGE;
+    // The sentence line centers its buttons, so they stand the rule gap under the head line's.
+    private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT;
     private static final int ROW_GAP = 1;
     /**
      * A row whose sentence takes one line, from its top to the next row's
      * (decision mutator-delete-clears-a-thinner-rule-and-lines-tighten).
      */
-    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.LINE + ROW_GAP;
+    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.FULL_LINE + ROW_GAP;
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
-    // The mutators column takes two fifths of the pane, the iterators column the other three.
-    private static final int MUTATOR_FIFTHS = 2;
-    private static final int FIFTHS = 5;
     private static final int HALF = 2;
+    // The mutators column takes three fifths of the pane and the iterators column two.
+    private static final int MUTATORS_FIFTHS = 3;
+    private static final int FIFTHS = 5;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
     /** An Invalid verdict's color. */
@@ -61,7 +62,8 @@ final class ProcessesPane {
     private static final String CROSS = "✘";
     private static final String REASON_GAP = ": ";
     private static final String NO_REASON = "";
-    private static final int ROW_COLOR = 0x20FFFFFF;
+    /** A mutator or iterator row's box fill. */
+    static final int ROW_COLOR = 0x20FFFFFF;
     private static final String DELETE = "✗";
     // A section key starts with an underscore and holds no newline, so a newline parts it from the entry's key.
     private static final char MARK_SEPARATOR = '\n';
@@ -78,12 +80,10 @@ final class ProcessesPane {
     private static final int NAME_BOX_WIDTH = 140;
     private static final int NAME_BOX_HEIGHT = 16;
     private static final String SEARCH_HINT = "Search mutators";
+    // Decision conversions-is-the-one-section-and-the-pane-name: the pane shows the one section, under no sub-tab.
     private static final String CONVERSIONS = "_conversions";
-    private static final String POST_CONVERSIONS = "_post_conversions";
-    private static final String[] SUB_TABS = {CONVERSIONS, POST_CONVERSIONS};
-    private static final String[] SUB_TAB_LABELS = {"Conversions", "Post conversions"};
     private static final int SEARCH_WIDTH = 200;
-    /** The row the sub-tabs and the search box take above the columns. */
+    /** The row the search box takes above the columns. */
     static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
 
     private final ProcessesTab processes;
@@ -100,7 +100,6 @@ final class ProcessesPane {
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
     private @Nullable Naming naming;
-    private String shownSection = POST_CONVERSIONS;
     private boolean nameBoxPlaced;
     private boolean visible;
 
@@ -219,16 +218,14 @@ final class ProcessesPane {
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane, ClickTargets targets) {
         overlays.commitOnBlur();
-        // Decision mutators-tab-renames-and-searches-by-name: the search box stands above the scrolling blocks, right
-        // of the sub-tabs.
-        int afterTabs = drawSubTabs(graphics, font, pane.left(), pane.top() + 1, targets);
+        // Decision mutators-tab-renames-and-searches-by-name: the search box stands above the scrolling blocks.
         if (search != null) {
-            search.setPosition(afterTabs + GAP, pane.top());
+            search.setPosition(pane.left(), pane.top());
         }
         nameBoxPlaced = false;
-        // Decision mutators-column-shrinks-a-fifth-for-iterators.
-        columnsMiddle = pane.left() + (pane.right() - pane.left()) * MUTATOR_FIFTHS / FIFTHS;
-        processes.sections().stream().filter(section -> section.section().equals(shownSection)).findFirst()
+        // Decision mutators-iterators-split-sixty-forty.
+        columnsMiddle = pane.left() + (pane.right() - pane.left()) * MUTATORS_FIFTHS / FIFTHS;
+        processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
                 .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
                         pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
         if (nameBox != null) {
@@ -258,7 +255,7 @@ final class ProcessesPane {
         graphics.text(frame.font(), iterators ? ITERATORS : MUTATORS, column.left(), column.top() + HEADING_NUDGE,
                 WHITE);
         drawCreate(frame, section.section(), iterators, column.top());
-        int listTop = column.top() + ControlFlow.LINE + GAP;
+        int listTop = column.top() + ControlFlow.FULL_LINE + GAP;
         ScrollBar bar = columnBar(iterators);
         GroupsPane.Bounds rows = new GroupsPane.Bounds(column.left(), listTop,
                 column.right() - ScrollBar.WIDTH - ScrollBar.GAP, column.bottom());
@@ -280,33 +277,6 @@ final class ProcessesPane {
      * @param targets  the frame's click areas
      */
     private record Frame(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds rows, ClickTargets targets) {
-    }
-
-    // The operator's ruling: conversions and post-conversions are sub-tabs of Mutators, post-conversions the
-    // default; drawn as one segmented set like the Items filters. Answers the set's right edge.
-    private int drawSubTabs(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
-        int x = left;
-        for (int index = 0; index < SUB_TABS.length; index++) {
-            String section = SUB_TABS[index];
-            String label = SUB_TAB_LABELS[index];
-            int width = font.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING;
-            ValuesPane.drawChipFace(graphics, font, new ValuesPane.Chip(ValuesTab.Filter.ITEMS, label, x, top, width,
-                    ButtonPainter.HEIGHT, section.equals(shownSection)), WHITE);
-            targets.add(x, top, width, ButtonPainter.HEIGHT, () -> showSection(section));
-            x += width - 1;
-        }
-        return x + 1;
-    }
-
-    private void showSection(String section) {
-        if (!section.equals(shownSection)) {
-            shownSection = section;
-            overlays.close();
-            stopNaming();
-            for (ScrollBar each : bars) {
-                each.reset();
-            }
-        }
     }
 
     // Decision group-assignments-read-as-iterators: a column's rows, mutators or iterators alone. Answers the y below
@@ -416,27 +386,31 @@ final class ProcessesPane {
         return below + ROW_GAP;
     }
 
-    // Decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete: the name, the kind dropdown, the
-    // mark, Rename and Delete at fixed column lefts, under no header.
+    // Decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete: the name, the mark, Rename and Delete
+    // at fixed column lefts, under no header; the kind opens the sentence line below
+    // (decision mutator-row-is-kind-then-type-reading-add-and-no-applies).
     // The operator's report: the kind stood behind the scroll bar, so the line lays out from the x at the column's
     // right end leftward, and the name takes the room left over.
     private void drawHeadLine(Frame frame, String section, ProcessesTab.ProcessRow row, int y) {
         GuiGraphicsExtractor graphics = frame.graphics();
         Font font = frame.font();
-        int deleteX = frame.rows().right() - ButtonPainter.width(font, DELETE);
-        int markX = deleteX - MARK_WIDTH;
-        int kindX = markX - MutatorControls.kindWidth(font) - PENCIL_GAP;
-        int nameRoom = kindX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
+        int markX = markerLeft(font, frame.rows().right());
+        int nameRoom = markX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
         drawName(frame, section, row.key(), new NameSlot(y, nameRoom));
-        if (!ProcessesTab.isIterator(row.key())) {
-            controls.drawKind(graphics, font, section, row.key(), kindX, y + BUTTON_INSET - KIND_LINE_INSET,
-                    frame.targets());
-        }
         VerdictMark mark = verdictMark(row);
         graphics.text(font, mark.glyph(), markX, y + HEAD_TEXT_NUDGE, mark.color());
         frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
                 + (row.reason().isEmpty() ? NO_REASON : REASON_GAP + row.reason())));
         drawRemoval(frame, section, row.key(), y + BUTTON_INSET);
+    }
+
+    /**
+     * @param font     the screen's font
+     * @param rowRight the row's right edge
+     * @return the validity marker's left, which stands just left of the remove X at the row's right end
+     */
+    static int markerLeft(Font font, int rowRight) {
+        return rowRight - ButtonPainter.width(font, DELETE) - MARK_WIDTH;
     }
 
     // The red x at the row's right end marks the entry; a marked entry's gold arrow in its place restores it.
@@ -469,6 +443,15 @@ final class ProcessesPane {
 
     // The name cut to its room, hovering whole where cut, the pencil just past its last letter; the rename box
     // stands in their place while open.
+    // Decision group-referent-previews-shorthand-members-then-its-value: an iterator's name previews the group it
+    // fills; a cut mutator name hovers whole, and a whole one nothing.
+    private static Optional<String> nameHoverKey(String key, String shown) {
+        if (ProcessesTab.isIterator(key)) {
+            return Optional.of(GroupHovers.iteratorHoverKey(key));
+        }
+        return shown.equals(key) ? Optional.empty() : Optional.of(BuilderOverlays.hintKey(key));
+    }
+
     private void drawName(Frame frame, String section, String key, NameSlot slot) {
         int x = frame.rows().left();
         int y = slot.y();
@@ -480,9 +463,8 @@ final class ProcessesPane {
         String shown = fittedName(frame.font(), key, slot.room());
         ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, y + HEAD_TEXT_NUDGE,
                 draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)));
-        if (!shown.equals(key)) {
-            frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, BuilderOverlays.hintKey(key));
-        }
+        nameHoverKey(key, shown).ifPresent(hover -> frame.targets().addHover(x, y, frame.font().width(shown),
+                HEAD_HEIGHT, hover));
         ButtonPainter.draw(frame.graphics(), frame.font(), RENAME, x + frame.font().width(shown) + PENCIL_GAP,
                 y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
                         ProcessesTab.isIterator(key), key)), BuilderOverlays.hintKey(RENAME_HINT));
@@ -538,15 +520,6 @@ final class ProcessesPane {
      */
     void reveal(String key) {
         revealPending = key;
-        processes.sections().stream().filter(section -> section.rows().stream().anyMatch(row -> row.key().equals(key)))
-                .findFirst().ifPresent(section -> shownSection = section.section());
-    }
-
-    /**
-     * @return the section the sub-tabs show, post-conversions until another is picked
-     */
-    String shownSection() {
-        return shownSection;
     }
 
     // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.

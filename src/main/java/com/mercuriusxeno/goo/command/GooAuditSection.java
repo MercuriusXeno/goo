@@ -55,6 +55,18 @@ public record GooAuditSection(String section, String header, List<String> lines,
                 lines.stream().filter(line -> line.contains(mark)).map(String::trim).toList());
     }
 
+    /**
+     * A section whose rule found nothing to list answers one line saying what being fine means for that rule.
+     * Decision flagless-section-shows-one-all-clear-line.
+     *
+     * @param lines    the lines the rule listed
+     * @param allClear the rule's all-clear line, indented as its lines are
+     * @return the lines, or the all-clear line alone where they hold none
+     */
+    static List<String> orAllClear(List<String> lines, String allClear) {
+        return lines.isEmpty() ? List.of(allClear) : List.copyOf(lines);
+    }
+
     private static List<String> linesUnder(List<String> appended) {
         int end = appended.size() > HEADER_AND_SEPARATOR && appended.getLast().isEmpty()
                 ? appended.size() - 1 : appended.size();

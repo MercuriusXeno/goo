@@ -84,7 +84,7 @@ class PrefabHoversTest {
          */
         @Test
         void eachAppliedMutatorHoversItsName() {
-            controls(new Processes.Assignment("logs", 1, 1, List.of("@waxed", "@smelt"))).draw(graphics, font(),
+            controls(new Processes.Assignment("logs", List.of("@waxed", "@smelt"))).draw(graphics, font(),
                     "_mutators", "#logs", new GroupsPane.Bounds(0, 0, 400, 400), 0, targets);
             assertEquals(1, prefabHovers(targets, "waxed"));
             assertEquals(1, prefabHovers(targets, "smelt"));
@@ -93,11 +93,44 @@ class PrefabHoversTest {
 
     @Nested
     class Tooltip {
-        private final VariablesTab variables = new VariablesTab(new ManagerDraft());
+        private static final String MODEL = """
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "base", "keySeparator": null, "kind": "VALUE", "text": "6", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "6", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "double", "keySeparator": null, "kind": "VALUE", "text": "\\"$base * 2\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "x", "keySeparator": null, "kind": "VALUE", "text": "{\\"leaf\\": \\"$stick\\"}",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "broken", "keySeparator": null, "kind": "VALUE", "text": "\\"$missing + 1\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}
+                ]}
+                """;
+        private static final String VALUES = """
+                {"constants": [
+                  {"name": "base", "kind": "scalar", "value": "6", "error": null, "usedBy": ["oak"], "readers": []},
+                  {"name": "stick", "kind": "scalar", "value": "6", "error": null, "usedBy": [], "readers": []},
+                  {"name": "double", "kind": "scalar", "value": "12", "error": null, "usedBy": [], "readers": []},
+                  {"name": "x", "kind": "tree", "tree": {"leaf": "6"}, "value": null, "error": null,
+                   "usedBy": [], "readers": []},
+                  {"name": "broken", "kind": "scalar", "value": null, "error": "Unknown constant $missing",
+                   "usedBy": [], "readers": []}
+                ]}
+                """;
+        private final VariablesTab variables;
+
+        Tooltip() {
+            ManagerDraft draft = new ManagerDraft();
+            draft.read(MODEL);
+            variables = new VariablesTab(draft);
+        }
 
         @BeforeEach
         void readEvaluated() {
-            variables.readEvaluated(EVALUATED);
+            variables.readEvaluated(VALUES);
         }
 
         private List<TooltipLine> lines(String name) {
@@ -109,22 +142,31 @@ class PrefabHoversTest {
         }
 
         /**
-         * A tree prefab reads its name then one goo amount line per type, carrying the type's id and its amount and
-         * no type name (decision value-tooltips-draw-each-types-icon-before-its-amount).
+         * A scalar prefab reads $name = its expression, the reduced value in parentheses where it differs from the
+         * expression, on one head line with no Used by (decision
+         * prefab-tooltip-reads-name-equals-expression-then-reduced-value).
          */
         @Test
-        void treeReadsEachTypesAmount() {
-            assertEquals(List.of(text("waxed"), new TooltipLine.GooAmount("weird", "3"),
-                    new TooltipLine.GooAmount("jelly", "1/2")), lines("waxed"));
+        void scalarReadsNameEqualsExpressionThenItsReducedValue() {
+            assertEquals(List.of(text("$base = 6")), lines("base"));
+            assertEquals(List.of(text("$double = $base * 2 (12)")), lines("double"));
         }
 
         /**
-         * A scalar reads its value, and an errored prefab its error, as text lines.
+         * A typed prefab over a prefab reads type = $prefab, the scalar in its own parentheses right of the prefab
+         * name, and no (type: scalar) (decision prefab-tooltip-reads-name-equals-expression-then-reduced-value).
          */
         @Test
-        void scalarReadsItsValueAndAnErrorItsText() {
-            assertEquals(List.of(text("base"), text("8")), lines("base"));
-            assertEquals(List.of(text("broken"), text("Unknown constant $missing")), lines("broken"));
+        void typedPrefabPutsTheScalarRightOfThePrefabName() {
+            assertEquals(List.of(text("$x = leaf = $stick (6)")), lines("x"));
+        }
+
+        /**
+         * An errored prefab reads its head line, then its error.
+         */
+        @Test
+        void erroredPrefabReadsItsHeadLineThenItsError() {
+            assertEquals(List.of(text("$broken = $missing + 1"), text("Unknown constant $missing")), lines("broken"));
         }
     }
 }

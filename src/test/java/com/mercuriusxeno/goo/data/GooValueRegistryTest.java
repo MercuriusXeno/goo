@@ -1172,47 +1172,25 @@ class GooValueRegistryTest {
         }
 
         /**
-         * Pre-derivation conversions propagate through recipes.
+         * Conversions modify effective values after recipes, under the one _conversions key and under the legacy
+         * _post_conversions key a hand-kept file still carries (decision
+         * conversions-is-the-one-section-and-the-pane-name).
+         *
+         * @param key the block's key
          */
-        @Test
-        void preConversionPropagatesThroughRecipes() throws IOException {
-            parseBaseValuesFromStream(
-                    new ByteArrayInputStream("""
-                            {
-                                "minecraft:exposed_copper": { "metal": 160 },
-                                "_conversions": {
-                                    "oxidation": "metal / 4 -> yore / 2",
-                                    "minecraft:exposed_copper": "@oxidation"
-                                }
-                            }
-                            """.getBytes(StandardCharsets.UTF_8)));
-            // Pre-conversion modifies base: exposed_copper = {metal: 120, yore: 20}
-            // Recipe derives a slab from it
-            List<RecipeInput> recipes = List.of(
-                    recipe("minecraft:exposed_copper_slab", 2, slot("minecraft:exposed_copper"))
-            );
-            registry.deriveFromRecipeInputs(recipes, false);
-            GooValue slab = registry.table().lookup(id("minecraft:exposed_copper_slab"));
-            assertNotNull(slab);
-            assertEquals(GooFraction.of(60), slab.exact(GooTypes.METAL));  // 120 / 2
-            assertEquals(GooFraction.of(10), slab.exact(GooTypes.YORE));    // 20 / 2
-        }
-
-        /**
-         * Post-derivation conversions modify effective values after recipes.
-         */
-        @Test
-        void postConversionAppliesAfterDerivation() throws IOException {
+        @org.junit.jupiter.params.ParameterizedTest
+        @org.junit.jupiter.params.provider.ValueSource(strings = {"_conversions", "_post_conversions"})
+        void conversionAppliesAfterDerivation(String key) throws IOException {
             parseBaseValuesFromStream(
                     new ByteArrayInputStream("""
                             {
                                 "minecraft:copper_ingot": { "metal": 160 },
-                                "_post_conversions": {
+                                "%s": {
                                     "oxidation": "metal / 4 -> yore / 2",
                                     "minecraft:copper_ingot": "@oxidation"
                                 }
                             }
-                            """.getBytes(StandardCharsets.UTF_8)));
+                            """.formatted(key).getBytes(StandardCharsets.UTF_8)));
             // Post-conversion: base value is unchanged (metal: 160)
             // Recipes derive from unmodified base
             List<RecipeInput> recipes = List.of(

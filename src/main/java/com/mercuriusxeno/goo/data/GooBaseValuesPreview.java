@@ -149,23 +149,15 @@ public final class GooBaseValuesPreview {
     }
 
     /**
-     * The _conversions and _post_conversions blocks as the game's conversion parser reads them.
-     *
-     * @param pre  the _conversions block, applied before recipes derive
-     * @param post the _post_conversions block, applied after
-     */
-    public record Conversions(GooConversion.ParsedConversions pre, GooConversion.ParsedConversions post) {
-    }
-
-    /**
      * @param json base_values.json text
-     * @return both conversion blocks as the loader parses them, each empty where the file holds none
+     * @return the _conversions block as the loader parses it, applied after recipes derive, empty where the file
+     *     holds none (decision conversions-is-the-one-section-and-the-pane-name)
      */
-    public static Conversions conversions(String json) {
+    public static GooConversion.ParsedConversions conversions(String json) {
         GooValueLoader.ParseState state = new GooValueLoader.ParseState(new LinkedHashMap<>(), new HashMap<>(),
                 new HashSet<>(), new HashSet<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new HashMap<>());
         GooValueLoader.applyMergedLayers(List.of(JsonParser.parseString(json).getAsJsonObject()), state, NO_TAGS);
-        return new Conversions(orEmpty(state.preConversions), orEmpty(state.postConversions));
+        return orEmpty(state.postConversions);
     }
 
     private static GooConversion.ParsedConversions orEmpty(GooConversion.@Nullable ParsedConversions parsed) {

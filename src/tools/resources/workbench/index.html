@@ -1184,7 +1184,7 @@ function setEntryText(id, text) {
     existing.text = text;
     return;
   }
-  const closing = ['_restricted', '_conversions', '_post_conversions'];
+  const closing = ['_restricted', '_conversions'];
   let at = state.model.members.length;
   while (at > 0 && closing.includes(state.model.members[at - 1].key)) {
     at--;
@@ -1599,7 +1599,7 @@ async function showHover(id, x, y) {
   placeCard(parts, x, y);
 }
 
-// --- Processes: _conversions and _post_conversions, each entry checked by the game's conversion parser ---
+// --- Processes: _conversions, each entry checked by the game's conversion parser ---
 
 const PROCESS_FORMS = {
   FORMULA: 'metal / 4 -> yore / 9',

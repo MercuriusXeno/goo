@@ -100,16 +100,6 @@ class VariablesTabTest {
             assertEquals("tree", egg.kind());
             assertEquals("zoo 8", egg.resolved());
         }
-
-        /**
-         * A prefab with type values names its kind typed to the operator, a number prefab = (decision
-         * type-valued-prefabs-read-typed).
-         */
-        @Test
-        void typeValuedPrefabNamesItsKindTyped() {
-            assertEquals(List.of("=", "=", "typed"),
-                    tab.blocks().stream().map(VariablesTab.ConstantBlock::shownKind).toList());
-        }
     }
 
     @Nested

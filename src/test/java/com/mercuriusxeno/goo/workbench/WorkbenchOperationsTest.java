@@ -40,8 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class WorkbenchOperationsTest {
 
-    private static final List<String> SECTIONS = List.of("_constants", "_groups", "_restricted", "_conversions",
-            "_post_conversions");
+    private static final List<String> SECTIONS = List.of("_constants", "_groups", "_restricted", "_conversions");
     private static final String INVENTORY = "{\"items\":[{\"id\":\"minecraft:iron_nugget\",\"name\":\"Iron Nugget\"}],"
             + "\"item_tags\":[],\"goo_types\":[],\"recipes\":[]}";
     // An inventory written before the dump dropped its block sections, which stands until the next dump
@@ -161,6 +160,21 @@ class WorkbenchOperationsTest {
             savedWithBase("195");
             JsonObject discarded = answeredJson(WorkbenchOperations.DISCARD, "{}");
             assertEquals(Files.readString(paths.baseValues()), Files.readString(paths.draft()));
+            assertFalse(discarded.getAsJsonObject("draft").get("differs").getAsBoolean());
+        }
+
+        /**
+         * Where no live file stands, as in a fresh tree whose draft was seeded from the bundled values, discard copies
+         * that seed back over the draft, and the draft reads unchanged: the operator's revert answered "No live file
+         * stands to discard back to" and kept the broken draft.
+         */
+        @Test
+        void discardWithNoLiveFileRestoresTheSeed() throws IOException {
+            Files.delete(paths.baseValues());
+            answered(WorkbenchOperations.SAVE_MODEL, posted(sample()));
+            assertNotEquals("{\n}\n", Files.readString(paths.draft()), "the save wrote the draft");
+            JsonObject discarded = answeredJson(WorkbenchOperations.DISCARD, "{}");
+            assertEquals("{\n}\n", Files.readString(paths.draft()));
             assertFalse(discarded.getAsJsonObject("draft").get("differs").getAsBoolean());
         }
 

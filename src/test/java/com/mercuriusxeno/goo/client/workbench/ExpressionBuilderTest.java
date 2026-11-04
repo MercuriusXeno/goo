@@ -194,16 +194,246 @@ class ExpressionBuilderTest {
     class Sums {
         private static final List<Integer> FIRST_SUM = List.of(1);
 
+        private static final List<Integer> LEAF_ROW = List.of(0);
+
+        // Each step's string is one the file grammar reads.
+        private static void assertWrites(String expected, ExpressionBuilder builder) {
+            assertEquals(expected, builder.text());
+            assertTrue(ExpressionTerms.parseShown(builder.text()).isPresent(), builder.text());
+        }
+
+        // Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators: the joined add, () and ^ v build
+        // beetroot's leaf from an empty row.
         @Test
-        void sumOfTermsIsSubtracted() {
-            ExpressionBuilder builder = ExpressionBuilder.of("$dye.leaf");
-            builder.addSum(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "food", "jelly"));
-            builder.setJoin(FIRST_SUM, ExpressionTerms.Join.MINUS);
-            builder.relate(FIRST_SUM, new SearchDropdown.Choice(SearchDropdown.Kind.PREFAB, "saturation",
-                    "saturation"));
-            builder.setMember(List.of(1, 1), "jelly");
-            builder.setScale(List.of(1, 1), ExpressionBuilder.Op.MULTIPLY, "12");
-            assertEquals("$dye.leaf - ($food.jelly + 12 $saturation.jelly)", builder.text());
+        void wrapMoveAndTheJoinedAddBuildBeetrootsLeafFromAnEmptyRow() {
+            ExpressionBuilder builder = ExpressionBuilder.of("");
+            builder.switchToPerType();
+            builder.addType("leaf");
+            assertWrites("{\"leaf\": \"1\"}", builder);
+            builder.setOperand(List.of(0, 0), new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "dye", "leaf"));
+            assertWrites("{\"leaf\": \"$dye.leaf\"}", builder);
+            assertTrue(builder.insertAt(LEAF_ROW, 1, new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "food",
+                    "jelly"), ExpressionTerms.Join.MINUS));
+            assertWrites("{\"leaf\": \"$dye.leaf - $food.jelly\"}", builder);
+            builder.wrap(List.of(0, 1));
+            assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly)\"}", builder);
+            assertTrue(builder.insertAt(List.of(0, 1), 1, new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB,
+                    "saturation", "jelly"), ExpressionTerms.Join.PLUS));
+            builder.setScale(List.of(0, 1, 1), ExpressionBuilder.Op.MULTIPLY, "12");
+            assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly + 12 $saturation.jelly)\"}", builder);
+            builder.move(List.of(0, 1, 1), -1);
+            assertWrites("{\"leaf\": \"$dye.leaf - (12 $saturation.jelly + $food.jelly)\"}", builder);
+            builder.move(List.of(0, 1, 0), 1);
+            assertWrites("{\"leaf\": \"$dye.leaf - ($food.jelly + 12 $saturation.jelly)\"}", builder);
+        }
+
+        // Decision parenthetical-handle-drags-onto-a-term: the handle dropped on a term inside a parenthetical nests a
+        // group there, and dropped on the parenthetical itself wraps it in a second group.
+        @Test
+        void wrapNestsOnAnInnerTermAndOnAParentheticalItself() {
+            ExpressionBuilder inner = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            inner.wrap(List.of(1, 1));
+            assertWrites("$waxed + ($edited - ($base))", inner);
+            ExpressionBuilder outer = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            outer.wrap(List.of(1));
+            assertWrites("$waxed + (($edited - $base))", outer);
+        }
+
+        // Decision terms-and-type-rows-drag-to-a-trash-strip: a parenthetical whose last term is dragged out of it,
+        // before or after it, goes; one keeping a term stands around it.
+        @Test
+        void draggingAParentheticalsLastTermOutDeletesTheParenthetical() {
+            ExpressionBuilder after = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(after.moveTo(List.of(1, 0), List.of(), 2));
+            assertWrites("$waxed + $edited", after);
+            ExpressionBuilder before = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(before.moveTo(List.of(1, 0), List.of(), 0));
+            assertWrites("$edited + $waxed", before);
+            ExpressionBuilder kept = ExpressionBuilder.of("$waxed + ($edited + $base)");
+            assertTrue(kept.moveTo(List.of(1, 1), List.of(), 2));
+            assertWrites("$waxed + ($edited) + $base", kept);
+        }
+
+        // Decision terms-and-type-rows-drag-to-a-trash-strip: trashing a parenthetical's last term deletes the
+        // parenthetical, and trashing a parenthetical removes it whole.
+        @Test
+        void removingAParentheticalsLastTermRemovesTheParenthetical() {
+            ExpressionBuilder inner = ExpressionBuilder.of("$waxed + ($edited)");
+            inner.remove(List.of(1, 0));
+            assertWrites("$waxed", inner);
+            ExpressionBuilder whole = ExpressionBuilder.of("$waxed + ($edited - $base)");
+            whole.remove(List.of(1));
+            assertWrites("$waxed", whole);
+        }
+
+        // Decision drags-indicate-only-a-drop-the-builder-takes: each dry run answers false exactly where its verb
+        // refuses, and the verb leaves the value standing there.
+        @Test
+        void dryRunsAnswerFalseExactlyWhereTheirVerbsRefuse() {
+            String opened = "$waxed - $edited + $base";
+            ExpressionBuilder sum = ExpressionBuilder.of(opened);
+            assertFalse(sum.canMoveTo(List.of(1), List.of(), 1), "its own slot before");
+            assertFalse(sum.canMoveTo(List.of(1), List.of(), 2), "its own slot after");
+            // Decision every-term-carries-its-sign-as-a-segment: a subtracted term lands first with its minus.
+            assertTrue(sum.canMoveTo(List.of(1), List.of(), 0), "a subtracted term landing first");
+            assertTrue(sum.canMoveTo(List.of(2), List.of(), 0));
+            assertTrue(sum.canRemove(List.of(1)));
+            ExpressionBuilder alone = ExpressionBuilder.of("$waxed");
+            assertFalse(alone.canRemove(List.of(0)), "a whole value's last term");
+            alone.remove(List.of(0));
+            assertEquals("$waxed", alone.text());
+            ExpressionBuilder nested = ExpressionBuilder.of("$waxed + ($edited)");
+            assertTrue(nested.canRemove(List.of(1, 0)), "a parenthetical's last term goes with it");
+            ExpressionBuilder oneRow = ExpressionBuilder.of("{\"metal\": \"5\"}");
+            assertFalse(oneRow.canRemove(List.of(0, 0)), "a type row's last term");
+            assertFalse(oneRow.canRemoveRow(0), "the last type row");
+            oneRow.removeRow(0);
+            assertEquals("{\"metal\": \"5\"}", oneRow.text());
+            ExpressionBuilder twoRows = ExpressionBuilder.of("{\"metal\": \"5\", \"pulse\": \"2\"}");
+            assertTrue(twoRows.canRemoveRow(0));
+            assertFalse(twoRows.canMoveRow(0, 0));
+            assertFalse(twoRows.canMoveRow(0, 1));
+            assertTrue(twoRows.canMoveRow(0, 2));
+            assertFalse(twoRows.canMoveTo(List.of(0, 0), List.of(1), 0), "a type row's only term emptying it");
+        }
+
+        // Decision operand-times-number-terms-edit-like-every-term: "$saturation.jelly * 12" opens as the prefab with
+        // its member and a 12 multiplier, and its writing reads back to the same pieces; a parenthetical times a
+        // number opens the same way.
+        @Test
+        void operandTimesNumberOpensAsAnEditablePiece() {
+            ExpressionBuilder beetroot = ExpressionBuilder.of("$food.jelly + $saturation.jelly * 12");
+            ExpressionBuilder.Piece saturation = beetroot.terms().get(1);
+            assertEquals(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "saturation", "jelly"),
+                    saturation.operand());
+            assertEquals("12", saturation.multiplier());
+            assertEquals(beetroot.terms(), ExpressionBuilder.of(beetroot.text()).terms(), beetroot.text());
+            ExpressionBuilder grouped = ExpressionBuilder.of("($waxed + $edited) * 3");
+            ExpressionBuilder.Piece group = grouped.terms().getFirst();
+            assertTrue(group.operand() instanceof ExpressionBuilder.Nest, group.toString());
+            assertEquals("3", group.multiplier());
+            assertEquals(grouped.terms(), ExpressionBuilder.of(grouped.text()).terms(), grouped.text());
+        }
+
+        @Test
+        void firstTermMovesNoHigherAndLastNoLower() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited");
+            builder.move(List.of(0), -1);
+            builder.move(List.of(1), 1);
+            assertEquals("$waxed + $edited", builder.text());
+            builder.move(List.of(1), -1);
+            assertEquals("$edited + $waxed", builder.text());
+        }
+
+        // Decision every-term-carries-its-sign-as-a-segment: a first term carries its sign as every term does, so a
+        // subtracted term moving first keeps its minus as a leading minus and the value stands.
+        @Test
+        void subtractedTermMovesFirstKeepingItsMinus() {
+            ExpressionBuilder up = ExpressionBuilder.of("$waxed - $edited");
+            assertTrue(up.canMove(List.of(1), -1));
+            up.move(List.of(1), -1);
+            assertEquals("-$edited + $waxed", up.text());
+            ExpressionBuilder down = ExpressionBuilder.of("$waxed - $edited");
+            assertTrue(down.canMove(List.of(0), 1));
+            down.move(List.of(0), 1);
+            assertEquals("-$edited + $waxed", down.text());
+        }
+
+        // Decision every-term-carries-its-sign-as-a-segment: a leading minus reads as the first term's MINUS sign,
+        // and writes back as the leading minus the game's grammar reads.
+        @Test
+        void leadingMinusReadsAsTheFirstTermsSignAndWritesBack() {
+            ExpressionBuilder builder = ExpressionBuilder.of("-$waxed + $edited");
+            assertEquals(ExpressionTerms.Join.MINUS, builder.terms().getFirst().join());
+            assertEquals(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "waxed", null),
+                    builder.terms().getFirst().operand());
+            assertEquals("-$waxed + $edited", builder.text());
+            ExpressionBuilder flipped = ExpressionBuilder.of("$waxed + $edited");
+            flipped.setJoin(List.of(0), ExpressionTerms.Join.MINUS);
+            assertEquals("-$waxed + $edited", flipped.text());
+            flipped.setJoin(List.of(0), ExpressionTerms.Join.PLUS);
+            assertEquals("$waxed + $edited", flipped.text());
+        }
+
+        // Decision terms-drag-by-rails-with-a-preview-and-a-blue-drop-cursor: a dragged term lands in any slot, a
+        // later one in its own sum, inside a parenthetical or out of one.
+        @Test
+        void dropMovesATermToALaterSlotIntoAndOutOfAParenthetical() {
+            ExpressionBuilder later = ExpressionBuilder.of("$waxed + $edited + $food");
+            assertTrue(later.moveTo(List.of(0), List.of(), 3));
+            assertWrites("$edited + $food + $waxed", later);
+            ExpressionBuilder into = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertTrue(into.moveTo(List.of(0), List.of(1), 1));
+            assertWrites("($edited + $waxed + $food)", into);
+            ExpressionBuilder out = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertTrue(out.moveTo(List.of(1, 1), List.of(), 1));
+            assertWrites("$waxed + $food + ($edited)", out);
+        }
+
+        // A drop that would empty the whole value or drop a parenthetical into itself is refused and the value stands;
+        // a parenthetical emptied goes instead (decision terms-and-type-rows-drag-to-a-trash-strip).
+        @Test
+        void dropThatBreaksTheValueIsRefused() {
+            ExpressionBuilder emptying = ExpressionBuilder.of("($edited)");
+            assertFalse(emptying.moveTo(List.of(0, 0), List.of(), 0));
+            assertEquals("($edited)", emptying.text());
+            ExpressionBuilder itself = ExpressionBuilder.of("$waxed + ($edited + $food)");
+            assertFalse(itself.moveTo(List.of(1), List.of(1), 0));
+            assertEquals("$waxed + ($edited + $food)", itself.text());
+        }
+
+        // A move keeps every term's sign, so the value stands.
+        @Test
+        void moveKeepsTheSumsValue() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited - $food");
+            assertTrue(builder.canMove(List.of(2), -1));
+            builder.move(List.of(2), -1);
+            assertEquals("$waxed - $food + $edited", builder.text());
+        }
+
+        @Test
+        void joinedAddWritesTheChosenSignToTheWholeValue() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed");
+            builder.insertAt(List.of(), 1, new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null),
+                    ExpressionTerms.Join.MINUS);
+            assertEquals("$waxed - $edited", builder.text());
+        }
+
+        /**
+         * A + or - dropped on a slot inserts a term of that sign there, the one it passes taking plus (decision
+         * plus-and-minus-are-draggable-buttons-in-the-control-bay).
+         */
+        @Test
+        void insertAtLandsTheTermAtTheSlotWithItsSign() {
+            ExpressionBuilder.Ref edited = new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null);
+            ExpressionBuilder middle = ExpressionBuilder.of("$waxed + $base");
+            assertTrue(middle.canInsertAt(List.of(), 1, ExpressionTerms.Join.MINUS));
+            assertTrue(middle.insertAt(List.of(), 1, edited, ExpressionTerms.Join.MINUS));
+            assertEquals("$waxed - $edited + $base", middle.text());
+            ExpressionBuilder first = ExpressionBuilder.of("$waxed + $base");
+            assertTrue(first.insertAt(List.of(), 0, edited, ExpressionTerms.Join.PLUS));
+            assertEquals("$edited + $waxed + $base", first.text());
+            ExpressionBuilder inner = ExpressionBuilder.of("$waxed + ($base)");
+            assertTrue(inner.insertAt(List.of(1), 1, edited, ExpressionTerms.Join.MINUS));
+            assertEquals("$waxed + ($base - $edited)", inner.text());
+        }
+
+        // Decision every-term-carries-its-sign-as-a-segment: a - dropped first lands as a leading minus.
+        @Test
+        void insertAtLandsASubtractedFirstTermWithItsMinus() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $base");
+            ExpressionBuilder.Ref edited = new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "edited", null);
+            assertTrue(builder.canInsertAt(List.of(), 0, ExpressionTerms.Join.MINUS));
+            assertTrue(builder.insertAt(List.of(), 0, edited, ExpressionTerms.Join.MINUS));
+            assertEquals("-$edited + $waxed + $base", builder.text());
+        }
+
+        // Decision sum-of-terms-leaves-the-builder: a parenthetical the file holds still edits in place.
+        @Test
+        void beetrootsParentheticalWritesBackAfterAnInnerEdit() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$dye.leaf - ($food.jelly + $saturation.jelly * 12)");
+            builder.setJoin(List.of(1, 1), ExpressionTerms.Join.MINUS);
+            assertEquals("$dye.leaf - ($food.jelly - $saturation.jelly * 12)", builder.text());
         }
 
         @Test
@@ -281,6 +511,22 @@ class ExpressionBuilderTest {
             builder.setScale(0, ExpressionBuilder.Op.MULTIPLY, "2");
             builder.setScale(0, ExpressionBuilder.Op.DIVIDE, "3");
             assertEquals("2 $x / 3", builder.text());
+        }
+
+        // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a side set to 0 or to 1 returns to 1,
+        // so the file writes no factor for it.
+        @Test
+        void aSideSetToZeroOrOneReturnsToOne() {
+            for (String erased : List.of("0", "1", "00")) {
+                for (ExpressionBuilder.Op side : ExpressionBuilder.Op.values()) {
+                    ExpressionBuilder builder = ExpressionBuilder.of("3 $plank / 4");
+                    builder.setScale(0, side, erased);
+                    String expected = side == ExpressionBuilder.Op.MULTIPLY ? "$plank / 4" : "3 $plank";
+                    assertEquals(expected, builder.text(), side + " set to " + erased);
+                    assertFalse(builder.text().contains("* 0") || builder.text().contains("/ 0")
+                            || builder.text().contains("* 1") || builder.text().contains("/ 1"), builder.text());
+                }
+            }
         }
 
         @Test
