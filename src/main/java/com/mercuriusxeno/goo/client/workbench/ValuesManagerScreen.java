@@ -198,6 +198,8 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     protected void init() {
+        // A scaled label lands on a whole screen pixel, so no operator's glyph draws one column stretched.
+        Lettering.guiScale(minecraft.getWindow().getGuiScale());
         int x = MARGIN;
         for (ManagerTab each : ManagerTab.values()) {
             int tabWidth = font.width(each.label()) + BUTTON_PADDING;
