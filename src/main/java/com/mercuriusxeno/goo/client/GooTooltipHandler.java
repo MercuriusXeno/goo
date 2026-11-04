@@ -247,11 +247,11 @@ public final class GooTooltipHandler {
      * @param value    the item's goo value
      */
     static void appendMeltRows(List<Either<FormattedText, TooltipComponent>> elements, GooValue value) {
-        value.exactAll().forEach((type, exact) -> {
-            if (exact.isPositive()) {
-                elements.add(Either.right(new GooValueTooltipComponent(type, exact)));
-            }
-        });
+        // Decision value-lists-order-highest-first-ties-by-type-key.
+        value.exactAll().entrySet().stream().filter(entry -> entry.getValue().isPositive())
+                .sorted(GooAmountOrder.highestFirst())
+                .forEach(entry -> elements.add(Either.right(new GooValueTooltipComponent(entry.getKey(),
+                        entry.getValue()))));
     }
 
     /**
@@ -263,9 +263,9 @@ public final class GooTooltipHandler {
      */
     static void appendGooRows(List<Either<FormattedText, TooltipComponent>> elements,
             Map<ResourceKey<GooTypeDefinition>, Integer> rows) {
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> row : rows.entrySet()) {
-            elements.add(Either.right(new GooValueTooltipComponent(row.getKey(), row.getValue())));
-        }
+        // Decision value-lists-order-highest-first-ties-by-type-key.
+        rows.entrySet().stream().sorted(GooAmountOrder.highestFirst()).forEach(row ->
+                elements.add(Either.right(new GooValueTooltipComponent(row.getKey(), row.getValue()))));
     }
 
     /**

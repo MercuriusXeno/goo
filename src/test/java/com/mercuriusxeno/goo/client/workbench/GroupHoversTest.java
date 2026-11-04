@@ -55,6 +55,21 @@ class GroupHoversTest {
                 new TooltipLine.GooAmount("glow", "37")), hover("logs"));
     }
 
+    /**
+     * A group's value lines read the highest amount first, ties by type key, whatever order the member's resolved
+     * value held (decision value-lists-order-highest-first-ties-by-type-key).
+     */
+    @Test
+    void valuedGroupListsItsAmountsHighestFirstTiesByTypeKey() {
+        values.readResolved("""
+                {"entries": [{"key": "oak_log", "value": {"glow": "1/2", "zeal": "2", "metal": "2"},
+                              "denied": false}]}
+                """);
+        assertEquals(List.of(new TooltipLine.Members(List.of("minecraft:oak_log"), 0),
+                new TooltipLine.GooAmount("metal", "2"), new TooltipLine.GooAmount("zeal", "2"),
+                new TooltipLine.GooAmount("glow", "1/2")), hover("logs"));
+    }
+
     @Test
     void longMemberListCutsAtEightSpritesThenPlusNAndAnUnvaluedGroupReadsItsMembersAlone() {
         assertEquals(List.of(new TooltipLine.Members(List.of("minecraft:stone", "minecraft:granite",

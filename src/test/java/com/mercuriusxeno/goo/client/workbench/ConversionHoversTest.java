@@ -18,6 +18,9 @@ class ConversionHoversTest {
             {"path": "base_values.json", "members": [
               {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                  {"key": "sprout", "keySeparator": null, "kind": "VALUE", "text": "{\\"leaf\\": \\"2\\"}",
+                  "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                 {"key": "blend", "keySeparator": null, "kind": "VALUE",
+                  "text": "{\\"metal\\": \\"1/2\\", \\"weird\\": \\"3\\", \\"pulse\\": \\"3\\"}",
                   "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                "leading": null, "trailing": null, "closingGap": null}
             ]}
@@ -25,7 +28,9 @@ class ConversionHoversTest {
     private static final String VALUES = """
             {"constants": [
               {"name": "sprout", "kind": "tree", "tree": {"leaf": "2"}, "value": null, "error": null,
-               "usedBy": [], "readers": []}
+               "usedBy": [], "readers": []},
+              {"name": "blend", "kind": "tree", "tree": {"metal": "1/2", "weird": "3", "pulse": "3"}, "value": null,
+               "error": null, "usedBy": [], "readers": []}
             ]}
             """;
     private final ProcessesTab processes = mock(ProcessesTab.class);
@@ -79,6 +84,17 @@ class ConversionHoversTest {
         when(processes.formOf(SECTION, "grow")).thenReturn(new Processes.Additive("sprout"));
         assertEquals(List.of(new TooltipLine.GooAmount("leaf", "6")),
                 hover("thrice", new Processes.Stack(3, "grow")));
+    }
+
+    /**
+     * A stack over an additive lists its prefab's amounts highest first, ties by type key, whatever order the
+     * evaluate reply held (decision value-lists-order-highest-first-ties-by-type-key).
+     */
+    @Test
+    void stackOverAnAdditiveListsItsAmountsHighestFirstTiesByTypeKey() {
+        when(processes.formOf(SECTION, "mix")).thenReturn(new Processes.Additive("blend"));
+        assertEquals(List.of(new TooltipLine.GooAmount("pulse", "6"), new TooltipLine.GooAmount("weird", "6"),
+                new TooltipLine.GooAmount("metal", "1")), hover("twice", new Processes.Stack(2, "mix")));
     }
 
     @Test
