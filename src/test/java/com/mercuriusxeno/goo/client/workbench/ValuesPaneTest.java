@@ -591,6 +591,40 @@ class ValuesPaneTest {
         }
     }
 
+    /**
+     * An Items row's loader error wraps onto as many lines as it takes inside the row, so the whole error reads: the
+     * operator saw beetroot's error run off the screen.
+     */
+    @Test
+    void longRowErrorWrapsWhole() {
+        String error = "beetroot: unrecognized token 'beetroot'; beetroot: unrecognized token 'bowl'";
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName("minecraft:beetroot",
+                "Beetroot")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "beetroot", "keySeparator": null, "kind": "VALUE", "text": "\\"beetroot + bowl\\"",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "beetroot", "value": null, "denied": false, "error": "%s"}]}
+                """.formatted(error));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
+                List::of));
+        GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 240, 300);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), narrow, frame.targets);
+        List<DrawnFrame.Text> lines = frame.drawn().stream().filter(text -> text.color() == RED
+                && !text.text().equals("✗")).toList();
+        assertEquals(error, lines.stream().map(DrawnFrame.Text::text).collect(Collectors.joining(" ")),
+                "the error's lines read the whole error: " + lines);
+        assertTrue(lines.size() > 1, "the error wraps: " + lines);
+        assertEquals(List.of(), lines.stream().filter(line -> line.x() + line.text().length() * 6 > narrow.right())
+                .toList(), "a line past the row's right edge");
+    }
+
     private static final int FOLLOWED_ITEMS = 40;
     private static final GroupsPane.Bounds SHORT_VIEW = new GroupsPane.Bounds(0, 0, 500, 300);
     private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 0, 500, 8000);

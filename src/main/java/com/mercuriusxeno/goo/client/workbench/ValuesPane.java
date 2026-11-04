@@ -59,6 +59,8 @@ final class ValuesPane {
     private static final int GRAY = 0xFFA0A0A0;
     /** The color of no value, the one red source. */
     static final int RED = 0xFFFF5555;
+    // The break a loader error wraps at.
+    private static final String WORD_BREAK = " ";
     private static final int GREEN = 0xFF80E080;
     private static final int DERIVED_COLOR = 0xFFA0C8F0;
     /** The room between two runs of an Items row's value. */
@@ -360,9 +362,8 @@ final class ValuesPane {
         if (entered) {
             drawRemoval(graphics, font, entry.id(), row.right(), expressionTop, targets);
         }
-        if (!shown.error().isEmpty()) {
-            graphics.text(font, font.plainSubstrByWidth(shown.error(), expression.right() - expression.left()),
-                    expression.left(), expressionTop + height, RED);
+        for (String line : errorLines(font, shown.error(), expression.right() - expression.left())) {
+            graphics.text(font, line, expression.left(), expressionTop + height, RED);
             height += LINE_HEIGHT;
         }
         // Decision spacing-rules-are-one-set-across-every-pane: the x keeps the rule gap over the rule below.
@@ -847,7 +848,28 @@ final class ValuesPane {
     private int measureRow(Font font, ValuesTab.ManagerEntry entry, ValuesTab.EntryRow row, int width) {
         int expression = ReadValueButton.height(font, expressionRuns(row), expressionWidth(font, entry, width));
         int head = placeHead(font, entry, new GroupsPane.Bounds(0, 0, width, 0)).height();
-        return head + expression + (row.error().isEmpty() ? 0 : LINE_HEIGHT) + RowLayout.RULE_SPAN;
+        int error = errorLines(font, row.error(), expressionWidth(font, entry, width)).size() * LINE_HEIGHT;
+        return head + expression + error + RowLayout.RULE_SPAN;
+    }
+
+    // A loader error's lines, wrapped at word breaks to the room given, so the whole error reads inside the row; a
+    // word wider than the room stands on a line of its own, cut to it.
+    static List<String> errorLines(Font font, String error, int width) {
+        List<String> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : error.split(WORD_BREAK)) {
+            String joined = line.isEmpty() ? word : line + WORD_BREAK + word;
+            if (!line.isEmpty() && font.width(joined) > width) {
+                lines.add(line.toString());
+                line = new StringBuilder(word);
+            } else {
+                line = new StringBuilder(joined);
+            }
+        }
+        if (!line.isEmpty()) {
+            lines.add(line.toString());
+        }
+        return lines.stream().map(wrapped -> font.plainSubstrByWidth(wrapped, width)).toList();
     }
 
     // The entry's value curated, a plain left click on it opening the builder in its place, with the row selected,
