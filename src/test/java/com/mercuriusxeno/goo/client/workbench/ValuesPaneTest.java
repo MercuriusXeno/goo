@@ -551,6 +551,46 @@ class ValuesPaneTest {
         }
     }
 
+    /**
+     * The builder writes to the entry it opened over, whatever row the list selects while it stands open: the
+     * operator, editing beetroot soup, saw the soup's value land in beetroot's entry.
+     */
+    @org.junit.jupiter.api.Nested
+    class BuilderWritesItsOwnEntry {
+        private static final String BEETROOT = "minecraft:beetroot";
+        private static final String SOUP = "minecraft:beetroot_soup";
+
+        @Test
+        void editAfterSelectingAnotherRowLandsOnTheOpenedEntry() {
+            ValuesTab values = new ValuesTab();
+            values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName(BEETROOT, "Beetroot"),
+                    new ManagerEntrySource.ItemName(SOUP, "Beetroot Soup")), List.of()));
+            values.readModel("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "beetroot", "keySeparator": null, "kind": "VALUE", "text": "4", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null},
+                      {"key": "beetroot_soup", "keySeparator": null, "kind": "VALUE", "text": "6", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null}]}
+                    """);
+            ManagerActions actions = mock(ManagerActions.class);
+            ItemIcons icons = mock(ItemIcons.class);
+            ValuesPane pane = new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons,
+                    List::of, List::of));
+            DrawnFrame read = new DrawnFrame();
+            pane.extract(read.graphics, DrawnFrame.font(), SHORT_VIEW, read.targets);
+            read.click("6");
+            DrawnFrame building = new DrawnFrame();
+            pane.extract(building.graphics, DrawnFrame.font(), SHORT_VIEW, building.targets);
+            building.click("Beetroot");
+            DrawnFrame selected = new DrawnFrame();
+            pane.extract(selected.graphics, DrawnFrame.font(), SHORT_VIEW, selected.targets);
+            assertTrue(selected.texts().contains("✗ Cancel"), "the builder stands open: " + selected.texts());
+            selected.clickFirst("+");
+            assertEquals(List.of("4", "-6"), List.of(values.rowOf(BEETROOT).expression(),
+                    values.rowOf(SOUP).expression()), "beetroot's and the soup's values after the soup's edit");
+        }
+    }
+
     private static final int FOLLOWED_ITEMS = 40;
     private static final GroupsPane.Bounds SHORT_VIEW = new GroupsPane.Bounds(0, 0, 500, 300);
     private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 0, 500, 8000);
