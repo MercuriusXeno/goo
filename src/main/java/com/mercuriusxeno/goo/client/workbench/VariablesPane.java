@@ -555,8 +555,7 @@ final class VariablesPane {
     // The read view's runs paint white, a $name among them a link; an error reads as the frame's red line under it.
     private ExpressionLines.Painter readPainter(GuiGraphicsExtractor graphics, ClickTargets targets) {
         // Decision value-hover-reads-the-same-editing-and-read-only: a ref keys the prefab's tooltip as the builder's.
-        return new ExpressionLines.Painter(graphics, icons, targets, Palette.TEXT, Palette.LINK,
-                ExpressionLines.followedOnShiftClick(targets, actions::openVariable));
+        return ExpressionLines.Painter.linked(graphics, icons, targets, Palette.TEXT, actions);
     }
 
     // Used by holds the items naming the constant themselves, then a link to each prefab and group reading it, on

@@ -306,7 +306,7 @@ final class ExpressionBuilderPane {
         int stripLeft = area.right() - TRASH_WIDTH;
         // Decision builder-font-and-spacing-shrink-padding-untouched: the builder letters its words smaller.
         ControlFlow flow = ControlFlow.lettered(graphics, font, targets, icons,
-                new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions::openVariable);
+                new ControlFlow.Span(area.left(), stripLeft - BuilderOverlays.GAP, top), actions);
         drawKind(flow, edited);
         drawValue(flow, edited);
         drawClosing(flow, edited);

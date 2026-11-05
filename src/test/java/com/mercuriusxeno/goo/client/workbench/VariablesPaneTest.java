@@ -621,6 +621,46 @@ class VariablesPaneTest {
     }
 
     /**
+     * An item term in a prefab's read value hovers the item's value and follows to Items on shift + left click, as a
+     * $prefab term beside it does, its bare spelling naming the whole id (decision
+     * one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own).
+     */
+    @Test
+    void readValuesItemTermHoversAndLinksAsEveryItemIcon() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "stuck", "keySeparator": null, "kind": "VALUE", "text": "\\"stick / 2\\"",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "stuck", "kind": "scalar", "value": "4", "error": null, "usedBy": [],
+                                "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
+        int x = xs.getAllValues().getLast() + 1;
+        int y = ys.getAllValues().getLast() + 1;
+        assertEquals(Optional.of(ItemIcons.hoverKey("minecraft:stick")),
+                frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
+        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
+        verify(actions).openItem("minecraft:stick");
+    }
+
+    /**
      * The delete confirm dims the whole screen through Dialog, as the draft's confirm does, its card on Dialog's card
      * (decision one-wheel-step-and-one-dialog-primitive).
      */

@@ -810,9 +810,8 @@ final class ValuesPane {
     private int drawValueView(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
                               GroupsPane.Bounds area, ClickTargets targets) {
         return ReadValueButton.draw(graphics, font, expressionRuns(row), new ReadValueButton.Place(area.left(),
-                area.top(), area.right(), () -> openBuilder(row)), new ExpressionLines.Painter(graphics, icons,
-                targets, Palette.TEXT, Palette.LINK, ExpressionLines.followedOnShiftClick(targets,
-                actions::openVariable)), targets);
+                area.top(), area.right(), () -> openBuilder(row)), ExpressionLines.Painter.linked(graphics, icons,
+                targets, Palette.TEXT, actions), targets);
     }
 
 

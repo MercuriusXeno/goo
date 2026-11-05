@@ -68,7 +68,7 @@ final class ControlFlow {
     private int lineOverhang;
     private final ClickTargets targets;
     private final @Nullable ItemIcons icons;
-    private final Consumer<String> followRef;
+    private final @Nullable ManagerActions actions;
     private int left;
     // The right edge pieces stand short of: the area's, or a parenthetical box's inside its clear pixel and border.
     private int right;
@@ -104,7 +104,7 @@ final class ControlFlow {
      */
     ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, int left,
                 int right, int top) {
-        this(graphics, font, targets, icons, new Span(left, right, top), ref -> { });
+        this(graphics, targets, icons, new Span(left, right, top), null, Lettering.full(font), FULL_LINE);
     }
 
     /**
@@ -118,19 +118,6 @@ final class ControlFlow {
     }
 
     /**
-     * @param graphics  the frame's graphics
-     * @param font      the font
-     * @param targets   the frame's click areas
-     * @param icons     the items' icons, null where no item draws
-     * @param span      where the lines lay
-     * @param followRef opens the prefab a reference run names, on a shift + left click
-     */
-    ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, Span span,
-                Consumer<String> followRef) {
-        this(graphics, targets, icons, span, followRef, Lettering.full(font), FULL_LINE);
-    }
-
-    /**
      * A flow lettered at the expression builder's smaller scale on the builder's tighter line, its icons at their
      * native size (decision builder-font-and-spacing-shrink-padding-untouched).
      *
@@ -139,16 +126,17 @@ final class ControlFlow {
      * @param targets   the frame's click areas
      * @param icons     the items' icons, null where no item draws
      * @param span      where the lines lay
-     * @param followRef opens the prefab a reference run names, on a shift + left click
+     * @param actions   the panes' line back to the screen, through which a reference run follows to its prefab and
+     *                  an item icon to Items on a shift + left click; null where nothing follows
      * @return the flow
      */
     static ControlFlow lettered(GuiGraphicsExtractor graphics, Font font, ClickTargets targets,
-                                @Nullable ItemIcons icons, Span span, Consumer<String> followRef) {
-        return new ControlFlow(graphics, targets, icons, span, followRef, new Lettering(font, BUILDER_SCALE), LINE);
+                                @Nullable ItemIcons icons, Span span, @Nullable ManagerActions actions) {
+        return new ControlFlow(graphics, targets, icons, span, actions, new Lettering(font, BUILDER_SCALE), LINE);
     }
 
     private ControlFlow(GuiGraphicsExtractor graphics, ClickTargets targets, @Nullable ItemIcons icons, Span span,
-                        Consumer<String> followRef, Lettering letters, int line) {
+                        @Nullable ManagerActions actions, Lettering letters, int line) {
         this.graphics = graphics;
         this.font = letters.font();
         this.letters = letters;
@@ -156,7 +144,7 @@ final class ControlFlow {
         this.lineGap = letters.isFull() ? 0 : BUILDER_LINE_GAP;
         this.targets = targets;
         this.icons = icons;
-        this.followRef = followRef;
+        this.actions = actions;
         this.left = span.left();
         this.right = span.right();
         this.lineLeft = span.left();
@@ -954,9 +942,7 @@ final class ControlFlow {
         }
         int runsWidth = ExpressionLines.width(letters, runs);
         ExpressionLines.draw(letters, runs, new ExpressionLines.Span(box.left() + ButtonPainter.PADDING, box.top(),
-                runsWidth + 1, box.height()), new ExpressionLines.Painter(graphics, icons,
-                targets, pressed == null ? Palette.TEXT : Palette.LINK, Palette.LINK,
-                ExpressionLines.followedOnShiftClick(targets, followRef)));
+                runsWidth + 1, box.height()), runsPainter(pressed == null ? Palette.TEXT : Palette.LINK));
         if (!suffix.isEmpty()) {
             letters.draw(graphics, suffix, box.left() + ButtonPainter.PADDING + runsWidth, wordsTop(), Palette.MUTED);
         }
@@ -1026,10 +1012,19 @@ final class ControlFlow {
         }
         addRunsTarget(band, width + inset + inset, hint, pressed);
         ExpressionLines.draw(letters, runs, new ExpressionLines.Span(x + inset, band.top(), width + 1, band.height()),
-                new ExpressionLines.Painter(graphics, icons, targets, pressed == null ? Palette.TEXT : Palette.LINK,
-                        Palette.LINK, ExpressionLines.followedOnShiftClick(targets, followRef)));
+                runsPainter(pressed == null ? Palette.TEXT : Palette.LINK));
         lineOverhang = Math.max(lineOverhang, y - band.top());
         x += width + inset + inset + GAP;
+    }
+
+    // Decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own: in the builder's edit view an
+    // item icon hovers its value and follows to Items as a $prefab follows to Prefabs.
+    private ExpressionLines.Painter runsPainter(int textColor) {
+        if (icons != null && actions != null) {
+            return ExpressionLines.Painter.linked(graphics, icons, targets, textColor, actions);
+        }
+        return new ExpressionLines.Painter(graphics, icons, targets, textColor, Palette.LINK,
+                ExpressionLines.followedOnShiftClick(targets, ref -> { }));
     }
 
     /**

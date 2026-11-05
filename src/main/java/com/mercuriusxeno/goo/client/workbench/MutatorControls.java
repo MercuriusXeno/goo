@@ -119,7 +119,7 @@ final class MutatorControls {
              ClickTargets targets) {
         // Decision conversions-rows-letter-at-the-builders-scale: the sentence letters as the expression builder does.
         ControlFlow flow = ControlFlow.lettered(graphics, font, targets, null,
-                new ControlFlow.Span(area.left(), area.right(), top), ref -> { });
+                new ControlFlow.Span(area.left(), area.right(), top), null);
         boolean iterator = ProcessesTab.isIterator(key);
         // Decision mutator-chain-forms-a-column-left-of-the-validity-marker, its inset halved by decision
         // chain-lines-inset-halves-at-most.
