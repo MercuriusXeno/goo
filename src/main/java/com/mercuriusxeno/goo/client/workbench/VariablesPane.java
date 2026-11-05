@@ -40,6 +40,8 @@ final class VariablesPane {
     private static final int SEARCH_GAP = 3;
     private static final int KIND_GAP = 8;
     private static final int VALUE_GAP = 4;
+    // The room between the amount line and the value's box below it.
+    private static final int AMOUNT_GAP = 2;
     private static final int ACTION_GAP = 6;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private static final int CARD_WIDTH = 220;
@@ -496,32 +498,33 @@ final class VariablesPane {
         return Math.max(BARE_HEAD_HEIGHT, usedBy - TEXT_NUDGE);
     }
 
-    // Value: one indent in, beside the read view: the evaluated amount on its own line, then the expression below it;
-    // a prefab with no expression reads Value: Not explicitly set as the button itself. Answers its height.
-    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount; the operator's ruling of 2026-11-04
-    // stands Value: on the amount line.
+    // Value: one indent in, then the evaluated amount on its own line above the value's box, outside it, and the box
+    // below holding the expression; with no amount line, Value: stands beside the box. A prefab with no expression
+    // reads Value: Not explicitly set as the button itself. Answers its height.
+    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount; the operator's rulings of 2026-11-04
+    // stand Value: on the amount line and the amount line above the box.
     // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
     private int drawValueLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                               GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int labelX = bounds.left() + ControlFlow.INDENT;
-        ReadValueButton.Content content = readContent(block);
-        boolean set = !content.runs().isEmpty();
+        List<ExpressionLines.Run> shown = block.expression().isBlank() ? List.of()
+                : ExpressionLines.shownRuns(block.expression(), icons::nameOf);
+        boolean set = !shown.isEmpty();
+        AmountGridLine amount = set ? amountLine(shown, block) : AmountGridLine.NONE;
+        List<ExpressionLines.Run> runs = set ? expressionRuns(shown, block.error()) : List.of();
         int viewX = set ? labelX + font.width(VALUE_LABEL) + VALUE_GAP : labelX;
-        int height = drawReadView(graphics, font, block, content, new GroupsPane.Bounds(viewX, bounds.top(),
-                bounds.right(), bounds.bottom()), y, targets);
-        if (set) {
-            graphics.text(font, VALUE_LABEL, labelX,
-                    ReadValueButton.textTop(font, content.amount(), content.runs(), y), GRAY);
+        int boxTop = y;
+        if (!amount.isEmpty()) {
+            amount.draw(font, viewX + ButtonPainter.PADDING, y, readPainter(graphics, block, targets));
+            graphics.text(font, VALUE_LABEL, labelX, y + amount.textOffset(font), GRAY);
+            boxTop = y + amount.height() + AMOUNT_GAP;
         }
-        return height;
-    }
-
-    private ReadValueButton.Content readContent(VariablesTab.ConstantBlock block) {
-        if (block.expression().isBlank()) {
-            return new ReadValueButton.Content(AmountGridLine.NONE, List.of());
+        int height = drawReadView(graphics, font, block, runs, new GroupsPane.Bounds(viewX, bounds.top(),
+                bounds.right(), bounds.bottom()), boxTop, targets);
+        if (set && amount.isEmpty()) {
+            graphics.text(font, VALUE_LABEL, labelX, ReadValueButton.textTop(font, runs, y), GRAY);
         }
-        List<ExpressionLines.Run> runs = ExpressionLines.shownRuns(block.expression(), icons::nameOf);
-        return new ReadValueButton.Content(amountLine(runs, block), expressionRuns(runs, block.error()));
+        return boxTop - y + height;
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
@@ -560,13 +563,17 @@ final class VariablesPane {
     // Decision shift-left-click-follows-plain-left-modifies.
     // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
-                             ReadValueButton.Content content, GroupsPane.Bounds bounds, int y,
-                             ClickTargets targets) {
-        return ReadValueButton.draw(graphics, font, content, new ReadValueButton.Place(bounds.left(), y, bounds.right(),
-                () -> startEditing(block.name())), new ExpressionLines.Painter(graphics, icons, targets,
-                block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
-                        targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)),
-                targets);
+                             List<ExpressionLines.Run> runs, GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+        return ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(bounds.left(), y, bounds.right(),
+                () -> startEditing(block.name())), readPainter(graphics, block, targets), targets);
+    }
+
+    // The read view's runs paint white, red where the prefab fails to resolve, a $name among them a link.
+    private ExpressionLines.Painter readPainter(GuiGraphicsExtractor graphics, VariablesTab.ConstantBlock block,
+                                                ClickTargets targets) {
+        return new ExpressionLines.Painter(graphics, icons, targets, block.error().isEmpty() ? WHITE : RED, LINK,
+                (name, linkX, linkY, linkWidth) -> targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT,
+                        () -> actions.openVariable(name), name));
     }
 
     // Used by holds the items naming the constant themselves, then a link to each prefab and group reading it, on
