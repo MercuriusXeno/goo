@@ -10,9 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that the expression builder offers only what the game's evaluator accepts where the value is read
- * (decision expression-builder-composes-every-form-without-typing): a prefab reads only the prefabs above it and no
- * item, a number prefab adds numbers and number prefabs, a goo value adds items and per-type prefabs and never a
- * bare number, a picker hides the goo types a value already holds, and a number shows no factor.
+ * (decision expression-builder-composes-every-form-without-typing): a prefab reads every other prefab wherever it
+ * sits and no item (decision prefabs-resolve-by-dependency-graph-conversions-alone-stay-ordered), a number prefab
+ * adds numbers and number prefabs, a goo value adds items and per-type prefabs and never a bare number, a picker
+ * hides the goo types a value already holds, and a number shows no factor.
  */
 class BuilderGrammarTest {
     private static final List<BuilderGrammar.Prefab> PREFABS = List.of(
@@ -22,19 +23,20 @@ class BuilderGrammarTest {
             new BuilderGrammar.Prefab("plank", true));
 
     @Nested
-    class PrefabReadsAbove {
+    class PrefabReadsEveryOther {
         @Test
-        void prefabListsOnlyThePrefabsAboveIt() {
-            BuilderGrammar grammar = BuilderGrammar.forPrefab(PREFABS, "medium");
-            assertEquals(List.of("base"), grammar.scalarPrefabs());
-            assertEquals(List.of("stick"), grammar.perTypePrefabs());
+        void firstPrefabListsEveryOtherPrefabAndNeverItself() {
+            BuilderGrammar grammar = BuilderGrammar.forPrefab(PREFABS, "base");
+            assertEquals(List.of("medium"), grammar.scalarPrefabs());
+            assertEquals(List.of("stick", "plank"), grammar.perTypePrefabs());
+            assertTrue(grammar.offersGooKind());
         }
 
         @Test
-        void firstPrefabListsNone() {
-            BuilderGrammar grammar = BuilderGrammar.forPrefab(PREFABS, "base");
-            assertTrue(grammar.scalarPrefabs().isEmpty());
-            assertTrue(grammar.perTypePrefabs().isEmpty());
+        void prefabOffersNoGooKindWhereNoOtherPerTypePrefabStands() {
+            BuilderGrammar grammar = BuilderGrammar.forPrefab(List.of(new BuilderGrammar.Prefab("base", false),
+                    new BuilderGrammar.Prefab("stick", true)), "stick");
+            assertEquals(List.of("base"), grammar.scalarPrefabs());
             assertFalse(grammar.offersGooKind());
         }
 

@@ -167,7 +167,7 @@ final class GooValueJsonFormat {
     /**
      * Resolves a single JSON value (int literal or $expression) against
      * the constants table. Used by both item values and constant definitions
-     * so constants can reference earlier constants.
+     * so a constant reads the constants resolved before it.
      *
      * @param element   the JSON element (integer or expression string)
      * @param constants scalar constant symbol table
