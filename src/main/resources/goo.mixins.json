@@ -12,6 +12,7 @@
     "PlayerGluttonyEatMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin",
+    "WitchHeldDrinksNoPotionMixin",
     "WorldDimensionsGooStableMixin"
   ],
   "client": [
