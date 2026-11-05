@@ -221,12 +221,15 @@ class VariablesTabTest {
         }
 
         /**
-         * A link opening a variable puts its block into the edit box.
+         * A link landing on a variable selects its block and leaves it read-only, closing an edit standing open
+         * (decision every-follow-lands-selected-and-read-only).
          */
         @Test
-        void jumpOpensTheVariablesEditBox() {
+        void jumpSelectsTheVariableReadOnly() {
+            tab.startEditing("other");
             tab.jumpTo("egg");
-            assertEquals("egg", tab.editing().orElseThrow());
+            assertEquals(Optional.of("egg"), tab.selected());
+            assertEquals(Optional.empty(), tab.editing());
         }
 
         /**

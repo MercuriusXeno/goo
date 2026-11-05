@@ -92,6 +92,8 @@ final class VariablesPane {
     private boolean naming;
     private @Nullable String deleting;
     private final Reveal revealing = new Reveal();
+    // How tall the selected block drew last.
+    private int selectedHeight;
     private final RevealGlow glow = new RevealGlow();
     private boolean visible;
     private final ScrollBar bar = new ScrollBar(ScrollBar.WHEEL_STEP);
@@ -175,7 +177,9 @@ final class VariablesPane {
     }
 
     /**
-     * Opens a variable's edit box and scrolls its block into view, as a $name link does.
+     * Lands on a variable's block selected and read-only and scrolls it into view, as a $name link does: a builder
+     * open anywhere closes and nothing tells the draft it changed, as a follow navigates and edits nothing (decision
+     * every-follow-lands-selected-and-read-only).
      *
      * @param name the variable
      */
@@ -187,7 +191,9 @@ final class VariablesPane {
             }
             variables.search(NO_TEXT);
         });
-        startEditing(name);
+        variables.jumpTo(name);
+        builder.close();
+        building = null;
     }
 
     /**
@@ -289,11 +295,20 @@ final class VariablesPane {
     // gap. Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
     private int drawBlock(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                           GroupsPane.Bounds bounds, int top, ClickTargets targets) {
+        // Decision every-follow-lands-selected-and-read-only: the block a follow landed on stands in the selected
+        // fill, at the height it drew last, which the reveal's measuring pass lays before the first frame.
+        boolean selected = variables.selected().filter(block.name()::equals).isPresent();
+        if (selected && selectedHeight > 0) {
+            graphics.fill(bounds.left(), top, bounds.right(), top + selectedHeight, Palette.SELECTED_FILL);
+        }
         int headY = RowLayout.nameTop(font, top + SEPARATOR_ROW);
         int y = headY + drawHead(graphics, font, block, bounds, headY, targets);
         y += drawValueLine(graphics, font, block, bounds, y, targets);
         y += BLOCK_GAP;
         revealing.laid(block.name(), top + bar.offset() - bounds.top(), y - top, 0);
+        if (selected) {
+            selectedHeight = y - top;
+        }
         return y - top;
     }
 
@@ -434,6 +449,7 @@ final class VariablesPane {
         stopNaming();
         actions.draftChanged();
         jumpTo(created.get());
+        startEditing(created.get());
     }
 
 

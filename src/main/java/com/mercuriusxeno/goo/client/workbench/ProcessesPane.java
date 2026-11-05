@@ -87,6 +87,9 @@ final class ProcessesPane {
     // The iterators column's index among the pane's two lists, the mutators column's being 0.
     private static final int ITERATORS_COLUMN = 1;
     private final Reveal revealing = new Reveal();
+    // The row a follow landed on, and how tall it drew last.
+    private @Nullable String selected;
+    private int selectedHeight;
     private final RevealGlow glow = new RevealGlow();
     private @Nullable EditBox nameBox;
     // Decision one-search-row-per-list-with-its-create-control-beside-it: the mutators column's search, then the
@@ -337,7 +340,17 @@ final class ProcessesPane {
             RowLayout.drawSeparatorAbove(frame.graphics(), index, y, rows.left(), rows.right());
             int rowTop = y;
             ProcessesTab.ProcessRow row = kindRows.get(index);
+            boolean landed = row.key().equals(selected);
+            // Decision every-follow-lands-selected-and-read-only: the row a follow landed on stands in the selected
+            // fill, at the height it drew last, which the reveal's measuring pass lays before the first frame.
+            if (landed && selectedHeight > 0) {
+                frame.graphics().fill(rows.left(), rowTop, rows.right(), rowTop + selectedHeight,
+                        Palette.SELECTED_FILL);
+            }
             y = drawRow(frame.graphics(), frame.font(), section.section(), row, rows, y, frame.targets());
+            if (landed) {
+                selectedHeight = y - rowTop;
+            }
             revealing.laid(row.key(), rowTop - rows.top() + columnBar(iterators).offset(), y - rowTop,
                     iterators ? ITERATORS_COLUMN : 0);
         }
@@ -542,12 +555,20 @@ final class ProcessesPane {
     }
 
     /**
+     * @return the row a follow last landed on, empty before any
+     */
+    Optional<String> selected() {
+        return Optional.ofNullable(selected);
+    }
+
+    /**
      * Centers a mutator's row on the next frame, as a mutator link's shift + left click does (decisions
      * diagnose-and-correct-mutator-references-that-do-not-link, shift-follow-centers-the-target-in-its-scrolling-view).
      *
      * @param key the mutator's key
      */
     void reveal(String key) {
+        selected = key;
         revealing.follow(key, () -> {
             for (EditBox box : searches) {
                 if (box != null) {

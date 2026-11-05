@@ -368,9 +368,9 @@ class VariablesPaneTest {
                 RowLayout.SPRITE_ROW_HEIGHT), second.y());
     }
 
-    // Each block's top inside the list's content once the named block edits, read off a view tall enough to draw
-    // every block unscrolled.
-    private static List<Integer> blockTopsEditing(String name) {
+    // Each block's top inside the list's content once a follow lands on the named block, read off a view tall enough
+    // to draw every block unscrolled.
+    private static List<Integer> blockTopsFollowed(String name) {
         ManagerDraft draft = new ManagerDraft();
         draft.read(model());
         VariablesPane tall = twelvePrefabs(new VariablesTab(draft), draft);
@@ -385,13 +385,13 @@ class VariablesPaneTest {
     }
 
     /**
-     * A shift + left follow to a prefab well below the fold opens its block for editing and centers the block in the
-     * list (decision shift-follow-centers-the-target-in-its-scrolling-view).
+     * A shift + left follow to a prefab well below the fold centers its block in the list, the block read-only
+     * (decisions shift-follow-centers-the-target-in-its-scrolling-view, every-follow-lands-selected-and-read-only).
      */
     @Test
-    void jumpCentersTheEditedBlockInTheList() {
+    void jumpCentersTheFollowedBlockInTheList() {
         int target = 6;
-        List<Integer> tops = blockTopsEditing("prefab" + target);
+        List<Integer> tops = blockTopsFollowed("prefab" + target);
         DrawnFrame before = new DrawnFrame();
         pane.extract(before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
         pane.jumpTo("prefab" + target);
@@ -399,9 +399,42 @@ class VariablesPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
         int[] list = frame.firstScissor();
         int blockHeight = tops.get(target + 1) - tops.get(target);
-        assertTrue(blockHeight <= list[3] - list[1], "the edited block outgrows the list");
+        assertTrue(blockHeight <= list[3] - list[1], "the followed block outgrows the list");
         assertEquals(tops.get(target) + blockHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
-        assertEquals(Optional.of("prefab" + target), variables.editing());
+        assertEquals(Optional.empty(), variables.editing());
+    }
+
+    /**
+     * A follow lands on the prefab selected and read-only: a builder open over another prefab closes, no builder
+     * opens, nothing tells the draft it changed, and the block draws in the selected fill (decision
+     * every-follow-lands-selected-and-read-only).
+     */
+    @Test
+    void jumpLandsTheBlockSelectedAndReadOnly() {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesTab prefabs = new VariablesTab(draft);
+        ItemIcons icons = mock(ItemIcons.class);
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions, builder);
+        prefabs.startEditing("prefab2");
+        DrawnFrame editing = new DrawnFrame();
+        read.extract(editing.graphics, DrawnFrame.font(), TALL_VIEW, editing.targets, 0, 0);
+        assertTrue(builder.isOpen(), "the builder stood open over $prefab2");
+        read.jumpTo("prefab6");
+        assertEquals(Optional.empty(), prefabs.editing());
+        assertFalse(builder.isOpen());
+        assertEquals(Optional.of("prefab6"), prefabs.selected());
+        verify(actions, never()).draftChanged();
+        DrawnFrame landed = new DrawnFrame();
+        read.extract(landed.graphics, DrawnFrame.font(), TALL_VIEW, landed.targets, 0, 0);
+        assertFalse(builder.isOpen(), "no builder opens on the landing");
+        DrawnFrame.Text name = landed.find("$prefab6");
+        List<int[]> fills = landed.fillsOf(Palette.SELECTED_FILL);
+        assertTrue(fills.size() == 1 && fills.getFirst()[1] <= name.y() && name.y() < fills.getFirst()[3],
+                fills.size() + " selected fills over " + name);
     }
 
     /**
@@ -453,22 +486,21 @@ class VariablesPaneTest {
     }
 
     /**
-     * A shift + left follow to a prefab whose editing block outgrows the list stands the block's top at the list's
-     * top, so its name and the builder's start stay in view (decision tall-follow-target-shows-from-its-top).
+     * A shift + left follow to a prefab whose block outgrows the list stands the block's top at the list's top, so
+     * its name stays in view (decision tall-follow-target-shows-from-its-top).
      */
     @Test
     void jumpToABlockTallerThanTheListShowsItFromItsTop() {
         int target = 5;
-        List<Integer> tops = blockTopsEditing("prefab" + target);
-        GroupsPane.Bounds shortView = new GroupsPane.Bounds(0, 20, 400, 80);
+        List<Integer> tops = blockTopsFollowed("prefab" + target);
+        GroupsPane.Bounds shortView = new GroupsPane.Bounds(0, 20, 400, 50);
         pane.extract(graphics, font, shortView, new ClickTargets(), 0, 0);
         pane.jumpTo("prefab" + target);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), shortView, frame.targets, 0, 0);
         int[] list = frame.firstScissor();
-        assertTrue(tops.get(target + 1) - tops.get(target) > list[3] - list[1], "the edited block fits the list");
+        assertTrue(tops.get(target + 1) - tops.get(target) > list[3] - list[1], "the block fits the list");
         assertEquals(tops.get(target), pane.listBar().offset());
-        assertEquals(Optional.of("prefab" + target), variables.editing());
     }
 
     /**
