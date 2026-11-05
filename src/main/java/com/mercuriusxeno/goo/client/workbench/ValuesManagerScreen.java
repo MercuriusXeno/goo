@@ -104,9 +104,11 @@ public final class ValuesManagerScreen extends Screen {
         valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
         groupsPane = new GroupsPane(groupsTab, values, icons, actions, builderPane(actions));
         variablesPane = new VariablesPane(variablesTab, draft, icons, actions, builderPane(actions));
+        // Decision add-mutator-entry-shows-its-reduced-value: an add row reads its prefab's value, highest first.
         processesPane = new ProcessesPane(processesTab, draft, actions, icons, () -> variablesTab.blocks().stream()
                 .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
-                .toList());
+                .toList(), prefab -> variablesTab.prefabValue(prefab).map(VariablesTab.PrefabValue::tree)
+                .orElse(Map.of()));
         auditPane = new AuditPane(auditTab, draft, actions);
         reads = new ManagerReads(actions, values, groupsPane, variablesPane, processesPane);
     }

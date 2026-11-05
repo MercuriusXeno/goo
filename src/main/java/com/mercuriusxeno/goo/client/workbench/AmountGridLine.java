@@ -64,6 +64,13 @@ final class AmountGridLine {
     }
 
     /**
+     * @return each amount's runs, its icon then its punctuated amount, for a caller laying them inline
+     */
+    List<List<ExpressionLines.Run>> cells() {
+        return cells;
+    }
+
+    /**
      * @return whether the line draws nothing
      */
     boolean isEmpty() {

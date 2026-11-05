@@ -112,6 +112,8 @@ final class ProcessesPane {
     }
 
     /**
+     * A pane whose add rows draw no reduced value.
+     *
      * @param processes   the Mutators tab's state
      * @param draft       the draft every tab edits
      * @param actions     the panes' line back to the screen
@@ -120,12 +122,27 @@ final class ProcessesPane {
      */
     ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions, ItemIcons icons,
                   Supplier<List<String>> treePrefabs) {
+        this(processes, draft, actions, icons, treePrefabs, prefab -> java.util.Map.of());
+    }
+
+    /**
+     * @param processes     the Mutators tab's state
+     * @param draft         the draft every tab edits
+     * @param actions       the panes' line back to the screen
+     * @param icons         the items' icons
+     * @param treePrefabs   the tree prefabs' names, which an additive adds
+     * @param prefabAmounts a prefab's reduced value, which its add rows draw (decision
+     *                      add-mutator-entry-shows-its-reduced-value)
+     */
+    ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions, ItemIcons icons,
+                  Supplier<List<String>> treePrefabs,
+                  java.util.function.Function<String, java.util.Map<String, String>> prefabAmounts) {
         this.processes = processes;
         this.draft = draft;
         this.actions = actions;
         this.overlays = new BuilderOverlays(actions, icons);
         this.controls = new MutatorControls(processes, overlays, actions, treePrefabs,
-                () -> GooTypes.order().stream().map(GooTypes::id).toList(), actions::draftChanged);
+                () -> GooTypes.order().stream().map(GooTypes::id).toList(), actions::draftChanged, prefabAmounts);
     }
 
     /**
