@@ -10,8 +10,9 @@ import java.util.function.ToIntFunction;
 
 /**
  * The one grid every list of goo amounts draws as, in a tooltip and in a row: a tooltip's in ceil(sqrt(count))
- * columns and a row's in as many columns as the row's width holds, filled row by row, every column as wide as the
- * widest cell so the icons align down each column, each cell a type's icon then its amount in the amount role's small
+ * columns and a row's in as many columns as the row's width holds, filled row by row, a tooltip's every column as
+ * wide as its widest cell and a row's each column as wide as its own widest cell, so the icons align down each
+ * column, each cell a type's icon then its amount in the amount role's small
  * digits, one gap between columns, no colon and no indent; a reduced value's parens stand flush round the grid in the
  * symbols' color, one color both sides.
  * Decision one-amount-grid-draws-every-amount-list.
@@ -102,9 +103,13 @@ public final class GooAmountGrid implements ClientTooltipComponent {
         if (!widthBound || amounts.isEmpty()) {
             return this;
         }
-        int room = width - openWidth(font) - closeWidth(font) + COLUMN_GAP;
-        int fit = Math.clamp(room / (columnWidth(font) + COLUMN_GAP), 1, amounts.size());
-        return new GooAmountGrid(amounts, reduced, sizeOf, fit, true);
+        for (int fit = amounts.size(); fit > 1; fit--) {
+            GooAmountGrid laid = new GooAmountGrid(amounts, reduced, sizeOf, fit, true);
+            if (laid.getWidth(font) <= width) {
+                return laid;
+            }
+        }
+        return new GooAmountGrid(amounts, reduced, sizeOf, 1, true);
     }
 
     /**
@@ -172,9 +177,16 @@ public final class GooAmountGrid implements ClientTooltipComponent {
         return (icon == 0 ? 0 : icon + ICON_GAP - 1) + SmallDigits.advance(font, amount.amount());
     }
 
-    // The widest cell in the grid, which every column takes.
-    private int columnWidth(Font font) {
-        return amounts.stream().mapToInt(amount -> cellWidth(font, amount)).max().orElse(0);
+    // A tooltip's column takes the widest cell in the grid; a row's takes the widest cell in that column, so a short
+    // amount on a row's line stands one gap from the next icon.
+    // Decision row-amount-grid-fills-the-width-and-wraps-past-it.
+    private int columnWidth(Font font, int column) {
+        int widest = 0;
+        int step = widthBound ? columns : 1;
+        for (int index = widthBound ? column : 0; index < amounts.size(); index += step) {
+            widest = Math.max(widest, cellWidth(font, amounts.get(index)));
+        }
+        return widest;
     }
 
     private int rowHeight() {
@@ -196,7 +208,11 @@ public final class GooAmountGrid implements ClientTooltipComponent {
      * @return the cell's left edge from the grid's left
      */
     int cellLeft(Font font, int index) {
-        return openWidth(font) + index % columns * (columnWidth(font) + COLUMN_GAP);
+        int left = openWidth(font);
+        for (int column = 0; column < index % columns; column++) {
+            left += columnWidth(font, column) + COLUMN_GAP;
+        }
+        return left;
     }
 
     /**
@@ -214,7 +230,11 @@ public final class GooAmountGrid implements ClientTooltipComponent {
 
     @Override
     public int getWidth(Font font) {
-        return openWidth(font) + columns * (columnWidth(font) + COLUMN_GAP) - COLUMN_GAP + closeWidth(font);
+        int width = openWidth(font) - COLUMN_GAP + closeWidth(font);
+        for (int column = 0; column < columns; column++) {
+            width += columnWidth(font, column) + COLUMN_GAP;
+        }
+        return width;
     }
 
     @Override
