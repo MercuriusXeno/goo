@@ -109,6 +109,52 @@ final class ButtonPainter {
     }
 
     /**
+     * Draws a selected button, as the manager's active tab stands: the selected fill inside the button's border, its
+     * label in the text color, and takes its click (decision one-flat-painter-draws-every-button).
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param label    the button's label
+     * @param x        its left edge
+     * @param top      its top
+     * @param targets  the frame's click areas
+     * @param pressed  what a click does
+     * @return the box it took
+     */
+    static Box drawSelected(GuiGraphicsExtractor graphics, Font font, String label, int x, int top,
+                            ClickTargets targets, Runnable pressed) {
+        Lettering lettering = Lettering.full(font);
+        Box box = layout(lettering.width(label), x, top, HEIGHT);
+        Frame.draw(graphics, Frame.SELECTED, box);
+        drawLabel(graphics, lettering, label, box, Palette.TEXT);
+        reserve(targets, box, pressed, null);
+        return box;
+    }
+
+    /**
+     * Draws a square button a button's height on each side, its label's ink centered in it, as the manager's X and
+     * [?] stand, and takes its click.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param label    the button's label
+     * @param x        its left edge
+     * @param top      its top
+     * @param targets  the frame's click areas
+     * @param pressed  what a click does
+     * @return the box it took
+     */
+    static Box drawSquare(GuiGraphicsExtractor graphics, Font font, String label, int x, int top,
+                          ClickTargets targets, Runnable pressed) {
+        Lettering lettering = Lettering.full(font);
+        Box box = new Box(x, top, HEIGHT, HEIGHT);
+        Frame.draw(graphics, Frame.BUTTON, box);
+        lettering.draw(graphics, label, lettering.labelOrigin(box, label), Palette.LINK);
+        reserve(targets, box, pressed, null);
+        return box;
+    }
+
+    /**
      * Draws a button lettered at a scale, its label's color its own, and takes its click.
      *
      * @param graphics  the frame's graphics

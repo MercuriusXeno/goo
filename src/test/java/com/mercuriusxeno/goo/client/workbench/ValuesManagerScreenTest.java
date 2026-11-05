@@ -13,6 +13,7 @@ import org.lwjgl.glfw.GLFW;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -92,8 +93,37 @@ class ValuesManagerScreenTest {
      */
     @Test
     void closeXEndsAtTheRightMarginAndTheTopbarStandsLeftOfIt() {
-        ValuesManagerScreen.TitleRow row = ValuesManagerScreen.titleRowOf(400);
-        assertEquals(new ValuesManagerScreen.TitleRow(378, 392, 362, 360), row);
+        ManagerChrome.TitleRow row = ManagerChrome.titleRowOf(400);
+        assertEquals(new ManagerChrome.TitleRow(378, 392, 362, 360), row);
+    }
+
+    /**
+     * The topbar's X, [?], Save, Revert and Promote and the five tabs draw as the panes' flat 14 px button frames, the
+     * active tab in the selected fill, and a press on Save reaches the save through the frame's click areas (decision
+     * one-flat-painter-draws-every-button).
+     */
+    @Test
+    void chromeDrawsFlatButtonsAndTheActiveTabSelected() {
+        List<String> ran = new ArrayList<>();
+        DrawnFrame frame = new DrawnFrame();
+        ManagerChrome.draw(frame.graphics, DrawnFrame.font(), frame.targets, 400, ManagerTab.GROUPS,
+                new ManagerChrome.Actions(() -> ran.add("close"), () -> ran.add("help"), () -> ran.add("save"),
+                        () -> ran.add("revert"), () -> ran.add("promote"), tab -> ran.add(tab.name())));
+        List<String> flat = new ArrayList<>(List.of("X", "?", "Save", "Revert", "Promote"));
+        Arrays.stream(ManagerTab.values()).filter(each -> each != ManagerTab.GROUPS)
+                .forEach(each -> flat.add(each.label()));
+        for (String label : flat) {
+            int[] box = frame.buttonAround(frame.find(label));
+            assertEquals(ButtonPainter.HEIGHT, box[3] - box[1], label);
+        }
+        DrawnFrame.Text active = frame.find(ManagerTab.GROUPS.label());
+        int[] selected = frame.fillsOf(Palette.SELECTED_FILL).stream().filter(fill -> fill[0] <= active.x()
+                && active.x() < fill[2] && fill[1] <= active.y() && active.y() < fill[3]).findFirst()
+                .orElseThrow(() -> new AssertionError("the active tab draws no selected fill"));
+        assertEquals(ButtonPainter.HEIGHT, selected[3] - selected[1] + 2, "the selected tab's frame");
+        frame.click("Save");
+        frame.click(ManagerTab.AUDIT.label());
+        assertEquals(List.of("save", ManagerTab.AUDIT.name()), ran);
     }
 
     /**
