@@ -331,8 +331,27 @@ final class VariablesPane {
         drawList(graphics, font, blocks, bounds, targets);
         drawCreate(graphics, font, view, targets);
         showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
-        builder.drawOverlays(graphics, font, targets);
-        drawDeleteDialog(graphics, font, view, targets);
+    }
+
+    /**
+     * @return the builder's open lists, which the screen draws on the overlay stratum; a pane listing no prefab
+     *     stands none
+     */
+    List<OverlayStratum.Layer> overlayLayers() {
+        return variables.blocks().isEmpty() ? List.of() : List.of(builder::drawOverlays);
+    }
+
+    /**
+     * Draws the delete confirm standing open, which the screen draws over the overlay stratum.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param targets  the frame's click areas
+     */
+    void drawDialog(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
+        if (!variables.blocks().isEmpty()) {
+            drawDeleteDialog(graphics, font, targets);
+        }
     }
 
     // The builder over the block being edited, each change written to the draft and evaluated afresh, so the value
@@ -722,8 +741,7 @@ final class VariablesPane {
         return draft.removals().isMarked(RemovalMarks.Tab.PREFABS, name);
     }
 
-    private void drawDeleteDialog(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds,
-                                  ClickTargets targets) {
+    private void drawDeleteDialog(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         if (deleting == null) {
             return;
         }

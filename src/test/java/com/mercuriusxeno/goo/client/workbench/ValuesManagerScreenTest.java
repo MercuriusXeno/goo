@@ -2,21 +2,29 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import org.joml.Vector2i;
 import org.joml.Vector2ic;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.Invocation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -75,6 +83,146 @@ class ValuesManagerScreenTest {
         assertTrue(ValuesManagerScreen.routePress(frame.targets, press, event -> reachedWidgets.add(event), () -> { }));
         assertEquals(List.of("birch"), picked);
         assertTrue(reachedWidgets.isEmpty(), "the press reached the widgets behind the dropdown");
+    }
+
+    /**
+     * The whole screen's frame on the Items tab with a draft standing, drawn onto mocked graphics through
+     * {@link ValuesManagerScreen#extractRenderState}, each draw read back with the stratum it landed on: the count of
+     * nextStratum calls before it (decision dropdowns-draw-on-one-stratum-above-everything-but-tooltip-and-dialog).
+     */
+    @Nested
+    class NothingDrawsOverAnOpenList {
+        private static final String DRAFT_BADGE = "draft";
+        private static final String TITLE = "Values manager";
+        private static final String STATUS = "Reading the draft.";
+        private static final String TEXT = "text:";
+        private static final String FILL = "fill:";
+        private static final String TOOLTIP = "tooltip";
+        private final Minecraft minecraft = mock(Minecraft.class, Mockito.RETURNS_DEEP_STUBS);
+        // A focused box tells the game, so the game's instance answers for the whole test.
+        private final MockedStatic<Minecraft> game = Mockito.mockStatic(Minecraft.class);
+        private final ValuesManagerScreen screen;
+
+        NothingDrawsOverAnOpenList() throws ReflectiveOperationException {
+            when(minecraft.getWindow().getGuiScale()).thenReturn(2);
+            game.when(Minecraft::getInstance).thenReturn(minecraft);
+            screen = new ValuesManagerScreen(new ManagerConnection(part -> { }),
+                    new ListedEntrySource(List.of(), List.of()));
+            Field font = Screen.class.getDeclaredField("font");
+            font.setAccessible(true);
+            font.set(screen, DrawnFrame.font());
+            screen.width = DrawnFrame.SCREEN_WIDTH;
+            screen.height = DrawnFrame.SCREEN_HEIGHT;
+            Method init = ValuesManagerScreen.class.getDeclaredMethod("init");
+            init.setAccessible(true);
+            init.invoke(screen);
+            ManagerDraft draft = field(screen, "draft");
+            draft.readEdited("{\"path\": \"base_values.json\", \"members\": [], \"draft\": {\"differs\": true}}");
+        }
+
+        @AfterEach
+        void releaseTheGame() {
+            game.close();
+        }
+
+        @SuppressWarnings("unchecked")
+        private static <T> T field(Object owner, String name) throws ReflectiveOperationException {
+            Field field = owner.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            return (T) field.get(owner);
+        }
+
+        // The Items tab's builder stands open with its overlays, as a click on a builder control leaves it.
+        private BuilderOverlays itemsOverlays() throws ReflectiveOperationException {
+            ExpressionBuilderPane builder = field(field(screen, "valuesPane"), "builder");
+            builder.open("", typed -> { }, () -> { });
+            return field(builder, "overlays");
+        }
+
+        // Each draw the frame made, as "text:" and its string, "fill:" and its color or "tooltip", with its stratum.
+        private record Drawn(String what, int stratum) {
+        }
+
+        private List<Drawn> frame(int mouseX, int mouseY) {
+            GuiGraphicsExtractor graphics = new DrawnFrame().graphics;
+            screen.extractRenderState(graphics, mouseX, mouseY, 0);
+            List<Drawn> drawn = new ArrayList<>();
+            int stratum = 0;
+            for (Invocation call : Mockito.mockingDetails(graphics).getInvocations()) {
+                String method = call.getMethod().getName();
+                if (method.equals("nextStratum")) {
+                    stratum++;
+                } else if (method.equals("text")) {
+                    Object text = call.getArgument(1);
+                    drawn.add(new Drawn(TEXT + (text instanceof Component styled ? styled.getString() : text),
+                            stratum));
+                } else if (method.equals("fill") && call.getArguments().length == 5) {
+                    drawn.add(new Drawn(FILL + call.<Integer>getArgument(4), stratum));
+                } else if (method.equals(TOOLTIP)) {
+                    drawn.add(new Drawn(TOOLTIP, stratum));
+                }
+            }
+            return drawn;
+        }
+
+        private static List<Integer> strataOf(List<Drawn> drawn, String what) {
+            List<Integer> strata = drawn.stream().filter(each -> each.what().equals(what)).map(Drawn::stratum)
+                    .toList();
+            assertFalse(strata.isEmpty(), what + " not drawn in " + drawn);
+            return strata;
+        }
+
+        // The badge, the title and the status line each draw on a stratum below the open list's popup frame.
+        private static void assertChromeUnder(List<Drawn> drawn) {
+            int list = strataOf(drawn, FILL + Palette.POPUP_FILL).stream().min(Integer::compare).orElseThrow();
+            for (String chrome : List.of(DRAFT_BADGE, TITLE, STATUS)) {
+                int stratum = strataOf(drawn, TEXT + chrome).stream().max(Integer::compare).orElseThrow();
+                assertTrue(stratum < list, "\"" + chrome + "\" draws on stratum " + stratum
+                        + ", the open list's popup on " + list);
+            }
+        }
+
+        /**
+         * With a dropdown open on the Items tab, the gold "draft" badge, the title and the status line draw on a
+         * stratum below the dropdown's, and the dropdown's below the draft dialog's and the tooltip's.
+         */
+        @Test
+        void dropdownDrawsOverTheChromeAndUnderTheDialogAndTheTooltip() throws ReflectiveOperationException {
+            itemsOverlays().openDropdown(new BuilderOverlays.Anchor(20, 60), SearchDropdown.over(List.of(),
+                    List.of("oak", "birch"), false), choice -> { });
+            DraftConfirm confirm = field(screen, "draftConfirm");
+            confirm.askRevert("base_values.json");
+            ExplainerMode explainer = field(screen, "explainer");
+            explainer.toggle();
+            ButtonPainter.Box items = ManagerChrome.tabBox(DrawnFrame.font(), ManagerTab.VALUES);
+            List<Drawn> drawn = frame(items.left() + 1, items.top() + 1);
+            assertChromeUnder(drawn);
+            // A choice the list names as a prefab draws its $ mark.
+            int dropdown = strataOf(drawn, TEXT + "$birch").stream().max(Integer::compare).orElseThrow();
+            int dialog = strataOf(drawn, FILL + Dialog.DIM).stream().min(Integer::compare).orElseThrow();
+            int tooltip = strataOf(drawn, TOOLTIP).getFirst();
+            assertTrue(dropdown < dialog && dropdown < tooltip, "the dropdown on " + dropdown + ", the dialog on "
+                    + dialog + ", the tooltip on " + tooltip);
+        }
+
+        /**
+         * With an options list open on the Items tab, the badge, the title and the status line draw under it.
+         */
+        @Test
+        void optionsListDrawsOverTheChrome() throws ReflectiveOperationException {
+            itemsOverlays().openOptions(new BuilderOverlays.Anchor(20, 60), List.of(
+                    new BuilderOverlays.Option("Sum", null, at -> { })));
+            assertChromeUnder(frame(0, 0));
+        }
+
+        /**
+         * With the goo type picker open on the Items tab, the badge, the title and the status line draw under it.
+         */
+        @Test
+        void typePickerDrawsOverTheChrome() throws ReflectiveOperationException {
+            itemsOverlays().openPicker(new BuilderOverlays.Anchor(20, 60), type -> { });
+            assertChromeUnder(frame(0, 0));
+        }
     }
 
     /**
