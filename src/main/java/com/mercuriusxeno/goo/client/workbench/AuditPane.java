@@ -222,8 +222,10 @@ final class AuditPane {
         drawHeader(graphics, font, section, textLeft, Lettering.full(font).centeredTop(row.top(), HEADER_HEIGHT));
         int y = row.top() + HEADER_HEIGHT;
         if (open) {
-            y = drawLines(graphics, font, section.flags(), row.left(), y, row.width(), Palette.DANGER);
-            y = drawLines(graphics, font, section.lines(), row.left(), y, row.width(), Palette.MUTED);
+            y = drawLines(graphics, font, section.flags(), new Row(row.left(), y, row.width()), Palette.DANGER,
+                    targets);
+            y = drawLines(graphics, font, section.lines(), new Row(row.left(), y, row.width()), Palette.MUTED,
+                    targets);
         }
         return y;
     }
@@ -251,13 +253,15 @@ final class AuditPane {
         graphics.text(font, flagless ? CHECKMARK : section.badge(), x + font.width(PART_GAP), textTop, color);
     }
 
-    private static int drawLines(GuiGraphicsExtractor graphics, Font font, List<String> lines, int x, int top,
-                                 int width, int color) {
-        int y = top;
+    private int drawLines(GuiGraphicsExtractor graphics, Font font, List<String> lines, Row row, int color,
+                          ClickTargets targets) {
+        int y = row.top();
         for (String line : lines) {
             // Decision audit-section-lines-word-wrap.
-            for (String wrapped : WordWrap.lines(line, width, font::width)) {
-                graphics.text(font, wrapped, x, y, color);
+            for (String wrapped : WordWrap.lines(line, row.width(), font::width)) {
+                graphics.text(font, wrapped, row.left(), y, color);
+                // Decision audit-findings-link-and-hover-like-every-other-tab.
+                FindingLinks.lay(graphics, font, wrapped, row.left(), y, targets, actions);
                 y += LINE_HEIGHT;
             }
         }

@@ -58,6 +58,21 @@ final class ItemLinks {
      * @param y       the icon's top edge
      */
     static void add(ClickTargets targets, ManagerActions actions, String id, int x, int y) {
-        targets.addFollow(x, y, ICON_SIZE, ICON_SIZE, () -> actions.openItem(id), ItemIcons.hoverKey(id));
+        add(targets, actions, id, x, y, ICON_SIZE, ICON_SIZE);
+    }
+
+    /**
+     * Lays an item's click and hover over an area of its own size, as an item's id named in an Audit finding takes.
+     *
+     * @param targets the frame's click areas
+     * @param actions the panes' line back to the screen
+     * @param id      the item's id
+     * @param x       the area's left edge
+     * @param y       its top edge
+     * @param width   its width
+     * @param height  its height
+     */
+    static void add(ClickTargets targets, ManagerActions actions, String id, int x, int y, int width, int height) {
+        targets.addFollow(x, y, width, height, () -> actions.openItem(id), ItemIcons.hoverKey(id));
     }
 }
