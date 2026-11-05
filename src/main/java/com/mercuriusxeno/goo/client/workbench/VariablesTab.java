@@ -50,7 +50,6 @@ public final class VariablesTab {
     private static final String OBJECT_START = "{";
     private static final String TYPE_SEPARATOR = " ";
     private static final String TYPES_SEPARATOR = ", ";
-    private static final String VALUE_PREFIX = "value ";
     private static final String EMPTY_TREE = "empty";
     private static final String NO_TEXT = "";
     private static final String PREFAB_MARK = "$";
@@ -112,24 +111,6 @@ public final class VariablesTab {
         }
     }
 
-    /**
-     * A constant's hover card.
-     *
-     * @param title      the prefab's name
-     * @param expression its expression as the file spells it, unquoted
-     * @param lines      one line per type it resolves to, its value, or its error
-     * @param direct     the items whose own expression names it
-     * @param readers    what reads it directly
-     */
-    public record HoverCard(String title, String expression, List<String> lines, List<String> direct,
-                            List<Reader> readers) {
-        /**
-         * @return the prefabs and groups reading it, in reader order
-         */
-        public List<Reader> links() {
-            return linksOf(readers);
-        }
-    }
 
     /**
      * A prefab's evaluated value, as its hover reads it.
@@ -324,14 +305,6 @@ public final class VariablesTab {
     }
 
     /**
-     * @param name the constant hovered
-     * @return the hover request
-     */
-    public String hoverRequest(String name) {
-        return namedRequest(name);
-    }
-
-    /**
      * Every reader deleting the constant removes: its readers, then each removed constant's readers, each once,
      * as BaseValuesModel.deletionCascade walks them (decision
      * deleting-a-variable-inlines-its-expression-into-each-reader).
@@ -357,26 +330,6 @@ public final class VariablesTab {
             }
         }
         return removed;
-    }
-
-    /**
-     * @param hoverJson the constants hover operation's reply
-     * @return the card it draws
-     */
-    public HoverCard readHover(String hoverJson) {
-        JsonObject hover = JsonParser.parseString(hoverJson).getAsJsonObject();
-        String error = textOf(hover, ERROR);
-        List<String> lines;
-        if (!error.isEmpty()) {
-            lines = List.of(error);
-        } else if (TREE.equals(hover.get(KIND).getAsString())) {
-            lines = hover.getAsJsonObject(TREE).entrySet().stream()
-                    .map(type -> type.getKey() + TYPE_SEPARATOR + type.getValue().getAsString()).toList();
-        } else {
-            lines = List.of(VALUE_PREFIX + textOf(hover, VALUE));
-        }
-        return new HoverCard(hover.get(NAME).getAsString(),
-                ManagerDraft.shownText(textOf(hover, EXPRESSION)), lines, idsOf(hover, DIRECT), readersIn(hover));
     }
 
     private String namedRequest(String name) {
