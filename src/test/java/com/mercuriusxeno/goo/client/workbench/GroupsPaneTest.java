@@ -537,7 +537,7 @@ class GroupsPaneTest {
             assertTrue(value.y() > planksMembers.y() && value.y() < logs.y(), value.toString());
             // Decisions read-mode-builder-is-a-button-with-a-pencil-segment,
             // group-card-shows-its-goo-value-above-a-labelled-builder: the value stands inside its frame past Value:.
-            assertEquals(ControlFlow.INDENT + "Value:".length() * 6 + BuilderOverlays.GAP + ButtonPainter.PADDING,
+            assertEquals(ControlFlow.INDENT + "Value:".length() * 6 + BuilderFrame.LABEL_GAP + ButtonPainter.PADDING,
                     value.x());
             assertTrue(inList(frame, "4").getFirst().y() > members.getLast().y(), frame.drawn().toString());
             assertFalse(frame.texts().contains("Value"), frame.texts().toString());
@@ -871,11 +871,10 @@ class GroupsPaneTest {
                 .toString()));
         assertTrue(building.findFirst("37").y() < kind.y(), building.drawn().toString());
         DrawnFrame.Text label = building.find("Value:");
-        // The full-size label and the builder's smaller kind label center on the builder's first line.
-        Font font = DrawnFrame.font();
-        int labelCenter = label.y() * 2 + font.lineHeight;
-        int kindCenter = kind.y() * 2 + new Lettering(font, ControlFlow.BUILDER_SCALE).lineHeight();
-        assertTrue(Math.abs(labelCenter - kindCenter) <= 2, label + " vs " + kind);
+        // Decision one-builder-frame-on-every-pane: Value: stands on the goo value line, above the builder.
+        DrawnFrame.Text worthLine = building.findFirst("37");
+        assertTrue(Math.abs(label.y() - worthLine.y()) <= ExpressionLines.TEXT_LINE_HEIGHT / 2
+                && label.y() < kind.y(), label + " vs " + worthLine + " and " + kind);
         assertTrue(label.x() < kind.x(), label + " vs " + kind);
     }
 
@@ -884,6 +883,78 @@ class GroupsPaneTest {
      * and a half, the half stacked over its bar, and never 21/2 at full size (decision
      * groups-value-draws-as-every-other-panes-value).
      */
+    // A Groups pane over logs valued by the base given, oak_log resolving to the value or the error given.
+    private static GroupsPane logsValued(String base, String resolved) {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_log", "Oak Log")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "%s",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """.formatted(base.replace("\"", "\\\\\\\"")));
+        values.readResolved("{\"entries\": [{\"key\": \"oak_log\", " + resolved + ", \"denied\": false}]}");
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": "%s", "tweaks": [], "preview": []}]}
+                """.formatted(base.replace("\"", "\\\"")));
+        groups.selectGroup("logs");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        return new GroupsPane(groups, values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
+                List::of));
+    }
+
+    /**
+     * A group's builder opens in the read box's place below its goo value line, short of the delete x, its panel's
+     * overhang reserved, and Value: and the goo value stay above it (decision one-builder-frame-on-every-pane).
+     */
+    @Test
+    void builderOpensInTheFrameBelowTheGooValueLine() {
+        GroupsPane pane = logsValued("{\"glow\": \"4\"}", "\"value\": {\"glow\": \"4\"}");
+        GroupsPane.Bounds view = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame read = new DrawnFrame();
+        pane.extract(read.graphics, DrawnFrame.font(), view, read.targets);
+        int[] box = read.buttonAround(read.find(ReadValueButton.PENCIL));
+        DrawnFrame.Placed worth = read.placements().stream().filter(placed -> placed.scale() == Lettering.AMOUNT_SCALE)
+                .findFirst().orElseThrow(() -> new AssertionError(read.placements().toString()));
+        assertTrue(worth.y() < box[1], "the goo value line above the box");
+        read.click(ReadValueButton.PENCIL);
+        DrawnFrame open = new DrawnFrame();
+        pane.extract(open.graphics, DrawnFrame.font(), view, open.targets);
+        int[] panel = open.fillsOf(Palette.PANEL_FILL).getFirst();
+        int[] readBox = read.fillsOf(Palette.BORDER).stream().filter(border -> border[1] == box[1]
+                && border[0] < box[0]).findFirst().orElse(box);
+        assertEquals(List.of(readBox[0] - RowLayout.BOX_MARGIN, box[1]), List.of(panel[0], panel[1]),
+                "the builder's panel in the read box's place");
+        assertTrue(open.texts().contains("Value:"), open.texts().toString());
+        assertTrue(open.placements().stream().anyMatch(placed -> placed.scale() == Lettering.AMOUNT_SCALE
+                && placed.y() < panel[1]), "the goo value stays above the builder");
+    }
+
+    /**
+     * A group whose value fails draws one red line under its box carrying the error (decision
+     * one-red-error-line-under-every-value).
+     */
+    @Test
+    void failingGroupValueDrawsOneRedLineUnderItsBox() {
+        GroupsPane pane = logsValued("$missing", "\"value\": null, \"error\": \"Unknown constant $missing\"");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        int[] box = frame.buttonAround(frame.find("$missing"));
+        List<DrawnFrame.Text> red = frame.drawn().stream().filter(text -> text.color() == Palette.DANGER
+                && text.text().contains("Unknown constant")).toList();
+        assertEquals(1, red.size(), frame.drawn().toString());
+        assertEquals(box[3], red.getFirst().y());
+    }
+
     @Test
     void cardValueDrawsSmallAsAMixedNumber() {
         ManagerDraft draft = new ManagerDraft();

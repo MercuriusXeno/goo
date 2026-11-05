@@ -52,8 +52,6 @@ final class ValuesPane {
     /** The room between the search line and the list. */
     static final int GAP = 3;
     private static final int HALF = 2;
-    // The break a loader error wraps at.
-    private static final String WORD_BREAK = " ";
     /** The room between two runs of an Items row's value. */
     static final int RUN_GAP = 3;
     /** The room between a run's type icon and its amount. */
@@ -349,22 +347,23 @@ final class ValuesPane {
         int head = drawHead(graphics, font, entry, row, targets);
         int expressionTop = row.top() + head;
         boolean entered = hasNonEmptyEntry(entry);
-        int expressionLeft = row.left() + ControlFlow.INDENT;
-        GroupsPane.Bounds expression = new GroupsPane.Bounds(expressionLeft, expressionTop,
-                expressionLeft + expressionWidth(font, entry, row.right() - row.left()), row.bottom());
         ValuesTab.EntryRow shown = values.rowOf(entry.id());
-        int height = isBuilding(entry)
-                ? builder.extract(graphics, font, expression, expressionTop, targets)
-                : drawValueView(graphics, font, shown, expression, targets);
+        boolean editing = isBuilding(entry);
+        // Decisions one-builder-frame-on-every-pane, one-red-error-line-under-every-value: no label and no amount line,
+        // the item's goo value standing on its head line.
+        int height = BuilderFrame.draw(graphics, font, frameRow(new GroupsPane.Bounds(row.left(), expressionTop,
+                row.right(), row.bottom()), entered), new BuilderFrame.Value(editing, expressionRuns(shown),
+                shown.error(), box -> editing ? builder.extract(graphics, font, box, box.top(), targets)
+                        : drawValueView(graphics, font, shown, box, targets)));
         if (entered) {
             drawRemoval(graphics, font, entry.id(), row.right(), expressionTop, targets);
         }
-        for (String line : errorLines(font, shown.error(), expression.right() - expression.left())) {
-            graphics.text(font, line, expression.left(), expressionTop + height, Palette.DANGER);
-            height += LINE_HEIGHT;
-        }
         // Decision spacing-rules-are-one-set-across-every-pane: the x keeps the rule gap over the rule below.
         return head + height + RowLayout.RULE_SPAN;
+    }
+
+    private static BuilderFrame.Row frameRow(GroupsPane.Bounds value, boolean entered) {
+        return new BuilderFrame.Row(value, null, GooAmountGrid.NONE, entered);
     }
 
     // The red x marks the entry for removal; a marked entry's gold arrow in its place restores it until the save.
@@ -809,30 +808,11 @@ final class ValuesPane {
     }
 
     private int measureRow(Font font, ValuesTab.ManagerEntry entry, ValuesTab.EntryRow row, int width) {
-        int expression = ReadValueButton.height(font, expressionRuns(row), expressionWidth(font, entry, width));
+        BuilderFrame.Row frame = frameRow(new GroupsPane.Bounds(0, 0, width, 0), hasNonEmptyEntry(entry));
+        BuilderFrame.Laid laid = BuilderFrame.lay(font, frame);
+        int expression = ReadValueButton.height(font, expressionRuns(row), laid.boxRight() - laid.valueX());
         int head = placeHead(font, entry, new GroupsPane.Bounds(0, 0, width, 0)).height();
-        int error = errorLines(font, row.error(), expressionWidth(font, entry, width)).size() * LINE_HEIGHT;
-        return head + expression + error + RowLayout.RULE_SPAN;
-    }
-
-    // A loader error's lines, wrapped at word breaks to the room given, so the whole error reads inside the row; a
-    // word wider than the room stands on a line of its own, cut to it.
-    static List<String> errorLines(Font font, String error, int width) {
-        List<String> lines = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-        for (String word : error.split(WORD_BREAK)) {
-            String joined = line.isEmpty() ? word : line + WORD_BREAK + word;
-            if (!line.isEmpty() && font.width(joined) > width) {
-                lines.add(line.toString());
-                line = new StringBuilder(word);
-            } else {
-                line = new StringBuilder(joined);
-            }
-        }
-        if (!line.isEmpty()) {
-            lines.add(line.toString());
-        }
-        return lines.stream().map(wrapped -> font.plainSubstrByWidth(wrapped, width)).toList();
+        return head + BuilderFrame.measure(font, frame, expression, row.error()) + RowLayout.RULE_SPAN;
     }
 
     // The entry's value curated, a plain left click on it opening the builder in its place, with the row selected,
@@ -849,11 +829,6 @@ final class ValuesPane {
                 actions::openVariable)), targets);
     }
 
-    // The expression's room: one indent in, short of the entry's x where it has one.
-    private int expressionWidth(Font font, ValuesTab.ManagerEntry entry, int rowWidth) {
-        int width = rowWidth - ControlFlow.INDENT;
-        return hasNonEmptyEntry(entry) ? width - ButtonPainter.width(font, DELETE) - ICON_GAP : width;
-    }
 
     // An empty entry offers neither the x nor the restore arrow; it reads as no entry at all.
     // Decision removed-entry-shows-the-derived-value-and-no-restore-on-empty.
