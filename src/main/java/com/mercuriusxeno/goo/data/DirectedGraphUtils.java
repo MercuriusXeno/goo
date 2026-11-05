@@ -35,6 +35,34 @@ final class DirectedGraphUtils {
     }
 
     /**
+     * Orders the nodes so each follows every node it depends on, ties kept in the map's iteration order; a node in a
+     * cycle follows the cycle's other nodes that the walk reached first.
+     *
+     * @param <K>  the node key type
+     * @param deps forward dependency graph: node -&gt; set of nodes it depends on; a dependency the map holds no key
+     *             for is left out
+     * @return every key of {@code deps}, each after its dependencies
+     */
+    static <K> List<K> orderDependenciesFirst(Map<K, Set<K>> deps) {
+        List<K> order = new ArrayList<>();
+        Set<K> visited = new HashSet<>();
+        for (K node : deps.keySet()) {
+            appendAfterDependencies(node, deps, visited, order);
+        }
+        return order;
+    }
+
+    private static <K> void appendAfterDependencies(K node, Map<K, Set<K>> deps, Set<K> visited, List<K> order) {
+        if (!deps.containsKey(node) || !visited.add(node)) {
+            return;
+        }
+        for (K dependency : deps.get(node)) {
+            appendAfterDependencies(dependency, deps, visited, order);
+        }
+        order.add(node);
+    }
+
+    /**
      * Finds all nodes reachable from any seed node via BFS on the reverse of {@code deps}.
      *
      * @param <K>   the node key type

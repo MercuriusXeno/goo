@@ -8,8 +8,9 @@ import java.util.regex.Pattern;
 /**
  * What the expression builder offers where a value is read, so every choice it shows is one the game's evaluator
  * accepts and none ends in an error (decision expression-builder-composes-every-form-without-typing). The game reads
- * a prefab before any item and each prefab only after the prefabs above it, so a prefab lists only those and no
- * item. A whole value is one of two sorts: a number, summing numbers and number prefabs, or a goo value, summing
+ * a prefab before any item and each prefab after every prefab it reads, wherever it sits, so a prefab lists every
+ * other prefab and no item
+ * (decision prefabs-resolve-by-dependency-graph-conversions-alone-stay-ordered). A whole value is one of two sorts: a number, summing numbers and number prefabs, or a goo value, summing
  * items and per-type prefabs, which the game cannot add a bare number to, so the number sort is a prefab's alone.
  * A number stands unscaled, a reference offers a factor, and a factor is never 0.
  */
@@ -60,11 +61,10 @@ final class BuilderGrammar {
     /**
      * @param prefabs every prefab, in the file's order
      * @param edited  the prefab whose value is edited
-     * @return the grammar of that prefab's value, which reads only the prefabs above it
+     * @return the grammar of that prefab's value, which reads every prefab but itself
      */
     static BuilderGrammar forPrefab(List<Prefab> prefabs, String edited) {
-        int above = prefabs.stream().map(Prefab::name).toList().indexOf(edited);
-        return new BuilderGrammar(true, above < 0 ? prefabs : prefabs.subList(0, above));
+        return new BuilderGrammar(true, prefabs.stream().filter(each -> !each.name().equals(edited)).toList());
     }
 
     /**
@@ -96,8 +96,8 @@ final class BuilderGrammar {
     }
 
     /**
-     * @return whether the value may be a goo value summed from others, which a prefab may only where a per-type
-     *         prefab stands above it
+     * @return whether the value may be a goo value summed from others, which a prefab may only where another
+     *         per-type prefab stands
      */
     boolean offersGooKind() {
         return !prefab || !perTypePrefabs().isEmpty();

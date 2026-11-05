@@ -3,7 +3,11 @@ package com.mercuriusxeno.goo.data;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Parses the _constants block from base_values.json into scalar and tree constants.
@@ -20,7 +24,7 @@ public final class GooConstantParser {
     }
 
     /**
-     * Parses the _constants object from the JSON root, if present.
+     * Parses the _constants object from the JSON root, if present, each prefab after every prefab it reads.
      *
      * @param json  the root JSON object containing the _constants key
      * @param state mutable parsing state
@@ -32,10 +36,43 @@ public final class GooConstantParser {
             return;
         }
         JsonObject obj = json.getAsJsonObject(CONSTANTS_SUFFIX);
-        for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-            parseOneConstant(entry.getKey(), entry.getValue(), state);
+        for (String name : resolutionOrder(obj)) {
+            parseOneConstant(name, obj.get(name), state);
         }
         logConstantCounts(state);
+    }
+
+    /**
+     * Orders a _constants block by its dependency graph rather than its file order, so a prefab reads any prefab
+     * wherever it sits
+     * (decision prefabs-resolve-by-dependency-graph-conversions-alone-stay-ordered).
+     *
+     * @param constants the _constants block
+     * @return every prefab's name, each after every prefab its value reads
+     */
+    static List<String> resolutionOrder(JsonObject constants) {
+        Map<String, Set<String>> reads = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : constants.entrySet()) {
+            Set<String> named = new LinkedHashSet<>();
+            collectReads(entry.getValue(), named);
+            named.retainAll(constants.keySet());
+            reads.put(entry.getKey(), named);
+        }
+        return DirectedGraphUtils.orderDependenciesFirst(reads);
+    }
+
+    private static void collectReads(JsonElement value, Set<String> named) {
+        if (value.isJsonObject()) {
+            value.getAsJsonObject().entrySet().forEach(field -> collectReads(field.getValue(), named));
+        } else if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+            String expr = value.getAsString();
+            int i = expr.indexOf('$');
+            while (i >= 0) {
+                int end = scanIdentifier(expr, i + 1);
+                named.add(expr.substring(i + 1, end));
+                i = expr.indexOf('$', end);
+            }
+        }
     }
 
     /**
