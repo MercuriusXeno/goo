@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * Evaluates GooValue-level expressions where item IDs are atoms.
  * Supports addition/subtraction of GooValues, and multiplication/division
- * by scalar integers or $constants. Dot notation (e.g. minecraft:coal.blaze)
+ * by exact scalars or $constants. Dot notation (e.g. minecraft:coal.blaze)
  * extracts a single type as a scalar, producing a single-type GooValue.
  *
  * <p>Operator precedence: * / bind tighter than + -.
@@ -72,11 +72,11 @@ final class GooValueExpression {
      *
      * @param expr       the expression (e.g. "minecraft:copper_block + minecraft:pumpkin")
      * @param baseValues already-parsed item values (order-dependent: earlier items available)
-     * @param constants  $constant symbol table (scalar ints)
+     * @param constants  $constant symbol table (exact scalars)
      * @return the computed GooValue
      */
     static GooValue evaluate(String expr, Map<Identifier, GooValue> baseValues,
-                             Map<String, Integer> constants) {
+                             Map<String, GooFraction> constants) {
         return evaluate(expr, baseValues, constants, Map.of());
     }
 
@@ -85,12 +85,12 @@ final class GooValueExpression {
      *
      * @param expr          the expression (e.g. "minecraft:copper_block + $stripped")
      * @param baseValues    already-parsed item values (order-dependent: earlier items available)
-     * @param constants     $constant symbol table (scalar ints)
+     * @param constants     $constant symbol table (exact scalars)
      * @param treeConstants $constant symbol table (GooValue trees)
      * @return the computed GooValue
      */
     static GooValue evaluate(String expr, Map<Identifier, GooValue> baseValues,
-                             Map<String, Integer> constants,
+                             Map<String, GooFraction> constants,
                              Map<String, GooValue> treeConstants) {
         List<String> tokens = ExpressionTokenizer.tokenize(expr);
         int[] pos = {0};
@@ -110,7 +110,7 @@ final class GooValueExpression {
      */
     private static ExprVal evalExpr(List<String> tokens, int[] pos,
                                     Map<Identifier, GooValue> baseValues,
-                                    Map<String, Integer> constants,
+                                    Map<String, GooFraction> constants,
                                     Map<String, GooValue> treeConstants) {
         ExprVal result = evalTerm(tokens, pos, baseValues, constants, treeConstants);
         while (pos[0] < tokens.size() && isAdditiveOp(tokens.get(pos[0]))) {
@@ -144,7 +144,7 @@ final class GooValueExpression {
      */
     private static ExprVal evalTerm(List<String> tokens, int[] pos,
                                     Map<Identifier, GooValue> baseValues,
-                                    Map<String, Integer> constants,
+                                    Map<String, GooFraction> constants,
                                     Map<String, GooValue> treeConstants) {
         ExprVal result = evalAtom(tokens, pos, baseValues, constants, treeConstants);
         while (pos[0] < tokens.size()) {
@@ -171,7 +171,7 @@ final class GooValueExpression {
      */
     private static ExprVal foldTermOperand(List<String> tokens, int[] pos, ExprVal current,
                                            Map<Identifier, GooValue> baseValues,
-                                           Map<String, Integer> constants,
+                                           Map<String, GooFraction> constants,
                                            Map<String, GooValue> treeConstants) {
         String next = tokens.get(pos[0]);
         if (isMultiplicativeOp(next)) {
@@ -200,14 +200,14 @@ final class GooValueExpression {
      * @param tokens        the token list being parsed
      * @param pos           the mutable position index into the token list
      * @param baseValues    the base item-to-goo-value map
-     * @param constants     the named integer constants
+     * @param constants     the named exact scalar constants
      * @param treeConstants the named goo value constants from the expression tree
      * @return the product if implicit multiply applied, otherwise current unchanged
      */
     private static ExprVal tryImplicitMultiply(ExprVal current, String next,
                                                List<String> tokens, int[] pos,
                                                Map<Identifier, GooValue> baseValues,
-                                               Map<String, Integer> constants,
+                                               Map<String, GooFraction> constants,
                                                Map<String, GooValue> treeConstants) {
         if (current.isScalar() && isAtomStart(next)) {
             ExprVal rhs = evalAtom(tokens, pos, baseValues, constants, treeConstants);
@@ -228,7 +228,7 @@ final class GooValueExpression {
     }
 
     /**
-     * Atom: unary minus, parenthesized group, $constant (tree or scalar), integer, or namespaced item ID.
+     * Atom: unary minus, parenthesized group, $constant (tree or scalar), whole literal, or namespaced item ID.
      *
      * @param tokens        the token list from the tokenizer
      * @param pos           mutable position index into tokens
@@ -239,7 +239,7 @@ final class GooValueExpression {
      */
     private static ExprVal evalAtom(List<String> tokens, int[] pos,
                                     Map<Identifier, GooValue> baseValues,
-                                    Map<String, Integer> constants,
+                                    Map<String, GooFraction> constants,
                                     Map<String, GooValue> treeConstants) {
         if (pos[0] < tokens.size() && ExpressionOperators.OP_MINUS.equals(tokens.get(pos[0]))) {
             pos[0]++;
@@ -272,7 +272,7 @@ final class GooValueExpression {
      */
     private static ExprVal dispatchAtom(String token, List<String> tokens, int[] pos,
                                         Map<Identifier, GooValue> baseValues,
-                                        Map<String, Integer> constants,
+                                        Map<String, GooFraction> constants,
                                         Map<String, GooValue> treeConstants) {
         if (OP_OPEN_PAREN.equals(token)) {
             return evalParenGroup(tokens, pos, baseValues, constants, treeConstants);
@@ -281,7 +281,7 @@ final class GooValueExpression {
             return lookupAnyConstant(token.substring(1), constants, treeConstants);
         }
         if (Character.isDigit(token.charAt(0))) {
-            return new ScalarVal(Integer.parseInt(token));
+            return new ScalarVal(GooFraction.of(Long.parseLong(token)));
         }
         return resolveItemRef(token, baseValues);
     }
@@ -298,7 +298,7 @@ final class GooValueExpression {
      */
     private static ExprVal evalParenGroup(List<String> tokens, int[] pos,
                                           Map<Identifier, GooValue> baseValues,
-                                          Map<String, Integer> constants,
+                                          Map<String, GooFraction> constants,
                                           Map<String, GooValue> treeConstants) {
         ExprVal result = evalExpr(tokens, pos, baseValues, constants, treeConstants);
         if (pos[0] < tokens.size() && OP_CLOSE_PAREN.equals(tokens.get(pos[0]))) {
@@ -320,7 +320,7 @@ final class GooValueExpression {
      * @return the resolved expression value
      */
     private static ExprVal lookupAnyConstant(String name,
-                                             Map<String, Integer> constants,
+                                             Map<String, GooFraction> constants,
                                              Map<String, GooValue> treeConstants) {
         ExprVal dotResult = tryDotExtraction(name, treeConstants);
         if (dotResult != null) {
@@ -457,18 +457,18 @@ final class GooValueExpression {
      * @param constants scalar constant symbol table
      * @return the constant value, or 0 if unknown
      */
-    private static int lookupConstant(String name, Map<String, Integer> constants) {
-        Integer value = constants.get(name);
+    private static GooFraction lookupConstant(String name, Map<String, GooFraction> constants) {
+        GooFraction value = constants.get(name);
         if (value == null) {
             LOGGER.warn(LOG_UNKNOWN_CONST, name);
-            return 0;
+            return GooFraction.ZERO;
         }
         return value;
     }
 
     /**
      * Represents a value in an expression: either a GooValue (multi-type)
-     * or a scalar int (for constants and dot-extracted values).
+     * or an exact scalar (for constants and literals).
      */
     sealed interface ExprVal {
         /**
@@ -479,14 +479,14 @@ final class GooValueExpression {
         GooValue toGooValue();
 
         /**
-         * Converts this expression value to an int (totalGoo for GooVal, identity for ScalarVal).
+         * Converts this expression value to an exact scalar (the total for GooVal, identity for ScalarVal).
          *
-         * @return the integer representation
+         * @return the exact scalar
          */
-        int toInt();
+        GooFraction toScalar();
 
         /**
-         * Returns true if this value is a plain integer (not a multi-type GooValue).
+         * Returns true if this value is a plain scalar (not a multi-type GooValue).
          *
          * @return true if scalar, false if multi-type
          */
@@ -503,8 +503,8 @@ final class GooValueExpression {
         }
 
         @Override
-        public int toInt() {
-            return value.totalExact().floor();
+        public GooFraction toScalar() {
+            return value.totalExact();
         }
 
         @Override
@@ -514,9 +514,9 @@ final class GooValueExpression {
     }
 
     /**
-     * Wraps a plain integer as an expression result.
+     * Wraps an exact scalar as an expression result.
      */
-    record ScalarVal(int value) implements ExprVal {
+    record ScalarVal(GooFraction value) implements ExprVal {
         @Override
         public GooValue toGooValue() {
             // Scalar can't meaningfully become a GooValue; shouldn't happen in well-formed expressions
@@ -525,7 +525,7 @@ final class GooValueExpression {
         }
 
         @Override
-        public int toInt() {
+        public GooFraction toScalar() {
             return value;
         }
 

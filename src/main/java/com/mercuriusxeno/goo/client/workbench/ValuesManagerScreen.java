@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save, a [?] that toggles explainer mode and an X that closes it, a tab bar carrying every
@@ -103,9 +104,11 @@ public final class ValuesManagerScreen extends Screen {
         valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
         groupsPane = new GroupsPane(groupsTab, values, icons, actions, builderPane(actions));
         variablesPane = new VariablesPane(variablesTab, draft, icons, actions, builderPane(actions));
+        // Decision add-mutator-entry-shows-its-reduced-value: an add row reads its prefab's value, highest first.
         processesPane = new ProcessesPane(processesTab, draft, actions, icons, () -> variablesTab.blocks().stream()
                 .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
-                .toList());
+                .toList(), prefab -> variablesTab.prefabValue(prefab).map(VariablesTab.PrefabValue::tree)
+                .orElse(Map.of()));
         auditPane = new AuditPane(auditTab, draft, actions);
         reads = new ManagerReads(actions, values, groupsPane, variablesPane, processesPane);
     }
@@ -198,6 +201,8 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     protected void init() {
+        // A scaled label lands on a whole screen pixel, so no operator's glyph draws one column stretched.
+        Lettering.guiScale(minecraft.getWindow().getGuiScale());
         int x = MARGIN;
         for (ManagerTab each : ManagerTab.values()) {
             int tabWidth = font.width(each.label()) + BUTTON_PADDING;
@@ -430,13 +435,31 @@ public final class ValuesManagerScreen extends Screen {
             return clickTargets(targets, event);
         }
         // The mode is modal: a click anywhere, the [?] included, leaves it and reaches nothing beneath.
-        if (explainer.leave()) {
+        return explainer.leave() || routePress(targets, event, press -> emptyBoxUnder(children(), press)
+                || super.mouseClicked(press, doubleClick), () -> setFocused(null));
+    }
+
+    /**
+     * Where a press goes once the draft and the explainer have passed it: an open overlay over the point takes it
+     * through the click targets alone, so no widget behind the overlay takes it; elsewhere the widgets take it first,
+     * then the click targets with the focus cleared.
+     * Decision open-dropdown-intercepts-clicks-before-the-pane-behind-it.
+     *
+     * @param targets the frame's click areas
+     * @param event   the press
+     * @param widgets offers the press to the screen's widgets, answering whether one took it
+     * @param unfocus clears the screen's focus
+     * @return whether anything took the press
+     */
+    static boolean routePress(ClickTargets targets, MouseButtonEvent event, Predicate<MouseButtonEvent> widgets,
+                              Runnable unfocus) {
+        if (targets.overlayAt(event.x(), event.y())) {
+            return clickTargets(targets, event);
+        }
+        if (widgets.test(event)) {
             return true;
         }
-        if (emptyBoxUnder(children(), event) || super.mouseClicked(event, doubleClick)) {
-            return true;
-        }
-        setFocused(null);
+        unfocus.run();
         return clickTargets(targets, event);
     }
 
@@ -585,6 +608,7 @@ public final class ValuesManagerScreen extends Screen {
         return switch (line) {
             case TooltipLine.Text text -> Either.left(text.text());
             case TooltipLine.Runs runs -> Either.right(runs);
+            case TooltipLine.RunsGrid grid -> Either.right(grid);
             case TooltipLine.Members members -> Either.right(members);
             case TooltipLine.GooAmount amount -> Either.right(new TooltipLine.GooAmounts(List.of(amount)));
         };

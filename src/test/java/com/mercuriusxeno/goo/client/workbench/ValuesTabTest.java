@@ -97,15 +97,37 @@ class ValuesTabTest {
         }
 
         /**
-         * The filters read Items, Uncovered and Fractional; a blank search lists every item and no tag under Items,
+         * The items list by their display name ignoring case, ties by id, whatever order the source fed them, the tags
+         * following the items (decision items-tab-lists-items-by-translated-name).
+         */
+        @Test
+        void itemsListByTheirDisplayNameIgnoringCaseTiesById() {
+            ValuesTab fresh = new ValuesTab();
+            fresh.readEntries(new ListedEntrySource(
+                    List.of(new ManagerEntrySource.ItemName("minecraft:zinc", "Zinc"),
+                            new ManagerEntrySource.ItemName("minecraft:apple", "apple"),
+                            new ManagerEntrySource.ItemName("minecraft:bread", "Bread"),
+                            new ManagerEntrySource.ItemName("minecraft:cake", "Cake"),
+                            new ManagerEntrySource.ItemName("goo:cake", "Cake")),
+                    List.of(ListedEntrySource.sizedTag("minecraft:planks", 3))));
+            List<String> order = List.of("minecraft:apple", "minecraft:bread", "goo:cake", "minecraft:cake",
+                    "minecraft:zinc");
+            List<String> withTag = new java.util.ArrayList<>(order);
+            withTag.add("#minecraft:planks");
+            assertEquals(withTag, ids(fresh.entries()));
+            assertEquals(order, ids(fresh.listed()));
+        }
+
+        /**
+         * The filters read Items, Uncovered, Fractional and Negative; a blank search lists every item and no tag under Items,
          * while entries() still answers each item tag after #, named by its member count, for the pickers
          * (decision items-selector-set-reads-items-and-uncovered).
          */
         @Test
         void blankSearchListsItemsAndTagsUnderTheirFilters() {
-            assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL),
-                    List.of(ValuesTab.Filter.values()));
-            assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
+            assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL,
+                    ValuesTab.Filter.NEGATIVE), List.of(ValuesTab.Filter.values()));
+            assertEquals(List.of("goo:gasket", "minecraft:stick", "minecraft:torch"), ids(tab.listed()));
             List<ValuesTab.ManagerEntry> tags = tab.entries().stream().filter(ValuesTab.ManagerEntry::tag).toList();
             assertEquals(List.of("#minecraft:logs"), ids(tags));
             assertEquals("2 members", tags.getFirst().name());
@@ -134,6 +156,23 @@ class ValuesTabTest {
                     """);
             tab.filter(ValuesTab.Filter.FRACTIONAL);
             assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
+        }
+
+        /**
+         * The Negative filter lists the items where any one goo type's amount reads below zero, whole or n/d,
+         * leaving out items whose every amount is zero or above and every tag, and counts them for its chip
+         * (decision items-filter-set-takes-a-negative-chip).
+         */
+        @Test
+        void negativeFilterListsTheItemsWithAnAmountBelowZero() {
+            tab.readResolved("""
+                    {"entries": [{"key": "stick", "value": {"leaf": "-174", "jelly": "180"}, "denied": false},
+                                 {"key": "torch", "value": {"glow": "-3/2"}, "denied": false},
+                                 {"key": "goo:gasket", "value": {"metal": "4", "leaf": "0"}, "denied": false}]}
+                    """);
+            tab.filter(ValuesTab.Filter.NEGATIVE);
+            assertEquals(List.of("minecraft:stick", "minecraft:torch"), ids(tab.listed()));
+            assertEquals(2, tab.negativeCount());
         }
     }
 
@@ -190,9 +229,19 @@ class ValuesTabTest {
         void openingAnItemSelectsItUnderTheItemsFilter() {
             tab.filter(ValuesTab.Filter.UNCOVERED);
             tab.search("logs");
-            assertEquals(2, tab.open("goo:gasket"));
+            assertEquals(0, tab.open("goo:gasket"));
             assertEquals(ValuesTab.Filter.ITEMS, tab.filter());
             assertEquals("goo:gasket", tab.selectedRow().orElseThrow().id());
+        }
+
+        /**
+         * A prefab's Used by icon carries the item's file key, bare for minecraft, and following it opens the item
+         * the key names at its own place in the list, as a namespaced id does.
+         */
+        @Test
+        void openingABareFileKeyFindsItsMinecraftItem() {
+            assertEquals(2, tab.open("torch"));
+            assertEquals("minecraft:torch", tab.selectedRow().orElseThrow().id());
         }
 
         /**
@@ -378,7 +427,7 @@ class ValuesTabTest {
             tab.filter(ValuesTab.Filter.UNCOVERED);
             assertEquals(List.of("minecraft:torch"), ids(tab.listed()));
             tab.filter(ValuesTab.Filter.ITEMS);
-            assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
+            assertEquals(List.of("goo:gasket", "minecraft:stick", "minecraft:torch"), ids(tab.listed()));
         }
     }
 

@@ -30,8 +30,6 @@ final class GooValueLoader {
 
     // --- Log messages ---
 
-    private static final String LOG_UNRESOLVED_ITEM = "{} names {}, which holds no value, so it loads no value";
-
     private static final String LOG_LOADED_PACKS = "Loaded {} base goo values from {} pack(s)";
     private static final String LOG_READ_PACK_FAIL = "Failed to read base_values.json from pack {}: {}";
     private static final String LOG_NEGATIVE_BASE = "Negative goo in base value for {}: {} -- skipped";
@@ -129,6 +127,7 @@ final class GooValueLoader {
         for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
             classifyItemEntry(entry.getKey(), entry.getValue(), state);
         }
+        settleWaiting(state);
         GooGroupParser.parseRestricted(json, state);
         GooGroupParser.parseRoots(json, state);
     }
@@ -166,15 +165,80 @@ final class GooValueLoader {
             try {
                 resolved = resolveItemEntry(value, state);
             } catch (UnresolvedItemReference unresolved) {
-                Goo.LOGGER.warn(LOG_UNRESOLVED_ITEM, itemId, unresolved.item());
+                // Decision diagnose-and-correct-item-reference-unrecognized-token: an entry naming an item no line
+                // valued yet waits for it, a line below or the recipes valuing it.
+                state.waitingItems.put(itemId, value);
                 return;
             }
-            if (resolved.hasNegative()) {
-                Goo.LOGGER.error(LOG_NEGATIVE_BASE, itemId, resolved);
-            } else {
-                state.baseValues.put(itemId, resolved);
+            keep(itemId, resolved, state);
+        }
+    }
+
+    private static void keep(Identifier itemId, GooValue resolved, ParseState state) {
+        if (resolved.hasNegative()) {
+            Goo.LOGGER.error(LOG_NEGATIVE_BASE, itemId, resolved);
+            // The workbench reads why the item loads no value beside its entry rather than an empty value.
+            state.negativeItems.put(itemId, resolved);
+        } else {
+            state.baseValues.put(itemId, resolved);
+        }
+    }
+
+    // Once every line is read, each waiting entry reads the items a later line valued; what still names an item
+    // holding no value waits for the recipes.
+    private static void settleWaiting(ParseState state) {
+        Settled settled = resolveWaiting(state.waitingItems, state.baseValues, state.constants, state.treeConstants);
+        settled.valued().forEach((item, value) -> keep(item, value, state));
+        state.waitingItems.keySet().removeAll(settled.valued().keySet());
+        state.unresolvedItems.clear();
+        state.unresolvedItems.putAll(settled.unresolved());
+    }
+
+    /**
+     * What a pass over the waiting entries found.
+     *
+     * @param valued     each entry that now reads a value, with it
+     * @param unresolved each entry still naming an item that holds no value, with that item
+     */
+    record Settled(Map<Identifier, GooValue> valued, Map<Identifier, String> unresolved) {
+    }
+
+    /**
+     * Evaluates each waiting entry against the values known, over and over while a pass values one more, so an
+     * entry naming another waiting entry reads it once that one resolves (decision
+     * diagnose-and-correct-item-reference-unrecognized-token).
+     *
+     * @param waiting       each waiting entry with its JSON value
+     * @param known         the values the entries read, which gains each value a pass finds, a negative one aside
+     * @param constants     the scalar constants
+     * @param treeConstants the tree constants
+     * @return the entries valued and those still waiting
+     */
+    static Settled resolveWaiting(Map<Identifier, JsonElement> waiting, Map<Identifier, GooValue> known,
+                                  Map<String, GooFraction> constants, Map<String, GooValue> treeConstants) {
+        Map<Identifier, GooValue> valued = new java.util.LinkedHashMap<>();
+        Map<Identifier, String> unresolved = new java.util.LinkedHashMap<>();
+        boolean progressed = true;
+        while (progressed) {
+            progressed = false;
+            unresolved.clear();
+            for (Map.Entry<Identifier, JsonElement> entry : waiting.entrySet()) {
+                if (valued.containsKey(entry.getKey())) {
+                    continue;
+                }
+                try {
+                    GooValue value = evaluateEntry(entry.getValue(), known, constants, treeConstants);
+                    valued.put(entry.getKey(), value);
+                    if (!value.hasNegative()) {
+                        known.put(entry.getKey(), value);
+                    }
+                    progressed = true;
+                } catch (UnresolvedItemReference reference) {
+                    unresolved.put(entry.getKey(), reference.item());
+                }
             }
         }
+        return new Settled(valued, unresolved);
     }
 
     /**
@@ -186,12 +250,16 @@ final class GooValueLoader {
      * @return the parsed GooValue
      */
     private static GooValue resolveItemEntry(JsonElement value, ParseState state) {
+        return evaluateEntry(value, state.baseValues, state.constants, state.treeConstants);
+    }
+
+    // An entry's value read against the item values handed in.
+    private static GooValue evaluateEntry(JsonElement value, Map<Identifier, GooValue> known,
+                                          Map<String, GooFraction> constants, Map<String, GooValue> treeConstants) {
         if (value.isJsonObject()) {
-            return GooValueJsonFormat.parseGooValue(value.getAsJsonObject(),
-                    state.constants, state.baseValues, state.treeConstants);
+            return GooValueJsonFormat.parseGooValue(value.getAsJsonObject(), constants, known, treeConstants);
         }
-        return GooValueExpression.evaluate(value.getAsString().trim(),
-                state.baseValues, state.constants, state.treeConstants);
+        return GooValueExpression.evaluate(value.getAsString().trim(), known, constants, treeConstants);
     }
 
     /**
@@ -217,6 +285,7 @@ final class GooValueLoader {
         state.constants.clear();
         state.treeConstants.clear();
         state.pseudoTags.clear();
+        state.negativeItems.clear();
         state.postConversions = null;
         state.lastMergedBaseValues = null;
     }
@@ -248,13 +317,26 @@ final class GooValueLoader {
         final Map<Identifier, GooValue> effectiveValues;
         final Set<Identifier> deniedItems;
         final Set<Identifier> restrictedItems;
-        final Map<String, Integer> constants;
+        final Map<String, GooFraction> constants;
         final Map<String, GooValue> treeConstants;
         final Map<String, Set<Identifier>> pseudoTags;
         /**
          * The clique roots _roots names, in file order (decision audit-proposes-root-candidates-and-flags-bleed).
          */
         final Set<Identifier> rootItems = new java.util.LinkedHashSet<>();
+        /**
+         * Each item whose value held an amount below zero, which loads no value, with the value it resolved to.
+         */
+        final Map<Identifier, GooValue> negativeItems = new java.util.LinkedHashMap<>();
+        /**
+         * Each entry naming an item no line valued yet, which waits for that item, with its JSON value (decision
+         * diagnose-and-correct-item-reference-unrecognized-token).
+         */
+        final Map<Identifier, JsonElement> waitingItems = new java.util.LinkedHashMap<>();
+        /**
+         * Each entry still waiting once every line is read, with the item it names that holds no value.
+         */
+        final Map<Identifier, String> unresolvedItems = new java.util.LinkedHashMap<>();
         GooConversion.ParsedConversions postConversions;
         JsonObject lastMergedBaseValues;
 
@@ -262,7 +344,7 @@ final class GooValueLoader {
                    Map<Identifier, GooValue> effectiveValues,
                    Set<Identifier> deniedItems,
                    Set<Identifier> restrictedItems,
-                   Map<String, Integer> constants,
+                   Map<String, GooFraction> constants,
                    Map<String, GooValue> treeConstants,
                    Map<String, Set<Identifier>> pseudoTags) {
             this.baseValues = baseValues;

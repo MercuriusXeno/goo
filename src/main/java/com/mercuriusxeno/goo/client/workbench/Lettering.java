@@ -62,12 +62,38 @@ record Lettering(Font font, float scale) {
      * @return where the label's top-left draws in the button, its x then its y
      */
     float[] labelOrigin(ButtonPainter.Box button, String label) {
+        return labelOrigin(button, label, guiScale);
+    }
+
+    /**
+     * @param button   the button the label stands in
+     * @param label    the label
+     * @param guiScale how many screen pixels one GUI pixel spans
+     * @return where the label's top-left draws in the button, its x then its y, each on a whole screen pixel within
+     *     half a screen pixel of centered, so the glyph's texels fall on the same screen pixels in every button and no
+     *     label draws one column or row stretched where another draws clean
+     */
+    float[] labelOrigin(ButtonPainter.Box button, String label, double guiScale) {
         // The glyphs' ink: the run's advance less the pixel after its last glyph, and the line less its empty row and
         // its shadow's row.
         float inkWidth = Math.max(0, font.width(label) - TRAILING_ADVANCE) * scale;
         float inkHeight = Math.max(0, font.lineHeight - GLYPH_GAP - SHADOW_ROW) * scale;
-        return new float[] {button.left() + (button.width() - inkWidth) / HALF,
-            button.top() + (button.height() - inkHeight) / HALF};
+        return new float[] {onScreenPixel(button.left() + (button.width() - inkWidth) / HALF, guiScale),
+            onScreenPixel(button.top() + (button.height() - inkHeight) / HALF, guiScale)};
+    }
+
+    private static float onScreenPixel(float guiPixels, double guiScale) {
+        return (float) (Math.round(guiPixels * guiScale) / guiScale);
+    }
+
+    // How many screen pixels one GUI pixel spans, which the manager reads from the window as it lays itself out.
+    private static double guiScale = 1;
+
+    /**
+     * @param scale how many screen pixels one GUI pixel spans, as the window reads it
+     */
+    static void guiScale(double scale) {
+        guiScale = scale;
     }
 
     /**

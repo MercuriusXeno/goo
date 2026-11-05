@@ -14,6 +14,7 @@ final class SmallDigits {
     static final float SCALE = 0.75f;
     /** A small glyph's height on the screen. */
     static final int GLYPH_HEIGHT = 6;
+    private static final String NO_TRAIL = "";
 
     private SmallDigits() {
     }
@@ -35,7 +36,35 @@ final class SmallDigits {
      * @return the width it draws at, small
      */
     static int width(Font font, String amount) {
-        return (int) Math.ceil(StackedFractions.width(font, StackedFractions.of(amount)) * SCALE);
+        Punctuated punctuated = Punctuated.of(amount);
+        return (int) Math.ceil((StackedFractions.width(font, punctuated.mixed())
+                + font.width(punctuated.trail())) * SCALE);
+    }
+
+    /**
+     * An amount with the punctuation riding around it, as a list of amounts reads "(10½," : the leading marks join
+     * its whole, the trailing ones follow its stack.
+     *
+     * @param mixed the amount as a mixed number, the leading marks before its whole
+     * @param trail the marks after it
+     */
+    private record Punctuated(StackedFractions.Mixed mixed, String trail) {
+        static Punctuated of(String text) {
+            int first = 0;
+            while (first < text.length() && !Character.isDigit(text.charAt(first))) {
+                first++;
+            }
+            int last = text.length();
+            while (last > first && !Character.isDigit(text.charAt(last - 1))) {
+                last--;
+            }
+            StackedFractions.Mixed core = StackedFractions.of(text.substring(first, last));
+            if (!core.stacked()) {
+                return new Punctuated(StackedFractions.of(text), NO_TRAIL);
+            }
+            return new Punctuated(new StackedFractions.Mixed(text.substring(0, first) + core.whole(),
+                    core.numerator(), core.denominator()), text.substring(last));
+        }
     }
 
     /**
@@ -68,10 +97,14 @@ final class SmallDigits {
      * @param color    its color
      */
     static void draw(GuiGraphicsExtractor graphics, Font font, String amount, int x, int top, int color) {
+        Punctuated punctuated = Punctuated.of(amount);
         graphics.pose().pushMatrix();
         graphics.pose().translate(x, top);
         graphics.pose().scale(SCALE, SCALE);
-        StackedFractions.draw(graphics, font, amount, 0, 0, color);
+        StackedFractions.draw(graphics, font, punctuated.mixed(), 0, 0, color);
+        if (!punctuated.trail().isEmpty()) {
+            graphics.text(font, punctuated.trail(), StackedFractions.width(font, punctuated.mixed()), 0, color);
+        }
         graphics.pose().popMatrix();
     }
 }

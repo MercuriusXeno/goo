@@ -77,6 +77,7 @@ final class ValuesPane {
     private static final String ITEMS_CHIP = "Items";
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String FRACTIONAL_CHIP = "Fractional";
+    private static final String NEGATIVE_CHIP = "Negative ";
     private static final String SEARCH_HINT = "Search items";
     private static final int SEARCH_WIDTH = 180;
     private static final int LINK = ButtonPainter.LINK;
@@ -102,6 +103,7 @@ final class ValuesPane {
     private @Nullable String building;
     private boolean visible;
     private int revealRow = NO_REVEAL;
+    private final RevealGlow glow = new RevealGlow();
 
     ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions, ExpressionBuilderPane builder) {
         this.values = values;
@@ -254,18 +256,25 @@ final class ValuesPane {
     private int drawSearchLine(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds line,
                                ClickTargets targets) {
         int uncovered = values.uncoveredCount();
-        List<String> labels = List.of(ITEMS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP);
+        int negative = values.negativeCount();
+        List<String> labels = List.of(ITEMS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP,
+                NEGATIVE_CHIP + negative);
         int left = chipsLeft(labels, font::width, line);
         ChipLayout layout = layChips(labels, font::width, left, line.top(), values.filter());
         for (Chip chip : layout.chips()) {
-            drawChip(graphics, font, chip, chip.filter() == ValuesTab.Filter.UNCOVERED && uncovered > 0 ? RED : WHITE,
-                    targets);
+            drawChip(graphics, font, chip, warns(chip.filter(), uncovered, negative) ? RED : WHITE, targets);
         }
         if (search != null) {
             search.setPosition(line.left(), line.top());
             search.setWidth(Math.max(1, left - GAP - line.left()));
         }
         return Math.max(layout.bottom(), line.top() + BOX_HEIGHT);
+    }
+
+    // Uncovered and Negative draw red while they count an item (decision items-filter-set-takes-a-negative-chip).
+    private static boolean warns(ValuesTab.Filter filter, int uncovered, int negative) {
+        return filter == ValuesTab.Filter.UNCOVERED && uncovered > 0
+                || filter == ValuesTab.Filter.NEGATIVE && negative > 0;
     }
 
     /**
@@ -337,6 +346,7 @@ final class ValuesPane {
                 y += measured;
             }
         }
+        glow.draw(graphics, list.left(), list.top() - listBar.offset(), right);
         return y;
     }
 
@@ -777,7 +787,10 @@ final class ValuesPane {
             content += rowHeight(font, listed.get(index), width);
         }
         listBar.measure(content, list.bottom() - list.top());
-        listBar.center(targetTop, rowHeight(font, listed.get(target), width));
+        int height = rowHeight(font, listed.get(target), width);
+        listBar.center(targetTop, height);
+        // Decision followed-target-glows-briefly.
+        glow.start(targetTop, height);
     }
 
     /**
@@ -899,7 +912,8 @@ final class ValuesPane {
 
     // The builder's Cancel writes back the text it opened on; for an item that had no entry that text is blank, and
     // the entry the edit added drops rather than standing blank. Every write goes to the entry the builder opened
-    // over, whatever row the list selects meanwhile.
+    // over, whatever row the list selects meanwhile; each write evaluates the draft afresh, so the value shown is the
+    // value the builder holds.
     // Decision cancelling-a-new-entry-leaves-nothing.
     private void openBuilder(ValuesTab.EntryRow row) {
         values.select(row.id());
@@ -911,7 +925,7 @@ final class ValuesPane {
             } else {
                 values.edit(row.id(), typed);
             }
-            actions.markUnsaved();
+            actions.draftChanged();
         }, () -> {
             building = null;
             actions.draftChanged();

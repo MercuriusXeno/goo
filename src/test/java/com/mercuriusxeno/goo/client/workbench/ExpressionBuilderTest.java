@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -120,25 +121,92 @@ class ExpressionBuilderTest {
     }
 
     /**
-     * A value never empties: the last term or row is kept, and a builder holding nothing writes nothing, since the
-     * resolver throws on an empty expression.
+     * A number box takes a whole, a fraction n/d, or a whole then a fraction, reduced to one exact fraction: the
+     * numerator stands as the number and the denominator as the term's divisor, and the box reads it back as a mixed
+     * number (decision number-box-takes-a-mixed-number).
+     */
+    @Nested
+    class MixedNumbers {
+        @Test
+        void mixedNumberWritesItsExactFractionAndReadsBackMixed() {
+            ExpressionBuilder builder = ExpressionBuilder.of("1");
+            builder.setNumber(0, "2 1/2");
+            assertEquals(Optional.of("5 / 2"), builder.written());
+            assertEquals("2 1/2", ExpressionBuilder.of(builder.text()).numberText(List.of(0)));
+            builder.setNumber(0, "1/2");
+            assertEquals(Optional.of("1 / 2"), builder.written());
+            assertEquals("1/2", ExpressionBuilder.of(builder.text()).numberText(List.of(0)));
+            builder.setNumber(0, "3");
+            assertEquals(Optional.of("3"), builder.written());
+            assertEquals("3", builder.numberText(List.of(0)));
+            assertEquals(new com.google.gson.JsonPrimitive(3),
+                    ExpressionTerms.writeValue(ExpressionTerms.parseShown(builder.text()).orElseThrow()));
+        }
+
+        /**
+         * A number typed over a prefab term is the term's whole value: the count and divisor go, the term writes and
+         * reads the number typed, and its box opened on the count it held (decision ref-term-takes-a-number-again;
+         * the operator's ruling of 2026-11-04: drop the multiplier, never sneak it into what I type).
+         */
+        @Test
+        void numberInPlaceOfARefIsTheWholeValue() {
+            ExpressionBuilder counted = ExpressionBuilder.of("3 $base");
+            assertEquals("3", counted.countText(List.of(0)));
+            counted.setNumber(List.of(0), "2");
+            assertEquals(Optional.of("2"), counted.written());
+            assertEquals("2", counted.numberText(List.of(0)));
+            ExpressionBuilder divided = ExpressionBuilder.of("3 $base / 2");
+            assertEquals("1 1/2", divided.countText(List.of(0)));
+            divided.setNumber(List.of(0), "2 1/2");
+            assertEquals(Optional.of("5 / 2"), divided.written());
+        }
+
+        /**
+         * A number typed over a number term carrying a count the builder draws nowhere is the term's whole value too.
+         */
+        @Test
+        void numberTypedOverACountedNumberIsTheWholeValue() {
+            ExpressionBuilder counted = ExpressionBuilder.of("5 * 2");
+            counted.setNumber(List.of(0), "3");
+            assertEquals(Optional.of("3"), counted.written());
+        }
+
+        @Test
+        void numberBoxRefusesAZeroDenominatorAndOtherText() {
+            ExpressionBuilder builder = ExpressionBuilder.of("4");
+            for (String refused : List.of("2 1/0", "2.5", "abc")) {
+                builder.setNumber(0, refused);
+                assertEquals("4", builder.text(), refused);
+                assertEquals(Optional.of(NUMBER_BOX_HOLDS), builder.refusal(), refused);
+            }
+        }
+    }
+
+    private static final String NUMBER_BOX_HOLDS = "A number box holds a whole number, a fraction or both, as 2 1/2.";
+
+    /**
+     * The last term or row goes like any other, and a builder holding nothing writes nothing, since the resolver
+     * throws on an empty expression (decision only-term-or-row-drags-to-the-trash).
      */
     @Nested
     class NeverEmpty {
         @Test
-        void removingTheLastTermIsRefused() {
+        void removingTheLastTermEmptiesTheValueAndWritesNothing() {
             ExpressionBuilder builder = ExpressionBuilder.of("192");
             builder.remove(0);
-            assertTrue(builder.refusal().isPresent());
-            assertEquals("192", builder.text());
+            assertFalse(builder.refusal().isPresent());
+            assertEquals(List.of(), builder.terms());
+            assertTrue(builder.written().isEmpty());
         }
 
         @Test
-        void removingTheLastRowIsRefused() {
+        void removingTheLastRowLeavesNoRowsAndWritesNothing() {
             ExpressionBuilder builder = ExpressionBuilder.of("{\"metal\": \"5\"}");
             builder.removeRow(0);
-            assertTrue(builder.refusal().isPresent());
-            assertEquals("{\"metal\": \"5\"}", builder.text());
+            assertFalse(builder.refusal().isPresent());
+            assertEquals(List.of(), builder.rows());
+            assertTrue(builder.isPerType());
+            assertTrue(builder.written().isEmpty());
         }
 
         @Test
@@ -278,17 +346,26 @@ class ExpressionBuilderTest {
             assertTrue(sum.canMoveTo(List.of(1), List.of(), 0), "a subtracted term landing first");
             assertTrue(sum.canMoveTo(List.of(2), List.of(), 0));
             assertTrue(sum.canRemove(List.of(1)));
+            // Decision only-term-or-row-drags-to-the-trash: a whole value's or a type row's last term goes, leaving an
+            // empty sum, and the last type row goes, leaving no rows under a per-type value.
             ExpressionBuilder alone = ExpressionBuilder.of("$waxed");
-            assertFalse(alone.canRemove(List.of(0)), "a whole value's last term");
+            assertTrue(alone.canRemove(List.of(0)), "a whole value's last term");
             alone.remove(List.of(0));
-            assertEquals("$waxed", alone.text());
+            assertEquals(List.of(), alone.terms());
+            assertFalse(alone.refusal().isPresent());
             ExpressionBuilder nested = ExpressionBuilder.of("$waxed + ($edited)");
             assertTrue(nested.canRemove(List.of(1, 0)), "a parenthetical's last term goes with it");
+            nested.remove(List.of(1, 0));
+            assertWrites("$waxed", nested);
             ExpressionBuilder oneRow = ExpressionBuilder.of("{\"metal\": \"5\"}");
-            assertFalse(oneRow.canRemove(List.of(0, 0)), "a type row's last term");
-            assertFalse(oneRow.canRemoveRow(0), "the last type row");
+            assertTrue(oneRow.canRemove(List.of(0, 0)), "a type row's last term");
+            assertTrue(oneRow.canRemoveRow(0), "the last type row");
+            ExpressionBuilder emptiedRow = ExpressionBuilder.of("{\"metal\": \"5\"}");
+            emptiedRow.remove(List.of(0, 0));
+            assertEquals(List.of(), emptiedRow.rows().getFirst().pieces());
             oneRow.removeRow(0);
-            assertEquals("{\"metal\": \"5\"}", oneRow.text());
+            assertEquals(List.of(), oneRow.rows());
+            assertTrue(oneRow.isPerType(), "the value stays per type with no rows");
             ExpressionBuilder twoRows = ExpressionBuilder.of("{\"metal\": \"5\", \"pulse\": \"2\"}");
             assertTrue(twoRows.canRemoveRow(0));
             assertFalse(twoRows.canMoveRow(0, 0));

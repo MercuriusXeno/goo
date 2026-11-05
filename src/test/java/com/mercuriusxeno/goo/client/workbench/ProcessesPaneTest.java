@@ -44,6 +44,9 @@ class ProcessesPaneTest {
             ]}
             """;
     private static final String LONG_NAME = "copper_oxidation_and_waxing_end1";
+    // The rows' sentences letter at the expression builder's scale (decision
+    // conversions-rows-letter-at-the-builders-scale).
+    private static final Lettering LETTERS = new Lettering(DrawnFrame.font(), ControlFlow.BUILDER_SCALE);
     private static final String DESCRIBED = """
             {"sections": [
               {"section": "_conversions", "processes": [
@@ -57,12 +60,13 @@ class ProcessesPaneTest {
     private ProcessesPane pane;
     private final List<AbstractWidget> widgets = new ArrayList<>();
     private ManagerDraft draft;
+    private ProcessesTab processes;
 
     @BeforeEach
     void readReplies() {
         draft = new ManagerDraft();
         draft.read(MODEL);
-        ProcessesTab processes = new ProcessesTab(draft);
+        processes = new ProcessesTab(draft);
         processes.readDescribed(DESCRIBED);
         ManagerActions actions = mock(ManagerActions.class);
         when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
@@ -91,6 +95,24 @@ class ProcessesPaneTest {
         ValuesManagerScreen.emptyBoxUnder(widgets, new MouseButtonEvent(search.getX() + 1, search.getY() + 1,
                 new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
         assertTrue(frame().texts().contains("#exposed"));
+    }
+
+    /**
+     * A follow into the Mutators pane empties a search that hides its target and draws the target's row (decision
+     * following-a-link-clears-the-panes-search-bar).
+     */
+    @Test
+    void revealClearsTheSearchAndDrawsTheTarget() {
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search mutators".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue("wax");
+        assertFalse(frame().texts().contains("#exposed"), "the search hides the target");
+        pane.reveal("#exposed");
+        DrawnFrame revealed = frame();
+        assertEquals("", search.getValue());
+        assertTrue(revealed.texts().contains("#exposed"), revealed.texts().toString());
     }
 
     /**
@@ -130,7 +152,7 @@ class ProcessesPaneTest {
     void mutatorsLeftIteratorsRightEachScrollingAlone() {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 590, 390);
-        int middle = (bounds.right() - bounds.left()) * 3 / 5;
+        int middle = (bounds.right() - bounds.left()) / 2;
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
         DrawnFrame.Text mutators = frame.find("Mutators");
@@ -156,9 +178,9 @@ class ProcessesPaneTest {
     }
 
     /**
-     * In a pane 500 wide, the iterators column starts at three fifths, 300, plus half the column gap, the mutators
-     * rows' x stands left of 300, and the wheel scrolls the column it turns over (decision
-     * mutators-iterators-split-sixty-forty).
+     * In a pane 500 wide, the iterators column starts at half, 250, plus half the column gap, the mutators rows' x
+     * stands left of 250, and the wheel scrolls the column it turns over (decision
+     * mutators-iterators-split-fifty-fifty).
      */
     @Test
     void wheelScrollsTheColumnItTurnsOver() {
@@ -166,15 +188,15 @@ class ProcessesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 390);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
-        assertEquals(300 + 12 / 2, frame.find("Iterators").x());
+        assertEquals(250 + 12 / 2, frame.find("Iterators").x());
         DrawnFrame.Text firstMutator = first(frame, "m00");
-        assertTrue(rowControl(frame, "m00", "✗").x() < 300, frame.drawn().toString());
-        assertTrue(firstMutator.x() < 300);
-        pane.scroll(320, -3);
-        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 320 scrolls the iterators");
+        assertTrue(rowControl(frame, "m00", "✗").x() < 250, frame.drawn().toString());
+        assertTrue(firstMutator.x() < 250);
+        pane.scroll(270, -3);
+        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 270 scrolls the iterators");
         assertEquals(0, pane.columnBar(false).offset());
-        pane.scroll(280, -3);
-        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 280 scrolls the mutators");
+        pane.scroll(230, -3);
+        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 230 scrolls the mutators");
     }
 
     /**
@@ -268,32 +290,31 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Each mutation line right packs against a column edge a gap left of the row's validity marker: its x ends at
-     * the edge, the mutator buttons share one x, each line's words stand one gap left of its button, and
-     * "+ optional mutation" ends at the edge too (decisions iterator-reads-copies-then-mutates-using-and,
-     * mutator-chain-forms-a-column-left-of-the-validity-marker).
+     * Each mutation line right packs against one edge left of the row's validity marker, half as far from the row's
+     * right as the marker set before: its x ends at the edge one gap past its own mutator's button, each line's words
+     * stand one gap left of its button, and "+ optional mutation" ends at the edge too (decisions
+     * iterator-reads-copies-then-mutates-using-and, chain-lines-inset-halves-at-most,
+     * chain-x-follows-its-mutator-at-one-gap).
      */
     @Test
-    void iteratorMutationLinesRightPackWithTheirButtonsAligned() {
+    void iteratorMutationLinesRightPackEachXByItsMutator() {
         pane = chainedIterators(mock(ManagerActions.class));
         DrawnFrame frame = frame();
         DrawnFrame.Text then = frame.find("mutated by");
         DrawnFrame.Text and = frame.find("and");
-        DrawnFrame.Text waxed = onLineOf(frame, then, "waxed");
-        DrawnFrame.Text rust = onLineOf(frame, and, "rust");
-        DrawnFrame.Text marker = frame.drawn().stream().filter(text -> text.text().equals("✔") && text.x() > then.x())
-                .findFirst().orElseThrow();
-        int edge = marker.x() - BuilderOverlays.GAP;
-        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the column ends inside the box");
-        assertEquals(edge, rightOf(onLineOf(frame, then, "x")), frame.drawn().toString());
-        assertEquals(edge, rightOf(onLineOf(frame, and, "x")), frame.drawn().toString());
-        assertEquals(waxed.x(), rust.x(), waxed + " vs " + rust);
-        int buttonLeft = waxed.x() - ButtonPainter.PADDING;
-        assertEquals(buttonLeft - BuilderOverlays.GAP, then.x() + DrawnFrame.font().width(then.text()), then.toString());
-        assertEquals(buttonLeft - BuilderOverlays.GAP, and.x() + DrawnFrame.font().width(and.text()), and.toString());
+        int edge = frame.buttonAround(onLineOf(frame, then, "x"))[2];
+        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the lines end inside the box");
+        assertEquals(edge, frame.buttonAround(onLineOf(frame, and, "x"))[2], frame.drawn().toString());
+        for (DrawnFrame.Text words : List.of(then, and)) {
+            DrawnFrame.Text applied = onLineOf(frame, words, words == then ? "waxed" : "rust");
+            int[] button = frame.buttonAround(applied);
+            assertEquals(button[2] + BuilderOverlays.GAP, frame.buttonAround(onLineOf(frame, words, "x"))[0],
+                    applied.toString());
+            assertEquals(button[0] - BuilderOverlays.GAP, words.x() + LETTERS.width(words.text()), words.toString());
+        }
         DrawnFrame.Text add = frame.drawn().stream().filter(text -> text.text().equals("+ optional mutation")
                 && text.y() > and.y()).findFirst().orElseThrow();
-        assertEquals(edge, rightOf(add), add.toString());
+        assertEquals(edge, frame.buttonAround(add)[2], add.toString());
     }
 
     /**
@@ -329,17 +350,13 @@ class ProcessesPaneTest {
                 pencil.x() - ButtonPainter.PADDING, secondName + "'s pencil past its name");
         DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals(lastButton)
                 && text.y() > first.y() && text.y() < second.y()).reduce((earlier, later) -> later).orElseThrow();
-        int lastBottom = last.y() - ButtonPainter.TEXT_NUDGE + ButtonPainter.HEIGHT;
+        int lastBottom = frame.buttonAround(last)[3];
         assertEquals(RowLayout.RULE_GAP, rule - lastBottom, firstName + "'s last button over the rule");
     }
 
     private static DrawnFrame.Text onLineOf(DrawnFrame frame, DrawnFrame.Text anchor, String label) {
         return frame.drawn().stream().filter(text -> text.y() == anchor.y() && text.text().equals(label)).findFirst()
                 .orElseThrow(() -> new AssertionError(label + " on " + anchor + ": " + frame.drawn()));
-    }
-
-    private static int rightOf(DrawnFrame.Text button) {
-        return button.x() + DrawnFrame.font().width(button.text()) + ButtonPainter.PADDING;
     }
 
     // The right edge of the row box filled across a point.
@@ -371,7 +388,7 @@ class ProcessesPaneTest {
         DrawnFrame.Text kind = drawn.get(drawn.indexOf(waxed) + 4);
         assertEquals(ControlFlow.dropdownLabel("add"), kind.text(), drawn.toString());
         assertTrue(kind.y() > waxed.y(), kind + " below " + waxed);
-        assertEquals(waxed.x() + ButtonPainter.PADDING, kind.x(), drawn.toString());
+        assertEquals(waxed.x(), frame.buttonAround(kind)[0], drawn.toString());
     }
 
     // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane.
@@ -412,7 +429,7 @@ class ProcessesPaneTest {
         for (int width : new int[] {590, 464}) {
             DrawnFrame frame = new DrawnFrame();
             pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
-            int middle = width * 3 / 5;
+            int middle = width / 2;
             List<DrawnFrame.Text> drawn = frame.drawn();
             List<DrawnFrame.Text> crosses = drawn.stream().filter(text -> text.text().equals("✗")).toList();
             assertEquals(3, crosses.size(), drawn.toString());
@@ -437,24 +454,25 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Every tooltip hint a drawn Mutators frame registers reads Rename, Delete, a verdict and its reason, or a cut
-     * name in full (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
+     * Every plain tooltip hint a drawn Mutators frame registers reads Rename, Delete, or a verdict and its reason; a
+     * cut name hovers in full above its formula instead (decisions
+     * values-manager-controls-carry-no-tooltip-but-rename-delete-and-names, conversion-controls-hover-their-formula).
      */
     @Test
-    void everyTooltipHintIsRenameDeleteAVerdictOrACutName() {
+    void everyTooltipHintIsRenameDeleteOrAVerdict() {
         DrawnFrame frame = frame();
         List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
                 .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
-        assertTrue(hints.containsAll(List.of("Rename", "Delete", LONG_NAME)), hints.toString());
+        assertTrue(hints.containsAll(List.of("Rename", "Delete")), hints.toString());
         assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
-                || hint.equals(LONG_NAME) || hint.startsWith("Valid") || hint.startsWith("Invalid")), hints.toString());
+                || hint.startsWith("Valid") || hint.startsWith("Invalid")), hints.toString());
     }
 
     private DrawnFrame frame() {
         return frame(590);
     }
 
-    // A pane 740 wide gives the mutators column its three fifths, 444, more than a 20-character cut name takes.
+    // A pane 740 wide gives the mutators column its half, 370, more than a 20-character cut name takes.
     private static final int WIDE_PANE = 740;
 
     private DrawnFrame frame(int width) {
@@ -464,14 +482,15 @@ class ProcessesPaneTest {
     }
 
     /**
-     * The mutators column takes 60 percent of the pane and the iterators column 40, the gap centered on the split,
-     * and each column's scroll bar stands at its own right edge (decision mutators-iterators-split-sixty-forty).
+     * In a pane 600 wide the mutators column ends at 300 less half the column gap and the iterators column begins at
+     * 300 plus half of it, read off the iterators heading and each column's scroll bar at its right edge (decision
+     * mutators-iterators-split-fifty-fifty).
      */
     @Test
-    void columnsSplitThePaneSixtyForty() {
-        int width = 590;
+    void columnsSplitThePaneInHalf() {
+        int width = 600;
         DrawnFrame frame = frame(width);
-        int middle = width * 3 / 5;
+        int middle = 300;
         int halfGap = 6;
         assertEquals(middle + halfGap, frame.find("Iterators").x());
         assertEquals(0, frame.find("Mutators").x());
@@ -513,7 +532,7 @@ class ProcessesPaneTest {
     void everyRowDrawsItsColumnsAtTheSameLefts() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
-        int middle = 590 * 3 / 5;
+        int middle = 590 / 2;
         for (String column : List.of("✗", "✔")) {
             for (boolean right : new boolean[] {false, true}) {
                 List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)
@@ -539,17 +558,29 @@ class ProcessesPaneTest {
     }
 
     /**
-     * A name past 24 characters draws its first 20, an ellipsis and its last 4, and hovers whole.
+     * A name past 24 characters draws its first 20, an ellipsis and its last 4, and hovers its whole name above its
+     * formula; a whole name hovers its formula alone, where it hovered nothing (decisions
+     * conversion-controls-hover-their-formula, values-manager-controls-carry-no-tooltip-but-rename-delete-and-names;
+     * the operator's report of 2026-11-04: a stack's cut name hovered its name alone and a convert's whole name
+     * hovered nothing).
      */
     @Test
-    void longNameCutsToTwentyAnEllipsisAndFourAndHoversWhole() {
+    void mutatorNameHoversItsFormulaAndACutNameItsWholeNameAboveIt() {
         assertEquals("copper_oxidation_and…end1", ProcessesPane.shownName(LONG_NAME));
         assertEquals("waxed", ProcessesPane.shownName("waxed"));
         DrawnFrame frame = frame(WIDE_PANE);
-        frame.find("copper_oxidation_and…end1");
-        assertTrue(frame.targets.hoverKeys().contains(BuilderOverlays.hintKey(LONG_NAME)),
-                frame.targets.hoverKeys().toString());
+        DrawnFrame.Text waxed = first(frame, "waxed");
+        assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "waxed")),
+                frame.targets.hovered(waxed.x() + 1, waxed.y() + 1));
+        DrawnFrame.Text cut = frame.find("copper_oxidation_and…end1");
+        String cutKey = frame.targets.hovered(cut.x() + 1, cut.y() + 1).orElseThrow();
+        List<TooltipLine> lines = ConversionHovers.tooltipFor(processes, new VariablesTab(draft), cutKey)
+                .orElseThrow(() -> new AssertionError(cutKey + " shows no tooltip"));
+        assertEquals(new TooltipLine.Text(net.minecraft.network.chat.Component.literal(LONG_NAME)), lines.getFirst());
+        assertTrue(lines.size() > 1, "the formula follows the name: " + lines);
     }
+
+    private static final String SECTION = "_conversions";
 
     /**
      * Delete's box clears the one-pixel rule below its row, and a row of one sentence line takes the tighter pitch

@@ -42,6 +42,50 @@ class ValuesManagerScreenTest {
     private static final Map<String, String> CANNED = Map.of(WorkbenchOperations.MODEL, MODEL);
 
     /**
+     * A press on an open dropdown's choice, over the pane's search box, picks the choice and never reaches the
+     * screen's widgets, so the box takes no focus (decision open-dropdown-intercepts-clicks-before-the-pane-behind-it).
+     */
+    @Test
+    void openDropdownTakesTheClickOverTheSearchBox() {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+        BuilderOverlays overlays = new BuilderOverlays(actions, mock(ItemIcons.class));
+        overlays.init(DrawnFrame.font());
+        overlays.show(true);
+        List<String> picked = new ArrayList<>();
+        overlays.openDropdown(new BuilderOverlays.Anchor(20, 20), SearchDropdown.over(List.of(),
+                List.of("oak", "birch"), false), choice -> picked.add(choice.id()));
+        DrawnFrame frame = new DrawnFrame();
+        overlays.draw(frame.graphics, DrawnFrame.font(), frame.targets);
+        DrawnFrame.Text birch = frame.drawn().stream().filter(text -> text.text().contains("birch")).findFirst()
+                .orElseThrow(() -> new AssertionError(frame.texts().toString()));
+        EditBox search = new EditBox(DrawnFrame.font(), birch.x() - 10, birch.y() - 4, 200, 16,
+                Component.literal("Search prefabs"));
+        MouseButtonEvent press = new MouseButtonEvent(birch.x() + 1, birch.y() + 1,
+                new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
+        assertTrue(search.isMouseOver(press.x(), press.y()), "the search box stands under the choice");
+        List<MouseButtonEvent> reachedWidgets = new ArrayList<>();
+        assertTrue(ValuesManagerScreen.routePress(frame.targets, press, event -> reachedWidgets.add(event), () -> { }));
+        assertEquals(List.of("birch"), picked);
+        assertTrue(reachedWidgets.isEmpty(), "the press reached the widgets behind the dropdown");
+    }
+
+    /**
+     * With no dropdown open, a press on the search box reaches the screen's widgets, which focus it (decision
+     * open-dropdown-intercepts-clicks-before-the-pane-behind-it).
+     */
+    @Test
+    void searchBoxTakesTheClickWhenNoDropdownIsOpen() {
+        MouseButtonEvent press = new MouseButtonEvent(30, 25, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
+        List<MouseButtonEvent> reachedWidgets = new ArrayList<>();
+        List<String> unfocused = new ArrayList<>();
+        assertTrue(ValuesManagerScreen.routePress(new ClickTargets(), press, event -> reachedWidgets.add(event),
+                () -> unfocused.add("unfocused")));
+        assertEquals(List.of(press), reachedWidgets);
+        assertTrue(unfocused.isEmpty(), "the widget that took the press keeps its focus");
+    }
+
+    /**
      * The X is a square ending at the right margin, the [?] a square one gap left of it and the topbar starts one gap
      * left of the [?] (decisions x-in-the-top-right-closes-the-manager,
      * question-button-toggles-explainer-mode-with-the-drag-mask).

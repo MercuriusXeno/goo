@@ -92,6 +92,22 @@ class ValuationsTest {
         assertTrue(entryNamed(entries, "pail").get("error").getAsString().contains("no_such_item"));
     }
 
+    /**
+     * An entry holding an amount below zero, which the game loads no value for, resolves in the workbench to its
+     * value as it stands, the negative amount beside the rest, so the row shows the amount to fix.
+     */
+    @Test
+    void negativeAmountResolvesAsItStands() throws IOException {
+        BaseValuesModel model = everyForm().withTopLevel("beetroot",
+                ValueEntries.perType(Map.of("jelly", "180", "leaf", "6 - 180")));
+        JsonArray entries = JsonParser.parseString(Valuations.resolved(model)).getAsJsonObject()
+                .getAsJsonArray("entries");
+        JsonObject beetroot = entryNamed(entries, "beetroot");
+        assertEquals("180", beetroot.getAsJsonObject("value").get("jelly").getAsString());
+        assertEquals("-174", beetroot.getAsJsonObject("value").get("leaf").getAsString());
+        assertTrue(beetroot.get("error").isJsonNull(), beetroot.toString());
+    }
+
     private static JsonObject entryNamed(JsonArray entries, String key) {
         return entries.asList().stream().map(entry -> entry.getAsJsonObject())
                 .filter(entry -> key.equals(entry.get("key").getAsString())).findFirst().orElseThrow();
@@ -192,6 +208,26 @@ class ValuationsTest {
         assertEquals("4", entryNamed(entries, "oak_planks").getAsJsonObject("value").get("leaf").getAsString());
         assertFalse(entries.asList().stream().anyMatch(entry -> "mystery".equals(entry.getAsJsonObject().get("key")
                 .getAsString())));
+    }
+
+    /**
+     * An entry naming an item only its recipe values reads that value in the Items tab with no error once the
+     * recipes derive: chainmail_boots at 4 iron_chain, the chain made of two nuggets and an ingot (decision
+     * diagnose-and-correct-item-reference-unrecognized-token).
+     */
+    @Test
+    void resolveAnswersAnEntryWaitingForARecipeValuedItem() {
+        BaseValuesModel model = BaseValuesModel.parse("""
+                {
+                    "iron_nugget": {"metal": 1},
+                    "iron_ingot": {"metal": 9},
+                    "chainmail_boots": "4 iron_chain"
+                }
+                """);
+        JsonObject boots = entryNamed(JsonParser.parseString(Valuations.resolved(model,
+                InventoryView.parse(ironInventory()))).getAsJsonObject().getAsJsonArray("entries"), "chainmail_boots");
+        assertEquals("44", boots.getAsJsonObject("value").get("metal").getAsString(), boots.toString());
+        assertTrue(boots.get("error").isJsonNull(), boots.toString());
     }
 
     /**

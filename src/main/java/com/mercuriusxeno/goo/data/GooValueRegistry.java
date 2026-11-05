@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.data;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.Goo;
@@ -50,6 +51,10 @@ public class GooValueRegistry {
      * Error: no datapack provides base values.
      */
     private static final String ERROR_NO_DATAPACK = "No datapack provides goo_values/base_values.json";
+    /**
+     * Log: an entry names an item neither a line nor a recipe values.
+     */
+    private static final String LOG_UNRESOLVED_ITEM = "{} names {}, which no entry or recipe values, so it loads no value";
 
     private final Map<Identifier, GooValue> baseValues = new HashMap<>();
     /**
@@ -69,7 +74,7 @@ public class GooValueRegistry {
     /**
      * Named constants from _constants block, resolved during value parsing.
      */
-    private final Map<String, Integer> constants = new HashMap<>();
+    private final Map<String, GooFraction> constants = new HashMap<>();
     /**
      * Tree constants from _constants block: GooValue objects keyed by name.
      */
@@ -98,6 +103,15 @@ public class GooValueRegistry {
      * The clique roots the last load's _roots named (decision audit-proposes-root-candidates-and-flags-bleed).
      */
     private List<Identifier> rootItems = List.of();
+    /**
+     * Each entry the last load left waiting for an item no line valued, with its JSON value, which the recipes may
+     * value (decision diagnose-and-correct-item-reference-unrecognized-token).
+     */
+    private Map<Identifier, JsonElement> waitingItems = Map.of();
+    /**
+     * Each entry still waiting after the last load or derivation, with the item it names that holds no value.
+     */
+    private Map<Identifier, String> unresolvedReferences = Map.of();
 
     private Path effectiveCachePath;
 
@@ -107,7 +121,7 @@ public class GooValueRegistry {
      * @param server the server providing the resource manager
      * @return the ordered resource stack
      */
-    private static List<Resource> loadResourceStack(MinecraftServer server) {
+    public static List<Resource> loadResourceStack(MinecraftServer server) {
         ResourceManager resourceManager = server.getResourceManager();
         Identifier location = Identifier.fromNamespaceAndPath(
                 GooValueLoader.modNamespace(), GooValueLoader.baseValuesResource());
@@ -163,6 +177,7 @@ public class GooValueRegistry {
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
         rootItems = List.copyOf(state.rootItems);
+        adoptWaiting(state);
         publishEffectiveValues(loadedEffective);
     }
 
@@ -182,6 +197,7 @@ public class GooValueRegistry {
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
         rootItems = List.copyOf(state.rootItems);
+        adoptWaiting(state);
         publishEffectiveValues(loadedEffective);
     }
 
@@ -243,6 +259,7 @@ public class GooValueRegistry {
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
         rootItems = List.copyOf(state.rootItems);
+        adoptWaiting(state);
     }
 
     /**
@@ -393,7 +410,7 @@ public class GooValueRegistry {
         if (tree != null) {
             return tree.toString();
         }
-        Integer scalar = constants.get(name);
+        GooFraction scalar = constants.get(name);
         return scalar == null ? null : scalar.toString();
     }
 
@@ -472,6 +489,7 @@ public class GooValueRegistry {
     int deriveFromRecipeInputs(List<RecipeInput> recipes, boolean baseOverride) {
         lastRecipes = List.copyOf(recipes);
         lastDerivation = GooValueDerivation.derive(recipes, baseValues, deniedItems, baseOverride);
+        settleWaitingOverRecipes(recipes, baseOverride);
         Map<Identifier, GooValue> derivedEffective = new HashMap<>(lastDerivation.effectiveValues());
         GooConversionLoader.applyConversions(postConversions, derivedEffective, pseudoTags);
         publishEffectiveValues(derivedEffective);
@@ -513,7 +531,14 @@ public class GooValueRegistry {
         var state = createParseState(loadedEffective);
         GooValueLoader.parseBaseValuesFromStream(stream, state);
         postConversions = state.postConversions;
+        adoptWaiting(state);
         publishEffectiveValues(loadedEffective);
+    }
+
+    // The entries a load left waiting, which the next derivation reads against what the recipes value.
+    private void adoptWaiting(GooValueLoader.ParseState state) {
+        waitingItems = new LinkedHashMap<>(state.waitingItems);
+        unresolvedReferences = new LinkedHashMap<>(state.unresolvedItems);
     }
 
     /**
@@ -525,6 +550,47 @@ public class GooValueRegistry {
         effective.putAll(baseValues);
         GooConversionLoader.applyConversions(postConversions, effective, pseudoTags);
         publishEffectiveValues(effective);
+    }
+
+    // Each entry waiting for an item reads what the recipes value it at, joining the base values, and the recipes
+    // derive again over it, while a pass values one more entry; what still names an item holding no value loads none.
+    // Decision diagnose-and-correct-item-reference-unrecognized-token.
+    private void settleWaitingOverRecipes(List<RecipeInput> recipes, boolean baseOverride) {
+        DerivationResult derived = lastDerivation;
+        Map<Identifier, JsonElement> waiting = new LinkedHashMap<>(waitingItems);
+        while (derived != null && !waiting.isEmpty()) {
+            GooValueLoader.Settled settled = GooValueLoader.resolveWaiting(waiting,
+                    new HashMap<>(derived.effectiveValues()), constants, treeConstants);
+            unresolvedReferences = new LinkedHashMap<>(settled.unresolved());
+            if (settled.valued().isEmpty()) {
+                break;
+            }
+            settled.valued().forEach((item, value) -> {
+                if (!value.hasNegative()) {
+                    baseValues.put(item, value);
+                }
+            });
+            waiting.keySet().removeAll(settled.valued().keySet());
+            derived = GooValueDerivation.derive(recipes, baseValues, deniedItems, baseOverride);
+            lastDerivation = derived;
+        }
+        unresolvedReferences.forEach((item, missing) -> Goo.LOGGER.warn(LOG_UNRESOLVED_ITEM, item, missing));
+    }
+
+    /**
+     * @return each entry naming an item neither a line nor, after the last derivation, a recipe values, with that
+     *     item; such an entry loads no value (decision diagnose-and-correct-item-reference-unrecognized-token)
+     */
+    public Map<Identifier, String> unresolvedReferences() {
+        return Collections.unmodifiableMap(unresolvedReferences);
+    }
+
+    /**
+     * @param item an item
+     * @return the value base_values.json gives it, a waiting entry's once it resolved, null where none does
+     */
+    public @Nullable GooValue handKeyedValue(Identifier item) {
+        return baseValues.get(item);
     }
 
     /**

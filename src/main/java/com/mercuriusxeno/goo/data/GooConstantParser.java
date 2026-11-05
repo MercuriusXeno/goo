@@ -7,8 +7,8 @@ import java.util.Map;
 
 /**
  * Parses the _constants block from base_values.json into scalar and tree constants.
- * Scalar constants resolve to a single integer; tree constants resolve to a full
- * GooValue (multi-type map).
+ * Scalar constants resolve to a single exact amount, a division keeping its fraction; tree constants resolve to a
+ * full GooValue (multi-type map) (decision values-are-fractions-melt-floors-fabricate-ceils).
  */
 public final class GooConstantParser {
 

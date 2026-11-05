@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.data.GooConstantParser;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -48,9 +50,13 @@ public final class VariablesTab {
     private static final String OBJECT_START = "{";
     private static final String TYPE_SEPARATOR = " ";
     private static final String TYPES_SEPARATOR = ", ";
-    private static final String VALUE_PREFIX = "value ";
     private static final String EMPTY_TREE = "empty";
     private static final String NO_TEXT = "";
+    private static final String PREFAB_MARK = "$";
+    private static final String KEY_SEPARATOR = "keySeparator";
+    private static final String VALUE_KIND = "VALUE";
+    private static final String OBJECT_KIND = "OBJECT";
+    private static final String[] LAYOUT_FIELDS = {"leading", "trailing", "closingGap"};
 
     private final ManagerDraft draft;
     private final Map<String, JsonObject> results = new LinkedHashMap<>();
@@ -105,24 +111,6 @@ public final class VariablesTab {
         }
     }
 
-    /**
-     * A constant's hover card.
-     *
-     * @param title      the prefab's name
-     * @param expression its expression as the file spells it, unquoted
-     * @param lines      one line per type it resolves to, its value, or its error
-     * @param direct     the items whose own expression names it
-     * @param readers    what reads it directly
-     */
-    public record HoverCard(String title, String expression, List<String> lines, List<String> direct,
-                            List<Reader> readers) {
-        /**
-         * @return the prefabs and groups reading it, in reader order
-         */
-        public List<Reader> links() {
-            return linksOf(readers);
-        }
-    }
 
     /**
      * A prefab's evaluated value, as its hover reads it.
@@ -249,6 +237,54 @@ public final class VariablesTab {
     }
 
     /**
+     * Adds a prefab with no value at the end of _constants, the file gaining the section where it holds none.
+     * Decision goo-workbench-opens-the-in-game-manager-screen: the page's Variables pane added constants.
+     *
+     * @param typed the name box's text, its $ optional
+     * @return the new prefab's name, empty where the name is blank, the loader's $name scan stops short of it, or a
+     *     prefab already holds it
+     */
+    public Optional<String> createPrefab(String typed) {
+        String trimmed = typed.trim();
+        String name = trimmed.startsWith(PREFAB_MARK) ? trimmed.substring(PREFAB_MARK.length()) : trimmed;
+        boolean legal = !name.isEmpty() && GooConstantParser.scanIdentifier(name, 0) == name.length();
+        if (!legal || expressionOf(name).isPresent()) {
+            return Optional.empty();
+        }
+        constantsSection().add(blankEntry(name, VALUE_KIND, ManagerDraft.storedText(NO_TEXT)));
+        return Optional.of(name);
+    }
+
+    // The _constants entries, live; a draft holding none gains the section first, ahead of every other member.
+    private JsonArray constantsSection() {
+        JsonArray members = draft.members();
+        for (JsonElement element : members) {
+            JsonObject member = element.getAsJsonObject();
+            JsonElement key = member.get(KEY);
+            if (key != null && !key.isJsonNull() && CONSTANTS_SECTION.equals(key.getAsString())) {
+                return member.getAsJsonArray(ENTRIES);
+            }
+        }
+        JsonObject section = blankEntry(CONSTANTS_SECTION, OBJECT_KIND, NO_TEXT);
+        members.asList().addFirst(section);
+        return section.getAsJsonArray(ENTRIES);
+    }
+
+    // A member as the model spells one: its key, kind and text, no entries and no layout of its own.
+    private static JsonObject blankEntry(String key, String kind, String text) {
+        JsonObject entry = new JsonObject();
+        entry.addProperty(KEY, key);
+        entry.add(KEY_SEPARATOR, JsonNull.INSTANCE);
+        entry.addProperty(KIND, kind);
+        entry.addProperty(TEXT, text);
+        entry.add(ENTRIES, new JsonArray());
+        for (String layout : LAYOUT_FIELDS) {
+            entry.add(layout, JsonNull.INSTANCE);
+        }
+        return entry;
+    }
+
+    /**
      * @param from the constant's name
      * @param to   its new name
      * @return the rename request
@@ -265,14 +301,6 @@ public final class VariablesTab {
      * @return the delete request
      */
     public String deleteRequest(String name) {
-        return namedRequest(name);
-    }
-
-    /**
-     * @param name the constant hovered
-     * @return the hover request
-     */
-    public String hoverRequest(String name) {
         return namedRequest(name);
     }
 
@@ -302,26 +330,6 @@ public final class VariablesTab {
             }
         }
         return removed;
-    }
-
-    /**
-     * @param hoverJson the constants hover operation's reply
-     * @return the card it draws
-     */
-    public HoverCard readHover(String hoverJson) {
-        JsonObject hover = JsonParser.parseString(hoverJson).getAsJsonObject();
-        String error = textOf(hover, ERROR);
-        List<String> lines;
-        if (!error.isEmpty()) {
-            lines = List.of(error);
-        } else if (TREE.equals(hover.get(KIND).getAsString())) {
-            lines = hover.getAsJsonObject(TREE).entrySet().stream()
-                    .map(type -> type.getKey() + TYPE_SEPARATOR + type.getValue().getAsString()).toList();
-        } else {
-            lines = List.of(VALUE_PREFIX + textOf(hover, VALUE));
-        }
-        return new HoverCard(hover.get(NAME).getAsString(),
-                ManagerDraft.shownText(textOf(hover, EXPRESSION)), lines, idsOf(hover, DIRECT), readersIn(hover));
     }
 
     private String namedRequest(String name) {

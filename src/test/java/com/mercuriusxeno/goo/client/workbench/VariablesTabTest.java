@@ -38,10 +38,6 @@ class VariablesTabTest {
                "usedBy": ["minecraft:egg"], "readers": [{"id": "minecraft:egg", "kind": "item"}]}
             ]}
             """;
-    private static final String HOVER = """
-            {"name": "egg", "kind": "tree", "tree": {"zoo": "8", "hex": "1/2"}, "value": null, "error": null,
-             "usedBy": ["minecraft:egg"], "direct": [], "readers": [], "expression": "{\\"zoo\\": \\"$base\\"}"}
-            """;
 
     private ManagerDraft draft;
     private VariablesTab tab;
@@ -56,6 +52,44 @@ class VariablesTabTest {
 
     private static JsonObject parsed(String text) {
         return JsonParser.parseString(text).getAsJsonObject();
+    }
+
+    /**
+     * Creating a prefab adds it to the end of _constants with no value, a typed $ dropped; a blank name, a name the
+     * loader's $name scan stops short of and a name already held add nothing; a file with no _constants gains one
+     * holding the prefab, which the change set posts (decision goo-workbench-opens-the-in-game-manager-screen).
+     */
+    @Nested
+    class CreatingAPrefab {
+        @Test
+        void freeNameAddsABlankPrefabAtTheEnd() {
+            assertEquals(java.util.Optional.of("fresh"), tab.createPrefab(" $fresh "));
+            assertEquals(List.of("base", "broken", "egg", "fresh"),
+                    tab.blocks().stream().map(VariablesTab.ConstantBlock::name).toList());
+            assertEquals("", tab.blocks().getLast().expression());
+        }
+
+        @Test
+        void blankIllegalAndHeldNamesAddNothing() {
+            for (String refused : List.of("", "  ", "$", "two words", "dash-ed", "base", "$egg")) {
+                assertTrue(tab.createPrefab(refused).isEmpty(), refused);
+            }
+            assertEquals(3, tab.blocks().size());
+        }
+
+        @Test
+        void fileWithNoConstantsGainsTheSection() {
+            ManagerDraft bare = new ManagerDraft();
+            bare.read("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "minecraft:stick", "keySeparator": null, "kind": "VALUE", "text": "1", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null}]}
+                    """);
+            VariablesTab fresh = new VariablesTab(bare);
+            assertEquals(java.util.Optional.of("first"), fresh.createPrefab("first"));
+            assertEquals(List.of("first"), fresh.blocks().stream().map(VariablesTab.ConstantBlock::name).toList());
+            assertTrue(bare.changeSetText().contains("\"_constants\""), bare.changeSetText());
+        }
     }
 
     @Nested
@@ -248,23 +282,6 @@ class VariablesTabTest {
             assertEquals(List.of(new VariablesTab.Reader("egg", "constant"), new VariablesTab.Reader("stick", "item"),
                     new VariablesTab.Reader("minecraft:egg", "item")), tab.deletionCascade("base"));
             assertTrue(tab.deletionCascade("broken").isEmpty());
-        }
-
-        /**
-         * The hover card reads the variable's expression, one line per type it resolves to, and as links the
-         * prefabs and groups among its readers (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
-         */
-        @Test
-        void hoverCardReadsExpressionTypesAndLinks() {
-            VariablesTab.HoverCard card = tab.readHover(HOVER.replace("\"readers\": []", """
-                    "readers": [{"id": "base", "kind": "constant"}, {"id": "#logs", "kind": "group"},
-                                {"id": "minecraft:egg", "kind": "item"}]"""));
-            assertEquals("egg", card.title());
-            assertEquals("{\"zoo\": \"$base\"}", card.expression());
-            assertEquals(List.of("zoo 8", "hex 1/2"), card.lines());
-            assertEquals(List.of(), card.direct());
-            assertEquals(List.of(new VariablesTab.Reader("base", "constant"), new VariablesTab.Reader("#logs", "group")),
-                    card.links());
         }
     }
 }

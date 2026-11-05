@@ -38,20 +38,21 @@ final class ProcessesPane {
     private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
     private static final int BUTTON_INSET = RowLayout.RULE_GAP;
     private static final int HEAD_TEXT_NUDGE = BUTTON_INSET + ButtonPainter.TEXT_NUDGE;
-    // The sentence line centers its buttons, so they stand the rule gap under the head line's.
     private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT;
+    // The sentence's lettered line is as tall as its buttons, so the sentence stands the rule gap under the head
+    // line's buttons and its last buttons the rule gap over the rule below
+    // (decisions conversions-rows-letter-at-the-builders-scale, spacing-rules-are-one-set-across-every-pane).
+    private static final int SENTENCE_PAD = RowLayout.RULE_GAP;
     private static final int ROW_GAP = 1;
     /**
-     * A row whose sentence takes one line, from its top to the next row's
-     * (decision mutator-delete-clears-a-thinner-rule-and-lines-tighten).
+     * A row whose sentence takes one line, from its top to the next row's, the sentence on the expression builder's
+     * line (decisions mutator-delete-clears-a-thinner-rule-and-lines-tighten,
+     * conversions-rows-letter-at-the-builders-scale).
      */
-    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.FULL_LINE + ROW_GAP;
+    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + SENTENCE_PAD + ControlFlow.LINE + SENTENCE_PAD + ROW_GAP;
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
     private static final int HALF = 2;
-    // The mutators column takes three fifths of the pane and the iterators column two.
-    private static final int MUTATORS_FIFTHS = 3;
-    private static final int FIFTHS = 5;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
     /** An Invalid verdict's color. */
@@ -97,6 +98,9 @@ final class ProcessesPane {
     private int columnsMiddle;
     private @Nullable String revealPending;
     private @Nullable RevealedRow revealedRow;
+    private final RevealGlow glow = new RevealGlow();
+    // Which column the glowing row stands in.
+    private boolean glowIterators;
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
     private @Nullable Naming naming;
@@ -108,6 +112,8 @@ final class ProcessesPane {
     }
 
     /**
+     * A pane whose add rows draw no reduced value.
+     *
      * @param processes   the Mutators tab's state
      * @param draft       the draft every tab edits
      * @param actions     the panes' line back to the screen
@@ -116,12 +122,27 @@ final class ProcessesPane {
      */
     ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions, ItemIcons icons,
                   Supplier<List<String>> treePrefabs) {
+        this(processes, draft, actions, icons, treePrefabs, prefab -> java.util.Map.of());
+    }
+
+    /**
+     * @param processes     the Mutators tab's state
+     * @param draft         the draft every tab edits
+     * @param actions       the panes' line back to the screen
+     * @param icons         the items' icons
+     * @param treePrefabs   the tree prefabs' names, which an additive adds
+     * @param prefabAmounts a prefab's reduced value, which its add rows draw (decision
+     *                      add-mutator-entry-shows-its-reduced-value)
+     */
+    ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions, ItemIcons icons,
+                  Supplier<List<String>> treePrefabs,
+                  java.util.function.Function<String, java.util.Map<String, String>> prefabAmounts) {
         this.processes = processes;
         this.draft = draft;
         this.actions = actions;
         this.overlays = new BuilderOverlays(actions, icons);
         this.controls = new MutatorControls(processes, overlays, actions, treePrefabs,
-                () -> GooTypes.order().stream().map(GooTypes::id).toList(), actions::draftChanged);
+                () -> GooTypes.order().stream().map(GooTypes::id).toList(), actions::draftChanged, prefabAmounts);
     }
 
     /**
@@ -223,8 +244,8 @@ final class ProcessesPane {
             search.setPosition(pane.left(), pane.top());
         }
         nameBoxPlaced = false;
-        // Decision mutators-iterators-split-sixty-forty.
-        columnsMiddle = pane.left() + (pane.right() - pane.left()) * MUTATORS_FIFTHS / FIFTHS;
+        // Decision mutators-iterators-split-fifty-fifty: the two columns meet at the pane's midpoint.
+        columnsMiddle = pane.left() + (pane.right() - pane.left()) / HALF;
         processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
                 .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
                         pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
@@ -263,6 +284,9 @@ final class ProcessesPane {
         frame.targets().clip(column.left(), listTop, column.right(), column.bottom());
         int y = drawRows(new Frame(graphics, frame.font(), rows, frame.targets()), section, iterators,
                 listTop - bar.offset());
+        if (iterators == glowIterators) {
+            glow.draw(graphics, rows.left(), listTop - bar.offset(), rows.right());
+        }
         frame.targets().unclip();
         graphics.disableScissor();
         bar.measureAndDraw(graphics, frame.targets(), y, column.right(), listTop, column.bottom());
@@ -379,9 +403,9 @@ final class ProcessesPane {
     private int drawRow(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
                         GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         drawHeadLine(new Frame(graphics, font, bounds, targets), section, row, y);
-        int sentenceTop = y + HEAD_HEIGHT;
+        int sentenceTop = y + HEAD_HEIGHT + SENTENCE_PAD;
         int below = controls.draw(graphics, font, section, row.key(), new GroupsPane.Bounds(bounds.left(),
-                sentenceTop, bounds.right(), bounds.bottom()), sentenceTop, targets);
+                sentenceTop, bounds.right(), bounds.bottom()), sentenceTop, targets) + SENTENCE_PAD;
         graphics.fill(bounds.left(), y, bounds.right(), below, ROW_COLOR);
         return below + ROW_GAP;
     }
@@ -441,15 +465,18 @@ final class ProcessesPane {
     private record NameSlot(int y, int room) {
     }
 
-    // The name cut to its room, hovering whole where cut, the pencil just past its last letter; the rename box
-    // stands in their place while open.
+    // The name cut to its room, the pencil just past its last letter; the rename box stands in their place while
+    // open.
     // Decision group-referent-previews-shorthand-members-then-its-value: an iterator's name previews the group it
-    // fills; a cut mutator name hovers whole, and a whole one nothing.
-    private static Optional<String> nameHoverKey(String key, String shown) {
+    // fills.
+    // Decision conversion-controls-hover-their-formula: a mutator's name hovers its formula, a cut one its whole name
+    // above it (the operator's report of 2026-11-04: a cut name hovered its name alone, a whole one nothing).
+    private static String nameHoverKey(String section, String key, String shown) {
         if (ProcessesTab.isIterator(key)) {
-            return Optional.of(GroupHovers.iteratorHoverKey(key));
+            return GroupHovers.iteratorHoverKey(key);
         }
-        return shown.equals(key) ? Optional.empty() : Optional.of(BuilderOverlays.hintKey(key));
+        return shown.equals(key) ? ConversionHovers.hoverKey(section, key)
+                : ConversionHovers.namedHoverKey(section, key);
     }
 
     private void drawName(Frame frame, String section, String key, NameSlot slot) {
@@ -463,8 +490,7 @@ final class ProcessesPane {
         String shown = fittedName(frame.font(), key, slot.room());
         ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, y + HEAD_TEXT_NUDGE,
                 draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)));
-        nameHoverKey(key, shown).ifPresent(hover -> frame.targets().addHover(x, y, frame.font().width(shown),
-                HEAD_HEIGHT, hover));
+        frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, nameHoverKey(section, key, shown));
         ButtonPainter.draw(frame.graphics(), frame.font(), RENAME, x + frame.font().width(shown) + PENCIL_GAP,
                 y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
                         ProcessesTab.isIterator(key), key)), BuilderOverlays.hintKey(RENAME_HINT));
@@ -519,13 +545,21 @@ final class ProcessesPane {
      * @param key the mutator's key
      */
     void reveal(String key) {
+        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
+        if (search != null) {
+            search.setValue(NO_TEXT);
+        }
+        processes.search(NO_TEXT);
         revealPending = key;
     }
 
-    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.
+    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list, glowing it
+    // from the next frame (decision followed-target-glows-briefly).
     private void centerRevealedRow() {
         if (revealedRow != null) {
             columnBar(revealedRow.iterators()).center(revealedRow.top(), revealedRow.height());
+            glowIterators = revealedRow.iterators();
+            glow.start(revealedRow.top(), revealedRow.height());
             revealedRow = null;
             revealPending = null;
         }

@@ -262,6 +262,12 @@ class VariablesPaneTest {
     }
 
     private static final int GAME_LINE_HEIGHT = 9;
+
+    // A small amount stands a pixel or three lower than a full-size label on its line (decision
+    // goo-amounts-draw-smaller-and-a-pixel-lower-everywhere), so one line holds texts within half a line's height.
+    private static boolean onLine(int labelY, int amountY) {
+        return Math.abs(labelY - amountY) < ExpressionLines.TEXT_LINE_HEIGHT / 2;
+    }
     private static final int SPRITE = 16;
 
     private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 20, 400, 6000);
@@ -472,21 +478,13 @@ class VariablesPaneTest {
                "readers": []}]}
             """.formatted(WOOD_READ);
 
-    // A Prefabs pane over wood and plank, every hover request answered at once with wood's card.
+    // A Prefabs pane over wood and plank, read by plank and the group logs.
     private static VariablesPane woodReadByPlankAndLogs(ManagerActions actions) {
         ManagerDraft draft = new ManagerDraft();
         draft.read(READ_PREFABS);
         VariablesTab prefabs = new VariablesTab(draft);
         prefabs.readEvaluated(READ_EVALUATED);
         when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
-        org.mockito.Mockito.doAnswer(call -> {
-            if (call.<String>getArgument(0).equals(com.mercuriusxeno.goo.workbench.WorkbenchOperations
-                    .CONSTANT_HOVER)) {
-                call.<java.util.function.Consumer<String>>getArgument(2).accept("{" + WOOD_READ
-                        + ", \"expression\": \"8\"}");
-            }
-            return null;
-        }).when(actions).request(anyString(), anyString(), any());
         ItemIcons icons = mock(ItemIcons.class);
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
@@ -529,30 +527,25 @@ class VariablesPaneTest {
     }
 
     /**
-     * wood's hover card, opened from plank's $wood link, reads the same run: the stick, then plank's and logs' chips,
-     * and no cake (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
+     * plank's read view and its builder key the $wood ref by one hover key, PrefabHovers.hoverKey("wood"), so both
+     * show the prefab's tooltip (decision value-hover-reads-the-same-editing-and-read-only).
      */
     @Test
-    void hoverCardUsedByDrawsDirectItemsThenPrefabAndGroupLinks() {
+    void readViewRefHoversTheKeyTheBuildersRefHovers() {
         VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
         DrawnFrame list = new DrawnFrame();
         read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
-        DrawnFrame.Text woodLink = linkText(list, "$wood");
-        read.extract(new DrawnFrame().graphics, DrawnFrame.font(), TALL_VIEW, new ClickTargets(), woodLink.x() + 1,
-                woodLink.y() + 1);
-        DrawnFrame card = new DrawnFrame();
-        read.extract(card.graphics, DrawnFrame.font(), TALL_VIEW, card.targets, woodLink.x() + 1, woodLink.y() + 1);
-        assertEquals(2, card.texts().stream().filter("Used by "::equals).count(), card.texts().toString());
-        assertFalse(card.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:cake")));
-        assertEquals(2, itemXs(card).size(), "the stick on the block and on the card");
-        DrawnFrame.Text plank = linkText(card, "$plank");
-        DrawnFrame.Text logs = linkText(card, "#logs");
-        assertTrue(itemXs(card).getLast() < plank.x(), "stick before plank on the card");
-        assertTrue(plank.x() < logs.x(), plank + " before " + logs);
-        assertTrue(plank.y() > woodLink.y(), "the card's chips draw on the card");
-        // Decision group-referent-previews-shorthand-members-then-its-value: the group chip previews its group.
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("logs")),
-                card.targets.hovered(logs.x() + 1, logs.y() + 1));
+        DrawnFrame.Text readRef = linkText(list, "$wood");
+        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("wood")),
+                list.targets.hovered(readRef.x() + 1, readRef.y() + 1));
+        list.click("$wood");
+        DrawnFrame editing = new DrawnFrame();
+        read.extract(editing.graphics, DrawnFrame.font(), TALL_VIEW, editing.targets, 0, 0);
+        DrawnFrame building = new DrawnFrame();
+        read.extract(building.graphics, DrawnFrame.font(), TALL_VIEW, building.targets, 0, 0);
+        DrawnFrame.Text builderRef = linkText(building, "$wood");
+        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("wood")),
+                building.targets.hovered(builderRef.x() + 1, builderRef.y() + 1));
     }
 
     /**
@@ -579,8 +572,8 @@ class VariablesPaneTest {
 
     /**
      * A typed prefab's name line carries Used by with the stick's icon and the ✗ at the line's right end; below it
-     * Value: reads each type row, and each row carries its own evaluated amount in parentheses at its end
-     * (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
+     * Value: stands beside the amount line, highest first as (6, 4), and each type row below reads its terms with no
+     * amount at its end (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
      */
     @Test
     void typedHeadCarriesUsedByAndEachTypeRowItsOwnAmount() {
@@ -614,11 +607,111 @@ class VariablesPaneTest {
         assertTrue(itemXs.getValue() > usedBy.x(), "the stick's icon follows Used by");
         DrawnFrame.Text value = frame.find("Value:");
         assertTrue(value.y() > name.y(), value + " below " + name);
-        DrawnFrame.Text leaf = frame.find("(4)");
-        DrawnFrame.Text glow = frame.find("(6)");
-        assertTrue(leaf.y() >= value.y() && glow.y() > leaf.y(), frame.drawn().toString());
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("4") && text.y() == leaf.y()
-                && text.x() < leaf.x()), frame.drawn().toString());
+        DrawnFrame.Text glowAmount = frame.find("(6,");
+        DrawnFrame.Text leafAmount = frame.find("4)");
+        assertTrue(onLine(value.y(), glowAmount.y()) && onLine(value.y(), leafAmount.y()), frame.drawn().toString());
+        DrawnFrame.Text leafRow = frame.find("4");
+        DrawnFrame.Text glowRow = frame.find("6");
+        assertTrue(value.y() < leafRow.y() && leafRow.y() < glowRow.y(), frame.drawn().toString());
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() > glowAmount.y()
+                && (text.text().contains("(") || text.text().contains(")"))), frame.drawn().toString());
+    }
+
+    // A prefab of four type rows, each a plain amount, resolving to the four amounts typedPreview's does.
+    private static VariablesPane fourTypeRows() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "trim", "keySeparator": null, "kind": "VALUE",
+                     "text": "{\\"rock\\": 192, \\"yore\\": 336, \\"opulent\\": 32256, \\"crystal\\": 96768}",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "trim", "kind": "tree", "tree": {"rock": "192", "yore": "336",
+                                "opulent": "32256", "crystal": "96768"}, "value": null, "error": null,
+                                "direct": [], "usedBy": [], "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        return new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    private static final List<String> FOUR_AMOUNTS = List.of("(96768,", "32256,", "336,", "192)");
+
+    /**
+     * A typed prefab's amounts stand on Value:'s line above its type rows, each type's icon beside its amount, and
+     * no type row's line carries a paren (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount; the
+     * operator's ruling of 2026-11-04 stands Value: beside the amounts).
+     */
+    @Test
+    void typedValueDrawsItsAmountsOnTheirOwnLineAboveTheExpression() {
+        DrawnFrame frame = new DrawnFrame();
+        fourTypeRows().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, 2000, 400),
+                frame.targets, 0, 0);
+        DrawnFrame.Text value = frame.find("Value:");
+        List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::find).toList();
+        assertTrue(onLine(value.y(), amounts.getFirst().y()), frame.drawn().toString());
+        List<Integer> rowLines = frame.drawn().stream().filter(text -> text.text().equals(":"))
+                .map(DrawnFrame.Text::y).toList();
+        assertEquals(4, rowLines.size(), frame.drawn().toString());
+        int firstRow = rowLines.stream().mapToInt(Integer::intValue).min().orElseThrow();
+        assertTrue(amounts.stream().allMatch(amount -> amount.y() < firstRow), amounts + " vs row " + firstRow);
+        assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT,
+                firstRow - ExpressionLines.ICON_LINE_HEIGHT / 2), frame.drawn().toString());
+        assertTrue(frame.drawn().stream().noneMatch(text -> rowLines.contains(text.y())
+                && (text.text().contains("(") || text.text().contains(")"))), frame.drawn().toString());
+        // The operator's ruling of 2026-11-04: the amounts stand above the value's box, outside it.
+        int boxTop = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals(":")).findFirst()
+                .orElseThrow())[1];
+        assertTrue(amounts.stream().allMatch(amount -> amount.y() + GAME_LINE_HEIGHT <= boxTop),
+                amounts + " vs the box's top " + boxTop);
+        assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT, boxTop),
+                "the amount line's icons stand above the box");
+    }
+
+    /**
+     * An expression prefab's amount draws in parentheses on Value:'s line and the expression on the line below,
+     * which holds no paren (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
+     */
+    @Test
+    void scalarExpressionDrawsItsAmountOnItsOwnLineAboveTheExpression() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null},
+                    {"key": "beam", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood * 24\\"", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "wood", "kind": "scalar", "value": "8", "error": null},
+                               {"name": "beam", "kind": "scalar", "value": "192", "error": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text beamValue = frame.drawn().stream().filter(text -> text.text().equals("Value:"))
+                .reduce((first, last) -> last).orElseThrow();
+        DrawnFrame.Text amount = frame.find("(192)");
+        DrawnFrame.Text wood = linkText(frame, "$wood");
+        assertTrue(onLine(beamValue.y(), amount.y()), frame.drawn().toString());
+        assertTrue(wood.y() > amount.y(), wood + " below " + amount);
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() == wood.y() && text.text().contains("(")),
+                frame.drawn().toString());
+        // The operator's ruling of 2026-11-04: the amount stands above the value's box, outside it.
+        assertTrue(amount.y() + GAME_LINE_HEIGHT <= frame.buttonAround(wood)[1], amount + " inside the box");
     }
 
     /**
@@ -679,35 +772,48 @@ class VariablesPaneTest {
         DrawnFrame.Text value = frame.find("Value:");
         assertTrue(frame.texts().stream().noneMatch(text -> PREVIEWED_TYPES.stream().anyMatch(text::contains)),
                 frame.texts().toString());
+        // The amount line lays its four icons in two rows (decision
+        // prefab-head-is-name-pencil-used-by-then-value-with-its-amount), so the second row stands an icon line down.
         assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT,
-                value.y() + ButtonPainter.HEIGHT), frame.drawn().toString());
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().startsWith("192") && text.y() == value.y()),
+                value.y() + ExpressionLines.ICON_LINE_HEIGHT + ButtonPainter.HEIGHT), frame.drawn().toString());
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().startsWith("(96768") && onLine(text.y(), value.y())),
                 frame.drawn().toString());
     }
 
     /**
-     * At every width the preview's closing paren draws with its last amount, never alone on a line, and at some
-     * width that pair wraps below the first amount (decision prefab-head-is-name-pencil-used-by-then-value-with-its-
-     * amount).
+     * At every width the four amounts lay as the tooltip's grid, ceil(sqrt(4)) = 2 columns filled row by row, the
+     * second row's icons under the first row's, the open paren on the first amount and the close paren on the last,
+     * never a paren alone (decisions prefab-head-is-name-pencil-used-by-then-value-with-its-amount,
+     * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
      */
     @Test
-    void previewsClosingParenWrapsWithItsLastAmount() {
-        boolean wrapped = false;
+    void typedAmountLineLaysAsTheTooltipGrid() {
         for (int width = 200; width <= 700; width++) {
             int right = width;
             DrawnFrame frame = new DrawnFrame();
             typedPreview().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, right, 4000),
                     frame.targets, 0, 0);
-            assertTrue(frame.drawn().stream().noneMatch(text -> text.text().trim().equals(")")),
-                    "at " + right + ": " + frame.drawn());
-            DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().startsWith("96768"))
-                    .findFirst().orElseThrow(() -> new AssertionError("at " + right + ": " + frame.drawn()));
-            assertTrue(last.text().endsWith(")"), last.toString());
-            DrawnFrame.Text first = frame.drawn().stream().filter(text -> text.text().contains("192"))
-                    .findFirst().orElseThrow();
-            wrapped |= last.y() > first.y();
+            List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::find).toList();
+            assertEquals(List.of(amounts.get(0).y(), amounts.get(2).y()), List.of(amounts.get(1).y(),
+                    amounts.get(3).y()), "at " + right + ": " + amounts);
+            assertTrue(amounts.get(2).y() > amounts.get(0).y(), "at " + right + ": " + amounts);
+            List<int[]> icons = blitsAt(frame);
+            assertEquals(PREVIEWED_TYPES.size(), icons.size(), "at " + right);
+            assertEquals(List.of(icons.get(0)[0], icons.get(1)[0]), List.of(icons.get(2)[0], icons.get(3)[0]),
+                    "at " + right + ": the second row's icons stand under the first's");
+            assertTrue(frame.drawn().stream().noneMatch(text -> text.text().trim().equals("(")
+                    || text.text().trim().equals(")")), "at " + right + ": " + frame.drawn());
         }
-        assertTrue(wrapped, "some width wraps the last amount below the first");
+    }
+
+    // Each goo icon's x and y, in draw order.
+    private static List<int[]> blitsAt(DrawnFrame frame) {
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(), anyFloat(), anyFloat(),
+                anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        return IntStream.range(0, xs.getAllValues().size())
+                .mapToObj(index -> new int[] {xs.getAllValues().get(index), ys.getAllValues().get(index)}).toList();
     }
 
     private static DrawnFrame.Text greenText(DrawnFrame frame, String label) {
@@ -997,6 +1103,32 @@ class VariablesPaneTest {
     }
 
     /**
+     * Each change the builder writes over a prefab evaluates the draft afresh while the builder stays open, so the
+     * value the block shows is the value the builder holds.
+     */
+    @Test
+    void eachBuilderChangeEvaluatesThePrefabsAfresh() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesTab prefabs = new VariablesTab(draft);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ExpressionBuilderPane builder = mock(ExpressionBuilderPane.class);
+        VariablesPane editing = new VariablesPane(prefabs, draft, mock(ItemIcons.class), actions, builder);
+        editing.init(DrawnFrame.font());
+        editing.show(true);
+        prefabs.startEditing("prefab0");
+        DrawnFrame frame = new DrawnFrame();
+        editing.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.function.Consumer<String>> change =
+                ArgumentCaptor.forClass(java.util.function.Consumer.class);
+        verify(builder, atLeastOnce()).openPrefab(eq("prefab0"), anyString(), change.capture(), any());
+        change.getValue().accept("\"$base / 8\"");
+        verify(actions).draftChanged();
+    }
+
+    /**
      * A prefab used by more items than its line fits ends its used-by line on a ..+n button counting the rest
      * (decision more-button-reads-dot-dot-plus-n).
      */
@@ -1010,5 +1142,97 @@ class VariablesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         assertTrue(frame.texts().stream().anyMatch(text -> text.matches("^\\.\\.\\+\\d+$")), frame.texts().toString());
+    }
+
+    /**
+     * A follow into the Prefabs pane empties a search that hides its target and draws the target's block (decision
+     * following-a-link-clears-the-panes-search-bar).
+     */
+    @Test
+    void jumpToClearsTheSearchAndDrawsTheTarget() {
+        searchBox().setValue("prefab1");
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, font, TALL_VIEW, searched.targets, 0, 0);
+        assertFalse(searched.texts().contains("$prefab5"), "the search hides the target");
+        pane.jumpTo("prefab5");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        assertEquals("", searchBox().getValue());
+        assertTrue(frame.texts().contains("$prefab5"), frame.texts().toString());
+    }
+
+    /**
+     * The [+] right of the search box opens a name box with its done check and gold arrow; Enter on a free name adds
+     * $name to the draft with no value, lists it and opens its builder, and a name the list holds adds nothing
+     * (decision goo-workbench-opens-the-in-game-manager-screen: the page's Variables pane added constants).
+     */
+    @Test
+    void plusRightOfTheSearchNamesANewPrefabAndOpensItsBuilder() {
+        List<AbstractWidget> widgets = new java.util.ArrayList<>();
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesTab prefabs = new VariablesTab(draft);
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        DrawnFrame.Text plus = list.find("+");
+        assertTrue(plus.x() > VIEW.left() + 180, plus + " stands right of the search box");
+        list.click("+");
+        DrawnFrame naming = new DrawnFrame();
+        read.extract(naming.graphics, DrawnFrame.font(), VIEW, naming.targets, 0, 0);
+        EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(each -> each.visible && each != read.searchBox()).findFirst()
+                .orElseThrow(() -> new AssertionError("no name box stood open"));
+        assertNameBoxButtons(naming, box);
+        verify(actions).focus(box);
+        GroupsPaneTest.GroupCards.focus(box);
+        box.setValue("fresh_prefab");
+        assertTrue(read.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER));
+        assertEquals(java.util.Optional.of(""), prefabs.expressionOf("fresh_prefab").map(ManagerDraft::shownText));
+        assertEquals(java.util.Optional.of("fresh_prefab"), prefabs.editing());
+        verify(actions).draftChanged();
+        DrawnFrame opened = new DrawnFrame();
+        read.extract(opened.graphics, DrawnFrame.font(), VIEW, opened.targets, 0, 0);
+        DrawnFrame settled = new DrawnFrame();
+        read.extract(settled.graphics, DrawnFrame.font(), VIEW, settled.targets, 0, 0);
+        assertTrue(settled.texts().contains("$fresh_prefab"), settled.texts().toString());
+        assertTrue(settled.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
+                settled.texts().toString());
+
+        assertTrue(settled.targets.click(plus.x() + 1, plus.y() + 1), "the + stands where it stood");
+        read.extract(new DrawnFrame().graphics, DrawnFrame.font(), VIEW, new ClickTargets(), 0, 0);
+        box.setValue("prefab0");
+        assertTrue(read.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER));
+        assertEquals(PREFABS + 1, prefabs.blocks().size(), "a taken name adds nothing");
+    }
+
+    /**
+     * A prefab being edited draws its builder's gray panel wholly below its Used by item icons, so the panel never
+     * covers an icon's bottom row; it covered one row before.
+     */
+    @Test
+    void builderPanelStandsBelowTheUsedByIcons() {
+        variables.readEvaluated("""
+                {"constants": [{"name": "prefab0", "kind": "scalar", "value": "8",
+                                "direct": ["minecraft:apple", "minecraft:bread"]}]}
+                """);
+        variables.startEditing("prefab0");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), itemTops.capture());
+        int panelTop = fillTopsAt(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
+        for (int top : itemTops.getAllValues()) {
+            assertTrue(top + SPRITE <= panelTop, "icon " + top + ".." + (top + SPRITE) + " vs panel top " + panelTop);
+        }
     }
 }
