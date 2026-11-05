@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
+import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
@@ -365,7 +366,8 @@ public final class GooClientSetup {
             if (renderer != null) {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
-                EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()),
+                        EncasedBodies.of(type, event.getEntityModels()));
                 VineTangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
@@ -374,7 +376,7 @@ public final class GooClientSetup {
             MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
-            EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE, null);
             VineTangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
     }
