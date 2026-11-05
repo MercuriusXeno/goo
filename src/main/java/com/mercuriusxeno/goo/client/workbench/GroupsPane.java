@@ -7,6 +7,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +39,7 @@ final class GroupsPane {
     static final int GAP = 12;
     /** A group row's height, its sprites' and margin. */
     static final int ROW_HEIGHT = 18;
-    private static final int LINE_HEIGHT = 10;
+    private static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     private static final int BOX_HEIGHT = 14;
     private static final int NAME_BOX_WIDTH = 140;
     /**
@@ -48,19 +49,11 @@ final class GroupsPane {
     static final int CARD_HEIGHT = RowLayout.SPRITE_ROW_PITCH;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 2;
-    private static final int TEXT_NUDGE = 5;
     private static final int SECTION_GAP = 6;
     private static final int HALF = 2;
     // A hover key no item id, prefab name or goo type key spells.
-    private static final String NAME_HOVER_PREFIX = "goo-group-name:";
-    private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     // Nine digits always fit an int.
     private static final int MAX_DIGITS = 9;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
-    private static final int LINK = ButtonPainter.LINK;
-    private static final int SELECTED_COLOR = 0x60FFFFFF;
     private static final String NEW_GROUP = "+ Custom";
     private static final String NEW_GROUP_HINT = "group name, Enter";
     private static final String SEARCH_HINT = "Search groups";
@@ -79,9 +72,8 @@ final class GroupsPane {
     private static final String MEMBERS_COLON = "Members:";
     private static final String USED_BY = "Used by ";
     private static final String VALUE_LABEL = "Value:";
-    // A resolved value as ExpressionLines.resolvedRuns reads it: "type amount" pairs joined by commas.
-    private static final String AMOUNT_SEPARATOR = " ";
-    private static final String TYPES_SEPARATOR = ", ";
+    // The draft's line naming a group's base reads its name after #.
+    private static final String GROUP_PREFIX = "#";
     // A key suffix no group name spells, so a card's Used by line expands apart from its Members line.
     private static final String REFERENTS_KEY = ":usedBy";
     // Decision detail-is-members-plus-or-tag-members-with-the-tag-id.
@@ -106,10 +98,9 @@ final class GroupsPane {
     private final BuilderOverlays overlays;
     private final MemberRails memberRails;
     private final ExpandedLists expandedRows = new ExpandedLists();
-    private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
-    private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
-    private @Nullable String revealPending;
-    private @Nullable RevealedRow revealedRow;
+    private final ScrollBar listBar = new ScrollBar(ScrollBar.WHEEL_STEP);
+    private final ScrollBar detailBar = new ScrollBar(ScrollBar.WHEEL_STEP);
+    private final Reveal revealing = new Reveal();
     private final RevealGlow glow = new RevealGlow();
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
@@ -118,10 +109,6 @@ final class GroupsPane {
     private boolean renaming;
     private boolean visible;
     private int listWidth;
-
-    // Where the row a follow revealed stood inside the list's content this frame.
-    private record RevealedRow(int top, int height) {
-    }
 
     GroupsPane(GroupsTab groups, ValuesTab values, ItemIcons icons, ManagerActions actions,
                ExpressionBuilderPane builder) {
@@ -234,7 +221,7 @@ final class GroupsPane {
         Optional<GroupsTab.Group> selected = groups.selected();
         if (selected.isEmpty()) {
             graphics.text(font, groups.groupRows().isEmpty() ? NO_GROUPS : NO_GROUP, detail.left(), detail.top(),
-                    GRAY);
+                    Palette.MUTED);
         } else {
             drawDetail(graphics, font, detail, selected.get(), targets);
         }
@@ -242,7 +229,15 @@ final class GroupsPane {
         overlays.draw(graphics, font, targets);
     }
 
+    // Decision one-reveal-primitive-centers-before-the-first-draw: a followed row stands centered and glowing from the
+    // first frame drawn.
     private void drawList(GuiGraphicsExtractor graphics, Font font, Bounds bounds, ClickTargets targets) {
+        revealing.centerBeforeDraw(graphics, scratch -> drawListRows(graphics, font, bounds, scratch),
+                column -> listBar, glow);
+        drawListRows(graphics, font, bounds, targets);
+    }
+
+    private void drawListRows(GuiGraphicsExtractor graphics, Font font, Bounds bounds, ClickTargets targets) {
         int left = bounds.left();
         int top = drawNewGroup(graphics, font, left, bounds.top(), targets);
         int rowRight = left + listWidth - ScrollBar.WIDTH - ScrollBar.GAP;
@@ -256,59 +251,46 @@ final class GroupsPane {
             RowLayout.drawSeparatorAbove(graphics, index, y, left, rowRight);
             int height = drawGroupCard(graphics, font, new GroupCard(row, groups.group(row.name()),
                     new Bounds(left, y, rowRight, bounds.bottom()), row.name().equals(selected)), targets);
-            if (row.name().equals(revealPending)) {
-                revealedRow = new RevealedRow(y - top + listBar.offset(), height);
-            }
+            revealing.laid(row.name(), y - top + listBar.offset(), height, 0);
             y += height;
         }
         glow.draw(graphics, left, top - listBar.offset(), rowRight);
         targets.unclip();
         graphics.disableScissor();
         listBar.measureAndDraw(graphics, targets, y, left + listWidth, top, bounds.bottom());
-        centerRevealedRow();
-    }
-
-    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list, glowing it
-    // from the next frame.
-    // Decisions shift-follow-centers-the-target-in-its-scrolling-view, followed-target-glows-briefly.
-    private void centerRevealedRow() {
-        if (revealedRow != null) {
-            listBar.center(revealedRow.top(), revealedRow.height());
-            glow.start(revealedRow.top(), revealedRow.height());
-            revealedRow = null;
-            revealPending = null;
-        }
     }
 
     // The operator's ruling: one row, the search box at the left and + Custom and + Tag to its right; a new group's
-    // name box stands in the search box's place while open. Answers the list's top below the row.
+    // name box stands beside the search box in their place while open, as on Prefabs. Answers the list's top below the
+    // row. Decision one-search-row-per-list-with-its-create-control-beside-it.
     private int drawNewGroup(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
         int rowRight = left + listWidth - ScrollBar.WIDTH - ScrollBar.GAP;
-        int buttonsWidth = ButtonPainter.width(font, NEW_GROUP) + BuilderOverlays.GAP + ButtonPainter.width(font,
-                ADD_TAG);
-        int boxWidth = Math.max(1, rowRight - left - buttonsWidth - BuilderOverlays.GAP);
         boolean namingNew = naming && !renaming && nameBox != null;
-        if (namingNew) {
-            placeNameBox(graphics, font, nameBox, left, top, Math.max(1, boxWidth - NameBoxButtons.width(font)),
-                    targets);
-        }
+        int controls = namingNew ? NAME_BOX_WIDTH + NameBoxButtons.width(font)
+                : ButtonPainter.width(font, NEW_GROUP) + SearchRow.GAP + ButtonPainter.width(font, ADD_TAG);
+        SearchRow.Laid laid = SearchRow.lay(left, top, rowRight, controls);
+        SearchRow.place(search, laid);
         if (search != null) {
-            search.setPosition(left, top + HALF);
-            search.setWidth(boxWidth);
-            search.visible = visible && !namingNew;
+            search.visible = visible;
         }
-        int afterNewGroup = BuilderOverlays.control(graphics, font, NEW_GROUP, left + boxWidth + BuilderOverlays.GAP,
-                top, targets, at -> startNaming());
+        if (namingNew) {
+            placeNameBox(graphics, font, nameBox, laid.controlsLeft(), top, NAME_BOX_WIDTH, targets);
+            return laid.listTop();
+        }
+        ButtonPainter.Box custom = ButtonPainter.draw(graphics, font, NEW_GROUP, laid.controlsLeft(), top,
+                SearchRow.HEIGHT, targets, this::startNaming, null);
+        int tagX = custom.right() + SearchRow.GAP;
         // decision add-tag-picks-a-game-tag-and-writes-its-entry
-        BuilderOverlays.control(graphics, font, ADD_TAG, afterNewGroup, top, targets, at -> overlays.openDropdown(
-                at, groups.addTagChoices(values.entries()), choice -> createTag(choice.id())));
-        return top + ROW_HEIGHT + HALF;
+        ButtonPainter.draw(graphics, font, ADD_TAG, tagX, top, SearchRow.HEIGHT, targets, () -> overlays.openDropdown(
+                new BuilderOverlays.Anchor(tagX, top), groups.addTagChoices(values.entries()),
+                choice -> createTag(choice.id())), null);
+        return laid.listTop();
     }
 
     private void createTag(String tagId) {
         apply(groups.createTagRequest(tagId));
-        closeBuilder();
-        groups.selectGroup(GroupsTab.referentName(tagId));
+        // Decision create-reveals-the-new-row-like-a-follow.
+        reveal(GroupsTab.referentName(tagId));
     }
 
     /**
@@ -341,15 +323,13 @@ final class GroupsPane {
      * @param value     the value expression's runs, empty where none is set
      * @param body      where the value's button or builder stands, past its Value: label
      */
-    private record CardLayout(MembersLine members, ReferentsLine referents, int usedByTop, int worthTop,
-                              List<ExpressionLines.Run> worth, List<ExpressionLines.Run> value, Bounds body) {
-        int valueTop() {
-            return body.top();
-        }
+    private record CardLayout(MembersLine members, ReferentsLine referents, int usedByTop,
+                              List<ExpressionLines.Run> value, BuilderFrame.Row frame) {
     }
 
     // Decision group-card-shows-its-goo-value-above-a-labelled-builder: the goo value line, then the value past
     // Value:, the label left out where the button itself reads Value: Not explicitly set.
+    // Decision one-builder-frame-on-every-pane: the goo value is the frame's amount line, Value: on it, the box below.
     private CardLayout layCard(Font font, GroupCard card) {
         Bounds area = card.area();
         List<ExpressionLines.Run> runs = GroupsTab.rowRuns(card.row(), icons::nameOf);
@@ -358,17 +338,10 @@ final class GroupsPane {
                 area.left() + ControlFlow.INDENT, area.right());
         int usedByTop = area.top() + ROW_HEIGHT + members.height();
         int worthTop = usedByTop + referents.height();
-        List<ExpressionLines.Run> worth = worthRuns(card);
-        int valueTop = worthTop + (worth.isEmpty() ? 0 : ExpressionLines.height(font, worth, worthWidth(area)));
         List<ExpressionLines.Run> value = valueRuns(card.base(), null);
-        int labelWidth = value.isEmpty() ? 0 : font.width(VALUE_LABEL) + BuilderOverlays.GAP;
-        Bounds body = new Bounds(area.left() + ControlFlow.INDENT + labelWidth, valueTop, area.right(),
-                area.bottom());
-        return new CardLayout(members, referents, usedByTop, worthTop, worth, value, body);
-    }
-
-    private static int worthWidth(Bounds area) {
-        return area.right() - area.left() - ControlFlow.INDENT;
+        BuilderFrame.Row frame = new BuilderFrame.Row(new Bounds(area.left(), worthTop, area.right(), area.bottom()),
+                value.isEmpty() ? null : VALUE_LABEL, worthGrid(card), true);
+        return new CardLayout(members, referents, usedByTop, value, frame);
     }
 
     // A card: #name with its pencil, or "tag" for a tag referent, and its x on line 1; "Members:" and the member
@@ -379,42 +352,42 @@ final class GroupsPane {
         String target = BASE_TARGET + card.row().name();
         boolean buildingHere = target.equals(building) && builder.isOpen();
         CardLayout laid = layCard(font, card);
+        BuilderFrame.Laid placed = BuilderFrame.lay(font, laid.frame());
         int readHeight = buildingHere ? 0
-                : ReadValueButton.height(font, laid.value(), laid.body().right() - laid.body().left());
-        int readBottom = laid.valueTop() + readHeight;
+                : ReadValueButton.height(font, laid.value(), placed.boxRight() - placed.valueX());
+        int readBottom = placed.boxTop() + readHeight;
         if (card.selected()) {
-            graphics.fill(area.left(), area.top(), area.right(), readBottom, SELECTED_COLOR);
+            graphics.fill(area.left(), area.top(), area.right(), readBottom, Palette.SELECTED_FILL);
         }
         targets.add(area.left(), area.top(), area.right() - area.left(), readBottom - area.top(),
                 () -> pickGroup(card.row().name()));
         drawCardHead(graphics, font, card, targets);
         drawMembers(graphics, font, card.row().name(), laid.members(), targets);
         drawReferents(graphics, font, laid.referents(), area.left() + ControlFlow.INDENT, laid.usedByTop(), targets);
-        ExpressionLines.draw(font, laid.worth(), area.left() + ControlFlow.INDENT, laid.worthTop(), worthWidth(area),
-                new ExpressionLines.Painter(graphics, icons, targets, WHITE, LINK, (link, x, y, width) -> { }));
-        int valueHeight = drawBuilt(graphics, font, laid.body(), laid.valueTop(), new Built(target, card.base(),
-                null, typed -> apply(groups.baseRequest(typed)), () -> pickGroup(card.row().name())), targets);
-        drawValueLabel(graphics, font, laid, area.left() + ControlFlow.INDENT, buildingHere);
-        return laid.valueTop() + valueHeight + HALF - area.top();
-    }
-
-    // Value: on the line of the builder's kind dropdown, or of the read button's first line.
-    private static void drawValueLabel(GuiGraphicsExtractor graphics, Font font, CardLayout laid, int left,
-                                       boolean building) {
-        if (laid.value().isEmpty()) {
-            return;
-        }
-        int top = building ? ControlFlow.besideBuilderTop(font, laid.valueTop())
-                : ReadValueButton.textTop(font, laid.value(), laid.valueTop());
-        graphics.text(font, VALUE_LABEL, left, top, GRAY);
+        Built built = new Built(target, card.base(), null, typed -> writeBase(card.row().name(), typed),
+                () -> pickGroup(card.row().name()));
+        int valueHeight = BuilderFrame.draw(graphics, font, laid.frame(), new BuilderFrame.Value(buildingHere,
+                laid.value(), errorOf(card), box -> drawBuilt(graphics, font, box, box.top(), built, targets)));
+        return laid.frame().row().top() + valueHeight + HALF - area.top();
     }
 
     // The group's evaluated goo value, type icons beside amounts, read off a member the group values with no tweak
     // of its own, as no group's own evaluation reaches the manager; none where no such member resolved.
     // Decision group-card-shows-its-goo-value-above-a-labelled-builder.
-    private List<ExpressionLines.Run> worthRuns(GroupCard card) {
+    private GooAmountGrid worthGrid(GroupCard card) {
         Map<String, String> worth = card.group().map(group -> worthOf(group, values)).orElse(Map.of());
-        return worth.isEmpty() ? List.of() : resolvedRuns(worth);
+        List<TooltipLine.GooAmount> amounts = new ArrayList<>();
+        worth.forEach((type, amount) -> amounts.add(new TooltipLine.GooAmount(type, amount)));
+        return worth.isEmpty() ? GooAmountGrid.NONE : new GooAmountGrid(new TooltipLine.GooAmounts(amounts));
+    }
+
+    // Decision one-red-error-line-under-every-value: a valued group's error is the one its members failed on, as no
+    // group's own evaluation reaches the manager.
+    private String errorOf(GroupCard card) {
+        return card.group().filter(group -> group.base() != null && !group.base().isBlank())
+                .flatMap(group -> group.members().stream().map(member -> values.rowOf(member.id()).error())
+                        .filter(error -> !error.isEmpty()).findFirst())
+                .orElse(NO_TEXT);
     }
 
     /**
@@ -439,10 +412,7 @@ final class GroupsPane {
         return source.kind() == ValuesTab.SourceKind.GROUP && group.equals(source.label());
     }
 
-    private static List<ExpressionLines.Run> resolvedRuns(Map<String, String> worth) {
-        return ExpressionLines.resolvedRuns(worth.entrySet().stream().map(amount -> amount.getKey() + AMOUNT_SEPARATOR
-                + amount.getValue()).collect(java.util.stream.Collectors.joining(TYPES_SEPARATOR)));
-    }
+
 
     // Line 1: the #name, red where it names an unknown member, its pencil or "tag", and the x at the right end; the
     // rename box stands in the name's place while the card's group is renamed.
@@ -463,19 +433,15 @@ final class GroupsPane {
                     targets);
             return;
         }
-        String shown = font.plainSubstrByWidth(name, nameTextWidth);
-        int textTop = y + TEXT_NUDGE;
-        if (groups.removals().isMarked(RemovalMarks.Tab.GROUPS, card.row().name())) {
-            ButtonPainter.drawEntryName(graphics, font, shown, area.left(), textTop, true);
-        } else {
-            graphics.text(font, shown, area.left(), textTop, card.row().unknownCount() == 0 ? WHITE : RED);
-        }
-        // decision hovering-a-truncated-group-name-shows-the-full-name
-        nameHoverKey(font, name, nameTextWidth).ifPresent(key -> targets.addHover(area.left(), textTop,
-                nameTextWidth, font.lineHeight, key));
-        int afterX = area.left() + font.width(shown) + BuilderOverlays.GAP;
+        int textTop = RowLayout.nameTop(font, y);
+        // Decisions one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane,
+        // hovering-a-truncated-group-name-shows-the-full-name: the name cuts and hovers as every pane's does.
+        String shown = ButtonPainter.drawEntryName(graphics, font, targets, new ButtonPainter.EntryName(name,
+                area.left(), textTop, nameTextWidth, groups.removals().isMarked(RemovalMarks.Tab.GROUPS,
+                card.row().name()), card.row().unknownCount() == 0 ? Palette.TEXT : Palette.DANGER, null));
+        int afterX = area.left() + font.width(shown) + ButtonPainter.PENCIL_GAP;
         if (card.tag()) {
-            graphics.text(font, after, afterX, textTop, GRAY);
+            graphics.text(font, after, afterX, textTop, Palette.MUTED);
         } else {
             BuilderOverlays.control(graphics, font, RENAME, RENAME_HINT, afterX, y, targets,
                     at -> startRenaming(card.row().name(), name));
@@ -558,7 +524,7 @@ final class GroupsPane {
         if (line.referents().isEmpty()) {
             return;
         }
-        graphics.text(font, USED_BY, left, top + TEXT_NUDGE, GRAY);
+        graphics.text(font, USED_BY, left, Lettering.full(font).centeredTop(top, ROW_HEIGHT), Palette.MUTED);
         for (int index = 0; index < line.fit().shown(); index++) {
             String iterator = line.referents().get(index);
             UsedByLine.Slot slot = line.slots().get(index);
@@ -578,7 +544,8 @@ final class GroupsPane {
     private void drawMembers(GuiGraphicsExtractor graphics, Font font, String name, MembersLine line,
                              ClickTargets targets) {
         int top = line.area().top() + ROW_HEIGHT;
-        graphics.text(font, MEMBERS_COLON, line.area().left() + ControlFlow.INDENT, top + TEXT_NUDGE, GRAY);
+        graphics.text(font, MEMBERS_COLON, line.area().left() + ControlFlow.INDENT,
+                Lettering.full(font).centeredTop(top, ROW_HEIGHT), Palette.MUTED);
         drawMemberIcons(graphics, line.members().subList(0, line.fit().shown()), line.itemsX(), top,
                 line.expanded() ? line.perRow() : line.fit().shown(), targets);
         UsedByLine.endLabel(line.fit(), line.expanded()).ifPresent(label -> ButtonPainter.draw(graphics, font, label,
@@ -593,26 +560,6 @@ final class GroupsPane {
      */
     static int listWidth(Bounds pane) {
         return (pane.right() - pane.left()) * LIST_PARTS / PARTS;
-    }
-
-    /**
-     * @param font  the font the name draws in
-     * @param name  a row's #name as drawn
-     * @param width the name column's text width
-     * @return the hover key whose tooltip reads the whole name where the name column truncates it, empty where it fits
-     */
-    static Optional<String> nameHoverKey(Font font, String name, int width) {
-        return font.width(name) > width ? Optional.of(NAME_HOVER_PREFIX + name) : Optional.empty();
-    }
-
-    /**
-     * @param hoverKey what the hovered area names
-     * @return the whole group name where the area is a truncated name's, empty otherwise
-     */
-    static Optional<TooltipLine> nameTooltipFor(String hoverKey) {
-        return hoverKey.startsWith(NAME_HOVER_PREFIX)
-                ? Optional.of(new TooltipLine.Text(Component.literal(hoverKey.substring(NAME_HOVER_PREFIX.length()))))
-                : Optional.empty();
     }
 
     // Decision expanded-used-by-lists-take-a-hide-button: ..+n expands the row, Hide collapses it again.
@@ -632,8 +579,7 @@ final class GroupsPane {
             String id = String.valueOf(members.get(index).ref());
             int iconX = left + index % Math.max(1, perRow) * step;
             int iconY = top + index / Math.max(1, perRow) * ROW_HEIGHT + 1;
-            graphics.item(icons.of(id), iconX, iconY);
-            ItemLinks.add(targets, actions, id, iconX, iconY);
+            ItemLinks.draw(graphics, icons, targets, actions, id, iconX, iconY);
         }
     }
 
@@ -656,13 +602,13 @@ final class GroupsPane {
      * @param name the group's name
      */
     void reveal(String name) {
-        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
-        if (search != null) {
-            search.setValue(NO_TEXT);
-        }
-        groups.search(NO_TEXT, values.entries());
+        revealing.follow(name, () -> {
+            if (search != null) {
+                search.setValue(NO_TEXT);
+            }
+            groups.search(NO_TEXT, values.entries());
+        });
         pickGroup(name);
-        revealPending = name;
     }
 
     private void pickGroup(String name) {
@@ -701,15 +647,17 @@ final class GroupsPane {
     // "Tag members" over the tag's fully qualified id, which take no [+]; answers the y below them.
     // Decision detail-is-members-plus-or-tag-members-with-the-tag-id.
     private int drawTagMembersHead(GuiGraphicsExtractor graphics, Font font, int left, int top, String name) {
-        graphics.text(font, TAG_MEMBERS_LABEL, left, top + TEXT_NUDGE, GRAY);
-        graphics.text(font, GroupsTab.tagId(name, values.entries()), left, top + ROW_HEIGHT + TEXT_NUDGE, WHITE);
+        graphics.text(font, TAG_MEMBERS_LABEL, left, Lettering.full(font).centeredTop(top, ROW_HEIGHT), Palette.MUTED);
+        graphics.text(font, GroupsTab.tagId(name, values.entries()), left,
+                Lettering.full(font).centeredTop(top + ROW_HEIGHT, ROW_HEIGHT), Palette.TEXT);
         return top + ROW_HEIGHT + ROW_HEIGHT;
     }
 
     // "Members" heads a custom group's list with the [+] that adds a member right of it; answers the y below the row.
     // Decisions members-labels-the-group-member-list, detail-is-members-plus-or-tag-members-with-the-tag-id.
     private int drawAddMember(GuiGraphicsExtractor graphics, Font font, Bounds detail, int top, ClickTargets targets) {
-        graphics.text(font, MEMBERS_LABEL, detail.left(), top + TEXT_NUDGE, GRAY);
+        graphics.text(font, MEMBERS_LABEL, detail.left(), Lettering.full(font).centeredTop(top, ROW_HEIGHT),
+                Palette.MUTED);
         BuilderOverlays.control(graphics, font, ADD_MEMBER, null,
                 detail.left() + font.width(MEMBERS_LABEL) + BuilderOverlays.GAP, top, targets,
                 at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
@@ -761,9 +709,10 @@ final class GroupsPane {
             building = built.target();
             builder.open(shown, built.writes()::wrote, this::closeBuilder);
         };
-        return ReadValueButton.draw(graphics, font, valueRuns(shown, built.empty()), new ReadValueButton.Place(detail.left(), y,
-                detail.right(), open), new ExpressionLines.Painter(graphics, icons, targets, WHITE, LINK,
-                ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
+        return ReadValueButton.draw(graphics, font, valueRuns(shown, built.empty()),
+                new ReadValueButton.Place(detail.left(), y,
+                detail.right(), open), ExpressionLines.Painter.linked(graphics, icons, targets, Palette.TEXT, actions),
+                targets);
     }
 
     // Answers the y below the cards; a card cut by the pane's edge is not drawn, so no icon shows half. A railed list,
@@ -795,18 +744,21 @@ final class GroupsPane {
     private void drawCard(GuiGraphicsExtractor graphics, Font font, GroupsTab.MemberRow member, Bounds card,
                           int iconLeft, String selected, ClickTargets targets) {
         if (member.id().equals(selected)) {
-            graphics.fill(card.left(), card.top(), card.right(), card.bottom(), SELECTED_COLOR);
+            graphics.fill(card.left(), card.top(), card.right(), card.bottom(), Palette.SELECTED_FILL);
         }
-        graphics.item(icons.of(member.id()), iconLeft, card.top() + 1);
+        // The card's own click lies under its sprite's follow, so the sprite hovers and a plain click picks the card.
+        targets.add(card.left(), card.top(), card.right() - card.left(), CARD_HEIGHT, () -> pickMember(member.id()));
+        // Decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own.
+        ItemLinks.draw(graphics, icons, targets, actions, member.id(), iconLeft, card.top() + 1);
         int textX = iconLeft + ICON_SIZE + ICON_GAP;
-        int textTop = ExpressionLines.centeredTextTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT, font.lineHeight);
+        int textTop = Lettering.full(font).centeredTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT);
         String name = font.plainSubstrByWidth(member.name(), card.right() - textX);
-        graphics.text(font, name, textX, textTop, member.known() ? WHITE : RED);
+        graphics.text(font, name, textX, textTop, member.known() ? Palette.TEXT : Palette.DANGER);
         int noteX = textX + font.width(name + NOTE_GAP);
         if (!member.note().isEmpty() && noteX < card.right()) {
-            graphics.text(font, font.plainSubstrByWidth(member.note(), card.right() - noteX), noteX, textTop, GRAY);
+            graphics.text(font, font.plainSubstrByWidth(member.note(), card.right() - noteX), noteX, textTop,
+                    Palette.MUTED);
         }
-        targets.add(card.left(), card.top(), card.right() - card.left(), CARD_HEIGHT, () -> pickMember(member.id()));
     }
 
     private void pickMember(String id) {
@@ -823,19 +775,19 @@ final class GroupsPane {
         }
         int x = detail.left();
         if (group.base() == null) {
-            graphics.text(font, NEEDS_WORTH, x, top, GRAY);
+            graphics.text(font, NEEDS_WORTH, x, top, Palette.MUTED);
             return top + LINE_HEIGHT;
         }
         String id = member.get();
         GroupsTab.MemberLine line = groups.memberLine(id);
-        graphics.text(font, LINE_LABEL, x, top, GRAY);
+        graphics.text(font, LINE_LABEL, x, top, Palette.MUTED);
         int y = top + LINE_HEIGHT;
         int afterCount = BuilderOverlays.control(graphics, font, COUNT_START + line.count(), x, y, targets,
                 at -> overlays.openNumber(at, String.valueOf(line.count()), typed -> countOf(typed).ifPresent(
                         count -> apply(groups.tweakRequest(id, count, line.trait(), line.extra())))));
         BuilderOverlays.control(graphics, font, REMOVE, afterCount, y, targets, at -> removeMember(id));
         y += ROW_HEIGHT;
-        graphics.text(font, EXTRA_LABEL, x, y, GRAY);
+        graphics.text(font, EXTRA_LABEL, x, y, Palette.MUTED);
         y += LINE_HEIGHT;
         return y + drawBuilt(graphics, font, detail, y, new Built(EXTRA_TARGET + id, line.extra(), NO_EXTRA,
                 typed -> apply(groups.tweakRequest(id, groups.memberLine(id).count(), line.trait(), typed)),
@@ -858,11 +810,11 @@ final class GroupsPane {
     // Decision open-name-box-takes-a-gold-arrow-that-cancels.
     private void placeNameBox(GuiGraphicsExtractor graphics, Font font, EditBox box, int x, int rowTop, int width,
                               ClickTargets targets) {
-        box.setPosition(x, rowTop + HALF);
+        box.setPosition(x, rowTop);
         box.setWidth(width);
         box.visible = visible;
-        NameBoxButtons.draw(graphics, font, x + width, rowTop, ROW_HEIGHT, targets, () -> commitName(box.getValue()),
-                this::stopNaming);
+        NameBoxButtons.draw(graphics, font, x + width, rowTop, ButtonPainter.HEIGHT, targets,
+                () -> commitName(box.getValue()), this::stopNaming);
     }
 
     private void commitName(String typed) {
@@ -892,7 +844,7 @@ final class GroupsPane {
                     () -> groups.removals().restore(RemovalMarks.Tab.GROUPS, name));
             return;
         }
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), y,
+        ButtonPainter.drawColored(graphics, font, DELETE, Palette.DANGER, right - ButtonPainter.width(font, DELETE), y,
                 ROW_HEIGHT, targets, () -> markGroup(name), BuilderOverlays.hintKey(DELETE_HINT));
     }
 
@@ -949,8 +901,8 @@ final class GroupsPane {
             return;
         }
         apply(groups.createRequest(name));
-        closeBuilder();
-        groups.selectGroup(name);
+        // Decision create-reveals-the-new-row-like-a-follow.
+        reveal(name);
     }
 
     private void removeMember(String member) {
@@ -962,6 +914,23 @@ final class GroupsPane {
     private void closeBuilder() {
         building = null;
         builder.close();
+    }
+
+    /**
+     * Writes a group's base into the draft's #group line, a blank base dropping it, then evaluates the draft afresh on
+     * the same call, as the Items and Prefabs builders write (decision one-red-error-line-under-every-value).
+     *
+     * @param group the group's name
+     * @param typed the base the builder holds
+     */
+    void writeBase(String group, String typed) {
+        String key = GROUP_PREFIX + group;
+        if (typed.isBlank()) {
+            values.dropEntry(key);
+        } else {
+            values.edit(key, typed);
+        }
+        actions.draftChanged();
     }
 
     private void apply(String request) {

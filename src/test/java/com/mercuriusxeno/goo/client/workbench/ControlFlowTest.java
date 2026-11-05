@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -40,10 +41,28 @@ class ControlFlowTest {
         boolean[] pressed = {false};
         new ControlFlow(graphics, font(), targets, null, 0, 400, 0).runs(REF, null, at -> pressed[0] = true);
         int width = "waxed".length() * 6 + 2 * ButtonPainter.PADDING;
-        verify(graphics).fill(0, 2, width, 2 + ButtonPainter.HEIGHT, ButtonPainter.BORDER);
-        verify(graphics).fill(1, 3, width - 1, 1 + ButtonPainter.HEIGHT, ButtonPainter.FILL);
+        verify(graphics).fill(0, 2, width, 2 + ButtonPainter.HEIGHT, Palette.BORDER);
+        verify(graphics).fill(1, 3, width - 1, 1 + ButtonPainter.HEIGHT, Palette.FILL);
         assertTrue(targets.click(width - 1, 2 + ButtonPainter.HEIGHT - 1));
         assertTrue(pressed[0]);
+    }
+
+    /**
+     * A parenthetical's box draws Frame's nest role in its depth's tone, and a term's container closes on Frame's 2 px
+     * term ring round its segments (decision one-frame-primitive-draws-every-bordered-box).
+     */
+    @Test
+    void nestBoxAndTermRingDrawTheirFrameRoles() {
+        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+        ControlFlow flow = new ControlFlow(graphics, font(), new ClickTargets(), null, 0, 400, 0);
+        flow.boxed(new GroupsPane.Bounds(0, 0, 40, 20), Palette.NEST_DARKER);
+        verify(graphics).fill(0, 0, 40, 1, Frame.NEST.border());
+        verify(graphics).fill(1, 1, 39, 19, Palette.NEST_DARKER);
+        flow.openTerm(ControlFlow.ringedWidth(ButtonPainter.width(font(), "x")), ButtonPainter.HEIGHT);
+        flow.labelSegment("x", null, at -> { });
+        GroupsPane.Bounds term = flow.closeSegments();
+        verify(graphics).fill(term.left(), term.top(), term.right(), term.top() + Frame.TERM.thickness(),
+                Frame.TERM.border());
     }
 
     /**
@@ -56,7 +75,7 @@ class ControlFlowTest {
         ControlFlow flow = new ControlFlow(graphics, font(), new ClickTargets(), null, 0, 400, 0);
         flow.typeIcon("metal", at -> { });
         int width = GooTypeIcons.sizeOf("metal") + 2;
-        verify(graphics).fill(0, 0, width, ControlFlow.FULL_LINE, ButtonPainter.BORDER);
+        verify(graphics).fill(0, 0, width, ControlFlow.FULL_LINE, Palette.BORDER);
         assertEquals(width + BuilderOverlays.GAP, flow.column());
     }
 
@@ -68,7 +87,7 @@ class ControlFlowTest {
         GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
         ClickTargets targets = new ClickTargets();
         new ControlFlow(graphics, font(), targets, null, 0, 400, 0).runs(REF, null, null);
-        verify(graphics, never()).fill(anyInt(), anyInt(), anyInt(), anyInt(), eq(ButtonPainter.BORDER));
+        verify(graphics, never()).fill(anyInt(), anyInt(), anyInt(), anyInt(), eq(Palette.BORDER));
         assertFalse(targets.click(1, 5));
     }
 
@@ -79,7 +98,7 @@ class ControlFlowTest {
     @Test
     void choicesDrawOneButtonWhoseClickListsTheSet() {
         BuilderOverlays overlays = new BuilderOverlays(mock(ManagerActions.class), null);
-        List<String> picked = new java.util.ArrayList<>();
+        List<String> picked = new ArrayList<>();
         List<BuilderOverlays.Option> options = List.of(
                 new BuilderOverlays.Option("north", "go north", at -> picked.add("north")),
                 new BuilderOverlays.Option("south", "go south", at -> picked.add("south")));

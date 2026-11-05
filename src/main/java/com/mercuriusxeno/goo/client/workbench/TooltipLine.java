@@ -9,7 +9,7 @@ import java.util.List;
  * followed by the amount (decision value-tooltips-draw-each-types-icon-before-its-amount).
  */
 public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmount, TooltipLine.Runs,
-        TooltipLine.RunsGrid, TooltipLine.Members {
+        TooltipLine.RunsGrid, TooltipLine.Members, TooltipLine.GooAmounts {
 
     /**
      * A line of text: a name, a scalar value, an error or a hint.
@@ -20,7 +20,7 @@ public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmo
     }
 
     /**
-     * A goo type's amount, which {@link GooAmountTooltipComponent} draws as one cell of its run's grid.
+     * A goo type's amount, which {@link GooAmountGrid} draws as one cell of its run's grid.
      *
      * @param type   the goo type's id
      * @param amount the amount as the value reads it
@@ -77,17 +77,27 @@ public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmo
     }
 
     /**
-     * A run of goo amounts a tooltip lays as one grid, which {@link GooAmountGrid} draws (decision
-     * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+     * A run of goo amounts laid as one grid, which {@link GooAmountGrid} draws, in parentheses where it reads a
+     * reduced value (decisions tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits,
+     * one-amount-grid-draws-every-amount-list).
      *
-     * @param amounts the amounts, in the value's type order
+     * @param amounts the amounts, in the value's type order; a scalar's one amount carries no type
+     * @param reduced whether the grid reads a reduced value, its parens round it
      */
-    record GooAmounts(List<GooAmount> amounts) implements TooltipComponent {
+    record GooAmounts(List<GooAmount> amounts, boolean reduced) implements TooltipLine, TooltipComponent {
         /**
          * @param amounts the amounts, in the value's type order
+         * @param reduced whether the grid reads a reduced value
          */
         public GooAmounts {
             amounts = List.copyOf(amounts);
+        }
+
+        /**
+         * @param amounts the amounts, in the value's type order, read plain
+         */
+        public GooAmounts(List<GooAmount> amounts) {
+            this(amounts, false);
         }
     }
 }

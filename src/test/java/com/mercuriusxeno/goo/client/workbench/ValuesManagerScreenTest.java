@@ -9,12 +9,20 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.network.chat.Style;
+import org.joml.Vector2i;
+import org.joml.Vector2ic;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.lwjgl.glfw.GLFW;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -92,8 +100,61 @@ class ValuesManagerScreenTest {
      */
     @Test
     void closeXEndsAtTheRightMarginAndTheTopbarStandsLeftOfIt() {
-        ValuesManagerScreen.TitleRow row = ValuesManagerScreen.titleRowOf(400);
-        assertEquals(new ValuesManagerScreen.TitleRow(378, 392, 362, 360), row);
+        ManagerChrome.TitleRow row = ManagerChrome.titleRowOf(400);
+        assertEquals(new ManagerChrome.TitleRow(378, 392, 362, 360), row);
+    }
+
+    /**
+     * Escape with a text box focused empties it through its responder and drops its focus, leaving the manager open;
+     * an Escape with no box focused falls through to the close (decision
+     * escape-empties-the-box-and-never-closes-the-manager).
+     */
+    @Test
+    void escapeEmptiesTheFocusedBoxAndOnlyAnUnfocusedEscapeCloses() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName("minecraft:wax", "Wax"),
+                new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        EditBox box = new EditBox(DrawnFrame.font(), 0, 0, 100, SearchRow.HEIGHT, Component.literal("Search items"));
+        box.setResponder(values::search);
+        box.setValue("wax");
+        assertEquals(1, values.listed().size());
+        List<String> unfocused = new ArrayList<>();
+        assertTrue(ValuesManagerScreen.escapeEmpties(box, () -> unfocused.add("focus dropped")),
+                "the focused box takes the Escape");
+        assertEquals(List.of("", 2, List.of("focus dropped")), List.of(box.getValue(), values.listed().size(),
+                unfocused));
+        assertFalse(ValuesManagerScreen.escapeEmpties(null, () -> unfocused.add("again")),
+                "with no box focused the Escape closes the manager");
+        assertEquals(1, unfocused.size());
+    }
+
+    /**
+     * The topbar's X, [?], Save, Revert and Promote and the five tabs draw as the panes' flat 14 px button frames, the
+     * active tab in the selected fill, and a press on Save reaches the save through the frame's click areas (decision
+     * one-flat-painter-draws-every-button).
+     */
+    @Test
+    void chromeDrawsFlatButtonsAndTheActiveTabSelected() {
+        List<String> ran = new ArrayList<>();
+        DrawnFrame frame = new DrawnFrame();
+        ManagerChrome.draw(frame.graphics, DrawnFrame.font(), frame.targets, 400, ManagerTab.GROUPS,
+                new ManagerChrome.Actions(() -> ran.add("close"), () -> ran.add("help"), () -> ran.add("save"),
+                        () -> ran.add("revert"), () -> ran.add("promote"), tab -> ran.add(tab.name())));
+        List<String> flat = new ArrayList<>(List.of("X", "?", "Save", "Revert", "Promote"));
+        Arrays.stream(ManagerTab.values()).filter(each -> each != ManagerTab.GROUPS)
+                .forEach(each -> flat.add(each.label()));
+        for (String label : flat) {
+            int[] box = frame.buttonAround(frame.find(label));
+            assertEquals(ButtonPainter.HEIGHT, box[3] - box[1], label);
+        }
+        DrawnFrame.Text active = frame.find(ManagerTab.GROUPS.label());
+        int[] selected = frame.fillsOf(Palette.SELECTED_FILL).stream().filter(fill -> fill[0] <= active.x()
+                && active.x() < fill[2] && fill[1] <= active.y() && active.y() < fill[3]).findFirst()
+                .orElseThrow(() -> new AssertionError("the active tab draws no selected fill"));
+        assertEquals(ButtonPainter.HEIGHT, selected[3] - selected[1] + 2, "the selected tab's frame");
+        frame.click("Save");
+        frame.click(ManagerTab.AUDIT.label());
+        assertEquals(List.of("save", ManagerTab.AUDIT.name()), ran);
     }
 
     /**
@@ -106,12 +167,12 @@ class ValuesManagerScreenTest {
                 new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)));
 
         private List<DragMask.Rect> fills(DrawnFrame frame, int color) {
-            org.mockito.ArgumentCaptor<Integer> lefts = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            org.mockito.ArgumentCaptor<Integer> tops = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            org.mockito.ArgumentCaptor<Integer> rights = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            org.mockito.ArgumentCaptor<Integer> bottoms = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            org.mockito.Mockito.verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(),
-                    tops.capture(), rights.capture(), bottoms.capture(), org.mockito.ArgumentMatchers.eq(color));
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+            Mockito.verify(frame.graphics, Mockito.atLeast(0)).fill(lefts.capture(),
+                    tops.capture(), rights.capture(), bottoms.capture(), ArgumentMatchers.eq(color));
             List<DragMask.Rect> rects = new ArrayList<>();
             for (int index = 0; index < lefts.getAllValues().size(); index++) {
                 rects.add(new DragMask.Rect(lefts.getAllValues().get(index), tops.getAllValues().get(index),
@@ -133,10 +194,10 @@ class ValuesManagerScreenTest {
         void pressDrawsTheMaskWithAHolePerTab() {
             explainer.toggle();
             DrawnFrame frame = frame();
-            assertFalse(fills(frame, DragMask.SHADOW).isEmpty(), "the shadow covers the screen");
-            List<DragMask.Rect> tabs = java.util.Arrays.stream(ManagerTab.values()).map(tab ->
+            assertFalse(fills(frame, Palette.DRAG_SHADOW).isEmpty(), "the shadow covers the screen");
+            List<DragMask.Rect> tabs = Arrays.stream(ManagerTab.values()).map(tab ->
                     new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)).toList();
-            assertEquals(tabs, fills(frame, DragMask.HIGHLIGHT));
+            assertEquals(tabs, fills(frame, Palette.DRAG_HIGHLIGHT));
         }
 
         /**
@@ -167,8 +228,8 @@ class ValuesManagerScreenTest {
                 if (ExplainerMode.CODE_STYLE.equals(style)) {
                     styled.add(piece);
                 }
-                return java.util.Optional.empty();
-            }, net.minecraft.network.chat.Style.EMPTY);
+                return Optional.empty();
+            }, Style.EMPTY);
             assertEquals(List.of("anchor items", "Anchor items"), styled);
         }
 
@@ -179,7 +240,7 @@ class ValuesManagerScreenTest {
         void clickAnywhereLeavesTheMode() {
             explainer.toggle();
             assertTrue(frame().targets.click(300, 200));
-            assertEquals(List.of(), fills(frame(), DragMask.SHADOW));
+            assertEquals(List.of(), fills(frame(), Palette.DRAG_SHADOW));
         }
 
         /**
@@ -201,8 +262,8 @@ class ValuesManagerScreenTest {
             explainer.toggle();
             explainer.toggle();
             DrawnFrame frame = frame();
-            assertEquals(List.of(), fills(frame, DragMask.SHADOW));
-            assertEquals(java.util.Optional.empty(), frame.targets.hovered(20, 25));
+            assertEquals(List.of(), fills(frame, Palette.DRAG_SHADOW));
+            assertEquals(Optional.empty(), frame.targets.hovered(20, 25));
         }
     }
 
@@ -236,15 +297,15 @@ class ValuesManagerScreenTest {
     void tooltipStaysPutAsTheCursorMovesOverOneElement() {
         ClickTargets targets = new ClickTargets();
         targets.addHover(40, 20, 50, 14, "stick");
-        List<org.joml.Vector2ic> points = new ArrayList<>();
+        List<Vector2ic> points = new ArrayList<>();
         for (int mouseX : new int[] {42, 85}) {
             int mouseY = mouseX == 42 ? 22 : 31;
             points.add(ValuesManagerScreen.anchoredTooltip(targets, mouseX, mouseY).orElseThrow()
                     .positionTooltip(400, 300, mouseX, mouseY, 60, 30));
         }
         TooltipAnchor.Point anchored = TooltipAnchor.place(new GroupsPane.Bounds(40, 20, 90, 34), 60, 30, 400, 300);
-        assertEquals(List.of(new org.joml.Vector2i(anchored.x(), anchored.y()),
-                new org.joml.Vector2i(anchored.x(), anchored.y())), points);
+        assertEquals(List.of(new Vector2i(anchored.x(), anchored.y()),
+                new Vector2i(anchored.x(), anchored.y())), points);
     }
 
     @Nested
@@ -477,6 +538,6 @@ class ValuesManagerScreenTest {
         var elements = ValuesManagerScreen.tooltipElements(List.of(new TooltipLine.Text(Component.literal("stick")),
                 metal, rock, new TooltipLine.Text(Component.literal("after"))));
         assertEquals(3, elements.size(), elements.toString());
-        assertEquals(java.util.Optional.of(new TooltipLine.GooAmounts(List.of(metal, rock))), elements.get(1).right());
+        assertEquals(Optional.of(new TooltipLine.GooAmounts(List.of(metal, rock))), elements.get(1).right());
     }
 }

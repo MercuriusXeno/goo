@@ -4,12 +4,14 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import org.junit.jupiter.api.Nested;
+import org.lwjgl.glfw.GLFW;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -32,6 +34,41 @@ class BuilderOverlaysTest {
             "picker", at -> BuilderOverlays.placePicker(at, SCREEN_WIDTH, SCREEN_HEIGHT),
             "dropdown", at -> BuilderOverlays.placeDropdown(at, SCREEN_WIDTH, SCREEN_HEIGHT),
             "number", at -> BuilderOverlays.placeNumber(at, SCREEN_WIDTH, SCREEN_HEIGHT));
+
+    /**
+     * The open option list frames itself in the popup role (decision one-frame-primitive-draws-every-bordered-box).
+     */
+    @Test
+    void optionListFramesInThePopupRole() {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+        BuilderOverlays overlays = new BuilderOverlays(actions, null);
+        overlays.init(DrawnFrame.font());
+        overlays.show(true);
+        overlays.openOptions(new BuilderOverlays.Anchor(20, 20), List.of(
+                new BuilderOverlays.Option("relative", null, at -> { }),
+                new BuilderOverlays.Option("absolute", null, at -> { })));
+        DrawnFrame frame = new DrawnFrame();
+        overlays.draw(frame.graphics, DrawnFrame.font(), frame.targets);
+        frame.assertOneFrameIn(Frame.POPUP);
+    }
+
+    /**
+     * Escape over an open dropdown closes the dropdown (decision escape-empties-the-box-and-never-closes-the-manager).
+     */
+    @Test
+    void escapeClosesAnOpenDropdown() {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+        BuilderOverlays overlays = new BuilderOverlays(actions, null);
+        overlays.init(DrawnFrame.font());
+        overlays.show(true);
+        overlays.openDropdown(new BuilderOverlays.Anchor(20, 20), SearchDropdown.over(List.of(), List.of("oak"),
+                false), choice -> { });
+        assertTrue(overlays.listOpen());
+        assertTrue(overlays.keyPressed(GLFW.GLFW_KEY_ESCAPE));
+        assertFalse(overlays.listOpen());
+    }
 
     @Nested
     class WithRoomBelow {

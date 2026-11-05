@@ -15,10 +15,7 @@ public final class MembersTooltipComponent implements ClientTooltipComponent {
     private static final int SPRITE_GAP = 1;
     private static final int TEXT_GAP = 2;
     private static final int LINE_GAP = 2;
-    // The +n centers on the sprites' row.
-    private static final int HALF = 2;
     private static final String MORE_MARK = "+";
-    private static final int WHITE = 0xFFFFFFFF;
 
     private final List<ItemStack> stacks;
     private final String more;
@@ -46,12 +43,12 @@ public final class MembersTooltipComponent implements ClientTooltipComponent {
     public void extractImage(Font font, int x, int y, int width, int height, GuiGraphicsExtractor graphics) {
         int left = x;
         for (ItemStack stack : stacks) {
-            graphics.item(stack, left, y);
+            ItemLinks.sprite(graphics, stack, left, y);
             left += SPRITE_SIZE + SPRITE_GAP;
         }
         if (!more.isEmpty()) {
-            graphics.text(font, more, left - SPRITE_GAP + TEXT_GAP, y + (SPRITE_SIZE - font.lineHeight) / HALF + 1,
-                    WHITE, true);
+            graphics.text(font, more, left - SPRITE_GAP + TEXT_GAP, Lettering.full(font).centeredTop(y, SPRITE_SIZE),
+                    Palette.TEXT, true);
         }
     }
 }

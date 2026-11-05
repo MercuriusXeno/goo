@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 
 /**
  * Draws every clickable option the manager offers as a bordered box with its label inside, the box its click target,
@@ -10,29 +12,28 @@ import org.jspecify.annotations.Nullable;
  * (decision blue-text-options-draw-as-bordered-buttons).
  */
 final class ButtonPainter {
-    /** The one link color: a button's label and border, and a prefab named inside an expression. */
-    static final int LINK = 0xFF80C0FF;
-    /** The gold a restore arrow draws in (decision every-delete-marks-for-removal-and-a-gold-arrow-restores). */
-    static final int GOLD = 0xFFE0C060;
     /** The circular arrow a restore button reads. */
     static final String RESTORE = "↺";
     private static final String RESTORE_HINT = "Restore";
-    private static final int MARKED_COLOR = 0xFFA0A0A0;
-    private static final int NAME_COLOR = 0xFFFFFFFF;
     // A strike through a marked name stands at the glyphs' middle.
     private static final int STRIKE_DROP = 4;
     /** A button's height. */
     static final int HEIGHT = 14;
     /** The room between the border and the label on either side. */
     static final int PADDING = 3;
+    /**
+     * The room between a name and its rename pencil on every pane (decision
+     * one-search-row-per-list-with-its-create-control-beside-it).
+     */
+    static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
+    /** The mark a cut name stands in its cut. */
+    static final String ELLIPSIS = "…";
+    // A hover key no item id, prefab or hint spells.
+    private static final String WHOLE_NAME_KEY = "goo-entry-name:";
+    // A cut name keeps its last four letters, which tell its siblings apart.
+    private static final int NAME_TAIL = 4;
     /** The room a type-icon button leaves each side of its icon (decision type-icon-buttons-shrink-their-padding). */
     static final int ICON_PADDING = 1;
-    /** A button's border color. */
-    static final int BORDER = 0xFF5070A0;
-    /** A button's inner fill. */
-    static final int FILL = 0xFF182030;
-    /** How far a button drawn at a text's top reaches above that top. */
-    static final int TEXT_NUDGE = 3;
     // A glyph's baseline stands seven pixels under the text's top, the underline one under that, as the font's own.
     private static final int UNDERLINE_DROP = 8;
 
@@ -96,7 +97,7 @@ final class ButtonPainter {
      */
     static Box draw(GuiGraphicsExtractor graphics, Font font, String label, int x, int lineTop, int lineHeight,
                     ClickTargets targets, Runnable pressed, @Nullable String hoverKey) {
-        return drawColored(graphics, font, label, LINK, x, lineTop, lineHeight, targets, pressed, hoverKey);
+        return drawColored(graphics, font, label, Palette.LINK, x, lineTop, lineHeight, targets, pressed, hoverKey);
     }
 
     /**
@@ -121,6 +122,52 @@ final class ButtonPainter {
     }
 
     /**
+     * Draws a selected button, as the manager's active tab stands: the selected fill inside the button's border, its
+     * label in the text color, and takes its click (decision one-flat-painter-draws-every-button).
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param label    the button's label
+     * @param x        its left edge
+     * @param top      its top
+     * @param targets  the frame's click areas
+     * @param pressed  what a click does
+     * @return the box it took
+     */
+    static Box drawSelected(GuiGraphicsExtractor graphics, Font font, String label, int x, int top,
+                            ClickTargets targets, Runnable pressed) {
+        Lettering lettering = Lettering.full(font);
+        Box box = layout(lettering.width(label), x, top, HEIGHT);
+        Frame.draw(graphics, Frame.SELECTED, box);
+        drawLabel(graphics, lettering, label, box, Palette.TEXT);
+        reserve(targets, box, pressed, null);
+        return box;
+    }
+
+    /**
+     * Draws a square button a button's height on each side, its label's ink centered in it, as the manager's X and
+     * [?] stand, and takes its click.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param label    the button's label
+     * @param x        its left edge
+     * @param top      its top
+     * @param targets  the frame's click areas
+     * @param pressed  what a click does
+     * @return the box it took
+     */
+    static Box drawSquare(GuiGraphicsExtractor graphics, Font font, String label, int x, int top,
+                          ClickTargets targets, Runnable pressed) {
+        Lettering lettering = Lettering.full(font);
+        Box box = new Box(x, top, HEIGHT, HEIGHT);
+        Frame.draw(graphics, Frame.BUTTON, box);
+        lettering.draw(graphics, label, lettering.labelOrigin(box, label), Palette.LINK);
+        reserve(targets, box, pressed, null);
+        return box;
+    }
+
+    /**
      * Draws a button lettered at a scale, its label's color its own, and takes its click.
      *
      * @param graphics  the frame's graphics
@@ -136,20 +183,21 @@ final class ButtonPainter {
     static Box drawColored(GuiGraphicsExtractor graphics, Lettering lettering, String label, int color, Box line,
                            ClickTargets targets, Runnable pressed, @Nullable String hoverKey) {
         Box box = layout(lettering.width(label), line.left(), line.top(), line.height());
-        drawFrame(graphics, box);
+        Frame.draw(graphics, Frame.BUTTON, box);
         drawLabel(graphics, lettering, label, box, color);
         reserve(targets, box, pressed, hoverKey);
         return box;
     }
 
-    // A full-size label stands its padding in and its nudge under the box's top; a scaled one centers its glyphs'
+    // A full-size label stands its padding in and centers on the box's height; a scaled one centers its glyphs'
     // ink in the box, between whole pixels where the halves fall there, so an operator's + or - stands in the middle
     // of its button (the operator saw them too far left and slightly too high). Answers where the label stood, its
     // left edge then its top, rounded to whole pixels.
     static int[] drawLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box, int color) {
         if (lettering.isFull()) {
-            lettering.draw(graphics, label, box.left() + PADDING, box.top() + TEXT_NUDGE, color);
-            return new int[] {box.left() + PADDING, box.top() + TEXT_NUDGE};
+            int top = lettering.centeredTop(box.top(), box.height());
+            lettering.draw(graphics, label, box.left() + PADDING, top, color);
+            return new int[] {box.left() + PADDING, top};
         }
         float[] origin = lettering.labelOrigin(box, label);
         lettering.draw(graphics, label, origin, color);
@@ -200,16 +248,25 @@ final class ButtonPainter {
     static Box drawFollow(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box line,
                           ClickTargets targets, Runnable follow, @Nullable String hoverKey) {
         Box box = layout(lettering.width(label), line.left(), line.top(), line.height());
-        drawFrame(graphics, box);
+        Frame.draw(graphics, Frame.BUTTON, box);
         drawLinkLabel(graphics, lettering, label, box, targets);
         targets.addFollow(box.left(), box.top(), box.width(), box.height(), follow, hoverKey);
         return box;
     }
 
-    private static void drawLinkLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
-                                      ClickTargets targets) {
-        int[] place = drawLabel(graphics, lettering, label, box, LINK);
-        underlineWhileShiftHeld(graphics, targets, lettering, place[0], place[1], lettering.width(label), LINK);
+    /**
+     * Draws a link's label inside its box, underlined while the frame holds shift.
+     *
+     * @param graphics  the frame's graphics
+     * @param lettering the label's font and scale
+     * @param label     the link's label
+     * @param box       the link's box
+     * @param targets   the frame's click areas, which say whether shift is held
+     */
+    static void drawLinkLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
+                              ClickTargets targets) {
+        int[] place = drawLabel(graphics, lettering, label, box, Palette.LINK);
+        underlineWhileShiftHeld(graphics, targets, lettering, place[0], place[1], lettering.width(label), Palette.LINK);
     }
 
     /**
@@ -245,7 +302,7 @@ final class ButtonPainter {
      */
     static void drawLink(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
                          ClickTargets targets, ClickTargets.LinkGestures gestures, @Nullable String hoverKey) {
-        drawFrame(graphics, box);
+        Frame.draw(graphics, Frame.BUTTON, box);
         drawLinkLabel(graphics, lettering, label, box, targets);
         targets.addLink(box.left(), box.top(), box.width(), box.height(), gestures, hoverKey);
     }
@@ -289,18 +346,6 @@ final class ButtonPainter {
     }
 
     /**
-     * Draws a button's border and inner fill, for content a caller draws inside it, as the builder's clickable runs.
-     *
-     * @param graphics the frame's graphics
-     * @param box      the button's box
-     */
-    static void drawFrame(GuiGraphicsExtractor graphics, Box box) {
-        int bottom = box.top() + box.height();
-        graphics.fill(box.left(), box.top(), box.right(), bottom, BORDER);
-        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, bottom - 1, FILL);
-    }
-
-    /**
      * Draws a button whose label stands where a line of text would, the box growing around it, and takes its click.
      *
      * @param graphics the frame's graphics
@@ -314,7 +359,16 @@ final class ButtonPainter {
      */
     static Box drawAtText(GuiGraphicsExtractor graphics, Font font, String label, int x, int textTop,
                           ClickTargets targets, Runnable pressed) {
-        return draw(graphics, font, label, x, textTop - TEXT_NUDGE, HEIGHT, targets, pressed, null);
+        return draw(graphics, font, label, x, textTop - labelInset(font), HEIGHT, targets, pressed, null);
+    }
+
+    /**
+     * @param font the font
+     * @return how far under a button's top its full-size label's text stands, the label centered on the button
+     *     (decision one-lettering-primitive-names-three-text-roles)
+     */
+    static int labelInset(Font font) {
+        return Lettering.full(font).centeredTop(0, HEIGHT);
     }
 
     /**
@@ -359,8 +413,8 @@ final class ButtonPainter {
      */
     static Box drawRestore(GuiGraphicsExtractor graphics, Font font, int right, int lineTop, int lineHeight,
                            ClickTargets targets, Runnable restored) {
-        return drawColored(graphics, font, RESTORE, GOLD, right - width(font, RESTORE), lineTop, lineHeight, targets,
-                restored, BuilderOverlays.hintKey(RESTORE_HINT));
+        return drawColored(graphics, font, RESTORE, Palette.GOLD, right - width(font, RESTORE), lineTop, lineHeight,
+                targets, restored, BuilderOverlays.hintKey(RESTORE_HINT));
     }
 
     /**
@@ -377,12 +431,115 @@ final class ButtonPainter {
      */
     static void drawEntryName(GuiGraphicsExtractor graphics, Font font, String name, int x, int textTop,
                               boolean marked) {
+        drawEntryName(graphics, font, name, x, textTop, marked, Palette.TEXT);
+    }
+
+    /**
+     * An entry's name as a pane's row draws it.
+     *
+     * @param name        the whole name
+     * @param x           its left edge
+     * @param textTop     its text's top
+     * @param room        the width its column leaves it
+     * @param marked      whether the entry is marked for removal
+     * @param color       its color while unmarked
+     * @param cutHoverKey what a cut name hovers, null for its whole name
+     */
+    record EntryName(String name, int x, int textTop, int room, boolean marked, int color,
+                     @Nullable String cutHoverKey) {
+        /**
+         * @param name    the whole name
+         * @param x       its left edge
+         * @param textTop its text's top
+         * @param room    the width its column leaves it
+         * @param marked  whether the entry is marked for removal
+         * @return the name in the text color, a cut one hovering its whole name
+         */
+        static EntryName of(String name, int x, int textTop, int room, boolean marked) {
+            return new EntryName(name, x, textTop, room, marked, Palette.TEXT, null);
+        }
+    }
+
+    /**
+     * Draws an entry's name cut to its room with the ellipsis, and lays the whole name's hover where it cut, on every
+     * pane alike (decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane).
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param targets  the frame's click areas
+     * @param entry    the name and where it draws
+     * @return the name as drawn
+     */
+    static String drawEntryName(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, EntryName entry) {
+        String shown = cut(font, entry.name(), entry.room());
+        drawEntryName(graphics, font, shown, entry.x(), entry.textTop(), entry.marked(), entry.color());
+        if (!shown.equals(entry.name())) {
+            targets.addHover(entry.x(), entry.textTop(), font.width(shown), ExpressionLines.TEXT_LINE_HEIGHT,
+                    entry.cutHoverKey() != null ? entry.cutHoverKey() : wholeNameKey(entry.name()));
+        }
+        return shown;
+    }
+
+    /**
+     * @param font the font
+     * @param name a name
+     * @param room the width it may take
+     * @return the name whole where it fits, else its head shortened a letter at a time before the ellipsis and its
+     *     last four letters until it fits
+     */
+    static String cut(Font font, String name, int room) {
+        if (font.width(name) <= room) {
+            return name;
+        }
+        if (name.length() <= NAME_TAIL + 1) {
+            return font.plainSubstrByWidth(name, room);
+        }
+        String tail = name.substring(name.length() - NAME_TAIL);
+        int head = name.length() - NAME_TAIL;
+        while (head > 1 && font.width(name.substring(0, head) + ELLIPSIS + tail) > room) {
+            head--;
+        }
+        return name.substring(0, head) + ELLIPSIS + tail;
+    }
+
+    /**
+     * @param name a whole name
+     * @return the hover key whose tooltip reads it
+     */
+    static String wholeNameKey(String name) {
+        return WHOLE_NAME_KEY + name;
+    }
+
+    /**
+     * @param hoverKey what the hovered area names
+     * @return the whole name where the area is a cut name's, empty otherwise
+     */
+    static Optional<TooltipLine> wholeNameTooltip(String hoverKey) {
+        return hoverKey.startsWith(WHOLE_NAME_KEY)
+                ? Optional.of(new TooltipLine.Text(Component.literal(hoverKey.substring(WHOLE_NAME_KEY.length()))))
+                : Optional.empty();
+    }
+
+    /**
+     * Draws an entry's name in a color of its own, as a group naming an unknown member reads red, struck through and
+     * dimmed while the entry is marked for removal.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param name     the shown name
+     * @param x        its left edge
+     * @param textTop  its text's top
+     * @param marked   whether the entry is marked for removal
+     * @param color    the name's color while it stands unmarked
+     */
+    static void drawEntryName(GuiGraphicsExtractor graphics, Font font, String name, int x, int textTop,
+                              boolean marked, int color) {
         if (!marked) {
-            graphics.text(font, name, x, textTop, NAME_COLOR);
+            graphics.text(font, name, x, textTop, color);
             return;
         }
-        graphics.text(font, name, x, textTop, MARKED_COLOR);
-        graphics.fill(x, textTop + STRIKE_DROP, x + font.width(name), textTop + STRIKE_DROP + 1, MARKED_COLOR);
+        graphics.text(font, name, x, textTop, Palette.MUTED);
+        graphics.fill(x, textTop + STRIKE_DROP, x + font.width(name), textTop + STRIKE_DROP + 1, Palette.MUTED);
     }
 
     /**

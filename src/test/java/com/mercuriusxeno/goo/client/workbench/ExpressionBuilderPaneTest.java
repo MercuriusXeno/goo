@@ -3,13 +3,25 @@ package com.mercuriusxeno.goo.client.workbench;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -110,6 +122,26 @@ class ExpressionBuilderPaneTest {
     }
 
 
+    /**
+     * An item term's icon in the builder hovers the item's value and follows to Items on shift + left click, as every
+     * item icon in a read or edit view does (decision
+     * one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own).
+     */
+    @Test
+    void itemTermsIconHoversAndLinksAsEveryItemIcon() {
+        Builder builder = Builder.item("minecraft:stick + $base");
+        DrawnFrame frame = builder.frame();
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
+        int x = xs.getAllValues().getFirst() + 1;
+        int y = ys.getAllValues().getFirst() + 1;
+        assertEquals(Optional.of(ItemIcons.hoverKey("minecraft:stick")),
+                frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
+        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
+        verify(builder.actions).openItem("minecraft:stick");
+    }
+
     private static void clickAt(DrawnFrame frame, DrawnFrame.Text text) {
         assertTrue(frame.targets.click(text.x() + 1, text.y() + 1), text + " took no click");
     }
@@ -134,8 +166,8 @@ class ExpressionBuilderPaneTest {
     // The tops of each fill drawn in the drop cursor's blue.
     private static List<Integer> cursorTops(DrawnFrame frame) {
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(anyInt(), tops.capture(), anyInt(), anyInt(),
-                eq(ExpressionBuilderPane.DROP_CURSOR));
+        verify(frame.graphics, Mockito.atLeast(0)).fill(anyInt(), tops.capture(), anyInt(), anyInt(),
+                eq(Palette.DROP_CURSOR));
         return tops.getAllValues();
     }
 
@@ -207,9 +239,9 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text edited = frame.find("$edited");
         assertTrue(frame.targets.drag(edited.x() + 1, edited.y() + 1));
         DrawnFrame dragging = builder.frame();
-        assertTrue(filledAround(dragging, ExpressionBuilderPane.WRAP_MARK, dragging.find("$edited")),
+        assertTrue(filledAround(dragging, Palette.WRAP_MARK, dragging.find("$edited")),
                 "the term under the pointer is not marked");
-        assertFalse(filledAround(dragging, ExpressionBuilderPane.WRAP_MARK, dragging.find("$waxed")),
+        assertFalse(filledAround(dragging, Palette.WRAP_MARK, dragging.find("$waxed")),
                 "a term off the pointer is marked");
         assertTrue(dragging.texts().stream().filter(HANDLE::equals).count() > 1, "the () draws at the mouse");
         frame.targets.release();
@@ -235,7 +267,7 @@ class ExpressionBuilderPaneTest {
         assertTrue(again.targets.drag(edited.x() + 1, edited.y() + 1));
         builder.frame();
         assertTrue(builder.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE));
-        assertFalse(filledAround(builder.frame(), ExpressionBuilderPane.WRAP_MARK, edited), "the mark stays");
+        assertFalse(filledAround(builder.frame(), Palette.WRAP_MARK, edited), "the mark stays");
         again.targets.release();
         assertEquals(List.of(), builder.written);
     }
@@ -280,7 +312,7 @@ class ExpressionBuilderPaneTest {
     // placing the rail left of the sign).
     private static int containerLeft(DrawnFrame frame, double[] rail) {
         int framed = frame.buttonAround((int) rail[0], (int) rail[1])[0];
-        boolean ringed = fills(frame, ControlFlow.TERM_BORDER).stream().anyMatch(side -> side[0] == framed - 1
+        boolean ringed = fills(frame, Palette.TERM_BORDER).stream().anyMatch(side -> side[0] == framed - 1
                 && side[1] <= rail[1] && rail[1] < side[3]);
         return ringed ? framed - 1 : framed;
     }
@@ -311,11 +343,11 @@ class ExpressionBuilderPaneTest {
         assertTrue(frame.targets.click(waxed[0], waxed[1]));
         assertTrue(frame.targets.drag(AREA.left() + 1, waxed[1]));
         DrawnFrame held = builder.frame();
-        assertFalse(fills(held, DragMask.SHADOW).isEmpty(), "the shadow covers the screen");
+        assertFalse(fills(held, Palette.DRAG_SHADOW).isEmpty(), "the shadow covers the screen");
         ExpressionBuilder model = ExpressionBuilder.of(shown);
         long accepted = IntStream.rangeClosed(0, 3).filter(slot -> model.canMoveTo(List.of(0), List.of(), slot))
                 .count();
-        List<int[]> lit = fills(held, DragMask.HIGHLIGHT);
+        List<int[]> lit = fills(held, Palette.DRAG_HIGHLIGHT);
         assertEquals(accepted + 1, lit.size(), "a hole per slot taken and the strip");
         assertFalse(lit.stream().anyMatch(hole -> hole[0] <= waxed[0] && waxed[0] < hole[2]
                 || hole[0] <= edited[0] && edited[0] < hole[2]), "no hole over the term's own slots");
@@ -336,13 +368,13 @@ class ExpressionBuilderPaneTest {
         assertTrue(frame.targets.drag(AREA.left() + 1, waxed[1]));
         int visibleTop = (int) waxed[1] + 4;
         DrawnFrame clipped = new DrawnFrame();
-        when(clipped.graphics.peekScissorStack()).thenReturn(new net.minecraft.client.gui.navigation.ScreenRectangle(
+        when(clipped.graphics.peekScissorStack()).thenReturn(new ScreenRectangle(
                 0, visibleTop, DrawnFrame.SCREEN_WIDTH, DrawnFrame.SCREEN_HEIGHT - visibleTop));
         builder.pane.extract(clipped.graphics, builder.font, AREA, 0, clipped.targets);
         builder.pane.drawOverlays(clipped.graphics, builder.font, clipped.targets);
-        List<int[]> lit = fills(clipped, DragMask.HIGHLIGHT);
+        List<int[]> lit = fills(clipped, Palette.DRAG_HIGHLIGHT);
         assertFalse(lit.isEmpty(), "the drop places light");
-        assertEquals(List.of(), lit.stream().filter(hole -> hole[1] < visibleTop).map(java.util.Arrays::toString)
+        assertEquals(List.of(), lit.stream().filter(hole -> hole[1] < visibleTop).map(Arrays::toString)
                 .toList(), "lit above the visible top " + visibleTop);
         frame.targets.release();
     }
@@ -357,8 +389,32 @@ class ExpressionBuilderPaneTest {
         DrawnFrame.Text handle = frame.find("()");
         assertTrue(frame.targets.click(handle.x(), handle.y()));
         assertTrue(frame.targets.drag(AREA.left() + 1, handle.y()));
-        assertEquals(2, fills(builder.frame(), DragMask.HIGHLIGHT).size(), "a highlight per term");
+        assertEquals(2, fills(builder.frame(), Palette.DRAG_HIGHLIGHT).size(), "a highlight per term");
         frame.targets.release();
+    }
+
+    /**
+     * A held label and a held term's preview letter at the builder's scale, as the builder letters what they were
+     * lifted from (decision one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void heldLabelAndPreviewLetterAtTheBuilderScale() {
+        Builder builder = Builder.item("$waxed + $edited");
+        DrawnFrame frame = builder.frame();
+        DrawnFrame.Text handle = frame.find("()");
+        assertTrue(frame.targets.click(handle.x(), handle.y()));
+        assertTrue(frame.targets.drag(AREA.left() + 1, handle.y()));
+        DrawnFrame label = builder.frame();
+        assertEquals(ControlFlow.BUILDER_SCALE, label.placements().getLast().scale(), label.placements().toString());
+        frame.targets.release();
+        DrawnFrame rest = builder.frame();
+        double[] waxed = railOf(rest, List.of(0));
+        assertTrue(rest.targets.click(waxed[0], waxed[1]));
+        assertTrue(rest.targets.drag(AREA.left() + 1, waxed[1]));
+        DrawnFrame preview = builder.frame();
+        assertEquals(ControlFlow.BUILDER_SCALE, preview.placements().getLast().scale(),
+                preview.placements().toString());
+        rest.targets.release();
     }
 
     /**
@@ -369,16 +425,16 @@ class ExpressionBuilderPaneTest {
     void railsHoverNothingAndTheTrashStripHoversItsHint() {
         DrawnFrame frame = Builder.item("$waxed + $edited").frame();
         double[] rail = railOf(frame, List.of(1));
-        assertEquals(java.util.Optional.empty(), frame.targets.hovered(rail[0], rail[1]), "the rail hovers nothing");
+        assertEquals(Optional.empty(), frame.targets.hovered(rail[0], rail[1]), "the rail hovers nothing");
         DrawnFrame.Text edited = frame.find("$edited");
         assertTrue(frame.targets.hovered(edited.x() + 1, edited.y() + 1).isPresent(), "the term hovers its preview");
-        int[] strip = fills(frame, ExpressionBuilderPane.TRASH_REST).getFirst();
+        int[] strip = fills(frame, Palette.TRASH_REST).getFirst();
         String hint = frame.targets.hovered((strip[0] + strip[2]) / 2.0, (strip[1] + strip[3]) / 2.0)
                 .flatMap(BuilderOverlays::tooltipFor).map(component -> component.getString()).orElse("");
         assertEquals("Drag items here to remove", hint);
         DrawnFrame typed = Builder.item(TWO_TYPES).frame();
         double[] rowRail = rowRailOf(typed, 0);
-        assertEquals(java.util.Optional.empty(), typed.targets.hovered(rowRail[0], rowRail[1]),
+        assertEquals(Optional.empty(), typed.targets.hovered(rowRail[0], rowRail[1]),
                 "the row's rail hovers nothing");
     }
 
@@ -388,7 +444,7 @@ class ExpressionBuilderPaneTest {
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
+        verify(frame.graphics, Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
                 rights.capture(), bottoms.capture(), eq(color));
         return IntStream.range(0, lefts.getAllValues().size()).mapToObj(index -> new int[] {
                 lefts.getAllValues().get(index), tops.getAllValues().get(index),
@@ -418,23 +474,27 @@ class ExpressionBuilderPaneTest {
     void trashStripRestsLightsWhileDraggingAndDeletesTheTermReleasedOnIt() {
         Builder builder = Builder.item("$waxed + $edited + $base");
         DrawnFrame frame = builder.frame();
-        int[] panel = fills(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
-        int[] strip = fills(frame, ExpressionBuilderPane.TRASH_REST).getFirst();
-        assertEquals(List.of(AREA.right() - ExpressionBuilderPane.TRASH_WIDTH, panel[1], AREA.right(), panel[3]),
-                List.of(strip[0], strip[1], strip[2], strip[3]), "the strip spans the builder's right edge");
+        int[] panel = fills(frame, Palette.PANEL_FILL).getFirst();
+        // Decision one-frame-primitive-draws-every-bordered-box: the strip is Frame's trash role, its rest tone a
+        // pixel inside its border.
+        int[] tone = fills(frame, Frame.TRASH.fill()).getFirst();
+        assertEquals(List.of(AREA.right() - ExpressionBuilderPane.TRASH_WIDTH + 1, panel[1] + 1, AREA.right() - 1,
+                panel[3] - 1), List.of(tone[0], tone[1], tone[2], tone[3]), "the strip spans the builder's right edge");
+        assertTrue(fills(frame, Frame.TRASH.border()).stream().anyMatch(edge -> edge[0] == tone[0] - 1
+                && edge[1] == tone[1] - 1 && edge[2] == tone[2] + 1 && edge[3] == tone[1]), "the border's top edge");
         double[] rail = railOf(frame, List.of(1));
         assertTrue(frame.targets.click(rail[0], rail[1]));
         assertTrue(frame.targets.drag(AREA.left() + 1, rail[1]));
         DrawnFrame lit = builder.frame();
-        assertEquals(1, fills(lit, ExpressionBuilderPane.TRASH_LIT).size(), "the strip lights while dragging");
-        assertEquals(List.of(), fills(lit, ExpressionBuilderPane.TRASH_REST));
+        assertEquals(1, fills(lit, Palette.TRASH_LIT).size(), "the strip lights while dragging");
+        assertEquals(List.of(), fills(lit, Palette.TRASH_REST));
         assertTrue(frame.targets.drag(AREA.right() - 1, rail[1]));
         DrawnFrame hovered = builder.frame();
-        assertEquals(1, fills(hovered, ExpressionBuilderPane.TRASH_HOVER).size(), "the strip brightens under it");
+        assertEquals(1, fills(hovered, Palette.TRASH_HOVER).size(), "the strip brightens under it");
         assertTrue(cursorTops(hovered).isEmpty(), "no drop cursor while over the strip");
         frame.targets.release();
         assertEquals("$waxed + $base", builder.written.getLast());
-        assertEquals(1, fills(builder.frame(), ExpressionBuilderPane.TRASH_REST).size(), "the strip rests again");
+        assertEquals(1, fills(builder.frame(), Palette.TRASH_REST).size(), "the strip rests again");
     }
 
     /**
@@ -467,13 +527,13 @@ class ExpressionBuilderPaneTest {
     // The rail answering at a point fills its segment one pixel inside the segment's border, its three one-pixel grip
     // lines inside it.
     private static void assertRailFillsItsSegment(DrawnFrame frame, double[] point) {
-        int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream().filter(fill -> fill[0] == (int) point[0]
+        int[] rail = fills(frame, Palette.RAIL).stream().filter(fill -> fill[0] == (int) point[0]
                 && fill[1] <= point[1] && fill[3] > point[1]).findFirst()
                 .orElseThrow(() -> new AssertionError("no rail fill at " + point[0] + "," + point[1]));
         assertEquals(List.of(rail[0] - 1, rail[1] - 1, rail[2] + 1, rail[3] + 1),
-                java.util.Arrays.stream(frame.buttonAround(rail[0], rail[1])).boxed().toList(),
+                Arrays.stream(frame.buttonAround(rail[0], rail[1])).boxed().toList(),
                 "the rail fills its segment inside the border");
-        List<int[]> grips = fills(frame, ControlFlow.GRIP_COLOR).stream()
+        List<int[]> grips = fills(frame, Palette.GRIP).stream()
                 .filter(fill -> fill[0] >= rail[0] && fill[2] <= rail[2] && fill[1] >= rail[1] && fill[3] <= rail[3])
                 .toList();
         assertEquals(3, grips.size(), "grip lines inside the rail");
@@ -491,7 +551,7 @@ class ExpressionBuilderPaneTest {
         // Edited's container opens on its rail's segment; waxed's ends on the last segment left of it.
         double[] edited = railOf(frame, List.of(1));
         int editedLeft = containerLeft(frame, edited);
-        int waxedRight = fills(frame, ControlFlow.TERM_BORDER).stream().filter(side -> side[2] <= editedLeft
+        int waxedRight = fills(frame, Palette.TERM_BORDER).stream().filter(side -> side[2] <= editedLeft
                 && side[1] <= edited[1] && edited[1] < side[3]).mapToInt(side -> side[2]).max()
                 .orElseThrow();
         assertEquals(ExpressionBuilderPane.TERM_MARGIN, editedLeft - waxedRight, "the room between siblings");
@@ -504,7 +564,7 @@ class ExpressionBuilderPaneTest {
     @Test
     void builderBoxKeepsTheBoxMarginOutsideItsContents() {
         DrawnFrame frame = Builder.item("$waxed").frame();
-        int[] panel = fills(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
+        int[] panel = fills(frame, Palette.PANEL_FILL).getFirst();
         DrawnFrame.Text kind = frame.drawn().getFirst();
         int[] button = frame.buttonAround(kind);
         int buttonLeft = button[0];
@@ -543,7 +603,7 @@ class ExpressionBuilderPaneTest {
     private static int[] railBefore(DrawnFrame frame, int color, DrawnFrame.Text text) {
         return fills(frame, color).stream().filter(rail -> rail[2] - rail[0] == ControlFlow.RAIL_WIDTH
                 && rail[2] <= text.x() && rail[1] <= text.y() && text.y() < rail[3])
-                .max(java.util.Comparator.comparingInt(rail -> rail[0]))
+                .max(Comparator.comparingInt(rail -> rail[0]))
                 .orElseThrow(() -> new AssertionError("no rail before " + text));
     }
 
@@ -556,9 +616,9 @@ class ExpressionBuilderPaneTest {
     void onlyTermAndOnlyRowDragToTheTrashAndGo() {
         Builder term = Builder.item("$base");
         DrawnFrame frame = term.frame();
-        railBefore(frame, ControlFlow.RAIL_COLOR, frame.find("$base"));
+        railBefore(frame, Palette.RAIL, frame.find("$base"));
         double[] strip = dragToTrash(frame, List.of(0));
-        assertTrue(fills(term.frame(), DragMask.HIGHLIGHT).stream().anyMatch(hole -> hole[0] <= strip[0]
+        assertTrue(fills(term.frame(), Palette.DRAG_HIGHLIGHT).stream().anyMatch(hole -> hole[0] <= strip[0]
                 && strip[0] < hole[2]), "a hole lights over the strip");
         frame.targets.release();
         DrawnFrame emptied = term.frame();
@@ -567,11 +627,11 @@ class ExpressionBuilderPaneTest {
 
         Builder row = Builder.item("{\"metal\": \"5\"}");
         DrawnFrame rowFrame = row.frame();
-        railBefore(rowFrame, ControlFlow.RAIL_COLOR, rowFrame.findFirst(ExpressionLines.COLON));
+        railBefore(rowFrame, Palette.RAIL, rowFrame.findFirst(ExpressionLines.COLON));
         double[] rail = rowRailOf(rowFrame, 0);
         assertTrue(rowFrame.targets.click(rail[0], rail[1]));
         assertTrue(rowFrame.targets.drag(AREA.right() - 1, rail[1]));
-        assertEquals(1, fills(row.frame(), ExpressionBuilderPane.TRASH_HOVER).size(), "the strip lights under it");
+        assertEquals(1, fills(row.frame(), Palette.TRASH_HOVER).size(), "the strip lights under it");
         rowFrame.targets.release();
         DrawnFrame noRows = row.frame();
         assertFalse(noRows.texts().contains("5"), noRows.texts().toString());
@@ -584,29 +644,31 @@ class ExpressionBuilderPaneTest {
      */
     @Test
     void trashStripDrawsACanInsideALighterRedBorder() {
-        assertTrue((ExpressionBuilderPane.TRASH_BORDER >> 8 & 0xFF) > (ExpressionBuilderPane.TRASH_REST >> 8 & 0xFF),
+        assertTrue((Palette.TRASH_BORDER >> 8 & 0xFF) > (Palette.TRASH_REST >> 8 & 0xFF),
                 "the border reads lighter than the fill");
         Builder builder = Builder.item("$waxed + $edited");
         DrawnFrame rest = builder.frame();
-        assertBorderAndCan(rest, fills(rest, ExpressionBuilderPane.TRASH_REST).getFirst());
+        assertBorderAndCan(rest, fills(rest, Palette.TRASH_REST).getFirst());
         double[] rail = railOf(rest, List.of(1));
         assertTrue(rest.targets.click(rail[0], rail[1]));
         assertTrue(rest.targets.drag(AREA.left() + 1, rail[1]));
         DrawnFrame lit = builder.frame();
-        assertBorderAndCan(lit, fills(lit, ExpressionBuilderPane.TRASH_LIT).getFirst());
+        assertBorderAndCan(lit, fills(lit, Palette.TRASH_LIT).getFirst());
         rest.targets.release();
     }
 
-    private static void assertBorderAndCan(DrawnFrame frame, int[] strip) {
-        List<int[]> border = fills(frame, ExpressionBuilderPane.TRASH_BORDER);
+    // The tone fills a pixel inside the strip's border (decision one-frame-primitive-draws-every-bordered-box).
+    private static void assertBorderAndCan(DrawnFrame frame, int[] tone) {
+        int[] strip = {tone[0] - 1, tone[1] - 1, tone[2] + 1, tone[3] + 1};
+        List<int[]> border = fills(frame, Palette.TRASH_BORDER);
         assertTrue(border.stream().anyMatch(side -> side[0] == strip[0] && side[2] == strip[0] + 1), "left edge");
         assertTrue(border.stream().anyMatch(side -> side[2] == strip[2] && side[0] == strip[2] - 1), "right edge");
         assertTrue(border.stream().anyMatch(side -> side[1] == strip[1] && side[3] == strip[1] + 1), "top edge");
         assertTrue(border.stream().anyMatch(side -> side[3] == strip[3] && side[1] == strip[3] - 1), "bottom edge");
-        List<int[]> can = fills(frame, ExpressionBuilderPane.TRASH_CAN);
+        List<int[]> can = fills(frame, Palette.TRASH_CAN);
         assertFalse(can.isEmpty(), "no can drawn");
         can.forEach(piece -> assertTrue(piece[0] > strip[0] && piece[2] < strip[2] && piece[1] > strip[1]
-                && piece[3] < strip[3], "a can piece outside the strip: " + java.util.Arrays.toString(piece)));
+                && piece[3] < strip[3], "a can piece outside the strip: " + Arrays.toString(piece)));
     }
 
     /**
@@ -637,9 +699,9 @@ class ExpressionBuilderPaneTest {
         for (String value : List.of(TWO_TYPES, "{\"metal\": \"5\", \"pulse\": \"2\", \"glow\": \"1\"}")) {
             DrawnFrame frame = Builder.item(value).frame();
             int typeLeft = AREA.left() + ControlFlow.INDENT + ROW_RAIL;
-            List<int[]> typeBoxes = fills(frame, ButtonPainter.BORDER).stream()
+            List<int[]> typeBoxes = fills(frame, Palette.BORDER).stream()
                     .filter(box -> box[0] == typeLeft)
-                    .sorted(java.util.Comparator.comparingInt(side -> side[1])).toList();
+                    .sorted(Comparator.comparingInt(side -> side[1])).toList();
             assertTrue(typeBoxes.size() >= 2, value + ": " + typeBoxes.size() + " type buttons");
             for (int index = 1; index < typeBoxes.size(); index++) {
                 int gap = typeBoxes.get(index)[1] - typeBoxes.get(index - 1)[3];
@@ -662,11 +724,11 @@ class ExpressionBuilderPaneTest {
         // multiplier-reads-nx-before-the-identity-and-divisor-slash-n-after).
         private static List<int[]> segments(DrawnFrame frame) {
             DrawnFrame.Text waxed = frame.find("$waxed");
-            List<int[]> rails = new ArrayList<>(fills(frame, ControlFlow.RAIL_COLOR));
-            rails.addAll(fills(frame, ControlFlow.LOCKED_RAIL_COLOR));
+            List<int[]> rails = new ArrayList<>(fills(frame, Palette.RAIL));
+            rails.addAll(fills(frame, Palette.LOCKED_RAIL));
             int[] rail = rails.stream().filter(fill -> fill[2] - fill[0] == ControlFlow.RAIL_WIDTH
                     && fill[2] <= waxed.x() && fill[1] <= waxed.y() && waxed.y() < fill[3])
-                    .max(java.util.Comparator.comparingInt(fill -> fill[0]))
+                    .max(Comparator.comparingInt(fill -> fill[0]))
                     .orElseThrow(() -> new AssertionError("no rail before " + waxed));
             int[] icon = iconBlits(frame).stream().filter(blit -> blit[0] > waxed.x()
                     && Math.abs(blit[1] - waxed.y()) < ControlFlow.LINE).findFirst()
@@ -687,13 +749,13 @@ class ExpressionBuilderPaneTest {
             List<int[]> segments = segments(frame);
             for (int index = 1; index < segments.size(); index++) {
                 assertEquals(segments.get(index - 1)[2], segments.get(index)[0], "segment " + index
-                        + " abuts the one before: " + segments.stream().map(java.util.Arrays::toString).toList());
+                        + " abuts the one before: " + segments.stream().map(Arrays::toString).toList());
             }
             assertArrayEquals(segments.get(3), frame.buttonAround(frame.findFirst("'s")), "the 's in the name's segment");
             int left = segments.getFirst()[0];
             int right = segments.getLast()[2];
             assertEquals(List.of(), fills(frame, RETIRED_OUTLINE).stream().filter(fill -> fill[0] <= left
-                    && fill[2] >= right).map(java.util.Arrays::toString).toList(), "an outline rings the segments");
+                    && fill[2] >= right).map(Arrays::toString).toList(), "an outline rings the segments");
         }
 
         // The term's container: its segments' union grown by the pixel its 2 px ring adds outside their frames.
@@ -714,11 +776,11 @@ class ExpressionBuilderPaneTest {
          */
         @Test
         void termContainerDrawsATwoPixelBrighterRing() {
-            assertTrue(luminance(ControlFlow.TERM_BORDER) > luminance(ButtonPainter.BORDER), "the ring reads brighter");
+            assertTrue(luminance(Palette.TERM_BORDER) > luminance(Palette.BORDER), "the ring reads brighter");
             DrawnFrame frame = Builder.item(TERM).frame();
             int[] ring = ringOf(segments(frame));
-            List<List<Integer>> sides = fills(frame, ControlFlow.TERM_BORDER).stream()
-                    .map(side -> java.util.Arrays.stream(side).boxed().toList()).toList();
+            List<List<Integer>> sides = fills(frame, Palette.TERM_BORDER).stream()
+                    .map(side -> Arrays.stream(side).boxed().toList()).toList();
             assertEquals(List.of(List.of(ring[0], ring[1], ring[2], ring[1] + 2),
                     List.of(ring[0], ring[3] - 2, ring[2], ring[3]),
                     List.of(ring[0], ring[1] + 2, ring[0] + 2, ring[3] - 2),
@@ -732,20 +794,20 @@ class ExpressionBuilderPaneTest {
          */
         @Test
         void eachSeamIsTwoPixelsLightThenDark() {
-            assertTrue(luminance(ControlFlow.SEAM_DARK) < luminance(ControlFlow.SEAM_LIGHT), "the dark pixel darker");
+            assertTrue(luminance(Palette.SEAM_DARK) < luminance(Palette.SEAM_LIGHT), "the dark pixel darker");
             DrawnFrame frame = Builder.item(TERM).frame();
             List<int[]> segments = segments(frame);
             int[] ring = ringOf(segments);
-            List<int[]> lights = fills(frame, ControlFlow.SEAM_LIGHT);
-            List<int[]> darks = fills(frame, ControlFlow.SEAM_DARK);
+            List<int[]> lights = fills(frame, Palette.SEAM_LIGHT);
+            List<int[]> darks = fills(frame, Palette.SEAM_DARK);
             for (int index = 1; index < segments.size(); index++) {
                 int seam = segments.get(index)[0];
-                assertTrue(lights.stream().anyMatch(fill -> java.util.Arrays.equals(fill,
+                assertTrue(lights.stream().anyMatch(fill -> Arrays.equals(fill,
                         new int[] {seam - 1, ring[1], seam, ring[3]})), "no light pixel left of seam " + index);
-                assertTrue(darks.stream().anyMatch(fill -> java.util.Arrays.equals(fill,
+                assertTrue(darks.stream().anyMatch(fill -> Arrays.equals(fill,
                         new int[] {seam, ring[1], seam + 1, ring[3]})), "no dark pixel right of seam " + index);
                 int fillLeft = segments.get(index)[0] + 1;
-                assertTrue(fills(frame, ButtonPainter.FILL).stream().anyMatch(fill -> fill[0] == fillLeft
+                assertTrue(fills(frame, Palette.FILL).stream().anyMatch(fill -> fill[0] == fillLeft
                         && fill[1] == ring[1] + 2), "segment " + index + "'s fill past its dark pixel");
             }
             assertEquals(segments.size() - 1, lights.size(), "a light pixel a seam");
@@ -764,17 +826,17 @@ class ExpressionBuilderPaneTest {
             framed.add(frame.buttonAround((int) rail[0], (int) rail[1]));
             framed.add(frame.buttonAround(frame.findFirst("3x")));
             framed.add(frame.buttonAround(frame.findFirst("/2")));
-            framed.addAll(fills(frame, ExpressionBuilderPane.NEST_BORDER));
+            framed.addAll(fills(frame, Palette.NEST_BORDER));
             DrawnFrame typed = Builder.item(TWO_TYPES).frame();
             double[] rowRail = rowRailOf(typed, 0);
             List<int[]> rowFramed = List.of(typed.buttonAround((int) rowRail[0], (int) rowRail[1]),
                     typed.buttonAround(handles(typed).getFirst()));
-            for (int color : List.of(ControlFlow.TERM_BORDER, ControlFlow.SEAM_LIGHT, ControlFlow.SEAM_DARK)) {
+            for (int color : List.of(Palette.TERM_BORDER, Palette.SEAM_LIGHT, Palette.SEAM_DARK)) {
                 assertEquals(List.of(), fills(frame, color).stream().filter(fill -> framed.stream()
-                        .anyMatch(box -> overlaps(fill, box))).map(java.util.Arrays::toString).toList(),
+                        .anyMatch(box -> overlaps(fill, box))).map(Arrays::toString).toList(),
                         "a ring or seam in a parenthetical's own frames");
                 assertEquals(List.of(), fills(typed, color).stream().filter(fill -> rowFramed.stream()
-                        .anyMatch(box -> overlaps(fill, box))).map(java.util.Arrays::toString).toList(),
+                        .anyMatch(box -> overlaps(fill, box))).map(Arrays::toString).toList(),
                         "a ring or seam in a type button or the handle");
             }
         }
@@ -837,7 +899,7 @@ class ExpressionBuilderPaneTest {
             clickAt(frame, handles(frame).getFirst());
             DrawnFrame.Text waxed = frame.find("$waxed");
             assertTrue(frame.targets.drag(waxed.x() + 1, waxed.y() + 1));
-            List<int[]> marks = fills(builder.frame(), ExpressionBuilderPane.WRAP_MARK);
+            List<int[]> marks = fills(builder.frame(), Palette.WRAP_MARK);
             assertEquals(1, marks.size(), "one wrap mark");
             assertArrayEquals(ring, marks.getFirst(), "the container's bounds");
             frame.targets.release();
@@ -890,7 +952,7 @@ class ExpressionBuilderPaneTest {
             double[] grab = rowRailOf(frame, row);
             int[] rail = frame.buttonAround((int) grab[0], (int) grab[1]);
             int[] icon = iconBlits(frame).stream().filter(blit -> blit[0] > rail[0]
-                    && Math.abs(blit[1] - grab[1]) < ControlFlow.LINE).min(java.util.Comparator.comparingInt(
+                    && Math.abs(blit[1] - grab[1]) < ControlFlow.LINE).min(Comparator.comparingInt(
                             blit -> blit[0])).orElseThrow(() -> new AssertionError("no icon right of row " + row));
             return List.of(rail, frame.buttonAround(icon[0], icon[1]));
         }
@@ -905,7 +967,7 @@ class ExpressionBuilderPaneTest {
             assertEquals(List.of(rail[1], rail[3]), List.of(icon[1], icon[3]), "the rail and the icon stand alike");
             int last = frame.buttonAround(frame.findFirst("5"))[2];
             assertEquals(List.of(), fills(frame, RETIRED_OUTLINE).stream().filter(fill -> fill[0] <= rail[0]
-                    && fill[2] >= last).map(java.util.Arrays::toString).toList(), "a box rings the row");
+                    && fill[2] >= last).map(Arrays::toString).toList(), "a box rings the row");
         }
 
         @Test
@@ -938,7 +1000,7 @@ class ExpressionBuilderPaneTest {
 
         // The parenthetical's border as left, top, right and bottom, read off the border color's fills.
         private static int[] border(DrawnFrame frame) {
-            List<int[]> sides = fills(frame, ExpressionBuilderPane.NEST_BORDER);
+            List<int[]> sides = fills(frame, Palette.NEST_BORDER);
             assertFalse(sides.isEmpty(), "no parenthetical border");
             return new int[] {sides.stream().mapToInt(side -> side[0]).min().orElseThrow(),
                 sides.stream().mapToInt(side -> side[1]).min().orElseThrow(),
@@ -1004,7 +1066,7 @@ class ExpressionBuilderPaneTest {
             // side spanning it.
             List<int[]> inner = IntStream.range(0, 6).mapToObj(index -> railOf(frame, List.of(1, index)))
                     .map(rail -> ringAround(frame.buttonAround((int) rail[0], (int) rail[1])))
-                    .map(ring -> new int[] {ring[0], ring[1], fills(frame, ControlFlow.TERM_BORDER).stream()
+                    .map(ring -> new int[] {ring[0], ring[1], fills(frame, Palette.TERM_BORDER).stream()
                             .filter(side -> side[0] == ring[0] && side[1] == ring[1]).mapToInt(side -> side[2])
                             .max().orElseThrow(), ring[3]}).toList();
             List<Integer> lineTops = inner.stream().map(ring -> ring[1]).distinct().sorted().toList();
@@ -1025,12 +1087,12 @@ class ExpressionBuilderPaneTest {
             double[] rail = railOf(frame, List.of(1));
             int[] sign = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals("+")
                     && text.x() > rail[0] && Math.abs(text.y() - rail[1]) < HALF_LINE).min(
-                    java.util.Comparator.comparingInt(DrawnFrame.Text::x)).orElseThrow());
+                    Comparator.comparingInt(DrawnFrame.Text::x)).orElseThrow());
             assertEquals(box[0], sign[2], "the sign touches the box's left border");
             double[] after = railOf(frame, List.of(2));
             int[] next = ringAround(frame.buttonAround((int) after[0], (int) after[1]));
             assertTrue(next[0] >= box[2] || next[1] >= box[3], "the term after the box stands inside it: "
-                    + java.util.Arrays.toString(next) + " against " + java.util.Arrays.toString(box));
+                    + Arrays.toString(next) + " against " + Arrays.toString(box));
         }
 
         @Test
@@ -1127,8 +1189,8 @@ class ExpressionBuilderPaneTest {
             DrawnFrame.Text reference = frame.findFirst("$base");
             DrawnFrame.Text open = frame.find("(");
             hold(builder, frame, "x", AREA.right() - 60, AREA.bottom() - 5);
-            List<int[]> holes = fills(builder.frame(), DragMask.HIGHLIGHT);
-            java.util.function.Predicate<DrawnFrame.Text> lit = text -> holes.stream().anyMatch(hole ->
+            List<int[]> holes = fills(builder.frame(), Palette.DRAG_HIGHLIGHT);
+            Predicate<DrawnFrame.Text> lit = text -> holes.stream().anyMatch(hole ->
                     hole[0] <= text.x() && text.x() < hole[2] && hole[1] <= text.y() && text.y() < hole[3]);
             // The reference, the parenthetical and the reference inside it each take the drop; the number none.
             assertEquals(List.of(3, true, true, false), List.of(holes.size(), lit.test(reference), lit.test(open),
@@ -1211,9 +1273,9 @@ class ExpressionBuilderPaneTest {
             List<int[]> segments = SegmentedTerms.segments(frame);
             int[] ring = SegmentedTerms.ringOf(segments);
             List<int[]> pieces = new ArrayList<>(segments);
-            pieces.addAll(fills(frame, ControlFlow.TERM_BORDER));
-            pieces.addAll(fills(frame, ControlFlow.SEAM_LIGHT));
-            pieces.addAll(fills(frame, ControlFlow.SEAM_DARK));
+            pieces.addAll(fills(frame, Palette.TERM_BORDER));
+            pieces.addAll(fills(frame, Palette.SEAM_LIGHT));
+            pieces.addAll(fills(frame, Palette.SEAM_DARK));
             return relative(pieces, ring[0], ring[1]);
         }
 
@@ -1336,7 +1398,7 @@ class ExpressionBuilderPaneTest {
             assertTrue(frame.targets.click(first[0], first[1]));
             assertTrue(frame.targets.drag(containerLeft(frame, third) - 3, third[1]));
             DrawnFrame held = builder.frame();
-            List<int[]> cursors = fills(held, ExpressionBuilderPane.DROP_CURSOR);
+            List<int[]> cursors = fills(held, Palette.DROP_CURSOR);
             assertEquals(1, cursors.size(), "one cursor");
             assertEquals(List.of(ring[1], ring[3]), List.of(cursors.getFirst()[1], cursors.getFirst()[3]),
                     "the cursor as tall as the term's ringed container");
@@ -1372,7 +1434,7 @@ class ExpressionBuilderPaneTest {
         private static DrawnFrame.Text signBefore(DrawnFrame frame, double[] rail) {
             DrawnFrame.Text sign = frame.drawn().stream().filter(text -> (text.text().equals("+")
                     || text.text().equals("-")) && text.x() > rail[0] && Math.abs(text.y() - rail[1]) < HALF_LINE)
-                    .min(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                    .min(Comparator.comparingInt(DrawnFrame.Text::x))
                     .orElseThrow(() -> new AssertionError("no sign after the rail at " + rail[0]));
             assertEquals(frame.buttonAround((int) rail[0], (int) rail[1])[2], frame.buttonAround(sign)[0],
                     "the sign's segment abuts the rail's, the seam between them");
@@ -1440,7 +1502,7 @@ class ExpressionBuilderPaneTest {
             ArgumentCaptor<Integer> widths = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> heights = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, atLeastOnce()).blit(any(), any(), anyInt(), anyInt(),
-                    org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), widths.capture(),
+                    ArgumentMatchers.anyFloat(), ArgumentMatchers.anyFloat(), widths.capture(),
                     heights.capture(), anyInt(), anyInt(), anyInt());
             int nativeSize = GooTypeIcons.sizeOf("metal");
             assertEquals(2, widths.getAllValues().size(), "the row's icon and the member's");
@@ -1495,7 +1557,7 @@ class ExpressionBuilderPaneTest {
         int afterClose = parenthetical[2] + 2;
         assertTrue(frame.targets.drag(afterClose, close.y() + HALF_LINE));
         DrawnFrame held = builder.frame(narrow);
-        List<int[]> cursors = fills(held, ExpressionBuilderPane.DROP_CURSOR);
+        List<int[]> cursors = fills(held, Palette.DROP_CURSOR);
         assertEquals(1, cursors.size(), "one cursor");
         int[] cursor = cursors.getFirst();
         assertTrue(cursor[3] - cursor[1] > ControlFlow.LINE, "the cursor spans more than one line");
@@ -1508,11 +1570,11 @@ class ExpressionBuilderPaneTest {
     // The mask's hole at the cursor is the cursor grown one pixel each way, centered on it (decision
     // mask-holes-fit-the-indicator-and-the-layer-interior).
     private static void assertHoleStandsAPixelAround(DrawnFrame frame, int[] cursor) {
-        int[] hole = fills(frame, DragMask.HIGHLIGHT).stream().filter(lit -> lit[0] <= cursor[0] && cursor[2] <= lit[2]
-                && lit[1] <= cursor[1] && cursor[3] <= lit[3]).findFirst()
-                .orElseThrow(() -> new AssertionError("no hole at the cursor " + java.util.Arrays.toString(cursor)));
+        int[] hole = fills(frame, Palette.DRAG_HIGHLIGHT).stream().filter(lit -> lit[0] <= cursor[0]
+                && cursor[2] <= lit[2] && lit[1] <= cursor[1] && cursor[3] <= lit[3]).findFirst()
+                .orElseThrow(() -> new AssertionError("no hole at the cursor " + Arrays.toString(cursor)));
         assertEquals(List.of(cursor[0] - 1, cursor[1] - 1, cursor[2] + 1, cursor[3] + 1),
-                java.util.Arrays.stream(hole).boxed().toList(), "the hole one pixel around the cursor");
+                Arrays.stream(hole).boxed().toList(), "the hole one pixel around the cursor");
     }
 
     /**
@@ -1530,7 +1592,7 @@ class ExpressionBuilderPaneTest {
         assertTrue(frame.targets.click(waxed[0], waxed[1]));
         assertTrue(frame.targets.drag(containerLeft(frame, base) - 3, base[1]));
         DrawnFrame held = builder.frame();
-        List<int[]> cursors = fills(held, ExpressionBuilderPane.DROP_CURSOR);
+        List<int[]> cursors = fills(held, Palette.DROP_CURSOR);
         assertEquals(1, cursors.size(), "one cursor");
         int[] cursor = cursors.getFirst();
         // The term's container: its rail's frame grown by the pixel its ring adds above and below (decision
@@ -1597,7 +1659,7 @@ class ExpressionBuilderPaneTest {
         @Test
         void termPastTheRightEdgeWrapsOneIndentUnderTheType() {
             int count = 14;
-            DrawnFrame frame = Builder.item("{\"metal\": \"" + String.join(" + ", java.util.Collections.nCopies(count,
+            DrawnFrame frame = Builder.item("{\"metal\": \"" + String.join(" + ", Collections.nCopies(count,
                     "$base")) + "\"}").frame();
             // The only row is locked, so its rail stands where the row's indent puts it.
             double[] rowRail = {AREA.left() + ControlFlow.INDENT, 0};
@@ -1675,8 +1737,8 @@ class ExpressionBuilderPaneTest {
     private static List<int[]> iconBlits(DrawnFrame frame) {
         ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(),
-                org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(),
+        verify(frame.graphics, Mockito.atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(),
+                ArgumentMatchers.anyFloat(), ArgumentMatchers.anyFloat(), anyInt(),
                 anyInt(), anyInt(), anyInt(), anyInt());
         return IntStream.range(0, xs.getAllValues().size())
                 .mapToObj(index -> new int[] {xs.getAllValues().get(index), ys.getAllValues().get(index)}).toList();
@@ -1720,7 +1782,7 @@ class ExpressionBuilderPaneTest {
         double[] first = rowRailOf(opened, 0);
         assertTrue(opened.targets.click(first[0], first[1]));
         assertTrue(opened.targets.drag(AREA.right() - 1, first[1]));
-        assertEquals(1, fills(trashing.frame(), ExpressionBuilderPane.TRASH_HOVER).size());
+        assertEquals(1, fills(trashing.frame(), Palette.TRASH_HOVER).size());
         opened.targets.release();
         assertEquals("{\"pulse\": \"2\"}", trashing.written.getLast());
     }
@@ -1756,7 +1818,7 @@ class ExpressionBuilderPaneTest {
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
+        verify(frame.graphics, Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
                 rights.capture(), bottoms.capture(), eq(color));
         return IntStream.range(0, lefts.getAllValues().size()).anyMatch(index ->
                 lefts.getAllValues().get(index) <= text.x() && rights.getAllValues().get(index) > text.x()
@@ -1844,7 +1906,7 @@ class ExpressionBuilderPaneTest {
         // The texts drawn on one builder line, left to right, the kind's line first.
         private static List<DrawnFrame.Text> line(DrawnFrame frame, int index) {
             return frame.drawn().stream().filter(text -> lineOf(frame, text.y()) == index)
-                    .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+                    .sorted(Comparator.comparingInt(DrawnFrame.Text::x)).toList();
         }
 
         // Which builder line a y stands on, the lines read from the texts drawn on them, since a line's height grows
@@ -1869,8 +1931,8 @@ class ExpressionBuilderPaneTest {
         private static List<Integer> iconXs(DrawnFrame frame, int index) {
             ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
-            verify(frame.graphics, org.mockito.Mockito.atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(),
-                    org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(),
+            verify(frame.graphics, Mockito.atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(),
+                    ArgumentMatchers.anyFloat(), ArgumentMatchers.anyFloat(), anyInt(),
                     anyInt(), anyInt(), anyInt(), anyInt());
             List<Integer> onLine = new ArrayList<>();
             for (int at = 0; at < xs.getAllValues().size(); at++) {
@@ -1915,16 +1977,16 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = builder.frame(narrow);
             double[] leafRail = rowRailOf(frame, 1);
             // The rail as drawn, its grips at its middle, where a press means to take it.
-            int[] drawn = fills(frame, ControlFlow.RAIL_COLOR).stream().filter(rail -> rail[0] == (int) leafRail[0]
+            int[] drawn = fills(frame, Palette.RAIL).stream().filter(rail -> rail[0] == (int) leafRail[0]
                     && rail[1] <= leafRail[1] + 3 && rail[3] > leafRail[1]).findFirst()
                     .orElseThrow(() -> new AssertionError("no rail drawn at the leaf row"));
             int grips = (drawn[1] + drawn[3]) / 2;
             assertTrue(frame.targets.click(leafRail[0] + 1, grips), "the leaf rail takes a press at its grips, "
-                    + java.util.Arrays.toString(drawn) + " grabbed from " + leafRail[1]);
+                    + Arrays.toString(drawn) + " grabbed from " + leafRail[1]);
             assertTrue(frame.targets.drag(leafRail[0] + 1, grips + 1), "the leaf rail takes the drag");
             DrawnFrame held = builder.frame(narrow);
-            assertFalse(fills(held, DragMask.SHADOW).isEmpty(), "the screen darkens");
-            assertFalse(fills(held, DragMask.HIGHLIGHT).isEmpty(), "a drop place lights");
+            assertFalse(fills(held, Palette.DRAG_SHADOW).isEmpty(), "the screen darkens");
+            assertFalse(fills(held, Palette.DRAG_HIGHLIGHT).isEmpty(), "a drop place lights");
             frame.targets.release();
         }
 
@@ -1940,14 +2002,15 @@ class ExpressionBuilderPaneTest {
             GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 330, 390);
             DrawnFrame frame = builder.frame(narrow);
             DrawnFrame.Text dye = frame.find("$dye");
-            int[] dyeRail = railBefore(frame, ControlFlow.RAIL_COLOR, dye);
+            int[] dyeRail = railBefore(frame, Palette.RAIL, dye);
             int middle = (dyeRail[1] + dyeRail[3]) / 2;
             assertTrue(frame.targets.click(dyeRail[0] + 1, middle), "the light blue rail takes no press");
             assertTrue(frame.targets.drag(dyeRail[0] + 1, middle + 1));
-            assertFalse(fills(builder.frame(narrow), DragMask.SHADOW).isEmpty(), "the light blue rail starts no drag");
+            assertFalse(fills(builder.frame(narrow), Palette.DRAG_SHADOW).isEmpty(),
+                    "the light blue rail starts no drag");
             frame.targets.release();
             double[] leafRail = rowRailOf(frame, 1);
-            assertTrue(fills(frame, ControlFlow.RAIL_COLOR).stream().anyMatch(rail -> rail[0] == (int) leafRail[0]),
+            assertTrue(fills(frame, Palette.RAIL).stream().anyMatch(rail -> rail[0] == (int) leafRail[0]),
                     "leaf's row rail draws light blue");
         }
 
@@ -2025,7 +2088,7 @@ class ExpressionBuilderPaneTest {
             ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
             verify(before.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(),
-                    bottoms.capture(), eq(ButtonPainter.BORDER));
+                    bottoms.capture(), eq(Palette.BORDER));
             boolean square = IntStream.range(0, lefts.getAllValues().size()).anyMatch(index ->
                     lefts.getAllValues().get(index) < add.x() && rights.getAllValues().get(index) > add.x()
                             && tops.getAllValues().get(index) < add.y()
@@ -2078,7 +2141,7 @@ class ExpressionBuilderPaneTest {
             // The bay's line is the builder's last, so Cancel stands at its right end past the bay's buttons
             // (decision whole-value-ratio-draws-after-the-last-term-unlabelled moved the ratio off a line of its own).
             List<DrawnFrame.Text> bay = frame.drawn().stream().filter(text -> text.y() == handle.y()
-                    && !text.text().equals("✗ Cancel")).sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                    && !text.text().equals("✗ Cancel")).sorted(Comparator.comparingInt(DrawnFrame.Text::x))
                     .toList();
             // Decision x-and-slash-drag-from-the-bay-onto-a-term: the x and / stand after the + and -.
             assertEquals(List.of("()", "+", "-", "x", "/"), bay.stream().map(DrawnFrame.Text::text).toList(),
@@ -2242,7 +2305,7 @@ class ExpressionBuilderPaneTest {
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
-                eq(ButtonPainter.BORDER));
+                eq(Palette.BORDER));
         int border = -1;
         for (int index = 0; index < lefts.getAllValues().size(); index++) {
             if (lefts.getAllValues().get(index) == typeLeft && tops.getAllValues().get(index) == lineTop) {
@@ -2261,9 +2324,9 @@ class ExpressionBuilderPaneTest {
      */
     @Test
     void onlyTheFiveNamedControlsCarryATooltip() {
-        java.util.Set<String> named = java.util.stream.Stream.of(HANDLE_HINT, ADD_TYPE_HINT, "Multiplier", "Divisor",
+        Set<String> named = Stream.of(HANDLE_HINT, ADD_TYPE_HINT, "Multiplier", "Divisor",
                         "Drag items here to remove")
-                .map(BuilderOverlays::hintKey).collect(java.util.stream.Collectors.toSet());
+                .map(BuilderOverlays::hintKey).collect(Collectors.toSet());
         for (String shown : List.of("$base + ($waxed - $edited)", "{\"leaf\": \"4\"}", "")) {
             Builder builder = Builder.item(shown);
             List<String> hints = builder.frame().targets.hoverKeys().stream()
@@ -2304,20 +2367,20 @@ class ExpressionBuilderPaneTest {
         Builder builder = Builder.item("$waxed + $edited");
         DrawnFrame frame = builder.frame();
         DrawnFrame.Text handle = handles(frame).getFirst();
-        int[] rail = fills(frame, ControlFlow.RAIL_COLOR).stream()
+        int[] rail = fills(frame, Palette.RAIL).stream()
                 .filter(fill -> fill[2] <= handle.x() && fill[2] > handle.x() - ControlFlow.LINE
                         && fill[1] <= handle.y() && fill[3] > handle.y())
                 .findFirst().orElseThrow(() -> new AssertionError("no rail left of the handle " + handle));
-        assertEquals(3, fills(frame, ControlFlow.GRIP_COLOR).stream().filter(grip -> grip[0] >= rail[0]
+        assertEquals(3, fills(frame, Palette.GRIP).stream().filter(grip -> grip[0] >= rail[0]
                 && grip[2] <= rail[2] && grip[1] >= rail[1] && grip[3] <= rail[3]).count(), "grips in the rail");
-        assertTrue(fills(frame, ButtonPainter.BORDER).stream().anyMatch(box -> box[0] == rail[0] - 1
+        assertTrue(fills(frame, Palette.BORDER).stream().anyMatch(box -> box[0] == rail[0] - 1
                 && box[1] == rail[1] - 1 && box[3] == rail[3] + 1 && box[2] > handle.x()), "the rail sits flush");
         assertEquals(BuilderOverlays.hintKey(HANDLE_HINT),
                 frame.targets.hovered(handle.x() + 1, handle.y() + 1).orElseThrow());
         assertTrue(frame.targets.click(rail[0] + 1, rail[1] + 1));
         DrawnFrame.Text edited = frame.find("$edited");
         assertTrue(frame.targets.drag(edited.x() + 1, edited.y() + 1));
-        assertTrue(filledAround(builder.frame(), ExpressionBuilderPane.WRAP_MARK, edited), "the rail starts no wrap");
+        assertTrue(filledAround(builder.frame(), Palette.WRAP_MARK, edited), "the rail starts no wrap");
         frame.targets.release();
     }
 
@@ -2414,7 +2477,7 @@ class ExpressionBuilderPaneTest {
                 int[] factor = segmentOf(frame, term.get(0));
                 DrawnFrame.Text name = frame.findFirst(term.get(1));
                 DrawnFrame.Text sign = frame.drawn().stream().filter(text -> text.text().equals("+")
-                        && text.x() < name.x()).max(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                        && text.x() < name.x()).max(Comparator.comparingInt(DrawnFrame.Text::x))
                         .orElseThrow();
                 assertEquals(List.of(frame.buttonAround(sign)[2], frame.buttonAround(name)[0]),
                         List.of(factor[0], factor[2]), term.get(0) + " between the sign and the name");
@@ -2496,7 +2559,7 @@ class ExpressionBuilderPaneTest {
         // a click elsewhere clears it.
         private static void focusFlag(EditBox box, boolean focused) {
             try {
-                java.lang.reflect.Field flag = AbstractWidget.class.getDeclaredField("focused");
+                Field flag = AbstractWidget.class.getDeclaredField("focused");
                 flag.setAccessible(true);
                 flag.setBoolean(box, focused);
             } catch (ReflectiveOperationException unreachable) {
@@ -2567,7 +2630,7 @@ class ExpressionBuilderPaneTest {
             trash(opened, List.of(0));
             DrawnFrame frame = builder.frame();
             DrawnFrame.Text done = frame.find(DONE);
-            assertEquals(ExpressionBuilderPane.GREEN, done.color());
+            assertEquals(Palette.GOOD, done.color());
             assertTrue(frame.targets.hovered(done.x() + 1, done.y() + 1).isEmpty(), "done carries no tooltip");
             frame.click(DONE);
             assertTrue(finished[0]);
@@ -2586,7 +2649,7 @@ class ExpressionBuilderPaneTest {
             DrawnFrame unchanged = builder.frame();
             assertFalse(unchanged.texts().contains(DONE), unchanged.texts().toString());
             DrawnFrame.Text cancel = unchanged.find(CANCEL);
-            assertEquals(ExpressionBuilderPane.RED, cancel.color());
+            assertEquals(Palette.DANGER, cancel.color());
             unchanged.click(CANCEL);
             assertTrue(finished[0]);
             assertFalse(builder.pane.isOpen());

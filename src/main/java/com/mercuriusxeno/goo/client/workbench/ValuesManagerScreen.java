@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
@@ -17,8 +16,9 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.ClientHooks;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import java.util.EnumMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,27 +34,11 @@ import java.util.function.Predicate;
 public final class ValuesManagerScreen extends Screen {
     private static final int MARGIN = 8;
     private static final int TITLE_Y = 6;
-    private static final int TOPBAR_Y = 3;
-    private static final int TAB_Y = 20;
     private static final int CONTENT_Y = 40;
-    private static final int BUTTON_HEIGHT = 14;
-    private static final int BUTTON_PADDING = 10;
-    private static final int TAB_GAP = 2;
     private static final int TITLE_GAP = 8;
     private static final int STATUS_INSET = 12;
     private static final int STATUS_GAP = 4;
-    private static final int PANEL_COLOR = 0xC0101010;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
-    private static final int DRAFT_COLOR = 0xFFE0C060;
     private static final String TITLE = "Values manager";
-    private static final String SAVE = "Save";
-    private static final String PROMOTE = "Promote";
-    // decision topbar-discard-reads-revert
-    private static final String REVERT = "Revert";
-    private static final String CLOSE = "X";
-    private static final String HELP = "?";
     private static final String DRAFT_BADGE = "draft";
     private static final String READING = "Reading the draft.";
     private static final String SAVING = "saving";
@@ -75,7 +59,6 @@ public final class ValuesManagerScreen extends Screen {
     private final ClickTargets targets = new ClickTargets();
     private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
             PointerHand::cursor);
-    private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
     private final ExplainerMode explainer = new ExplainerMode(ExplainerTargets.forTabs(this::tabBounds));
     private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
@@ -203,15 +186,6 @@ public final class ValuesManagerScreen extends Screen {
     protected void init() {
         // A scaled label lands on a whole screen pixel, so no operator's glyph draws one column stretched.
         Lettering.guiScale(minecraft.getWindow().getGuiScale());
-        int x = MARGIN;
-        for (ManagerTab each : ManagerTab.values()) {
-            int tabWidth = font.width(each.label()) + BUTTON_PADDING;
-            Button button = Button.builder(Component.literal(each.label()), pressed -> selectTab(each))
-                    .bounds(x, TAB_Y, tabWidth, BUTTON_HEIGHT).build();
-            tabButtons.put(each, addRenderableWidget(button));
-            x += tabWidth + TAB_GAP;
-        }
-        initTitleRow();
         valuesPane.init(font);
         groupsPane.init(font);
         variablesPane.init(font);
@@ -223,61 +197,16 @@ public final class ValuesManagerScreen extends Screen {
         }
     }
 
-    // The topbar stands on the title row, right-aligned and sized to its labels, so the tab row keeps the width.
-    // decision x-in-the-top-right-closes-the-manager
-    private void initTitleRow() {
-        TitleRow row = titleRowOf(width);
-        addRenderableWidget(Button.builder(Component.literal(CLOSE), button -> onClose())
-                .bounds(row.closeLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
-        // Decision question-button-toggles-explainer-mode-with-the-drag-mask.
-        addRenderableWidget(Button.builder(Component.literal(HELP), button -> explainer.toggle())
-                .bounds(row.helpLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
-        int right = row.topbarRight();
-        right = topbarButton(SAVE, right, () -> save(() -> { }));
-        right = topbarButton(REVERT, right, () -> draftConfirm.askRevert(draft.path()));
-        topbarButton(PROMOTE, right, () -> draftConfirm.askPromote(draft.path(), unsaved));
-    }
-
-    /**
-     * Where the title row's controls stand across the screen's width.
-     *
-     * @param closeLeft   the X's left edge
-     * @param closeRight  the X's right edge, at the screen's right margin
-     * @param helpLeft    the [?]'s left edge, the square one gap left of the X
-     * @param topbarRight the right edge of the topbar's first button
-     */
-    record TitleRow(int closeLeft, int closeRight, int helpLeft, int topbarRight) {
-    }
-
-    /**
-     * @param screenWidth the screen's width
-     * @return the title row laid across it
-     */
-    static TitleRow titleRowOf(int screenWidth) {
-        int closeRight = screenWidth - MARGIN;
-        int closeLeft = closeRight - BUTTON_HEIGHT;
-        int helpLeft = closeLeft - TAB_GAP - BUTTON_HEIGHT;
-        return new TitleRow(closeLeft, closeRight, helpLeft, helpLeft - TAB_GAP);
-    }
-
-    /**
-     * @return the topbar's labels in the order init lays them leftward from the title row's right edge
-     */
-    static List<String> topbarLabels() {
-        return List.of(SAVE, REVERT, PROMOTE);
-    }
-
-    // Answers the x the next button to its left ends at.
-    private int topbarButton(String label, int right, Runnable pressed) {
-        int buttonWidth = font.width(label) + BUTTON_PADDING;
-        addRenderableWidget(Button.builder(Component.literal(label), button -> pressed.run())
-                .bounds(right - buttonWidth, TOPBAR_Y, buttonWidth, BUTTON_HEIGHT).build());
-        return right - buttonWidth - TAB_GAP;
+    // The chrome's buttons: the title row's X, [?], Save, Revert and Promote and the tab row.
+    private ManagerChrome.Actions chromeActions() {
+        return new ManagerChrome.Actions(this::onClose, explainer::toggle, () -> save(() -> { }),
+                () -> draftConfirm.askRevert(draft.path()), () -> draftConfirm.askPromote(draft.path(), unsaved),
+                this::selectTab);
     }
 
     private DragMask.Rect tabBounds(ManagerTab each) {
-        Button button = tabButtons.get(each);
-        return new DragMask.Rect(button.getX(), button.getY(), button.getRight(), button.getBottom());
+        ButtonPainter.Box box = ManagerChrome.tabBox(font, each);
+        return new DragMask.Rect(box.left(), box.top(), box.right(), box.top() + box.height());
     }
 
     private GroupsPane.Bounds contentBounds() {
@@ -286,7 +215,6 @@ public final class ValuesManagerScreen extends Screen {
 
     private void selectTab(ManagerTab chosen) {
         tab = chosen;
-        tabButtons.forEach((each, button) -> button.active = each != chosen);
         valuesPane.show(chosen == ManagerTab.VALUES);
         groupsPane.show(chosen == ManagerTab.GROUPS);
         variablesPane.show(chosen == ManagerTab.VARIABLES);
@@ -478,7 +406,27 @@ public final class ValuesManagerScreen extends Screen {
         if (event.key() == GLFW.GLFW_KEY_ESCAPE && explainer.leave()) {
             return true;
         }
-        return paneTakesKey(event.key()) || super.keyPressed(event);
+        return paneTakesKey(event.key())
+                || event.key() == GLFW.GLFW_KEY_ESCAPE && escapeEmpties(getFocused(), () -> setFocused(null))
+                || super.keyPressed(event);
+    }
+
+    /**
+     * Empties the focused text box through setValue, so its responder refills the list it filters, and drops its
+     * focus, as a right click empties a box; the manager closes only from an Escape with no box focused (decision
+     * escape-empties-the-box-and-never-closes-the-manager).
+     *
+     * @param focused the screen's focused element, null for none
+     * @param unfocus drops the screen's focus
+     * @return whether a box took the Escape
+     */
+    static boolean escapeEmpties(@Nullable GuiEventListener focused, Runnable unfocus) {
+        if (!(focused instanceof EditBox box) || !box.visible) {
+            return false;
+        }
+        box.setValue(EMPTIED);
+        unfocus.run();
+        return true;
     }
 
     private boolean paneTakesKey(int key) {
@@ -509,7 +457,7 @@ public final class ValuesManagerScreen extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(0, 0, width, height, PANEL_COLOR);
+        graphics.fill(0, 0, width, height, Palette.SCREEN_BACKDROP);
     }
 
     @Override
@@ -518,6 +466,7 @@ public final class ValuesManagerScreen extends Screen {
         targets.clear();
         // Decision holding-shift-underlines-every-link.
         targets.holdShift(minecraft.hasShiftDown());
+        ManagerChrome.draw(graphics, font, targets, width, tab, chromeActions());
         GroupsPane.Bounds content = contentBounds();
         switch (tab) {
             case VALUES -> valuesPane.extract(graphics, font, content, targets);
@@ -526,13 +475,13 @@ public final class ValuesManagerScreen extends Screen {
             case PROCESSES -> processesPane.extract(graphics, font, content, targets);
             case AUDIT -> auditPane.extract(graphics, font, content, targets);
         }
-        graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
+        graphics.text(font, title, MARGIN, TITLE_Y, Palette.TEXT);
         if (draft.differs()) {
-            graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TITLE_GAP, TITLE_Y, DRAFT_COLOR);
+            graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TITLE_GAP, TITLE_Y, Palette.GOLD);
         }
         graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
-                statusIsError ? RED : GRAY);
-        draftPane.extract(graphics, font, width, height, targets);
+                statusIsError ? Palette.DANGER : Palette.MUTED);
+        draftPane.extract(graphics, font, targets);
         explainer.extract(graphics, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
         extractTooltip(graphics, mouseX, mouseY);
@@ -578,10 +527,10 @@ public final class ValuesManagerScreen extends Screen {
     // then its value.
     private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
         Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
-                .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
+                .<TooltipLine>map(TooltipLine.Text::new).or(() -> ButtonPainter.wholeNameTooltip(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
-                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, hoverKey))
+                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, processesTab, hoverKey))
                         .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey));
     }
 
@@ -590,8 +539,8 @@ public final class ValuesManagerScreen extends Screen {
     // value-tooltips-draw-each-types-icon-before-its-amount,
     // tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
     static List<Either<FormattedText, TooltipComponent>> tooltipElements(List<TooltipLine> lines) {
-        List<Either<FormattedText, TooltipComponent>> elements = new java.util.ArrayList<>();
-        List<TooltipLine.GooAmount> run = new java.util.ArrayList<>();
+        List<Either<FormattedText, TooltipComponent>> elements = new ArrayList<>();
+        List<TooltipLine.GooAmount> run = new ArrayList<>();
         for (TooltipLine line : lines) {
             if (line instanceof TooltipLine.GooAmount amount) {
                 run.add(amount);
@@ -607,10 +556,9 @@ public final class ValuesManagerScreen extends Screen {
     private static Either<FormattedText, TooltipComponent> elementOf(TooltipLine line) {
         return switch (line) {
             case TooltipLine.Text text -> Either.left(text.text());
-            case TooltipLine.Runs runs -> Either.right(runs);
-            case TooltipLine.RunsGrid grid -> Either.right(grid);
-            case TooltipLine.Members members -> Either.right(members);
             case TooltipLine.GooAmount amount -> Either.right(new TooltipLine.GooAmounts(List.of(amount)));
+            // Runs, a grid of runs, members and an amount grid each reach their tooltip component as they are.
+            case TooltipComponent component -> Either.right(component);
         };
     }
 

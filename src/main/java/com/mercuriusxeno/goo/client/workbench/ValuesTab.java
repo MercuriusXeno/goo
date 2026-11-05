@@ -13,7 +13,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -71,7 +70,7 @@ public final class ValuesTab {
     private final Set<String> uncovered = new HashSet<>();
     private final Map<String, List<String>> tagMembers = new HashMap<>();
     private Filter filter = Filter.ITEMS;
-    private String search = NO_TEXT;
+    private Search.Query search = Search.EVERYTHING;
     private @Nullable String selected;
     private @Nullable Index frozen;
 
@@ -219,7 +218,7 @@ public final class ValuesTab {
      * @param text the search box's text
      */
     public void search(String text) {
-        search = text.trim().toLowerCase(Locale.ROOT);
+        search = Search.query(text);
     }
 
     /**
@@ -233,9 +232,10 @@ public final class ValuesTab {
      * @return the entries the filter keeps whose id or name holds the search text, every one while it is blank
      */
     public List<ManagerEntry> listed() {
-        return entries.stream().filter(this::keptByFilter).filter(entry -> search.isEmpty()
-                || entry.id().toLowerCase(Locale.ROOT).contains(search)
-                || entry.name().toLowerCase(Locale.ROOT).contains(search)).toList();
+        // Decision one-search-rule-serves-every-box-and-dropdown: a tag matches its #id, never its member count.
+        return entries.stream().filter(this::keptByFilter).filter(entry -> entry.tag()
+                ? Search.matches(search, Search.Kind.GROUP, entry.id())
+                : Search.matches(search, Search.Kind.ITEM, entry.id(), entry.name())).toList();
     }
 
     private boolean keptByFilter(ManagerEntry entry) {
@@ -607,7 +607,7 @@ public final class ValuesTab {
     public int open(String key) {
         String id = namespaced(key);
         filter = Filter.ITEMS;
-        search = NO_TEXT;
+        search = Search.EVERYTHING;
         selected = id;
         List<ManagerEntry> listed = listed();
         for (int index = 0; index < listed.size(); index++) {

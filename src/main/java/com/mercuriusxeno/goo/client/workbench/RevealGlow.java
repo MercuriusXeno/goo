@@ -4,16 +4,15 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * The glow a followed row takes once its pane centers it: a pale gold fill over the row's bounds that fades over
- * about a second of frames, then stops (decision followed-target-glows-briefly).
+ * about a second of frames, then stops (decision followed-target-glows-briefly). It starts at the palette's glow
+ * (decision one-palette-names-every-color-by-role).
  */
 final class RevealGlow {
     /** How many frames the glow lasts, about a second. */
     static final int FRAMES = 60;
-    private static final int RGB = 0xFFE070;
-    private static final int FULL_ALPHA = 0x70;
     private static final int ALPHA_SHIFT = 24;
-    /** The glow's color on the frame it starts. */
-    static final int GLOW = FULL_ALPHA << ALPHA_SHIFT | RGB;
+    private static final int FULL_ALPHA = Palette.GLOW >>> ALPHA_SHIFT;
+    private static final int RGB = Palette.GLOW & ~(FULL_ALPHA << ALPHA_SHIFT);
 
     private int age = FRAMES;
     private int top;

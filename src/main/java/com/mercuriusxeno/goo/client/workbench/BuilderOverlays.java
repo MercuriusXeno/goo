@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * What the builders' controls open below themselves: one number box, one searchable dropdown with its search box,
@@ -40,10 +41,6 @@ final class BuilderOverlays {
     private static final int DROPDOWN_CHROME = BOX_HEIGHT + 1 + 1;
     private static final int DROPDOWN_HEIGHT = DROPDOWN_CHROME + SearchDropdown.SHOWN * SearchDropdown.ROW_HEIGHT;
     private static final int OPTION_ROW = ButtonPainter.HEIGHT;
-    private static final int OPTION_TEXT_NUDGE = 3;
-    private static final int OPTION_BACKGROUND = 0xF0101010;
-    private static final int OPTION_BORDER = 0xFF606060;
-    private static final int WHITE = 0xFFFFFFFF;
 
     private final ManagerActions actions;
     private final ItemIcons icons;
@@ -405,7 +402,7 @@ final class BuilderOverlays {
     }
 
     private void openBox(Anchor at, String current, Consumer<String> commits,
-                         java.util.function.Predicate<String> accepts) {
+                         Predicate<String> accepts) {
         closeLists();
         numberCommits = typed -> {
             if (!typed.isBlank()) {
@@ -516,12 +513,13 @@ final class BuilderOverlays {
         int left = placed.left();
         int top = placed.top();
         graphics.nextStratum();
-        graphics.fill(left - 1, top - 1, left + width + 1, top + open.size() * OPTION_ROW + 1, OPTION_BORDER);
-        graphics.fill(left, top, left + width, top + open.size() * OPTION_ROW, OPTION_BACKGROUND);
+        Frame.around(graphics, Frame.POPUP, new GroupsPane.Bounds(left, top, left + width,
+                top + open.size() * OPTION_ROW));
         for (int index = 0; index < open.size(); index++) {
             Option option = open.get(index);
             int rowTop = top + index * OPTION_ROW;
-            graphics.text(font, option.label(), left + ButtonPainter.PADDING, rowTop + OPTION_TEXT_NUDGE, WHITE);
+            graphics.text(font, option.label(), left + ButtonPainter.PADDING, Lettering.full(font).centeredTop(rowTop,
+                    OPTION_ROW), Palette.TEXT);
             targets.add(left, rowTop, width, OPTION_ROW, () -> pickOption(option), hintKey(option.hint()));
         }
     }

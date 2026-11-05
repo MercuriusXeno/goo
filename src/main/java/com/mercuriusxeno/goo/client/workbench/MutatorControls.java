@@ -4,14 +4,15 @@ import com.mercuriusxeno.goo.workbench.Processes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
 
 /**
  * One Mutators entry drawn as a sentence of controls, every field the game's conversion parser reads a click away:
@@ -25,11 +26,7 @@ import java.util.regex.Pattern;
  * expression-builder-composes-every-form-without-typing).
  */
 final class MutatorControls {
-    private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
     private static final int HALF = 2;
-    // Nine digits always fit an int.
-    private static final Pattern DIGITS = Pattern.compile("\\d{1,9}");
     private static final String NOTHING_TARGET = "0";
     private static final String GROUP_MARK = "#";
     private static final String STACK_MARK = "@";
@@ -58,6 +55,8 @@ final class MutatorControls {
     private static final String REMOVE_LINK_HINT = "Delete";
     private static final String UNREAD = "No form reads this line:";
     private static final String START_OVER = "start over";
+    // A stack that applies a stack multiplies through it; past this depth the chain loops and totals nothing.
+    private static final int MAX_STACK_DEPTH = 8;
 
     private final ProcessesTab processes;
     private final BuilderOverlays overlays;
@@ -120,7 +119,7 @@ final class MutatorControls {
              ClickTargets targets) {
         // Decision conversions-rows-letter-at-the-builders-scale: the sentence letters as the expression builder does.
         ControlFlow flow = ControlFlow.lettered(graphics, font, targets, null,
-                new ControlFlow.Span(area.left(), area.right(), top), ref -> { });
+                new ControlFlow.Span(area.left(), area.right(), top), null);
         boolean iterator = ProcessesTab.isIterator(key);
         // Decision mutator-chain-forms-a-column-left-of-the-validity-marker, its inset halved by decision
         // chain-lines-inset-halves-at-most.
@@ -204,12 +203,12 @@ final class MutatorControls {
         flow.typeIcon(formula.source(), at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaSource(section, key, type))));
         // Decision mutator-sentences-read-in-symbols: "[source] 1 : [#] becomes [target] [#] : [#]".
-        flow.text(SOURCE_SHARE, GRAY);
+        flow.text(SOURCE_SHARE, Palette.MUTED);
         // Decision ratio-colon-takes-the-builders-spacing: a clear pixel each side of the colon.
-        flow.ratioColon(RATIO, GRAY);
-        divisorControl(flow, formula.sourceDivisor(), null,
-                divisor -> processes.setFormulaDivisor(section, key, divisor));
-        flow.text(ARROW, GRAY);
+        flow.ratioColon(RATIO, Palette.MUTED);
+        RatioWriter ratio = (multiplier, divisor) -> processes.setFormulaRatio(section, key, multiplier, divisor);
+        divisorControl(flow, formula.sourceDivisor(), typed -> setSourceDivisor(entry, formula, typed, ratio));
+        flow.text(ARROW, Palette.MUTED);
         Consumer<BuilderOverlays.Anchor> pickTarget = at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaTarget(section, key, type)),
                 () -> edit(() -> processes.setFormulaTarget(section, key, NOTHING_TARGET)));
@@ -218,39 +217,71 @@ final class MutatorControls {
             return;
         }
         flow.typeIcon(formula.target(), pickTarget);
-        numberControl(flow, formula.multiplier(), null,
-                multiplier -> processes.setFormulaRatio(section, key, multiplier, formula.divisor()));
-        flow.ratioColon(RATIO, GRAY);
-        divisorControl(flow, formula.divisor(), null,
-                divisor -> processes.setFormulaRatio(section, key, formula.multiplier(), divisor));
+        // The target's ratio takes a mixed number either side, M : K reading M / K, reduced as it is written.
+        numberControl(flow, formula.multiplier(),
+                typed -> writeRatio(typed.numerator(), typed.denominator() * formula.divisor(), ratio));
+        flow.ratioColon(RATIO, Palette.MUTED);
+        divisorControl(flow, formula.divisor(),
+                typed -> writeRatio(formula.multiplier() * typed.denominator(), typed.numerator(), ratio));
+    }
+
+    // A fraction typed for the source's divisor folds its denominator into the target's multiplier.
+    private void setSourceDivisor(Entry entry, Processes.Formula formula, Fraction typed, RatioWriter ratio) {
+        if (typed.numerator() <= Integer.MAX_VALUE) {
+            processes.setFormulaDivisor(entry.section(), entry.key(), (int) typed.numerator());
+        }
+        if (typed.denominator() != 1 && !NOTHING_TARGET.equals(formula.target())) {
+            writeRatio(formula.multiplier() * typed.denominator(), formula.divisor(), ratio);
+        }
     }
 
     private void drawAdditive(Entry entry, Processes.Additive additive) {
         ControlFlow flow = entry.flow();
-        flow.text(PLUS, GRAY);
+        flow.text(PLUS, Palette.MUTED);
         // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab reads after $.
         nameControl(flow, new Ref(PrefabNames.marked(additive.constant()), () -> actions.openVariable(additive.constant())),
-                null, SearchDropdown.over(List.of(), treePrefabs.get(), false),
+                PrefabHovers.hoverKey(additive.constant()), SearchDropdown.over(List.of(), treePrefabs.get(), false),
                 prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
-        flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
         // Decision add-mutator-entry-shows-its-reduced-value: the value after the prefab, each type's icon beside its
         // amount in parentheses as the prefab's amount line reads, each pair wrapping whole; the hover stays.
         Map<String, String> amounts = prefabAmounts.apply(additive.constant());
         if (!amounts.isEmpty()) {
-            AmountGridLine.typed(amounts).cells().forEach(cell -> flow.runs(cell, null, null));
+            // Decision one-amount-grid-draws-every-amount-list: the grid's cells inline, its parens round them.
+            GooAmountGrid.reduced(amounts).inlineRuns().forEach(cell -> flow.runs(cell, null, null));
         }
     }
 
     private void drawStack(Entry entry, Processes.Stack stack) {
         ControlFlow flow = entry.flow();
-        nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), null,
+        // Decision every-linkable-thing-hovers-its-preview-value: the mutator a stack applies hovers its formula.
+        nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())),
+                ConversionHovers.hoverKey(entry.section(), stack.formula()),
                 SearchDropdown.overMutators(otherProcesses(entry)),
                 formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
-        // Decision every-linkable-thing-hovers-its-preview-value: the mutator a stack applies hovers its formula.
-        flow.hoverLast(ConversionHovers.hoverKey(entry.section(), stack.formula()));
-        flow.text(TIMES_MARK, GRAY);
-        numberControl(flow, stack.count(), null,
-                count -> processes.setStackCount(entry.section(), entry.key(), count));
+        flow.text(TIMES_MARK, Palette.MUTED);
+        countControl(flow, stack.count(), count -> processes.setStackCount(entry.section(), entry.key(), count));
+        drawStackTotal(entry, stack);
+    }
+
+    // Decision prefab-hovers-its-card-and-the-row-shows-the-stack-preview: a stack over an add draws the stack's
+    // total, the prefab's reduced value times the count, through the amount grid at all times.
+    private void drawStackTotal(Entry entry, Processes.Stack stack) {
+        long count = stack.count();
+        Processes.Form applied = processes.formOf(entry.section(), stack.formula());
+        for (int depth = 0; applied instanceof Processes.Stack inner && depth < MAX_STACK_DEPTH; depth++) {
+            count *= inner.count();
+            applied = processes.formOf(entry.section(), inner.formula());
+        }
+        if (!(applied instanceof Processes.Additive additive)) {
+            return;
+        }
+        long times = count;
+        Map<String, String> total = new LinkedHashMap<>();
+        prefabAmounts.apply(additive.constant()).forEach((type, amount) -> total.put(type,
+                ConversionHovers.times(amount, times)));
+        if (!total.isEmpty()) {
+            GooAmountGrid.reduced(total).inlineRuns().forEach(cell -> entry.flow().runs(cell, null, null));
+        }
     }
 
     // "copies [source]" one indent in under the name line, then the chain; the row draws no ratio.
@@ -259,7 +290,7 @@ final class MutatorControls {
     private void drawAssignment(Entry entry, Processes.Assignment assignment) {
         ControlFlow flow = entry.flow();
         flow.indent();
-        flow.text(COPIES, GRAY);
+        flow.text(COPIES, Palette.MUTED);
         drawSource(entry, assignment.source());
         drawChain(entry, assignment.chain());
     }
@@ -277,10 +308,10 @@ final class MutatorControls {
         if (source.isEmpty()) {
             flow.control(ControlFlow.dropdownLabel(ITSELF), null, open);
         } else {
-            flow.linkControl(ControlFlow.dropdownLabel(GROUP_MARK + source), null, open,
+            // Decisions group-referent-previews-shorthand-members-then-its-value,
+            // conversions-sentences-are-built-from-the-builders-controls.
+            flow.refSegment(ControlFlow.dropdownLabel(GROUP_MARK + source), GroupHovers.hoverKey(source), open,
                     () -> actions.openGroup(source));
-            // Decision group-referent-previews-shorthand-members-then-its-value.
-            flow.hoverLast(GroupHovers.hoverKey(source));
         }
     }
 
@@ -319,17 +350,19 @@ final class MutatorControls {
         flow.newLine();
         flow.alignRight(letters.width(words) + BuilderOverlays.GAP + ButtonPainter.width(letters, applied)
                 + BuilderOverlays.GAP + ButtonPainter.width(letters, REMOVE_LINK) + entry.chainInset());
-        flow.text(words, GRAY);
-        // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
-        flow.followLink(applied, PrefabHovers.hoverKey(applied), () -> actions.openMutator(applied));
+        flow.text(words, Palette.MUTED);
+        // Decision mutator-name-hovers-its-formula-wherever-it-stands: an applied mutator, waxed among them, hovers the
+        // formula its own row hovers.
+        flow.followLink(applied, ConversionHovers.hoverKey(entry.section(), applied),
+                () -> actions.openMutator(applied));
         flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                 at -> edit(() -> processes.removeAssignmentLink(entry.section(), entry.key(), index)));
     }
 
     private void drawUnread(Entry entry, Processes.Unread unread, boolean assignment) {
         ControlFlow flow = entry.flow();
-        flow.text(UNREAD, RED);
-        flow.text(unread.text(), RED);
+        flow.text(UNREAD, Palette.DANGER);
+        flow.text(unread.text(), Palette.DANGER);
         List<String> groups = processes.groupNames();
         if (assignment && !groups.isEmpty()) {
             flow.control(START_OVER, null, at -> write(entry,
@@ -348,30 +381,81 @@ final class MutatorControls {
 
     // Decision diagnose-and-correct-mutator-references-that-do-not-link: a plain left click opens a dropdown over the
     // names, a shift + left click opens the thing named.
-    private void nameControl(ControlFlow flow, Ref ref, String hint, SearchDropdown names, Consumer<String> pick) {
-        flow.linkControl(ref.label(), hint, at -> openNames(at, names, pick), ref.follow());
+    // Decision conversions-sentences-are-built-from-the-builders-controls: the name is the builder's ref segment,
+    // hovering its card.
+    private void nameControl(ControlFlow flow, Ref ref, String hoverKey, SearchDropdown names, Consumer<String> pick) {
+        flow.refSegment(ref.label(), hoverKey, at -> openNames(at, names, pick), ref.follow());
     }
 
     private void openNames(BuilderOverlays.Anchor at, SearchDropdown names, Consumer<String> pick) {
         overlays.openDropdown(at, names, choice -> edit(() -> pick.accept(choice.id())));
     }
 
-    // A number drawn as a link whose click opens the number box; a box holding no integer changes nothing.
-    private void numberControl(ControlFlow flow, int number, String hint, IntConsumer commit) {
-        flow.control(String.valueOf(number), hint, at -> overlays.openNumber(at, String.valueOf(number),
-                typed -> integerOf(typed).ifPresent(parsed -> edit(() -> commit.accept(parsed)))));
+    // A number as the builder draws one: a segment 14 tall on the builder's line whose click opens the builder's
+    // mixed-number box on the number, its text selected; the box's value, reduced, reaches commit, and text the box
+    // reads as no number changes nothing.
+    // Decision conversions-sentences-are-built-from-the-builders-controls.
+    private void numberControl(ControlFlow flow, int number, Consumer<Fraction> commit) {
+        String shown = String.valueOf(number);
+        flow.openSegments(ButtonPainter.width(flow.letters(), shown), ButtonPainter.HEIGHT);
+        flow.labelSegment(shown, null, at -> overlays.openMixedNumber(at, shown,
+                typed -> fractionOf(typed).ifPresent(parsed -> edit(() -> commit.accept(parsed)))));
+        flow.closeSegments();
     }
 
-    // Decision mutator-sentences-read-in-symbols: a divisor box takes no 0 key and commits no 0.
-    private void divisorControl(ControlFlow flow, int number, String hint, IntConsumer commit) {
-        flow.control(String.valueOf(number), hint, at -> overlays.openNumber(at, String.valueOf(number),
-                typed -> integerOf(typed).stream().filter(parsed -> parsed > 0).findFirst()
-                        .ifPresent(parsed -> edit(() -> commit.accept(parsed))), true));
+    // A whole count alone, as a stack applies its mutator a whole number of times.
+    private void countControl(ControlFlow flow, int number, IntConsumer commit) {
+        numberControl(flow, number, typed -> typed.whole().ifPresent(commit));
     }
 
-    private static OptionalInt integerOf(String typed) {
-        String trimmed = typed.trim();
-        return DIGITS.matcher(trimmed).matches() ? OptionalInt.of(Integer.parseInt(trimmed)) : OptionalInt.empty();
+    // Decision mutator-sentences-read-in-symbols: a divisor commits no 0.
+    private void divisorControl(ControlFlow flow, int number, Consumer<Fraction> commit) {
+        numberControl(flow, number, typed -> {
+            if (typed.numerator() > 0) {
+                commit.accept(typed);
+            }
+        });
+    }
+
+    /**
+     * A number box's value reduced to its numerator over its denominator.
+     *
+     * @param numerator   above the bar
+     * @param denominator below it, never 0
+     */
+    private record Fraction(long numerator, long denominator) {
+        // The value where it is whole, empty for a fraction.
+        OptionalInt whole() {
+            return denominator == 1 ? OptionalInt.of((int) numerator) : OptionalInt.empty();
+        }
+    }
+
+    // A whole, a fraction or a whole then a fraction, as the builder's box reads them; empty where it reads none or a
+    // part outgrows an int.
+    private static Optional<Fraction> fractionOf(String typed) {
+        return ExpressionBuilder.mixedNumber(typed).filter(parts -> parts[0].bitLength() < Integer.SIZE
+                && parts[1].bitLength() < Integer.SIZE).map(parts -> new Fraction(parts[0].longValue(),
+                parts[1].longValue()));
+    }
+
+    // A ratio a : b reduced to its lowest terms, empty where a term outgrows an int; written through write.
+    private static void writeRatio(long first, long second, RatioWriter write) {
+        long common = gcd(first, second);
+        long reducedFirst = first / common;
+        long reducedSecond = second / common;
+        if (reducedFirst <= Integer.MAX_VALUE && reducedSecond <= Integer.MAX_VALUE) {
+            write.accept((int) reducedFirst, (int) reducedSecond);
+        }
+    }
+
+    private static long gcd(long first, long second) {
+        return second == 0 ? Math.max(1, first) : gcd(second, first % second);
+    }
+
+    // Takes a reduced ratio's two terms.
+    @FunctionalInterface
+    private interface RatioWriter {
+        void accept(int first, int second);
     }
 
     private void write(Entry entry, Processes.Form form) {

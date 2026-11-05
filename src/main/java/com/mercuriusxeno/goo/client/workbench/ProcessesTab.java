@@ -8,7 +8,6 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.Processes;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 
@@ -47,7 +46,8 @@ public final class ProcessesTab {
 
     private final ManagerDraft draft;
     private final List<ProcessSection> sections = new ArrayList<>();
-    private String searched = NO_TEXT;
+    private Search.Query searched = Search.EVERYTHING;
+    private Search.Query searchedIterators = Search.EVERYTHING;
 
     /**
      * @param draft the draft every tab of the manager edits
@@ -122,7 +122,7 @@ public final class ProcessesTab {
         String reason = parsed ? NO_TEXT
                 : error == null || error.isJsonNull() ? REFUSED_REASON : error.getAsString();
         return new ProcessRow(process.get(KEY).getAsString(),
-                process.get(KIND).getAsString().toLowerCase(Locale.ROOT),
+                Search.fold(process.get(KIND).getAsString()),
                 ManagerDraft.shownText(process.get(TEXT).getAsString()), parsed,
                 parsed ? VALID_VERDICT : INVALID_VERDICT, reason);
     }
@@ -132,18 +132,33 @@ public final class ProcessesTab {
      */
     public List<ProcessSection> sections() {
         return sections.stream().map(section -> new ProcessSection(section.section(),
-                section.rows().stream().filter(row -> row.key().toLowerCase(Locale.ROOT).contains(searched))
-                        .toList())).toList();
+                section.rows().stream().filter(this::kept).toList())).toList();
+    }
+
+    // A row stays where its name holds its own column's search: a mutator the mutator search, an iterator the
+    // iterator search (decision one-search-row-per-list-with-its-create-control-beside-it).
+    // Decision one-search-rule-serves-every-box-and-dropdown: an iterator over a group is a # kind.
+    private boolean kept(ProcessRow row) {
+        Search.Kind kind = row.key().startsWith(GROUP_MARK) ? Search.Kind.GROUP : Search.Kind.ITEM;
+        return Search.matches(isIterator(row.key()) ? searchedIterators : searched, kind, row.key());
     }
 
     /**
      * Decision mutators-tab-renames-and-searches-by-name.
      *
-     * @param text what the search box holds; each block keeps the entries whose name holds it, any case, and a
-     *             blank one keeps every entry
+     * @param text what the mutator search box holds; the mutators keep the entries whose name holds it, any case,
+     *             and a blank one keeps every mutator
      */
-    public void search(String text) {
-        searched = text.trim().toLowerCase(Locale.ROOT);
+    public void searchMutators(String text) {
+        searched = Search.query(text);
+    }
+
+    /**
+     * @param text what the iterator search box holds; the iterators keep the entries whose name holds it, any case,
+     *             and a blank one keeps every iterator
+     */
+    public void searchIterators(String text) {
+        searchedIterators = Search.query(text);
     }
 
     /**

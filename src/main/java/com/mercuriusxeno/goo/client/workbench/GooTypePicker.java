@@ -28,14 +28,10 @@ final class GooTypePicker {
     static final String CLOSE = "close";
     /** The no-goo-type cell's name. */
     static final String NOTHING = "nothing";
-    private static final int TEXT_NUDGE = 5;
     private static final int GLYPH_INSET = 6;
     // Wider than any GUI, so a click anywhere outside the grid lands on it.
     private static final int EVERYWHERE = 100_000;
     private static final int EVERYWHERE_SPAN = EVERYWHERE + EVERYWHERE;
-    private static final int BACKGROUND = 0xF0101010;
-    private static final int BORDER = 0xFF606060;
-    private static final int GLYPH = 0xFFFF8080;
     private static final String CLOSE_GLYPH = "x";
     private static final String NOTHING_GLYPH = "-";
 
@@ -244,8 +240,7 @@ final class GooTypePicker {
         }
         fitRows(rows);
         graphics.nextStratum();
-        graphics.fill(x - 1, y - 1, x + COLUMNS * CELL + 1, y + shownRows * CELL + 1, BORDER);
-        graphics.fill(x, y, x + COLUMNS * CELL, y + shownRows * CELL, BACKGROUND);
+        Frame.around(graphics, Frame.POPUP, new GroupsPane.Bounds(x, y, x + COLUMNS * CELL, y + shownRows * CELL));
         for (Cell cell : cells()) {
             if (shows(cell)) {
                 int inset = iconInset(GooTypeIcons.sizeOf(cell.type()));
@@ -261,7 +256,8 @@ final class GooTypePicker {
 
     private void drawGlyph(GuiGraphicsExtractor graphics, Font font, String glyph, Cell cell, int x, int y) {
         if (shows(cell)) {
-            graphics.text(font, glyph, cellX(x, cell) + GLYPH_INSET, cellY(y, cell) + TEXT_NUDGE, GLYPH);
+            graphics.text(font, glyph, cellX(x, cell) + GLYPH_INSET, Lettering.full(font).centeredTop(cellY(y, cell),
+                    CELL), Palette.PICKER_GLYPH);
         }
     }
 }

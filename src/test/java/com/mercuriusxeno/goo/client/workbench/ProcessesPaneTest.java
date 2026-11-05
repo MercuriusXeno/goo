@@ -4,12 +4,17 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
-import java.util.ArrayList;
-import java.util.List;
 import org.mockito.ArgumentCaptor;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -85,8 +90,7 @@ class ProcessesPaneTest {
     void searchBoxFiltersTheEntriesAndARightClickEmptiesIt() {
         pane.init(DrawnFrame.font());
         pane.show(true);
-        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
-                .filter(box -> "Search mutators".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        EditBox search = searchBox("Search iterators");
         assertTrue(search.visible);
         search.setValue("wax");
         DrawnFrame filtered = frame();
@@ -97,6 +101,44 @@ class ProcessesPaneTest {
         assertTrue(frame().texts().contains("#exposed"));
     }
 
+    private EditBox searchBox(String hint) {
+        return widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> hint.equals(box.getMessage().getString())).findFirst()
+                .orElseThrow(() -> new AssertionError("no " + hint + " box"));
+    }
+
+    /**
+     * Each column stands its own search row at the columns' top, Search mutators over the mutators and Search
+     * iterators over the iterators, each 14 tall with its column's [+] one gap right of it, and no heading carries a
+     * [+] (decisions one-search-row-per-list-with-its-create-control-beside-it,
+     * mutators-and-iterators-each-take-a-create-control).
+     */
+    @Test
+    void eachColumnStandsItsOwnSearchRowWithItsCreateControl() {
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        DrawnFrame frame = frame();
+        List<DrawnFrame.Text> pluses = frame.drawn().stream().filter(text -> text.text().equals("+")).toList();
+        for (String hint : List.of("Search mutators", "Search iterators")) {
+            EditBox box = searchBox(hint);
+            assertEquals(List.of(0, SearchRow.HEIGHT), List.of(box.getY(), box.getHeight()), hint);
+            int boxRight = box.getX() + box.getWidth();
+            assertTrue(pluses.stream().anyMatch(plus -> frame.buttonAround(plus)[0] == boxRight + SearchRow.GAP),
+                    hint + " ends at " + boxRight + ": " + pluses);
+        }
+        DrawnFrame.Text heading = frame.find("Mutators");
+        assertTrue(pluses.stream().noneMatch(plus -> Math.abs(plus.y() - heading.y()) <= 3), pluses.toString());
+    }
+
+    /**
+     * The open name box is 14 tall (decision one-search-row-per-list-with-its-create-control-beside-it).
+     */
+    @Test
+    void nameBoxIsFourteenTall() {
+        pane.init(DrawnFrame.font());
+        assertEquals(SearchRow.HEIGHT, searchBox("name, Enter").getHeight());
+    }
+
     /**
      * A follow into the Mutators pane empties a search that hides its target and draws the target's row (decision
      * following-a-link-clears-the-panes-search-bar).
@@ -105,14 +147,28 @@ class ProcessesPaneTest {
     void revealClearsTheSearchAndDrawsTheTarget() {
         pane.init(DrawnFrame.font());
         pane.show(true);
-        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
-                .filter(box -> "Search mutators".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        EditBox search = searchBox("Search iterators");
         search.setValue("wax");
         assertFalse(frame().texts().contains("#exposed"), "the search hides the target");
         pane.reveal("#exposed");
         DrawnFrame revealed = frame();
         assertEquals("", search.getValue());
         assertTrue(revealed.texts().contains("#exposed"), revealed.texts().toString());
+    }
+
+    /**
+     * A follow lands on the Conversions row selected: reveal selects it and the row draws in the selected fill
+     * (decision every-follow-lands-selected-and-read-only).
+     */
+    @Test
+    void revealSelectsTheRowAndDrawsItInTheSelectedFill() {
+        pane.reveal("waxed");
+        assertEquals(Optional.of("waxed"), pane.selected());
+        DrawnFrame frame = frame();
+        DrawnFrame.Text name = first(frame, "waxed");
+        List<int[]> fills = frame.fillsOf(Palette.SELECTED_FILL);
+        assertTrue(fills.size() == 1 && fills.getFirst()[1] <= name.y() && name.y() < fills.getFirst()[3],
+                fills.size() + " selected fills over " + name);
     }
 
     /**
@@ -123,7 +179,7 @@ class ProcessesPaneTest {
     void paneLeadsWithItsEntriesUnderNoSubTab() {
         DrawnFrame frame = frame();
         List<String> texts = frame.texts();
-        assertEquals("waxed", texts.get(texts.indexOf("Mutators") + 2), "the first row under Mutators: " + texts);
+        assertEquals("waxed", texts.get(texts.indexOf("Mutators") + 1), "the first row under Mutators: " + texts);
         assertFalse(texts.contains("Conversions") || texts.contains("Post conversions"), texts.toString());
     }
     /**
@@ -183,6 +239,16 @@ class ProcessesPaneTest {
      * mutators-iterators-split-fifty-fifty).
      */
     @Test
+    void wheelNotchMovesAColumnOneWheelStep() {
+        // Decision one-wheel-step-and-one-dialog-primitive.
+        pane = manyRowsPane();
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 390), frame.targets);
+        pane.scroll(230, -1);
+        assertEquals(ScrollBar.WHEEL_STEP, pane.columnBar(false).offset());
+    }
+
+    @Test
     void wheelScrollsTheColumnItTurnsOver() {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 390);
@@ -221,10 +287,10 @@ class ProcessesPaneTest {
     void iteratorNameAndSourcePreviewTheirGroups() {
         DrawnFrame frame = frame();
         DrawnFrame.Text name = frame.find("#exposed");
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
+        assertEquals(Optional.of(GroupHovers.iteratorHoverKey("#exposed")),
                 frame.targets.hovered(name.x() + 1, name.y() + 1));
         DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#copper"));
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("copper")),
+        assertEquals(Optional.of(GroupHovers.hoverKey("copper")),
                 frame.targets.hovered(source.x() + 1, source.y() + 1));
     }
 
@@ -303,7 +369,7 @@ class ProcessesPaneTest {
         DrawnFrame.Text then = frame.find("mutated by");
         DrawnFrame.Text and = frame.find("and");
         int edge = frame.buttonAround(onLineOf(frame, then, "x"))[2];
-        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the lines end inside the box");
+        assertTrue(edge < columnRightAt(frame, then.x()), "the lines end inside the column");
         assertEquals(edge, frame.buttonAround(onLineOf(frame, and, "x"))[2], frame.drawn().toString());
         for (DrawnFrame.Text words : List.of(then, and)) {
             DrawnFrame.Text applied = onLineOf(frame, words, words == then ? "waxed" : "rust");
@@ -337,12 +403,12 @@ class ProcessesPaneTest {
         DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")
                 && text.x() > second.x() && Math.abs(text.y() - second.y()) <= 1).findFirst()
                 .orElseThrow(() -> new AssertionError("no pencil by " + second + " in " + frame.drawn()));
-        int pencilTop = pencil.y() - ButtonPainter.TEXT_NUDGE;
+        int pencilTop = frame.buttonAround(pencil)[1];
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
-                eq(RowLayout.SEPARATOR_COLOR));
-        int rule = java.util.stream.IntStream.range(0, tops.getAllValues().size())
+                eq(Palette.SEPARATOR));
+        int rule = IntStream.range(0, tops.getAllValues().size())
                 .filter(index -> lefts.getAllValues().get(index) <= second.x())
                 .map(index -> tops.getAllValues().get(index)).filter(top -> top < pencilTop).max().orElseThrow();
         assertEquals(rule + 1 + RowLayout.RULE_GAP, pencilTop, secondName + "'s pencil under the rule at " + rule);
@@ -354,26 +420,50 @@ class ProcessesPaneTest {
         assertEquals(RowLayout.RULE_GAP, rule - lastBottom, firstName + "'s last button over the rule");
     }
 
+    /**
+     * A mutator's name centers on its row through the one centering helper, as every list pane's does (decision
+     * one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void mutatorNameCentersOnItsRow() {
+        DrawnFrame frame = frame();
+        DrawnFrame.Text copper = frame.drawn().stream().filter(text -> text.text().startsWith("copper_oxidation"))
+                .findFirst().orElseThrow(() -> new AssertionError(frame.texts().toString()));
+        DrawnFrame.Text lower = Stream.of(first(frame, "waxed"), copper)
+                .max(Comparator.comparingInt(DrawnFrame.Text::y)).orElseThrow();
+        assertEquals(Lettering.full(DrawnFrame.font()).centeredTop(frame.rowTopAbove(lower),
+                RowLayout.SPRITE_ROW_HEIGHT), lower.y());
+    }
+
+    /**
+     * A row spans its column with its separator alone and no row fill under it, so the rows read like the Items and
+     * Prefabs rows (decision fills-are-two-roles-selected-and-panel).
+     */
+    @Test
+    void rowsSpanTheirColumnWithTheSeparatorAlone() {
+        DrawnFrame frame = frame();
+        int[] separator = frame.fillsOf(Palette.SEPARATOR).getFirst();
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), anyInt(), rights.capture(), anyInt(),
+                colors.capture());
+        List<Integer> spanning = IntStream.range(0, colors.getAllValues().size())
+                .filter(index -> lefts.getAllValues().get(index) == separator[0]
+                        && rights.getAllValues().get(index) == separator[2])
+                .mapToObj(colors.getAllValues()::get).distinct().toList();
+        assertEquals(List.of(Palette.SEPARATOR), spanning);
+    }
+
     private static DrawnFrame.Text onLineOf(DrawnFrame frame, DrawnFrame.Text anchor, String label) {
         return frame.drawn().stream().filter(text -> text.y() == anchor.y() && text.text().equals(label)).findFirst()
                 .orElseThrow(() -> new AssertionError(label + " on " + anchor + ": " + frame.drawn()));
     }
 
-    // The right edge of the row box filled across a point.
-    private static int boxRightAt(DrawnFrame frame, int x, int y) {
-        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
-                eq(ProcessesPane.ROW_COLOR));
-        for (int index = 0; index < tops.getAllValues().size(); index++) {
-            if (lefts.getAllValues().get(index) <= x && rights.getAllValues().get(index) > x
-                    && tops.getAllValues().get(index) <= y && bottoms.getAllValues().get(index) > y) {
-                return rights.getAllValues().get(index);
-            }
-        }
-        throw new AssertionError("no row box at " + y);
+    // The right edge of the column whose row separators span a point's x, the rows' own right edge.
+    private static int columnRightAt(DrawnFrame frame, int x) {
+        return frame.fillsOf(Palette.SEPARATOR).stream().filter(fill -> fill[0] <= x && fill[2] > x)
+                .mapToInt(fill -> fill[2]).findFirst().orElseThrow(() -> new AssertionError("no column at " + x));
     }
 
     /**
@@ -391,8 +481,23 @@ class ProcessesPaneTest {
         assertEquals(waxed.x(), frame.buttonAround(kind)[0], drawn.toString());
     }
 
-    // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane.
-    private static ProcessesPane manyRowsPane() {
+    private ProcessesPane manyRowsPane() {
+        return manyRowsPane(new ArrayList<>());
+    }
+
+    // The described rows of the many-rows pane, which a test grows by a created row and reads again, as the server's
+    // next describe reply does.
+    private final List<String> manyDescribed = new ArrayList<>();
+
+    private void describeMany() {
+        processes.readDescribed("""
+                {"sections": [{"section": "_conversions", "processes": [%s]}]}"""
+                .formatted(String.join(", ", manyDescribed)));
+    }
+
+    // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane, its actions
+    // recording every widget it stands.
+    private ProcessesPane manyRowsPane(List<AbstractWidget> widgets) {
         int many = 20;
         String entry = """
                 {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "\\"%s\\"", "entries": [], "leading": null,
@@ -400,23 +505,95 @@ class ProcessesPaneTest {
         String described = """
                 {"key": "%s", "kind": "%s", "text": "\\"%s\\"", "parsed": true}""";
         List<String> entries = new ArrayList<>();
-        List<String> processes = new ArrayList<>();
+        manyDescribed.clear();
         for (int index = 0; index < many; index++) {
             entries.add(entry.formatted("m%02d".formatted(index), "+$oak"));
-            processes.add(described.formatted("m%02d".formatted(index), "ADDITIVE", "+$oak"));
+            manyDescribed.add(described.formatted("m%02d".formatted(index), "ADDITIVE", "+$oak"));
             entries.add(entry.formatted("#i%02d".formatted(index), "#copper @solo"));
-            processes.add(described.formatted("#i%02d".formatted(index), "ASSIGNMENT", "#copper @solo"));
+            manyDescribed.add(described.formatted("#i%02d".formatted(index), "ASSIGNMENT", "#copper @solo"));
         }
-        ManagerDraft draft = new ManagerDraft();
+        draft = new ManagerDraft();
         draft.read("""
                 {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "copper", "keySeparator": null, "kind": "VALUE", "text": "[\\"copper_block\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
                   {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
                    "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ", entries)));
-        ProcessesTab tab = new ProcessesTab(draft);
-        tab.readDescribed("""
-                {"sections": [{"section": "_conversions", "processes": [%s]}]}"""
-                .formatted(String.join(", ", processes)));
-        return new ProcessesPane(tab, draft, mock(ManagerActions.class), null, () -> List.of("oak"));
+        processes = new ProcessesTab(draft);
+        describeMany();
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        return new ProcessesPane(processes, draft, actions, null, () -> List.of("oak"));
+    }
+
+    /**
+     * The first frame after a follow already draws the target centered in its column, where it settles, and glowing
+     * at age zero, with both searches empty (decision one-reveal-primitive-centers-before-the-first-draw).
+     */
+    @Test
+    void revealDrawsTheRowCenteredAndGlowingOnTheFirstFrame() {
+        for (String target : List.of("m15", "#i15")) {
+            widgets.clear();
+            pane = manyRowsPane(widgets);
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+            searchBox("Search mutators").setValue("m0");
+            searchBox("Search iterators").setValue("#i0");
+            frame();
+            pane.reveal(target);
+            assertRevealedOnTheFirstFrame(target);
+        }
+    }
+
+    /**
+     * Creating a mutator or an iterator with "wax" in its column's search empties the searches and draws the new row
+     * centered and glowing on the next frame (decision create-reveals-the-new-row-like-a-follow).
+     */
+    @Test
+    void createRevealsTheNewRowCenteredAndGlowing() {
+        for (boolean iterators : new boolean[] {false, true}) {
+            widgets.clear();
+            pane = manyRowsPane(widgets);
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+            searchBox(iterators ? "Search iterators" : "Search mutators").setValue("wax");
+            DrawnFrame list = frame();
+            int middle = list.find("Iterators").x();
+            DrawnFrame.Text plus = list.drawn().stream().filter(text -> text.text().equals("+")
+                    && text.x() >= middle == iterators).findFirst().orElseThrow();
+            assertTrue(list.targets.click(plus.x() + 1, plus.y() + 1));
+            DrawnFrame naming = frame();
+            String created = iterators ? "#copper" : "zz_fresh";
+            searchBox("name, Enter").setValue(created);
+            naming.click("✓");
+            frame();
+            assertEquals(0, pane.columnBar(iterators).offset(), "the reveal waits on the describe reply");
+            manyDescribed.add("""
+                    {"key": "%s", "kind": "%s", "text": "\\"+$oak\\"", "parsed": true}"""
+                    .formatted(created, iterators ? "ASSIGNMENT" : "ADDITIVE"));
+            describeMany();
+            assertRevealedOnTheFirstFrame(created);
+        }
+    }
+
+    // The next frame draws the row where it settles, scrolled into its column, glowing at age zero over its name, both
+    // searches empty.
+    private void assertRevealedOnTheFirstFrame(String target) {
+        DrawnFrame first = frame();
+        for (String hint : List.of("Search mutators", "Search iterators")) {
+            assertEquals("", searchBox(hint).getValue(), hint);
+        }
+        assertTrue(pane.columnBar(ProcessesTab.isIterator(target)).offset() > 0, target + " scrolled to");
+        DrawnFrame.Text name = first(first, target);
+        assertEquals(first(frame(), target).y(), name.y(), target + " drawn where it settles");
+        List<int[]> glows = first.fillsOf(Palette.GLOW);
+        assertTrue(glows.size() == 1 && glows.getFirst()[1] <= name.y() && name.y() < glows.getFirst()[3],
+                glows.size() + " glows over " + name);
     }
 
     /**
@@ -437,7 +614,7 @@ class ProcessesPaneTest {
                 boolean right = cross.x() >= middle;
                 int barLeft = (right ? width : middle - 6) - ScrollBar.WIDTH - ScrollBar.GAP;
                 List<DrawnFrame.Text> head = drawn.stream().filter(text -> Math.abs(text.y() - cross.y()) <= 5
-                        && text.x() >= middle == right).sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                        && text.x() >= middle == right).sorted(Comparator.comparingInt(DrawnFrame.Text::x))
                         .toList();
                 assertTrue(head.size() >= 3, head.toString());
                 DrawnFrame.Text last = head.getLast();
@@ -462,7 +639,7 @@ class ProcessesPaneTest {
     void everyTooltipHintIsRenameDeleteOrAVerdict() {
         DrawnFrame frame = frame();
         List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
-                .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
+                .flatMap(Optional::stream).map(component -> component.getString()).distinct().toList();
         assertTrue(hints.containsAll(List.of("Rename", "Delete")), hints.toString());
         assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
                 || hint.startsWith("Valid") || hint.startsWith("Invalid")), hints.toString());
@@ -515,15 +692,6 @@ class ProcessesPaneTest {
         assertTrue(first(frame, "#exposed").x() > first(frame, "waxed").x(), frame.drawn().toString());
     }
 
-    @Test
-    void eachHeadingCarriesItsCreateControl() {
-        DrawnFrame frame = frame();
-        assertPlusBeside(frame, frame.find("Mutators"));
-        assertPlusBeside(frame, frame.find("Iterators"));
-        assertFalse(frame.texts().contains("New mutator"), frame.texts().toString());
-        assertFalse(frame.texts().contains("New iterator"), frame.texts().toString());
-    }
-
     /**
      * Every row's top line draws its name with a pencil just past it, its mark at one column left, and a red x at the
      * row's right end, under no header (the operator's ruling: pencil by the name, x at the row end).
@@ -570,13 +738,13 @@ class ProcessesPaneTest {
         assertEquals("waxed", ProcessesPane.shownName("waxed"));
         DrawnFrame frame = frame(WIDE_PANE);
         DrawnFrame.Text waxed = first(frame, "waxed");
-        assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "waxed")),
+        assertEquals(Optional.of(ConversionHovers.hoverKey(SECTION, "waxed")),
                 frame.targets.hovered(waxed.x() + 1, waxed.y() + 1));
         DrawnFrame.Text cut = frame.find("copper_oxidation_and…end1");
         String cutKey = frame.targets.hovered(cut.x() + 1, cut.y() + 1).orElseThrow();
         List<TooltipLine> lines = ConversionHovers.tooltipFor(processes, new VariablesTab(draft), cutKey)
                 .orElseThrow(() -> new AssertionError(cutKey + " shows no tooltip"));
-        assertEquals(new TooltipLine.Text(net.minecraft.network.chat.Component.literal(LONG_NAME)), lines.getFirst());
+        assertEquals(new TooltipLine.Text(Component.literal(LONG_NAME)), lines.getFirst());
         assertTrue(lines.size() > 1, "the formula follows the name: " + lines);
     }
 
@@ -599,7 +767,7 @@ class ProcessesPaneTest {
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeast(1)).fill(anyInt(), tops.capture(), anyInt(), bottoms.capture(),
-                eq(RowLayout.SEPARATOR_COLOR));
+                eq(Palette.SEPARATOR));
         int rule = tops.getAllValues().stream().filter(top -> top > waxedTop && top < longTop).findFirst()
                 .orElseThrow();
         assertEquals(rule + 1, (int) bottoms.getAllValues().get(tops.getAllValues().indexOf(rule)));
@@ -608,16 +776,16 @@ class ProcessesPaneTest {
 
     /**
      * With a section whose payload carries a summary, the Mutators heading stands on the columns' first row under the
-     * search box, and it is the first text the pane draws (decisions mutators-pane-draws-no-entry-count,
+     * search row, the first text under it (decisions mutators-pane-draws-no-entry-count,
      * conversions-is-the-one-section-and-the-pane-name).
      */
     @Test
     void mutatorsHeadingStandsOnTheFirstRowUnderTheSearchBox() {
         DrawnFrame frame = frame();
         DrawnFrame.Text heading = frame.find("Mutators");
-        assertEquals(ProcessesPane.SEARCH_ROW + ProcessesPane.HEADING_NUDGE, heading.y());
-        List<DrawnFrame.Text> drawn = frame.drawn().stream()
-                .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::y)).toList();
+        assertEquals(RowLayout.nameTop(DrawnFrame.font(), ProcessesPane.SEARCH_ROW), heading.y());
+        List<DrawnFrame.Text> drawn = frame.drawn().stream().filter(text -> text.y() >= ProcessesPane.SEARCH_ROW)
+                .sorted(Comparator.comparingInt(DrawnFrame.Text::y)).toList();
         assertEquals("Mutators", drawn.getFirst().text(), drawn.toString());
     }
 
@@ -657,7 +825,7 @@ class ProcessesPaneTest {
         return frame.drawn().stream().filter(text -> text.text().equals(glyph) && text.x() > name.x()
                 && (name.x() >= split || text.x() < split)
                 && Math.abs(text.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT)
-                .max(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                .max(Comparator.comparingInt(DrawnFrame.Text::x))
                 .orElseThrow(() -> new AssertionError(glyph + " on " + key + " in " + frame.drawn()));
     }
 
@@ -682,14 +850,14 @@ class ProcessesPaneTest {
         DrawnFrame marked = frame();
         DrawnFrame.Text arrow = rowControl(marked, key, "↺");
         assertEquals(cross.x(), arrow.x());
-        assertEquals(ButtonPainter.GOLD, arrow.color());
-        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Restore")),
+        assertEquals(Palette.GOLD, arrow.color());
+        assertEquals(Optional.of(BuilderOverlays.hintKey("Restore")),
                 marked.targets.hovered(arrow.x() + 1, arrow.y() + 1));
         assertTrue(postConversionKeys().contains(key), postConversionKeys().toString());
         assertTrue(marked.targets.click(arrow.x() + 1, arrow.y() + 1));
         DrawnFrame restored = frame();
         DrawnFrame.Text again = rowControl(restored, key, "✗");
-        assertEquals(ProcessesPane.RED, again.color());
+        assertEquals(Palette.DANGER, again.color());
         assertTrue(restored.targets.click(again.x() + 1, again.y() + 1));
         assertEquals(List.of("_conversions\n" + key), draft.removals().marked(RemovalMarks.Tab.MUTATORS));
         pane.applyRemovals();
@@ -699,12 +867,6 @@ class ProcessesPaneTest {
     // The row's name, drawn before any chain link naming it.
     private static DrawnFrame.Text first(DrawnFrame frame, String label) {
         return frame.drawn().stream().filter(text -> text.text().equals(label)).findFirst().orElseThrow();
-    }
-
-    // A [+] stands right of the heading on its line.
-    private static void assertPlusBeside(DrawnFrame frame, DrawnFrame.Text heading) {
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("+") && text.x() > heading.x()
-                && Math.abs(text.y() - heading.y()) < ExpressionLines.TEXT_LINE_HEIGHT), frame.drawn().toString());
     }
 
     // The control stands right of the heading, its label within a text line of the heading's.

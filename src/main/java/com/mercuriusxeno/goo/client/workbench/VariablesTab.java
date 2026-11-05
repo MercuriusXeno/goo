@@ -13,7 +13,6 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -61,7 +60,8 @@ public final class VariablesTab {
     private final ManagerDraft draft;
     private final Map<String, JsonObject> results = new LinkedHashMap<>();
     private @Nullable String editing;
-    private String search = NO_TEXT;
+    private @Nullable String selected;
+    private Search.Query search = Search.EVERYTHING;
 
     /**
      * @param draft the draft every tab of the manager edits
@@ -184,7 +184,7 @@ public final class VariablesTab {
      * @param text the Prefabs search box's text, matched against each prefab's name with case ignored
      */
     public void search(String text) {
-        search = text.trim().toLowerCase(Locale.ROOT);
+        search = Search.query(text);
     }
 
     /**
@@ -194,7 +194,8 @@ public final class VariablesTab {
      * @return the listed blocks in file order
      */
     public List<ConstantBlock> listed() {
-        return blocks().stream().filter(block -> block.name().toLowerCase(Locale.ROOT).contains(search)).toList();
+        // Decision one-search-rule-serves-every-box-and-dropdown.
+        return blocks().stream().filter(block -> Search.matches(search, Search.Kind.PREFAB, block.name())).toList();
     }
 
     /**
@@ -212,12 +213,21 @@ public final class VariablesTab {
     }
 
     /**
-     * A $name link opens its variable's edit box.
+     * A $name link lands on its variable selected and read-only, an edit standing open closing (decision
+     * every-follow-lands-selected-and-read-only).
      *
      * @param name the variable the link names
      */
     public void jumpTo(String name) {
-        editing = name;
+        editing = null;
+        selected = name;
+    }
+
+    /**
+     * @return the prefab a follow last landed on, empty before any
+     */
+    public Optional<String> selected() {
+        return Optional.ofNullable(selected);
     }
 
     /**

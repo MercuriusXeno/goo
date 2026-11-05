@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -63,7 +64,7 @@ class VariablesTabTest {
     class CreatingAPrefab {
         @Test
         void freeNameAddsABlankPrefabAtTheEnd() {
-            assertEquals(java.util.Optional.of("fresh"), tab.createPrefab(" $fresh "));
+            assertEquals(Optional.of("fresh"), tab.createPrefab(" $fresh "));
             assertEquals(List.of("base", "broken", "egg", "fresh"),
                     tab.blocks().stream().map(VariablesTab.ConstantBlock::name).toList());
             assertEquals("", tab.blocks().getLast().expression());
@@ -86,7 +87,7 @@ class VariablesTabTest {
                        "leading": null, "trailing": null, "closingGap": null}]}
                     """);
             VariablesTab fresh = new VariablesTab(bare);
-            assertEquals(java.util.Optional.of("first"), fresh.createPrefab("first"));
+            assertEquals(Optional.of("first"), fresh.createPrefab("first"));
             assertEquals(List.of("first"), fresh.blocks().stream().map(VariablesTab.ConstantBlock::name).toList());
             assertTrue(bare.changeSetText().contains("\"_constants\""), bare.changeSetText());
         }
@@ -157,6 +158,15 @@ class VariablesTabTest {
          * Text in another case and with spaces around it lists the same prefab.
          */
         @Test
+        void dollarNarrowsToPrefabsAndHashListsNone() {
+            // Decision one-search-rule-serves-every-box-and-dropdown: $ narrows to prefabs and is stripped.
+            tab.search("$rok");
+            assertEquals(List.of("broken"), listedNames());
+            tab.search("#rok");
+            assertEquals(List.of(), listedNames());
+        }
+
+        @Test
         void searchIgnoresCaseAndSurroundingSpaces() {
             tab.search("  BROK ");
             assertEquals(List.of("broken"), listedNames());
@@ -211,12 +221,15 @@ class VariablesTabTest {
         }
 
         /**
-         * A link opening a variable puts its block into the edit box.
+         * A link landing on a variable selects its block and leaves it read-only, closing an edit standing open
+         * (decision every-follow-lands-selected-and-read-only).
          */
         @Test
-        void jumpOpensTheVariablesEditBox() {
+        void jumpSelectsTheVariableReadOnly() {
+            tab.startEditing("other");
             tab.jumpTo("egg");
-            assertEquals("egg", tab.editing().orElseThrow());
+            assertEquals(Optional.of("egg"), tab.selected());
+            assertEquals(Optional.empty(), tab.editing());
         }
 
         /**
