@@ -1,8 +1,12 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import org.junit.jupiter.api.Test;
+import org.lwjgl.glfw.GLFW;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests how many used-by items one line draws before it closes with its ..+n button, with no Screen
@@ -80,5 +84,36 @@ class UsedByLineTest {
     void hideStandsAfterTheLastItem() {
         assertEquals(new UsedByLine.Slot(2 * STEP, 1), UsedByLine.hideSlot(7, 5, STEP, 100, 30));
         assertEquals(new UsedByLine.Slot(0, 2), UsedByLine.hideSlot(10, 5, STEP, 100, 30));
+    }
+
+    /**
+     * Each used-by user draws through the one draw the head's line and the delete dialog share: an item its linked
+     * icon, a prefab its $chip and a group its #chip, each hovering its value and following on shift + left click
+     * (decision one-used-by-primitive-draws-the-row-line-and-the-dialog).
+     */
+    @Test
+    void eachUserDrawsItsChipOrIconWithItsHoverAndFollow() {
+        ManagerActions actions = mock(ManagerActions.class);
+        DrawnFrame frame = new DrawnFrame();
+        UsedByLine.Painter painter = new UsedByLine.Painter(frame.graphics, DrawnFrame.font(), mock(ItemIcons.class),
+                actions, frame.targets);
+        int prefabWidth = UsedByLine.drawUser(painter, new VariablesTab.Reader("egg", UsedByLine.PREFAB_USER), 0, 0);
+        int groupWidth = UsedByLine.drawUser(painter, new VariablesTab.Reader("logs", UsedByLine.GROUP_USER), 100, 0);
+        UsedByLine.drawUser(painter, new VariablesTab.Reader("minecraft:stick", "item"), 200, 0);
+        assertEquals(ButtonPainter.width(DrawnFrame.font(), "$egg"), prefabWidth);
+        assertEquals(ButtonPainter.width(DrawnFrame.font(), "#logs"), groupWidth);
+        assertHoverAndFollow(frame, frame.find("$egg").x() + 1, frame.find("$egg").y() + 1,
+                PrefabHovers.hoverKey("egg"));
+        verify(actions).openVariable("egg");
+        assertHoverAndFollow(frame, frame.find("#logs").x() + 1, frame.find("#logs").y() + 1,
+                GroupHovers.hoverKey("logs"));
+        verify(actions).openGroup("logs");
+        assertHoverAndFollow(frame, 201, 1, ItemIcons.hoverKey("minecraft:stick"));
+        verify(actions).openItem("minecraft:stick");
+    }
+
+    private static void assertHoverAndFollow(DrawnFrame frame, int x, int y, String hoverKey) {
+        assertEquals(Optional.of(hoverKey), frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
+        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT), hoverKey);
     }
 }
