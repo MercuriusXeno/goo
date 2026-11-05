@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.OptionalInt;
 
@@ -31,6 +32,16 @@ final class RowLayout {
     static final int SPRITE_ROW_PITCH = SPRITE_ROW_HEIGHT + RULE_PADDING;
 
     private RowLayout() {
+    }
+
+    /**
+     * @param font   the font
+     * @param rowTop an entry row's top
+     * @return the text top of the entry's name, centered on its row, at the same offset on every list pane (decision
+     *     one-lettering-primitive-names-three-text-roles)
+     */
+    static int nameTop(Font font, int rowTop) {
+        return Lettering.full(font).centeredTop(rowTop, SPRITE_ROW_HEIGHT);
     }
 
     /**

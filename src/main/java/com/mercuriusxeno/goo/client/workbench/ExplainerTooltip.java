@@ -21,7 +21,7 @@ final class ExplainerTooltip {
     // The widest a paragraph's line runs before it wraps.
     private static final int WRAP_WIDTH = 240;
     private static final int SIDE_MARGIN = 16;
-    private static final int LINE_HEIGHT = 10;
+    private static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     // The tooltip opens a gap under its first line.
     private static final int FIRST_LINE_GAP = 2;
     private static final int WHITE = -1;

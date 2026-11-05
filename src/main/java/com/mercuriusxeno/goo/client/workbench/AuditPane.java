@@ -21,7 +21,7 @@ import java.util.stream.Stream;
  * (decision every-tab-draws-a-scroll-bar). The state lives in {@link AuditTab}.
  */
 final class AuditPane {
-    private static final int LINE_HEIGHT = 10;
+    private static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     private static final int GAP = 4;
     private static final int PROGRESS_SHOWN = 8;
     private static final int HEADER_HEIGHT = ButtonPainter.HEIGHT;
@@ -213,7 +213,7 @@ final class AuditPane {
                     HEADER_HEIGHT, targets, toggle).right() + GAP;
             targets.add(textLeft, row.top(), row.left() + row.width() - textLeft, HEADER_HEIGHT, toggle);
         }
-        drawHeader(graphics, font, section, textLeft, row.top() + ButtonPainter.TEXT_NUDGE);
+        drawHeader(graphics, font, section, textLeft, Lettering.full(font).centeredTop(row.top(), HEADER_HEIGHT));
         int y = row.top() + HEADER_HEIGHT;
         if (open) {
             y = drawLines(graphics, font, section.flags(), row.left(), y, row.width(), Palette.DANGER);

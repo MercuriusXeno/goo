@@ -576,14 +576,15 @@ final class ExpressionBuilderPane {
 
     private void drawPreview(Preview preview, List<ExpressionLines.Run> runs, double pointerX, double pointerY) {
         GuiGraphicsExtractor graphics = preview.graphics();
-        Font font = preview.font();
+        // Decision one-lettering-primitive-names-three-text-roles: what a drag holds letters as the builder does.
+        Lettering letters = Lettering.builder(preview.font());
         ClickTargets targets = preview.targets();
         int left = (int) pointerX + PREVIEW_OFFSET;
         int top = (int) pointerY;
-        int width = ExpressionLines.width(font, runs) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+        int width = ExpressionLines.width(letters, runs) + ButtonPainter.PADDING + ButtonPainter.PADDING;
         int height = ExpressionLines.lineHeight(runs);
         graphics.fill(left, top, left + width, top + height, Palette.DRAG_PREVIEW);
-        ExpressionLines.draw(font, runs, left + ButtonPainter.PADDING, top, width, new ExpressionLines.Painter(
+        ExpressionLines.draw(letters, runs, left + ButtonPainter.PADDING, top, width, new ExpressionLines.Painter(
                 graphics, icons, targets, Palette.TEXT, Palette.LINK, (link, x, y, linkWidth) -> { }));
     }
 
@@ -1283,11 +1284,13 @@ final class ExpressionBuilderPane {
 
     private static void drawHeldLabel(GuiGraphicsExtractor graphics, Font font, String label, double pointerX,
                                       double pointerY) {
+        Lettering letters = Lettering.builder(font);
         int left = (int) pointerX + PREVIEW_OFFSET;
         int top = (int) pointerY;
-        int width = font.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+        int width = letters.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING;
         graphics.fill(left, top, left + width, top + ButtonPainter.HEIGHT, Palette.DRAG_PREVIEW);
-        graphics.text(font, label, left + ButtonPainter.PADDING, top + ButtonPainter.TEXT_NUDGE, Palette.TEXT);
+        letters.draw(graphics, label, left + ButtonPainter.PADDING, letters.centeredTop(top, ButtonPainter.HEIGHT),
+                Palette.TEXT);
     }
 
     // A first term added reads + as every added term does (decision every-term-carries-its-sign-as-a-segment).

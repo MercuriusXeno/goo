@@ -362,6 +362,30 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * A held label and a held term's preview letter at the builder's scale, as the builder letters what they were
+     * lifted from (decision one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void heldLabelAndPreviewLetterAtTheBuilderScale() {
+        Builder builder = Builder.item("$waxed + $edited");
+        DrawnFrame frame = builder.frame();
+        DrawnFrame.Text handle = frame.find("()");
+        assertTrue(frame.targets.click(handle.x(), handle.y()));
+        assertTrue(frame.targets.drag(AREA.left() + 1, handle.y()));
+        DrawnFrame label = builder.frame();
+        assertEquals(ControlFlow.BUILDER_SCALE, label.placements().getLast().scale(), label.placements().toString());
+        frame.targets.release();
+        DrawnFrame rest = builder.frame();
+        double[] waxed = railOf(rest, List.of(0));
+        assertTrue(rest.targets.click(waxed[0], waxed[1]));
+        assertTrue(rest.targets.drag(AREA.left() + 1, waxed[1]));
+        DrawnFrame preview = builder.frame();
+        assertEquals(ControlFlow.BUILDER_SCALE, preview.placements().getLast().scale(),
+                preview.placements().toString());
+        rest.targets.release();
+    }
+
+    /**
      * A term's rail and a type row's rail hover nothing while the term beside the rail hovers its preview, and the
      * trash strip hovers its hint (decisions drag-rails-hover-nothing, trash-strip-hovers-drag-items-here-to-remove).
      */

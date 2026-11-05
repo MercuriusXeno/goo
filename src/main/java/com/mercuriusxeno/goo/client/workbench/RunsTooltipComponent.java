@@ -33,7 +33,8 @@ public final class RunsTooltipComponent implements ClientTooltipComponent {
     // A tooltip takes no click, so the runs' hover areas land in a frame of their own.
     @Override
     public void extractImage(Font font, int x, int y, int width, int height, GuiGraphicsExtractor graphics) {
-        ExpressionLines.draw(font, line.runs(), x, y, getWidth(font) + 1, new ExpressionLines.Painter(graphics, null,
+        ExpressionLines.draw(Lettering.full(font), line.runs(), x, y, getWidth(font) + 1,
+                new ExpressionLines.Painter(graphics, null,
                 new ClickTargets(), Palette.TEXT, Palette.TEXT, (variable, linkX, linkY, linkWidth) -> { }));
     }
 }

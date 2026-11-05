@@ -38,7 +38,7 @@ final class GroupsPane {
     static final int GAP = 12;
     /** A group row's height, its sprites' and margin. */
     static final int ROW_HEIGHT = 18;
-    private static final int LINE_HEIGHT = 10;
+    private static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     private static final int BOX_HEIGHT = 14;
     private static final int NAME_BOX_WIDTH = 140;
     /**
@@ -48,7 +48,6 @@ final class GroupsPane {
     static final int CARD_HEIGHT = RowLayout.SPRITE_ROW_PITCH;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 2;
-    private static final int TEXT_NUDGE = 5;
     private static final int SECTION_GAP = 6;
     private static final int HALF = 2;
     // A hover key no item id, prefab name or goo type key spells.
@@ -385,7 +384,8 @@ final class GroupsPane {
         drawCardHead(graphics, font, card, targets);
         drawMembers(graphics, font, card.row().name(), laid.members(), targets);
         drawReferents(graphics, font, laid.referents(), area.left() + ControlFlow.INDENT, laid.usedByTop(), targets);
-        ExpressionLines.draw(font, laid.worth(), area.left() + ControlFlow.INDENT, laid.worthTop(), worthWidth(area),
+        ExpressionLines.draw(Lettering.full(font), laid.worth(), area.left() + ControlFlow.INDENT, laid.worthTop(),
+                worthWidth(area),
                 new ExpressionLines.Painter(graphics, icons, targets, Palette.TEXT, Palette.LINK,
                         (link, x, y, width) -> { }));
         int valueHeight = drawBuilt(graphics, font, laid.body(), laid.valueTop(), new Built(target, card.base(),
@@ -460,7 +460,7 @@ final class GroupsPane {
             return;
         }
         String shown = font.plainSubstrByWidth(name, nameTextWidth);
-        int textTop = y + TEXT_NUDGE;
+        int textTop = RowLayout.nameTop(font, y);
         if (groups.removals().isMarked(RemovalMarks.Tab.GROUPS, card.row().name())) {
             ButtonPainter.drawEntryName(graphics, font, shown, area.left(), textTop, true);
         } else {
@@ -555,7 +555,7 @@ final class GroupsPane {
         if (line.referents().isEmpty()) {
             return;
         }
-        graphics.text(font, USED_BY, left, top + TEXT_NUDGE, Palette.MUTED);
+        graphics.text(font, USED_BY, left, Lettering.full(font).centeredTop(top, ROW_HEIGHT), Palette.MUTED);
         for (int index = 0; index < line.fit().shown(); index++) {
             String iterator = line.referents().get(index);
             UsedByLine.Slot slot = line.slots().get(index);
@@ -575,7 +575,8 @@ final class GroupsPane {
     private void drawMembers(GuiGraphicsExtractor graphics, Font font, String name, MembersLine line,
                              ClickTargets targets) {
         int top = line.area().top() + ROW_HEIGHT;
-        graphics.text(font, MEMBERS_COLON, line.area().left() + ControlFlow.INDENT, top + TEXT_NUDGE, Palette.MUTED);
+        graphics.text(font, MEMBERS_COLON, line.area().left() + ControlFlow.INDENT,
+                Lettering.full(font).centeredTop(top, ROW_HEIGHT), Palette.MUTED);
         drawMemberIcons(graphics, line.members().subList(0, line.fit().shown()), line.itemsX(), top,
                 line.expanded() ? line.perRow() : line.fit().shown(), targets);
         UsedByLine.endLabel(line.fit(), line.expanded()).ifPresent(label -> ButtonPainter.draw(graphics, font, label,
@@ -698,15 +699,17 @@ final class GroupsPane {
     // "Tag members" over the tag's fully qualified id, which take no [+]; answers the y below them.
     // Decision detail-is-members-plus-or-tag-members-with-the-tag-id.
     private int drawTagMembersHead(GuiGraphicsExtractor graphics, Font font, int left, int top, String name) {
-        graphics.text(font, TAG_MEMBERS_LABEL, left, top + TEXT_NUDGE, Palette.MUTED);
-        graphics.text(font, GroupsTab.tagId(name, values.entries()), left, top + ROW_HEIGHT + TEXT_NUDGE, Palette.TEXT);
+        graphics.text(font, TAG_MEMBERS_LABEL, left, Lettering.full(font).centeredTop(top, ROW_HEIGHT), Palette.MUTED);
+        graphics.text(font, GroupsTab.tagId(name, values.entries()), left,
+                Lettering.full(font).centeredTop(top + ROW_HEIGHT, ROW_HEIGHT), Palette.TEXT);
         return top + ROW_HEIGHT + ROW_HEIGHT;
     }
 
     // "Members" heads a custom group's list with the [+] that adds a member right of it; answers the y below the row.
     // Decisions members-labels-the-group-member-list, detail-is-members-plus-or-tag-members-with-the-tag-id.
     private int drawAddMember(GuiGraphicsExtractor graphics, Font font, Bounds detail, int top, ClickTargets targets) {
-        graphics.text(font, MEMBERS_LABEL, detail.left(), top + TEXT_NUDGE, Palette.MUTED);
+        graphics.text(font, MEMBERS_LABEL, detail.left(), Lettering.full(font).centeredTop(top, ROW_HEIGHT),
+                Palette.MUTED);
         BuilderOverlays.control(graphics, font, ADD_MEMBER, null,
                 detail.left() + font.width(MEMBERS_LABEL) + BuilderOverlays.GAP, top, targets,
                 at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
@@ -758,7 +761,8 @@ final class GroupsPane {
             building = built.target();
             builder.open(shown, built.writes()::wrote, this::closeBuilder);
         };
-        return ReadValueButton.draw(graphics, font, valueRuns(shown, built.empty()), new ReadValueButton.Place(detail.left(), y,
+        return ReadValueButton.draw(graphics, font, valueRuns(shown, built.empty()),
+                new ReadValueButton.Place(detail.left(), y,
                 detail.right(), open), new ExpressionLines.Painter(graphics, icons, targets, Palette.TEXT, Palette.LINK,
                 ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
     }
@@ -796,7 +800,7 @@ final class GroupsPane {
         }
         graphics.item(icons.of(member.id()), iconLeft, card.top() + 1);
         int textX = iconLeft + ICON_SIZE + ICON_GAP;
-        int textTop = ExpressionLines.centeredTextTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT, font.lineHeight);
+        int textTop = Lettering.full(font).centeredTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT);
         String name = font.plainSubstrByWidth(member.name(), card.right() - textX);
         graphics.text(font, name, textX, textTop, member.known() ? Palette.TEXT : Palette.DANGER);
         int noteX = textX + font.width(name + NOTE_GAP);

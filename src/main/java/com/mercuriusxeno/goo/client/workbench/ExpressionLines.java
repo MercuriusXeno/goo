@@ -27,9 +27,7 @@ final class ExpressionLines {
     private static final int ITEM_SPRITE_SIZE = 16;
     private static final int ICON_TEXT_GAP = 2;
     private static final int RUN_GAP = 3;
-    private static final int ICON_NUDGE = 1;
-    private static final int GLYPH_GAP = 1;
-    private static final int HALF = 2;
+    private static final int ICON_INSET = 1;
     private static final String NOTHING = "";
     private static final String PLUS = "+";
     private static final String MINUS = "-";
@@ -406,20 +404,7 @@ final class ExpressionLines {
     // Decision operators-center-on-the-sprite: text on an icon line, an operator among it, centers its glyphs on the
     // sprite.
     private static int iconLineTextOffset(Font font) {
-        return centeredTextTop(ICON_NUDGE, ITEM_SPRITE_SIZE, font.lineHeight);
-    }
-
-    /**
-     * A font's line height holds an empty row under its glyphs and their shadow, so the glyphs' ink is one row shorter
-     * than the line; centering the ink, not the line, centers the text on a sprite or a row.
-     *
-     * @param top        the band's top
-     * @param height     the band's height
-     * @param lineHeight the font's line height
-     * @return the text's top that centers its glyphs in the band
-     */
-    static int centeredTextTop(int top, int height, int lineHeight) {
-        return top + (height - lineHeight + GLYPH_GAP) / HALF;
+        return Lettering.full(font).centeredTop(ICON_INSET, ITEM_SPRITE_SIZE);
     }
 
     /**
@@ -463,7 +448,7 @@ final class ExpressionLines {
 
     private static int width(Lettering lettering, List<Run> runs, ToIntFunction<String> typeSize) {
         int width = 0;
-        for (Run run : runs) {
+        for (Run run : amountsBesideTypes(runs)) {
             if (run.kind() != Kind.BREAK) {
                 boolean gapped = width != 0 && !placesFlush(run.kind());
                 width += (gapped ? RUN_GAP : 0) + runWidth(lettering, run, typeSize);
@@ -482,16 +467,27 @@ final class ExpressionLines {
     }
 
     /**
-     * @param font    the font
-     * @param runs    a value's runs
-     * @param x       the lines' left edge
-     * @param y       the first line's top edge
-     * @param width   the width the lines fill
-     * @param painter where they draw
+     * @param lettering the font and the role the runs' text letters in
+     * @param runs      a value's runs
+     * @param x         the lines' left edge
+     * @param y         the first line's top edge
+     * @param width     the width the lines fill
+     * @param painter   where they draw
      */
-    static void draw(Font font, List<Run> runs, int x, int y, int width, Painter painter) {
-        lay(runs, new Cursor(Lettering.full(font), new Span(x, y, width, lineHeight(runs)), painter,
-                GooTypeIcons::sizeOf));
+    static void draw(Lettering lettering, List<Run> runs, int x, int y, int width, Painter painter) {
+        lay(runs, new Cursor(lettering, new Span(x, y, width, lineHeight(runs)), painter, GooTypeIcons::sizeOf));
+    }
+
+    // Decision one-lettering-primitive-names-three-text-roles: a number standing right after a goo type's icon is a
+    // goo amount, so it letters in the amount role as every amount beside a type icon does.
+    private static List<Run> amountsBesideTypes(List<Run> runs) {
+        List<Run> lettered = new ArrayList<>(runs);
+        for (int index = 1; index < lettered.size(); index++) {
+            if (lettered.get(index).kind() == Kind.NUMBER && lettered.get(index - 1).kind() == Kind.TYPE) {
+                lettered.set(index, amount(lettered.get(index).text()));
+            }
+        }
+        return lettered;
     }
 
     /**
@@ -533,7 +529,8 @@ final class ExpressionLines {
     // Decision builder-inlines-terms-under-indentation-rules-with-a-colon: a type row's wrap stands one indent in
     // under its type; a parenthetical that does not fit the rest of the line takes a line of its own with its join;
     // a wrap inside it stands one indent further in, back out past its closing paren.
-    private static int lay(List<Run> runs, Cursor cursor) {
+    private static int lay(List<Run> written, Cursor cursor) {
+        List<Run> runs = amountsBesideTypes(written);
         for (int index = 0; index < runs.size(); index++) {
             Run run = runs.get(index);
             switch (run.kind()) {
@@ -694,7 +691,7 @@ final class ExpressionLines {
         // height, as the builder's, centers its glyphs in the line.
         private int textOffset() {
             if (lineHeight == ICON_LINE_HEIGHT) {
-                return lettering.centeredTop(ICON_NUDGE, ITEM_SPRITE_SIZE);
+                return lettering.centeredTop(ICON_INSET, ITEM_SPRITE_SIZE);
             }
             return lineHeight == TEXT_LINE_HEIGHT ? 0 : lettering.centeredTop(0, lineHeight);
         }
@@ -746,9 +743,9 @@ final class ExpressionLines {
         int top = place[1];
         ItemIcons icons = painter.icons();
         if (icons != null) {
-            painter.graphics().item(icons.of(String.valueOf(run.ref())), x, top + ICON_NUDGE);
+            painter.graphics().item(icons.of(String.valueOf(run.ref())), x, top + ICON_INSET);
         }
         lettering.draw(painter.graphics(), piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP,
-                lettering.centeredTop(top + ICON_NUDGE, ITEM_SPRITE_SIZE), painter.textColor());
+                lettering.centeredTop(top + ICON_INSET, ITEM_SPRITE_SIZE), painter.textColor());
     }
 }

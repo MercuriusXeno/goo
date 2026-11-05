@@ -25,7 +25,7 @@ import java.util.Optional;
  * holds its text (decision prefabs-tab-searches-its-list-by-name). The state lives in {@link VariablesTab}.
  */
 final class VariablesPane {
-    private static final int LINE_HEIGHT = 10;
+    private static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     private static final int BOX_HEIGHT = 14;
     // Decision prefab-lines-tighten-their-padding: a pixel between blocks, the head itself the 18px row the other
     // tabs keep (decision sprites-stay-16px-and-rows-tighten-to-18px); the head's pad keeps its buttons clear of the
@@ -46,20 +46,19 @@ final class VariablesPane {
     private static final int DIALOG_WIDTH = 300;
     private static final int DIALOG_HEIGHT = 140;
     private static final int READER_GAP = 6;
-    private static final int TEXT_NUDGE = 4;
     private static final int HALF = 2;
-    // A block opens on its separator's row, then a gap, then whatever of its head reaches highest above the head's
-    // text, so the rule stands in its own row clear of both blocks.
+    // A block opens on its separator's row, then its head's 18px row, its text and its buttons centered on it, so the
+    // rule stands in its own row clear of both blocks.
     // decision prefabs-buttons-take-padding-above
     private static final int SEPARATOR_ROW = 1;
-    /** The height of a head line holding no used-by run: its text and its buttons' border below it. */
-    private static final int BARE_HEAD_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT + ButtonPainter.TEXT_NUDGE;
+    // A used-by line's 16px icons center on the head's row.
+    private static final int USED_BY_INSET = (RowLayout.SPRITE_ROW_HEIGHT - ICON_SIZE) / HALF;
     /**
-     * A number prefab used nowhere, from its top to the next one's: its name line, its one-line value button and the
-     * gaps.
+     * A number prefab used nowhere, from its top to the next one's: its name row, its one-line value button and the
+     * gap.
      */
-    static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + BLOCK_GAP + TEXT_NUDGE + BARE_HEAD_HEIGHT
-            + ButtonPainter.HEIGHT + BLOCK_GAP;
+    static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + RowLayout.SPRITE_ROW_HEIGHT + ButtonPainter.HEIGHT
+            + BLOCK_GAP;
     private static final String RESOLVED_SEPARATOR = ", ";
     private static final String TAG_PREFIX = "#";
     private static final String VALUE_LABEL = "Value:";
@@ -307,7 +306,7 @@ final class VariablesPane {
     private int drawBlock(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                           GroupsPane.Bounds bounds, int top, ClickTargets targets) {
         blockTops.put(block.name(), top + bar.offset() - bounds.top());
-        int headY = top + SEPARATOR_ROW + BLOCK_GAP + TEXT_NUDGE;
+        int headY = RowLayout.nameTop(font, top + SEPARATOR_ROW);
         int y = headY + drawHead(graphics, font, block, bounds, headY, targets);
         boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
         y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
@@ -468,15 +467,17 @@ final class VariablesPane {
             ButtonPainter.drawEntryName(graphics, font, shown, x, y, isMarked(block.name()));
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
             ButtonPainter.draw(graphics, font, RENAME, x + font.width(shown) + PENCIL_GAP,
-                    y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
+                    y - ButtonPainter.labelInset(font), ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
                     BuilderOverlays.hintKey(RENAME_HINT));
         }
+        int rowTop = y - RowLayout.nameTop(font, 0);
         int usedByX = x + nameWidth + KIND_GAP;
         int usedByWidth = bounds.right() - ButtonPainter.width(font, DELETE) - ACTION_GAP - usedByX;
-        int usedBy = drawUsedByLines(graphics, font, block.direct(), block.links(), usedByX, y - TEXT_NUDGE,
+        int usedByTop = rowTop + USED_BY_INSET;
+        int usedBy = drawUsedByLines(graphics, font, block.direct(), block.links(), usedByX, usedByTop,
                 Math.max(1, usedByWidth), block.name(), targets);
         drawRemoval(graphics, font, block.name(), bounds.right(), y, targets);
-        return Math.max(BARE_HEAD_HEIGHT, usedBy - TEXT_NUDGE);
+        return Math.max(rowTop + RowLayout.SPRITE_ROW_HEIGHT, usedByTop + usedBy) - y;
     }
 
     // Value: one indent in, then the evaluated amount on its own line above the value's box, outside it, and the box
@@ -536,7 +537,8 @@ final class VariablesPane {
         int boxWidth = NAME_WIDTH - NameBoxButtons.width(font);
         box.setPosition(x, y - HALF);
         box.setWidth(boxWidth);
-        NameBoxButtons.draw(graphics, font, x + boxWidth, y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets,
+        NameBoxButtons.draw(graphics, font, x + boxWidth, y - ButtonPainter.labelInset(font),
+                ButtonPainter.HEIGHT, targets,
                 () -> submitRename(name, box.getValue().trim()), this::stopRenaming);
     }
 
@@ -549,7 +551,7 @@ final class VariablesPane {
     // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
     private void drawRemoval(GuiGraphicsExtractor graphics, Font font, String name, int right, int y,
                              ClickTargets targets) {
-        int top = y - ButtonPainter.TEXT_NUDGE;
+        int top = y - ButtonPainter.labelInset(font);
         if (isMarked(name)) {
             ButtonPainter.drawRestore(graphics, font, right, top, ButtonPainter.HEIGHT, targets,
                     () -> draft.removals().restore(RemovalMarks.Tab.PREFABS, name));
@@ -620,7 +622,7 @@ final class VariablesPane {
         if (usedBy.count() == 0) {
             return 0;
         }
-        graphics.text(font, USED_BY, x, y + TEXT_NUDGE, Palette.MUTED);
+        graphics.text(font, USED_BY, x, Lettering.full(font).centeredTop(y, ICON_SIZE), Palette.MUTED);
         int itemsX = x + font.width(USED_BY);
         int itemsWidth = x + width - itemsX;
         List<Integer> widths = usedBy.widths(font);
@@ -667,7 +669,7 @@ final class VariablesPane {
     private void drawUsedByEnd(GuiGraphicsExtractor graphics, Font font, String label, int x, int y,
                                @Nullable String expandKey, boolean expanded, ClickTargets targets) {
         if (expandKey == null) {
-            graphics.text(font, label, x, y + TEXT_NUDGE, Palette.MUTED);
+            graphics.text(font, label, x, Lettering.full(font).centeredTop(y, ICON_SIZE), Palette.MUTED);
         } else if (expanded) {
             ButtonPainter.draw(graphics, font, label, x, y, ICON_SIZE, targets, () -> expandedUsedBy.hide(expandKey));
         } else {
@@ -844,7 +846,7 @@ final class VariablesPane {
         }
         if (GROUP_KIND.equals(reader.kind())) {
             String label = reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id();
-            graphics.text(font, label, x, y + TEXT_NUDGE, Palette.MUTED);
+            graphics.text(font, label, x, Lettering.full(font).centeredTop(y, ICON_SIZE), Palette.MUTED);
             return font.width(label);
         }
         graphics.item(icons.of(reader.id()), x, y);

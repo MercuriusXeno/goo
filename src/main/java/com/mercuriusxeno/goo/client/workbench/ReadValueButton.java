@@ -42,7 +42,7 @@ final class ReadValueButton {
      * @return the top of the button's first line of text, so a label beside it stands on that line
      */
     static int textTop(Font font, List<ExpressionLines.Run> runs, int top) {
-        return runs.isEmpty() ? top + ButtonPainter.TEXT_NUDGE
+        return runs.isEmpty() ? top + ButtonPainter.labelInset(font)
                 : top + CONTENT_INSET + ExpressionLines.textOffset(font, runs);
     }
 
@@ -84,10 +84,12 @@ final class ReadValueButton {
         ButtonPainter.reserve(targets, frame, place.open(), null);
         drawPencil(graphics, font, frame, textTop(font, runs, place.top()), targets, place.open());
         if (runs.isEmpty()) {
-            graphics.text(font, NOT_SET, place.left() + ButtonPainter.PADDING, place.top() + ButtonPainter.TEXT_NUDGE,
+            graphics.text(font, NOT_SET, place.left() + ButtonPainter.PADDING,
+                    place.top() + ButtonPainter.labelInset(font),
                     Palette.MUTED);
         } else {
-            ExpressionLines.draw(font, runs, place.left() + ButtonPainter.PADDING, place.top() + CONTENT_INSET,
+            ExpressionLines.draw(Lettering.full(font), runs, place.left() + ButtonPainter.PADDING,
+                    place.top() + CONTENT_INSET,
                     contentWidth(font, place.right() - place.left()), painter);
         }
         return height;

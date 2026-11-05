@@ -288,6 +288,22 @@ class VariablesPaneTest {
         return read;
     }
 
+    /**
+     * A prefab's name centers on its row under its separator through the one centering helper, as every list pane's
+     * does (decision one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void prefabNameCentersOnItsRow() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesPane pane = twelvePrefabs(new VariablesTab(draft), draft);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text second = frame.findFirst("$prefab1");
+        assertEquals(Lettering.full(DrawnFrame.font()).centeredTop(frame.rowTopAbove(second),
+                RowLayout.SPRITE_ROW_HEIGHT), second.y());
+    }
+
     // Each block's top inside the list's content once the named block edits, read off a view tall enough to draw
     // every block unscrolled.
     private static List<Integer> blockTopsEditing(String name) {
@@ -610,6 +626,9 @@ class VariablesPaneTest {
         DrawnFrame.Text glowAmount = frame.find("(6,");
         DrawnFrame.Text leafAmount = frame.find("4)");
         assertTrue(onLine(value.y(), glowAmount.y()) && onLine(value.y(), leafAmount.y()), frame.drawn().toString());
+        // Decision one-lettering-primitive-names-three-text-roles: the amount line letters at the amount role.
+        assertEquals(List.of(Lettering.AMOUNT_SCALE, Lettering.AMOUNT_SCALE),
+                List.of(frame.placed("(6,").scale(), frame.placed("4)").scale()), frame.placements().toString());
         DrawnFrame.Text leafRow = frame.find("4");
         DrawnFrame.Text glowRow = frame.find("6");
         assertTrue(value.y() < leafRow.y() && leafRow.y() < glowRow.y(), frame.drawn().toString());

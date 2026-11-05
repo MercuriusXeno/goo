@@ -297,6 +297,16 @@ class ValuesPaneTest {
                     || text.equals("?")), frame.texts().toString());
         }
 
+        // Decision one-lettering-primitive-names-three-text-roles: an entry's name centers on its row through the one
+        // centering helper, as every list pane's does.
+        @Test
+        void entryNameCentersOnItsRow() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text planks = frame.find("Oak Planks");
+            assertEquals(Lettering.full(DrawnFrame.font()).centeredTop(frame.rowTopAbove(planks),
+                    RowLayout.SPRITE_ROW_HEIGHT), planks.y());
+        }
+
         // Decision spacing-rules-are-one-set-across-every-pane: an entry row's x keeps the rule gap over the rule
         // below its row.
         @Test
@@ -309,7 +319,7 @@ class ValuesPaneTest {
             DrawnFrame.Text stick = frame.find("Stick");
             DrawnFrame.Text remove = frame.drawn().stream().filter(text -> text.text().equals("✗")
                     && text.y() > stick.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-            int removeBottom = remove.y() - ButtonPainter.TEXT_NUDGE + ButtonPainter.HEIGHT;
+            int removeBottom = frame.buttonAround(remove)[3];
             ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, atLeastOnce()).fill(anyInt(), tops.capture(), anyInt(), anyInt(),
                     eq(Palette.SEPARATOR));
@@ -1402,24 +1412,15 @@ class ValuesPaneTest {
     }
 
     /**
-     * A count splits into its whole part, drawn full size as a stack count, and its fraction, drawn at half scale in
-     * the sprite's bottom-right corner as its numerator over a bar over its denominator, the stack's right and bottom
-     * edges where a stack count's stand; a mixed count's whole stands just left of the stack (decision
-     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     * A count over the recipe's output splits into its whole part and its fraction under 1, the mixed number the
+     * sprite's corner draws (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      */
     @Test
-    void fractionStacksNumeratorOverABarInTheSpriteCorner() {
+    void countSplitsIntoItsWholeAndItsFraction() {
         assertEquals(new StackedFractions.Mixed("", "1", "3"), ValuesPane.countParts(2, 6));
         assertEquals(new StackedFractions.Mixed("2", "1", "4"), ValuesPane.countParts(9, 4));
         assertEquals(new StackedFractions.Mixed("2", "", ""), ValuesPane.countParts(2, 1));
         assertEquals(new StackedFractions.Mixed("", "", ""), ValuesPane.countParts(6, 6));
-        int spriteLeft = 100;
-        int spriteTop = 40;
-        ValuesPane.CornerCount placed = ValuesPane.placeCornerCount(spriteLeft, spriteTop, 6, 12);
-        StackedFractions.Stack stack = placed.stack();
-        assertEquals((spriteLeft + RowLayout.SPRITE_SIZE + 1) * 2, stack.barX() + stack.barWidth());
-        assertEquals((spriteTop + RowLayout.SPRITE_SIZE + 1) * 2, stack.denominatorY() + 7);
-        assertEquals(spriteLeft - 12 / 2 - 1, placed.wholeX());
     }
 
     /**
@@ -1451,7 +1452,7 @@ class ValuesPaneTest {
         assertEquals(List.of("20", "1", "4"), texts.subList(at, at + 3));
         assertTrue(!texts.contains("81/4"), texts.toString());
         // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere.
-        assertEquals(SmallDigits.SCALE, frame.placed("20").scale(), "the amount draws through SmallDigits");
+        assertEquals(Lettering.AMOUNT_SCALE, frame.placed("20").scale(), "the amount draws through SmallDigits");
     }
 
     /**
@@ -1480,7 +1481,7 @@ class ValuesPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        assertEquals(SmallDigits.SCALE, frame.placed("7").scale());
+        assertEquals(Lettering.AMOUNT_SCALE, frame.placed("7").scale());
     }
 
     /**

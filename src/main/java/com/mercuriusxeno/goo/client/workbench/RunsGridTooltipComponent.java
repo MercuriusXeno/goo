@@ -76,7 +76,8 @@ public final class RunsGridTooltipComponent implements ClientTooltipComponent {
                 Palette.TEXT, (variable, linkX, linkY, linkWidth) -> { });
         for (int index = 0; index < cells.size(); index++) {
             int row = index / columns;
-            ExpressionLines.draw(font, cells.get(index), x + rowIndent(row) + index % columns * columnWidth,
+            ExpressionLines.draw(Lettering.full(font), cells.get(index),
+                    x + rowIndent(row) + index % columns * columnWidth,
                     y + row * rowHeight, columnWidth, painter);
         }
     }

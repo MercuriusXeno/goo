@@ -55,7 +55,8 @@ class PrefabHoversTest {
             List<ExpressionLines.Run> runs = List.of(new ExpressionLines.Run(ExpressionLines.Kind.LINK, "waxed",
                     "waxed"), new ExpressionLines.Run(ExpressionLines.Kind.TEXT, " + ", null),
                     new ExpressionLines.Run(ExpressionLines.Kind.LINK, "base", "base"));
-            ExpressionLines.draw(font(), runs, 0, 0, 400, new ExpressionLines.Painter(graphics, null, targets,
+            ExpressionLines.draw(Lettering.full(font()), runs, 0, 0, 400, new ExpressionLines.Painter(graphics, null,
+                    targets,
                     0, 0, (name, x, y, width) -> { }));
             assertEquals(1, prefabHovers(targets, "waxed"));
             assertEquals(1, prefabHovers(targets, "base"));

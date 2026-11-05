@@ -80,7 +80,7 @@ final class MemberRails {
         int bottom = card.top() + RowLayout.SPRITE_ROW_HEIGHT;
         ControlFlow.drawRail(graphics, card.left(), card.top(), bottom);
         targets.addGrab(card.left(), card.top(), ControlFlow.RAIL_WIDTH, bottom - card.top(), grab(index), id);
-        int textTop = ExpressionLines.centeredTextTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT, font.lineHeight);
+        int textTop = Lettering.full(font).centeredTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT);
         graphics.text(font, String.valueOf(index + 1), numberLeft(card), textTop, Palette.MUTED);
     }
 

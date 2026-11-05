@@ -177,6 +177,16 @@ final class DrawnFrame {
     }
 
     /**
+     * @param text a text drawn in a list's row
+     * @return the top of the row it stands in: the pixel under the nearest row separator above it and across its x
+     */
+    int rowTopAbove(Text text) {
+        return fillsOf(Palette.SEPARATOR).stream().filter(rule -> rule[0] <= text.x() && text.x() < rule[2]
+                && rule[1] < text.y()).mapToInt(rule -> rule[1] + 1).max()
+                .orElseThrow(() -> new AssertionError("no separator above " + text));
+    }
+
+    /**
      * @return a font six pixels a character wide that cuts nothing
      */
     static Font font() {

@@ -29,6 +29,6 @@ class GooAmountTooltipComponentTest {
         DrawnFrame frame = new DrawnFrame();
         new GooAmountTooltipComponent(new TooltipLine.GooAmount("metal", "3"), type -> 11)
                 .extractImage(DrawnFrame.font(), 0, 0, 100, 20, frame.graphics);
-        assertEquals(SmallDigits.SCALE, frame.placed("3").scale());
+        assertEquals(Lettering.AMOUNT_SCALE, frame.placed("3").scale());
     }
 }
