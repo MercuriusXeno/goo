@@ -73,7 +73,8 @@ final class PrefabHovers {
             List<ExpressionLines.Run> reduced = new ArrayList<>();
             reduced.add(operator(OPEN));
             reduced.add(new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, scalar, null));
-            reduced.add(suffix(CLOSE));
+            // Decision tooltip-reduction-parens-draw-one-color: the close paren flush, in the open paren's color.
+            reduced.add(flushSymbol(CLOSE));
             lines.add(new TooltipLine.RunsGrid(List.of(reduced)));
         }
         return lines;
@@ -109,7 +110,8 @@ final class PrefabHovers {
             String type = order.get(index);
             cell.addAll(typed(type, List.of(new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, amounts.get(type),
                     null))));
-            cell.add(suffix(index == order.size() - 1 ? CLOSE : SEPARATOR));
+            // Decision tooltip-reduction-parens-draw-one-color: the close paren flush, in the open paren's color.
+            cell.add(index == order.size() - 1 ? flushSymbol(CLOSE) : suffix(SEPARATOR));
             cells.add(cell);
         }
         return cells;
@@ -135,6 +137,10 @@ final class PrefabHovers {
 
     private static ExpressionLines.Run suffix(String text) {
         return new ExpressionLines.Run(ExpressionLines.Kind.SUFFIX, text, null);
+    }
+
+    private static ExpressionLines.Run flushSymbol(String text) {
+        return new ExpressionLines.Run(ExpressionLines.Kind.FLUSH_SYMBOL, text, null);
     }
 
     // A typed prefab's text is an object of goo type to expression; anything else is a scalar's.

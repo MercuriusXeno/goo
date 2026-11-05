@@ -80,6 +80,8 @@ final class ExpressionLines {
         TEXT,
         /** Text drawn flush against the run before it, as a member's 's against its prefab. */
         SUFFIX,
+        /** A symbol drawn flush against the run before it in the symbols' color, as a reduction's closing paren. */
+        FLUSH_SYMBOL,
         /** The end of a line, as a per-type object ends each type's row. */
         BREAK,
         /** Text the terms could not read, drawn red as the file spells it. */
@@ -94,6 +96,22 @@ final class ExpressionLines {
      * @param ref  the type, item or prefab it stands for, null for text
      */
     record Run(Kind kind, String text, @Nullable String ref) {
+    }
+
+    /**
+     * @param kind a run's kind
+     * @return whether the run draws in the symbols' color: an operator, a parenthesis or a flush symbol
+     */
+    static boolean drawsAsSymbol(Kind kind) {
+        return kind == Kind.OPERATOR || kind == Kind.FLUSH_SYMBOL;
+    }
+
+    /**
+     * @param kind a run's kind
+     * @return whether the run stands flush against the run before it, with no gap
+     */
+    static boolean placesFlush(Kind kind) {
+        return kind == Kind.SUFFIX || kind == Kind.FLUSH_SYMBOL;
     }
 
     /**
@@ -439,7 +457,7 @@ final class ExpressionLines {
         int width = 0;
         for (Run run : runs) {
             if (run.kind() != Kind.BREAK) {
-                boolean gapped = width != 0 && run.kind() != Kind.SUFFIX;
+                boolean gapped = width != 0 && !placesFlush(run.kind());
                 width += (gapped ? RUN_GAP : 0) + runWidth(lettering, run, typeSize);
             }
         }
@@ -511,7 +529,7 @@ final class ExpressionLines {
             Run run = runs.get(index);
             switch (run.kind()) {
                 case BREAK -> cursor.breakLine(0);
-                case SUFFIX -> cursor.placeFlush(run);
+                case SUFFIX, FLUSH_SYMBOL -> cursor.placeFlush(run);
                 case TEXT, ERROR -> cursor.placeText(run);
                 default -> placeOperandOrSymbol(runs, index, cursor);
             }
@@ -522,7 +540,7 @@ final class ExpressionLines {
     // Decision possessive-sits-flush-against-its-word-button: a word wraps with the suffix flush against it.
     private static void fitWithSuffix(List<Run> runs, int index, Cursor cursor) {
         int suffix = index + 1;
-        if (suffix < runs.size() && runs.get(suffix).kind() == Kind.SUFFIX) {
+        if (suffix < runs.size() && placesFlush(runs.get(suffix).kind())) {
             cursor.fitTogether(width(cursor.lettering, runs.subList(index, suffix + 1), cursor.typeSize));
         }
     }
@@ -689,7 +707,7 @@ final class ExpressionLines {
                 case LINK -> drawLink(lettering, run, piece, new int[] {x, textTop}, painter);
                 case ERROR -> lettering.draw(graphics, piece, x, textTop, RED);
                 // Decision read-view-reads-type-equals-possessive-terms.
-                case OPERATOR -> lettering.draw(graphics, piece, x, textTop, painter.symbolColor());
+                case OPERATOR, FLUSH_SYMBOL -> lettering.draw(graphics, piece, x, textTop, painter.symbolColor());
                 default -> lettering.draw(graphics, piece, x, textTop, painter.textColor());
             }
         }
