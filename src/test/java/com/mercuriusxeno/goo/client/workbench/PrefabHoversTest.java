@@ -163,10 +163,28 @@ class PrefabHoversTest {
                     ? (Object) grid.cells().stream().map(Tooltip::cellText).toList() : (Object) line).toList();
         }
 
+        /**
+         * A scalar's and a typed prefab's reduction draw their opening and closing parens in one color, the symbol
+         * color (decision tooltip-reduction-parens-draw-one-color).
+         */
+        @Test
+        void reductionParensDrawInOneColor() {
+            for (String prefab : List.of("double", "coral")) {
+                TooltipLine.RunsGrid reduction = (TooltipLine.RunsGrid) lines(prefab).getLast();
+                List<ExpressionLines.Run> runs = reduction.cells().stream().flatMap(List::stream).toList();
+                ExpressionLines.Run open = runs.stream().filter(run -> run.text().equals("(")).findFirst()
+                        .orElseThrow(() -> new AssertionError(prefab + ": " + runs));
+                ExpressionLines.Run close = runs.stream().filter(run -> run.text().equals(")")).findFirst()
+                        .orElseThrow(() -> new AssertionError(prefab + ": " + runs));
+                assertEquals(List.of(true, true), List.of(ExpressionLines.drawsAsSymbol(open.kind()),
+                        ExpressionLines.drawsAsSymbol(close.kind())), prefab + ": " + runs);
+            }
+        }
+
         private static String cellText(List<ExpressionLines.Run> cell) {
             StringBuilder text = new StringBuilder();
             for (ExpressionLines.Run run : cell) {
-                if (!text.isEmpty() && run.kind() != ExpressionLines.Kind.SUFFIX) {
+                if (!text.isEmpty() && !ExpressionLines.placesFlush(run.kind())) {
                     text.append(' ');
                 }
                 text.append(run.kind() == ExpressionLines.Kind.TYPE ? "{" + run.ref() + "}" : run.text());
