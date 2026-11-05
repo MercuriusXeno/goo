@@ -88,8 +88,7 @@ class ProcessesPaneTest {
     void searchBoxFiltersTheEntriesAndARightClickEmptiesIt() {
         pane.init(DrawnFrame.font());
         pane.show(true);
-        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
-                .filter(box -> "Search mutators".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        EditBox search = searchBox("Search iterators");
         assertTrue(search.visible);
         search.setValue("wax");
         DrawnFrame filtered = frame();
@@ -100,6 +99,44 @@ class ProcessesPaneTest {
         assertTrue(frame().texts().contains("#exposed"));
     }
 
+    private EditBox searchBox(String hint) {
+        return widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> hint.equals(box.getMessage().getString())).findFirst()
+                .orElseThrow(() -> new AssertionError("no " + hint + " box"));
+    }
+
+    /**
+     * Each column stands its own search row at the columns' top, Search mutators over the mutators and Search
+     * iterators over the iterators, each 14 tall with its column's [+] one gap right of it, and no heading carries a
+     * [+] (decisions one-search-row-per-list-with-its-create-control-beside-it,
+     * mutators-and-iterators-each-take-a-create-control).
+     */
+    @Test
+    void eachColumnStandsItsOwnSearchRowWithItsCreateControl() {
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        DrawnFrame frame = frame();
+        List<DrawnFrame.Text> pluses = frame.drawn().stream().filter(text -> text.text().equals("+")).toList();
+        for (String hint : List.of("Search mutators", "Search iterators")) {
+            EditBox box = searchBox(hint);
+            assertEquals(List.of(0, SearchRow.HEIGHT), List.of(box.getY(), box.getHeight()), hint);
+            int boxRight = box.getX() + box.getWidth();
+            assertTrue(pluses.stream().anyMatch(plus -> frame.buttonAround(plus)[0] == boxRight + SearchRow.GAP),
+                    hint + " ends at " + boxRight + ": " + pluses);
+        }
+        DrawnFrame.Text heading = frame.find("Mutators");
+        assertTrue(pluses.stream().noneMatch(plus -> Math.abs(plus.y() - heading.y()) <= 3), pluses.toString());
+    }
+
+    /**
+     * The open name box is 14 tall (decision one-search-row-per-list-with-its-create-control-beside-it).
+     */
+    @Test
+    void nameBoxIsFourteenTall() {
+        pane.init(DrawnFrame.font());
+        assertEquals(SearchRow.HEIGHT, searchBox("name, Enter").getHeight());
+    }
+
     /**
      * A follow into the Mutators pane empties a search that hides its target and draws the target's row (decision
      * following-a-link-clears-the-panes-search-bar).
@@ -108,8 +145,7 @@ class ProcessesPaneTest {
     void revealClearsTheSearchAndDrawsTheTarget() {
         pane.init(DrawnFrame.font());
         pane.show(true);
-        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
-                .filter(box -> "Search mutators".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        EditBox search = searchBox("Search iterators");
         search.setValue("wax");
         assertFalse(frame().texts().contains("#exposed"), "the search hides the target");
         pane.reveal("#exposed");
@@ -126,7 +162,7 @@ class ProcessesPaneTest {
     void paneLeadsWithItsEntriesUnderNoSubTab() {
         DrawnFrame frame = frame();
         List<String> texts = frame.texts();
-        assertEquals("waxed", texts.get(texts.indexOf("Mutators") + 2), "the first row under Mutators: " + texts);
+        assertEquals("waxed", texts.get(texts.indexOf("Mutators") + 1), "the first row under Mutators: " + texts);
         assertFalse(texts.contains("Conversions") || texts.contains("Post conversions"), texts.toString());
     }
     /**
@@ -552,15 +588,6 @@ class ProcessesPaneTest {
         assertTrue(first(frame, "#exposed").x() > first(frame, "waxed").x(), frame.drawn().toString());
     }
 
-    @Test
-    void eachHeadingCarriesItsCreateControl() {
-        DrawnFrame frame = frame();
-        assertPlusBeside(frame, frame.find("Mutators"));
-        assertPlusBeside(frame, frame.find("Iterators"));
-        assertFalse(frame.texts().contains("New mutator"), frame.texts().toString());
-        assertFalse(frame.texts().contains("New iterator"), frame.texts().toString());
-    }
-
     /**
      * Every row's top line draws its name with a pencil just past it, its mark at one column left, and a red x at the
      * row's right end, under no header (the operator's ruling: pencil by the name, x at the row end).
@@ -645,7 +672,7 @@ class ProcessesPaneTest {
 
     /**
      * With a section whose payload carries a summary, the Mutators heading stands on the columns' first row under the
-     * search box, and it is the first text the pane draws (decisions mutators-pane-draws-no-entry-count,
+     * search row, the first text under it (decisions mutators-pane-draws-no-entry-count,
      * conversions-is-the-one-section-and-the-pane-name).
      */
     @Test
@@ -653,8 +680,8 @@ class ProcessesPaneTest {
         DrawnFrame frame = frame();
         DrawnFrame.Text heading = frame.find("Mutators");
         assertEquals(RowLayout.nameTop(DrawnFrame.font(), ProcessesPane.SEARCH_ROW), heading.y());
-        List<DrawnFrame.Text> drawn = frame.drawn().stream()
-                .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::y)).toList();
+        List<DrawnFrame.Text> drawn = frame.drawn().stream().filter(text -> text.y() >= ProcessesPane.SEARCH_ROW)
+                .sorted(Comparator.comparingInt(DrawnFrame.Text::y)).toList();
         assertEquals("Mutators", drawn.getFirst().text(), drawn.toString());
     }
 
@@ -736,12 +763,6 @@ class ProcessesPaneTest {
     // The row's name, drawn before any chain link naming it.
     private static DrawnFrame.Text first(DrawnFrame frame, String label) {
         return frame.drawn().stream().filter(text -> text.text().equals(label)).findFirst().orElseThrow();
-    }
-
-    // A [+] stands right of the heading on its line.
-    private static void assertPlusBeside(DrawnFrame frame, DrawnFrame.Text heading) {
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("+") && text.x() > heading.x()
-                && Math.abs(text.y() - heading.y()) < ExpressionLines.TEXT_LINE_HEIGHT), frame.drawn().toString());
     }
 
     // The control stands right of the heading, its label within a text line of the heading's.

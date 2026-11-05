@@ -146,6 +146,38 @@ class GroupsPaneTest {
      * (decisions groups-search-matches-a-name-or-any-member, right-click-empties-every-text-box-in-the-manager).
      */
     @Test
+    void searchRowStretchesToCustomAndTagAndThePencilStandsOneGapPastTheName() {
+        // Decision one-search-row-per-list-with-its-create-control-beside-it: no 2px offset, 14 tall, one gap short
+        // of + Custom, and the rename pencil one pencil gap past the name.
+        List<AbstractWidget> widgets = new ArrayList<>();
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()), widgets);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        int[] custom = frame.buttonAround(frame.find("+ Custom"));
+        assertEquals(List.of(SHORT_VIEW.top(), SearchRow.HEIGHT, custom[0] - SearchRow.GAP),
+                List.of(search.getY(), search.getHeight(), search.getX() + search.getWidth()));
+        groupsSelectFirst(pane, frame);
+    }
+
+    // Selects the first group and checks its card's pencil stands one pencil gap past its name.
+    private static void groupsSelectFirst(GroupsPane pane, DrawnFrame list) {
+        list.click("#" + groupName(0));
+        DrawnFrame card = new DrawnFrame();
+        pane.extract(card.graphics, DrawnFrame.font(), SHORT_VIEW, card.targets);
+        DrawnFrame.Text name = card.drawn().stream().filter(text -> text.text().equals("#" + groupName(0)))
+                .reduce((first, last) -> last).orElseThrow();
+        DrawnFrame.Text pencil = card.drawn().stream().filter(text -> text.text().equals("✎")
+                && Math.abs(text.y() - name.y()) <= 2 && text.x() > name.x()).findFirst()
+                .orElseThrow(() -> new AssertionError(card.drawn().toString()));
+        assertEquals(name.x() + DrawnFrame.font().width(name.text()) + ButtonPainter.PENCIL_GAP,
+                card.buttonAround(pencil)[0]);
+    }
+
+    @Test
     void searchBoxFiltersTheListAndARightClickEmptiesIt() {
         GroupsTab groups = new GroupsTab(new ManagerDraft());
         List<AbstractWidget> widgets = new ArrayList<>();

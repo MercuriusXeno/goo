@@ -248,11 +248,10 @@ final class ValuesPane {
             drawChip(graphics, font, chip, warns(chip.filter(), uncovered, negative) ? Palette.DANGER : Palette.TEXT,
                     targets);
         }
-        if (search != null) {
-            search.setPosition(line.left(), line.top());
-            search.setWidth(Math.max(1, left - GAP - line.left()));
-        }
-        return Math.max(layout.bottom(), line.top() + BOX_HEIGHT);
+        // Decision one-search-row-per-list-with-its-create-control-beside-it: the box stretches to the chips.
+        SearchRow.Laid laid = SearchRow.lay(line.left(), line.top(), line.right(), line.right() - left);
+        SearchRow.place(search, laid);
+        return Math.max(layout.bottom(), line.top() + SearchRow.HEIGHT);
     }
 
     // Uncovered and Negative draw red while they count an item (decision items-filter-set-takes-a-negative-chip).

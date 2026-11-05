@@ -1,13 +1,19 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.joml.Matrix3x2fStack;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -455,6 +461,33 @@ class ValuesPaneTest {
     }
 
     private static final int RED = 0xFFFF5555;
+
+    /**
+     * The search box stands 14 tall at the list's top and stretches to the chips, one gap short of the first (decision
+     * one-search-row-per-list-with-its-create-control-beside-it).
+     */
+    @Test
+    void searchRowStretchesToTheChips() {
+        ManagerActions actions = mock(ManagerActions.class);
+        List<AbstractWidget> widgets = new ArrayList<>();
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(new ValuesTab(), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        pane.init(DrawnFrame.font());
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search items".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
+        int chips = ValuesPane.chipsLeft(labels, DrawnFrame.font()::width, bounds);
+        assertEquals(List.of(bounds.top(), SearchRow.HEIGHT, chips - SearchRow.GAP),
+                List.of(search.getY(), search.getHeight(), search.getX() + search.getWidth()));
+    }
 
     /**
      * A chip the filter does not hold frames as a button does, the button border round the button fill (decision

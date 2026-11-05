@@ -133,6 +133,26 @@ class VariablesPaneTest {
         assertEquals(ScrollBar.WHEEL_STEP, pane.listBar().offset());
     }
 
+    /**
+     * The search box stands 14 tall at the list's top and stretches to the [+] at the row's right end, one gap short
+     * of it, and a prefab's rename pencil stands one pencil gap past its name (decision
+     * one-search-row-per-list-with-its-create-control-beside-it).
+     */
+    @Test
+    void searchRowStretchesToItsCreateControlAndThePencilStandsOneGapPastTheName() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        EditBox box = searchBox();
+        int[] plus = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals("+")
+                && text.y() < VIEW.top() + SearchRow.HEIGHT).findFirst().orElseThrow());
+        assertEquals(List.of(VIEW.top(), SearchRow.HEIGHT, plus[0] - SearchRow.GAP),
+                List.of(box.getY(), box.getHeight(), box.getX() + box.getWidth()));
+        assertEquals(VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP, plus[2], "the [+] at the row's right end");
+        DrawnFrame.Text name = frame.findFirst("$prefab0");
+        assertEquals(name.x() + DrawnFrame.font().width(name.text()) + ButtonPainter.PENCIL_GAP,
+                frame.buttonAround(frame.findFirst("✎"))[0]);
+    }
+
     @Test
     void typingReturnsTheListToItsTop() {
         draw();
