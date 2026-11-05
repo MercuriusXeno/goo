@@ -1027,6 +1027,11 @@ class GroupsPaneTest {
      */
     // A Groups pane over logs valued by the base given, oak_log resolving to the value or the error given.
     private static GroupsPane logsValued(String base, String resolved) {
+        return logsValued(base, resolved, mock(ManagerActions.class));
+    }
+
+    // A Groups pane over logs valued by the base given, its line back to the screen the actions given.
+    private static GroupsPane logsValued(String base, String resolved, ManagerActions actions) {
         ManagerDraft draft = new ManagerDraft();
         ValuesTab values = new ValuesTab(draft);
         values.readEntries(new ListedEntrySource(
@@ -1047,11 +1052,25 @@ class GroupsPaneTest {
                    "base": "%s", "tweaks": [], "preview": []}]}
                 """.formatted(base.replace("\"", "\\\"")));
         groups.selectGroup("logs");
-        ManagerActions actions = mock(ManagerActions.class);
         ItemIcons icons = mock(ItemIcons.class);
         when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
         return new GroupsPane(groups, values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
                 List::of));
+    }
+
+    /**
+     * In a group's read value a shift + left click on an item's name beside its sprite opens Items on the item's
+     * whole id, the name and sprite being one link (decision
+     * diagnose-and-correct-read-mode-item-icons-that-do-not-follow).
+     */
+    @Test
+    void readValueItemNameFollowsOnShiftClick() {
+        ManagerActions actions = mock(ManagerActions.class);
+        GroupsPane pane = logsValued("stick / 2", "\"value\": {\"glow\": \"4\"}", actions);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        frame.shiftClick("stick");
+        verify(actions).openItem("minecraft:stick");
     }
 
     /**

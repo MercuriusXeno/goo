@@ -666,6 +666,40 @@ class VariablesPaneTest {
     }
 
     /**
+     * In a prefab's read value a shift + left click on an item's name beside its sprite opens Items on the item's
+     * whole id, the name and sprite being one link (decision
+     * diagnose-and-correct-read-mode-item-icons-that-do-not-follow).
+     */
+    @Test
+    void readValueItemNameFollowsOnShiftClick() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "stuck", "keySeparator": null, "kind": "VALUE", "text": "\\"stick / 2\\"",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "stuck", "kind": "scalar", "value": "4", "error": null, "usedBy": [],
+                                "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        frame.shiftClick("stick");
+        verify(actions).openItem("minecraft:stick");
+    }
+
+    /**
      * The delete confirm dims the whole screen through Dialog, as the draft's confirm does, its card on Dialog's card
      * (decision one-wheel-step-and-one-dialog-primitive).
      */
