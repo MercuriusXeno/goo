@@ -19,8 +19,8 @@ import java.util.function.ToIntFunction;
  * Decision row-amount-grid-fills-the-width-and-wraps-past-it.
  */
 public final class GooAmountGrid implements ClientTooltipComponent {
-    /** The open paren a reduced value's grid stands after. */
-    static final ExpressionLines.Run OPEN = new ExpressionLines.Run(ExpressionLines.Kind.FLUSH_SYMBOL, "(", null);
+    /** The open paren a reduced value's grid stands after, its first cell flush against it. */
+    static final ExpressionLines.Run OPEN = new ExpressionLines.Run(ExpressionLines.Kind.OPEN_SYMBOL, "(", null);
     /** The close paren a reduced value's grid stands before, flush against its last cell. */
     static final ExpressionLines.Run CLOSE = new ExpressionLines.Run(ExpressionLines.Kind.FLUSH_SYMBOL, ")", null);
     /** The grid a value draws no amount for: a plain number, a blank value or a failed evaluation. */
