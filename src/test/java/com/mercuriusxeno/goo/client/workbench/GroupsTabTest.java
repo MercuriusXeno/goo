@@ -120,6 +120,14 @@ class GroupsTabTest {
                 new ValuesTab.ManagerEntry("minecraft:iron_ingot", "Iron Ingot", false),
                 new ValuesTab.ManagerEntry("minecraft:acacia_log", "Acacia Log", false));
 
+        // Decision one-search-rule-serves-every-box-and-dropdown: # narrows to groups and tags and is stripped, and $
+        // lists no group.
+        @Test
+        void hashNarrowsToGroupsAndDollarListsNone() {
+            assertEquals(List.of("ingots"), listedFor("#ingo"));
+            assertEquals(List.of(), listedFor("$ingo"));
+        }
+
         private List<String> listedFor(String text) {
             tab.readDescribed(THREE_GROUPS);
             tab.search(text, NAMED);

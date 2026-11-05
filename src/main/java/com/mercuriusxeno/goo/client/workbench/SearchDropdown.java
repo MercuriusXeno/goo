@@ -5,7 +5,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
@@ -19,7 +18,6 @@ final class SearchDropdown {
     /** How many choices the list shows at once. */
     static final int SHOWN = 8;
     private static final String TAG_MARK = "#";
-    private static final String NOTHING = "";
     private static final String COUNT_SEPARATOR = ", ";
     private static final int ICON_INSET = 1;
     private static final int LABEL_X = 20;
@@ -28,9 +26,8 @@ final class SearchDropdown {
     // The list scrolls a row per wheel notch, so every match is reachable however few rows fit under the opener.
     private final ScrollBar bar = new ScrollBar(1);
     private int shownRows = SHOWN;
-    // The search text past any # or $ mark, and the kind that mark lists alone, null for every kind.
-    private String query = NOTHING;
-    private @Nullable Kind queryKind;
+    // The search read: its text past any # or $ mark, and the kind that mark lists alone.
+    private Search.Query query = Search.EVERYTHING;
     private boolean open;
 
     /**
@@ -115,9 +112,7 @@ final class SearchDropdown {
      * @param typed the search box's text
      */
     void search(String typed) {
-        String searched = typed.trim().toLowerCase(Locale.ROOT);
-        queryKind = markedKind(searched);
-        query = queryKind == null ? searched : searched.substring(1);
+        query = Search.query(typed);
         bar.reset();
     }
 
@@ -128,22 +123,17 @@ final class SearchDropdown {
      * @return every choice whose label or id holds the search text, ignoring case
      */
     List<Choice> choices() {
-        Kind marked = queryKind;
-        String text = query;
-        return all.stream().filter(choice -> marked == null || choice.kind() == marked)
-                .filter(choice -> holds(choice, text)).toList();
+        Search.Query read = query;
+        return all.stream().filter(choice -> holds(choice, read)).toList();
     }
 
-    private static @Nullable Kind markedKind(String searched) {
-        if (searched.startsWith(TAG_MARK)) {
-            return Kind.TAG;
-        }
-        return searched.startsWith(PrefabNames.PREFAB_MARK) ? Kind.PREFAB : null;
-    }
-
-    private static boolean holds(Choice choice, String text) {
-        return text.isEmpty() || choice.label().toLowerCase(Locale.ROOT).contains(text)
-                || choice.id().toLowerCase(Locale.ROOT).contains(text);
+    // Decision one-search-rule-serves-every-box-and-dropdown: a tag matches its #id, never its member count.
+    private static boolean holds(Choice choice, Search.Query read) {
+        return switch (choice.kind()) {
+            case TAG -> Search.matches(read, Search.Kind.GROUP, choice.id());
+            case PREFAB -> Search.matches(read, Search.Kind.PREFAB, choice.id(), choice.label());
+            default -> Search.matches(read, Search.Kind.ITEM, choice.id(), choice.label());
+        };
     }
 
     /**
@@ -188,8 +178,7 @@ final class SearchDropdown {
     void addOpener(ClickTargets targets, int x, int y, int width, int height) {
         targets.add(x, y, width, height, () -> {
             open = true;
-            query = NOTHING;
-            queryKind = null;
+            query = Search.EVERYTHING;
         });
     }
 

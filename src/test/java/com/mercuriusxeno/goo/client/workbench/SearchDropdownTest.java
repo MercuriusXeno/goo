@@ -22,6 +22,19 @@ class SearchDropdownTest {
             new ValuesTab.ManagerEntry("#minecraft:logs", "2 members", true));
 
     /**
+     * A tag matches by its #id, never by its member count (decision one-search-rule-serves-every-box-and-dropdown).
+     */
+    @Test
+    void tagMatchesItsIdAndNeverItsMemberCount() {
+        SearchDropdown tags = SearchDropdown.overTags(List.of(new ValuesTab.ManagerEntry("#minecraft:oak_logs",
+                "3 members", true)));
+        tags.search("#oak");
+        assertEquals(1, tags.choices().size());
+        tags.search("members");
+        assertEquals(List.of(), tags.choices());
+    }
+
+    /**
      * The open list frames itself in the popup role (decision one-frame-primitive-draws-every-bordered-box).
      */
     @Test
