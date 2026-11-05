@@ -23,7 +23,7 @@ import java.util.function.ToIntFunction;
  */
 final class ValuesPane {
     /** A text line's height. */
-    static final int LINE_HEIGHT = 10;
+    static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     private static final int BOX_HEIGHT = 14;
     /** An Items row's head line's height, its sprite's and margin. */
     static final int ROW_HEIGHT = 18;
@@ -43,15 +43,12 @@ final class ValuesPane {
     private static final String MINUS = "-";
     private static final String FRACTION_DIVIDER = "/";
     private static final String MIXED_SPACE = " ";
-    // Half scale doubles every coordinate the fraction draws at.
-    private static final int FRACTION_SPACE = 2;
     // A stack count's right and bottom edges stand a pixel past the sprite's.
     private static final int COUNT_OVERHANG = 1;
     // Where a stack count's glyphs end under the sprite's top: its text top 9 down and its 8px glyphs.
     private static final int COUNT_GLYPHS_BOTTOM = 17;
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
-    private static final int CHIP_TEXT_NUDGE = 3;
     /** The room between the search line and the list. */
     static final int GAP = 3;
     private static final int HALF = 2;
@@ -283,7 +280,7 @@ final class ValuesPane {
         graphics.fill(chip.left() + 1, chip.top() + 1, right - 1, bottom - 1,
                 chip.filled() ? color : Palette.CHIP_HOLLOW);
         int labelX = chip.left() + ButtonPainter.PADDING;
-        int labelY = chip.top() + CHIP_TEXT_NUDGE;
+        int labelY = Lettering.full(font).centeredTop(chip.top(), chip.height());
         if (chip.filled()) {
             // Decision selected-filter-chip-text-contrasts-its-shadow: the dark label draws with no shadow, which
             // would be dark too.
@@ -484,7 +481,7 @@ final class ValuesPane {
     }
 
     private static HeadLine headLine(Font font, int top, int right) {
-        return new HeadLine(top + 1, ExpressionLines.centeredTextTop(top, ROW_HEIGHT, font.lineHeight), right);
+        return new HeadLine(top + 1, Lettering.full(font).centeredTop(top, ROW_HEIGHT), right);
     }
 
     // Valued, derived and grouped items show their goo value; no value and denied have none to show.
@@ -627,21 +624,13 @@ final class ValuesPane {
         return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;
     }
 
-    // The whole part draws full size as an inventory draws a stack count; the fraction draws at half scale in the
-    // sprite's bottom-right corner as its numerator over a bar over its denominator, the whole just left of it.
+    // The count draws small in the sprite's bottom-right corner, its right edge where a stack count's stands and its
+    // glyphs a pixel under a stack count's bottom (decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere),
+    // its fraction stacking at the value column's size (decision one-lettering-primitive-names-three-text-roles).
     private static void drawCount(GuiGraphicsExtractor graphics, Font font,
                                   StackedFractions.Mixed parts, int x, int y) {
-        CornerCount placed = placeCornerCount(x, y, font.width(parts.numerator()), font.width(parts.denominator()));
-        if (!parts.whole().isEmpty()) {
-            // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: the whole draws small, its right edge
-            // where a stack count's stands and its glyphs a pixel under a stack count's bottom.
-            int right = placed.wholeX() + ICON_SIZE + COUNT_OVERHANG;
-            SmallDigits.draw(graphics, font, parts.whole(), right - SmallDigits.width(font, parts.whole()),
-                    y + COUNT_GLYPHS_BOTTOM - SmallDigits.GLYPH_HEIGHT + 1, Palette.TEXT);
-        }
-        if (parts.stacked()) {
-            StackedFractions.drawStack(graphics, font, parts, placed.stack(), Palette.TEXT);
-        }
+        SmallDigits.drawCorner(graphics, font, parts, x + ICON_SIZE + COUNT_OVERHANG,
+                y + COUNT_GLYPHS_BOTTOM - SmallDigits.GLYPH_HEIGHT + 1, Palette.TEXT);
     }
 
     /**
@@ -656,35 +645,6 @@ final class ValuesPane {
         String joined = parts.whole().isEmpty() || fraction.isEmpty() ? parts.whole() + fraction
                 : parts.whole() + MIXED_SPACE + fraction;
         return joined.isEmpty() ? Optional.empty() : Optional.of(joined);
-    }
-
-    /**
-     * Where an input count draws on its sprite.
-     *
-     * @param wholeX the x the whole part's stack decoration takes, so it ends just left of the stack
-     * @param stack  the fraction's stack, in half-scale space
-     */
-    record CornerCount(int wholeX, StackedFractions.Stack stack) {
-    }
-
-    /**
-     * Stands the half-scale fraction stack in the sprite's bottom-right corner, its right and bottom edges where a
-     * stack count's stand, and moves the whole part left by the stack's drawn width (decision
-     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
-     *
-     * @param spriteLeft       the sprite's left edge
-     * @param spriteTop        the sprite's top edge
-     * @param numeratorWidth   the numerator's width at full scale, 0 where the count is whole
-     * @param denominatorWidth the denominator's width at full scale, 0 where the count is whole
-     * @return the whole part's x and the stack
-     */
-    static CornerCount placeCornerCount(int spriteLeft, int spriteTop, int numeratorWidth, int denominatorWidth) {
-        int barWidth = Math.max(numeratorWidth, denominatorWidth);
-        int right = (spriteLeft + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
-        int bottom = (spriteTop + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
-        int wholeX = barWidth == 0 ? spriteLeft : spriteLeft - barWidth / FRACTION_SPACE - 1;
-        return new CornerCount(wholeX, StackedFractions.layStack(right - barWidth,
-                bottom - StackedFractions.STACK_HEIGHT, numeratorWidth, denominatorWidth));
     }
 
     /**

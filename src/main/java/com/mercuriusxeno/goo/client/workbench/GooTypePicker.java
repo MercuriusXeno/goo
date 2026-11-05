@@ -28,7 +28,6 @@ final class GooTypePicker {
     static final String CLOSE = "close";
     /** The no-goo-type cell's name. */
     static final String NOTHING = "nothing";
-    private static final int TEXT_NUDGE = 5;
     private static final int GLYPH_INSET = 6;
     // Wider than any GUI, so a click anywhere outside the grid lands on it.
     private static final int EVERYWHERE = 100_000;
@@ -258,7 +257,8 @@ final class GooTypePicker {
 
     private void drawGlyph(GuiGraphicsExtractor graphics, Font font, String glyph, Cell cell, int x, int y) {
         if (shows(cell)) {
-            graphics.text(font, glyph, cellX(x, cell) + GLYPH_INSET, cellY(y, cell) + TEXT_NUDGE, Palette.PICKER_GLYPH);
+            graphics.text(font, glyph, cellX(x, cell) + GLYPH_INSET, Lettering.full(font).centeredTop(cellY(y, cell),
+                    CELL), Palette.PICKER_GLYPH);
         }
     }
 }

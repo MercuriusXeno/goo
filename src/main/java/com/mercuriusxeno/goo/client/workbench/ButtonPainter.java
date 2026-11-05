@@ -21,8 +21,6 @@ final class ButtonPainter {
     static final int PADDING = 3;
     /** The room a type-icon button leaves each side of its icon (decision type-icon-buttons-shrink-their-padding). */
     static final int ICON_PADDING = 1;
-    /** How far a button drawn at a text's top reaches above that top. */
-    static final int TEXT_NUDGE = 3;
     // A glyph's baseline stands seven pixels under the text's top, the underline one under that, as the font's own.
     private static final int UNDERLINE_DROP = 8;
 
@@ -132,14 +130,15 @@ final class ButtonPainter {
         return box;
     }
 
-    // A full-size label stands its padding in and its nudge under the box's top; a scaled one centers its glyphs'
+    // A full-size label stands its padding in and centers on the box's height; a scaled one centers its glyphs'
     // ink in the box, between whole pixels where the halves fall there, so an operator's + or - stands in the middle
     // of its button (the operator saw them too far left and slightly too high). Answers where the label stood, its
     // left edge then its top, rounded to whole pixels.
     static int[] drawLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box, int color) {
         if (lettering.isFull()) {
-            lettering.draw(graphics, label, box.left() + PADDING, box.top() + TEXT_NUDGE, color);
-            return new int[] {box.left() + PADDING, box.top() + TEXT_NUDGE};
+            int top = lettering.centeredTop(box.top(), box.height());
+            lettering.draw(graphics, label, box.left() + PADDING, top, color);
+            return new int[] {box.left() + PADDING, top};
         }
         float[] origin = lettering.labelOrigin(box, label);
         lettering.draw(graphics, label, origin, color);
@@ -304,7 +303,16 @@ final class ButtonPainter {
      */
     static Box drawAtText(GuiGraphicsExtractor graphics, Font font, String label, int x, int textTop,
                           ClickTargets targets, Runnable pressed) {
-        return draw(graphics, font, label, x, textTop - TEXT_NUDGE, HEIGHT, targets, pressed, null);
+        return draw(graphics, font, label, x, textTop - labelInset(font), HEIGHT, targets, pressed, null);
+    }
+
+    /**
+     * @param font the font
+     * @return how far under a button's top its full-size label's text stands, the label centered on the button
+     *     (decision one-lettering-primitive-names-three-text-roles)
+     */
+    static int labelInset(Font font) {
+        return Lettering.full(font).centeredTop(0, HEIGHT);
     }
 
     /**

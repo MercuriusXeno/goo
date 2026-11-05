@@ -23,7 +23,6 @@ final class SearchDropdown {
     private static final String COUNT_SEPARATOR = ", ";
     private static final int ICON_INSET = 1;
     private static final int LABEL_X = 20;
-    private static final int TEXT_NUDGE = 5;
 
     private final List<Choice> all;
     // The list scrolls a row per wheel notch, so every match is reachable however few rows fit under the opener.
@@ -262,7 +261,8 @@ final class SearchDropdown {
         if (iconId != null) {
             graphics.item(icons.of(iconId), x + ICON_INSET, rowY + ICON_INSET);
         }
-        graphics.text(font, font.plainSubstrByWidth(choice.label(), labelWidth), x + LABEL_X, rowY + TEXT_NUDGE,
+        graphics.text(font, font.plainSubstrByWidth(choice.label(), labelWidth), x + LABEL_X,
+                Lettering.full(font).centeredTop(rowY, ROW_HEIGHT),
                 choice.kind() == Kind.PREFAB ? Palette.LINK : Palette.TEXT);
     }
 

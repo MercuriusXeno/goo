@@ -914,9 +914,9 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
-        assertEquals(SmallDigits.SCALE, frame.placed("10").scale(), frame.placements().toString());
+        assertEquals(Lettering.AMOUNT_SCALE, frame.placed("10").scale(), frame.placements().toString());
         assertTrue(frame.placements().stream().anyMatch(placed -> placed.text().equals("2")
-                && placed.scale() < SmallDigits.SCALE), "the half stacks: " + frame.placements());
+                && placed.scale() < Lettering.AMOUNT_SCALE), "the half stacks: " + frame.placements());
         assertTrue(frame.placements().stream().noneMatch(placed -> placed.text().contains("21/2")
                 && placed.scale() == 1f && placed.y() < frame.find(ReadValueButton.PENCIL).y() - 4),
                 frame.placements().toString());
@@ -1028,6 +1028,20 @@ class GroupsPaneTest {
                 eq(Palette.SEPARATOR));
         int rule = fillYs.getAllValues().stream().filter(y -> y > oak && y < birch).findFirst().orElseThrow();
         assertEquals(RowLayout.RULE_PADDING, rule - (oakSprite + RowLayout.SPRITE_SIZE));
+    }
+
+    /**
+     * A group's name centers on its list row through the one centering helper, as every list pane's does (decision
+     * one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void groupNameCentersOnItsRow() {
+        DrawnFrame tall = new DrawnFrame();
+        manyGroups(new GroupsTab(new ManagerDraft())).extract(tall.graphics, DrawnFrame.font(), TALL_VIEW,
+                tall.targets);
+        DrawnFrame.Text second = tall.findFirst("#" + groupName(1));
+        assertEquals(Lettering.full(DrawnFrame.font()).centeredTop(tall.rowTopAbove(second),
+                RowLayout.SPRITE_ROW_HEIGHT), second.y());
     }
 
     /**

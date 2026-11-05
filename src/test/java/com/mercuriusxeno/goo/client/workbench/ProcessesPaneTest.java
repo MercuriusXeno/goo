@@ -8,8 +8,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.mockito.ArgumentCaptor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -338,7 +340,7 @@ class ProcessesPaneTest {
         DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")
                 && text.x() > second.x() && Math.abs(text.y() - second.y()) <= 1).findFirst()
                 .orElseThrow(() -> new AssertionError("no pencil by " + second + " in " + frame.drawn()));
-        int pencilTop = pencil.y() - ButtonPainter.TEXT_NUDGE;
+        int pencilTop = frame.buttonAround(pencil)[1];
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
@@ -353,6 +355,21 @@ class ProcessesPaneTest {
                 && text.y() > first.y() && text.y() < second.y()).reduce((earlier, later) -> later).orElseThrow();
         int lastBottom = frame.buttonAround(last)[3];
         assertEquals(RowLayout.RULE_GAP, rule - lastBottom, firstName + "'s last button over the rule");
+    }
+
+    /**
+     * A mutator's name centers on its row through the one centering helper, as every list pane's does (decision
+     * one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void mutatorNameCentersOnItsRow() {
+        DrawnFrame frame = frame();
+        DrawnFrame.Text copper = frame.drawn().stream().filter(text -> text.text().startsWith("copper_oxidation"))
+                .findFirst().orElseThrow(() -> new AssertionError(frame.texts().toString()));
+        DrawnFrame.Text lower = Stream.of(first(frame, "waxed"), copper)
+                .max(Comparator.comparingInt(DrawnFrame.Text::y)).orElseThrow();
+        assertEquals(Lettering.full(DrawnFrame.font()).centeredTop(frame.rowTopAbove(lower),
+                RowLayout.SPRITE_ROW_HEIGHT), lower.y());
     }
 
     /**
@@ -625,7 +642,7 @@ class ProcessesPaneTest {
     void mutatorsHeadingStandsOnTheFirstRowUnderTheSearchBox() {
         DrawnFrame frame = frame();
         DrawnFrame.Text heading = frame.find("Mutators");
-        assertEquals(ProcessesPane.SEARCH_ROW + ProcessesPane.HEADING_NUDGE, heading.y());
+        assertEquals(RowLayout.nameTop(DrawnFrame.font(), ProcessesPane.SEARCH_ROW), heading.y());
         List<DrawnFrame.Text> drawn = frame.drawn().stream()
                 .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::y)).toList();
         assertEquals("Mutators", drawn.getFirst().text(), drawn.toString());

@@ -14,7 +14,7 @@ import java.util.function.Consumer;
 final class DraftPane {
     private static final int WIDTH = 320;
     private static final int PADDING = 8;
-    private static final int LINE_HEIGHT = 10;
+    private static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     private static final int ACTION_GAP = 12;
     private static final int HALF = 2;
     private final DraftConfirm confirm;
@@ -51,7 +51,8 @@ final class DraftPane {
         int y = top + PADDING;
         graphics.text(font, dialog.get().title(), x, y, Palette.TEXT);
         y += LINE_HEIGHT * HALF;
-        ExpressionLines.draw(font, body, x, y, textWidth, new ExpressionLines.Painter(graphics, null, targets,
+        ExpressionLines.draw(Lettering.full(font), body, x, y, textWidth, new ExpressionLines.Painter(graphics, null,
+                targets,
                 Palette.MUTED, Palette.MUTED, (name, linkX, linkY, width) -> { }));
         drawChoices(graphics, font, x, y + bodyHeight + LINE_HEIGHT, targets);
     }

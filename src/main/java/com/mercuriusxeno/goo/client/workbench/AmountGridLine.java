@@ -116,7 +116,8 @@ final class AmountGridLine {
         int rowHeight = rowHeight();
         for (int index = 0; index < cells.size(); index++) {
             List<ExpressionLines.Run> cell = cells.get(index);
-            ExpressionLines.draw(font, cell, left + index % columns * columnWidth, top + index / columns * rowHeight,
+            ExpressionLines.draw(Lettering.full(font), cell, left + index % columns * columnWidth,
+                    top + index / columns * rowHeight,
                     ExpressionLines.width(font, cell) + 1, painter);
         }
     }

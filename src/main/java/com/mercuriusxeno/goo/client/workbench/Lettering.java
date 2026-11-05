@@ -9,11 +9,17 @@ import org.joml.Matrix3x2fStack;
  * A font drawn at a scale: every width it answers and every text it draws are the font's at that scale, so the
  * glyphs and the room between them shrink together, as the expression builder letters its words (decision
  * builder-font-and-spacing-shrink-padding-untouched). At scale one it is the font itself and draws with no pose.
+ * Decision one-lettering-primitive-names-three-text-roles: every surface letters in one of three roles, full size for
+ * names, headers, labels and buttons, the builder's scale for control wording, expression terms and what a drag
+ * holds, and the amount's small digits for every goo amount beside a type icon; {@link #centeredTop} places every
+ * line.
  *
  * @param font  the font
  * @param scale how large its glyphs draw against the font's own
  */
 record Lettering(Font font, float scale) {
+    /** The amount role's scale, the font's 8px glyphs reading 6px. */
+    static final float AMOUNT_SCALE = 0.75f;
     private static final float FULL = 1f;
     // A font's line holds an empty row under its glyphs, so centering the ink centers one row lower than the line.
     private static final int GLYPH_GAP = 1;
@@ -29,6 +35,22 @@ record Lettering(Font font, float scale) {
      */
     static Lettering full(Font font) {
         return new Lettering(font, FULL);
+    }
+
+    /**
+     * @param font the font
+     * @return the font at the expression builder's scale
+     */
+    static Lettering builder(Font font) {
+        return new Lettering(font, ControlFlow.BUILDER_SCALE);
+    }
+
+    /**
+     * @param font the font
+     * @return the font at a goo amount's small scale
+     */
+    static Lettering amount(Font font) {
+        return new Lettering(font, AMOUNT_SCALE);
     }
 
     /**

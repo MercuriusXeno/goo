@@ -40,7 +40,6 @@ final class BuilderOverlays {
     private static final int DROPDOWN_CHROME = BOX_HEIGHT + 1 + 1;
     private static final int DROPDOWN_HEIGHT = DROPDOWN_CHROME + SearchDropdown.SHOWN * SearchDropdown.ROW_HEIGHT;
     private static final int OPTION_ROW = ButtonPainter.HEIGHT;
-    private static final int OPTION_TEXT_NUDGE = 3;
 
     private final ManagerActions actions;
     private final ItemIcons icons;
@@ -518,7 +517,8 @@ final class BuilderOverlays {
         for (int index = 0; index < open.size(); index++) {
             Option option = open.get(index);
             int rowTop = top + index * OPTION_ROW;
-            graphics.text(font, option.label(), left + ButtonPainter.PADDING, rowTop + OPTION_TEXT_NUDGE, Palette.TEXT);
+            graphics.text(font, option.label(), left + ButtonPainter.PADDING, Lettering.full(font).centeredTop(rowTop,
+                    OPTION_ROW), Palette.TEXT);
             targets.add(left, rowTop, width, OPTION_ROW, () -> pickOption(option), hintKey(option.hint()));
         }
     }

@@ -27,6 +27,21 @@ class SmallDigitsTest {
         assertEquals(ICON_RIGHT + GAP - 1, amount.x(), "a pixel nearer the icon than the gap");
     }
 
+    /**
+     * An Items corner count's fraction and a value column's fraction stack at one size (decision
+     * one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void cornerCountAndValueColumnStackAtOneSize() {
+        DrawnFrame corner = new DrawnFrame();
+        SmallDigits.drawCorner(corner.graphics, DrawnFrame.font(), StackedFractions.of("9/4"), 40, 30, 0xFFFFFFFF);
+        DrawnFrame column = new DrawnFrame();
+        SmallDigits.draw(column.graphics, DrawnFrame.font(), "9/4", 10, 10, 0xFFFFFFFF);
+        assertEquals(column.placed("1").scale(), corner.placed("1").scale(), "the numerators' stack");
+        assertEquals(column.placed("4").scale(), corner.placed("4").scale(), "the denominators' stack");
+        assertEquals(Lettering.AMOUNT_SCALE, corner.placed("2").scale(), "the whole draws small");
+    }
+
     @Test
     void advanceLeavesAPixelMoreBeforeTheNextIcon() {
         Font font = DrawnFrame.font();

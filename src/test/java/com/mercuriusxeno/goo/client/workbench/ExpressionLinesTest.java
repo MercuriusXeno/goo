@@ -74,7 +74,7 @@ class ExpressionLinesTest {
     void operatorCentersOnTheSpriteBesideIt() {
         DrawnFrame frame = new DrawnFrame();
         Font font = DrawnFrame.font();
-        ExpressionLines.draw(font, ExpressionLines.shownRuns("anvil - bucket", NAMES), 0, 40, 400,
+        ExpressionLines.draw(Lettering.full(font), ExpressionLines.shownRuns("anvil - bucket", NAMES), 0, 40, 400,
                 new ExpressionLines.Painter(frame.graphics, mock(ItemIcons.class), frame.targets, 0xFFFFFFFF,
                         Palette.LINK, (ref, x, y, width) -> { }));
         org.mockito.ArgumentCaptor<Integer> spriteTops = org.mockito.ArgumentCaptor.forClass(Integer.class);
@@ -83,6 +83,23 @@ class ExpressionLinesTest {
         int spriteTop = spriteTops.getValue();
         assertEquals(spriteTop + (16 - font.lineHeight + 1) / 2, frame.find("-").y());
         assertEquals(spriteTop + (16 - font.lineHeight + 1) / 2, frame.find("Bucket").y());
+    }
+
+    /**
+     * A number following a goo type's icon letters at the amount role, as every goo amount beside a type icon does,
+     * while a number standing alone keeps the lettering it was drawn with (decision
+     * one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void numberBesideATypeIconLettersAtTheAmountRole() {
+        DrawnFrame frame = new DrawnFrame();
+        List<ExpressionLines.Run> runs = List.of(run(ExpressionLines.Kind.NUMBER, "5"),
+                new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "metal"), run(ExpressionLines.Kind.NUMBER, "3"));
+        ExpressionLines.draw(Lettering.full(DrawnFrame.font()), runs, new ExpressionLines.Span(0, 40, 400,
+                ExpressionLines.lineHeight(runs)), new ExpressionLines.Painter(frame.graphics, mock(ItemIcons.class),
+                frame.targets, 0xFFFFFFFF, Palette.LINK, (ref, x, y, width) -> { }));
+        assertEquals(Lettering.AMOUNT_SCALE, frame.placed("3").scale(), frame.placements().toString());
+        assertEquals(1f, frame.placed("5").scale(), frame.placements().toString());
     }
 
     /**
@@ -164,7 +181,7 @@ class ExpressionLinesTest {
 
     private static DrawnFrame drawn(String shown, int width) {
         DrawnFrame frame = new DrawnFrame();
-        ExpressionLines.draw(DrawnFrame.font(), ExpressionLines.shownRuns(shown, NAMES), 10, 20, width,
+        ExpressionLines.draw(Lettering.full(DrawnFrame.font()), ExpressionLines.shownRuns(shown, NAMES), 10, 20, width,
                 new ExpressionLines.Painter(frame.graphics, null, frame.targets, 0xFFFFFFFF, Palette.LINK,
                         (variable, x, y, width1) -> { }));
         return frame;
@@ -253,7 +270,8 @@ class ExpressionLinesTest {
     }
 
     private static void paint(DrawnFrame frame, List<ExpressionLines.Run> runs) {
-        ExpressionLines.draw(DrawnFrame.font(), runs, 10, 20, 300, new ExpressionLines.Painter(frame.graphics, null,
+        ExpressionLines.draw(Lettering.full(DrawnFrame.font()), runs, 10, 20, 300,
+                new ExpressionLines.Painter(frame.graphics, null,
                 frame.targets, 0xFFFFFFFF, Palette.LINK, (variable, x, y, width) -> { }));
     }
 

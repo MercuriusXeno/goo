@@ -37,7 +37,6 @@ final class ControlFlow {
     // A parenthetical container's border, and the clear pixel inside it, either side of its contents.
     private static final int FRAME = 1 + 1;
     private static final int GAP = BuilderOverlays.GAP;
-    private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
     // The one clear pixel between a ratio's colon and each of its boxes.
     private static final int CLEAR = 1;
@@ -183,10 +182,9 @@ final class ControlFlow {
         lineOverhang = 0;
     }
 
-    // Where the flow's words stand on its line: the font's nudge at full size, centered in the line when lettered
-    // smaller.
+    // Where the flow's words stand on its line: centered in it at every scale.
     private int wordsTop() {
-        return letters.isFull() ? y + TEXT_NUDGE : letters.centeredTop(y, line);
+        return letters.centeredTop(y, line);
     }
 
     /**
@@ -1090,13 +1088,14 @@ final class ControlFlow {
     private record RunsBand(int top, int height, boolean filled) {
     }
 
-    // At full size an icon line's runs fill the line and text runs stand at the words' nudge; lettered smaller, runs
+    // At full size an icon line's runs fill the line and text runs center on the line; lettered smaller, runs
     // fill the builder's line, and a 16 px item sprite's line stands taller, reaching past the line evenly above and
     // below (decision builder-font-and-spacing-shrink-padding-untouched, as the operator ruled).
     private RunsBand bandOf(List<ExpressionLines.Run> runs) {
         int natural = ExpressionLines.lineHeight(runs);
         if (letters.isFull()) {
-            return natural == line ? new RunsBand(y, line, true) : new RunsBand(y + TEXT_NUDGE, natural, false);
+            return natural == line ? new RunsBand(y, line, true) : new RunsBand(letters.centeredTop(y, line), natural,
+                    false);
         }
         boolean sprite = runs.stream().anyMatch(run -> run.kind() == ExpressionLines.Kind.ITEM);
         int height = sprite ? ExpressionLines.ICON_LINE_HEIGHT : line;

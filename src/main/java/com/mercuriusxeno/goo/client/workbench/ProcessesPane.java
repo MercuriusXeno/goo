@@ -37,7 +37,6 @@ final class ProcessesPane {
     // line's buttons the rule gap under the rule above, its text on their labels' line.
     private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
     private static final int BUTTON_INSET = RowLayout.RULE_GAP;
-    private static final int HEAD_TEXT_NUDGE = BUTTON_INSET + ButtonPainter.TEXT_NUDGE;
     private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT;
     // The sentence's lettered line is as tall as its buttons, so the sentence stands the rule gap under the head
     // line's buttons and its last buttons the rule gap over the rule below
@@ -69,8 +68,6 @@ final class ProcessesPane {
     private static final String NO_TEXT = "";
     // Mutators first, then iterators.
     private static final boolean[] KINDS = {false, true};
-    /** How far a column heading's text stands below the columns' top. */
-    static final int HEADING_NUDGE = 5;
     private static final int NAME_BOX_WIDTH = 140;
     private static final int NAME_BOX_HEIGHT = 16;
     private static final String SEARCH_HINT = "Search mutators";
@@ -266,7 +263,8 @@ final class ProcessesPane {
     private void drawColumn(Frame frame, ProcessesTab.ProcessSection section, boolean iterators) {
         GroupsPane.Bounds column = frame.rows();
         GuiGraphicsExtractor graphics = frame.graphics();
-        graphics.text(frame.font(), iterators ? ITERATORS : MUTATORS, column.left(), column.top() + HEADING_NUDGE,
+        graphics.text(frame.font(), iterators ? ITERATORS : MUTATORS, column.left(), RowLayout.nameTop(frame.font(),
+                column.top()),
                 Palette.TEXT);
         drawCreate(frame, section.section(), iterators, column.top());
         int listTop = column.top() + ControlFlow.FULL_LINE + GAP;
@@ -415,7 +413,7 @@ final class ProcessesPane {
         int nameRoom = markX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
         drawName(frame, section, row.key(), new NameSlot(y, nameRoom));
         VerdictMark mark = verdictMark(row);
-        graphics.text(font, mark.glyph(), markX, y + HEAD_TEXT_NUDGE, mark.color());
+        graphics.text(font, mark.glyph(), markX, RowLayout.nameTop(font, y), mark.color());
         frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
                 + (row.reason().isEmpty() ? NO_REASON : REASON_GAP + row.reason())));
         drawRemoval(frame, section, row.key(), y + BUTTON_INSET);
@@ -481,7 +479,7 @@ final class ProcessesPane {
             return;
         }
         String shown = fittedName(frame.font(), key, slot.room());
-        ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, y + HEAD_TEXT_NUDGE,
+        ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, RowLayout.nameTop(frame.font(), y),
                 draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)));
         frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, nameHoverKey(section, key, shown));
         ButtonPainter.draw(frame.graphics(), frame.font(), RENAME, x + frame.font().width(shown) + PENCIL_GAP,
