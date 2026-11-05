@@ -54,6 +54,9 @@ final class Valuations {
     private static final String TAG_PREFIX = "#";
     private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String CONTEXT_END = ":";
+    // Decision diagnose-and-correct-item-reference-unrecognized-token: an entry naming an item nothing values.
+    private static final String NAMES = " names ";
+    private static final String VALUED_BY_NOTHING = ", which no entry or recipe values";
     private static final String WARNING_SEPARATOR = "; ";
     private static final String AIR = "minecraft:air";
     private static final String NONE = "none";
@@ -131,11 +134,13 @@ final class Valuations {
      * @return each item and #group entry as the loader values it
      */
     static String resolved(BaseValuesModel model, InventoryView inventory) {
-        JsonObject root = resolvedRoot(model, GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver()));
+        GooBaseValuesPreview.Derived derived = derivedFor(model, inventory);
+        GooBaseValuesPreview.Loaded loaded = GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver());
+        JsonObject root = resolvedRoot(model, loaded, readingsOf(loaded, derived));
         JsonArray entries = root.getAsJsonArray(ENTRIES);
         // An item no entry names reads the value its recipes derive, so the Items tab shows what the game gives it
         // (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
-        Map<Identifier, GooValue> effective = derivedFor(model, inventory).effective();
+        Map<Identifier, GooValue> effective = derived.effective();
         for (String id : inventory.itemIds()) {
             Identifier item = Identifier.tryParse(id);
             GooValue value = item == null ? null : effective.get(item);
@@ -154,10 +159,29 @@ final class Valuations {
     }
 
     private static String resolved(BaseValuesModel model, GooBaseValuesPreview.Loaded loaded) {
-        return resolvedRoot(model, loaded).toString();
+        return resolvedRoot(model, loaded, new Readings(loaded.baseValues()::get, loaded.unresolved())).toString();
     }
 
-    private static JsonObject resolvedRoot(BaseValuesModel model, GooBaseValuesPreview.Loaded loaded) {
+    /**
+     * What an entry's row reads: its value, and the item it names that holds no value where it waits on one.
+     *
+     * @param value      an item's value as the entry resolved it, null for none
+     * @param unresolved each entry naming an item nothing values, with that item
+     */
+    private record Readings(Function<Identifier, @Nullable GooValue> value, Map<Identifier, String> unresolved) {
+    }
+
+    // Decision diagnose-and-correct-item-reference-unrecognized-token: an entry waiting for an item the recipes
+    // value reads the value it resolved to once they derive, and one naming an item nothing values names it.
+    private static Readings readingsOf(GooBaseValuesPreview.Loaded loaded, GooBaseValuesPreview.Derived derived) {
+        return new Readings(item -> {
+            GooValue keyed = loaded.baseValues().get(item);
+            return keyed != null ? keyed : derived.registry().handKeyedValue(item);
+        }, derived.registry().unresolvedReferences());
+    }
+
+    private static JsonObject resolvedRoot(BaseValuesModel model, GooBaseValuesPreview.Loaded loaded,
+                                           Readings readings) {
         JsonArray entries = new JsonArray();
         for (BaseValuesModel.Member member : model.members()) {
             if (member.kind() != BaseValuesModel.Kind.VALUE || member.key().startsWith(SECTION_PREFIX)) {
@@ -168,13 +192,12 @@ final class Valuations {
                     : Identifier.tryParse(member.key());
             JsonObject entry = new JsonObject();
             entry.addProperty(KEY, member.key());
-            entry.add(VALUE, amountsJson(valued == null ? null : loaded.baseValues().get(valued)));
+            entry.add(VALUE, amountsJson(valued == null ? null : readings.value().apply(valued)));
             entry.addProperty(DENIED, DENIED_TEXT.equals(member.text().trim()));
             entry.addProperty(RESTRICTED, valued != null && loaded.restricted().contains(valued));
-            List<String> warnings = loaded.warnings().stream()
-                    .filter(warning -> warning.startsWith(member.key() + CONTEXT_END)).toList();
+            List<String> warnings = warningsOf(member.key(), valued, loaded, readings);
             if (warnings.isEmpty()) {
-                entry.add(ERROR, com.google.gson.JsonNull.INSTANCE);
+                entry.add(ERROR, JsonNull.INSTANCE);
             } else {
                 entry.addProperty(ERROR, String.join(WARNING_SEPARATOR, warnings));
             }
@@ -183,6 +206,18 @@ final class Valuations {
         JsonObject root = new JsonObject();
         root.add(ENTRIES, entries);
         return root;
+    }
+
+    // An entry's validator warnings, then the item it names that nothing values, where it names one.
+    private static List<String> warningsOf(String key, @Nullable Identifier valued, GooBaseValuesPreview.Loaded loaded,
+                                           Readings readings) {
+        List<String> warnings = new ArrayList<>(loaded.warnings().stream()
+                .filter(warning -> warning.startsWith(key + CONTEXT_END)).toList());
+        String missing = valued == null ? null : readings.unresolved().get(valued);
+        if (missing != null) {
+            warnings.add(key + CONTEXT_END + NAMES + missing + VALUED_BY_NOTHING);
+        }
+        return warnings;
     }
 
     private static @Nullable Identifier firstMember(BaseValuesModel model, String group) {

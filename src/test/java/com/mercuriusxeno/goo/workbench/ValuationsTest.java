@@ -211,6 +211,26 @@ class ValuationsTest {
     }
 
     /**
+     * An entry naming an item only its recipe values reads that value in the Items tab with no error once the
+     * recipes derive: chainmail_boots at 4 iron_chain, the chain made of two nuggets and an ingot (decision
+     * diagnose-and-correct-item-reference-unrecognized-token).
+     */
+    @Test
+    void resolveAnswersAnEntryWaitingForARecipeValuedItem() {
+        BaseValuesModel model = BaseValuesModel.parse("""
+                {
+                    "iron_nugget": {"metal": 1},
+                    "iron_ingot": {"metal": 9},
+                    "chainmail_boots": "4 iron_chain"
+                }
+                """);
+        JsonObject boots = entryNamed(JsonParser.parseString(Valuations.resolved(model,
+                InventoryView.parse(ironInventory()))).getAsJsonObject().getAsJsonArray("entries"), "chainmail_boots");
+        assertEquals("44", boots.getAsJsonObject("value").get("metal").getAsString(), boots.toString());
+        assertTrue(boots.get("error").isJsonNull(), boots.toString());
+    }
+
+    /**
      * An entry reading {} values nothing, so it reads as none with nothing defined and stands uncovered
      * (decision inventory-hydrates-the-tool-and-writes-no-template).
      */

@@ -85,9 +85,11 @@ public final class GooBaseValuesPreview {
      * @param restricted the items restricted from melting
      * @param warnings   the validator's warnings, each led by the entry it names
      * @param roots      the clique roots _roots names, in file order
+     * @param unresolved each entry naming an item no line values, with that item, which only the recipes may value
+     *                   (decision diagnose-and-correct-item-reference-unrecognized-token)
      */
     public record Loaded(Map<Identifier, GooValue> baseValues, Set<Identifier> denied, Set<Identifier> restricted,
-                         List<String> warnings, List<Identifier> roots) {
+                         List<String> warnings, List<Identifier> roots, Map<Identifier, String> unresolved) {
     }
 
     /**
@@ -113,7 +115,8 @@ public final class GooBaseValuesPreview {
         // resolved, negative amounts and all, so the operator sees the amount to fix.
         Map<Identifier, GooValue> values = new LinkedHashMap<>(state.baseValues);
         values.putAll(state.negativeItems);
-        return new Loaded(values, state.deniedItems, state.restrictedItems, warnings, List.copyOf(state.rootItems));
+        return new Loaded(values, state.deniedItems, state.restrictedItems, warnings, List.copyOf(state.rootItems),
+                Map.copyOf(state.unresolvedItems));
     }
 
     /**

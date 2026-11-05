@@ -124,6 +124,55 @@ class GooValueRegistryTest {
         }
     }
 
+    /**
+     * An entry naming an item no line above values waits for it: a line below values it, or the recipes derive it,
+     * and the entry then reads its value; the validator calls the item no unrecognized token (decision
+     * diagnose-and-correct-item-reference-unrecognized-token; the operator's ruling of 2026-11-04: an item picked from
+     * the list is a token the expression recognizes, and a line naming it waits for recipes).
+     */
+    @Nested
+    class EntriesWaitForTheItemsTheyName {
+        // The text the builder writes for chainmail_boots set to 4 x iron_chain.
+        private static final String BOOTS = "{\"_constants\": {\"iron_nugget\": {\"metal\": \"1\"}}, "
+                + "\"iron_nugget\": \"$iron_nugget\", \"iron_ingot\": {\"metal\": 9}, "
+                + "\"chainmail_boots\": \"4 iron_chain\"}";
+
+        @Test
+        void entryNamingARecipeValuedItemReadsFourTimesItsValue() throws IOException {
+            registry.parseBaseValues(new ByteArrayInputStream(BOOTS.getBytes(StandardCharsets.UTF_8)));
+            registry.publishBaseAsEffective();
+            registry.deriveFromRecipeInputs(List.of(recipe("minecraft:iron_chain", 1,
+                    slot("minecraft:iron_nugget"), slot("minecraft:iron_ingot"), slot("minecraft:iron_nugget"))),
+                    false);
+            assertEquals(GooFraction.of(11), registry.table().lookup(id("minecraft:iron_chain"))
+                    .exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(44), registry.table().lookup(id("minecraft:chainmail_boots"))
+                    .exact(GooTypes.METAL));
+            assertTrue(validateJsonString(BOOTS).stream().noneMatch(warning -> warning.contains("iron_chain")),
+                    validateJsonString(BOOTS).toString());
+        }
+
+        @Test
+        void entryNamingAnItemValuedBelowReadsItsValue() throws IOException {
+            String below = "{\"minecraft:thing\": \"minecraft:iron_ingot * 2\", "
+                    + "\"minecraft:iron_ingot\": {\"metal\": 10}}";
+            registry.parseBaseValues(new ByteArrayInputStream(below.getBytes(StandardCharsets.UTF_8)));
+            registry.publishBaseAsEffective();
+            assertEquals(GooFraction.of(20), registry.table().lookup(id("minecraft:thing")).exact(GooTypes.METAL));
+            assertTrue(validateJsonString(below).isEmpty(), validateJsonString(below).toString());
+        }
+
+        @Test
+        void entryNamingAnItemNothingValuesNamesIt() throws IOException {
+            String nothing = "{\"minecraft:pail\": \"no_such_item * 2\"}";
+            registry.parseBaseValues(new ByteArrayInputStream(nothing.getBytes(StandardCharsets.UTF_8)));
+            registry.publishBaseAsEffective();
+            registry.deriveFromRecipeInputs(List.of(), false);
+            assertNull(registry.table().lookup(id("minecraft:pail")));
+            assertEquals(Map.of(id("minecraft:pail"), "no_such_item"), registry.unresolvedReferences());
+        }
+    }
+
     // ── LCD Derivation ──────────────────────────────────────────────────
 
     @Nested
@@ -1911,18 +1960,18 @@ class GooValueRegistryTest {
         }
 
         /**
-         * Out-of-order item reference is flagged.
+         * An item valued below an entry naming it is no mistake: the entry waits for it (decision
+         * diagnose-and-correct-item-reference-unrecognized-token).
          */
         @Test
-        void outOfOrderReference() {
+        void outOfOrderReferenceNoWarning() {
             List<String> warnings = validateJsonString("""
                     {
                         "minecraft:thing": "minecraft:iron_ingot * 2",
                         "minecraft:iron_ingot": { "metal": 10 }
                     }
                     """);
-            assertTrue(warnings.stream().anyMatch(w -> w.contains("iron_ingot") && w.contains("not defined above")),
-                    "Should warn about out-of-order reference: " + warnings);
+            assertTrue(warnings.isEmpty(), "Should have no warnings: " + warnings);
         }
 
         /**
@@ -1984,18 +2033,17 @@ class GooValueRegistryTest {
         }
 
         /**
-         * Dot notation referencing an item below is flagged.
+         * Dot notation referencing an item below is no mistake either: the entry waits for it.
          */
         @Test
-        void outOfOrderDotNotation() {
+        void outOfOrderDotNotationNoWarning() {
             List<String> warnings = validateJsonString("""
                     {
                         "minecraft:thing": { "blaze": "minecraft:coal.blaze * 2" },
                         "minecraft:coal": { "rock": 48, "blaze": 336 }
                     }
                     """);
-            assertTrue(warnings.stream().anyMatch(w -> w.contains("coal") && w.contains("not defined above")),
-                    "Should warn about out-of-order dot-notation reference: " + warnings);
+            assertTrue(warnings.isEmpty(), "Should have no warnings: " + warnings);
         }
     }
 
