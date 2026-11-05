@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -648,16 +649,25 @@ class VariablesPaneTest {
         assertTrue(itemXs.getValue() > usedBy.x(), "the stick's icon follows Used by");
         DrawnFrame.Text value = frame.find("Value:");
         assertTrue(value.y() > name.y(), value + " below " + name);
-        DrawnFrame.Text glowAmount = frame.find("(6,");
-        DrawnFrame.Text leafAmount = frame.find("4)");
-        assertTrue(onLine(value.y(), glowAmount.y()) && onLine(value.y(), leafAmount.y()), frame.drawn().toString());
         // Decision one-lettering-primitive-names-three-text-roles: the amount line letters at the amount role.
-        assertEquals(List.of(Lettering.AMOUNT_SCALE, Lettering.AMOUNT_SCALE),
-                List.of(frame.placed("(6,").scale(), frame.placed("4)").scale()), frame.placements().toString());
+        List<DrawnFrame.Placed> amounts = frame.placements().stream()
+                .filter(placed -> placed.scale() == Lettering.AMOUNT_SCALE).toList();
+        assertEquals(List.of("6", "4"), amounts.stream().map(DrawnFrame.Placed::text).toList(), amounts.toString());
+        DrawnFrame.Placed glowAmount = amounts.getFirst();
+        assertTrue(amounts.stream().allMatch(amount -> onLine(value.y(), amount.y())), frame.drawn().toString());
+        // Decision one-amount-grid-draws-every-amount-list: the line is GooAmountGrid's, its cells a column apart and
+        // its parens gold flush symbols round the digits, no paren or comma riding a number.
+        GooAmountGrid grid = GooAmountGrid.reduced(Map.of("glow", "6", "leaf", "4"));
+        assertEquals(grid.cellLeft(DrawnFrame.font(), 1) - grid.cellLeft(DrawnFrame.font(), 0),
+                amounts.get(1).x() - glowAmount.x(), amounts.toString());
+        assertEquals(List.of(Palette.GOLD, Palette.GOLD), List.of(frame.find("(").color(), frame.find(")").color()));
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.text().length() > 1
+                && (text.text().startsWith("(") || text.text().endsWith(")") || text.text().endsWith(","))),
+                frame.drawn().toString());
         DrawnFrame.Text leafRow = frame.find("4");
         DrawnFrame.Text glowRow = frame.find("6");
         assertTrue(value.y() < leafRow.y() && leafRow.y() < glowRow.y(), frame.drawn().toString());
-        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() > glowAmount.y()
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() > glowAmount.y() + 4
                 && (text.text().contains("(") || text.text().contains(")"))), frame.drawn().toString());
     }
 
@@ -685,7 +695,8 @@ class VariablesPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
     }
 
-    private static final List<String> FOUR_AMOUNTS = List.of("(96768,", "32256,", "336,", "192)");
+    // Decision one-amount-grid-draws-every-amount-list: digits alone, the parens standing round the grid.
+    private static final List<String> FOUR_AMOUNTS = List.of("96768", "32256", "336", "192");
 
     /**
      * A typed prefab's amounts stand on Value:'s line above its type rows, each type's icon beside its amount, and
@@ -698,7 +709,7 @@ class VariablesPaneTest {
         fourTypeRows().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, 2000, 400),
                 frame.targets, 0, 0);
         DrawnFrame.Text value = frame.find("Value:");
-        List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::find).toList();
+        List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::findFirst).toList();
         assertTrue(onLine(value.y(), amounts.getFirst().y()), frame.drawn().toString());
         List<Integer> rowLines = frame.drawn().stream().filter(text -> text.text().equals(":"))
                 .map(DrawnFrame.Text::y).toList();
@@ -748,7 +759,7 @@ class VariablesPaneTest {
         read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text beamValue = frame.drawn().stream().filter(text -> text.text().equals("Value:"))
                 .reduce((first, last) -> last).orElseThrow();
-        DrawnFrame.Text amount = frame.find("(192)");
+        DrawnFrame.Text amount = frame.find("192");
         DrawnFrame.Text wood = linkText(frame, "$wood");
         assertTrue(onLine(beamValue.y(), amount.y()), frame.drawn().toString());
         assertTrue(wood.y() > amount.y(), wood + " below " + amount);
@@ -820,7 +831,7 @@ class VariablesPaneTest {
         // prefab-head-is-name-pencil-used-by-then-value-with-its-amount), so the second row stands an icon line down.
         assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT,
                 value.y() + ExpressionLines.ICON_LINE_HEIGHT + ButtonPainter.HEIGHT), frame.drawn().toString());
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().startsWith("(96768") && onLine(text.y(), value.y())),
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("96768") && onLine(text.y(), value.y())),
                 frame.drawn().toString());
     }
 
@@ -837,7 +848,7 @@ class VariablesPaneTest {
             DrawnFrame frame = new DrawnFrame();
             typedPreview().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, right, 4000),
                     frame.targets, 0, 0);
-            List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::find).toList();
+            List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::findFirst).toList();
             assertEquals(List.of(amounts.get(0).y(), amounts.get(2).y()), List.of(amounts.get(1).y(),
                     amounts.get(3).y()), "at " + right + ": " + amounts);
             assertTrue(amounts.get(2).y() > amounts.get(0).y(), "at " + right + ": " + amounts);
@@ -845,8 +856,13 @@ class VariablesPaneTest {
             assertEquals(PREVIEWED_TYPES.size(), icons.size(), "at " + right);
             assertEquals(List.of(icons.get(0)[0], icons.get(1)[0]), List.of(icons.get(2)[0], icons.get(3)[0]),
                     "at " + right + ": the second row's icons stand under the first's");
-            assertTrue(frame.drawn().stream().noneMatch(text -> text.text().trim().equals("(")
-                    || text.text().trim().equals(")")), "at " + right + ": " + frame.drawn());
+            // Decision one-amount-grid-draws-every-amount-list: the open paren stands before the first cell and the
+            // close paren flush after the last, on its row.
+            DrawnFrame.Text open = frame.find("(");
+            DrawnFrame.Text close = frame.find(")");
+            assertTrue(open.x() < icons.get(0)[0] && onLine(open.y(), amounts.get(0).y())
+                    && close.x() > amounts.get(3).x() && onLine(close.y(), amounts.get(3).y()),
+                    "at " + right + ": " + frame.drawn());
         }
     }
 

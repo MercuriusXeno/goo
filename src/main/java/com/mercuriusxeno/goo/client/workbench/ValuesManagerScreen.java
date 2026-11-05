@@ -534,10 +534,9 @@ public final class ValuesManagerScreen extends Screen {
     private static Either<FormattedText, TooltipComponent> elementOf(TooltipLine line) {
         return switch (line) {
             case TooltipLine.Text text -> Either.left(text.text());
-            case TooltipLine.Runs runs -> Either.right(runs);
-            case TooltipLine.RunsGrid grid -> Either.right(grid);
-            case TooltipLine.Members members -> Either.right(members);
             case TooltipLine.GooAmount amount -> Either.right(new TooltipLine.GooAmounts(List.of(amount)));
+            // Runs, a grid of runs, members and an amount grid each reach their tooltip component as they are.
+            case TooltipComponent component -> Either.right(component);
         };
     }
 

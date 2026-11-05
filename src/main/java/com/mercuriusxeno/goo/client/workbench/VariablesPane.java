@@ -273,16 +273,17 @@ final class VariablesPane {
      * @param block the prefab's block, carrying its kind, what it resolves to and its error
      * @return the amount line
      */
-    static AmountGridLine amountLine(List<ExpressionLines.Run> runs, VariablesTab.ConstantBlock block) {
+    static GooAmountGrid amountLine(List<ExpressionLines.Run> runs, VariablesTab.ConstantBlock block) {
         String resolved = block.resolved();
         if (!block.error().isEmpty() || resolved.isEmpty() || isPlainNumber(runs)) {
-            return AmountGridLine.NONE;
+            return GooAmountGrid.NONE;
         }
         if (!VariablesTab.TREE_KIND.equals(block.kind())) {
-            return AmountGridLine.scalar(resolved);
+            return new GooAmountGrid(GooAmountGrid.reducedScalar(resolved));
         }
         Map<String, String> typed = typedAmounts(resolved);
-        return typed.isEmpty() ? AmountGridLine.NONE : AmountGridLine.typed(AmountOrder.highestFirst(typed));
+        // Decision one-amount-grid-draws-every-amount-list: the line is the one amount grid, in its parens.
+        return typed.isEmpty() ? GooAmountGrid.NONE : GooAmountGrid.reduced(AmountOrder.highestFirst(typed));
     }
 
     private static boolean isPlainNumber(List<ExpressionLines.Run> runs) {
@@ -494,10 +495,10 @@ final class VariablesPane {
             return drawReadView(graphics, font, block, shown, new GroupsPane.Bounds(labelX, bounds.top(),
                     bounds.right(), bounds.bottom()), y, targets);
         }
-        AmountGridLine amount = amountLine(shown, block);
+        GooAmountGrid amount = amountLine(shown, block);
         List<ExpressionLines.Run> runs = expressionRuns(shown, block.error());
         int viewX = labelX + font.width(VALUE_LABEL) + VALUE_GAP;
-        int boxTop = drawAmountLine(graphics, font, block, amount, new AmountPlace(labelX, viewX, y), targets);
+        int boxTop = drawAmountLine(graphics, font, amount, new AmountPlace(labelX, viewX, y));
         int height = drawReadView(graphics, font, block, runs, new GroupsPane.Bounds(viewX, bounds.top(),
                 bounds.right(), bounds.bottom()), boxTop, targets);
         if (amount.isEmpty()) {
@@ -518,14 +519,14 @@ final class VariablesPane {
 
     // The amount line with Value: on it, above the box; answers the box's top, the line's own top where no amount
     // draws.
-    private int drawAmountLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
-                               AmountGridLine amount, AmountPlace at, ClickTargets targets) {
+    private static int drawAmountLine(GuiGraphicsExtractor graphics, Font font, GooAmountGrid amount,
+                                      AmountPlace at) {
         if (amount.isEmpty()) {
             return at.top();
         }
-        amount.draw(font, at.amountX() + ButtonPainter.PADDING, at.top(), readPainter(graphics, block, targets));
+        amount.draw(graphics, font, at.amountX() + ButtonPainter.PADDING, at.top());
         graphics.text(font, VALUE_LABEL, at.labelX(), at.top() + amount.textOffset(font), Palette.MUTED);
-        return at.top() + amount.height() + AMOUNT_GAP;
+        return at.top() + amount.getHeight(font) + AMOUNT_GAP;
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.

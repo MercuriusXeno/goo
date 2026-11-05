@@ -187,9 +187,9 @@ class MutatorControlsTest {
                     anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
             List<Integer> icons = iconXs.getAllValues().stream().filter(x -> x > prefabRight).toList();
             assertEquals(2, icons.size(), frame.drawn().toString());
-            DrawnFrame.Text rock = frame.drawn().stream().filter(text -> text.text().startsWith("(192")).findFirst()
+            DrawnFrame.Text rock = frame.drawn().stream().filter(text -> text.text().equals("192")).findFirst()
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-            DrawnFrame.Text yore = frame.drawn().stream().filter(text -> text.text().equals("336)")).findFirst()
+            DrawnFrame.Text yore = frame.drawn().stream().filter(text -> text.text().equals("336")).findFirst()
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             assertTrue(icons.get(0) < rock.x() && rock.x() < icons.get(1) && icons.get(1) < yore.x(),
                     icons + " " + frame.drawn());

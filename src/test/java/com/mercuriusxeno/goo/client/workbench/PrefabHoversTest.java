@@ -7,9 +7,11 @@ import com.mercuriusxeno.goo.workbench.Processes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -158,10 +160,27 @@ class PrefabHoversTest {
             return new TooltipLine.Text(Component.literal(text));
         }
 
-        // Each line as text: a grid as its cells, a type icon as {type}, a suffix flush against the run before it.
+        // Each line as text: a grid as its cells, a type icon as {type}, a suffix flush against the run before it; an
+        // amount grid as its cells, each {type} then its amount, inside its parens where it reads a reduction.
         private List<Object> read(String name) {
-            return lines(name).stream().map(line -> line instanceof TooltipLine.RunsGrid grid
-                    ? (Object) grid.cells().stream().map(Tooltip::cellText).toList() : (Object) line).toList();
+            return lines(name).stream().map(line -> switch (line) {
+                case TooltipLine.RunsGrid grid -> (Object) grid.cells().stream().map(Tooltip::cellText).toList();
+                case TooltipLine.GooAmounts grid -> (Object) amountCells(grid);
+                default -> (Object) line;
+            }).toList();
+        }
+
+        private static List<String> amountCells(TooltipLine.GooAmounts grid) {
+            List<String> cells = new ArrayList<>();
+            if (grid.reduced()) {
+                cells.add(GooAmountGrid.OPEN.text());
+            }
+            grid.amounts().forEach(amount -> cells.add(amount.type().isEmpty() ? amount.amount()
+                    : "{" + amount.type() + "} " + amount.amount()));
+            if (grid.reduced()) {
+                cells.add(GooAmountGrid.CLOSE.text());
+            }
+            return cells;
         }
 
         /**
@@ -170,16 +189,28 @@ class PrefabHoversTest {
          */
         @Test
         void reductionParensDrawInOneColor() {
+            assertEquals(List.of(ExpressionLines.Kind.FLUSH_SYMBOL, ExpressionLines.Kind.FLUSH_SYMBOL),
+                    List.of(GooAmountGrid.OPEN.kind(), GooAmountGrid.CLOSE.kind()));
             for (String prefab : List.of("double", "coral")) {
-                TooltipLine.RunsGrid reduction = (TooltipLine.RunsGrid) lines(prefab).getLast();
-                List<ExpressionLines.Run> runs = reduction.cells().stream().flatMap(List::stream).toList();
-                ExpressionLines.Run open = runs.stream().filter(run -> run.text().equals("(")).findFirst()
-                        .orElseThrow(() -> new AssertionError(prefab + ": " + runs));
-                ExpressionLines.Run close = runs.stream().filter(run -> run.text().equals(")")).findFirst()
-                        .orElseThrow(() -> new AssertionError(prefab + ": " + runs));
-                assertEquals(List.of(true, true), List.of(ExpressionLines.drawsAsSymbol(open.kind()),
-                        ExpressionLines.drawsAsSymbol(close.kind())), prefab + ": " + runs);
+                TooltipLine.GooAmounts reduction = (TooltipLine.GooAmounts) lines(prefab).getLast();
+                DrawnFrame frame = new DrawnFrame();
+                new GooAmountGrid(reduction, type -> 11).extractImage(DrawnFrame.font(), 0, 0, 400, 200,
+                        frame.graphics);
+                assertEquals(List.of(Palette.GOLD, Palette.GOLD), List.of(frame.find("(").color(),
+                        frame.find(")").color()), prefab + ": " + frame.drawn());
             }
+        }
+
+        /**
+         * A typed prefab's reduction lays as GooAmountGrid cells, each a type and its amount's digits alone, the
+         * parens and no commas around them (decision one-amount-grid-draws-every-amount-list).
+         */
+        @Test
+        void typedReductionLaysAsAmountGridCellsOfDigitsAlone() {
+            TooltipLine.GooAmounts reduction = (TooltipLine.GooAmounts) lines("coral").getLast();
+            assertTrue(reduction.reduced());
+            assertTrue(reduction.amounts().stream().allMatch(amount -> amount.amount().matches("[0-9/]+")),
+                    reduction.toString());
         }
 
         private static String cellText(List<ExpressionLines.Run> cell) {
@@ -202,7 +233,7 @@ class PrefabHoversTest {
         @Test
         void typedPrefabReadsItsRecipeThenItsReduction() {
             assertEquals(List.of(List.of("{deep} : $coral's {deep}", "{nether} : $coral's {zoo}"),
-                    List.of("( {deep} : 12,", "{nether} : 12)")), read("dead_coral"));
+                    List.of("(", "{deep} 12", "{nether} 12", ")")), read("dead_coral"));
         }
 
         /**
@@ -210,7 +241,7 @@ class PrefabHoversTest {
          */
         @Test
         void typedPrefabOverAScalarReadsItsAmountInTheReduction() {
-            assertEquals(List.of(List.of("{leaf} : $stick"), List.of("( {leaf} : 6)")), read("x"));
+            assertEquals(List.of(List.of("{leaf} : $stick"), List.of("(", "{leaf} 6", ")")), read("x"));
         }
 
         /**
@@ -219,7 +250,7 @@ class PrefabHoversTest {
         @Test
         void scalarReadsItsExpressionThenItsReducedValue() {
             assertEquals(List.of(List.of("6")), read("base"));
-            assertEquals(List.of(List.of("$base x 2"), List.of("( 12)")), read("double"));
+            assertEquals(List.of(List.of("$base x 2"), List.of("(", "12", ")")), read("double"));
         }
 
         /**
