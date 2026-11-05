@@ -472,21 +472,13 @@ class VariablesPaneTest {
                "readers": []}]}
             """.formatted(WOOD_READ);
 
-    // A Prefabs pane over wood and plank, every hover request answered at once with wood's card.
+    // A Prefabs pane over wood and plank, read by plank and the group logs.
     private static VariablesPane woodReadByPlankAndLogs(ManagerActions actions) {
         ManagerDraft draft = new ManagerDraft();
         draft.read(READ_PREFABS);
         VariablesTab prefabs = new VariablesTab(draft);
         prefabs.readEvaluated(READ_EVALUATED);
         when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
-        org.mockito.Mockito.doAnswer(call -> {
-            if (call.<String>getArgument(0).equals(com.mercuriusxeno.goo.workbench.WorkbenchOperations
-                    .CONSTANT_HOVER)) {
-                call.<java.util.function.Consumer<String>>getArgument(2).accept("{" + WOOD_READ
-                        + ", \"expression\": \"8\"}");
-            }
-            return null;
-        }).when(actions).request(anyString(), anyString(), any());
         ItemIcons icons = mock(ItemIcons.class);
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
@@ -529,30 +521,25 @@ class VariablesPaneTest {
     }
 
     /**
-     * wood's hover card, opened from plank's $wood link, reads the same run: the stick, then plank's and logs' chips,
-     * and no cake (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
+     * plank's read view and its builder key the $wood ref by one hover key, PrefabHovers.hoverKey("wood"), so both
+     * show the prefab's tooltip (decision value-hover-reads-the-same-editing-and-read-only).
      */
     @Test
-    void hoverCardUsedByDrawsDirectItemsThenPrefabAndGroupLinks() {
+    void readViewRefHoversTheKeyTheBuildersRefHovers() {
         VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
         DrawnFrame list = new DrawnFrame();
         read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
-        DrawnFrame.Text woodLink = linkText(list, "$wood");
-        read.extract(new DrawnFrame().graphics, DrawnFrame.font(), TALL_VIEW, new ClickTargets(), woodLink.x() + 1,
-                woodLink.y() + 1);
-        DrawnFrame card = new DrawnFrame();
-        read.extract(card.graphics, DrawnFrame.font(), TALL_VIEW, card.targets, woodLink.x() + 1, woodLink.y() + 1);
-        assertEquals(2, card.texts().stream().filter("Used by "::equals).count(), card.texts().toString());
-        assertFalse(card.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:cake")));
-        assertEquals(2, itemXs(card).size(), "the stick on the block and on the card");
-        DrawnFrame.Text plank = linkText(card, "$plank");
-        DrawnFrame.Text logs = linkText(card, "#logs");
-        assertTrue(itemXs(card).getLast() < plank.x(), "stick before plank on the card");
-        assertTrue(plank.x() < logs.x(), plank + " before " + logs);
-        assertTrue(plank.y() > woodLink.y(), "the card's chips draw on the card");
-        // Decision group-referent-previews-shorthand-members-then-its-value: the group chip previews its group.
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("logs")),
-                card.targets.hovered(logs.x() + 1, logs.y() + 1));
+        DrawnFrame.Text readRef = linkText(list, "$wood");
+        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("wood")),
+                list.targets.hovered(readRef.x() + 1, readRef.y() + 1));
+        list.click("$wood");
+        DrawnFrame editing = new DrawnFrame();
+        read.extract(editing.graphics, DrawnFrame.font(), TALL_VIEW, editing.targets, 0, 0);
+        DrawnFrame building = new DrawnFrame();
+        read.extract(building.graphics, DrawnFrame.font(), TALL_VIEW, building.targets, 0, 0);
+        DrawnFrame.Text builderRef = linkText(building, "$wood");
+        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("wood")),
+                building.targets.hovered(builderRef.x() + 1, builderRef.y() + 1));
     }
 
     /**

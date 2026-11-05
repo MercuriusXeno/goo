@@ -10,11 +10,9 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Draws the Variables tab: each constant's block with its expression, what it resolves to or its error, and the
@@ -44,9 +42,7 @@ final class VariablesPane {
     private static final int AMOUNT_GAP = 2;
     private static final int ACTION_GAP = 6;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
-    private static final int CARD_WIDTH = 220;
     private static final int CARD_PADDING = 6;
-    private static final int CARD_OFFSET = 12;
     private static final int DIALOG_WIDTH = 300;
     private static final int DIALOG_HEIGHT = 140;
     private static final int READER_GAP = 6;
@@ -67,12 +63,10 @@ final class VariablesPane {
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
-    private static final int GREEN = 0xFF80E080;
     private static final int LINK = ButtonPainter.LINK;
     private static final int CARD_COLOR = 0xF0181818;
     private static final int DIM_COLOR = 0xA0000000;
     private static final String RESOLVED_SEPARATOR = ", ";
-    private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
     private static final String VALUE_LABEL = "Value:";
     private static final String RENAME = "✎";
@@ -100,8 +94,6 @@ final class VariablesPane {
     private final ManagerDraft draft;
     private final ItemIcons icons;
     private final ManagerActions actions;
-    private final Map<String, VariablesTab.HoverCard> cards = new HashMap<>();
-    private final Set<String> cardsAsked = new HashSet<>();
     private final ExpandedLists expandedUsedBy = new ExpandedLists();
     private final ScrollBar cascadeBar = new ScrollBar(1);
     private final Map<String, Integer> blockTops = new HashMap<>();
@@ -184,11 +176,9 @@ final class VariablesPane {
     }
 
     /**
-     * Evaluates every constant of the draft afresh; the hover cards read the new draft from now.
+     * Evaluates every constant of the draft afresh; the prefab tooltips read the new evaluation from now.
      */
     void refresh() {
-        cards.clear();
-        cardsAsked.clear();
         actions.request(WorkbenchOperations.EVALUATE_CONSTANTS, draft.changeSetText(), variables::readEvaluated);
     }
 
@@ -351,9 +341,6 @@ final class VariablesPane {
         showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
         builder.drawOverlays(graphics, font, targets);
         drawDeleteDialog(graphics, font, view, targets);
-        if (!builder.listOpen()) {
-            drawHoverCard(graphics, font, view, targets, mouseX, mouseY);
-        }
     }
 
     // The builder over the block being edited, each change written to the draft and evaluated afresh, so the value
@@ -591,9 +578,9 @@ final class VariablesPane {
     // The read view's runs paint white, red where the prefab fails to resolve, a $name among them a link.
     private ExpressionLines.Painter readPainter(GuiGraphicsExtractor graphics, VariablesTab.ConstantBlock block,
                                                 ClickTargets targets) {
+        // Decision value-hover-reads-the-same-editing-and-read-only: a ref keys the prefab's tooltip as the builder's.
         return new ExpressionLines.Painter(graphics, icons, targets, block.error().isEmpty() ? WHITE : RED, LINK,
-                (name, linkX, linkY, linkWidth) -> targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT,
-                        () -> actions.openVariable(name), name));
+                ExpressionLines.followedOnShiftClick(targets, actions::openVariable));
     }
 
     // Used by holds the items naming the constant themselves, then a link to each prefab and group reading it, on
@@ -850,14 +837,15 @@ final class VariablesPane {
         });
     }
 
-    // A constant reads as a $name button a shift + left click follows, a group or tag as its #name, and an item as its
-    // icon; answers the width the reader took.
+    // A constant reads as a $name button a shift + left click follows, hovering the prefab's tooltip, a group or tag
+    // as its #name, and an item as its icon; answers the width the reader took.
     // Decision shift-left-click-follows-plain-left-modifies.
+    // Decision value-hover-reads-the-same-editing-and-read-only.
     private int drawReader(GuiGraphicsExtractor graphics, Font font, VariablesTab.Reader reader, int x, int y,
                            ClickTargets targets) {
         if (CONSTANT_KIND.equals(reader.kind())) {
             return ButtonPainter.drawFollow(graphics, font, reader.id(), x, y, ICON_SIZE, targets,
-                    () -> actions.openVariable(reader.id()), reader.id()).width();
+                    () -> actions.openVariable(reader.id()), PrefabHovers.hoverKey(reader.id())).width();
         }
         if (GROUP_KIND.equals(reader.kind())) {
             String label = reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id();
@@ -866,56 +854,5 @@ final class VariablesPane {
         }
         graphics.item(icons.of(reader.id()), x, y);
         return ICON_SIZE;
-    }
-
-    private void drawHoverCard(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds,
-                               ClickTargets targets, int mouseX, int mouseY) {
-        Optional<String> hovered = targets.hovered(mouseX, mouseY);
-        if (hovered.isEmpty()) {
-            return;
-        }
-        String name = hovered.get();
-        // A type's or an item's icon names itself; a prefab's link alone opens a card.
-        if (name.indexOf(HOVER_KEY_MARK) >= 0) {
-            return;
-        }
-        VariablesTab.HoverCard card = cards.get(name);
-        if (card != null) {
-            drawCard(graphics, font, card, bounds, mouseX, mouseY, targets);
-        } else if (cardsAsked.add(name)) {
-            actions.request(WorkbenchOperations.CONSTANT_HOVER, variables.hoverRequest(name),
-                    answered -> cards.put(name, variables.readHover(answered)));
-        }
-    }
-
-    // The card's Used by line stays collapsed on one row.
-    private static int usedByHeight(VariablesTab.HoverCard card) {
-        return card.direct().isEmpty() && card.links().isEmpty() ? 0 : ICON_SIZE + HALF;
-    }
-
-    private void drawCard(GuiGraphicsExtractor graphics, Font font, VariablesTab.HoverCard card,
-                          GroupsPane.Bounds bounds, int mouseX, int mouseY, ClickTargets targets) {
-        int textWidth = CARD_WIDTH - CARD_PADDING * HALF;
-        List<ExpressionLines.Run> expression = ExpressionLines.shownRuns(card.expression(), icons::nameOf);
-        List<ExpressionLines.Run> resolved = ExpressionLines.resolvedRuns(String.join(RESOLVED_SEPARATOR,
-                card.lines()));
-        int expressionHeight = ExpressionLines.height(font, expression, textWidth);
-        int resolvedHeight = ExpressionLines.height(font, resolved, textWidth);
-        int height = CARD_PADDING * HALF + LINE_HEIGHT + expressionHeight + resolvedHeight + usedByHeight(card);
-        int left = Math.min(mouseX + CARD_OFFSET, bounds.right() - CARD_WIDTH);
-        int top = Math.min(mouseY + CARD_OFFSET, bounds.bottom() - height);
-        graphics.nextStratum();
-        graphics.fill(left, top, left + CARD_WIDTH, top + height, CARD_COLOR);
-        int x = left + CARD_PADDING;
-        int y = top + CARD_PADDING;
-        graphics.text(font, card.title(), x, y, WHITE);
-        y += LINE_HEIGHT;
-        ExpressionLines.draw(font, expression, x, y, textWidth, new ExpressionLines.Painter(graphics, icons, targets,
-                GRAY, LINK, (link, linkX, linkY, linkWidth) -> { }));
-        y += expressionHeight;
-        ExpressionLines.draw(font, resolved, x, y, textWidth, new ExpressionLines.Painter(graphics, icons, targets,
-                GREEN, LINK, (link, linkX, linkY, linkWidth) -> { }));
-        y += resolvedHeight;
-        drawUsedByLines(graphics, font, card.direct(), card.links(), x, y, textWidth, null, targets);
     }
 }

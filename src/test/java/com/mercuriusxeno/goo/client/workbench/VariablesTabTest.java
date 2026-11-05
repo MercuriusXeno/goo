@@ -38,10 +38,6 @@ class VariablesTabTest {
                "usedBy": ["minecraft:egg"], "readers": [{"id": "minecraft:egg", "kind": "item"}]}
             ]}
             """;
-    private static final String HOVER = """
-            {"name": "egg", "kind": "tree", "tree": {"zoo": "8", "hex": "1/2"}, "value": null, "error": null,
-             "usedBy": ["minecraft:egg"], "direct": [], "readers": [], "expression": "{\\"zoo\\": \\"$base\\"}"}
-            """;
 
     private ManagerDraft draft;
     private VariablesTab tab;
@@ -286,23 +282,6 @@ class VariablesTabTest {
             assertEquals(List.of(new VariablesTab.Reader("egg", "constant"), new VariablesTab.Reader("stick", "item"),
                     new VariablesTab.Reader("minecraft:egg", "item")), tab.deletionCascade("base"));
             assertTrue(tab.deletionCascade("broken").isEmpty());
-        }
-
-        /**
-         * The hover card reads the variable's expression, one line per type it resolves to, and as links the
-         * prefabs and groups among its readers (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
-         */
-        @Test
-        void hoverCardReadsExpressionTypesAndLinks() {
-            VariablesTab.HoverCard card = tab.readHover(HOVER.replace("\"readers\": []", """
-                    "readers": [{"id": "base", "kind": "constant"}, {"id": "#logs", "kind": "group"},
-                                {"id": "minecraft:egg", "kind": "item"}]"""));
-            assertEquals("egg", card.title());
-            assertEquals("{\"zoo\": \"$base\"}", card.expression());
-            assertEquals(List.of("zoo 8", "hex 1/2"), card.lines());
-            assertEquals(List.of(), card.direct());
-            assertEquals(List.of(new VariablesTab.Reader("base", "constant"), new VariablesTab.Reader("#logs", "group")),
-                    card.links());
         }
     }
 }
