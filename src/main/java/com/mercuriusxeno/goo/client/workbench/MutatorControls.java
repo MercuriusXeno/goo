@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.workbench.Processes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +55,8 @@ final class MutatorControls {
     private static final String REMOVE_LINK_HINT = "Delete";
     private static final String UNREAD = "No form reads this line:";
     private static final String START_OVER = "start over";
+    // A stack that applies a stack multiplies through it; past this depth the chain loops and totals nothing.
+    private static final int MAX_STACK_DEPTH = 8;
 
     private final ProcessesTab processes;
     private final BuilderOverlays overlays;
@@ -237,9 +240,8 @@ final class MutatorControls {
         flow.text(PLUS, Palette.MUTED);
         // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab reads after $.
         nameControl(flow, new Ref(PrefabNames.marked(additive.constant()), () -> actions.openVariable(additive.constant())),
-                null, SearchDropdown.over(List.of(), treePrefabs.get(), false),
+                PrefabHovers.hoverKey(additive.constant()), SearchDropdown.over(List.of(), treePrefabs.get(), false),
                 prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
-        flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
         // Decision add-mutator-entry-shows-its-reduced-value: the value after the prefab, each type's icon beside its
         // amount in parentheses as the prefab's amount line reads, each pair wrapping whole; the hover stays.
         Map<String, String> amounts = prefabAmounts.apply(additive.constant());
@@ -251,13 +253,35 @@ final class MutatorControls {
 
     private void drawStack(Entry entry, Processes.Stack stack) {
         ControlFlow flow = entry.flow();
-        nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), null,
+        // Decision every-linkable-thing-hovers-its-preview-value: the mutator a stack applies hovers its formula.
+        nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())),
+                ConversionHovers.hoverKey(entry.section(), stack.formula()),
                 SearchDropdown.overMutators(otherProcesses(entry)),
                 formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
-        // Decision every-linkable-thing-hovers-its-preview-value: the mutator a stack applies hovers its formula.
-        flow.hoverLast(ConversionHovers.hoverKey(entry.section(), stack.formula()));
         flow.text(TIMES_MARK, Palette.MUTED);
         countControl(flow, stack.count(), count -> processes.setStackCount(entry.section(), entry.key(), count));
+        drawStackTotal(entry, stack);
+    }
+
+    // Decision prefab-hovers-its-card-and-the-row-shows-the-stack-preview: a stack over an add draws the stack's
+    // total, the prefab's reduced value times the count, through the amount grid at all times.
+    private void drawStackTotal(Entry entry, Processes.Stack stack) {
+        long count = stack.count();
+        Processes.Form applied = processes.formOf(entry.section(), stack.formula());
+        for (int depth = 0; applied instanceof Processes.Stack inner && depth < MAX_STACK_DEPTH; depth++) {
+            count *= inner.count();
+            applied = processes.formOf(entry.section(), inner.formula());
+        }
+        if (!(applied instanceof Processes.Additive additive)) {
+            return;
+        }
+        long times = count;
+        Map<String, String> total = new LinkedHashMap<>();
+        prefabAmounts.apply(additive.constant()).forEach((type, amount) -> total.put(type,
+                ConversionHovers.times(amount, times)));
+        if (!total.isEmpty()) {
+            GooAmountGrid.reduced(total).inlineRuns().forEach(cell -> entry.flow().runs(cell, null, null));
+        }
     }
 
     // "copies [source]" one indent in under the name line, then the chain; the row draws no ratio.
@@ -284,10 +308,10 @@ final class MutatorControls {
         if (source.isEmpty()) {
             flow.control(ControlFlow.dropdownLabel(ITSELF), null, open);
         } else {
-            flow.linkControl(ControlFlow.dropdownLabel(GROUP_MARK + source), null, open,
+            // Decisions group-referent-previews-shorthand-members-then-its-value,
+            // conversions-sentences-are-built-from-the-builders-controls.
+            flow.refSegment(ControlFlow.dropdownLabel(GROUP_MARK + source), GroupHovers.hoverKey(source), open,
                     () -> actions.openGroup(source));
-            // Decision group-referent-previews-shorthand-members-then-its-value.
-            flow.hoverLast(GroupHovers.hoverKey(source));
         }
     }
 
@@ -355,8 +379,10 @@ final class MutatorControls {
 
     // Decision diagnose-and-correct-mutator-references-that-do-not-link: a plain left click opens a dropdown over the
     // names, a shift + left click opens the thing named.
-    private void nameControl(ControlFlow flow, Ref ref, String hint, SearchDropdown names, Consumer<String> pick) {
-        flow.linkControl(ref.label(), hint, at -> openNames(at, names, pick), ref.follow());
+    // Decision conversions-sentences-are-built-from-the-builders-controls: the name is the builder's ref segment,
+    // hovering its card.
+    private void nameControl(ControlFlow flow, Ref ref, String hoverKey, SearchDropdown names, Consumer<String> pick) {
+        flow.refSegment(ref.label(), hoverKey, at -> openNames(at, names, pick), ref.follow());
     }
 
     private void openNames(BuilderOverlays.Anchor at, SearchDropdown names, Consumer<String> pick) {

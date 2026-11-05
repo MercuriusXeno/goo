@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.workbench.Processes;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -79,22 +80,19 @@ class ConversionHoversTest {
                 hover("grow", new Processes.Additive("sprout")));
     }
 
-    @Test
-    void stackOfThreeOverAnAdditiveOfTwoLeafReadsSixLeaf() {
-        when(processes.formOf(SECTION, "grow")).thenReturn(new Processes.Additive("sprout"));
-        assertEquals(List.of(new TooltipLine.GooAmount("leaf", "6")),
-                hover("thrice", new Processes.Stack(3, "grow")));
-    }
-
     /**
-     * A stack over an additive lists its prefab's amounts highest first, ties by type key, whatever order the
-     * evaluate reply held (decision value-lists-order-highest-first-ties-by-type-key).
+     * The prefab an add applies hovers its card with its single value at count 1 and at count 2 alike, the card
+     * reading the prefab's name, its expression and its value (decision
+     * prefab-hovers-its-card-and-the-row-shows-the-stack-preview).
      */
     @Test
-    void stackOverAnAdditiveListsItsAmountsHighestFirstTiesByTypeKey() {
-        when(processes.formOf(SECTION, "mix")).thenReturn(new Processes.Additive("blend"));
-        assertEquals(List.of(new TooltipLine.GooAmount("pulse", "6"), new TooltipLine.GooAmount("weird", "6"),
-                new TooltipLine.GooAmount("metal", "1")), hover("twice", new Processes.Stack(2, "mix")));
+    void stackOverAnAdditiveHoversThePrefabCardWhateverTheCount() {
+        when(processes.formOf(SECTION, "grow")).thenReturn(new Processes.Additive("sprout"));
+        List<TooltipLine> once = hover("grow", new Processes.Additive("sprout"));
+        assertEquals(once, hover("twice", new Processes.Stack(2, "grow")));
+        assertEquals(PrefabHovers.tooltipFor(variables, PrefabHovers.hoverKey("sprout")).orElseThrow(), once);
+        assertTrue(once.stream().anyMatch(line -> line instanceof TooltipLine.RunsGrid grid
+                && grid.cells().contains(List.of(type("leaf"), symbol(":"), number("2")))), once.toString());
     }
 
     @Test

@@ -495,27 +495,26 @@ final class ControlFlow {
         coloredControl(label, Palette.LINK, hint, pressed);
     }
 
+
     /**
-     * A control naming a ref: a plain left click runs pressed, a shift + left click follows the ref, and the label
-     * underlines while shift is held.
-     * Decision shift-left-click-follows-plain-left-modifies.
+     * A ref as the builder draws one: a segment whose plain left click runs pressed, whose shift + left click follows
+     * the ref and whose hover shows the ref's card, its label underlined while shift is held (decision
+     * conversions-sentences-are-built-from-the-builders-controls).
      *
-     * @param label   the control's label
-     * @param hint    what a plain click does, shown on hover
-     * @param pressed takes where it was clicked
-     * @param follow  opens what the label names
+     * @param label    the ref's label
+     * @param hoverKey the ref's card
+     * @param pressed  takes where it was clicked
+     * @param follow   opens what the label names
      */
-    void linkControl(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
+    void refSegment(String label, String hoverKey, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
         int width = ButtonPainter.width(letters, label);
-        reserve(width);
-        markButton(width);
-        int controlX = x;
-        int controlY = y;
-        ButtonPainter.Box box = ButtonPainter.layout(letters.width(label), controlX, controlY, line);
-        ButtonPainter.drawLink(graphics, letters, label, box, targets, new ClickTargets.LinkGestures(
-                () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)), follow),
-                BuilderOverlays.hintKey(hint));
-        x = box.right() + GAP;
+        openSegments(width, line);
+        ButtonPainter.Box box = nextSegment(width);
+        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+        ButtonPainter.drawLinkLabel(graphics, letters, label, box, targets);
+        targets.addLink(box.left(), box.top(), box.width(), box.height(),
+                new ClickTargets.LinkGestures(() -> pressed.accept(at), follow), hoverKey);
+        closeSegments();
     }
 
     /**

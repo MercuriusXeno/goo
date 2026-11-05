@@ -4,13 +4,12 @@ import com.mercuriusxeno.goo.workbench.Processes;
 import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
  * The tooltip a Conversions row's controls show on hover: a convert reads its recipe as icons and numbers, an
- * additive its prefab's formula, and a stack the mutator it applies with every amount multiplied by its count, so it
- * reads like that mutator times the number of stacks (decisions conversion-controls-hover-their-formula,
+ * additive its prefab's card, and a stack the convert it applies with every amount multiplied by its count, or the
+ * prefab card of the add it applies (decisions conversion-controls-hover-their-formula,
  * every-linkable-thing-hovers-its-preview-value).
  */
 final class ConversionHovers {
@@ -94,7 +93,7 @@ final class ConversionHovers {
     private static Optional<List<TooltipLine>> linesOf(Lookup lookup, Processes.Form form, long count, int depth) {
         return switch (form) {
             case Processes.Formula formula -> Optional.of(List.of(new TooltipLine.Runs(formulaRuns(formula, count))));
-            case Processes.Additive additive -> additiveLines(lookup.variables(), additive.constant(), count);
+            case Processes.Additive additive -> additiveLines(lookup.variables(), additive.constant());
             case Processes.Stack stack -> stackLines(lookup, stack, count, depth);
             case Processes.Assignment _, Processes.Unread _ -> Optional.empty();
         };
@@ -134,16 +133,10 @@ final class ConversionHovers {
         }
     }
 
-    // An additive once reads its prefab's own tooltip; stacked, each of the prefab's amounts times the count.
-    private static Optional<List<TooltipLine>> additiveLines(VariablesTab variables, String prefab, long count) {
-        if (count == 1) {
-            return PrefabHovers.tooltipFor(variables, PrefabHovers.hoverKey(prefab));
-        }
-        Map<String, String> tree = variables.prefabValue(prefab).map(VariablesTab.PrefabValue::tree).orElse(Map.of());
-        List<TooltipLine> lines = new ArrayList<>();
-        tree.forEach((type, amount) -> lines.add(new TooltipLine.GooAmount(type, times(amount, count))));
-        return lines.isEmpty() ? PrefabHovers.tooltipFor(variables, PrefabHovers.hoverKey(prefab))
-                : Optional.of(lines);
+    // Decision prefab-hovers-its-card-and-the-row-shows-the-stack-preview: an additive reads its prefab's card with
+    // its single value whatever the count stacking it, the row drawing the stack's total.
+    private static Optional<List<TooltipLine>> additiveLines(VariablesTab variables, String prefab) {
+        return PrefabHovers.tooltipFor(variables, PrefabHovers.hoverKey(prefab));
     }
 
     // An amount as the server writes it, a whole number or a reduced n/d, times a count; any other text reads as
