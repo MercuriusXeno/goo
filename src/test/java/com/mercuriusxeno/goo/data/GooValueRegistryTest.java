@@ -1978,6 +1978,20 @@ class GooValueRegistryTest {
         }
 
         /**
+         * A cycle among prefabs warns once, naming each prefab in it (decision
+         * cycled-prefabs-error-and-the-rest-load).
+         */
+        @Test
+        void prefabCycleWarnsOnceNamingItsPrefabs() {
+            List<String> warnings = validateJsonString("""
+                    {
+                        "_constants": { "a": "$b + 1", "b": "$a + 1", "c": "4" }
+                    }
+                    """);
+            assertEquals(List.of("_constants: $a, $b read each other in a cycle and load no value"), warnings);
+        }
+
+        /**
          * An item valued below an entry naming it is no mistake: the entry waits for it (decision
          * diagnose-and-correct-item-reference-unrecognized-token).
          */

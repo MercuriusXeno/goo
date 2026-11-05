@@ -45,6 +45,10 @@ final class GooValueValidator {
      */
     private static final String CTX_CONSTANTS = "_constants.";
     /**
+     * Validation context of a warning about the constants block as a whole, such as a cycle among its prefabs.
+     */
+    private static final String CTX_CONSTANTS_BLOCK = "_constants: ";
+    /**
      * Groups key prefix for validation context.
      */
     private static final String CTX_GROUPS = "_groups.";
@@ -90,6 +94,9 @@ final class GooValueValidator {
         for (Map.Entry<String, JsonElement> entry : constants.entrySet()) {
             validateConstantEntry(entry, knownConstants, warnings);
         }
+        // Decision cycled-prefabs-error-and-the-rest-load.
+        PrefabDependencyGraph.of(constants).cycles()
+                .forEach(cycle -> warnings.add(CTX_CONSTANTS_BLOCK + PrefabDependencyGraph.cycleError(cycle)));
         return knownConstants;
     }
 
