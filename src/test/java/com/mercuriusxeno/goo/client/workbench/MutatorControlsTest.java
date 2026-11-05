@@ -226,6 +226,31 @@ class MutatorControlsTest {
             assertTrue(cells.contains("6"), cells.toString());
         }
 
+        /**
+         * Decision conversions-parens-flush-both-sides-as-the-rows-draw-them: an add row reads "$oak ({icon} 3)", the
+         * icon flush against the open paren and the close paren flush against the digits.
+         */
+        @Test
+        void addRowsReducedValueStandsFlushInsideItsParens() {
+            MutatorControls valued = new MutatorControls(processes, overlays, mock(ManagerActions.class),
+                    () -> List.of("oak"), () -> List.of("metal"), () -> { },
+                    name -> Map.of("oak", Map.of("metal", "3")).getOrDefault(name, Map.of()));
+            when(processes.formOf(SECTION, "grow")).thenReturn(new Processes.Additive("oak"));
+            DrawnFrame frame = new DrawnFrame();
+            Font font = DrawnFrame.font();
+            valued.draw(frame.graphics, font, SECTION, "grow", new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
+            DrawnFrame.Text open = frame.find("(");
+            DrawnFrame.Text close = frame.find(")");
+            ArgumentCaptor<Integer> iconXs = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).blit(any(), any(), iconXs.capture(), anyInt(), anyFloat(),
+                    anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+            Lettering builder = new Lettering(font, ControlFlow.BUILDER_SCALE);
+            int digitsRight = frame.placed("3").x() + SmallDigits.width(font, "3");
+            assertEquals(List.of(open.x() + builder.width(open.text()), digitsRight),
+                    List.of(iconXs.getAllValues().getLast(), close.x()), frame.drawn().toString());
+        }
+
         private static Map<String, String> orderedAmounts() {
             Map<String, String> amounts = new LinkedHashMap<>();
             amounts.put("rock", "192");

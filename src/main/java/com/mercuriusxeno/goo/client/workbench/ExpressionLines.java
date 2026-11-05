@@ -80,6 +80,11 @@ final class ExpressionLines {
         SUFFIX,
         /** A symbol drawn flush against the run before it in the symbols' color, as a reduction's closing paren. */
         FLUSH_SYMBOL,
+        /**
+         * A symbol the run after it stands flush against, in the symbols' color, a gap before it, as a reduction's
+         * opening paren (decision conversions-parens-flush-both-sides-as-the-rows-draw-them).
+         */
+        OPEN_SYMBOL,
         /** The end of a line, as a per-type object ends each type's row. */
         BREAK,
         /** Text the terms could not read, drawn red as the file spells it. */
@@ -98,10 +103,10 @@ final class ExpressionLines {
 
     /**
      * @param kind a run's kind
-     * @return whether the run draws in the symbols' color: an operator, a parenthesis or a flush symbol
+     * @return whether the run draws in the symbols' color: an operator, a parenthesis, a flush or an opening symbol
      */
     static boolean drawsAsSymbol(Kind kind) {
-        return kind == Kind.OPERATOR || kind == Kind.FLUSH_SYMBOL;
+        return kind == Kind.OPERATOR || kind == Kind.FLUSH_SYMBOL || kind == Kind.OPEN_SYMBOL;
     }
 
     /**
@@ -468,10 +473,12 @@ final class ExpressionLines {
 
     private static int width(Lettering lettering, List<Run> runs, ToIntFunction<String> typeSize) {
         int width = 0;
+        boolean afterOpening = false;
         for (Run run : amountsBesideTypes(runs)) {
             if (run.kind() != Kind.BREAK) {
-                boolean gapped = width != 0 && !placesFlush(run.kind());
+                boolean gapped = width != 0 && !placesFlush(run.kind()) && !afterOpening;
                 width += (gapped ? RUN_GAP : 0) + runWidth(lettering, run, typeSize);
+                afterOpening = run.kind() == Kind.OPEN_SYMBOL;
             }
         }
         return width;
@@ -556,6 +563,7 @@ final class ExpressionLines {
             switch (run.kind()) {
                 case BREAK -> cursor.breakLine(0);
                 case SUFFIX, FLUSH_SYMBOL -> cursor.placeFlush(run);
+                case OPEN_SYMBOL -> placeOpening(runs, index, cursor);
                 case TEXT, ERROR -> cursor.placeText(run);
                 default -> placeOperandOrSymbol(runs, index, cursor);
             }
@@ -569,6 +577,15 @@ final class ExpressionLines {
         if (suffix < runs.size() && placesFlush(runs.get(suffix).kind())) {
             cursor.fitTogether(width(cursor.lettering, runs.subList(index, suffix + 1), cursor.typeSize));
         }
+    }
+
+    // Decision conversions-parens-flush-both-sides-as-the-rows-draw-them: an opening symbol wraps with the run it
+    // opens, which stands flush against it.
+    private static void placeOpening(List<Run> runs, int index, Cursor cursor) {
+        int opened = Math.min(index + 1, runs.size() - 1);
+        cursor.fitTogether(width(cursor.lettering, runs.subList(index, opened + 1), cursor.typeSize));
+        cursor.placeWhole(runs.get(index));
+        cursor.flushNext = true;
     }
 
     private static void placeOperandOrSymbol(List<Run> runs, int index, Cursor cursor) {
@@ -625,6 +642,8 @@ final class ExpressionLines {
         private int at;
         // Where the current line's runs start: the left edge, or one indent step in under a type row's head.
         private int lineLeft;
+        // Whether the next run stands flush against an opening symbol, with no gap.
+        private boolean flushNext;
 
         Cursor(Lettering lettering, Span span, @Nullable Painter painter, ToIntFunction<String> typeSize) {
             this.lettering = lettering;
@@ -666,7 +685,7 @@ final class ExpressionLines {
         }
 
         private int start() {
-            return at == lineLeft ? lineLeft : at + RUN_GAP;
+            return at == lineLeft || flushNext ? at : at + RUN_GAP;
         }
 
         void placeWhole(Run run) {
@@ -675,6 +694,7 @@ final class ExpressionLines {
                 newLine();
             }
             int start = start();
+            flushNext = false;
             drawPiece(run, run.text(), start);
             at = start + runWidth;
         }
@@ -688,6 +708,7 @@ final class ExpressionLines {
         void placeText(Run run) {
             String rest = run.text();
             int start = start();
+            flushNext = false;
             while (!rest.isEmpty()) {
                 String piece = lettering.fitting(rest, left + width - start);
                 if (piece.isEmpty() && start > lineLeft) {
@@ -736,7 +757,7 @@ final class ExpressionLines {
                 case LINK -> drawLink(lettering, run, piece, new int[] {x, textTop}, painter);
                 case ERROR -> lettering.draw(graphics, piece, x, textTop, Palette.DANGER);
                 // Decision read-view-reads-type-equals-possessive-terms.
-                case OPERATOR, FLUSH_SYMBOL -> lettering.draw(graphics, piece, x, textTop, painter.symbolColor());
+                case OPERATOR, FLUSH_SYMBOL, OPEN_SYMBOL -> lettering.draw(graphics, piece, x, textTop, painter.symbolColor());
                 default -> lettering.draw(graphics, piece, x, textTop, painter.textColor());
             }
         }
