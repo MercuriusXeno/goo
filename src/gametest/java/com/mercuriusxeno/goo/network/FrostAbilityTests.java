@@ -23,6 +23,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Witch;
+import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
@@ -58,6 +60,7 @@ public final class FrostAbilityTests {
     private static final String GLACIAL_SURVIVES_A_RELOAD = "glacial_survives_a_reload";
     private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
     private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
+    private static final String FROZEN_WITCH_DRINKS_NO_POTION = "frozen_witch_drinks_no_potion";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -75,6 +78,7 @@ public final class FrostAbilityTests {
         GooTestFunctions.registerTest(registrar, GLACIAL_SURVIVES_A_RELOAD, FrostAbilityTests::glacialSurvivesAReload);
         GooTestFunctions.registerTest(registrar, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
         GooTestFunctions.registerTest(registrar, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
+        GooTestFunctions.registerTest(registrar, FROZEN_WITCH_DRINKS_NO_POTION, FrostAbilityTests::frozenWitchDrinksNoPotion);
     }
 
 
@@ -187,6 +191,18 @@ public final class FrostAbilityTests {
     private static final String SHOULD_FREEZE_LIGHTLY = "An uncharged Nova should freeze the near zombie lightly, stands %s";
     private static final String SHOULD_HURT = "Nova's ring should hurt the %s zombie it crosses";
     private static final String SHOULD_NOT_REACH = "An uncharged Nova should not reach the far zombie, stands %s";
+    private static final String FROST_SNAP = "goo:frost_snap";
+    private static final BlockPos WITCH_POS = new BlockPos(3, 1, 3);
+    /** frost_snap.json's amount of ten over a witch's twenty six health: three snaps fill her gauge. */
+    private static final int SNAPS_TO_ENCASE_A_WITCH = 3;
+    /**
+     * frost_snap.json's hold. The snaps' damage leaves the witch hurt, and a hurt witch picks a healing
+     * potion on about one tick in twenty, so a hold this long sees her drink unless the hold stops her.
+     */
+    private static final int WITCH_HOLD_TICKS = 300;
+    private static final String SHOULD_ENCASE_THE_WITCH = "Three snaps should fill a witch's frozen gauge";
+    private static final String SHOULD_HOLD_NO_POTION = "A frozen witch should hold no potion, holds %s on hold tick %s";
+    private static final String SHOULD_NOT_DRINK = "A frozen witch should not be drinking, on hold tick %s";
 
     private FrostAbilityTests() {
     }
@@ -526,6 +542,35 @@ public final class FrostAbilityTests {
                     String.format(SHOULD_RUN_AFTER_RELOAD, holds, after.getBehavior()));
             helper.succeed();
         });
+    }
+
+    /**
+     * A witch frozen full by Snap drinks no potion while encased: on every
+     * tick of the hold her main hand holds no potion and she is not drinking
+     * (decision diagnose-and-correct-held-mobs-still-acting).
+     *
+     * @param helper the gametest helper
+     */
+    public static void frozenWitchDrinksNoPotion(GameTestHelper helper) {
+        Witch witch = helper.spawn(EntityType.WITCH, WITCH_POS);
+        AbilityDefinition snap = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(FROST_SNAP));
+        helper.assertTrue(snap != null, ABILITY_REQUIRED);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            for (int struck = 0; struck < SNAPS_TO_ENCASE_A_WITCH; struck++) {
+                GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, snap.gooType(),
+                        witch.getId(), witch.blockPosition(), Direction.UP, FROST_SNAP));
+            }
+            helper.assertTrue(witch.getData(GooAttachments.FROZEN).full(), SHOULD_ENCASE_THE_WITCH);
+        });
+        for (int held = 1; held < WITCH_HOLD_TICKS; held++) {
+            int holdTick = held;
+            helper.runAfterDelay(SETTLE_TICKS + held, () -> {
+                ItemStack hand = witch.getMainHandItem();
+                helper.assertFalse(hand.is(Items.POTION), String.format(SHOULD_HOLD_NO_POTION, hand, holdTick));
+                helper.assertFalse(witch.isDrinkingPotion(), String.format(SHOULD_NOT_DRINK, holdTick));
+            });
+        }
+        helper.runAfterDelay(SETTLE_TICKS + WITCH_HOLD_TICKS, helper::succeed);
     }
 
     private static void release(ServerPlayer caster, int heldTicks) {
