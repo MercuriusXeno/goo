@@ -79,9 +79,20 @@ final class BuilderFrame {
         int labelX = row.row().left() + ControlFlow.INDENT;
         int valueX = row.label() == null ? labelX : labelX + font.width(row.label()) + LABEL_GAP;
         int top = row.row().top();
-        int boxTop = row.amount().isEmpty() ? top : top + row.amount().getHeight(font) + AMOUNT_GAP;
         int boxRight = row.row().right() - (row.deletable() ? deleteInset(font) : 0);
+        GooAmountGrid amount = amountWithin(font, row.amount(), valueX, boxRight);
+        int boxTop = amount.isEmpty() ? top : top + amount.getHeight(font) + AMOUNT_GAP;
         return new Laid(labelX, valueX, top, boxTop, boxRight);
+    }
+
+    // Decision row-amount-grid-fills-the-width-and-wraps-past-it: the amount line takes the row's width from where it
+    // draws, past the button padding, to the box's right edge.
+    private static GooAmountGrid amountWithin(Font font, GooAmountGrid amount, int valueX, int boxRight) {
+        return amount.within(font, boxRight - amountX(valueX));
+    }
+
+    private static int amountX(int valueX) {
+        return valueX + ButtonPainter.PADDING;
     }
 
     /**
@@ -103,7 +114,8 @@ final class BuilderFrame {
      */
     static int draw(GuiGraphicsExtractor graphics, Font font, Row row, Value value) {
         Laid laid = lay(font, row);
-        row.amount().draw(graphics, font, laid.valueX() + ButtonPainter.PADDING, laid.amountTop());
+        amountWithin(font, row.amount(), laid.valueX(), laid.boxRight()).draw(graphics, font, amountX(laid.valueX()),
+                laid.amountTop());
         int overhang = value.editing() ? ExpressionBuilderPane.PANEL_ABOVE : 0;
         int boxTop = laid.boxTop() + overhang;
         int height = overhang + value.box().draw(new GroupsPane.Bounds(laid.valueX(), boxTop, laid.boxRight(),

@@ -183,6 +183,35 @@ class ExpressionLinesTest {
         assertEquals(food.x() + DrawnFrame.font().width(food.text()), possessive.x(), frame.drawn().toString());
     }
 
+    /**
+     * Decision conversions-parens-flush-both-sides-as-the-rows-draw-them: a reduced value laid after its prefab reads
+     * "$deep ({icon} 6)", a gap before the open paren, the icon flush against the open paren and the close paren
+     * flush against the digits.
+     */
+    @Test
+    void reducedValueParensStandFlushOnBothSides() {
+        DrawnFrame frame = new DrawnFrame();
+        Font font = DrawnFrame.font();
+        List<ExpressionLines.Run> runs = List.of(link("deep"), GooAmountGrid.OPEN,
+                new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "metal"), ExpressionLines.amount("6"),
+                GooAmountGrid.CLOSE);
+        ExpressionLines.draw(Lettering.full(font), runs, new ExpressionLines.Span(10, 20, 400,
+                ExpressionLines.lineHeight(runs)), new ExpressionLines.Painter(frame.graphics, null, frame.targets,
+                0xFFFFFFFF, Palette.LINK, (variable, x, y, width) -> { }));
+        DrawnFrame.Text deep = frame.find("$deep");
+        DrawnFrame.Text open = frame.find("(");
+        DrawnFrame.Text close = frame.find(")");
+        ArgumentCaptor<Integer> iconXs = ArgumentCaptor.forClass(Integer.class);
+        Mockito.verify(frame.graphics).blit(ArgumentMatchers.any(), ArgumentMatchers.any(), iconXs.capture(),
+                ArgumentMatchers.anyInt(), ArgumentMatchers.anyFloat(), ArgumentMatchers.anyFloat(),
+                ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt(),
+                ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
+        int digitsRight = frame.placed("6").x() + SmallDigits.width(font, "6");
+        assertTrue(open.x() > deep.x() + font.width(deep.text()), frame.drawn().toString());
+        assertEquals(List.of(open.x() + font.width(open.text()), digitsRight),
+                List.of(iconXs.getValue(), close.x()), frame.drawn().toString());
+    }
+
     private static DrawnFrame drawn(String shown, int width) {
         DrawnFrame frame = new DrawnFrame();
         ExpressionLines.draw(Lettering.full(DrawnFrame.font()), ExpressionLines.shownRuns(shown, NAMES), 10, 20, width,

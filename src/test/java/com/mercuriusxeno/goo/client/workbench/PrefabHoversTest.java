@@ -192,8 +192,8 @@ class PrefabHoversTest {
          */
         @Test
         void reductionParensDrawInOneColor() {
-            assertEquals(List.of(ExpressionLines.Kind.FLUSH_SYMBOL, ExpressionLines.Kind.FLUSH_SYMBOL),
-                    List.of(GooAmountGrid.OPEN.kind(), GooAmountGrid.CLOSE.kind()));
+            assertTrue(ExpressionLines.drawsAsSymbol(GooAmountGrid.OPEN.kind())
+                    && ExpressionLines.drawsAsSymbol(GooAmountGrid.CLOSE.kind()));
             for (String prefab : List.of("double", "coral")) {
                 TooltipLine.GooAmounts reduction = (TooltipLine.GooAmounts) lines(prefab).getLast();
                 DrawnFrame frame = new DrawnFrame();
