@@ -98,11 +98,30 @@ class AuditPaneTest {
                     "{\"header\": \"Loud\", \"flags\": [\"first flag\", \"second flag\"], \"lines\": [\"body\"]}"));
             List<DrawnFrame.Text> quiet = headerLine(frame, "Quiet");
             assertTrue(quiet.stream().anyMatch(piece -> piece.text().contains(CHECKMARK)), quiet.toString());
-            assertTrue(quiet.stream().allMatch(piece -> piece.color() == AuditPane.GREEN), quiet.toString());
+            assertTrue(quiet.stream().allMatch(piece -> piece.color() == Palette.GOOD), quiet.toString());
             List<DrawnFrame.Text> loud = headerLine(frame, "Loud");
             assertTrue(loud.stream().anyMatch(piece -> piece.text().contains("2 flags")), loud.toString());
             assertTrue(loud.stream().noneMatch(piece -> piece.text().contains(CHECKMARK)), loud.toString());
             assertTrue(loud.stream().allMatch(piece -> piece.color() == WHITE), loud.toString());
+        }
+    }
+
+    @Nested
+    class Progress {
+        /**
+         * A run in flight fills its progress lines in the palette's meter fill, Audit's dark bar (decision
+         * fills-are-two-roles-selected-and-panel).
+         */
+        @Test
+        void progressLinesFillTheMeter() {
+            AuditTab tab = new AuditTab();
+            tab.readSections(sections(section("First", "one")));
+            tab.startRun();
+            tab.progress("auditing");
+            DrawnFrame frame = draw(new AuditPane(tab, new ManagerDraft(), mock(ManagerActions.class)));
+            int line = frame.find("auditing").y();
+            assertTrue(frame.fillsOf(Palette.METER_FILL).stream().anyMatch(fill -> fill[0] == VIEW.left()
+                    && fill[2] == VIEW.right() && fill[1] <= line && line < fill[3]), frame.drawn().toString());
         }
     }
 

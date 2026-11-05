@@ -29,8 +29,6 @@ final class RowLayout {
     static final int RULE_PADDING = RULE_GAP;
     /** A row holding a sprite, from its top to the next one's: the row and the rule's padding. */
     static final int SPRITE_ROW_PITCH = SPRITE_ROW_HEIGHT + RULE_PADDING;
-    /** The separator's dim color. */
-    static final int SEPARATOR_COLOR = 0x40FFFFFF;
 
     private RowLayout() {
     }
@@ -64,6 +62,6 @@ final class RowLayout {
      * @param right    its right edge
      */
     static void drawSeparatorAbove(GuiGraphicsExtractor graphics, int index, int rowTop, int left, int right) {
-        separatorAbove(index, rowTop).ifPresent(y -> graphics.fill(left, y, right, y + 1, SEPARATOR_COLOR));
+        separatorAbove(index, rowTop).ifPresent(y -> graphics.fill(left, y, right, y + 1, Palette.SEPARATOR));
     }
 }

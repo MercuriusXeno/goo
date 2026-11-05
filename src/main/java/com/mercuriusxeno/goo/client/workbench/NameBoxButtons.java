@@ -40,7 +40,7 @@ final class NameBoxButtons {
                      ClickTargets targets, Runnable done, Runnable nevermind) {
         ButtonPainter.Box doneBox = ButtonPainter.draw(graphics, font, DONE, boxRight + GAP, lineTop, lineHeight,
                 targets, done, BuilderOverlays.hintKey(DONE_HINT));
-        ButtonPainter.drawColored(graphics, font, ButtonPainter.RESTORE, ButtonPainter.GOLD, doneBox.right() + GAP,
+        ButtonPainter.drawColored(graphics, font, ButtonPainter.RESTORE, Palette.GOLD, doneBox.right() + GAP,
                 lineTop, lineHeight, targets, nevermind, BuilderOverlays.hintKey(NEVERMIND_HINT));
     }
 }

@@ -18,7 +18,6 @@ public final class MembersTooltipComponent implements ClientTooltipComponent {
     // The +n centers on the sprites' row.
     private static final int HALF = 2;
     private static final String MORE_MARK = "+";
-    private static final int WHITE = 0xFFFFFFFF;
 
     private final List<ItemStack> stacks;
     private final String more;
@@ -51,7 +50,7 @@ public final class MembersTooltipComponent implements ClientTooltipComponent {
         }
         if (!more.isEmpty()) {
             graphics.text(font, more, left - SPRITE_GAP + TEXT_GAP, y + (SPRITE_SIZE - font.lineHeight) / HALF + 1,
-                    WHITE, true);
+                    Palette.TEXT, true);
         }
     }
 }

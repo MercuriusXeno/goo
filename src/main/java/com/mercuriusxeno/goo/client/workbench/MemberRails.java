@@ -14,7 +14,6 @@ import java.util.List;
 final class MemberRails {
     private static final int GAP = 2;
     private static final int NONE = -1;
-    private static final int NUMBER_COLOR = 0xFFA0A0A0;
 
     /**
      * What a dropped rail does with its member.
@@ -82,7 +81,7 @@ final class MemberRails {
         ControlFlow.drawRail(graphics, card.left(), card.top(), bottom);
         targets.addGrab(card.left(), card.top(), ControlFlow.RAIL_WIDTH, bottom - card.top(), grab(index), id);
         int textTop = ExpressionLines.centeredTextTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT, font.lineHeight);
-        graphics.text(font, String.valueOf(index + 1), numberLeft(card), textTop, NUMBER_COLOR);
+        graphics.text(font, String.valueOf(index + 1), numberLeft(card), textTop, Palette.MUTED);
     }
 
     /**

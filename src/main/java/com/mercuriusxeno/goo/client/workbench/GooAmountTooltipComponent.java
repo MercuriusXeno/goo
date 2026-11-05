@@ -13,7 +13,6 @@ import java.util.function.ToIntFunction;
 public final class GooAmountTooltipComponent implements ClientTooltipComponent {
     private static final int ICON_GAP = 2;
     private static final int LINE_GAP = 2;
-    private static final int WHITE = 0xFFFFFFFF;
 
     private final TooltipLine.GooAmount line;
     private final int iconSize;
@@ -49,6 +48,6 @@ public final class GooAmountTooltipComponent implements ClientTooltipComponent {
     public void extractImage(Font font, int x, int y, int width, int height, GuiGraphicsExtractor graphics) {
         GooTypeIcons.blit(graphics, line.type(), x, y);
         SmallDigits.drawBesideIcon(graphics, font, line.amount(), new SmallDigits.Icon(x + iconSize, y, iconSize,
-                ICON_GAP), WHITE);
+                ICON_GAP), Palette.TEXT);
     }
 }

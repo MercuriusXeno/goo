@@ -165,7 +165,7 @@ class VariablesPaneTest {
         draw();
         ArgumentCaptor<Integer> clipTop = ArgumentCaptor.forClass(Integer.class);
         verify(graphics).enableScissor(anyInt(), clipTop.capture(), anyInt(), anyInt());
-        List<Integer> borders = fillTopsAt(ButtonPainter.BORDER);
+        List<Integer> borders = fillTopsAt(Palette.BORDER);
         assertTrue(borders.get(0) > clipTop.getValue(), "Rename top " + borders.get(0) + " vs " + clipTop.getValue());
         assertTrue(borders.get(1) > clipTop.getValue(), "Delete top " + borders.get(1) + " vs " + clipTop.getValue());
     }
@@ -177,8 +177,8 @@ class VariablesPaneTest {
     @Test
     void laterPrefabButtonsPadBelowTheirSeparator() {
         draw();
-        int separator = fillTopsAt(RowLayout.SEPARATOR_COLOR).get(0);
-        List<Integer> borders = fillTopsAt(ButtonPainter.BORDER);
+        int separator = fillTopsAt(Palette.SEPARATOR).get(0);
+        List<Integer> borders = fillTopsAt(Palette.BORDER);
         int bordersPerBlock = 4;
         int rename = borders.get(bordersPerBlock);
         int delete = borders.get(bordersPerBlock + 1);
@@ -205,7 +205,7 @@ class VariablesPaneTest {
         List<int[]> spans = new java.util.ArrayList<>();
         int listRight = TALL_VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
         for (int index = 0; index < tops.getAllValues().size(); index++) {
-            if (colors.getAllValues().get(index) == RowLayout.SEPARATOR_COLOR) {
+            if (colors.getAllValues().get(index) == Palette.SEPARATOR) {
                 separators.add(tops.getAllValues().get(index));
             } else if (lefts.getAllValues().get(index) < listRight) {
                 spans.add(new int[] {tops.getAllValues().get(index), bottoms.getAllValues().get(index)});
@@ -243,7 +243,7 @@ class VariablesPaneTest {
                 || frame.texts().contains("Delete"), frame.texts().toString());
         DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")).findFirst()
                 .orElseThrow();
-        assertEquals(ProcessesPane.RED, cross.color());
+        assertEquals(Palette.DANGER, cross.color());
         int listRight = TALL_VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
         assertEquals(listRight - 6 - ButtonPainter.PADDING, cross.x());
     }
@@ -494,7 +494,7 @@ class VariablesPaneTest {
     }
 
     private static DrawnFrame.Text linkText(DrawnFrame frame, String label) {
-        return frame.drawn().stream().filter(text -> text.text().equals(label) && text.color() == ButtonPainter.LINK)
+        return frame.drawn().stream().filter(text -> text.text().equals(label) && text.color() == Palette.LINK)
                 .reduce((first, last) -> last).orElseThrow(() -> new AssertionError(label + " in "
                         + frame.drawn()));
     }
@@ -868,7 +868,7 @@ class VariablesPaneTest {
                     .orElseThrow(() -> new AssertionError(after.texts().toString()));
             assertEquals(cross.x(), arrow.x());
             assertEquals(cross.y(), arrow.y());
-            assertEquals(ButtonPainter.GOLD, arrow.color());
+            assertEquals(Palette.GOLD, arrow.color());
             assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Restore")),
                     after.targets.hovered(arrow.x() + 1, arrow.y() + 1));
             verify(actions).markUnsaved();
@@ -995,7 +995,7 @@ class VariablesPaneTest {
         assertTrue(done.x() > boxRight && arrow.x() > boxRight, done + " " + arrow + " vs box right " + boxRight);
         assertTrue(Math.abs(done.y() - box.getY()) < ExpressionLines.TEXT_LINE_HEIGHT, done + " vs box " + box.getY());
         assertEquals(done.y(), arrow.y());
-        assertEquals(ButtonPainter.GOLD, arrow.color());
+        assertEquals(Palette.GOLD, arrow.color());
         assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Done")),
                 frame.targets.hovered(done.x() + 1, done.y() + 1));
         assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Nevermind")),
@@ -1230,7 +1230,7 @@ class VariablesPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), itemTops.capture());
-        int panelTop = fillTopsAt(frame, ExpressionBuilderPane.PANEL_COLOR).getFirst();
+        int panelTop = fillTopsAt(frame, Palette.PANEL_FILL).getFirst();
         for (int top : itemTops.getAllValues()) {
             assertTrue(top + SPRITE <= panelTop, "icon " + top + ".." + (top + SPRITE) + " vs panel top " + panelTop);
         }

@@ -55,14 +55,8 @@ final class ValuesPane {
     /** The room between the search line and the list. */
     static final int GAP = 3;
     private static final int HALF = 2;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
-    /** The color of no value, the one red source. */
-    static final int RED = 0xFFFF5555;
     // The break a loader error wraps at.
     private static final String WORD_BREAK = " ";
-    private static final int GREEN = 0xFF80E080;
-    private static final int DERIVED_COLOR = 0xFFA0C8F0;
     /** The room between two runs of an Items row's value. */
     static final int RUN_GAP = 3;
     /** The room between a run's type icon and its amount. */
@@ -70,17 +64,12 @@ final class ValuesPane {
     // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: an amount stands a pixel further from the next
     // run's icon than the run gap alone.
     private static final int RUN_STEP = RUN_GAP + 1;
-    private static final int GOLD = 0xFFE0C060;
-    private static final int CHIP_OFF = 0xFF808080;
-    private static final int CHIP_HOLLOW = 0xFF202020;
-    private static final int CHIP_FILLED_TEXT = 0xFF000000;
     private static final String ITEMS_CHIP = "Items";
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String FRACTIONAL_CHIP = "Fractional";
     private static final String NEGATIVE_CHIP = "Negative ";
     private static final String SEARCH_HINT = "Search items";
     private static final int SEARCH_WIDTH = 180;
-    private static final int LINK = ButtonPainter.LINK;
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
@@ -262,7 +251,8 @@ final class ValuesPane {
         int left = chipsLeft(labels, font::width, line);
         ChipLayout layout = layChips(labels, font::width, left, line.top(), values.filter());
         for (Chip chip : layout.chips()) {
-            drawChip(graphics, font, chip, warns(chip.filter(), uncovered, negative) ? RED : WHITE, targets);
+            drawChip(graphics, font, chip, warns(chip.filter(), uncovered, negative) ? Palette.DANGER : Palette.TEXT,
+                    targets);
         }
         if (search != null) {
             search.setPosition(line.left(), line.top());
@@ -289,14 +279,15 @@ final class ValuesPane {
     static void drawChipFace(GuiGraphicsExtractor graphics, Font font, Chip chip, int color) {
         int right = chip.left() + chip.width();
         int bottom = chip.top() + chip.height();
-        graphics.fill(chip.left(), chip.top(), right, bottom, chip.filled() ? color : CHIP_OFF);
-        graphics.fill(chip.left() + 1, chip.top() + 1, right - 1, bottom - 1, chip.filled() ? color : CHIP_HOLLOW);
+        graphics.fill(chip.left(), chip.top(), right, bottom, chip.filled() ? color : Palette.CHIP_OFF);
+        graphics.fill(chip.left() + 1, chip.top() + 1, right - 1, bottom - 1,
+                chip.filled() ? color : Palette.CHIP_HOLLOW);
         int labelX = chip.left() + ButtonPainter.PADDING;
         int labelY = chip.top() + CHIP_TEXT_NUDGE;
         if (chip.filled()) {
             // Decision selected-filter-chip-text-contrasts-its-shadow: the dark label draws with no shadow, which
             // would be dark too.
-            graphics.text(font, chip.label(), labelX, labelY, CHIP_FILLED_TEXT, false);
+            graphics.text(font, chip.label(), labelX, labelY, Palette.CHIP_FILLED_TEXT, false);
         } else {
             graphics.text(font, chip.label(), labelX, labelY, color);
         }
@@ -314,7 +305,7 @@ final class ValuesPane {
     private void drawEntries(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds list, ClickTargets targets) {
         List<ValuesTab.ManagerEntry> listed = values.listed();
         if (listed.isEmpty()) {
-            graphics.text(font, NO_ENTRIES, list.left(), list.top(), GRAY);
+            graphics.text(font, NO_ENTRIES, list.left(), list.top(), Palette.MUTED);
             return;
         }
         measureRecipeColumn(font, listed, list.right() - ScrollBar.WIDTH - ScrollBar.GAP - list.left());
@@ -373,7 +364,7 @@ final class ValuesPane {
             drawRemoval(graphics, font, entry.id(), row.right(), expressionTop, targets);
         }
         for (String line : errorLines(font, shown.error(), expression.right() - expression.left())) {
-            graphics.text(font, line, expression.left(), expressionTop + height, RED);
+            graphics.text(font, line, expression.left(), expressionTop + height, Palette.DANGER);
             height += LINE_HEIGHT;
         }
         // Decision spacing-rules-are-one-set-across-every-pane: the x keeps the rule gap over the rule below.
@@ -389,8 +380,8 @@ final class ValuesPane {
                     () -> values.restoreRemoval(id));
             return;
         }
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), top,
-                ButtonPainter.HEIGHT, targets, () -> {
+        ButtonPainter.drawColored(graphics, font, DELETE, Palette.DANGER, right - ButtonPainter.width(font, DELETE),
+                top, ButtonPainter.HEIGHT, targets, () -> {
                     values.markRemoval(id);
                     actions.markUnsaved();
                 }, BuilderOverlays.hintKey(DELETE_HINT));
@@ -485,7 +476,7 @@ final class ValuesPane {
         targets.add(row.left(), row.top(), row.right() - row.left(), places.height(), () -> values.select(entry.id()));
         HeadLine line = headLine(font, row.top(), row.right());
         ValuesTab.Source source = values.sourceOf(entry.id());
-        graphics.text(font, name, places.nameLeft(), line.textTop(), WHITE);
+        graphics.text(font, name, places.nameLeft(), line.textTop(), Palette.TEXT);
         drawValue(graphics, font, entry.id(), source, places.valueLeft(), line, targets);
         drawRecipe(graphics, font, entry.id(), source, places.recipeLeft(), headLine(font, places.recipeTop(),
                 row.right()), targets);
@@ -553,7 +544,7 @@ final class ValuesPane {
             graphics.text(font, label, left, line.textTop(), colorOf(shown.kind()));
             return;
         }
-        graphics.text(font, EQUALS, left - ICON_GAP - font.width(EQUALS), line.textTop(), WHITE);
+        graphics.text(font, EQUALS, left - ICON_GAP - font.width(EQUALS), line.textTop(), Palette.TEXT);
         drawValueRuns(graphics, font, worthShown(id, shown), left, line, targets);
     }
 
@@ -611,7 +602,7 @@ final class ValuesPane {
             drawCount(graphics, font, countParts(input.count(), recipe.output()), x, line.spriteTop());
             ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
-        laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
+        laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), Palette.TEXT));
         return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;
     }
 
@@ -632,7 +623,7 @@ final class ValuesPane {
             drawCount(graphics, font, countParts(term.count(), recipe.output()), x, line.spriteTop());
             ItemLinks.add(targets, actions, term.id(), x, line.spriteTop());
         }
-        laid.plusLefts().forEach(x -> graphics.text(font, MINUS, x, line.textTop(), WHITE));
+        laid.plusLefts().forEach(x -> graphics.text(font, MINUS, x, line.textTop(), Palette.TEXT));
         return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;
     }
 
@@ -646,10 +637,10 @@ final class ValuesPane {
             // where a stack count's stands and its glyphs a pixel under a stack count's bottom.
             int right = placed.wholeX() + ICON_SIZE + COUNT_OVERHANG;
             SmallDigits.draw(graphics, font, parts.whole(), right - SmallDigits.width(font, parts.whole()),
-                    y + COUNT_GLYPHS_BOTTOM - SmallDigits.GLYPH_HEIGHT + 1, WHITE);
+                    y + COUNT_GLYPHS_BOTTOM - SmallDigits.GLYPH_HEIGHT + 1, Palette.TEXT);
         }
         if (parts.stacked()) {
-            StackedFractions.drawStack(graphics, font, parts, placed.stack(), WHITE);
+            StackedFractions.drawStack(graphics, font, parts, placed.stack(), Palette.TEXT);
         }
     }
 
@@ -753,7 +744,7 @@ final class ValuesPane {
             GooTypeIcons.draw(graphics, targets, amount.getKey(), x, iconTop, size);
             // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere.
             SmallDigits.drawBesideIcon(graphics, font, amount.getValue(), new SmallDigits.Icon(x + size, iconTop, size,
-                    RUN_ICON_GAP), WHITE);
+                    RUN_ICON_GAP), Palette.TEXT);
             x += runWidth(font, amount.getValue(), size) + RUN_STEP;
         }
         return worth.isEmpty() ? x : x - RUN_STEP;
@@ -799,11 +790,11 @@ final class ValuesPane {
      */
     static int colorOf(ValuesTab.SourceKind kind) {
         return switch (kind) {
-            case ENTRY -> GREEN;
-            case GROUP -> GOLD;
-            case DENIED -> GRAY;
-            case DERIVED -> DERIVED_COLOR;
-            case NONE -> RED;
+            case ENTRY -> Palette.GOOD;
+            case GROUP -> Palette.GOLD;
+            case DENIED -> Palette.MUTED;
+            case DERIVED -> Palette.DERIVED;
+            case NONE -> Palette.DANGER;
         };
     }
 
@@ -895,7 +886,8 @@ final class ValuesPane {
                               GroupsPane.Bounds area, ClickTargets targets) {
         return ReadValueButton.draw(graphics, font, expressionRuns(row), new ReadValueButton.Place(area.left(),
                 area.top(), area.right(), () -> openBuilder(row)), new ExpressionLines.Painter(graphics, icons,
-                targets, WHITE, LINK, ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
+                targets, Palette.TEXT, Palette.LINK, ExpressionLines.followedOnShiftClick(targets,
+                actions::openVariable)), targets);
     }
 
     // The expression's room: one indent in, short of the entry's x where it has one.

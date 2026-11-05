@@ -320,8 +320,8 @@ class ValuesTabTest {
             ValuesTab.Source none = tab.sourceOf("minecraft:dirt");
             assertEquals(new ValuesTab.Source("no value", ValuesTab.SourceKind.NONE, false), none);
             List<ValuesTab.Source> notRed = List.of(valued, group, denied, derived);
-            assertEquals(ValuesPane.RED, ValuesPane.colorOf(none.kind()));
-            assertTrue(notRed.stream().noneMatch(source -> ValuesPane.colorOf(source.kind()) == ValuesPane.RED));
+            assertEquals(Palette.DANGER, ValuesPane.colorOf(none.kind()));
+            assertTrue(notRed.stream().noneMatch(source -> ValuesPane.colorOf(source.kind()) == Palette.DANGER));
         }
 
         private static final String POST_CONVERTED_MODEL = """

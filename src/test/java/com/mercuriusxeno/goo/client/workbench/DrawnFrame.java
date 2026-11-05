@@ -143,8 +143,8 @@ final class DrawnFrame {
     int[] buttonAround(int x, int y) {
         // A button's border, or a button's fill grown by the pixel a border takes, as a term's segment fills between
         // its seams with no border of its own (decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
-        List<int[]> boxes = new ArrayList<>(fillsOf(ButtonPainter.BORDER));
-        fillsOf(ButtonPainter.FILL).forEach(fill -> boxes.add(new int[] {fill[0] - 1, fill[1] - 1, fill[2] + 1,
+        List<int[]> boxes = new ArrayList<>(fillsOf(Palette.BORDER));
+        fillsOf(Palette.FILL).forEach(fill -> boxes.add(new int[] {fill[0] - 1, fill[1] - 1, fill[2] + 1,
             fill[3] + 1}));
         int[] around = null;
         for (int[] box : boxes) {
@@ -261,7 +261,7 @@ final class DrawnFrame {
             if (lefts.getAllValues().get(index) == text.x() && rights.getAllValues().get(index) == right
                     && bottoms.getAllValues().get(index) == top + 1 && top > text.y()
                     && top < text.y() + ExpressionLines.TEXT_LINE_HEIGHT
-                    && colors.getAllValues().get(index) == ButtonPainter.LINK) {
+                    && colors.getAllValues().get(index) == Palette.LINK) {
                 return true;
             }
         }

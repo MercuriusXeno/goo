@@ -27,35 +27,16 @@ import java.util.function.Supplier;
  * {@link ExpressionBuilder}.
  */
 final class ExpressionBuilderPane {
-    private static final int GRAY = 0xFFA0A0A0;
-    /** An unreadable value's note and a remove control's X. */
-    static final int RED = 0xFFFF5555;
-    /** The done control's check mark and word. */
-    static final int GREEN = 0xFF80E080;
     /** The room between sibling term containers. */
     static final int TERM_MARGIN = 8;
-    /** A parenthetical container's 1 px border (decision parentheticals-alternate-gray-tones-by-depth). */
-    static final int NEST_BORDER = 0xC0A8B4D0;
     // How far below a line's top its centered buttons start.
     private static final int BUTTON_ABOVE = (ControlFlow.LINE - ButtonPainter.HEIGHT) / 2;
     /** How far the builder's panel reaches above the top it is drawn at, the box margin outside its first buttons. */
     static final int PANEL_ABOVE = RowLayout.BOX_MARGIN - BUTTON_ABOVE;
-    /** The builder's panel fill. */
-    static final int PANEL_COLOR = 0x30FFFFFF;
     // Decision terms-and-type-rows-drag-to-a-trash-strip: the strip along the builder's right edge, dim at rest,
     // lit while a drag is in flight and brighter while the dragged thing hovers it.
     /** The trash strip's width. */
     static final int TRASH_WIDTH = 12;
-    /** The trash strip's tone at rest. */
-    static final int TRASH_REST = 0x30FF5555;
-    /** The trash strip's tone while a drag is in flight. */
-    static final int TRASH_LIT = 0x80FF5555;
-    /** The trash strip's tone while the dragged thing hovers it. */
-    static final int TRASH_HOVER = 0xD0FF5555;
-    /** The trash strip's border, a lighter red than its fill. */
-    static final int TRASH_BORDER = 0xFFFF9A9A;
-    /** The trash can drawn inside the strip. */
-    static final int TRASH_CAN = 0xFFFFE0E0;
     private static final int CAN_WIDTH = 8;
     private static final int CAN_HEIGHT = 10;
     private static final int CAN_BODY_TOP = 3;
@@ -80,22 +61,14 @@ final class ExpressionBuilderPane {
     private static final String TRASH_HINT = "Drag items here to remove";
     // Decision parenthetical-handle-carries-a-rail-and-hovers-its-drop: the handle reads how it is used.
     private static final String WRAP_HINT = "Drop on term, wrap w/ parenthesis";
-    /** The drop cursor's blue. */
-    static final int DROP_CURSOR = 0xFF4090FF;
-    /** The cursor's blue, see-through, over the term the held () would wrap. */
-    static final int WRAP_MARK = 0x804090FF;
     private static final String RAIL_NAME_PREFIX = "goo-term-rail:";
     private static final String ROW_RAIL_NAME_PREFIX = "goo-row-rail:";
     private static final int HALF = 2;
-    private static final int NEST_DARKER = 0x28000000;
-    private static final int NEST_LIGHTER = 0x28FFFFFF;
     // A pixel off the slot's line counts this many off along it, so the cursor keeps to the line the pointer is on.
     private static final int LINE_WEIGHT = 4;
     // The drop cursor shows for this many frames, then hides for as many.
     private static final int BLINK_FRAMES = 20;
     private static final int PREVIEW_OFFSET = 8;
-    private static final int PREVIEW_COLOR = 0xE0182030;
-    private static final int PREVIEW_TEXT = 0xFFFFFFFF;
     private static final String OPEN_PAREN = "(";
     private static final String CLOSE_PAREN = ")";
     private static final String ADD_TYPE = "+?";
@@ -288,7 +261,7 @@ final class ExpressionBuilderPane {
     static int nestTone(int depth) {
         // Decision parentheticals-alternate-gray-tones-by-depth: an odd depth darkens its parent's tone a step and an
         // even one lightens it back, so each box reads off the one around it.
-        return depth % HALF == 0 ? NEST_LIGHTER : NEST_DARKER;
+        return depth % HALF == 0 ? Palette.NEST_LIGHTER : Palette.NEST_DARKER;
     }
 
     // The slot the last frame laid nearest the pointer, null where it laid none.
@@ -374,7 +347,7 @@ final class ExpressionBuilderPane {
     // a line centers below its top.
     private void drawPanel(GuiGraphicsExtractor graphics, GroupsPane.Bounds laid) {
         int panelTop = laid.top() - PANEL_ABOVE;
-        graphics.fill(laid.left() - RowLayout.BOX_MARGIN, panelTop, laid.right(), laid.bottom(), PANEL_COLOR);
+        graphics.fill(laid.left() - RowLayout.BOX_MARGIN, panelTop, laid.right(), laid.bottom(), Palette.PANEL_FILL);
         trash = new GroupsPane.Bounds(laid.right() - TRASH_WIDTH, panelTop, laid.right(), laid.bottom());
         drawTrash(graphics, trash);
     }
@@ -390,16 +363,16 @@ final class ExpressionBuilderPane {
 
     // Decision terms-and-type-rows-drag-to-a-trash-strip.
     private void drawTrash(GuiGraphicsExtractor graphics, GroupsPane.Bounds strip) {
-        int tone = dragOverTrash() ? TRASH_HOVER : TRASH_REST;
-        if (tone == TRASH_REST && dragDeletable()) {
-            tone = TRASH_LIT;
+        int tone = dragOverTrash() ? Palette.TRASH_HOVER : Palette.TRASH_REST;
+        if (tone == Palette.TRASH_REST && dragDeletable()) {
+            tone = Palette.TRASH_LIT;
         }
         graphics.fill(strip.left(), strip.top(), strip.right(), strip.bottom(), tone);
         // Decision trash-strip-draws-a-can-and-a-lighter-red-border.
-        graphics.fill(strip.left(), strip.top(), strip.right(), strip.top() + 1, TRASH_BORDER);
-        graphics.fill(strip.left(), strip.bottom() - 1, strip.right(), strip.bottom(), TRASH_BORDER);
-        graphics.fill(strip.left(), strip.top() + 1, strip.left() + 1, strip.bottom() - 1, TRASH_BORDER);
-        graphics.fill(strip.right() - 1, strip.top() + 1, strip.right(), strip.bottom() - 1, TRASH_BORDER);
+        graphics.fill(strip.left(), strip.top(), strip.right(), strip.top() + 1, Palette.TRASH_BORDER);
+        graphics.fill(strip.left(), strip.bottom() - 1, strip.right(), strip.bottom(), Palette.TRASH_BORDER);
+        graphics.fill(strip.left(), strip.top() + 1, strip.left() + 1, strip.bottom() - 1, Palette.TRASH_BORDER);
+        graphics.fill(strip.right() - 1, strip.top() + 1, strip.right(), strip.bottom() - 1, Palette.TRASH_BORDER);
         drawCan(graphics, strip.left() + (strip.right() - strip.left() - CAN_WIDTH) / HALF,
                 strip.top() + (strip.bottom() - strip.top() - CAN_HEIGHT) / HALF);
     }
@@ -410,15 +383,15 @@ final class ExpressionBuilderPane {
         int right = left + CAN_WIDTH;
         int bodyTop = top + CAN_BODY_TOP;
         int bottom = top + CAN_HEIGHT;
-        graphics.fill(left + CAN_HANDLE_INSET, top, right - CAN_HANDLE_INSET, top + 1, TRASH_CAN);
+        graphics.fill(left + CAN_HANDLE_INSET, top, right - CAN_HANDLE_INSET, top + 1, Palette.TRASH_CAN);
         int lid = top + 1;
-        graphics.fill(left - 1, lid, right + 1, lid + 1, TRASH_CAN);
-        graphics.fill(left, bodyTop, left + 1, bottom, TRASH_CAN);
-        graphics.fill(right - 1, bodyTop, right, bottom, TRASH_CAN);
-        graphics.fill(left + 1, bottom - 1, right - 1, bottom, TRASH_CAN);
+        graphics.fill(left - 1, lid, right + 1, lid + 1, Palette.TRASH_CAN);
+        graphics.fill(left, bodyTop, left + 1, bottom, Palette.TRASH_CAN);
+        graphics.fill(right - 1, bodyTop, right, bottom, Palette.TRASH_CAN);
+        graphics.fill(left + 1, bottom - 1, right - 1, bottom, Palette.TRASH_CAN);
         int ribBottom = bottom - CAN_RIB_INSET;
-        graphics.fill(left + CAN_RIB_INSET, bodyTop + 1, left + CAN_RIB_INSET + 1, ribBottom, TRASH_CAN);
-        graphics.fill(right - CAN_RIB_INSET - 1, bodyTop + 1, right - CAN_RIB_INSET, ribBottom, TRASH_CAN);
+        graphics.fill(left + CAN_RIB_INSET, bodyTop + 1, left + CAN_RIB_INSET + 1, ribBottom, Palette.TRASH_CAN);
+        graphics.fill(right - CAN_RIB_INSET - 1, bodyTop + 1, right - CAN_RIB_INSET, ribBottom, Palette.TRASH_CAN);
     }
 
     // Decision only-term-or-row-drags-to-the-trash: the strip lights for any term or row held, the only one included.
@@ -443,7 +416,7 @@ final class ExpressionBuilderPane {
             return;
         }
         BuilderOverlays.Anchor at = held.target.at();
-        graphics.fill(at.x(), at.y() - 1, right, at.y() + 1, DROP_CURSOR);
+        graphics.fill(at.x(), at.y() - 1, right, at.y() + 1, Palette.DROP_CURSOR);
     }
 
     // Whether the open builder answers yes, false where none stands open.
@@ -471,7 +444,7 @@ final class ExpressionBuilderPane {
         BuilderOverlays.Anchor at = target.at();
         int x = at.x() - BuilderOverlays.GAP / HALF;
         int[] span = spanOf(target);
-        graphics.fill(x - 1, span[0], x + 1, span[1], DROP_CURSOR);
+        graphics.fill(x - 1, span[0], x + 1, span[1], Palette.DROP_CURSOR);
     }
 
     // The top and bottom a slot's cursor takes and its hole derives from: the interior of the layer the slot joins,
@@ -609,9 +582,9 @@ final class ExpressionBuilderPane {
         int top = (int) pointerY;
         int width = ExpressionLines.width(font, runs) + ButtonPainter.PADDING + ButtonPainter.PADDING;
         int height = ExpressionLines.lineHeight(runs);
-        graphics.fill(left, top, left + width, top + height, PREVIEW_COLOR);
+        graphics.fill(left, top, left + width, top + height, Palette.DRAG_PREVIEW);
         ExpressionLines.draw(font, runs, left + ButtonPainter.PADDING, top, width, new ExpressionLines.Painter(
-                graphics, icons, targets, PREVIEW_TEXT, ButtonPainter.LINK, (link, x, y, linkWidth) -> { }));
+                graphics, icons, targets, Palette.TEXT, Palette.LINK, (link, x, y, linkWidth) -> { }));
     }
 
     /**
@@ -652,9 +625,9 @@ final class ExpressionBuilderPane {
             width += BuilderOverlays.GAP + ButtonPainter.width(flow.letters(), DONE);
         }
         flow.alignRight(width);
-        flow.coloredControl(CANCEL, RED, null, at -> cancel());
+        flow.coloredControl(CANCEL, Palette.DANGER, null, at -> cancel());
         if (changed) {
-            flow.coloredControl(DONE, GREEN, null, at -> finish());
+            flow.coloredControl(DONE, Palette.GOOD, null, at -> finish());
         }
     }
 
@@ -671,9 +644,9 @@ final class ExpressionBuilderPane {
 
     private static void drawNoTerms(ControlFlow flow, ExpressionBuilder edited) {
         if (edited.isDenied()) {
-            flow.note(DENIED, GRAY);
+            flow.note(DENIED, Palette.MUTED);
         } else {
-            flow.note(UNREAD, RED);
+            flow.note(UNREAD, Palette.DANGER);
         }
     }
 
@@ -756,7 +729,7 @@ final class ExpressionBuilderPane {
             flow.typeSegment(row.type(), anchor -> overlays.openPicker(anchor,
                     type -> apply(b -> b.setRowType(at, type)), null, held));
             flow.closeSegments();
-            flow.text(ExpressionLines.COLON, GRAY);
+            flow.text(ExpressionLines.COLON, Palette.MUTED);
             drawSum(flow, List.of(index), row.pieces(), new Place(BuilderGrammar.NUMBER_SORT, row.type()));
             flow.outdent(ControlFlow.INDENT);
             // Decision type-rows-stand-apart-in-the-builder: the next row's buttons stand a button gap below.
@@ -1288,7 +1261,7 @@ final class ExpressionBuilderPane {
             return;
         }
         GroupsPane.Bounds box = held.target.box();
-        graphics.fill(box.left(), box.top(), box.right(), box.bottom(), WRAP_MARK);
+        graphics.fill(box.left(), box.top(), box.right(), box.bottom(), Palette.WRAP_MARK);
     }
 
     // The held () drawn at the pointer, over everything else.
@@ -1313,8 +1286,8 @@ final class ExpressionBuilderPane {
         int left = (int) pointerX + PREVIEW_OFFSET;
         int top = (int) pointerY;
         int width = font.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING;
-        graphics.fill(left, top, left + width, top + ButtonPainter.HEIGHT, PREVIEW_COLOR);
-        graphics.text(font, label, left + ButtonPainter.PADDING, top + ButtonPainter.TEXT_NUDGE, PREVIEW_TEXT);
+        graphics.fill(left, top, left + width, top + ButtonPainter.HEIGHT, Palette.DRAG_PREVIEW);
+        graphics.text(font, label, left + ButtonPainter.PADDING, top + ButtonPainter.TEXT_NUDGE, Palette.TEXT);
     }
 
     // A first term added reads + as every added term does (decision every-term-carries-its-sign-as-a-segment).
@@ -1442,9 +1415,9 @@ final class ExpressionBuilderPane {
         BuilderOverlays.Anchor multiplier = drawSide(flow, path, piece, ExpressionBuilder.Op.MULTIPLY);
         GroupsPane.Bounds lead = flow.closeSegments();
         flow.space(-BuilderOverlays.GAP);
-        ControlFlow.OpenParenthetical opened = flow.openParenthetical(OPEN_PAREN, content, GRAY);
+        ControlFlow.OpenParenthetical opened = flow.openParenthetical(OPEN_PAREN, content, Palette.MUTED);
         drawSum(flow, path, nest.pieces(), place);
-        GroupsPane.Bounds container = flow.closeParenthetical(opened, CLOSE_PAREN, GRAY);
+        GroupsPane.Bounds container = flow.closeParenthetical(opened, CLOSE_PAREN, Palette.MUTED);
         // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: the slot after the parenthetical stands
         // right of its container too, so the pointer just past ")" drops outside it rather than at the inner sum's
         // end.
@@ -1458,7 +1431,7 @@ final class ExpressionBuilderPane {
             divisor = drawSide(flow, path, piece, ExpressionBuilder.Op.DIVIDE);
             right = Math.max(right, flow.closeSegments().right());
         }
-        flow.boxed(container, nestTone(depthOf(path, place)), NEST_BORDER);
+        flow.boxed(container, nestTone(depthOf(path, place)), Palette.NEST_BORDER);
         boxes.add(new TermBox(path, new GroupsPane.Bounds(lead.left(), Math.min(lead.top(), container.top()), right,
                 Math.max(lead.bottom(), container.bottom())), new Factors(piece, multiplier, divisor)));
     }

@@ -407,20 +407,20 @@ class GroupsPaneTest {
                        "leading": null, "trailing": null, "closingGap": null}]}""".formatted(LONG_GROUP));
             DrawnFrame frame = frame();
             DrawnFrame.Text cross = frame.find("✗");
-            assertEquals(ProcessesPane.RED, cross.color());
+            assertEquals(Palette.DANGER, cross.color());
             frame.click("✗");
             DrawnFrame marked = frame();
             DrawnFrame.Text arrow = marked.find("↺");
             assertEquals(cross.x(), arrow.x());
             assertEquals(cross.y(), arrow.y());
-            assertEquals(ButtonPainter.GOLD, arrow.color());
+            assertEquals(Palette.GOLD, arrow.color());
             assertEquals(Optional.of(BuilderOverlays.hintKey("Restore")),
                     marked.targets.hovered(arrow.x() + 1, arrow.y() + 1));
             assertFalse(startingWith(marked, "#" + LONG_GROUP).isEmpty(), marked.texts().toString());
             assertEquals(1, draft.sectionEntries("_groups").size());
             marked.click("↺");
             DrawnFrame restored = frame();
-            assertEquals(ProcessesPane.RED, restored.find("✗").color());
+            assertEquals(Palette.DANGER, restored.find("✗").color());
             restored.click("✗");
             pane.applyRemovals();
             assertEquals(0, draft.sectionEntries("_groups").size());
@@ -643,7 +643,7 @@ class GroupsPaneTest {
             ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
-                    rights.capture(), bottoms.capture(), eq(ControlFlow.RAIL_COLOR));
+                    rights.capture(), bottoms.capture(), eq(Palette.RAIL));
             return IntStream.range(0, lefts.getAllValues().size()).filter(index ->
                     lefts.getAllValues().get(index) >= DETAIL_LEFT).mapToObj(index -> new int[] {
                         lefts.getAllValues().get(index), tops.getAllValues().get(index),
@@ -740,7 +740,7 @@ class GroupsPaneTest {
         int logs = frame.find("#logs").y();
         assertTrue(usedBy.getFirst().y() > members.getFirst().y() && usedBy.getFirst().y() < logs, usedBy.toString());
         DrawnFrame.Text link = frame.find("#exposed");
-        assertEquals(ButtonPainter.LINK, link.color());
+        assertEquals(Palette.LINK, link.color());
         // Decision group-referent-previews-shorthand-members-then-its-value: the iterator previews its group.
         assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
                 frame.targets.hovered(link.x() + 1, link.y() + 1));
@@ -1025,9 +1025,34 @@ class GroupsPaneTest {
                 .reduce((first, last) -> last).orElseThrow();
         ArgumentCaptor<Integer> fillYs = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(anyInt(), fillYs.capture(), anyInt(), anyInt(),
-                eq(RowLayout.SEPARATOR_COLOR));
+                eq(Palette.SEPARATOR));
         int rule = fillYs.getAllValues().stream().filter(y -> y > oak && y < birch).findFirst().orElseThrow();
         assertEquals(RowLayout.RULE_PADDING, rule - (oakSprite + RowLayout.SPRITE_SIZE));
+    }
+
+    /**
+     * The selected group's card fills in the palette's selected fill (decision fills-are-two-roles-selected-and-panel).
+     */
+    @Test
+    void selectedCardFillsTheSelectedRole() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        groups.selectGroup("logs");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        DrawnFrame.Text members = frame.find("Members:");
+        assertTrue(frame.fillsOf(Palette.SELECTED_FILL).stream().anyMatch(fill -> fill[0] <= members.x()
+                && members.x() < fill[2] && fill[1] <= members.y() && members.y() < fill[3]), frame.drawn().toString());
     }
 
     /**

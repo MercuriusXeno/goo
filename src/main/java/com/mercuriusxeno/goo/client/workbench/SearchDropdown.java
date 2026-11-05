@@ -24,10 +24,6 @@ final class SearchDropdown {
     private static final int ICON_INSET = 1;
     private static final int LABEL_X = 20;
     private static final int TEXT_NUDGE = 5;
-    private static final int BACKGROUND = 0xF0101010;
-    private static final int BORDER = 0xFF606060;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int LINK = ButtonPainter.LINK;
 
     private final List<Choice> all;
     // The list scrolls a row per wheel notch, so every match is reachable however few rows fit under the opener.
@@ -246,8 +242,8 @@ final class SearchDropdown {
         List<Choice> shown = shown(rows);
         int height = Math.max(1, shown.size()) * ROW_HEIGHT;
         graphics.nextStratum();
-        graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, BORDER);
-        graphics.fill(x, y, x + width, y + height, BACKGROUND);
+        graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, Palette.POPUP_BORDER);
+        graphics.fill(x, y, x + width, y + height, Palette.POPUP_FILL);
         boolean scrolls = choices().size() > rows;
         int labelWidth = width - LABEL_X - (scrolls ? ScrollBar.WIDTH + ScrollBar.GAP : 0);
         for (int index = 0; index < shown.size(); index++) {
@@ -267,7 +263,7 @@ final class SearchDropdown {
             graphics.item(icons.of(iconId), x + ICON_INSET, rowY + ICON_INSET);
         }
         graphics.text(font, font.plainSubstrByWidth(choice.label(), labelWidth), x + LABEL_X, rowY + TEXT_NUDGE,
-                choice.kind() == Kind.PREFAB ? LINK : WHITE);
+                choice.kind() == Kind.PREFAB ? Palette.LINK : Palette.TEXT);
     }
 
     // The rows the list stands scrolled to; the bar clamps its offset to the matches each time.

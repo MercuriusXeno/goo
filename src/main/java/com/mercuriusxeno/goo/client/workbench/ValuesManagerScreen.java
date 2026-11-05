@@ -43,11 +43,6 @@ public final class ValuesManagerScreen extends Screen {
     private static final int TITLE_GAP = 8;
     private static final int STATUS_INSET = 12;
     private static final int STATUS_GAP = 4;
-    private static final int PANEL_COLOR = 0xC0101010;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
-    private static final int DRAFT_COLOR = 0xFFE0C060;
     private static final String TITLE = "Values manager";
     private static final String SAVE = "Save";
     private static final String PROMOTE = "Promote";
@@ -509,7 +504,7 @@ public final class ValuesManagerScreen extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(0, 0, width, height, PANEL_COLOR);
+        graphics.fill(0, 0, width, height, Palette.SCREEN_BACKDROP);
     }
 
     @Override
@@ -526,12 +521,12 @@ public final class ValuesManagerScreen extends Screen {
             case PROCESSES -> processesPane.extract(graphics, font, content, targets);
             case AUDIT -> auditPane.extract(graphics, font, content, targets);
         }
-        graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
+        graphics.text(font, title, MARGIN, TITLE_Y, Palette.TEXT);
         if (draft.differs()) {
-            graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TITLE_GAP, TITLE_Y, DRAFT_COLOR);
+            graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TITLE_GAP, TITLE_Y, Palette.GOLD);
         }
         graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
-                statusIsError ? RED : GRAY);
+                statusIsError ? Palette.DANGER : Palette.MUTED);
         draftPane.extract(graphics, font, width, height, targets);
         explainer.extract(graphics, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover

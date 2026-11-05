@@ -133,10 +133,10 @@ class ValuesManagerScreenTest {
         void pressDrawsTheMaskWithAHolePerTab() {
             explainer.toggle();
             DrawnFrame frame = frame();
-            assertFalse(fills(frame, DragMask.SHADOW).isEmpty(), "the shadow covers the screen");
+            assertFalse(fills(frame, Palette.DRAG_SHADOW).isEmpty(), "the shadow covers the screen");
             List<DragMask.Rect> tabs = java.util.Arrays.stream(ManagerTab.values()).map(tab ->
                     new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)).toList();
-            assertEquals(tabs, fills(frame, DragMask.HIGHLIGHT));
+            assertEquals(tabs, fills(frame, Palette.DRAG_HIGHLIGHT));
         }
 
         /**
@@ -179,7 +179,7 @@ class ValuesManagerScreenTest {
         void clickAnywhereLeavesTheMode() {
             explainer.toggle();
             assertTrue(frame().targets.click(300, 200));
-            assertEquals(List.of(), fills(frame(), DragMask.SHADOW));
+            assertEquals(List.of(), fills(frame(), Palette.DRAG_SHADOW));
         }
 
         /**
@@ -201,7 +201,7 @@ class ValuesManagerScreenTest {
             explainer.toggle();
             explainer.toggle();
             DrawnFrame frame = frame();
-            assertEquals(List.of(), fills(frame, DragMask.SHADOW));
+            assertEquals(List.of(), fills(frame, Palette.DRAG_SHADOW));
             assertEquals(java.util.Optional.empty(), frame.targets.hovered(20, 25));
         }
     }

@@ -16,8 +16,6 @@ final class ScrollBar {
     static final int GAP = 2;
     private static final int MIN_THUMB = 4;
     private static final double HALF = 0.5;
-    private static final int TRACK_COLOR = 0x40FFFFFF;
-    private static final int THUMB_COLOR = 0xC0C0C0C0;
 
     private final int step;
     private final boolean tails;
@@ -171,8 +169,8 @@ final class ScrollBar {
         int left = right - WIDTH;
         int height = bottom - top;
         Thumb thumb = thumb(top, height);
-        graphics.fill(left, top, right, bottom, TRACK_COLOR);
-        graphics.fill(left, thumb.top(), right, thumb.top() + thumb.height(), THUMB_COLOR);
+        graphics.fill(left, top, right, bottom, Palette.SCROLL_TRACK);
+        graphics.fill(left, thumb.top(), right, thumb.top() + thumb.height(), Palette.SCROLL_THUMB);
         targets.addDrag(left, top, WIDTH, height, y -> drag(y, top, height));
     }
 

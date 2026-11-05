@@ -76,7 +76,7 @@ class ExpressionLinesTest {
         Font font = DrawnFrame.font();
         ExpressionLines.draw(font, ExpressionLines.shownRuns("anvil - bucket", NAMES), 0, 40, 400,
                 new ExpressionLines.Painter(frame.graphics, mock(ItemIcons.class), frame.targets, 0xFFFFFFFF,
-                        ButtonPainter.LINK, (ref, x, y, width) -> { }));
+                        Palette.LINK, (ref, x, y, width) -> { }));
         org.mockito.ArgumentCaptor<Integer> spriteTops = org.mockito.ArgumentCaptor.forClass(Integer.class);
         org.mockito.Mockito.verify(frame.graphics, org.mockito.Mockito.atLeastOnce()).item(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(), spriteTops.capture());
@@ -165,7 +165,7 @@ class ExpressionLinesTest {
     private static DrawnFrame drawn(String shown, int width) {
         DrawnFrame frame = new DrawnFrame();
         ExpressionLines.draw(DrawnFrame.font(), ExpressionLines.shownRuns(shown, NAMES), 10, 20, width,
-                new ExpressionLines.Painter(frame.graphics, null, frame.targets, 0xFFFFFFFF, ButtonPainter.LINK,
+                new ExpressionLines.Painter(frame.graphics, null, frame.targets, 0xFFFFFFFF, Palette.LINK,
                         (variable, x, y, width1) -> { }));
         return frame;
     }
@@ -178,7 +178,7 @@ class ExpressionLinesTest {
     void symbolsDrawInTheirOwnColorAndTermsInlineAfterTheColon() {
         DrawnFrame frame = drawn(BEETROOT, 400);
         for (String symbol : List.of(":", "+", "x", "-", "(", ")")) {
-            assertEquals(ExpressionLines.SYMBOL_COLOR, frame.find(symbol).color(), symbol);
+            assertEquals(Palette.GOLD, frame.find(symbol).color(), symbol);
         }
         DrawnFrame.Text colon = frame.findFirst(":");
         DrawnFrame.Text food = frame.findFirst("$food");
@@ -254,7 +254,7 @@ class ExpressionLinesTest {
 
     private static void paint(DrawnFrame frame, List<ExpressionLines.Run> runs) {
         ExpressionLines.draw(DrawnFrame.font(), runs, 10, 20, 300, new ExpressionLines.Painter(frame.graphics, null,
-                frame.targets, 0xFFFFFFFF, ButtonPainter.LINK, (variable, x, y, width) -> { }));
+                frame.targets, 0xFFFFFFFF, Palette.LINK, (variable, x, y, width) -> { }));
     }
 
     /**

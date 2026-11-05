@@ -40,8 +40,8 @@ class ControlFlowTest {
         boolean[] pressed = {false};
         new ControlFlow(graphics, font(), targets, null, 0, 400, 0).runs(REF, null, at -> pressed[0] = true);
         int width = "waxed".length() * 6 + 2 * ButtonPainter.PADDING;
-        verify(graphics).fill(0, 2, width, 2 + ButtonPainter.HEIGHT, ButtonPainter.BORDER);
-        verify(graphics).fill(1, 3, width - 1, 1 + ButtonPainter.HEIGHT, ButtonPainter.FILL);
+        verify(graphics).fill(0, 2, width, 2 + ButtonPainter.HEIGHT, Palette.BORDER);
+        verify(graphics).fill(1, 3, width - 1, 1 + ButtonPainter.HEIGHT, Palette.FILL);
         assertTrue(targets.click(width - 1, 2 + ButtonPainter.HEIGHT - 1));
         assertTrue(pressed[0]);
     }
@@ -56,7 +56,7 @@ class ControlFlowTest {
         ControlFlow flow = new ControlFlow(graphics, font(), new ClickTargets(), null, 0, 400, 0);
         flow.typeIcon("metal", at -> { });
         int width = GooTypeIcons.sizeOf("metal") + 2;
-        verify(graphics).fill(0, 0, width, ControlFlow.FULL_LINE, ButtonPainter.BORDER);
+        verify(graphics).fill(0, 0, width, ControlFlow.FULL_LINE, Palette.BORDER);
         assertEquals(width + BuilderOverlays.GAP, flow.column());
     }
 
@@ -68,7 +68,7 @@ class ControlFlowTest {
         GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
         ClickTargets targets = new ClickTargets();
         new ControlFlow(graphics, font(), targets, null, 0, 400, 0).runs(REF, null, null);
-        verify(graphics, never()).fill(anyInt(), anyInt(), anyInt(), anyInt(), eq(ButtonPainter.BORDER));
+        verify(graphics, never()).fill(anyInt(), anyInt(), anyInt(), anyInt(), eq(Palette.BORDER));
         assertFalse(targets.click(1, 5));
     }
 

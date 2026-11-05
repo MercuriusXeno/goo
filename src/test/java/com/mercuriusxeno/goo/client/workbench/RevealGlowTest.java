@@ -14,7 +14,7 @@ class RevealGlowTest {
      */
     @Test
     void glowFadesFromFullToNoneOverItsFrames() {
-        assertEquals(RevealGlow.GLOW, RevealGlow.colorAt(0));
+        assertEquals(Palette.GLOW, RevealGlow.colorAt(0));
         for (int frame = 1; frame <= RevealGlow.FRAMES; frame++) {
             assertTrue(RevealGlow.alphaAt(frame) < RevealGlow.alphaAt(frame - 1), "frame " + frame);
         }

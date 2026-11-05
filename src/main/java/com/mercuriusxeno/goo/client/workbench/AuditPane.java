@@ -26,12 +26,6 @@ final class AuditPane {
     private static final int PROGRESS_SHOWN = 8;
     private static final int HEADER_HEIGHT = ButtonPainter.HEIGHT;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
-    /** The green a flagless section's header draws in. */
-    static final int GREEN = 0xFF55FF55;
-    private static final int PROGRESS_COLOR = 0x40000000;
     private static final String RUN = "Run Audit";
     private static final String RUNNING = "running: saving the draft and auditing it on the server";
     private static final String OPEN_MARK = "v";
@@ -41,8 +35,6 @@ final class AuditPane {
     private static final String CHECKMARK = "✔";
     private static final String RESULTS_OPEN = " (";
     private static final String SPACE = " ";
-    // The file headings' yellow, apart from the sections' white and green headers.
-    private static final int FILE_COLOR = 0xFFFFFF55;
     private static final String PART_GAP = "  ";
     private static final String NO_TEXT = "";
 
@@ -113,7 +105,7 @@ final class AuditPane {
         int y = bounds.top();
         int x;
         if (audit.running()) {
-            graphics.text(font, RUNNING, bounds.left(), y, GRAY);
+            graphics.text(font, RUNNING, bounds.left(), y, Palette.MUTED);
             x = bounds.left() + font.width(RUNNING) + GAP;
         } else {
             x = ButtonPainter.drawAtText(graphics, font, RUN, bounds.left(), y, targets, this::run).right() + GAP;
@@ -126,7 +118,7 @@ final class AuditPane {
                     .right() + GAP;
         }
         if (!audit.running()) {
-            graphics.text(font, audit.runLine(), x, y, GRAY);
+            graphics.text(font, audit.runLine(), x, y, Palette.MUTED);
         }
     }
 
@@ -162,10 +154,10 @@ final class AuditPane {
         int width = textWidth(bounds);
         progressTop = top;
         progressBottom = top + height;
-        graphics.fill(bounds.left(), top, bounds.right(), top + height, PROGRESS_COLOR);
+        graphics.fill(bounds.left(), top, bounds.right(), top + height, Palette.METER_FILL);
         int y = top;
         for (String line : latest) {
-            graphics.text(font, font.plainSubstrByWidth(line, width), bounds.left(), y, GRAY);
+            graphics.text(font, font.plainSubstrByWidth(line, width), bounds.left(), y, Palette.MUTED);
             y += LINE_HEIGHT;
         }
         progressBar.draw(graphics, targets, bounds.right(), top, top + height);
@@ -186,7 +178,7 @@ final class AuditPane {
             // Decision audit-headings-group-by-file-under-a-file-heading.
             if (!section.source().equals(file)) {
                 file = section.source();
-                graphics.text(font, file, area.left(), y, FILE_COLOR);
+                graphics.text(font, file, area.left(), y, Palette.FILE_HEADING);
                 y += LINE_HEIGHT + GAP;
             }
             y = drawSection(graphics, font, section, new Row(area.left(), y, width), targets) + GAP;
@@ -224,8 +216,8 @@ final class AuditPane {
         drawHeader(graphics, font, section, textLeft, row.top() + ButtonPainter.TEXT_NUDGE);
         int y = row.top() + HEADER_HEIGHT;
         if (open) {
-            y = drawLines(graphics, font, section.flags(), row.left(), y, row.width(), RED);
-            y = drawLines(graphics, font, section.lines(), row.left(), y, row.width(), GRAY);
+            y = drawLines(graphics, font, section.flags(), row.left(), y, row.width(), Palette.DANGER);
+            y = drawLines(graphics, font, section.lines(), row.left(), y, row.width(), Palette.MUTED);
         }
         return y;
     }
@@ -236,7 +228,7 @@ final class AuditPane {
                                    int textTop) {
         // Decision flagless-section-draws-green-with-a-checkmark.
         boolean flagless = section.flags().isEmpty();
-        int color = flagless ? GREEN : WHITE;
+        int color = flagless ? Palette.GOOD : Palette.TEXT;
         String header = section.header();
         int results = header.indexOf(RESULTS_OPEN);
         // Decision heading-name-weighs-more-than-its-parenthesized-results.

@@ -13,10 +13,6 @@ import java.util.TreeSet;
  * target rectangles alone, so any pane's drag reuses it.
  */
 final class DragMask {
-    /** The shadow's tone. */
-    static final int SHADOW = 0x8C000000;
-    /** The light highlight over each target. */
-    static final int HIGHLIGHT = 0x34FFFFF0;
 
     private DragMask() {
     }
@@ -93,10 +89,10 @@ final class DragMask {
      */
     static void draw(GuiGraphicsExtractor graphics, Rect screen, List<Rect> holes) {
         for (Rect shade : shadow(screen, holes)) {
-            graphics.fill(shade.left(), shade.top(), shade.right(), shade.bottom(), SHADOW);
+            graphics.fill(shade.left(), shade.top(), shade.right(), shade.bottom(), Palette.DRAG_SHADOW);
         }
         for (Rect hole : holes) {
-            graphics.fill(hole.left(), hole.top(), hole.right(), hole.bottom(), HIGHLIGHT);
+            graphics.fill(hole.left(), hole.top(), hole.right(), hole.bottom(), Palette.DRAG_HIGHLIGHT);
         }
     }
 }
