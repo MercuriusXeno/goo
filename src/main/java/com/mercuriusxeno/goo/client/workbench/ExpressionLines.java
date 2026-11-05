@@ -781,16 +781,27 @@ final class ExpressionLines {
     // The piece's place is its x and its line's top; its text centers on its sprite.
     private static void drawItem(Lettering lettering, Run run, String piece, int[] place, Painter painter) {
         int x = place[0];
-        int top = place[1];
+        int spriteTop = place[1] + ICON_INSET;
+        int textTop = lettering.centeredTop(spriteTop, ITEM_SPRITE_SIZE);
         ItemIcons icons = painter.icons();
         ManagerActions actions = painter.actions();
         String id = String.valueOf(run.ref());
-        if (icons != null && actions != null) {
-            ItemLinks.draw(painter.graphics(), icons, painter.targets(), actions, id, x, top + ICON_INSET);
-        } else if (icons != null) {
-            ItemLinks.sprite(painter.graphics(), icons.of(id), x, top + ICON_INSET);
+        if (icons == null || actions == null) {
+            if (icons != null) {
+                ItemLinks.sprite(painter.graphics(), icons.of(id), x, spriteTop);
+            }
+            lettering.draw(painter.graphics(), piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, textTop,
+                    painter.textColor());
+            return;
         }
-        lettering.draw(painter.graphics(), piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP,
-                lettering.centeredTop(top + ICON_INSET, ITEM_SPRITE_SIZE), painter.textColor());
+        // Decision diagnose-and-correct-read-mode-item-icons-that-do-not-follow: sprite and name are one link, the
+        // name in the link color, one underline spanning both while shift is held.
+        // Decision holding-shift-underlines-every-link.
+        int width = ITEM_SPRITE_SIZE + ICON_TEXT_GAP + lettering.width(piece);
+        ItemLinks.sprite(painter.graphics(), icons.of(id), x, spriteTop);
+        lettering.draw(painter.graphics(), piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, textTop, painter.linkColor());
+        ButtonPainter.underlineWhileShiftHeld(painter.graphics(), painter.targets(), lettering, x, textTop, width,
+                painter.linkColor());
+        ItemLinks.add(painter.targets(), actions, id, x, spriteTop, width, ITEM_SPRITE_SIZE);
     }
 }
