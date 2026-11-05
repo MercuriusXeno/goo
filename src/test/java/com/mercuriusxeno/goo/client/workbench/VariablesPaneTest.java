@@ -1,5 +1,9 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.data.GooConstantResolver;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -989,6 +993,73 @@ class VariablesPaneTest {
                 && text.text().contains("Unknown constant")).toList();
         assertEquals(1, red.size(), frame.drawn().toString());
         assertEquals(box[3], red.getFirst().y());
+    }
+
+    /**
+     * With $a reading $b and $b reading $a beside $c reading 4, the tab draws one red line under $a's box and one
+     * under $b's, each naming both prefabs as the game's resolver answers them, and none under $c's (decision
+     * cycled-prefabs-error-and-the-rest-load).
+     */
+    @Test
+    void cycledPrefabsEachDrawOneRedLineNamingTheCycle() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "a", "keySeparator": null, "kind": "VALUE", "text": "\\"$b + 1\\"",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                    {"key": "b", "keySeparator": null, "kind": "VALUE", "text": "\\"$a + 1\\"",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                    {"key": "c", "keySeparator": null, "kind": "VALUE", "text": "\\"4\\"",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated(resolvedByTheGame("""
+                {"a": "$b + 1", "b": "$a + 1", "c": "4"}
+                """));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane pane = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        // Each prefab's delete glyph draws in the same red, so the error lines are the red texts but that glyph.
+        List<DrawnFrame.Text> errorLines = frame.drawn().stream()
+                .filter(text -> text.color() == Palette.DANGER && !"✗".equals(text.text())).toList();
+        List<Integer> redTops = errorLines.stream().map(DrawnFrame.Text::y).toList();
+        List<String> red = errorLines.stream().map(DrawnFrame.Text::text).toList();
+        assertEquals(List.of("$a, $b read each other in a cycle and load no value",
+                "$a, $b read each other in a cycle and load no value"), red, frame.drawn().toString());
+        assertEquals(List.of(boxBottom(frame, "$b"), boxBottom(frame, "$a")), redTops, frame.drawn().toString());
+        assertTrue(redTops.getLast() < frame.find("4").y(), "no red line under $c's box");
+    }
+
+    // The bottom of the value box drawing the reference, past the name column where the name of the prefab it
+    // names draws the same text.
+    private static int boxBottom(DrawnFrame frame, String reference) {
+        DrawnFrame.Text inBox = frame.drawn().stream().filter(text -> text.text().equals(reference) && text.x() > 0)
+                .findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+        return frame.buttonAround(inBox)[3];
+    }
+
+    // The evaluated answer the Prefabs tab reads, each constant as the game's resolver answers it.
+    private static String resolvedByTheGame(String block) {
+        JsonArray constants = new JsonArray();
+        for (GooConstantResolver.ResolvedConstant each
+                : GooConstantResolver.resolve(JsonParser.parseString(block).getAsJsonObject())) {
+            JsonObject json = new JsonObject();
+            json.addProperty("name", each.name());
+            json.addProperty("kind", "scalar");
+            json.addProperty("value", each.scalar() == null ? null : each.scalar().toString());
+            json.addProperty("error", each.error());
+            json.add("usedBy", new JsonArray());
+            json.add("readers", new JsonArray());
+            constants.add(json);
+        }
+        JsonObject root = new JsonObject();
+        root.add("constants", constants);
+        return root.toString();
     }
 
     // A prefab of four type rows, each a plain amount, resolving to the four amounts typedPreview's does.

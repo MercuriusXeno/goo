@@ -3,9 +3,6 @@ package com.mercuriusxeno.goo.data;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,6 +16,7 @@ public final class GooConstantParser {
     private static final String CONSTANTS_SUFFIX = "_constants";
     private static final String LOG_LOADED_CONSTANTS = "Loaded {} constants ({} scalar, {} tree)";
     private static final String LOG_UNRESOLVED_ITEM = "Constant ${} names {}, which holds no value, so it loads no value";
+    private static final String LOG_CYCLE = "Prefabs {}";
 
     private GooConstantParser() {
     }
@@ -36,43 +34,17 @@ public final class GooConstantParser {
             return;
         }
         JsonObject obj = json.getAsJsonObject(CONSTANTS_SUFFIX);
-        for (String name : resolutionOrder(obj)) {
-            parseOneConstant(name, obj.get(name), state);
-        }
-        logConstantCounts(state);
-    }
-
-    /**
-     * Orders a _constants block by its dependency graph rather than its file order, so a prefab reads any prefab
-     * wherever it sits
-     * (decision prefabs-resolve-by-dependency-graph-conversions-alone-stay-ordered).
-     *
-     * @param constants the _constants block
-     * @return every prefab's name, each after every prefab its value reads
-     */
-    static List<String> resolutionOrder(JsonObject constants) {
-        Map<String, Set<String>> reads = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> entry : constants.entrySet()) {
-            Set<String> named = new LinkedHashSet<>();
-            collectReads(entry.getValue(), named);
-            named.retainAll(constants.keySet());
-            reads.put(entry.getKey(), named);
-        }
-        return DirectedGraphUtils.orderDependenciesFirst(reads);
-    }
-
-    private static void collectReads(JsonElement value, Set<String> named) {
-        if (value.isJsonObject()) {
-            value.getAsJsonObject().entrySet().forEach(field -> collectReads(field.getValue(), named));
-        } else if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
-            String expr = value.getAsString();
-            int i = expr.indexOf('$');
-            while (i >= 0) {
-                int end = scanIdentifier(expr, i + 1);
-                named.add(expr.substring(i + 1, end));
-                i = expr.indexOf('$', end);
+        PrefabDependencyGraph graph = PrefabDependencyGraph.of(obj);
+        Set<String> cycled = graph.cycled();
+        for (String name : graph.order()) {
+            if (!cycled.contains(name)) {
+                parseOneConstant(name, obj.get(name), state);
             }
         }
+        if (Goo.LOGGER.isWarnEnabled()) {
+            graph.cycles().forEach(cycle -> Goo.LOGGER.warn(LOG_CYCLE, PrefabDependencyGraph.cycleError(cycle)));
+        }
+        logConstantCounts(state);
     }
 
     /**

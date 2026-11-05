@@ -39,4 +39,21 @@ class GooConstantResolverTest {
         assertEquals("6", typed.perType().get("metal"));
         assertNull(typed.error(), typed.error());
     }
+
+    /**
+     * Each prefab in the $a/$b cycle answers no value and an error naming both, and $c beside them resolves with none
+     * (decision cycled-prefabs-error-and-the-rest-load).
+     */
+    @Test
+    void eachCycledPrefabErrorsNamingItsCycleAndTheRestResolve() {
+        List<GooConstantResolver.ResolvedConstant> resolved = GooConstantResolver.resolve(JsonParser.parseString("""
+                {"a": "$b + 1", "b": "$a + 1", "c": "4"}
+                """).getAsJsonObject());
+        for (GooConstantResolver.ResolvedConstant cycled : resolved.subList(0, 2)) {
+            assertEquals("$a, $b read each other in a cycle and load no value", cycled.error(), cycled.name());
+            assertNull(cycled.scalar(), cycled.name());
+        }
+        assertEquals(GooFraction.of(4), resolved.get(2).scalar());
+        assertNull(resolved.get(2).error(), resolved.get(2).error());
+    }
 }

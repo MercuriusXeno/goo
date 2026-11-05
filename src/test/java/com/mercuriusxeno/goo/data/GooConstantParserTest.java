@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -50,5 +51,19 @@ class GooConstantParserTest {
                 }}
                 """);
         assertEquals(GooFraction.of(18), state.constants.get("ingot"));
+    }
+
+    /**
+     * $a reading $b and $b reading $a load no value, and $c beside them loads its number (decision
+     * cycled-prefabs-error-and-the-rest-load).
+     */
+    @Test
+    void cycledPrefabsLoadNoValueAndTheRestLoad() {
+        GooValueLoader.ParseState state = parse("""
+                {"_constants": {"a": "$b + 1", "b": "$a + 1", "c": "4"}}
+                """);
+        assertEquals(GooFraction.of(4), state.constants.get("c"));
+        assertEquals(Set.of("c"), state.constants.keySet());
+        assertEquals(Set.of(), state.treeConstants.keySet());
     }
 }

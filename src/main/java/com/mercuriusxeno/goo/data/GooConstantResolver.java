@@ -56,9 +56,19 @@ public final class GooConstantResolver {
         validateTreeFields(constants, warnings);
         GooValueLoader.ParseState state = new GooValueLoader.ParseState(new HashMap<>(), new HashMap<>(),
                 new HashSet<>(), new HashSet<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new HashMap<>());
+        PrefabDependencyGraph graph = PrefabDependencyGraph.of(constants);
         Map<String, ResolvedConstant> byName = new HashMap<>();
-        for (String name : GooConstantParser.resolutionOrder(constants)) {
-            byName.put(name, resolveOne(name, constants.get(name), state, warnings));
+        // Decision cycled-prefabs-error-and-the-rest-load.
+        for (List<String> cycle : graph.cycles()) {
+            for (String name : cycle) {
+                List<String> own = new ArrayList<>(warningsFor(name, warnings));
+                own.add(PrefabDependencyGraph.cycleError(cycle));
+                byName.put(name, new ResolvedConstant(name, constants.get(name).isJsonObject(), null, Map.of(),
+                        String.join(WARNING_SEPARATOR, own)));
+            }
+        }
+        for (String name : graph.order()) {
+            byName.computeIfAbsent(name, resolving -> resolveOne(resolving, constants.get(resolving), state, warnings));
         }
         return constants.keySet().stream().map(byName::get).toList();
     }
