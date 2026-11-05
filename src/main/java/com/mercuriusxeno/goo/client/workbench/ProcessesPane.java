@@ -34,7 +34,6 @@ final class ProcessesPane {
     private static final String DELETE_HINT = "Delete";
     // Decision spacing-rules-are-one-set-across-every-pane: the pencil a button gap past the name, and the head
     // line's buttons the rule gap under the rule above, its text on their labels' line.
-    private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
     private static final int BUTTON_INSET = RowLayout.RULE_GAP;
     private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT;
     // The sentence's lettered line is as tall as its buttons, so the sentence stands the rule gap under the head
@@ -67,13 +66,13 @@ final class ProcessesPane {
     // Mutators first, then iterators.
     private static final boolean[] KINDS = {false, true};
     private static final int NAME_BOX_WIDTH = 140;
-    private static final int NAME_BOX_HEIGHT = 16;
     private static final String SEARCH_HINT = "Search mutators";
+    private static final String ITERATOR_SEARCH_HINT = "Search iterators";
     // Decision conversions-is-the-one-section-and-the-pane-name: the pane shows the one section, under no sub-tab.
     private static final String CONVERSIONS = "_conversions";
     private static final int SEARCH_WIDTH = 200;
     /** The row the search box takes above the columns. */
-    static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
+    static final int SEARCH_ROW = SearchRow.HEIGHT + SearchRow.GAP;
 
     private final ProcessesTab processes;
     private final ManagerDraft draft;
@@ -90,7 +89,9 @@ final class ProcessesPane {
     // Which column the glowing row stands in.
     private boolean glowIterators;
     private @Nullable EditBox nameBox;
-    private @Nullable EditBox search;
+    // Decision one-search-row-per-list-with-its-create-control-beside-it: the mutators column's search, then the
+    // iterators column's.
+    private final @Nullable EditBox[] searches = new EditBox[KINDS.length];
     private @Nullable Naming naming;
     private boolean nameBoxPlaced;
     private boolean visible;
@@ -137,7 +138,7 @@ final class ProcessesPane {
      * @param font the screen's font
      */
     void init(Font font) {
-        nameBox = actions.addWidget(new EditBox(font, 0, 0, NAME_BOX_WIDTH, NAME_BOX_HEIGHT,
+        nameBox = actions.addWidget(new EditBox(font, 0, 0, NAME_BOX_WIDTH, SearchRow.HEIGHT,
                 Component.literal(NAME_HINT)));
         nameBox.setHint(Component.literal(NAME_HINT));
         standSearch(font);
@@ -147,18 +148,25 @@ final class ProcessesPane {
 
     // A resize stands the box afresh with the text it held (decision mutators-tab-renames-and-searches-by-name).
     private void standSearch(Font font) {
-        String searched = search == null ? NO_TEXT : search.getValue();
-        EditBox box = actions.addWidget(new EditBox(font, 0, 0, SEARCH_WIDTH, NAME_BOX_HEIGHT,
-                Component.literal(SEARCH_HINT)));
-        box.setHint(Component.literal(SEARCH_HINT));
-        box.setValue(searched);
-        box.setResponder(text -> {
-            processes.search(text);
-            for (ScrollBar each : bars) {
-                each.reset();
-            }
-        });
-        search = box;
+        for (boolean iterators : KINDS) {
+            int index = iterators ? 1 : 0;
+            String hint = iterators ? ITERATOR_SEARCH_HINT : SEARCH_HINT;
+            EditBox previous = searches[index];
+            String searched = previous == null ? NO_TEXT : previous.getValue();
+            EditBox box = actions.addWidget(new EditBox(font, 0, 0, SEARCH_WIDTH, SearchRow.HEIGHT,
+                    Component.literal(hint)));
+            box.setHint(Component.literal(hint));
+            box.setValue(searched);
+            box.setResponder(text -> {
+                if (iterators) {
+                    processes.searchIterators(text);
+                } else {
+                    processes.searchMutators(text);
+                }
+                columnBar(iterators).reset();
+            });
+            searches[index] = box;
+        }
     }
 
     /**
@@ -170,8 +178,10 @@ final class ProcessesPane {
         if (nameBox != null) {
             nameBox.visible = shown && naming != null;
         }
-        if (search != null) {
-            search.visible = shown;
+        for (EditBox box : searches) {
+            if (box != null) {
+                box.visible = shown;
+            }
         }
     }
 
@@ -227,13 +237,13 @@ final class ProcessesPane {
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane, ClickTargets targets) {
         overlays.commitOnBlur();
-        // Decision mutators-tab-renames-and-searches-by-name: the search box stands above the scrolling blocks.
-        if (search != null) {
-            search.setPosition(pane.left(), pane.top());
-        }
         nameBoxPlaced = false;
         // Decision mutators-iterators-split-fifty-fifty: the two columns meet at the pane's midpoint.
         columnsMiddle = pane.left() + (pane.right() - pane.left()) / HALF;
+        // Decision mutators-tab-renames-and-searches-by-name: each column's search stands above its scrolling rows.
+        for (boolean iterators : KINDS) {
+            drawSearchRow(new Frame(graphics, font, columnOf(pane, pane.top(), iterators), targets), iterators);
+        }
         processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
                 .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
                         pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
@@ -248,13 +258,34 @@ final class ProcessesPane {
     // Decision mutators-pane-draws-no-entry-count.
     private void drawColumns(GuiGraphicsExtractor graphics, Font font, ProcessesTab.ProcessSection section,
                              GroupsPane.Bounds area, ClickTargets targets) {
-        int columnsTop = area.top();
         for (boolean iterators : KINDS) {
-            GroupsPane.Bounds column = iterators
-                    ? new GroupsPane.Bounds(columnsMiddle + COLUMN_GAP / HALF, columnsTop, area.right(), area.bottom())
-                    : new GroupsPane.Bounds(area.left(), columnsTop, columnsMiddle - COLUMN_GAP / HALF, area.bottom());
-            drawColumn(new Frame(graphics, font, column, targets), section, iterators);
+            drawColumn(new Frame(graphics, font, columnOf(area, area.top(), iterators), targets), section, iterators);
         }
+    }
+
+    private GroupsPane.Bounds columnOf(GroupsPane.Bounds area, int top, boolean iterators) {
+        return iterators ? new GroupsPane.Bounds(columnsMiddle + COLUMN_GAP / HALF, top, area.right(), area.bottom())
+                : new GroupsPane.Bounds(area.left(), top, columnsMiddle - COLUMN_GAP / HALF, area.bottom());
+    }
+
+    // A column's search row: its box stretching to the column's [+], or to the open name box standing in the [+]'s
+    // place (decisions one-search-row-per-list-with-its-create-control-beside-it,
+    // mutators-and-iterators-each-take-a-create-control).
+    private void drawSearchRow(Frame frame, boolean iterators) {
+        GroupsPane.Bounds column = frame.rows();
+        EditBox box = nameBox;
+        boolean namingHere = isNaming(CONVERSIONS, iterators) && box != null;
+        int controls = namingHere ? NAME_BOX_WIDTH + NameBoxButtons.width(frame.font())
+                : ButtonPainter.width(frame.font(), NEW_ENTRY);
+        SearchRow.Laid laid = SearchRow.lay(column.left(), column.top(),
+                column.right() - ScrollBar.WIDTH - ScrollBar.GAP, controls);
+        SearchRow.place(searches[iterators ? 1 : 0], laid);
+        if (namingHere) {
+            placeNameBox(frame, box, laid.controlsLeft(), laid.top(), controls);
+            return;
+        }
+        ButtonPainter.draw(frame.graphics(), frame.font(), NEW_ENTRY, laid.controlsLeft(), laid.top(), SearchRow.HEIGHT,
+                frame.targets(), () -> startNaming(new Naming(CONVERSIONS, iterators, null)), null);
     }
 
     // A column: its heading and [+] standing still, then its rows scrolling under its own bar.
@@ -264,7 +295,6 @@ final class ProcessesPane {
         graphics.text(frame.font(), iterators ? ITERATORS : MUTATORS, column.left(), RowLayout.nameTop(frame.font(),
                 column.top()),
                 Palette.TEXT);
-        drawCreate(frame, section.section(), iterators, column.top());
         int listTop = column.top() + ControlFlow.FULL_LINE + GAP;
         ScrollBar bar = columnBar(iterators);
         GroupsPane.Bounds rows = new GroupsPane.Bounds(column.left(), listTop,
@@ -312,18 +342,6 @@ final class ProcessesPane {
         return y;
     }
 
-    // Decision mutators-and-iterators-each-take-a-create-control: the button opens a name box in its place.
-    private void drawCreate(Frame frame, String section, boolean iterators, int top) {
-        String heading = iterators ? ITERATORS : MUTATORS;
-        int x = frame.rows().left() + frame.font().width(heading) + GAP;
-        if (isNaming(section, iterators) && nameBox != null) {
-            placeNameBox(frame, nameBox, x, top + 1, frame.rows().right() - x);
-            return;
-        }
-        BuilderOverlays.control(frame.graphics(), frame.font(), NEW_ENTRY,
-                null, x, top, frame.targets(),
-                at -> startNaming(new Naming(section, iterators, null)));
-    }
 
     // The open name box at most its own width, shrunk where the room left holds less beside its ✓ and ↺, which run
     // what Enter and Escape run.
@@ -334,9 +352,8 @@ final class ProcessesPane {
         box.setPosition(x, y);
         box.setWidth(width);
         nameBoxPlaced = true;
-        NameBoxButtons.draw(frame.graphics(), frame.font(), x + width, y + NAME_BOX_HEIGHT / HALF
-                - ButtonPainter.HEIGHT / HALF, ButtonPainter.HEIGHT, frame.targets(), () -> create(box.getValue()),
-                this::stopNaming);
+        NameBoxButtons.draw(frame.graphics(), frame.font(), x + width, y, ButtonPainter.HEIGHT, frame.targets(),
+                () -> create(box.getValue()), this::stopNaming);
     }
 
     private boolean isNaming(String section, boolean iterators) {
@@ -408,7 +425,7 @@ final class ProcessesPane {
         GuiGraphicsExtractor graphics = frame.graphics();
         Font font = frame.font();
         int markX = markerLeft(font, frame.rows().right());
-        int nameRoom = markX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
+        int nameRoom = markX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - ButtonPainter.PENCIL_GAP;
         drawName(frame, section, row.key(), new NameSlot(y, nameRoom));
         VerdictMark mark = verdictMark(row);
         graphics.text(font, mark.glyph(), markX, RowLayout.nameTop(font, y), mark.color());
@@ -472,7 +489,7 @@ final class ProcessesPane {
         int x = frame.rows().left();
         int y = slot.y();
         if (nameBox != null && naming != null && key.equals(naming.renamed()) && section.equals(naming.section())) {
-            int room = slot.room() + ButtonPainter.width(frame.font(), RENAME) + PENCIL_GAP;
+            int room = slot.room() + ButtonPainter.width(frame.font(), RENAME) + ButtonPainter.PENCIL_GAP;
             placeNameBox(frame, nameBox, x, y, room);
             return;
         }
@@ -480,8 +497,8 @@ final class ProcessesPane {
         ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, RowLayout.nameTop(frame.font(), y),
                 draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)));
         frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, nameHoverKey(section, key, shown));
-        ButtonPainter.draw(frame.graphics(), frame.font(), RENAME, x + frame.font().width(shown) + PENCIL_GAP,
-                y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
+        ButtonPainter.draw(frame.graphics(), frame.font(), RENAME,
+                x + frame.font().width(shown) + ButtonPainter.PENCIL_GAP, y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
                         ProcessesTab.isIterator(key), key)), BuilderOverlays.hintKey(RENAME_HINT));
     }
 
@@ -535,10 +552,13 @@ final class ProcessesPane {
      */
     void reveal(String key) {
         // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
-        if (search != null) {
-            search.setValue(NO_TEXT);
+        for (EditBox box : searches) {
+            if (box != null) {
+                box.setValue(NO_TEXT);
+            }
         }
-        processes.search(NO_TEXT);
+        processes.searchMutators(NO_TEXT);
+        processes.searchIterators(NO_TEXT);
         revealPending = key;
     }
 

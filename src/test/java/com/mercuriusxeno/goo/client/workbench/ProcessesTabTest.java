@@ -74,11 +74,26 @@ class ProcessesTabTest {
      */
     @Test
     void searchKeepsTheEntriesWhoseNameHoldsTheText() {
-        tab.search("RU");
-        assertEquals(List.of(List.of("rust"), List.of()), tab.sections().stream().map(section -> section.rows()
-                .stream().map(ProcessesTab.ProcessRow::key).toList()).toList());
-        tab.search(" ");
+        tab.searchMutators("RU");
+        assertEquals(List.of("rust"), tab.sections().getFirst().rows().stream().map(ProcessesTab.ProcessRow::key)
+                .toList());
+        tab.searchMutators(" ");
         assertEquals(List.of(2, 1), tab.sections().stream().map(section -> section.rows().size()).toList());
+    }
+
+    /**
+     * The mutator search filters the mutators alone and the iterator search the iterators alone, each column under
+     * its own search (decision one-search-row-per-list-with-its-create-control-beside-it).
+     */
+    @Test
+    void eachSearchFiltersItsOwnColumn() {
+        tab.searchMutators("RU");
+        assertEquals(List.of(1, 1), tab.sections().stream().map(section -> section.rows().size()).toList(),
+                "the iterator stays under a mutator search");
+        tab.searchMutators("");
+        tab.searchIterators("zzz");
+        assertEquals(List.of(2, 0), tab.sections().stream().map(section -> section.rows().size()).toList(),
+                "the mutators stay under an iterator search");
     }
 
     /**

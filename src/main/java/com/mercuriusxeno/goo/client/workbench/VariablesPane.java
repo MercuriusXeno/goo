@@ -35,7 +35,6 @@ final class VariablesPane {
     private static final int ICON_GAP = 2;
     private static final int NAME_WIDTH = 140;
     private static final int SEARCH_WIDTH = 180;
-    private static final int SEARCH_GAP = 3;
     private static final int KIND_GAP = 8;
     private static final int ACTION_GAP = 6;
     private static final int CARD_PADDING = 6;
@@ -65,7 +64,6 @@ final class VariablesPane {
     private static final String RENAME_HINT = "Rename";
     private static final String DELETE_HINT = "Delete";
     // Decision spacing-rules-are-one-set-across-every-pane: the pencil a button gap past the name.
-    private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
     private static final String CANCEL = "Cancel";
     private static final String USED_BY = "Used by ";
     private static final String USED_BY_KEY = ":usedBy";
@@ -297,7 +295,7 @@ final class VariablesPane {
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds view, ClickTargets targets,
                  int mouseX, int mouseY) {
-        int listTop = placeSearch(view);
+        int listTop = placeSearch(font, view);
         if (variables.blocks().isEmpty()) {
             graphics.text(font, NO_CONSTANTS, view.left(), listTop, Palette.MUTED);
             drawCreate(graphics, font, view, targets);
@@ -351,11 +349,17 @@ final class VariablesPane {
     }
 
     // Answers the list's top, below the box.
-    private int placeSearch(GroupsPane.Bounds view) {
-        if (search != null) {
-            search.setPosition(view.left(), view.top());
-        }
-        return view.top() + BOX_HEIGHT + SEARCH_GAP;
+    private int placeSearch(Font font, GroupsPane.Bounds view) {
+        SearchRow.Laid laid = searchRow(font, view);
+        SearchRow.place(search, laid);
+        return laid.listTop();
+    }
+
+    // Decision one-search-row-per-list-with-its-create-control-beside-it: the box stretches to the [+], or to the open
+    // name box standing in its place, at the list's right end.
+    private SearchRow.Laid searchRow(Font font, GroupsPane.Bounds view) {
+        int controls = naming && nameBox != null ? NAME_WIDTH : ButtonPainter.width(font, NEW_PREFAB);
+        return SearchRow.lay(view.left(), view.top(), view.right() - ScrollBar.WIDTH - ScrollBar.GAP, controls);
     }
 
     private void showBoxes(boolean renameShown) {
@@ -377,10 +381,11 @@ final class VariablesPane {
     // Decision mutators-and-iterators-each-take-a-create-control.
     // Decisions open-name-box-takes-a-done-checkmark, open-name-box-takes-a-gold-arrow-that-cancels.
     private void drawCreate(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds view, ClickTargets targets) {
-        int x = view.left() + SEARCH_WIDTH + RowLayout.BUTTON_GAP;
+        int x = searchRow(font, view).controlsLeft();
         EditBox box = nameBox;
         if (!naming || box == null) {
-            BuilderOverlays.control(graphics, font, NEW_PREFAB, null, x, view.top(), targets, at -> startNaming());
+            ButtonPainter.draw(graphics, font, NEW_PREFAB, x, view.top(), SearchRow.HEIGHT, targets, this::startNaming,
+                    null);
             return;
         }
         int boxWidth = NAME_WIDTH - NameBoxButtons.width(font);
@@ -437,14 +442,14 @@ final class VariablesPane {
         int pencilWidth = ButtonPainter.width(font, RENAME);
         // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab's name reads after $.
         String shown = PrefabNames.marked(block.name());
-        int nameWidth = font.width(shown) + PENCIL_GAP + pencilWidth;
+        int nameWidth = font.width(shown) + ButtonPainter.PENCIL_GAP + pencilWidth;
         if (renamingThis) {
             drawRenameBox(graphics, font, rename, block.name(), x, y, targets);
             nameWidth = NAME_WIDTH;
         } else {
             ButtonPainter.drawEntryName(graphics, font, shown, x, y, isMarked(block.name()));
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
-            ButtonPainter.draw(graphics, font, RENAME, x + font.width(shown) + PENCIL_GAP,
+            ButtonPainter.draw(graphics, font, RENAME, x + font.width(shown) + ButtonPainter.PENCIL_GAP,
                     y - ButtonPainter.labelInset(font), ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
                     BuilderOverlays.hintKey(RENAME_HINT));
         }

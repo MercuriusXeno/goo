@@ -19,6 +19,11 @@ final class ButtonPainter {
     static final int HEIGHT = 14;
     /** The room between the border and the label on either side. */
     static final int PADDING = 3;
+    /**
+     * The room between a name and its rename pencil on every pane (decision
+     * one-search-row-per-list-with-its-create-control-beside-it).
+     */
+    static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
     /** The room a type-icon button leaves each side of its icon (decision type-icon-buttons-shrink-their-padding). */
     static final int ICON_PADDING = 1;
     // A glyph's baseline stands seven pixels under the text's top, the underline one under that, as the font's own.
@@ -409,8 +414,25 @@ final class ButtonPainter {
      */
     static void drawEntryName(GuiGraphicsExtractor graphics, Font font, String name, int x, int textTop,
                               boolean marked) {
+        drawEntryName(graphics, font, name, x, textTop, marked, Palette.TEXT);
+    }
+
+    /**
+     * Draws an entry's name in a color of its own, as a group naming an unknown member reads red, struck through and
+     * dimmed while the entry is marked for removal.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param name     the shown name
+     * @param x        its left edge
+     * @param textTop  its text's top
+     * @param marked   whether the entry is marked for removal
+     * @param color    the name's color while it stands unmarked
+     */
+    static void drawEntryName(GuiGraphicsExtractor graphics, Font font, String name, int x, int textTop,
+                              boolean marked, int color) {
         if (!marked) {
-            graphics.text(font, name, x, textTop, Palette.TEXT);
+            graphics.text(font, name, x, textTop, color);
             return;
         }
         graphics.text(font, name, x, textTop, Palette.MUTED);

@@ -274,28 +274,30 @@ final class GroupsPane {
     }
 
     // The operator's ruling: one row, the search box at the left and + Custom and + Tag to its right; a new group's
-    // name box stands in the search box's place while open. Answers the list's top below the row.
+    // name box stands beside the search box in their place while open, as on Prefabs. Answers the list's top below the
+    // row. Decision one-search-row-per-list-with-its-create-control-beside-it.
     private int drawNewGroup(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
         int rowRight = left + listWidth - ScrollBar.WIDTH - ScrollBar.GAP;
-        int buttonsWidth = ButtonPainter.width(font, NEW_GROUP) + BuilderOverlays.GAP + ButtonPainter.width(font,
-                ADD_TAG);
-        int boxWidth = Math.max(1, rowRight - left - buttonsWidth - BuilderOverlays.GAP);
         boolean namingNew = naming && !renaming && nameBox != null;
-        if (namingNew) {
-            placeNameBox(graphics, font, nameBox, left, top, Math.max(1, boxWidth - NameBoxButtons.width(font)),
-                    targets);
-        }
+        int controls = namingNew ? NAME_BOX_WIDTH + NameBoxButtons.width(font)
+                : ButtonPainter.width(font, NEW_GROUP) + SearchRow.GAP + ButtonPainter.width(font, ADD_TAG);
+        SearchRow.Laid laid = SearchRow.lay(left, top, rowRight, controls);
+        SearchRow.place(search, laid);
         if (search != null) {
-            search.setPosition(left, top + HALF);
-            search.setWidth(boxWidth);
-            search.visible = visible && !namingNew;
+            search.visible = visible;
         }
-        int afterNewGroup = BuilderOverlays.control(graphics, font, NEW_GROUP, left + boxWidth + BuilderOverlays.GAP,
-                top, targets, at -> startNaming());
+        if (namingNew) {
+            placeNameBox(graphics, font, nameBox, laid.controlsLeft(), top, NAME_BOX_WIDTH, targets);
+            return laid.listTop();
+        }
+        ButtonPainter.Box custom = ButtonPainter.draw(graphics, font, NEW_GROUP, laid.controlsLeft(), top,
+                SearchRow.HEIGHT, targets, this::startNaming, null);
+        int tagX = custom.right() + SearchRow.GAP;
         // decision add-tag-picks-a-game-tag-and-writes-its-entry
-        BuilderOverlays.control(graphics, font, ADD_TAG, afterNewGroup, top, targets, at -> overlays.openDropdown(
-                at, groups.addTagChoices(values.entries()), choice -> createTag(choice.id())));
-        return top + ROW_HEIGHT + HALF;
+        ButtonPainter.draw(graphics, font, ADD_TAG, tagX, top, SearchRow.HEIGHT, targets, () -> overlays.openDropdown(
+                new BuilderOverlays.Anchor(tagX, top), groups.addTagChoices(values.entries()),
+                choice -> createTag(choice.id())), null);
+        return laid.listTop();
     }
 
     private void createTag(String tagId) {
@@ -446,16 +448,14 @@ final class GroupsPane {
         }
         String shown = font.plainSubstrByWidth(name, nameTextWidth);
         int textTop = RowLayout.nameTop(font, y);
-        if (groups.removals().isMarked(RemovalMarks.Tab.GROUPS, card.row().name())) {
-            ButtonPainter.drawEntryName(graphics, font, shown, area.left(), textTop, true);
-        } else {
-            graphics.text(font, shown, area.left(), textTop,
-                    card.row().unknownCount() == 0 ? Palette.TEXT : Palette.DANGER);
-        }
+        // Decision one-search-row-per-list-with-its-create-control-beside-it: the name draws as every pane's does.
+        ButtonPainter.drawEntryName(graphics, font, shown, area.left(), textTop,
+                groups.removals().isMarked(RemovalMarks.Tab.GROUPS, card.row().name()),
+                card.row().unknownCount() == 0 ? Palette.TEXT : Palette.DANGER);
         // decision hovering-a-truncated-group-name-shows-the-full-name
         nameHoverKey(font, name, nameTextWidth).ifPresent(key -> targets.addHover(area.left(), textTop,
                 nameTextWidth, font.lineHeight, key));
-        int afterX = area.left() + font.width(shown) + BuilderOverlays.GAP;
+        int afterX = area.left() + font.width(shown) + ButtonPainter.PENCIL_GAP;
         if (card.tag()) {
             graphics.text(font, after, afterX, textTop, Palette.MUTED);
         } else {
@@ -845,11 +845,11 @@ final class GroupsPane {
     // Decision open-name-box-takes-a-gold-arrow-that-cancels.
     private void placeNameBox(GuiGraphicsExtractor graphics, Font font, EditBox box, int x, int rowTop, int width,
                               ClickTargets targets) {
-        box.setPosition(x, rowTop + HALF);
+        box.setPosition(x, rowTop);
         box.setWidth(width);
         box.visible = visible;
-        NameBoxButtons.draw(graphics, font, x + width, rowTop, ROW_HEIGHT, targets, () -> commitName(box.getValue()),
-                this::stopNaming);
+        NameBoxButtons.draw(graphics, font, x + width, rowTop, ButtonPainter.HEIGHT, targets,
+                () -> commitName(box.getValue()), this::stopNaming);
     }
 
     private void commitName(String typed) {

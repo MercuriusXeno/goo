@@ -48,6 +48,7 @@ public final class ProcessesTab {
     private final ManagerDraft draft;
     private final List<ProcessSection> sections = new ArrayList<>();
     private String searched = NO_TEXT;
+    private String searchedIterators = NO_TEXT;
 
     /**
      * @param draft the draft every tab of the manager edits
@@ -132,18 +133,31 @@ public final class ProcessesTab {
      */
     public List<ProcessSection> sections() {
         return sections.stream().map(section -> new ProcessSection(section.section(),
-                section.rows().stream().filter(row -> row.key().toLowerCase(Locale.ROOT).contains(searched))
-                        .toList())).toList();
+                section.rows().stream().filter(this::kept).toList())).toList();
+    }
+
+    // A row stays where its name holds its own column's search: a mutator the mutator search, an iterator the
+    // iterator search (decision one-search-row-per-list-with-its-create-control-beside-it).
+    private boolean kept(ProcessRow row) {
+        return row.key().toLowerCase(Locale.ROOT).contains(isIterator(row.key()) ? searchedIterators : searched);
     }
 
     /**
      * Decision mutators-tab-renames-and-searches-by-name.
      *
-     * @param text what the search box holds; each block keeps the entries whose name holds it, any case, and a
-     *             blank one keeps every entry
+     * @param text what the mutator search box holds; the mutators keep the entries whose name holds it, any case,
+     *             and a blank one keeps every mutator
      */
-    public void search(String text) {
+    public void searchMutators(String text) {
         searched = text.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * @param text what the iterator search box holds; the iterators keep the entries whose name holds it, any case,
+     *             and a blank one keeps every iterator
+     */
+    public void searchIterators(String text) {
+        searchedIterators = text.trim().toLowerCase(Locale.ROOT);
     }
 
     /**
