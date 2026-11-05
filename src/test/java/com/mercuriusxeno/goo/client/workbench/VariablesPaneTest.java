@@ -672,6 +672,13 @@ class VariablesPaneTest {
                 firstRow - ExpressionLines.ICON_LINE_HEIGHT / 2), frame.drawn().toString());
         assertTrue(frame.drawn().stream().noneMatch(text -> rowLines.contains(text.y())
                 && (text.text().contains("(") || text.text().contains(")"))), frame.drawn().toString());
+        // The operator's ruling of 2026-11-04: the amounts stand above the value's box, outside it.
+        int boxTop = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals(":")).findFirst()
+                .orElseThrow())[1];
+        assertTrue(amounts.stream().allMatch(amount -> amount.y() + GAME_LINE_HEIGHT <= boxTop),
+                amounts + " vs the box's top " + boxTop);
+        assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT, boxTop),
+                "the amount line's icons stand above the box");
     }
 
     /**
@@ -710,6 +717,8 @@ class VariablesPaneTest {
         assertTrue(wood.y() > amount.y(), wood + " below " + amount);
         assertTrue(frame.drawn().stream().noneMatch(text -> text.y() == wood.y() && text.text().contains("(")),
                 frame.drawn().toString());
+        // The operator's ruling of 2026-11-04: the amount stands above the value's box, outside it.
+        assertTrue(amount.y() + GAME_LINE_HEIGHT <= frame.buttonAround(wood)[1], amount + " inside the box");
     }
 
     /**
