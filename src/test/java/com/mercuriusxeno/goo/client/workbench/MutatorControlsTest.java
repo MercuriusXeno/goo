@@ -7,14 +7,17 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -160,6 +163,48 @@ class MutatorControlsTest {
             int bottom = controls.draw(new DrawnFrame().graphics, DrawnFrame.font(), SECTION, "rust",
                     new GroupsPane.Bounds(0, 0, 590, 390), 0, new ClickTargets());
             assertEquals(ControlFlow.LINE, bottom);
+        }
+
+        /**
+         * An add row draws its prefab's reduced value after the prefab button: each type's icon beside its amount, the
+         * set in parentheses; a prefab resolving to nothing draws no parentheses (decision
+         * add-mutator-entry-shows-its-reduced-value).
+         */
+        @Test
+        void addRowDrawsItsPrefabsReducedValue() {
+            Map<String, Map<String, String>> values = Map.of("oak", orderedAmounts(), "birch", Map.of());
+            MutatorControls valued = new MutatorControls(processes, overlays, mock(ManagerActions.class),
+                    () -> List.of("oak", "birch"), () -> List.of("metal"), () -> { },
+                    name -> values.getOrDefault(name, Map.of()));
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Additive("oak"));
+            DrawnFrame frame = new DrawnFrame();
+            valued.draw(frame.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
+            DrawnFrame.Text prefab = frame.find("$oak");
+            int prefabRight = frame.buttonAround(prefab)[2];
+            ArgumentCaptor<Integer> iconXs = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeast(0)).blit(any(), any(), iconXs.capture(), anyInt(), anyFloat(), anyFloat(),
+                    anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+            List<Integer> icons = iconXs.getAllValues().stream().filter(x -> x > prefabRight).toList();
+            assertEquals(2, icons.size(), frame.drawn().toString());
+            DrawnFrame.Text rock = frame.drawn().stream().filter(text -> text.text().startsWith("(192")).findFirst()
+                    .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            DrawnFrame.Text yore = frame.drawn().stream().filter(text -> text.text().equals("336)")).findFirst()
+                    .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+            assertTrue(icons.get(0) < rock.x() && rock.x() < icons.get(1) && icons.get(1) < yore.x(),
+                    icons + " " + frame.drawn());
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Additive("birch"));
+            DrawnFrame bare = new DrawnFrame();
+            valued.draw(bare.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    bare.targets);
+            assertTrue(bare.drawn().stream().noneMatch(text -> text.text().contains("(")), bare.drawn().toString());
+        }
+
+        private static Map<String, String> orderedAmounts() {
+            Map<String, String> amounts = new java.util.LinkedHashMap<>();
+            amounts.put("rock", "192");
+            amounts.put("yore", "336");
+            return amounts;
         }
 
         @Test

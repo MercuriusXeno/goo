@@ -5,8 +5,10 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -63,8 +65,11 @@ final class MutatorControls {
     private final Supplier<List<String>> treePrefabs;
     private final Supplier<List<String>> gooTypes;
     private final Runnable changed;
+    private final Function<String, Map<String, String>> prefabAmounts;
 
     /**
+     * Controls whose add rows draw no reduced value.
+     *
      * @param processes   the Mutators tab's state
      * @param overlays    the number box, dropdown and picker the controls open
      * @param actions     where a shift + left click on a group, prefab or mutator name opens it
@@ -74,12 +79,29 @@ final class MutatorControls {
      */
     MutatorControls(ProcessesTab processes, BuilderOverlays overlays, ManagerActions actions,
                     Supplier<List<String>> treePrefabs, Supplier<List<String>> gooTypes, Runnable changed) {
+        this(processes, overlays, actions, treePrefabs, gooTypes, changed, prefab -> Map.of());
+    }
+
+    /**
+     * @param processes     the Mutators tab's state
+     * @param overlays      the number box, dropdown and picker the controls open
+     * @param actions       where a shift + left click on a group, prefab or mutator name opens it
+     * @param treePrefabs   the tree prefabs' names, which an additive adds
+     * @param gooTypes      the goo types' ids, the first a fresh formula's source
+     * @param changed       runs after each change written to the draft
+     * @param prefabAmounts a prefab's reduced value, each goo type with its amount in the order it reads, as
+     *                      VariablesTab.prefabValue answers it; empty where it resolves to nothing
+     */
+    MutatorControls(ProcessesTab processes, BuilderOverlays overlays, ManagerActions actions,
+                    Supplier<List<String>> treePrefabs, Supplier<List<String>> gooTypes, Runnable changed,
+                    Function<String, Map<String, String>> prefabAmounts) {
         this.processes = processes;
         this.overlays = overlays;
         this.actions = actions;
         this.treePrefabs = treePrefabs;
         this.gooTypes = gooTypes;
         this.changed = changed;
+        this.prefabAmounts = prefabAmounts;
     }
 
     /**
@@ -211,6 +233,12 @@ final class MutatorControls {
                 null, SearchDropdown.over(List.of(), treePrefabs.get(), false),
                 prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
         flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
+        // Decision add-mutator-entry-shows-its-reduced-value: the value after the prefab, each type's icon beside its
+        // amount in parentheses as the prefab's amount line reads, each pair wrapping whole; the hover stays.
+        Map<String, String> amounts = prefabAmounts.apply(additive.constant());
+        if (!amounts.isEmpty()) {
+            AmountGridLine.typed(amounts).cells().forEach(cell -> flow.runs(cell, null, null));
+        }
     }
 
     private void drawStack(Entry entry, Processes.Stack stack) {
