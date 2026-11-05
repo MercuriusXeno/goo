@@ -116,6 +116,38 @@ class GooAmountGridTest {
                 .map(List::size).toList());
     }
 
+    /**
+     * Decision row-amount-grid-fills-the-width-and-wraps-past-it: a row's column is as wide as its own widest cell, so
+     * a short amount after a long one stands one column gap from the next icon, as opulent's 6 before metal's icon.
+     */
+    @Test
+    void rowColumnTakesItsOwnWidestCell() {
+        Font font = DrawnFrame.font();
+        List<TooltipLine.GooAmount> amounts = List.of(new TooltipLine.GooAmount("metal", "12960"),
+                new TooltipLine.GooAmount("pulse", "54"), new TooltipLine.GooAmount("rock", "36"));
+        GooAmountGrid laid = GooAmountGrid.inRow(new TooltipLine.GooAmounts(amounts), type -> 11).within(font, 400);
+        List<Integer> icons = iconXsByRow(laid).values().iterator().next();
+        int shortCell = 11 + 1 + SmallDigits.advance(font, "54");
+        assertEquals(icons.get(1) + shortCell + GooAmountGrid.COLUMN_GAP, icons.get(2), icons.toString());
+    }
+
+    /**
+     * A wrapped row's cells still stand under the cells above them, each column as wide as its own widest cell.
+     */
+    @Test
+    void wrappedRowAlignsEachColumnOnItsOwnWidestCell() {
+        Font font = DrawnFrame.font();
+        List<TooltipLine.GooAmount> amounts = List.of(new TooltipLine.GooAmount("metal", "3"),
+                new TooltipLine.GooAmount("pulse", "3"), new TooltipLine.GooAmount("rock", "12960"),
+                new TooltipLine.GooAmount("jelly", "3"));
+        int wide = 11 + 1 + SmallDigits.advance(font, "12960");
+        int narrow = 11 + 1 + SmallDigits.advance(font, "3");
+        List<List<Integer>> rows = List.copyOf(iconXsByRow(GooAmountGrid.inRow(new TooltipLine.GooAmounts(amounts),
+                type -> 11).within(font, wide + GooAmountGrid.COLUMN_GAP + narrow)).values());
+        assertEquals(List.of(List.of(0, wide + GooAmountGrid.COLUMN_GAP), List.of(0, wide + GooAmountGrid.COLUMN_GAP)),
+                rows, "two columns, the second line's icons under the first's");
+    }
+
     @Test
     void iconsAlignDownEveryColumn() {
         List<List<Integer>> rows = List.copyOf(iconXsByRow(grid(9, "3")).values());
