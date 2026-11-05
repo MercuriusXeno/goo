@@ -269,10 +269,11 @@ final class VariablesPane {
             return GooAmountGrid.NONE;
         }
         if (!VariablesTab.TREE_KIND.equals(block.kind())) {
-            return new GooAmountGrid(GooAmountGrid.reducedScalar(resolved));
+            return GooAmountGrid.inRow(GooAmountGrid.reducedScalar(resolved));
         }
         Map<String, String> typed = typedAmounts(resolved);
         // Decision one-amount-grid-draws-every-amount-list: the line is the one amount grid, in its parens.
+        // Decision row-amount-grid-fills-the-width-and-wraps-past-it: reduced lays it as a row's grid.
         return typed.isEmpty() ? GooAmountGrid.NONE : GooAmountGrid.reduced(AmountOrder.highestFirst(typed));
     }
 
