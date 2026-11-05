@@ -80,7 +80,7 @@ final class ReadValueButton {
         int frameRight = runs.isEmpty() ? place.left() + ButtonPainter.width(font, NOT_SET)
                 : place.right() - ButtonPainter.width(font, PENCIL) + 1;
         ButtonPainter.Box frame = new ButtonPainter.Box(place.left(), place.top(), frameRight - place.left(), height);
-        ButtonPainter.drawFrame(graphics, frame);
+        Frame.draw(graphics, Frame.BUTTON, frame);
         ButtonPainter.reserve(targets, frame, place.open(), null);
         drawPencil(graphics, font, frame, textTop(font, runs, place.top()), targets, place.open());
         if (runs.isEmpty()) {
@@ -100,7 +100,7 @@ final class ReadValueButton {
                                    ClickTargets targets, Runnable open) {
         ButtonPainter.Box pencil = new ButtonPainter.Box(frame.right() - 1, frame.top(),
                 ButtonPainter.width(font, PENCIL), frame.height());
-        ButtonPainter.drawFrame(graphics, pencil);
+        Frame.draw(graphics, Frame.BUTTON, pencil);
         graphics.text(font, PENCIL, pencil.left() + ButtonPainter.PADDING, textTop, Palette.LINK);
         ButtonPainter.reserve(targets, pencil, open, null);
     }

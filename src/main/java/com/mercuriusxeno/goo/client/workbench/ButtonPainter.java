@@ -124,7 +124,7 @@ final class ButtonPainter {
     static Box drawColored(GuiGraphicsExtractor graphics, Lettering lettering, String label, int color, Box line,
                            ClickTargets targets, Runnable pressed, @Nullable String hoverKey) {
         Box box = layout(lettering.width(label), line.left(), line.top(), line.height());
-        drawFrame(graphics, box);
+        Frame.draw(graphics, Frame.BUTTON, box);
         drawLabel(graphics, lettering, label, box, color);
         reserve(targets, box, pressed, hoverKey);
         return box;
@@ -189,7 +189,7 @@ final class ButtonPainter {
     static Box drawFollow(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box line,
                           ClickTargets targets, Runnable follow, @Nullable String hoverKey) {
         Box box = layout(lettering.width(label), line.left(), line.top(), line.height());
-        drawFrame(graphics, box);
+        Frame.draw(graphics, Frame.BUTTON, box);
         drawLinkLabel(graphics, lettering, label, box, targets);
         targets.addFollow(box.left(), box.top(), box.width(), box.height(), follow, hoverKey);
         return box;
@@ -234,7 +234,7 @@ final class ButtonPainter {
      */
     static void drawLink(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
                          ClickTargets targets, ClickTargets.LinkGestures gestures, @Nullable String hoverKey) {
-        drawFrame(graphics, box);
+        Frame.draw(graphics, Frame.BUTTON, box);
         drawLinkLabel(graphics, lettering, label, box, targets);
         targets.addLink(box.left(), box.top(), box.width(), box.height(), gestures, hoverKey);
     }
@@ -275,18 +275,6 @@ final class ButtonPainter {
             int drop = underlineDrop(lettering);
             graphics.fill(x, textTop + drop, x + width, textTop + drop + 1, color);
         }
-    }
-
-    /**
-     * Draws a button's border and inner fill, for content a caller draws inside it, as the builder's clickable runs.
-     *
-     * @param graphics the frame's graphics
-     * @param box      the button's box
-     */
-    static void drawFrame(GuiGraphicsExtractor graphics, Box box) {
-        int bottom = box.top() + box.height();
-        graphics.fill(box.left(), box.top(), box.right(), bottom, Palette.BORDER);
-        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, bottom - 1, Palette.FILL);
     }
 
     /**

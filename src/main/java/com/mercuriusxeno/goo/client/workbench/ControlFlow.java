@@ -6,6 +6,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Lays a builder's words and controls left to right across an area, a piece too wide for what is left of its line
@@ -42,10 +43,6 @@ final class ControlFlow {
     private static final int CLEAR = 1;
     /** A drag rail's width. */
     static final int RAIL_WIDTH = 6;
-    // Decision rails-fill-the-left-edge-of-their-box: the rail fills its segment flush inside the border, and three
-    // grip lines mark it as a rail.
-    private static final int GRIP_LINES = 3;
-    private static final int GRIP_PITCH = 2;
     /** A rail segment's width: the rail and the border either side of it. */
     static final int RAIL_SEGMENT_WIDTH = RAIL_WIDTH + 2;
     /** How far a rail moves the next piece: its width and a gap. */
@@ -434,16 +431,11 @@ final class ControlFlow {
      * Fills a parenthetical's container in its depth's tone inside a 1 px border (decision
      * parentheticals-alternate-gray-tones-by-depth).
      *
-     * @param box    the container, its border's outer edges
-     * @param tone   the fill
-     * @param border the border's color
+     * @param box  the container, its border's outer edges
+     * @param tone the fill
      */
-    void boxed(GroupsPane.Bounds box, int tone, int border) {
-        graphics.fill(box.left(), box.top(), box.right(), box.top() + 1, border);
-        graphics.fill(box.left(), box.bottom() - 1, box.right(), box.bottom(), border);
-        graphics.fill(box.left(), box.top() + 1, box.left() + 1, box.bottom() - 1, border);
-        graphics.fill(box.right() - 1, box.top() + 1, box.right(), box.bottom() - 1, border);
-        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, box.bottom() - 1, tone);
+    void boxed(GroupsPane.Bounds box, int tone) {
+        Frame.draw(graphics, Frame.NEST.toned(tone), box);
     }
 
     // A piece filling its line's height, as a goo type's button stands.
@@ -709,7 +701,7 @@ final class ControlFlow {
         markPiece(width);
         int iconX = x;
         int iconY = y;
-        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(iconX, iconY, width, line));
+        Frame.draw(graphics, Frame.BUTTON, new ButtonPainter.Box(iconX, iconY, width, line));
         GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.ICON_PADDING,
                 iconY + GooTypeIcons.centered(line, size));
         targets.add(iconX, iconY, width, line,
@@ -744,52 +736,18 @@ final class ControlFlow {
      *
      * @param draggable whether the thing a rail drags, by the name it drags, has a place to drop
      */
-    void paintRails(java.util.function.Predicate<String> draggable) {
+    void paintRails(Predicate<String> draggable) {
         for (LaidRail rail : laidRails) {
             String name = rail.grab().name();
             if (draggable.test(name)) {
-                drawRail(graphics, new RailPaint(rail.left(), rail.top(), rail.bottom(), Palette.RAIL, Palette.GRIP));
+                Rails.draw(graphics, rail.left(), rail.top(), rail.bottom());
                 targets.addGrab(rail.left(), rail.top(), RAIL_WIDTH, rail.bottom() - rail.top(), rail.grab().grab(),
                         name);
             } else {
-                drawRail(graphics, new RailPaint(rail.left(), rail.top(), rail.bottom(), Palette.LOCKED_RAIL,
-                        Palette.LOCKED_GRIP));
+                Rails.drawLocked(graphics, rail.left(), rail.top(), rail.bottom());
             }
         }
         laidRails.clear();
-    }
-
-    /**
-     * Where a rail paints and in which colors.
-     *
-     * @param left   its left edge
-     * @param top    its top
-     * @param bottom its bottom
-     * @param fill   its fill
-     * @param grips  its grip lines' color
-     */
-    private record RailPaint(int left, int top, int bottom, int fill, int grips) {
-    }
-
-    /**
-     * Draws a rail and its three grip lines centered in it, as a group member's rail does outside any builder line.
-     *
-     * @param graphics the frame's graphics
-     * @param left     the rail's left edge
-     * @param top      its top
-     * @param bottom   its bottom
-     */
-    static void drawRail(GuiGraphicsExtractor graphics, int left, int top, int bottom) {
-        drawRail(graphics, new RailPaint(left, top, bottom, Palette.RAIL, Palette.GRIP));
-    }
-
-    private static void drawRail(GuiGraphicsExtractor graphics, RailPaint rail) {
-        graphics.fill(rail.left(), rail.top(), rail.left() + RAIL_WIDTH, rail.bottom(), rail.fill());
-        int first = (rail.top() + rail.bottom()) / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
-        for (int line = 0; line < GRIP_LINES; line++) {
-            int gripTop = first + line * GRIP_PITCH;
-            graphics.fill(rail.left() + 1, gripTop, rail.left() + RAIL_WIDTH - 1, gripTop + 1, rail.grips());
-        }
     }
 
     /**
@@ -808,8 +766,8 @@ final class ControlFlow {
         markButton(width);
         ButtonPainter.Box box = ButtonPainter.layout(letters.width(label), x, y, line);
         ButtonPainter.Box railed = new ButtonPainter.Box(box.left(), box.top(), width, box.height());
-        ButtonPainter.drawFrame(graphics, railed);
-        drawRail(graphics, railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
+        Frame.draw(graphics, Frame.BUTTON, railed);
+        Rails.draw(graphics, railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
         letters.draw(graphics, label, railed.left() + 1 + labelLeftRoom, wordsTop(), Palette.LINK);
         targets.addGrab(railed.left(), railed.top(), railed.width(), railed.height(), grab);
         String hoverKey = BuilderOverlays.hintKey(hint);
@@ -917,18 +875,16 @@ final class ControlFlow {
     private ButtonPainter.Box nextSegment(int width) {
         if (!ringed) {
             ButtonPainter.Box box = new ButtonPainter.Box(nextSegmentLeft, segmentsTop, width, segmentsHeight);
-            ButtonPainter.drawFrame(graphics, box);
+            Frame.draw(graphics, Frame.BUTTON, box);
             nextSegmentLeft = box.right() - 1;
             return box;
         }
         int bottom = segmentsTop + segmentsHeight;
-        if (seamDue) {
-            graphics.fill(nextInterior, segmentsTop, nextInterior + 1, bottom, Palette.SEAM_LIGHT);
-            graphics.fill(nextInterior + 1, segmentsTop, nextInterior + SEAM, bottom, Palette.SEAM_DARK);
-            nextInterior += SEAM;
-        }
-        int fillRight = nextInterior + width - FRAME_BORDERS;
-        graphics.fill(nextInterior, segmentsTop + RING, fillRight, bottom - RING, Palette.FILL);
+        int seam = seamDue ? SEAM : 0;
+        int fillRight = nextInterior + seam + width - FRAME_BORDERS;
+        Frame.termSegment(graphics, new GroupsPane.Bounds(nextInterior, segmentsTop + RING, fillRight, bottom - RING),
+                seam);
+        nextInterior += seam;
         ButtonPainter.Box framed = new ButtonPainter.Box(nextInterior - 1, segmentsTop + 1, width,
                 segmentsHeight - FRAME_BORDERS);
         nextInterior = fillRight;
@@ -1023,10 +979,7 @@ final class ControlFlow {
 
     // A term's 2 px ring, drawn over the seams' ends so it runs unbroken round the container.
     private void drawRing(GroupsPane.Bounds box) {
-        graphics.fill(box.left(), box.top(), box.right(), box.top() + RING, Palette.TERM_BORDER);
-        graphics.fill(box.left(), box.bottom() - RING, box.right(), box.bottom(), Palette.TERM_BORDER);
-        graphics.fill(box.left(), box.top() + RING, box.left() + RING, box.bottom() - RING, Palette.TERM_BORDER);
-        graphics.fill(box.right() - RING, box.top() + RING, box.right(), box.bottom() - RING, Palette.TERM_BORDER);
+        Frame.draw(graphics, Frame.TERM, box);
     }
 
     /**
@@ -1042,7 +995,7 @@ final class ControlFlow {
         markPiece(line);
         int boxX = x;
         int boxY = y;
-        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(boxX, boxY, line, line));
+        Frame.draw(graphics, Frame.BUTTON, new ButtonPainter.Box(boxX, boxY, line, line));
         letters.draw(graphics, label, boxX + (line - letters.width(label)) / HALF, wordsTop(), Palette.LINK);
         targets.add(boxX, boxY, line, line, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)),
                 BuilderOverlays.hintKey(hint));
@@ -1114,7 +1067,7 @@ final class ControlFlow {
     // Decision blue-text-options-draw-as-bordered-buttons: a clickable run is a button, its runs inside; runs that
     // fill their band take the band's height.
     private void drawRunsFrame(RunsBand band, int width) {
-        ButtonPainter.drawFrame(graphics, band.filled()
+        Frame.draw(graphics, Frame.BUTTON, band.filled()
                 ? new ButtonPainter.Box(x, band.top(), width + ButtonPainter.PADDING + ButtonPainter.PADDING,
                         band.height())
                 : ButtonPainter.layout(width, x, y, line));

@@ -427,6 +427,21 @@ class ValuesPaneTest {
     private static final int RED = 0xFFFF5555;
 
     /**
+     * A chip the filter does not hold frames as a button does, the button border round the button fill (decision
+     * one-frame-primitive-draws-every-bordered-box).
+     */
+    @Test
+    void hollowChipDrawsTheButtonFrame() {
+        ValuesPane.Chip hollow = ValuesPane.layChips(List.of("Items", "Uncovered 0"), sixPixelFont()::width, 0, 0,
+                ValuesTab.Filter.ITEMS).chips().getLast();
+        DrawnFrame frame = new DrawnFrame();
+        ValuesPane.drawChipFace(frame.graphics, sixPixelFont(), hollow, Palette.TEXT);
+        frame.assertOneFrameIn(Frame.BUTTON);
+        assertEquals(List.of(hollow.left(), hollow.top()), List.of(frame.fillsOf(Palette.BORDER).getFirst()[0],
+                frame.fillsOf(Palette.BORDER).getFirst()[1]));
+    }
+
+    /**
      * The selected chip draws its dark label with no drop shadow, so the label contrasts both its light fill and
      * any shadow under it (decision selected-filter-chip-text-contrasts-its-shadow).
      */

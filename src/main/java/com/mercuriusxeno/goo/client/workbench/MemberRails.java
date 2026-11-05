@@ -78,7 +78,7 @@ final class MemberRails {
     void draw(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds card, int index, String id,
               ClickTargets targets) {
         int bottom = card.top() + RowLayout.SPRITE_ROW_HEIGHT;
-        ControlFlow.drawRail(graphics, card.left(), card.top(), bottom);
+        Rails.draw(graphics, card.left(), card.top(), bottom);
         targets.addGrab(card.left(), card.top(), ControlFlow.RAIL_WIDTH, bottom - card.top(), grab(index), id);
         int textTop = Lettering.full(font).centeredTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT);
         graphics.text(font, String.valueOf(index + 1), numberLeft(card), textTop, Palette.MUTED);
