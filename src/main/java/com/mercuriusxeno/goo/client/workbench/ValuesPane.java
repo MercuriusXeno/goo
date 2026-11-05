@@ -62,6 +62,7 @@ final class ValuesPane {
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String FRACTIONAL_CHIP = "Fractional";
     private static final String NEGATIVE_CHIP = "Negative ";
+    private static final String GOO_CHIP = "Goo";
     private static final String SEARCH_HINT = "Search items";
     private static final int SEARCH_WIDTH = 180;
     private static final String NO_ENTRIES = "Nothing listed here.";
@@ -88,6 +89,7 @@ final class ValuesPane {
 
     ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions, ExpressionBuilderPane builder) {
         this.values = values;
+        values.typeNames(type -> GooTypeIcons.nameOf(type).getString());
         this.icons = icons;
         this.actions = actions;
         this.builder = builder;
@@ -205,8 +207,9 @@ final class ValuesPane {
      * Lays the filters as one segmented set: adjoining boxes sharing their inner borders, the one the tab holds
      * filled (decision items-filters-sit-on-their-own-line-as-one-set).
      *
-     * @param labels   the Items, Uncovered and Fractional labels, in that order (decisions
-     *                 items-selector-set-reads-items-and-uncovered, items-filter-set-takes-a-fractional-chip)
+     * @param labels   the Items, Uncovered, Fractional, Negative and Goo labels, in that order (decisions
+     *                 items-selector-set-reads-items-and-uncovered, items-filter-set-takes-a-fractional-chip,
+     *                 items-filter-set-takes-a-negative-chip, goo-chip-switches-the-search-to-goo-type-names)
      * @param width    a label's width
      * @param left     the set's left edge
      * @param top      the set's top edge
@@ -246,7 +249,7 @@ final class ValuesPane {
         int uncovered = values.uncoveredCount();
         int negative = values.negativeCount();
         List<String> labels = List.of(ITEMS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP,
-                NEGATIVE_CHIP + negative);
+                NEGATIVE_CHIP + negative, GOO_CHIP);
         int left = chipsLeft(labels, font::width, line);
         ChipLayout layout = layChips(labels, font::width, left, line.top(), values.filter());
         for (Chip chip : layout.chips()) {
