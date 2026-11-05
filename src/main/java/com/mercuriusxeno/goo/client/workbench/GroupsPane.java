@@ -378,7 +378,8 @@ final class GroupsPane {
         Map<String, String> worth = card.group().map(group -> worthOf(group, values)).orElse(Map.of());
         List<TooltipLine.GooAmount> amounts = new ArrayList<>();
         worth.forEach((type, amount) -> amounts.add(new TooltipLine.GooAmount(type, amount)));
-        return worth.isEmpty() ? GooAmountGrid.NONE : new GooAmountGrid(new TooltipLine.GooAmounts(amounts));
+        // Decision row-amount-grid-fills-the-width-and-wraps-past-it: the card's value lays as a row's grid.
+        return worth.isEmpty() ? GooAmountGrid.NONE : GooAmountGrid.inRow(new TooltipLine.GooAmounts(amounts));
     }
 
     // Decision one-red-error-line-under-every-value: a valued group's error is the one its members failed on, as no

@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import org.junit.jupiter.api.Test;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -36,5 +38,19 @@ class BuilderFrameTest {
         int indent = ROW.left() + ControlFlow.INDENT;
         assertEquals(new BuilderFrame.Laid(indent, indent + font.width("Value:") + BuilderFrame.LABEL_GAP, ROW.top(),
                 ROW.top() + amount.getHeight(font) + BuilderFrame.AMOUNT_GAP, ROW.right()), laid);
+    }
+
+    /**
+     * Decision row-amount-grid-fills-the-width-and-wraps-past-it: five amounts the row's width holds stand on one
+     * line, so the box stands one line's height and one gap below the value's top.
+     */
+    @Test
+    void amountsTheRowHoldsStandOnOneLine() {
+        Font font = DrawnFrame.font();
+        List<TooltipLine.GooAmount> five = Collections.nCopies(5, new TooltipLine.GooAmount("metal", "3"));
+        GooAmountGrid amount = GooAmountGrid.inRow(new TooltipLine.GooAmounts(five, true));
+        GooAmountGrid oneCell = GooAmountGrid.reduced(Map.of("metal", "3"));
+        BuilderFrame.Laid laid = BuilderFrame.lay(font, new BuilderFrame.Row(ROW, "Value:", amount, true));
+        assertEquals(ROW.top() + oneCell.getHeight(font) + BuilderFrame.AMOUNT_GAP, laid.boxTop());
     }
 }
