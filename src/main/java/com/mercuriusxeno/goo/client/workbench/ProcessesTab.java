@@ -8,7 +8,6 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.Processes;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 
@@ -47,8 +46,8 @@ public final class ProcessesTab {
 
     private final ManagerDraft draft;
     private final List<ProcessSection> sections = new ArrayList<>();
-    private String searched = NO_TEXT;
-    private String searchedIterators = NO_TEXT;
+    private Search.Query searched = Search.EVERYTHING;
+    private Search.Query searchedIterators = Search.EVERYTHING;
 
     /**
      * @param draft the draft every tab of the manager edits
@@ -123,7 +122,7 @@ public final class ProcessesTab {
         String reason = parsed ? NO_TEXT
                 : error == null || error.isJsonNull() ? REFUSED_REASON : error.getAsString();
         return new ProcessRow(process.get(KEY).getAsString(),
-                process.get(KIND).getAsString().toLowerCase(Locale.ROOT),
+                Search.fold(process.get(KIND).getAsString()),
                 ManagerDraft.shownText(process.get(TEXT).getAsString()), parsed,
                 parsed ? VALID_VERDICT : INVALID_VERDICT, reason);
     }
@@ -139,7 +138,7 @@ public final class ProcessesTab {
     // A row stays where its name holds its own column's search: a mutator the mutator search, an iterator the
     // iterator search (decision one-search-row-per-list-with-its-create-control-beside-it).
     private boolean kept(ProcessRow row) {
-        return row.key().toLowerCase(Locale.ROOT).contains(isIterator(row.key()) ? searchedIterators : searched);
+        return Search.matches(isIterator(row.key()) ? searchedIterators : searched, Search.Kind.ITEM, row.key());
     }
 
     /**
@@ -149,7 +148,7 @@ public final class ProcessesTab {
      *             and a blank one keeps every mutator
      */
     public void searchMutators(String text) {
-        searched = text.trim().toLowerCase(Locale.ROOT);
+        searched = Search.query(text);
     }
 
     /**
@@ -157,7 +156,7 @@ public final class ProcessesTab {
      *             and a blank one keeps every iterator
      */
     public void searchIterators(String text) {
-        searchedIterators = text.trim().toLowerCase(Locale.ROOT);
+        searchedIterators = Search.query(text);
     }
 
     /**

@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.workbench.Processes;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -66,7 +65,7 @@ public final class GroupsTab {
     private final List<Group> groups = new ArrayList<>();
     private @Nullable String selectedGroup;
     private @Nullable String selectedMember;
-    private String searchText = NO_NOTE;
+    private Search.Query searchQuery = Search.EVERYTHING;
     private List<ValuesTab.ManagerEntry> searchNames = List.of();
 
     /**
@@ -177,19 +176,20 @@ public final class GroupsTab {
      * @param inventory the inventory's items and tags, for each member's name
      */
     public void search(String text, List<ValuesTab.ManagerEntry> inventory) {
-        searchText = text.trim().toLowerCase(Locale.ROOT);
+        searchQuery = Search.query(text);
         searchNames = inventory;
     }
 
     // Decision groups-search-matches-a-name-or-any-member.
+    // Decision one-search-rule-serves-every-box-and-dropdown.
     private boolean matchesSearch(Group group) {
-        return searchText.isEmpty() || holdsSearch(group.name()) || group.members().stream()
+        return holdsSearch(group.name()) || group.members().stream()
                 .anyMatch(member -> holdsSearch(member.id()) || searchNames.stream()
                         .anyMatch(entry -> entry.id().equals(member.id()) && holdsSearch(entry.name())));
     }
 
     private boolean holdsSearch(String text) {
-        return text.toLowerCase(Locale.ROOT).contains(searchText);
+        return Search.matches(searchQuery, Search.Kind.GROUP, text);
     }
 
     /**

@@ -157,6 +157,15 @@ class VariablesTabTest {
          * Text in another case and with spaces around it lists the same prefab.
          */
         @Test
+        void dollarNarrowsToPrefabsAndHashListsNone() {
+            // Decision one-search-rule-serves-every-box-and-dropdown: $ narrows to prefabs and is stripped.
+            tab.search("$rok");
+            assertEquals(List.of("broken"), listedNames());
+            tab.search("#rok");
+            assertEquals(List.of(), listedNames());
+        }
+
+        @Test
         void searchIgnoresCaseAndSurroundingSpaces() {
             tab.search("  BROK ");
             assertEquals(List.of("broken"), listedNames());
