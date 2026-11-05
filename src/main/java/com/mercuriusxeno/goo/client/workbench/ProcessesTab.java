@@ -137,8 +137,10 @@ public final class ProcessesTab {
 
     // A row stays where its name holds its own column's search: a mutator the mutator search, an iterator the
     // iterator search (decision one-search-row-per-list-with-its-create-control-beside-it).
+    // Decision one-search-rule-serves-every-box-and-dropdown: an iterator over a group is a # kind.
     private boolean kept(ProcessRow row) {
-        return Search.matches(isIterator(row.key()) ? searchedIterators : searched, Search.Kind.ITEM, row.key());
+        Search.Kind kind = row.key().startsWith(GROUP_MARK) ? Search.Kind.GROUP : Search.Kind.ITEM;
+        return Search.matches(isIterator(row.key()) ? searchedIterators : searched, kind, row.key());
     }
 
     /**
