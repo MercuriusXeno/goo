@@ -395,9 +395,6 @@ class MutatorControlsTest {
             assertEquals(copies.y(), source.y());
             assertTrue(source.x() > copies.x(), source + " vs " + copies);
             assertFalse(frame.texts().contains(":"), frame.texts().toString());
-            // Decision iterator-reads-copies-then-mutates-using-and: the words right pack, ending at one x.
-            assertEquals(then.x() + LETTERS.width(then.text()), and.x() + LETTERS.width(and.text()),
-                    frame.drawn().toString());
             // Decision conversions-rows-letter-at-the-builders-scale: the lines stand the builder's pitch apart.
             int pitch = ControlFlow.LINE + ControlFlow.BUILDER_LINE_GAP;
             assertEquals(List.of(source.y() + pitch, then.y() + pitch), List.of(then.y(), and.y()),
@@ -418,23 +415,55 @@ class MutatorControlsTest {
         }
 
         /**
-         * The mutated by line, the and line and the + optional mutation line end at one right edge, a gap left of the
-         * row's validity marker, so none runs under the marker or the row's remove X (decision
-         * mutator-chain-forms-a-column-left-of-the-validity-marker).
+         * At every area width from 150 to 400 the mutated by line, the and line and the + optional mutation line end
+         * at one right edge, half the inset the validity marker set before from the area's right, still right packed
+         * (decision chain-lines-inset-halves-at-most).
          */
         @Test
-        void chainLinesEndInAColumnLeftOfTheValidityMarker() {
-            DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
+        void chainLinesEndHalfTheMarkersInsetFromTheRight() {
             Font font = DrawnFrame.font();
-            List<Integer> rights = new ArrayList<>(frame.drawn().stream().filter(text -> text.text().equals("x"))
-                    .map(text -> frame.buttonAround(text)[2]).toList());
-            rights.add(frame.buttonAround(frame.find("+ optional mutation"))[2]);
-            assertEquals(3, rights.size(), frame.drawn().toString());
-            assertEquals(1, rights.stream().distinct().count(), "the lines share one right edge: " + rights);
-            int markerLeft = ProcessesPane.markerLeft(font, 590);
-            assertEquals(markerLeft - BuilderOverlays.GAP, rights.getFirst(), "the column ends a gap left of the marker");
-            int removeLeft = 590 - ButtonPainter.width(font, "✗");
-            assertTrue(rights.getFirst() < removeLeft, "the column stands clear of the remove X at " + removeLeft);
+            for (int width = 150; width <= 400; width++) {
+                when(processes.formOf(SECTION, "#ores")).thenReturn(new Processes.Assignment("ores",
+                        List.of("@smelt", "@melt")));
+                DrawnFrame frame = new DrawnFrame();
+                controls.draw(frame.graphics, font, SECTION, "#ores", new GroupsPane.Bounds(0, 0, width, 390), 0,
+                        frame.targets);
+                List<Integer> rights = new ArrayList<>(frame.drawn().stream().filter(text -> text.text().equals("x"))
+                        .map(text -> frame.buttonAround(text)[2]).toList());
+                rights.add(frame.buttonAround(frame.find("+ optional mutation"))[2]);
+                int formerInset = width - ProcessesPane.markerLeft(font, width) + BuilderOverlays.GAP;
+                assertEquals(List.of(width - formerInset / 2, width - formerInset / 2, width - formerInset / 2),
+                        rights, "at " + width + ": " + frame.drawn());
+            }
+        }
+
+        /**
+         * On each chain line the x stands one gap past its own mutator's button, whatever the other line's name
+         * measures, the x's sharing one right edge; and in a 220-wide area a thirty-letter name's mutated by starts
+         * at or right of the area's left (decision chain-x-follows-its-mutator-at-one-gap).
+         */
+        @Test
+        void eachXFollowsItsOwnMutatorAtOneGap() {
+            String longName = "abcdefghijklmnopqrstuvwxyzabcd";
+            when(processes.formOf(SECTION, "#ores")).thenReturn(new Processes.Assignment("ores",
+                    List.of("@" + longName, "@ab")));
+            DrawnFrame frame = new DrawnFrame();
+            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, "#ores", new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
+            List<DrawnFrame.Text> removes = frame.drawn().stream().filter(text -> text.text().equals("x")).toList();
+            assertEquals(2, removes.size(), frame.drawn().toString());
+            for (String name : List.of(longName, "ab")) {
+                DrawnFrame.Text applied = frame.find(name);
+                DrawnFrame.Text remove = removes.stream().filter(text -> text.y() == applied.y()).findFirst()
+                        .orElseThrow(() -> new AssertionError(name + "'s x in " + frame.drawn()));
+                assertEquals(frame.buttonAround(applied)[2] + BuilderOverlays.GAP, frame.buttonAround(remove)[0],
+                        name + ": " + frame.drawn());
+            }
+            assertEquals(frame.buttonAround(removes.get(0))[2], frame.buttonAround(removes.get(1))[2]);
+            DrawnFrame narrow = new DrawnFrame();
+            controls.draw(narrow.graphics, DrawnFrame.font(), SECTION, "#ores", new GroupsPane.Bounds(0, 0, 220, 390),
+                    0, narrow.targets);
+            assertTrue(narrow.find("mutated by").x() >= 0, narrow.drawn().toString());
         }
     }
 

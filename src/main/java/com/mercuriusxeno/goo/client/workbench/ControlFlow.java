@@ -683,7 +683,7 @@ final class ControlFlow {
 
     /**
      * Stands the next pieces at the right end of the line, starting a fresh line where the current one holds no
-     * room for them.
+     * room for them; pieces wider than the line start at its left, never left of it.
      *
      * @param width the pieces' width, gaps between them included
      */
@@ -692,7 +692,7 @@ final class ControlFlow {
             advanceLine();
             lineLeft = left;
         }
-        x = right - width;
+        x = Math.max(x, right - width);
     }
 
     /**
