@@ -8,6 +8,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -58,6 +59,10 @@ public final class ValuesTab {
     // A new entry stands above the sections the file closes with, as the page and the server write one.
     private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", CONVERSIONS_SECTION);
     private static final String[] LAYOUT_FIELDS = {"keySeparator", "leading", "trailing", "closingGap"};
+
+    private static final Comparator<ManagerEntrySource.ItemName> BY_NAME_THEN_ID = Comparator
+            .comparing(ManagerEntrySource.ItemName::name, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(ManagerEntrySource.ItemName::id);
 
     private final ManagerDraft draft;
     private final List<ManagerEntry> entries = new ArrayList<>();
@@ -117,7 +122,10 @@ public final class ValuesTab {
     public void readEntries(ManagerEntrySource source) {
         entries.clear();
         tagMembers.clear();
-        source.items().forEach(item -> entries.add(new ManagerEntry(item.id(), item.name(), false)));
+        // Items list by display name ignoring case, ties by id, whatever order the source feeds them (decision
+        // items-tab-lists-items-by-translated-name).
+        source.items().stream().sorted(BY_NAME_THEN_ID)
+                .forEach(item -> entries.add(new ManagerEntry(item.id(), item.name(), false)));
         source.itemTags().forEach(tag -> {
             entries.add(new ManagerEntry(TAG_PREFIX + tag.id(), tag.members().size() + MEMBERS_SUFFIX, true));
             tagMembers.put(GroupsTab.referentName(tag.id()), tag.members());
@@ -235,11 +243,36 @@ public final class ValuesTab {
             case ITEMS -> !entry.tag();
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
             case FRACTIONAL -> fractionalItem(entry);
+            case NEGATIVE -> negativeItem(entry);
         };
     }
 
     private boolean fractionalItem(ManagerEntry entry) {
         return !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::fractional);
+    }
+
+    private boolean negativeItem(ManagerEntry entry) {
+        return !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::negative);
+    }
+
+    /**
+     * @return how many items the resolve reply holds with an amount below zero
+     *     (decision items-filter-set-takes-a-negative-chip)
+     */
+    public int negativeCount() {
+        return (int) entries.stream().filter(this::negativeItem).count();
+    }
+
+    // The server answers an amount as a whole number or a reduced n/d with the sign on the numerator (decision
+    // items-filter-set-takes-a-negative-chip).
+    private static boolean negative(String amount) {
+        int divider = amount.indexOf(FRACTION_DIVIDER);
+        String numerator = divider < 0 ? amount : amount.substring(0, divider);
+        try {
+            return Long.parseLong(numerator.trim()) < 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     // The server answers an amount as a whole number or a reduced n/d (decision
@@ -259,8 +292,9 @@ public final class ValuesTab {
     }
 
     /**
-     * Which items the sidebar lists, as the page's chips choose them; tags live on the Groups tab as referents
-     * (decision items-selector-set-reads-items-and-uncovered).
+     * Which items the sidebar lists, as the page's chips choose them: every item, the uncovered, the fractional and
+     * the negative; tags live on the Groups tab as referents (decisions items-selector-set-reads-items-and-uncovered,
+     * items-filter-set-takes-a-negative-chip).
      */
     public enum Filter {
         /** Every item. */
@@ -268,7 +302,9 @@ public final class ValuesTab {
         /** The items the draft leaves with no value. */
         UNCOVERED,
         /** The items where any one goo type's amount has a part under 1. */
-        FRACTIONAL
+        FRACTIONAL,
+        /** The items where any one goo type's amount reads below zero. */
+        NEGATIVE
     }
 
     /**
@@ -565,10 +601,11 @@ public final class ValuesTab {
      * Lists every item, the search cleared, and selects one, as a used-by icon's click opens it
      * (decision used-by-icons-link-to-items-and-hover-their-value).
      *
-     * @param id the item's id
+     * @param key the item's id, or its file key, bare for minecraft, as a prefab's Used by icon carries it
      * @return its place in the list, for the pane to scroll it into view, 0 where the list holds it nowhere
      */
-    public int open(String id) {
+    public int open(String key) {
+        String id = namespaced(key);
         filter = Filter.ITEMS;
         search = NO_TEXT;
         selected = id;

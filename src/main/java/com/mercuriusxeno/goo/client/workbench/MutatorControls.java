@@ -5,8 +5,10 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -25,6 +27,7 @@ import java.util.regex.Pattern;
 final class MutatorControls {
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
+    private static final int HALF = 2;
     // Nine digits always fit an int.
     private static final Pattern DIGITS = Pattern.compile("\\d{1,9}");
     private static final String NOTHING_TARGET = "0";
@@ -62,8 +65,11 @@ final class MutatorControls {
     private final Supplier<List<String>> treePrefabs;
     private final Supplier<List<String>> gooTypes;
     private final Runnable changed;
+    private final Function<String, Map<String, String>> prefabAmounts;
 
     /**
+     * Controls whose add rows draw no reduced value.
+     *
      * @param processes   the Mutators tab's state
      * @param overlays    the number box, dropdown and picker the controls open
      * @param actions     where a shift + left click on a group, prefab or mutator name opens it
@@ -73,12 +79,29 @@ final class MutatorControls {
      */
     MutatorControls(ProcessesTab processes, BuilderOverlays overlays, ManagerActions actions,
                     Supplier<List<String>> treePrefabs, Supplier<List<String>> gooTypes, Runnable changed) {
+        this(processes, overlays, actions, treePrefabs, gooTypes, changed, prefab -> Map.of());
+    }
+
+    /**
+     * @param processes     the Mutators tab's state
+     * @param overlays      the number box, dropdown and picker the controls open
+     * @param actions       where a shift + left click on a group, prefab or mutator name opens it
+     * @param treePrefabs   the tree prefabs' names, which an additive adds
+     * @param gooTypes      the goo types' ids, the first a fresh formula's source
+     * @param changed       runs after each change written to the draft
+     * @param prefabAmounts a prefab's reduced value, each goo type with its amount in the order it reads, as
+     *                      VariablesTab.prefabValue answers it; empty where it resolves to nothing
+     */
+    MutatorControls(ProcessesTab processes, BuilderOverlays overlays, ManagerActions actions,
+                    Supplier<List<String>> treePrefabs, Supplier<List<String>> gooTypes, Runnable changed,
+                    Function<String, Map<String, String>> prefabAmounts) {
         this.processes = processes;
         this.overlays = overlays;
         this.actions = actions;
         this.treePrefabs = treePrefabs;
         this.gooTypes = gooTypes;
         this.changed = changed;
+        this.prefabAmounts = prefabAmounts;
     }
 
     /**
@@ -95,10 +118,13 @@ final class MutatorControls {
      */
     int draw(GuiGraphicsExtractor graphics, Font font, String section, String key, GroupsPane.Bounds area, int top,
              ClickTargets targets) {
-        ControlFlow flow = new ControlFlow(graphics, font, targets, null, area.left(), area.right(), top);
+        // Decision conversions-rows-letter-at-the-builders-scale: the sentence letters as the expression builder does.
+        ControlFlow flow = ControlFlow.lettered(graphics, font, targets, null,
+                new ControlFlow.Span(area.left(), area.right(), top), ref -> { });
         boolean iterator = ProcessesTab.isIterator(key);
-        // Decision mutator-chain-forms-a-column-left-of-the-validity-marker.
-        int chainInset = area.right() - ProcessesPane.markerLeft(font, area.right()) + BuilderOverlays.GAP;
+        // Decision mutator-chain-forms-a-column-left-of-the-validity-marker, its inset halved by decision
+        // chain-lines-inset-halves-at-most.
+        int chainInset = (area.right() - ProcessesPane.markerLeft(font, area.right()) + BuilderOverlays.GAP) / HALF;
         Entry entry = new Entry(flow, section, key, chainInset);
         Processes.Form form = processes.formOf(section, key);
         // Decision mutator-row-is-kind-then-type-reading-add-and-no-applies: a mutator's line starts unindented at
@@ -179,7 +205,8 @@ final class MutatorControls {
                 type -> edit(() -> processes.setFormulaSource(section, key, type))));
         // Decision mutator-sentences-read-in-symbols: "[source] 1 : [#] becomes [target] [#] : [#]".
         flow.text(SOURCE_SHARE, GRAY);
-        flow.text(RATIO, GRAY);
+        // Decision ratio-colon-takes-the-builders-spacing: a clear pixel each side of the colon.
+        flow.ratioColon(RATIO, GRAY);
         divisorControl(flow, formula.sourceDivisor(), null,
                 divisor -> processes.setFormulaDivisor(section, key, divisor));
         flow.text(ARROW, GRAY);
@@ -193,7 +220,7 @@ final class MutatorControls {
         flow.typeIcon(formula.target(), pickTarget);
         numberControl(flow, formula.multiplier(), null,
                 multiplier -> processes.setFormulaRatio(section, key, multiplier, formula.divisor()));
-        flow.text(RATIO, GRAY);
+        flow.ratioColon(RATIO, GRAY);
         divisorControl(flow, formula.divisor(), null,
                 divisor -> processes.setFormulaRatio(section, key, formula.multiplier(), divisor));
     }
@@ -206,6 +233,12 @@ final class MutatorControls {
                 null, SearchDropdown.over(List.of(), treePrefabs.get(), false),
                 prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
         flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
+        // Decision add-mutator-entry-shows-its-reduced-value: the value after the prefab, each type's icon beside its
+        // amount in parentheses as the prefab's amount line reads, each pair wrapping whole; the hover stays.
+        Map<String, String> amounts = prefabAmounts.apply(additive.constant());
+        if (!amounts.isEmpty()) {
+            AmountGridLine.typed(amounts).cells().forEach(cell -> flow.runs(cell, null, null));
+        }
     }
 
     private void drawStack(Entry entry, Processes.Stack stack) {
@@ -213,6 +246,8 @@ final class MutatorControls {
         nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), null,
                 SearchDropdown.overMutators(otherProcesses(entry)),
                 formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
+        // Decision every-linkable-thing-hovers-its-preview-value: the mutator a stack applies hovers its formula.
+        flow.hoverLast(ConversionHovers.hoverKey(entry.section(), stack.formula()));
         flow.text(TIMES_MARK, GRAY);
         numberControl(flow, stack.count(), null,
                 count -> processes.setStackCount(entry.section(), entry.key(), count));
@@ -255,41 +290,38 @@ final class MutatorControls {
 
     // The processes the assignment applies in order, each removable on its own line under the source, the first
     // after "mutated by" and each later one after "and", then "+ optional mutation" on a line of its own; each line
-    // right packs, its x a gap left of the row's validity marker and every mutator button at one x, the words just
-    // left of it, so the lines form a column clear of the marker and the row's remove X.
+    // right packs, its x at one edge left of the row's validity marker, so the lines stand clear of the marker and
+    // the row's remove X.
     // Decision each-chained-mutator-takes-its-own-indented-line.
     // Decision mutator-chain-forms-a-column-left-of-the-validity-marker.
     // Decision iterator-reads-copies-then-mutates-using-and.
     private void drawChain(Entry entry, List<String> chain) {
         ControlFlow flow = entry.flow();
-        Font font = flow.font();
+        Lettering letters = flow.letters();
         String section = entry.section();
         String key = entry.key();
         int inset = entry.chainInset();
-        int widest = chain.stream().mapToInt(link -> ButtonPainter.width(font, link.substring(STACK_MARK.length())))
-                .max().orElse(0);
         for (int index = 0; index < chain.size(); index++) {
-            drawLink(entry, chain.get(index).substring(STACK_MARK.length()), index, widest);
+            drawLink(entry, chain.get(index).substring(STACK_MARK.length()), index);
         }
         flow.newLine();
-        flow.alignRight(ButtonPainter.width(font, ADD_MUTATION) + inset);
+        flow.alignRight(ButtonPainter.width(letters, ADD_MUTATION) + inset);
         flow.control(ADD_MUTATION, null, at -> openNames(at, SearchDropdown.overMutators(
                 processes.processNames(section)), name -> processes.addAssignmentLink(section, key, STACK_MARK + name)));
     }
 
-    // One chained mutator's line: its words, the mutator's button at the column's one x, then its x.
-    private void drawLink(Entry entry, String applied, int index, int widest) {
+    // One chained mutator's line, right packed whole: its words, the mutator's button, then its x one gap past it.
+    // Decision chain-x-follows-its-mutator-at-one-gap.
+    private void drawLink(Entry entry, String applied, int index) {
         ControlFlow flow = entry.flow();
-        Font font = flow.font();
-        int removeWidth = ButtonPainter.width(font, REMOVE_LINK);
+        Lettering letters = flow.letters();
         String words = index == 0 ? MUTATED_BY : AND;
         flow.newLine();
-        flow.alignRight(font.width(words) + BuilderOverlays.GAP + widest + BuilderOverlays.GAP + removeWidth
-                + entry.chainInset());
+        flow.alignRight(letters.width(words) + BuilderOverlays.GAP + ButtonPainter.width(letters, applied)
+                + BuilderOverlays.GAP + ButtonPainter.width(letters, REMOVE_LINK) + entry.chainInset());
         flow.text(words, GRAY);
         // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
         flow.followLink(applied, PrefabHovers.hoverKey(applied), () -> actions.openMutator(applied));
-        flow.alignRight(removeWidth + entry.chainInset());
         flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                 at -> edit(() -> processes.removeAssignmentLink(entry.section(), entry.key(), index)));
     }

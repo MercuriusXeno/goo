@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * JSON serialization for {@link GooValue}: parses value objects with optional
  * {@code $constant} reference substitution, and serializes them back to JSON.
- * Expression evaluation is delegated to {@link GooIntExpressionEvaluator}.
+ * Expression evaluation is delegated to {@link GooScalarExpressionEvaluator}, exact at every step.
  */
 final class GooValueJsonFormat {
 
@@ -47,24 +47,24 @@ final class GooValueJsonFormat {
      * symbol table.
      *
      * @param json      JSON object whose keys are goo type names and values are ints or expressions
-     * @param constants symbol table mapping constant names to integer values
+     * @param constants symbol table mapping constant names to exact amounts
      * @return parsed GooValue
      */
-    static GooValue parseGooValue(JsonObject json, Map<String, Integer> constants) {
+    static GooValue parseGooValue(JsonObject json, Map<String, GooFraction> constants) {
         return parseGooValue(json, constants, null);
     }
 
     /**
      * Parses a goo value JSON object with item reference support. Per-type values
      * can use dot notation (e.g. {@code minecraft:coal.blaze}) to extract a single
-     * type from another item's value as an integer.
+     * type from another item's value as an exact amount.
      *
      * @param json       JSON object whose keys are goo type names and values are ints or expressions
-     * @param constants  symbol table mapping constant names to integer values
+     * @param constants  symbol table mapping constant names to exact amounts
      * @param baseValues item values for dot-notation lookups (may be null)
      * @return parsed GooValue
      */
-    static GooValue parseGooValue(JsonObject json, Map<String, Integer> constants,
+    static GooValue parseGooValue(JsonObject json, Map<String, GooFraction> constants,
                                   Map<Identifier, GooValue> baseValues) {
         return parseGooValue(json, constants, baseValues, Map.of());
     }
@@ -74,19 +74,19 @@ final class GooValueJsonFormat {
      * Per-type values can use {@code $tree.type} to extract a single type from a tree constant.
      *
      * @param json          JSON object whose keys are goo type names and values are ints or expressions
-     * @param constants     symbol table mapping constant names to integer values
+     * @param constants     symbol table mapping constant names to exact amounts
      * @param baseValues    item values for dot-notation lookups (may be null)
      * @param treeConstants tree constant symbol table for $name.type lookups
      * @return parsed GooValue
      */
-    static GooValue parseGooValue(JsonObject json, Map<String, Integer> constants,
+    static GooValue parseGooValue(JsonObject json, Map<String, GooFraction> constants,
                                   Map<Identifier, GooValue> baseValues,
                                   Map<String, GooValue> treeConstants) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> map = new LinkedHashMap<>();
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> map = new LinkedHashMap<>();
         for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
             parseTypeEntry(entry, constants, baseValues, treeConstants, map);
         }
-        return new GooValue(map);
+        return GooValue.ofExact(map);
     }
 
     /**
@@ -100,13 +100,13 @@ final class GooValueJsonFormat {
      * @param map           output map to populate with the parsed type and amount
      */
     private static void parseTypeEntry(Map.Entry<String, JsonElement> entry,
-                                       Map<String, Integer> constants,
+                                       Map<String, GooFraction> constants,
                                        Map<Identifier, GooValue> baseValues,
                                        Map<String, GooValue> treeConstants,
-                                       Map<ResourceKey<GooTypeDefinition>, Integer> map) {
+                                       Map<ResourceKey<GooTypeDefinition>, GooFraction> map) {
         try {
             ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(entry.getKey());
-            map.put(type, GooIntExpressionEvaluator.resolveValue(
+            map.put(type, GooScalarExpressionEvaluator.resolveValue(
                     entry.getValue(), constants, baseValues, treeConstants));
         } catch (IllegalArgumentException e) {
             if (LOGGER.isWarnEnabled()) {
@@ -171,9 +171,9 @@ final class GooValueJsonFormat {
      *
      * @param element   the JSON element (integer or expression string)
      * @param constants scalar constant symbol table
-     * @return the resolved integer value
+     * @return the resolved exact amount
      */
-    static int resolveConstantValue(JsonElement element, Map<String, Integer> constants) {
-        return GooIntExpressionEvaluator.resolveValue(element, constants);
+    static GooFraction resolveConstantValue(JsonElement element, Map<String, GooFraction> constants) {
+        return GooScalarExpressionEvaluator.resolveValue(element, constants);
     }
 }

@@ -5,7 +5,7 @@ import java.util.Set;
 
 /**
  * Validates expression tokens within goo value definitions: checks for forgotten
- * $ prefixes, unknown constants, and out-of-order item references. Extracted from
+ * $ prefixes and unknown constants; an item reference waits for its item rather than warning. Extracted from
  * {@link GooValueValidator} to keep per-class method counts manageable.
  */
 final class GooValueTokenValidator {
@@ -21,20 +21,14 @@ final class GooValueTokenValidator {
 
     /** Warning suffix: unknown constant prefix. */
     private static final String WARN_UNKNOWN_CONST_DOLLAR = ": unknown constant $";
-    /** Warning infix: references item not defined above. */
-    private static final String WARN_REFERENCES = ": references ";
-    /** Warning suffix: not defined above it. */
-    private static final String WARN_NOT_DEFINED = " which is not defined above it";
+
     /** Warning: missing $ prefix pattern start. */
     private static final String WARN_MISSING_DOLLAR_PREFIX = ": '";
     /** Warning: missing $ prefix pattern middle. */
     private static final String WARN_MISSING_DOLLAR_MID = "' looks like a constant missing its $ prefix (should be $";
     /** Warning: missing $ prefix pattern end. */
     private static final String WARN_MISSING_DOLLAR_SUFFIX = ")";
-    /** Warning: unrecognized token prefix. */
-    private static final String WARN_UNRECOGNIZED_PREFIX = ": unrecognized token '";
-    /** Warning: unrecognized token suffix. */
-    private static final String WARN_UNRECOGNIZED_SUFFIX = "'";
+
 
     private GooValueTokenValidator() {}
 
@@ -58,7 +52,9 @@ final class GooValueTokenValidator {
     }
 
     /**
-     * Dispatches a non-operator token to the appropriate validator by its prefix.
+     * Dispatches a non-operator token to the appropriate validator by its prefix. An item token, namespaced or bare,
+     * draws no warning wherever it stands: the entry waits for the item, a line below or the recipes valuing it, and
+     * the load names an item nothing values (decision diagnose-and-correct-item-reference-unrecognized-token).
      *
      * @param token the token to classify and validate
      * @param knownConstants known constant names
@@ -71,9 +67,7 @@ final class GooValueTokenValidator {
                                          List<String> warnings) {
         if (token.startsWith(DOLLAR_PREFIX)) {
             validateConstantToken(token, knownConstants, context, warnings);
-        } else if (token.contains(COLON)) {
-            validateNamespacedToken(token, knownItems, context, warnings);
-        } else if (!Character.isDigit(token.charAt(0))) {
+        } else if (!token.contains(COLON) && !Character.isDigit(token.charAt(0))) {
             validateBareWordToken(token, knownConstants, knownItems, context, warnings);
         }
     }
@@ -107,39 +101,7 @@ final class GooValueTokenValidator {
     }
 
     /**
-     * Validates a namespaced item reference token (contains ":"), stripping .type suffixes for lookup.
-     *
-     * @param token the namespaced token (e.g. "minecraft:iron_ingot.metal")
-     * @param knownItems known item IDs defined before this entry
-     * @param context the item key for error messages
-     * @param warnings accumulator for validation warnings
-     */
-    static void validateNamespacedToken(String token, Set<String> knownItems,
-                                        String context, List<String> warnings) {
-        String itemId = stripNamespacedTypeSuffix(token);
-        if (!knownItems.contains(itemId)) {
-            warnings.add(context + WARN_REFERENCES + itemId + WARN_NOT_DEFINED);
-        }
-    }
-
-    /**
-     * Strips a trailing .type suffix from a namespaced token (e.g. "minecraft:iron_ingot.metal").
-     *
-     * @param token the namespaced token to strip
-     * @return the token without its type suffix, or unchanged if none
-     */
-    static String stripNamespacedTypeSuffix(String token) {
-        int colonIdx = token.indexOf(':');
-        int dotIdx = token.lastIndexOf('.');
-        if (dotIdx > colonIdx && dotIdx < token.length() - 1) {
-            return token.substring(0, dotIdx);
-        }
-        return token;
-    }
-
-    /**
-     * Validates a bare word token: checks if it is a known item (with minecraft: prefix),
-     * a forgotten $-prefixed constant, or an unrecognized token.
+     * Warns on a bare word naming a constant and no item above, a constant missing its $ prefix.
      *
      * @param token the bare word token
      * @param knownConstants known constant names
@@ -151,9 +113,10 @@ final class GooValueTokenValidator {
                                       Set<String> knownItems, String context,
                                       List<String> warnings) {
         String bareItem = stripTypeSuffix(token);
-        String qualifiedItem = bareItem.contains(COLON) ? bareItem : DEFAULT_NS_PREFIX + bareItem;
-        if (!knownItems.contains(qualifiedItem) && !knownItems.contains(bareItem)) {
-            warnUnknownBareWord(token, knownConstants, context, warnings);
+        boolean knownItem = knownItems.contains(DEFAULT_NS_PREFIX + bareItem) || knownItems.contains(bareItem);
+        if (!knownItem && knownConstants.contains(token)) {
+            warnings.add(context + WARN_MISSING_DOLLAR_PREFIX + token + WARN_MISSING_DOLLAR_MID + token
+                    + WARN_MISSING_DOLLAR_SUFFIX);
         }
     }
 
@@ -169,22 +132,5 @@ final class GooValueTokenValidator {
             return token.substring(0, dotIdx);
         }
         return token;
-    }
-
-    /**
-     * Emits the appropriate warning for an unresolved bare word token.
-     *
-     * @param token the unresolved bare word
-     * @param knownConstants known constant names
-     * @param context the item key for error messages
-     * @param warnings accumulator for validation warnings
-     */
-    static void warnUnknownBareWord(String token, Set<String> knownConstants,
-                                    String context, List<String> warnings) {
-        if (knownConstants.contains(token)) {
-            warnings.add(context + WARN_MISSING_DOLLAR_PREFIX + token + WARN_MISSING_DOLLAR_MID + token + WARN_MISSING_DOLLAR_SUFFIX);
-        } else {
-            warnings.add(context + WARN_UNRECOGNIZED_PREFIX + token + WARN_UNRECOGNIZED_SUFFIX);
-        }
     }
 }

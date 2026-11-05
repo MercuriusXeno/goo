@@ -141,7 +141,7 @@ final class ConversionFormulaParser {
      * @return parsed conversion structures
      */
     static ParsedConversions parseBlock(Map<String, String> entries,
-                                        Map<String, Integer> constants,
+                                        Map<String, GooFraction> constants,
                                         Map<String, GooValue> treeConstants) {
         Map<String, Formula> formulas = new LinkedHashMap<>();
         Map<String, GooValue> additives = new LinkedHashMap<>();
@@ -163,7 +163,7 @@ final class ConversionFormulaParser {
      * @param additives     the named additive map
      * @param stacks        the resolved conversion stack map
      * @param assignments   the item-to-assignment map being built
-     * @param constants     the named integer constants
+     * @param constants     the named exact scalar constants
      * @param treeConstants the named goo value constants from the expression tree
      */
     private static void classifyEntry(String key, String value,
@@ -171,7 +171,7 @@ final class ConversionFormulaParser {
                                       Map<String, GooValue> additives,
                                       Map<String, Stack> stacks,
                                       List<Assignment> assignments,
-                                      Map<String, Integer> constants,
+                                      Map<String, GooFraction> constants,
                                       Map<String, GooValue> treeConstants) {
         if (key.startsWith(TAG_PREFIX) || key.contains(COLON)) {
             classifyItemEntry(key, value, stacks, assignments);
@@ -188,14 +188,14 @@ final class ConversionFormulaParser {
      * @param formulas      the named formula map
      * @param additives     the named additive map
      * @param stacks        the resolved conversion stack map
-     * @param constants     the named integer constants
+     * @param constants     the named exact scalar constants
      * @param treeConstants the named goo value constants from the expression tree
      */
     private static void classifyDefinition(String key, String value,
                                            Map<String, Formula> formulas,
                                            Map<String, GooValue> additives,
                                            Map<String, Stack> stacks,
-                                           Map<String, Integer> constants,
+                                           Map<String, GooFraction> constants,
                                            Map<String, GooValue> treeConstants) {
         if (DENIED.equals(value)) {
             denyEntry(key, stacks, formulas, additives);
@@ -262,12 +262,12 @@ final class ConversionFormulaParser {
      * @param key           the entry key (item id, tag, or definition name)
      * @param value         the entry value expression to parse
      * @param additives     the named additive map
-     * @param constants     the named integer constants
+     * @param constants     the named exact scalar constants
      * @param treeConstants the named goo value constants from the expression tree
      */
     private static void parseAdditiveEntry(String key, String value,
                                            Map<String, GooValue> additives,
-                                           Map<String, Integer> constants,
+                                           Map<String, GooFraction> constants,
                                            Map<String, GooValue> treeConstants) {
         GooValue additive = resolveAdditive(value.substring(1).trim(), constants, treeConstants);
         if (additive != null && !additive.isEmpty()) {
@@ -281,11 +281,11 @@ final class ConversionFormulaParser {
      * Resolves an additive expression like "$waxed" against tree constants.
      *
      * @param expr          the expression string to resolve
-     * @param constants     the named integer constants
+     * @param constants     the named exact scalar constants
      * @param treeConstants the named goo value constants from the expression tree
      * @return the resolved result, or null on failure
      */
-    private static GooValue resolveAdditive(String expr, Map<String, Integer> constants,
+    private static GooValue resolveAdditive(String expr, Map<String, GooFraction> constants,
                                             Map<String, GooValue> treeConstants) {
         if (!expr.startsWith(DOLLAR)) {
             LOGGER.warn(LOG_ADDITIVE_UNSUPPORTED, expr);
@@ -298,12 +298,12 @@ final class ConversionFormulaParser {
      * Looks up a named additive in tree constants, falling back to scalar warning.
      *
      * @param name          the additive name to look up
-     * @param constants     the named integer constants
+     * @param constants     the named exact scalar constants
      * @param treeConstants the named goo value constants from the expression tree
      * @return the resolved result, or null on failure
      */
     private static GooValue resolveNamedAdditive(String name,
-                                                 Map<String, Integer> constants,
+                                                 Map<String, GooFraction> constants,
                                                  Map<String, GooValue> treeConstants) {
         GooValue tree = treeConstants.get(name);
         if (tree != null) {

@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -73,11 +74,53 @@ class ValuesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
         pane.extract(frame.graphics, font, bounds, frame.targets);
         assertEquals(List.of(), frame.texts().stream().filter("Tags"::equals).toList());
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
         ValuesPane.Chip fractional = ValuesPane.layChips(labels, font::width,
                 ValuesPane.chipsLeft(labels, font::width, bounds), 0, values.filter()).chips().get(2);
         frame.targets.click(fractional.left() + 1, fractional.top() + 1);
         assertEquals(ValuesTab.Filter.FRACTIONAL, values.filter());
+    }
+
+    /**
+     * A Negative chip stands right of Fractional, sharing its border, carrying the count of items holding an amount
+     * below zero, red while that count is above zero and white at zero, and a click on it lists the negative items
+     * (decision items-filter-set-takes-a-negative-chip).
+     */
+    @Test
+    void negativeChipCountsTheNegativeItemsRightOfFractional() {
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 1");
+        List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, String::length, LEFT, TOP,
+                ValuesTab.Filter.ITEMS).chips();
+        assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL,
+                ValuesTab.Filter.NEGATIVE), chips.stream().map(ValuesPane.Chip::filter).toList());
+        assertEquals(chips.get(2).left() + chips.get(2).width() - 1, chips.get(3).left());
+
+        Font font = sixPixelFont();
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:beetroot", "Beetroot")), List.of()));
+        values.readResolved("""
+                {"entries": [{"key": "beetroot", "value": {"jelly": "180", "leaf": "-174"}, "denied": false}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, bounds, frame.targets);
+        assertEquals(ValuesPane.RED, frame.find("Negative 1").color());
+        List<String> drawnLabels = List.of("Items", "Uncovered 0", "Fractional", "Negative 1");
+        ValuesPane.Chip negative = ValuesPane.layChips(drawnLabels, font::width,
+                ValuesPane.chipsLeft(drawnLabels, font::width, bounds), 0, values.filter()).chips().get(3);
+        frame.targets.click(negative.left() + 1, negative.top() + 1);
+        assertEquals(ValuesTab.Filter.NEGATIVE, values.filter());
+
+        DrawnFrame empty = new DrawnFrame();
+        ValuesTab none = new ValuesTab();
+        new ValuesPane(none, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of))
+                .extract(empty.graphics, font, bounds, empty.targets);
+        assertEquals(0xFFFFFFFF, empty.find("Negative 0").color());
     }
 
     /**
@@ -106,7 +149,7 @@ class ValuesPaneTest {
         net.minecraft.client.gui.components.EditBox search = widgets.stream()
                 .filter(net.minecraft.client.gui.components.EditBox.class::isInstance)
                 .map(net.minecraft.client.gui.components.EditBox.class::cast).findFirst().orElseThrow();
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
         List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, font::width,
                 ValuesPane.chipsLeft(labels, font::width, bounds), bounds.top(), values.filter()).chips();
         chips.forEach(chip -> assertEquals(search.getY(), chip.top(), chip.toString()));
@@ -258,6 +301,10 @@ class ValuesPaneTest {
         // below its row.
         @Test
         void itemsRemoveButtonKeepsTheRuleGapOverTheRuleBelow() {
+            // A Torch lists after Stick by name, so a rule stands under the stick's row.
+            values.readEntries(new ListedEntrySource(List.of(
+                    new ManagerEntrySource.ItemName("minecraft:stick", "Stick"),
+                    new ManagerEntrySource.ItemName("minecraft:torch", "Torch")), List.of()));
             DrawnFrame frame = frame();
             DrawnFrame.Text stick = frame.find("Stick");
             DrawnFrame.Text remove = frame.drawn().stream().filter(text -> text.text().equals("✗")
@@ -350,7 +397,8 @@ class ValuesPaneTest {
             DrawnFrame frame = frame();
             DrawnFrame.Text stick = frame.find("Stick");
             DrawnFrame.Text wood = frame.find("$wood");
-            DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")).findFirst()
+            DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")
+                    && Math.abs(text.y() - wood.y()) < ExpressionLines.TEXT_LINE_HEIGHT).findFirst()
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             assertTrue(cross.y() > stick.y() && Math.abs(cross.y() - wood.y()) < ExpressionLines.TEXT_LINE_HEIGHT,
                     cross + " vs " + wood);
@@ -381,7 +429,7 @@ class ValuesPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, sixPixelFont(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
         ValuesPane.Chip selected = ValuesPane.layChips(labels, sixPixelFont()::width,
                 ValuesPane.chipsLeft(labels, sixPixelFont()::width, new GroupsPane.Bounds(0, 0, 500, 200)), 0,
                 values.filter()).chips().getFirst();
@@ -431,6 +479,36 @@ class ValuesPaneTest {
         assertTrue(!builder.isOpen());
         frame.click("$wood");
         assertTrue(builder.isOpen());
+    }
+
+    /**
+     * Each change the builder writes evaluates the draft afresh while the builder stays open, so the value the row
+     * shows is the value the builder holds.
+     */
+    @Test
+    void eachBuilderChangeEvaluatesTheDraftAfresh() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.select("minecraft:stick");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ExpressionBuilderPane builder = mock(ExpressionBuilderPane.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions, builder);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        frame.click("$wood");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.function.Consumer<String>> change =
+                ArgumentCaptor.forClass(java.util.function.Consumer.class);
+        verify(builder).open(anyString(), change.capture(), any());
+        change.getValue().accept("\"$wood / 8\"");
+        verify(actions).draftChanged();
     }
 
     /**
@@ -655,9 +733,47 @@ class ValuesPaneTest {
                                 + "\"rock\": \"123456789\", \"blaze\": \"123456789\"}"))
                 .collect(Collectors.joining(", "));
         values.readResolved("{\"entries\": [" + resolved + "]}");
-        ManagerActions actions = mock(ManagerActions.class);
+        return manyItems(values, mock(ManagerActions.class));
+    }
+
+    private static ValuesPane manyItems(ValuesTab values, ManagerActions actions) {
         ItemIcons icons = mock(ItemIcons.class);
         return new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    /**
+     * A follow into the Items pane empties a search that hides its target and draws the target's row (decision
+     * following-a-link-clears-the-panes-search-bar).
+     */
+    @Test
+    void revealClearsTheSearchAndDrawsTheTarget() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(IntStream.range(0, FOLLOWED_ITEMS).mapToObj(index ->
+                new ManagerEntrySource.ItemName("minecraft:item_%02d".formatted(index), itemName(index))).toList(),
+                List.of()));
+        ManagerActions actions = mock(ManagerActions.class);
+        List<Object> widgets = new java.util.ArrayList<>();
+        when(actions.addWidget(any())).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ValuesPane pane = manyItems(values, actions);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        net.minecraft.client.gui.components.EditBox search = widgets.stream()
+                .filter(net.minecraft.client.gui.components.EditBox.class::isInstance)
+                .map(net.minecraft.client.gui.components.EditBox.class::cast)
+                .filter(box -> "Search items".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue(itemName(3));
+        int target = 25;
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        assertFalse(searched.texts().contains(itemName(target)), "the search hides the target");
+        pane.reveal("minecraft:item_%02d".formatted(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        assertEquals("", search.getValue());
+        assertTrue(frame.texts().contains(itemName(target)), frame.texts().toString());
     }
 
     private static final int LARGE_LIST = 3000;
@@ -749,6 +865,46 @@ class ValuesPaneTest {
         double rowMiddle = rowTop + heights.get(target) / 2.0;
         double listMiddle = (list[1] + list[3]) / 2.0;
         assertTrue(Math.abs(rowMiddle - listMiddle) <= 1, rowMiddle + " vs the list's middle " + listMiddle);
+    }
+
+    /**
+     * The frame after a follow centers an Items row fills the row's bounds in the glow color, and once the glow's
+     * frames have passed no frame fills it (decision followed-target-glows-briefly).
+     */
+    @Test
+    void revealedItemsRowGlowsThenStops() {
+        List<Integer> heights = rowHeights();
+        ValuesPane pane = manyItems();
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int target = 25;
+        pane.reveal("minecraft:item_%02d".formatted(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        assertGlowCovers(frame, frame.find(itemName(target)), heights.get(target));
+        for (int extracted = 1; extracted < RevealGlow.FRAMES; extracted++) {
+            DrawnFrame fading = new DrawnFrame();
+            pane.extract(fading.graphics, DrawnFrame.font(), SHORT_VIEW, fading.targets);
+        }
+        DrawnFrame after = new DrawnFrame();
+        pane.extract(after.graphics, DrawnFrame.font(), SHORT_VIEW, after.targets);
+        assertNoGlow(after);
+    }
+
+    // One glow fill spans the list's width and holds the row's name, as tall as the row.
+    static void assertGlowCovers(DrawnFrame frame, DrawnFrame.Text name, int rowHeight) {
+        List<int[]> glows = frame.fillsOf(RevealGlow.GLOW);
+        assertEquals(1, glows.size(), "glow fills: " + glows.size());
+        int[] glow = glows.getFirst();
+        assertTrue(glow[1] <= name.y() && name.y() < glow[3], java.util.Arrays.toString(glow) + " vs " + name);
+        assertEquals(rowHeight, glow[3] - glow[1]);
+        assertEquals(frame.firstScissor()[0], glow[0], "the glow starts at the list's left");
+    }
+
+    static void assertNoGlow(DrawnFrame frame) {
+        for (int age = 0; age < RevealGlow.FRAMES; age++) {
+            assertEquals(List.of(), frame.fillsOf(RevealGlow.colorAt(age)), "a glow at age " + age);
+        }
     }
 
     /**
@@ -880,9 +1036,10 @@ class ValuesPaneTest {
         assertEquals(2, headSprites, "the planks sprite and the log input");
         assertEquals(1, frame.count(ButtonPainter.RESTORE), frame.texts().toString());
         DrawnFrame.Text gravel = frame.find("Gravel");
-        assertTrue(frame.find(ButtonPainter.RESTORE).y() < gravel.y(), "the one restore arrow is the planks'");
-        assertTrue(frame.drawn().stream().noneMatch(text -> text.text().equals("✗") && text.y() > gravel.y()),
-                frame.drawn().toString());
+        // Gravel lists before Oak Planks by name, so an arrow under the planks' name is the planks'.
+        assertTrue(gravel.y() < planks.y() && frame.find(ButtonPainter.RESTORE).y() > planks.y(),
+                "the one restore arrow is the planks'");
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.text().equals("✗")), frame.drawn().toString());
         assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals(ReadValueButton.NOT_SET)
                 && text.y() > gravel.y()), frame.drawn().toString());
     }

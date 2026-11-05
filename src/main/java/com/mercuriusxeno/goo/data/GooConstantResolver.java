@@ -33,11 +33,11 @@ public final class GooConstantResolver {
      *
      * @param name    the constant's name
      * @param tree    whether it resolves to a per-type tree rather than one number
-     * @param scalar  the number a scalar constant resolves to, or null for a tree
+     * @param scalar  the exact amount a scalar constant resolves to, or null for a tree
      * @param perType each goo type's amount in a tree constant, by type id
      * @param error   the validator's warnings for the constant, or null where it has none
      */
-    public record ResolvedConstant(String name, boolean tree, @Nullable Integer scalar, Map<String, String> perType,
+    public record ResolvedConstant(String name, boolean tree, @Nullable GooFraction scalar, Map<String, String> perType,
                                    @Nullable String error) {
     }
 

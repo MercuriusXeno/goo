@@ -38,6 +38,8 @@ final class ExpressionBuilderPane {
     static final int NEST_BORDER = 0xC0A8B4D0;
     // How far below a line's top its centered buttons start.
     private static final int BUTTON_ABOVE = (ControlFlow.LINE - ButtonPainter.HEIGHT) / 2;
+    /** How far the builder's panel reaches above the top it is drawn at, the box margin outside its first buttons. */
+    static final int PANEL_ABOVE = RowLayout.BOX_MARGIN - BUTTON_ABOVE;
     /** The builder's panel fill. */
     static final int PANEL_COLOR = 0x30FFFFFF;
     // Decision terms-and-type-rows-drag-to-a-trash-strip: the strip along the builder's right edge, dim at rest,
@@ -371,7 +373,7 @@ final class ExpressionBuilderPane {
     // Decision spacing-rules-are-one-set-across-every-pane: the box stands the box margin outside its buttons, which
     // a line centers below its top.
     private void drawPanel(GuiGraphicsExtractor graphics, GroupsPane.Bounds laid) {
-        int panelTop = laid.top() + BUTTON_ABOVE - RowLayout.BOX_MARGIN;
+        int panelTop = laid.top() - PANEL_ABOVE;
         graphics.fill(laid.left() - RowLayout.BOX_MARGIN, panelTop, laid.right(), laid.bottom(), PANEL_COLOR);
         trash = new GroupsPane.Bounds(laid.right() - TRASH_WIDTH, panelTop, laid.right(), laid.bottom());
         drawTrash(graphics, trash);
@@ -419,7 +421,7 @@ final class ExpressionBuilderPane {
         graphics.fill(right - CAN_RIB_INSET - 1, bodyTop + 1, right - CAN_RIB_INSET, ribBottom, TRASH_CAN);
     }
 
-    // Decision drags-indicate-only-a-drop-the-builder-takes: the strip lights only for a thing the builder deletes.
+    // Decision only-term-or-row-drags-to-the-trash: the strip lights for any term or row held, the only one included.
     private boolean dragDeletable() {
         Drag term = dragging;
         RowDrag row = rowDragging;
@@ -799,8 +801,8 @@ final class ExpressionBuilderPane {
             this.type = type;
         }
 
-        // Decision drags-indicate-only-a-drop-the-builder-takes: a row slot the builder takes, and the strip only
-        // where the row can go.
+        // Decision drags-indicate-only-a-drop-the-builder-takes: a row slot the builder takes; every row, the only one
+        // included, lights the strip (decision only-term-or-row-drags-to-the-trash).
         @Override
         public void moved(double movedX, double movedY) {
             rowDragging = this;
@@ -897,7 +899,7 @@ final class ExpressionBuilderPane {
         }
 
         // Decision drags-indicate-only-a-drop-the-builder-takes: the slot the term would drop into is one the builder
-        // takes, and the strip counts only where the term can go.
+        // takes; every term, a sum's only one included, lights the strip (decision only-term-or-row-drags-to-the-trash).
         @Override
         public void moved(double movedX, double movedY) {
             dragging = this;
@@ -1155,7 +1157,7 @@ final class ExpressionBuilderPane {
         widths.add(ButtonPainter.width(letters, joinLabel(piece)));
         widths.add(sideWidth(letters, path, piece, ExpressionBuilder.Op.MULTIPLY));
         widths.add(switch (piece.operand()) {
-            case ExpressionBuilder.Num num -> ButtonPainter.width(letters, num.digits());
+            case ExpressionBuilder.Num num -> ButtonPainter.width(letters, numberLabel(path, num));
             case ExpressionBuilder.Ref ref -> ControlFlow.runsSegmentWidth(letters, refRuns(ref), possessiveOf(ref));
             case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ ->
                     ControlFlow.runsSegmentWidth(letters, operandRuns(piece), BLANK);
@@ -1337,8 +1339,7 @@ final class ExpressionBuilderPane {
         switch (piece.operand()) {
             case ExpressionBuilder.Num num -> drawNumber(flow, path, num, place);
             case ExpressionBuilder.Ref ref -> {
-                flow.runsSegment(refRuns(ref), possessiveOf(ref), at -> overlays.openDropdown(at, termList(place),
-                        choice -> apply(b -> b.setOperand(path, refFor(choice, place)))));
+                flow.runsSegment(refRuns(ref), possessiveOf(ref), refPressed(path, place));
                 drawMember(flow, path, ref, place);
             }
             case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ -> flow.runsSegment(operandRuns(piece), BLANK,
@@ -1352,10 +1353,38 @@ final class ExpressionBuilderPane {
     // Decision amount-modes-name-what-the-amount-comes-from.
     // Decision term-number-opens-number-prefab-relative-modes.
     private void drawNumber(ControlFlow flow, List<Integer> path, ExpressionBuilder.Num num, Place place) {
-        Consumer<BuilderOverlays.Anchor> openBox = at -> overlays.openNumber(at, num.digits(),
+        String shown = numberLabel(path, num);
+        Consumer<BuilderOverlays.Anchor> openBox = at -> overlays.openMixedNumber(at, shown,
                 digits -> apply(b -> b.setNumber(path, digits)));
         List<BuilderOverlays.Option> modes = amountModes(path, place, openBox);
-        flow.labelSegment(num.digits(), null, modes.size() > 1 ? at -> overlays.openOptions(at, modes) : openBox);
+        flow.labelSegment(shown, null, modes.size() > 1 ? at -> overlays.openOptions(at, modes) : openBox);
+    }
+
+    // A click on a prefab or item term opens the amount modes where its place reads numbers, number opening the box on
+    // the term's count and standing the term on the number typed as its whole value, so a term set to a ref changes
+    // back; elsewhere it opens the list of what may stand in its place.
+    // Decision ref-term-takes-a-number-again; the operator's ruling of 2026-11-04 drops the count.
+    // Decision term-number-opens-number-prefab-relative-modes.
+    private Consumer<BuilderOverlays.Anchor> refPressed(List<Integer> path, Place place) {
+        Consumer<BuilderOverlays.Anchor> pickRef = at -> overlays.openDropdown(at, termList(place),
+                choice -> apply(b -> b.setOperand(path, refFor(choice, place))));
+        if (!takesNumbers(place)) {
+            return pickRef;
+        }
+        ExpressionBuilder edited = builder;
+        String count = edited != null ? edited.countText(path) : ExpressionBuilder.ONE_TEXT;
+        Consumer<BuilderOverlays.Anchor> openBox = at -> overlays.openMixedNumber(at, count,
+                digits -> apply(b -> b.setNumber(path, digits)));
+        List<BuilderOverlays.Option> modes = amountModes(path, place, openBox);
+        return at -> overlays.openOptions(at, modes);
+    }
+
+    // A number term reads its number over its divisor as a mixed number, as 2 1/2, on its segment and in its box; a
+    // number draws no divisor segment of its own, so the label carries it.
+    // Decision number-box-takes-a-mixed-number.
+    private String numberLabel(List<Integer> path, ExpressionBuilder.Num num) {
+        ExpressionBuilder edited = builder;
+        return edited != null ? edited.numberText(path) : num.digits();
     }
 
     private List<BuilderOverlays.Option> amountModes(List<Integer> path, Place place,

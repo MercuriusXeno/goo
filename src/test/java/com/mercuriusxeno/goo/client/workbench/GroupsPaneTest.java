@@ -96,6 +96,33 @@ class GroupsPaneTest {
     }
 
     /**
+     * Once a follow centers a group's row, the next frame fills the row's bounds in the glow color, and once the
+     * glow's frames have passed no frame fills it (decision followed-target-glows-briefly).
+     */
+    @Test
+    void revealedGroupsRowGlowsThenStops() {
+        List<Integer> tops = rowTops();
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int target = 25;
+        pane.reveal(groupName(target));
+        DrawnFrame centering = new DrawnFrame();
+        pane.extract(centering.graphics, DrawnFrame.font(), SHORT_VIEW, centering.targets);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        ValuesPaneTest.assertGlowCovers(frame, frame.find("#" + groupName(target)),
+                tops.get(target + 1) - tops.get(target));
+        for (int extracted = 1; extracted < RevealGlow.FRAMES; extracted++) {
+            DrawnFrame fading = new DrawnFrame();
+            pane.extract(fading.graphics, DrawnFrame.font(), SHORT_VIEW, fading.targets);
+        }
+        DrawnFrame after = new DrawnFrame();
+        pane.extract(after.graphics, DrawnFrame.font(), SHORT_VIEW, after.targets);
+        ValuesPaneTest.assertNoGlow(after);
+    }
+
+    /**
      * A shift + left follow to the last group stops the list at its end (decision
      * shift-follow-centers-the-target-in-its-scrolling-view).
      */
@@ -146,6 +173,31 @@ class GroupsPaneTest {
         ValuesManagerScreen.emptyBoxUnder(widgets, new MouseButtonEvent(search.getX() + 1, search.getY() + 1,
                 new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
         assertEquals(FOLLOWED_GROUPS, groups.groupRows().size());
+    }
+
+    /**
+     * A follow into the Groups pane empties a search that hides its target and draws the target's row (decision
+     * following-a-link-clears-the-panes-search-bar).
+     */
+    @Test
+    void revealClearsTheSearchAndDrawsTheTarget() {
+        GroupsTab groups = new GroupsTab(new ManagerDraft());
+        List<AbstractWidget> widgets = new ArrayList<>();
+        GroupsPane pane = manyGroups(groups, widgets);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue(groupName(7));
+        int target = 3;
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        assertFalse(searched.texts().contains("#" + groupName(target)), "the search hides the target");
+        pane.reveal(groupName(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        assertEquals("", search.getValue());
+        assertTrue(frame.texts().contains("#" + groupName(target)), frame.texts().toString());
     }
 
     // A Groups pane over forty groups whose actions record every widget the pane stands.
@@ -435,7 +487,7 @@ class GroupsPaneTest {
         }
 
         // EditBox.setFocused reaches the game client, which a unit test holds none of, so the flag is set directly.
-        private static void focus(EditBox box) {
+        static void focus(EditBox box) {
             try {
                 java.lang.reflect.Field focused = AbstractWidget.class.getDeclaredField("focused");
                 focused.setAccessible(true);
@@ -825,6 +877,49 @@ class GroupsPaneTest {
         int kindCenter = kind.y() * 2 + new Lettering(font, ControlFlow.BUILDER_SCALE).lineHeight();
         assertTrue(Math.abs(labelCenter - kindCenter) <= 2, label + " vs " + kind);
         assertTrue(label.x() < kind.x(), label + " vs " + kind);
+    }
+
+    /**
+     * A group worth 21/2 glow draws its goo value as the Items row draws an amount: small, as the mixed number 10
+     * and a half, the half stacked over its bar, and never 21/2 at full size (decision
+     * groups-value-draws-as-every-other-panes-value).
+     */
+    @Test
+    void cardValueDrawsSmallAsAMixedNumber() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_log", "Oak Log")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": \\"21/2\\"}",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "oak_log", "value": {"glow": "21/2"}, "denied": false}]}
+                """);
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": "{\\"glow\\": \\"21/2\\"}", "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        assertEquals(SmallDigits.SCALE, frame.placed("10").scale(), frame.placements().toString());
+        assertTrue(frame.placements().stream().anyMatch(placed -> placed.text().equals("2")
+                && placed.scale() < SmallDigits.SCALE), "the half stacks: " + frame.placements());
+        assertTrue(frame.placements().stream().noneMatch(placed -> placed.text().contains("21/2")
+                && placed.scale() == 1f && placed.y() < frame.find(ReadValueButton.PENCIL).y() - 4),
+                frame.placements().toString());
     }
 
     /**

@@ -116,5 +116,16 @@ class BuilderGrammarTest {
             assertTrue(BuilderGrammar.acceptsTyped("10", true));
             assertTrue(BuilderGrammar.acceptsTyped("", true));
         }
+
+        // Decision number-box-takes-a-mixed-number: a term's number box takes each step of typing 2 1/2.
+        @Test
+        void termNumberBoxTakesAMixedNumberAsItIsTyped() {
+            for (String typed : List.of("", "2", "2 ", "2 1", "2 1/", "2 1/2", "1/2")) {
+                assertTrue(BuilderGrammar.acceptsTypedMixed(typed), typed);
+            }
+            for (String typed : List.of("2.5", "a", "-1", "1/2/3", "2  1")) {
+                assertFalse(BuilderGrammar.acceptsTypedMixed(typed), typed);
+            }
+        }
     }
 }

@@ -9,7 +9,7 @@ import java.util.List;
  * followed by the amount (decision value-tooltips-draw-each-types-icon-before-its-amount).
  */
 public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmount, TooltipLine.Runs,
-        TooltipLine.Members {
+        TooltipLine.RunsGrid, TooltipLine.Members {
 
     /**
      * A line of text: a name, a scalar value, an error or a hint.
@@ -40,6 +40,22 @@ public sealed interface TooltipLine permits TooltipLine.Text, TooltipLine.GooAmo
          */
         public Runs {
             runs = List.copyOf(runs);
+        }
+    }
+
+    /**
+     * Cells of runs laid as a grid of ceil(sqrt(count)) columns, each as wide as the widest cell, every row past the
+     * first indented, which {@link RunsGridTooltipComponent} draws; a prefab's recipe and its reduction read one cell
+     * per goo type (decision tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+     *
+     * @param cells each cell's runs, in reading order
+     */
+    record RunsGrid(List<List<ExpressionLines.Run>> cells) implements TooltipLine, TooltipComponent {
+        /**
+         * @param cells each cell's runs, in reading order
+         */
+        public RunsGrid {
+            cells = cells.stream().map(List::copyOf).toList();
         }
     }
 

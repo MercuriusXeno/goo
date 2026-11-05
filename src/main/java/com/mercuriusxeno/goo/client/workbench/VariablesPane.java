@@ -10,11 +10,9 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Draws the Variables tab: each constant's block with its expression, what it resolves to or its error, and the
@@ -40,11 +38,11 @@ final class VariablesPane {
     private static final int SEARCH_GAP = 3;
     private static final int KIND_GAP = 8;
     private static final int VALUE_GAP = 4;
+    // The room between the amount line and the value's box below it.
+    private static final int AMOUNT_GAP = 2;
     private static final int ACTION_GAP = 6;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
-    private static final int CARD_WIDTH = 220;
     private static final int CARD_PADDING = 6;
-    private static final int CARD_OFFSET = 12;
     private static final int DIALOG_WIDTH = 300;
     private static final int DIALOG_HEIGHT = 140;
     private static final int READER_GAP = 6;
@@ -65,17 +63,12 @@ final class VariablesPane {
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
-    private static final int GREEN = 0xFF80E080;
     private static final int LINK = ButtonPainter.LINK;
     private static final int CARD_COLOR = 0xF0181818;
     private static final int DIM_COLOR = 0xA0000000;
     private static final String RESOLVED_SEPARATOR = ", ";
-    private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
     private static final String VALUE_LABEL = "Value:";
-    private static final String AMOUNT_OPEN = "(";
-    private static final String AMOUNT_CLOSE = ")";
-    private static final String AMOUNT_COMMA = ",";
     private static final String RENAME = "✎";
     private static final String DELETE = "✗";
     private static final String CONFIRM_DELETE = "Delete";
@@ -91,6 +84,8 @@ final class VariablesPane {
     private static final String DELETE_TITLE_END = " and what reads it";
     private static final String NO_CONSTANTS = "The file names no constants.";
     private static final String SEARCH_HINT = "Search prefabs";
+    private static final String NEW_PREFAB = "+";
+    private static final String NAME_HINT = "name, Enter";
     private static final String CONSTANT_KIND = "constant";
     private static final String GROUP_KIND = "group";
     private static final String NO_TEXT = "";
@@ -99,8 +94,6 @@ final class VariablesPane {
     private final ManagerDraft draft;
     private final ItemIcons icons;
     private final ManagerActions actions;
-    private final Map<String, VariablesTab.HoverCard> cards = new HashMap<>();
-    private final Set<String> cardsAsked = new HashSet<>();
     private final ExpandedLists expandedUsedBy = new ExpandedLists();
     private final ScrollBar cascadeBar = new ScrollBar(1);
     private final Map<String, Integer> blockTops = new HashMap<>();
@@ -110,8 +103,11 @@ final class VariablesPane {
     private @Nullable EditBox search;
     private @Nullable EditBox rename;
     private @Nullable String renaming;
+    private @Nullable EditBox nameBox;
+    private boolean naming;
     private @Nullable String deleting;
     private @Nullable String jumpPending;
+    private final RevealGlow glow = new RevealGlow();
     private boolean visible;
     private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
 
@@ -136,6 +132,12 @@ final class VariablesPane {
         rename = actions.addWidget(new EditBox(font, 0, 0, NAME_WIDTH, BOX_HEIGHT, Component.literal(NO_TEXT)));
         if (previousRename != null) {
             rename.setValue(previousRename.getValue());
+        }
+        EditBox previousName = nameBox;
+        nameBox = actions.addWidget(new EditBox(font, 0, 0, NAME_WIDTH, BOX_HEIGHT, Component.literal(NAME_HINT)));
+        nameBox.setHint(Component.literal(NAME_HINT));
+        if (previousName != null) {
+            nameBox.setValue(previousName.getValue());
         }
         show(visible);
     }
@@ -174,11 +176,9 @@ final class VariablesPane {
     }
 
     /**
-     * Evaluates every constant of the draft afresh; the hover cards read the new draft from now.
+     * Evaluates every constant of the draft afresh; the prefab tooltips read the new evaluation from now.
      */
     void refresh() {
-        cards.clear();
-        cardsAsked.clear();
         actions.request(WorkbenchOperations.EVALUATE_CONSTANTS, draft.changeSetText(), variables::readEvaluated);
     }
 
@@ -189,6 +189,11 @@ final class VariablesPane {
      */
     void jumpTo(String name) {
         deleting = null;
+        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
+        if (search != null) {
+            search.setValue(NO_TEXT);
+        }
+        variables.search(NO_TEXT);
         startEditing(name);
         jumpPending = name;
     }
@@ -214,17 +219,33 @@ final class VariablesPane {
      * @return whether the pane took the key
      */
     boolean keyPressed(int key) {
-        if (rename != null && rename.isFocused() && renaming != null) {
-            if (isEnter(key)) {
-                submitRename(renaming, rename.getValue().trim());
-                return true;
-            }
-            if (key == GLFW.GLFW_KEY_ESCAPE) {
-                stopRenaming();
-                return true;
-            }
+        return nameKey(key) || renameKey(key) || builder.keyPressed(key);
+    }
+
+    private boolean nameKey(int key) {
+        EditBox named = nameBox;
+        return naming && named != null && named.isFocused()
+                && boxKey(key, () -> createPrefab(named.getValue()), this::stopNaming);
+    }
+
+    private boolean renameKey(int key) {
+        EditBox renamed = rename;
+        String from = renaming;
+        return from != null && renamed != null && renamed.isFocused()
+                && boxKey(key, () -> submitRename(from, renamed.getValue().trim()), this::stopRenaming);
+    }
+
+    // Enter runs the box's done and Escape its cancel; answers whether either ran.
+    private static boolean boxKey(int key, Runnable done, Runnable cancel) {
+        if (isEnter(key)) {
+            done.run();
+            return true;
         }
-        return builder.keyPressed(key);
+        if (key == GLFW.GLFW_KEY_ESCAPE) {
+            cancel.run();
+            return true;
+        }
+        return false;
     }
 
     private static boolean isEnter(int key) {
@@ -232,97 +253,52 @@ final class VariablesPane {
     }
 
     /**
-     * The read view's runs with each evaluated amount in parentheses after what it evaluates: a scalar's after the
-     * expression, a typed prefab's after each type row's terms, a failed evaluation's error after the expression
-     * (decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount).
+     * The read view's expression runs, a failed evaluation's error after them; the evaluated amount draws on its own
+     * line above them, through {@link #amountLine}.
+     * Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
      *
-     * @param runs     the expression's runs
-     * @param resolved what the prefab resolves to: "type amount" pairs joined by commas, or a scalar
-     * @param error    why it failed to resolve, empty where it resolved
-     * @return the runs with the amounts placed
+     * @param runs  the expression's runs
+     * @param error why it failed to resolve, empty where it resolved
+     * @return the runs the read view draws below the amount line
      */
-    static List<ExpressionLines.Run> amountedRuns(List<ExpressionLines.Run> runs, String resolved, String error) {
-        Map<String, String> typed = typedAmounts(resolved);
-        List<ExpressionLines.Run> amounted = new java.util.ArrayList<>();
-        String lastRow = amountTypeRows(runs, typed, amounted);
+    static List<ExpressionLines.Run> expressionRuns(List<ExpressionLines.Run> runs, String error) {
         if (error.isEmpty()) {
-            // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount: a plain number previews nothing,
-            // its amount being the number itself.
-            if (!isPlainNumber(runs)) {
-                addAmount(amounted, lastRow == null ? resolved : typed.get(lastRow));
-            }
-        } else {
-            amounted.add(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, error, null));
+            return runs;
         }
-        return amounted;
+        List<ExpressionLines.Run> failed = new java.util.ArrayList<>(runs);
+        failed.add(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, error, null));
+        return failed;
     }
 
-    // Copies the runs, each type row's amount before the break that ends it; answers the last row's type, null where
-    // the value holds no type rows.
-    private static @Nullable String amountTypeRows(List<ExpressionLines.Run> runs, Map<String, String> typed,
-                                                   List<ExpressionLines.Run> amounted) {
-        String rowType = null;
-        for (int index = 0; index < runs.size(); index++) {
-            ExpressionLines.Run run = runs.get(index);
-            if (run.kind() == ExpressionLines.Kind.BREAK && rowType != null) {
-                addAmount(amounted, typed.get(rowType));
-            }
-            amounted.add(run);
-            if (startsTypeRow(runs, index)) {
-                rowType = run.ref();
-            }
+    /**
+     * The evaluated amount a read view draws above its expression: a typed prefab's amounts highest first, a
+     * scalar's one amount, and none for a plain number, whose amount is the number itself, nor for a failed or
+     * unanswered evaluation.
+     * Decisions prefab-head-is-name-pencil-used-by-then-value-with-its-amount,
+     * value-lists-order-highest-first-ties-by-type-key.
+     *
+     * @param runs  the expression's runs
+     * @param block the prefab's block, carrying its kind, what it resolves to and its error
+     * @return the amount line
+     */
+    static AmountGridLine amountLine(List<ExpressionLines.Run> runs, VariablesTab.ConstantBlock block) {
+        String resolved = block.resolved();
+        if (!block.error().isEmpty() || resolved.isEmpty() || isPlainNumber(runs)) {
+            return AmountGridLine.NONE;
         }
-        return rowType;
-    }
-
-    // A type row opens on its type, then the colon its terms follow.
-    private static boolean startsTypeRow(List<ExpressionLines.Run> runs, int index) {
-        int colon = index + 1;
-        return colon < runs.size() && runs.get(index).kind() == ExpressionLines.Kind.TYPE
-                && runs.get(colon).kind() == ExpressionLines.Kind.OPERATOR
-                && ExpressionLines.COLON.equals(runs.get(colon).text());
+        if (!VariablesTab.TREE_KIND.equals(block.kind())) {
+            return AmountGridLine.scalar(resolved);
+        }
+        Map<String, String> typed = typedAmounts(resolved);
+        return typed.isEmpty() ? AmountGridLine.NONE : AmountGridLine.typed(AmountOrder.highestFirst(typed));
     }
 
     private static boolean isPlainNumber(List<ExpressionLines.Run> runs) {
         return runs.size() == 1 && runs.getFirst().kind() == ExpressionLines.Kind.NUMBER;
     }
 
-    // The amount in parentheses, each goo type as its icon beside its amount and commas between the pairs. Every
-    // piece places whole, the open paren joined to the first amount and the close paren to the last, so a wrap
-    // moves the last amount down with its paren.
-    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
-    private static void addAmount(List<ExpressionLines.Run> runs, @Nullable String amount) {
-        if (amount == null || amount.isEmpty()) {
-            return;
-        }
-        List<ExpressionLines.Run> amounts = closedAmounts(ExpressionLines.resolvedRuns(amount));
-        ExpressionLines.Run first = amounts.getFirst();
-        if (first.kind() == ExpressionLines.Kind.TYPE) {
-            amounts.addFirst(amountRun(AMOUNT_OPEN));
-        } else {
-            amounts.set(0, amountRun(AMOUNT_OPEN + first.text()));
-        }
-        runs.addAll(amounts);
-    }
-
-    // Each amount placed whole, a comma after each but the last and the close paren after the last.
-    private static List<ExpressionLines.Run> closedAmounts(List<ExpressionLines.Run> pieces) {
-        List<ExpressionLines.Run> amounts = new java.util.ArrayList<>();
-        for (int index = 0; index < pieces.size(); index++) {
-            ExpressionLines.Run piece = pieces.get(index);
-            boolean last = index == pieces.size() - 1;
-            amounts.add(piece.kind() == ExpressionLines.Kind.TYPE ? piece
-                    : amountRun(piece.text() + (last ? AMOUNT_CLOSE : AMOUNT_COMMA)));
-        }
-        return amounts;
-    }
-
-    private static ExpressionLines.Run amountRun(String text) {
-        return new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, text, null);
-    }
-
     private static Map<String, String> typedAmounts(String resolved) {
-        Map<String, String> amounts = new HashMap<>();
+        Map<String, String> amounts = new java.util.LinkedHashMap<>();
         for (String part : resolved.split(RESOLVED_SEPARATOR)) {
             int space = part.indexOf(' ');
             if (space > 0) {
@@ -352,6 +328,7 @@ final class VariablesPane {
         int listTop = placeSearch(view);
         if (variables.blocks().isEmpty()) {
             graphics.text(font, NO_CONSTANTS, view.left(), listTop, GRAY);
+            drawCreate(graphics, font, view, targets);
             return;
         }
         List<VariablesTab.ConstantBlock> blocks = variables.listed();
@@ -359,31 +336,31 @@ final class VariablesPane {
                 view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
         int end = drawBlocks(graphics, font, blocks, bounds, targets);
         bar.measureAndDraw(graphics, targets, end, view.right(), bounds.top(), view.bottom());
+        drawCreate(graphics, font, view, targets);
         applyPendingJump();
         showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
         builder.drawOverlays(graphics, font, targets);
         drawDeleteDialog(graphics, font, view, targets);
-        if (!builder.listOpen()) {
-            drawHoverCard(graphics, font, view, targets, mouseX, mouseY);
-        }
     }
 
-    // The builder over the block being edited, each change written to the draft and done evaluating it afresh
-    // (decision expression-builder-composes-every-form-without-typing); answers the height it took.
+    // The builder over the block being edited, each change written to the draft and evaluated afresh, so the value
+    // shown is the value the builder holds (decision expression-builder-composes-every-form-without-typing); answers
+    // the height it took. The builder starts its panel's overhang lower, so the panel clears the head's Used by icons.
     private int drawBuilder(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                             GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         if (!builder.isOpen() || !block.name().equals(building)) {
             building = block.name();
             builder.openPrefab(block.name(), block.expression(), typed -> {
                 variables.edit(block.name(), typed);
-                actions.markUnsaved();
+                actions.draftChanged();
             }, () -> {
                 building = null;
                 variables.stopEditing();
                 actions.draftChanged();
             });
         }
-        return builder.extract(graphics, font, bounds, y, targets);
+        return ExpressionBuilderPane.PANEL_ABOVE + builder.extract(graphics, font, bounds,
+                y + ExpressionBuilderPane.PANEL_ABOVE, targets);
     }
 
     // The listed blocks clipped to the list's bounds; answers the y the last one ended at.
@@ -396,6 +373,7 @@ final class VariablesPane {
             RowLayout.drawSeparatorAbove(graphics, index, y + SEPARATOR_ROW, bounds.left(), bounds.right());
             y += drawBlock(graphics, font, blocks.get(index), bounds, y, targets);
         }
+        glow.draw(graphics, bounds.left(), bounds.top() - bar.offset(), bounds.right());
         targets.unclip();
         graphics.disableScissor();
         return y;
@@ -411,19 +389,69 @@ final class VariablesPane {
 
     private void showBoxes(boolean renameShown) {
         boolean open = visible && deleting == null;
-        if (search != null) {
-            search.visible = open;
-        }
-        if (rename != null) {
-            rename.visible = open && renameShown;
+        showBox(search, open);
+        showBox(rename, open && renameShown);
+        showBox(nameBox, open && naming);
+    }
+
+    private static void showBox(@Nullable EditBox box, boolean shown) {
+        if (box != null) {
+            box.visible = shown;
         }
     }
 
-    // Once the jumped block has drawn, editing, and the bar has measured this frame, centers the block in the list.
-    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
+    // A [+] right of the search box, which opens a name box in its place with a done check and a gold arrow that run
+    // what Enter and Escape run, as the Mutators [+] does.
+    // Decision goo-workbench-opens-the-in-game-manager-screen: the page's Variables pane added constants.
+    // Decision mutators-and-iterators-each-take-a-create-control.
+    // Decisions open-name-box-takes-a-done-checkmark, open-name-box-takes-a-gold-arrow-that-cancels.
+    private void drawCreate(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds view, ClickTargets targets) {
+        int x = view.left() + SEARCH_WIDTH + RowLayout.BUTTON_GAP;
+        EditBox box = nameBox;
+        if (!naming || box == null) {
+            BuilderOverlays.control(graphics, font, NEW_PREFAB, null, x, view.top(), targets, at -> startNaming());
+            return;
+        }
+        int boxWidth = NAME_WIDTH - NameBoxButtons.width(font);
+        box.setPosition(x, view.top());
+        box.setWidth(boxWidth);
+        NameBoxButtons.draw(graphics, font, x + boxWidth, view.top(), ButtonPainter.HEIGHT, targets,
+                () -> createPrefab(box.getValue()), this::stopNaming);
+    }
+
+    private void startNaming() {
+        naming = true;
+        if (nameBox != null) {
+            nameBox.setValue(NO_TEXT);
+            showBoxes(renaming != null);
+            actions.focus(nameBox);
+        }
+    }
+
+    private void stopNaming() {
+        naming = false;
+        showBoxes(renaming != null);
+    }
+
+    // A free name adds the prefab and opens its builder centered in the list, the jump clearing the search so the
+    // list holds it; a blank, illegal or held name leaves the box open.
+    private void createPrefab(String typed) {
+        Optional<String> created = variables.createPrefab(typed);
+        if (created.isEmpty()) {
+            return;
+        }
+        stopNaming();
+        actions.draftChanged();
+        jumpTo(created.get());
+    }
+
+    // Once the jumped block has drawn, editing, and the bar has measured this frame, centers the block in the list,
+    // glowing it from the next frame.
+    // Decisions shift-follow-centers-the-target-in-its-scrolling-view, followed-target-glows-briefly.
     private void applyPendingJump() {
         if (jumpPending != null && blockTops.containsKey(jumpPending)) {
             bar.center(blockTops.get(jumpPending), blockHeights.get(jumpPending));
+            glow.start(blockTops.get(jumpPending), blockHeights.get(jumpPending));
             jumpPending = null;
         }
     }
@@ -457,29 +485,53 @@ final class VariablesPane {
         return Math.max(BARE_HEAD_HEIGHT, usedBy - TEXT_NUDGE);
     }
 
-    // Value: one indent in, then the read view inline with each evaluated amount in parentheses; a prefab with no
-    // expression reads Value: Not explicitly set as the button itself. Answers its height.
-    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
+    // Value: one indent in, then the evaluated amount on its own line above the value's box, outside it, and the box
+    // below holding the expression; with no amount line, Value: stands beside the box. A prefab with no expression
+    // reads Value: Not explicitly set as the button itself. Answers its height.
+    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount; the operator's rulings of 2026-11-04
+    // stand Value: on the amount line and the amount line above the box.
     // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
     private int drawValueLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                               GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int labelX = bounds.left() + ControlFlow.INDENT;
-        List<ExpressionLines.Run> runs = readRuns(block);
-        int viewX = runs.isEmpty() ? labelX : labelX + font.width(VALUE_LABEL) + VALUE_GAP;
+        List<ExpressionLines.Run> shown = block.expression().isBlank() ? List.of()
+                : ExpressionLines.shownRuns(block.expression(), icons::nameOf);
+        if (shown.isEmpty()) {
+            return drawReadView(graphics, font, block, shown, new GroupsPane.Bounds(labelX, bounds.top(),
+                    bounds.right(), bounds.bottom()), y, targets);
+        }
+        AmountGridLine amount = amountLine(shown, block);
+        List<ExpressionLines.Run> runs = expressionRuns(shown, block.error());
+        int viewX = labelX + font.width(VALUE_LABEL) + VALUE_GAP;
+        int boxTop = drawAmountLine(graphics, font, block, amount, new AmountPlace(labelX, viewX, y), targets);
         int height = drawReadView(graphics, font, block, runs, new GroupsPane.Bounds(viewX, bounds.top(),
-                bounds.right(), bounds.bottom()), y, targets);
-        if (!runs.isEmpty()) {
+                bounds.right(), bounds.bottom()), boxTop, targets);
+        if (amount.isEmpty()) {
             graphics.text(font, VALUE_LABEL, labelX, ReadValueButton.textTop(font, runs, y), GRAY);
         }
-        return height;
+        return boxTop - y + height;
     }
 
-    private List<ExpressionLines.Run> readRuns(VariablesTab.ConstantBlock block) {
-        if (block.expression().isBlank()) {
-            return List.of();
+    /**
+     * Where the amount line draws.
+     *
+     * @param labelX  Value:'s x
+     * @param amountX the value box's left, which the amounts line up over
+     * @param top     the line's top
+     */
+    private record AmountPlace(int labelX, int amountX, int top) {
+    }
+
+    // The amount line with Value: on it, above the box; answers the box's top, the line's own top where no amount
+    // draws.
+    private int drawAmountLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
+                               AmountGridLine amount, AmountPlace at, ClickTargets targets) {
+        if (amount.isEmpty()) {
+            return at.top();
         }
-        return amountedRuns(ExpressionLines.shownRuns(block.expression(), icons::nameOf), block.resolved(),
-                block.error());
+        amount.draw(font, at.amountX() + ButtonPainter.PADDING, at.top(), readPainter(graphics, block, targets));
+        graphics.text(font, VALUE_LABEL, at.labelX(), at.top() + amount.textOffset(font), GRAY);
+        return at.top() + amount.height() + AMOUNT_GAP;
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
@@ -520,10 +572,15 @@ final class VariablesPane {
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                              List<ExpressionLines.Run> runs, GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         return ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(bounds.left(), y, bounds.right(),
-                () -> startEditing(block.name())), new ExpressionLines.Painter(graphics, icons, targets,
-                block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
-                        targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)),
-                targets);
+                () -> startEditing(block.name())), readPainter(graphics, block, targets), targets);
+    }
+
+    // The read view's runs paint white, red where the prefab fails to resolve, a $name among them a link.
+    private ExpressionLines.Painter readPainter(GuiGraphicsExtractor graphics, VariablesTab.ConstantBlock block,
+                                                ClickTargets targets) {
+        // Decision value-hover-reads-the-same-editing-and-read-only: a ref keys the prefab's tooltip as the builder's.
+        return new ExpressionLines.Painter(graphics, icons, targets, block.error().isEmpty() ? WHITE : RED, LINK,
+                ExpressionLines.followedOnShiftClick(targets, actions::openVariable));
     }
 
     // Used by holds the items naming the constant themselves, then a link to each prefab and group reading it, on
@@ -780,14 +837,15 @@ final class VariablesPane {
         });
     }
 
-    // A constant reads as a $name button a shift + left click follows, a group or tag as its #name, and an item as its
-    // icon; answers the width the reader took.
+    // A constant reads as a $name button a shift + left click follows, hovering the prefab's tooltip, a group or tag
+    // as its #name, and an item as its icon; answers the width the reader took.
     // Decision shift-left-click-follows-plain-left-modifies.
+    // Decision value-hover-reads-the-same-editing-and-read-only.
     private int drawReader(GuiGraphicsExtractor graphics, Font font, VariablesTab.Reader reader, int x, int y,
                            ClickTargets targets) {
         if (CONSTANT_KIND.equals(reader.kind())) {
             return ButtonPainter.drawFollow(graphics, font, reader.id(), x, y, ICON_SIZE, targets,
-                    () -> actions.openVariable(reader.id()), reader.id()).width();
+                    () -> actions.openVariable(reader.id()), PrefabHovers.hoverKey(reader.id())).width();
         }
         if (GROUP_KIND.equals(reader.kind())) {
             String label = reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id();
@@ -796,56 +854,5 @@ final class VariablesPane {
         }
         graphics.item(icons.of(reader.id()), x, y);
         return ICON_SIZE;
-    }
-
-    private void drawHoverCard(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds,
-                               ClickTargets targets, int mouseX, int mouseY) {
-        Optional<String> hovered = targets.hovered(mouseX, mouseY);
-        if (hovered.isEmpty()) {
-            return;
-        }
-        String name = hovered.get();
-        // A type's or an item's icon names itself; a prefab's link alone opens a card.
-        if (name.indexOf(HOVER_KEY_MARK) >= 0) {
-            return;
-        }
-        VariablesTab.HoverCard card = cards.get(name);
-        if (card != null) {
-            drawCard(graphics, font, card, bounds, mouseX, mouseY, targets);
-        } else if (cardsAsked.add(name)) {
-            actions.request(WorkbenchOperations.CONSTANT_HOVER, variables.hoverRequest(name),
-                    answered -> cards.put(name, variables.readHover(answered)));
-        }
-    }
-
-    // The card's Used by line stays collapsed on one row.
-    private static int usedByHeight(VariablesTab.HoverCard card) {
-        return card.direct().isEmpty() && card.links().isEmpty() ? 0 : ICON_SIZE + HALF;
-    }
-
-    private void drawCard(GuiGraphicsExtractor graphics, Font font, VariablesTab.HoverCard card,
-                          GroupsPane.Bounds bounds, int mouseX, int mouseY, ClickTargets targets) {
-        int textWidth = CARD_WIDTH - CARD_PADDING * HALF;
-        List<ExpressionLines.Run> expression = ExpressionLines.shownRuns(card.expression(), icons::nameOf);
-        List<ExpressionLines.Run> resolved = ExpressionLines.resolvedRuns(String.join(RESOLVED_SEPARATOR,
-                card.lines()));
-        int expressionHeight = ExpressionLines.height(font, expression, textWidth);
-        int resolvedHeight = ExpressionLines.height(font, resolved, textWidth);
-        int height = CARD_PADDING * HALF + LINE_HEIGHT + expressionHeight + resolvedHeight + usedByHeight(card);
-        int left = Math.min(mouseX + CARD_OFFSET, bounds.right() - CARD_WIDTH);
-        int top = Math.min(mouseY + CARD_OFFSET, bounds.bottom() - height);
-        graphics.nextStratum();
-        graphics.fill(left, top, left + CARD_WIDTH, top + height, CARD_COLOR);
-        int x = left + CARD_PADDING;
-        int y = top + CARD_PADDING;
-        graphics.text(font, card.title(), x, y, WHITE);
-        y += LINE_HEIGHT;
-        ExpressionLines.draw(font, expression, x, y, textWidth, new ExpressionLines.Painter(graphics, icons, targets,
-                GRAY, LINK, (link, linkX, linkY, linkWidth) -> { }));
-        y += expressionHeight;
-        ExpressionLines.draw(font, resolved, x, y, textWidth, new ExpressionLines.Painter(graphics, icons, targets,
-                GREEN, LINK, (link, linkX, linkY, linkWidth) -> { }));
-        y += resolvedHeight;
-        drawUsedByLines(graphics, font, card.direct(), card.links(), x, y, textWidth, null, targets);
     }
 }
