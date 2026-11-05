@@ -4,7 +4,6 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -591,10 +590,8 @@ final class ValuesPane {
         for (int index = 0; index < recipe.inputs().size(); index++) {
             ValuesTab.Input input = recipe.inputs().get(index);
             int x = laid.spriteLefts().get(index);
-            ItemStack stack = icons.of(input.id());
-            graphics.item(stack, x, line.spriteTop());
+            ItemLinks.draw(graphics, icons, targets, actions, input.id(), x, line.spriteTop());
             drawCount(graphics, font, countParts(input.count(), recipe.output()), x, line.spriteTop());
-            ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), Palette.TEXT));
         return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;
@@ -612,10 +609,8 @@ final class ValuesPane {
         for (int index = 0; index < terms.size(); index++) {
             ValuesTab.Input term = terms.get(index);
             int x = laid.spriteLefts().get(index);
-            ItemStack stack = icons.of(term.id());
-            graphics.item(stack, x, line.spriteTop());
+            ItemLinks.draw(graphics, icons, targets, actions, term.id(), x, line.spriteTop());
             drawCount(graphics, font, countParts(term.count(), recipe.output()), x, line.spriteTop());
-            ItemLinks.add(targets, actions, term.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, MINUS, x, line.textTop(), Palette.TEXT));
         return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;

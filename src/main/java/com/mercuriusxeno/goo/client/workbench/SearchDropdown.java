@@ -247,7 +247,7 @@ final class SearchDropdown {
                                    int rowY, int labelWidth) {
         String iconId = choice.iconId();
         if (iconId != null) {
-            graphics.item(icons.of(iconId), x + ICON_INSET, rowY + ICON_INSET);
+            ItemLinks.sprite(graphics, icons.of(iconId), x + ICON_INSET, rowY + ICON_INSET);
         }
         graphics.text(font, font.plainSubstrByWidth(choice.label(), labelWidth), x + LABEL_X,
                 Lettering.full(font).centeredTop(rowY, ROW_HEIGHT),

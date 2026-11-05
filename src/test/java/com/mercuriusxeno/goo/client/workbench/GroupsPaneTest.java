@@ -1192,6 +1192,38 @@ class GroupsPaneTest {
     }
 
     /**
+     * A member-list card's sprite hovers the item's value and follows to Items on shift + left click, as every item
+     * icon does (decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own).
+     */
+    @Test
+    void memberCardSpriteHoversAndLinksAsEveryItemIcon() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        groups.selectGroup("logs");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
+        int x = xs.getAllValues().getLast() + 1;
+        int y = ys.getAllValues().getLast() + 1;
+        assertEquals(Optional.of(ItemIcons.hoverKey("minecraft:oak_log")),
+                frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
+        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
+        verify(actions).openItem("minecraft:oak_log");
+    }
+
+    /**
      * The selected group's card fills in the palette's selected fill (decision fills-are-two-roles-selected-and-panel).
      */
     @Test
