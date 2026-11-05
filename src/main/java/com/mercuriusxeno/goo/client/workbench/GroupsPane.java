@@ -615,8 +615,7 @@ final class GroupsPane {
             String id = String.valueOf(members.get(index).ref());
             int iconX = left + index % Math.max(1, perRow) * step;
             int iconY = top + index / Math.max(1, perRow) * ROW_HEIGHT + 1;
-            graphics.item(icons.of(id), iconX, iconY);
-            ItemLinks.add(targets, actions, id, iconX, iconY);
+            ItemLinks.draw(graphics, icons, targets, actions, id, iconX, iconY);
         }
     }
 
@@ -783,7 +782,10 @@ final class GroupsPane {
         if (member.id().equals(selected)) {
             graphics.fill(card.left(), card.top(), card.right(), card.bottom(), Palette.SELECTED_FILL);
         }
-        graphics.item(icons.of(member.id()), iconLeft, card.top() + 1);
+        // The card's own click lies under its sprite's follow, so the sprite hovers and a plain click picks the card.
+        targets.add(card.left(), card.top(), card.right() - card.left(), CARD_HEIGHT, () -> pickMember(member.id()));
+        // Decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own.
+        ItemLinks.draw(graphics, icons, targets, actions, member.id(), iconLeft, card.top() + 1);
         int textX = iconLeft + ICON_SIZE + ICON_GAP;
         int textTop = Lettering.full(font).centeredTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT);
         String name = font.plainSubstrByWidth(member.name(), card.right() - textX);
@@ -793,7 +795,6 @@ final class GroupsPane {
             graphics.text(font, font.plainSubstrByWidth(member.note(), card.right() - noteX), noteX, textTop,
                     Palette.MUTED);
         }
-        targets.add(card.left(), card.top(), card.right() - card.left(), CARD_HEIGHT, () -> pickMember(member.id()));
     }
 
     private void pickMember(String id) {

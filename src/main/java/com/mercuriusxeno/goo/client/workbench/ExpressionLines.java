@@ -743,7 +743,7 @@ final class ExpressionLines {
         int top = place[1];
         ItemIcons icons = painter.icons();
         if (icons != null) {
-            painter.graphics().item(icons.of(String.valueOf(run.ref())), x, top + ICON_INSET);
+            ItemLinks.sprite(painter.graphics(), icons.of(String.valueOf(run.ref())), x, top + ICON_INSET);
         }
         lettering.draw(painter.graphics(), piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP,
                 lettering.centeredTop(top + ICON_INSET, ITEM_SPRITE_SIZE), painter.textColor());

@@ -43,7 +43,7 @@ public final class MembersTooltipComponent implements ClientTooltipComponent {
     public void extractImage(Font font, int x, int y, int width, int height, GuiGraphicsExtractor graphics) {
         int left = x;
         for (ItemStack stack : stacks) {
-            graphics.item(stack, left, y);
+            ItemLinks.sprite(graphics, stack, left, y);
             left += SPRITE_SIZE + SPRITE_GAP;
         }
         if (!more.isEmpty()) {

@@ -605,8 +605,7 @@ final class VariablesPane {
                                 ClickTargets targets) {
         if (index < usedBy.items().size()) {
             String item = usedBy.items().get(index);
-            graphics.item(icons.of(item), x, y);
-            ItemLinks.add(targets, actions, item, x, y);
+            ItemLinks.draw(graphics, icons, targets, actions, item, x, y);
             return;
         }
         VariablesTab.Reader link = usedBy.links().get(index - usedBy.items().size());
@@ -799,7 +798,8 @@ final class VariablesPane {
             graphics.text(font, label, x, Lettering.full(font).centeredTop(y, ICON_SIZE), Palette.MUTED);
             return font.width(label);
         }
-        graphics.item(icons.of(reader.id()), x, y);
+        // Decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own.
+        ItemLinks.draw(graphics, icons, targets, actions, reader.id(), x, y);
         return ICON_SIZE;
     }
 }
