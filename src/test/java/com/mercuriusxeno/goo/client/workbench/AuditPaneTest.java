@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -104,6 +105,19 @@ class AuditPaneTest {
             assertTrue(loud.stream().noneMatch(piece -> piece.text().contains(CHECKMARK)), loud.toString());
             assertTrue(loud.stream().allMatch(piece -> piece.color() == WHITE), loud.toString());
         }
+    }
+
+    /**
+     * One wheel notch over the sections moves them one wheel step (decision one-wheel-step-and-one-dialog-primitive).
+     */
+    @Test
+    void wheelNotchMovesTheSectionsOneWheelStep() {
+        String[] many = IntStream.range(0, 40).mapToObj(index -> section("S" + index, "line"))
+                .toArray(String[]::new);
+        AuditPane pane = pane(sections(many));
+        draw(pane);
+        pane.scroll(VIEW.top() + 200, -1);
+        assertEquals(ScrollBar.WHEEL_STEP, pane.sectionsBar().offset());
     }
 
     @Nested

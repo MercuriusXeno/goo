@@ -41,7 +41,6 @@ final class VariablesPane {
     // The room between the amount line and the value's box below it.
     private static final int AMOUNT_GAP = 2;
     private static final int ACTION_GAP = 6;
-    private static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private static final int CARD_PADDING = 6;
     private static final int DIALOG_WIDTH = 300;
     private static final int DIALOG_HEIGHT = 140;
@@ -102,7 +101,7 @@ final class VariablesPane {
     private @Nullable String jumpPending;
     private final RevealGlow glow = new RevealGlow();
     private boolean visible;
-    private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
+    private final ScrollBar bar = new ScrollBar(ScrollBar.WHEEL_STEP);
 
     VariablesPane(VariablesTab variables, ManagerDraft draft, ItemIcons icons, ManagerActions actions,
                   ExpressionBuilderPane builder) {
@@ -771,16 +770,10 @@ final class VariablesPane {
             return;
         }
         String name = deleting;
-        graphics.nextStratum();
-        graphics.fill(bounds.left(), bounds.top(), bounds.right(), bounds.bottom(), Palette.DIALOG_DIM);
-        targets.addShield(bounds.left(), bounds.top(), bounds.right() - bounds.left(), bounds.bottom() - bounds.top(),
-                () -> { });
-        int left = (bounds.left() + bounds.right() - DIALOG_WIDTH) / HALF;
-        int top = (bounds.top() + bounds.bottom() - DIALOG_HEIGHT) / HALF;
-        GroupsPane.Bounds dialog = new GroupsPane.Bounds(left, top, left + DIALOG_WIDTH, top + DIALOG_HEIGHT);
-        graphics.fill(dialog.left(), dialog.top(), dialog.right(), dialog.bottom(), Palette.DIALOG_CARD);
-        graphics.text(font, DELETE_TITLE_START + name + DELETE_TITLE_END, left + CARD_PADDING,
-                top + CARD_PADDING, Palette.TEXT);
+        // Decision one-wheel-step-and-one-dialog-primitive: the whole screen dims, as the draft's confirm dims it.
+        GroupsPane.Bounds dialog = Dialog.open(graphics, targets, DIALOG_WIDTH, DIALOG_HEIGHT);
+        graphics.text(font, DELETE_TITLE_START + name + DELETE_TITLE_END, dialog.left() + CARD_PADDING,
+                dialog.top() + CARD_PADDING, Palette.TEXT);
         drawCascade(graphics, font, name, dialog, targets);
         drawDialogButtons(graphics, font, name, dialog, targets);
     }

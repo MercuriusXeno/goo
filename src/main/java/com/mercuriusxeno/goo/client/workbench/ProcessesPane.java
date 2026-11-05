@@ -24,7 +24,6 @@ import java.util.function.Supplier;
  * The rows scroll under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
 final class ProcessesPane {
-    private static final int ROW_HEIGHT = 13;
     private static final int MARK_WIDTH = 14;
     private static final int NAME_HEAD = 20;
     private static final int NAME_TAIL = 4;
@@ -52,7 +51,6 @@ final class ProcessesPane {
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
     private static final int HALF = 2;
-    private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final String CHECK = "✔";
     private static final String CROSS = "✘";
     private static final String REASON_GAP = ": ";
@@ -84,7 +82,7 @@ final class ProcessesPane {
     private final MutatorControls controls;
     // Decision mutators-left-iterators-right-each-with-its-own-scroll-bar: the mutators column's bar, then the
     // iterators column's.
-    private final ScrollBar[] bars = {new ScrollBar(SCROLL_STEP), new ScrollBar(SCROLL_STEP)};
+    private final ScrollBar[] bars = {new ScrollBar(ScrollBar.WHEEL_STEP), new ScrollBar(ScrollBar.WHEEL_STEP)};
     private int columnsMiddle;
     private @Nullable String revealPending;
     private @Nullable RevealedRow revealedRow;

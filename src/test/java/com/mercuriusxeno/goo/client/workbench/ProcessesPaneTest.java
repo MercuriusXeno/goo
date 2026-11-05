@@ -186,6 +186,16 @@ class ProcessesPaneTest {
      * mutators-iterators-split-fifty-fifty).
      */
     @Test
+    void wheelNotchMovesAColumnOneWheelStep() {
+        // Decision one-wheel-step-and-one-dialog-primitive.
+        pane = manyRowsPane();
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 390), frame.targets);
+        pane.scroll(230, -1);
+        assertEquals(ScrollBar.WHEEL_STEP, pane.columnBar(false).offset());
+    }
+
+    @Test
     void wheelScrollsTheColumnItTurnsOver() {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 390);

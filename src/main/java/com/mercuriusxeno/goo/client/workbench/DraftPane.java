@@ -32,28 +32,23 @@ final class DraftPane {
         return confirm.dialog().isPresent();
     }
 
-    void extract(GuiGraphicsExtractor graphics, Font font, int screenWidth, int screenHeight, ClickTargets targets) {
+    void extract(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         Optional<DraftConfirm.Dialog> dialog = confirm.dialog();
         if (dialog.isEmpty()) {
             return;
         }
-        graphics.nextStratum();
-        graphics.fill(0, 0, screenWidth, screenHeight, Palette.DIALOG_DIM);
-        targets.addShield(0, 0, screenWidth, screenHeight, () -> { });
         int textWidth = WIDTH - PADDING * HALF;
         List<ExpressionLines.Run> body = ExpressionLines.textRuns(dialog.get().text());
         int bodyHeight = ExpressionLines.height(font, body, textWidth);
         int height = PADDING * HALF + bodyHeight + LINE_HEIGHT * (HALF + 1);
-        int left = (screenWidth - WIDTH) / HALF;
-        int top = (screenHeight - height) / HALF;
-        graphics.fill(left, top, left + WIDTH, top + height, Palette.DIALOG_CARD);
-        int x = left + PADDING;
-        int y = top + PADDING;
+        // Decision one-wheel-step-and-one-dialog-primitive.
+        GroupsPane.Bounds card = Dialog.open(graphics, targets, WIDTH, height);
+        int x = card.left() + PADDING;
+        int y = card.top() + PADDING;
         graphics.text(font, dialog.get().title(), x, y, Palette.TEXT);
         y += LINE_HEIGHT * HALF;
         ExpressionLines.draw(Lettering.full(font), body, x, y, textWidth, new ExpressionLines.Painter(graphics, null,
-                targets,
-                Palette.MUTED, Palette.MUTED, (name, linkX, linkY, width) -> { }));
+                targets, Palette.MUTED, Palette.MUTED, (name, linkX, linkY, width) -> { }));
         drawChoices(graphics, font, x, y + bodyHeight + LINE_HEIGHT, targets);
     }
 

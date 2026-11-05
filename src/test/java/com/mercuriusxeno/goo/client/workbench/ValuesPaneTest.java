@@ -1141,7 +1141,7 @@ class ValuesPaneTest {
         DrawnFrame after = new DrawnFrame();
         pane.extract(after.graphics, DrawnFrame.font(), view, after.targets);
         String row = itemName(5);
-        assertEquals(notches * ValuesPane.SCROLL_STEP, before.find(row).y() - after.find(row).y());
+        assertEquals(notches * ScrollBar.WHEEL_STEP, before.find(row).y() - after.find(row).y());
     }
 
     /**

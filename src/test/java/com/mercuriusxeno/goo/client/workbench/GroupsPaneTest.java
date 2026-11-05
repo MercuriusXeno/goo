@@ -1031,6 +1031,18 @@ class GroupsPaneTest {
     }
 
     /**
+     * One wheel notch over the group list moves it one wheel step (decision one-wheel-step-and-one-dialog-primitive).
+     */
+    @Test
+    void wheelNotchMovesTheListOneWheelStep() {
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        pane.scroll(SHORT_VIEW.left() + 1, SHORT_VIEW.top() + 60, SHORT_VIEW.left(), -1);
+        assertEquals(ScrollBar.WHEEL_STEP, pane.listBar().offset());
+    }
+
+    /**
      * A group's name centers on its list row through the one centering helper, as every list pane's does (decision
      * one-lettering-primitive-names-three-text-roles).
      */

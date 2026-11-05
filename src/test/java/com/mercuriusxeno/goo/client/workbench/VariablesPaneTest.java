@@ -125,6 +125,14 @@ class VariablesPaneTest {
      * With the list scrolled by the wheel, typing in the box returns the list to its top.
      */
     @Test
+    void wheelNotchMovesTheListOneWheelStep() {
+        // Decision one-wheel-step-and-one-dialog-primitive.
+        draw();
+        pane.scroll(-1);
+        assertEquals(ScrollBar.WHEEL_STEP, pane.listBar().offset());
+    }
+
+    @Test
     void typingReturnsTheListToItsTop() {
         draw();
         pane.scroll(-1);
@@ -390,6 +398,23 @@ class VariablesPaneTest {
         read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         assertTrue(confirm.underlined("egg"));
         assertFalse(confirm.underlined("Delete"));
+    }
+
+    /**
+     * The delete confirm dims the whole screen through Dialog, as the draft's confirm does, its card on Dialog's card
+     * (decision one-wheel-step-and-one-dialog-primitive).
+     */
+    @Test
+    void deleteConfirmDimsTheWholeScreenThroughDialog() {
+        VariablesPane read = readByEgg(mock(ManagerActions.class));
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        list.click("✗");
+        DrawnFrame confirm = new DrawnFrame();
+        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        assertTrue(confirm.fillsOf(Dialog.DIM).stream().anyMatch(fill -> fill[0] == 0 && fill[1] == 0
+                && fill[2] == DrawnFrame.SCREEN_WIDTH && fill[3] == DrawnFrame.SCREEN_HEIGHT), "the screen dims");
+        assertFalse(confirm.fillsOf(Dialog.CARD).isEmpty(), "the card draws");
     }
 
     /**

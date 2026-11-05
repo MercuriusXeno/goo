@@ -52,7 +52,6 @@ final class GroupsPane {
     private static final int HALF = 2;
     // A hover key no item id, prefab name or goo type key spells.
     private static final String NAME_HOVER_PREFIX = "goo-group-name:";
-    private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     // Nine digits always fit an int.
     private static final int MAX_DIGITS = 9;
     private static final String NEW_GROUP = "+ Custom";
@@ -100,8 +99,8 @@ final class GroupsPane {
     private final BuilderOverlays overlays;
     private final MemberRails memberRails;
     private final ExpandedLists expandedRows = new ExpandedLists();
-    private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
-    private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
+    private final ScrollBar listBar = new ScrollBar(ScrollBar.WHEEL_STEP);
+    private final ScrollBar detailBar = new ScrollBar(ScrollBar.WHEEL_STEP);
     private @Nullable String revealPending;
     private @Nullable RevealedRow revealedRow;
     private final RevealGlow glow = new RevealGlow();

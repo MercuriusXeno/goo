@@ -25,7 +25,6 @@ final class AuditPane {
     private static final int GAP = 4;
     private static final int PROGRESS_SHOWN = 8;
     private static final int HEADER_HEIGHT = ButtonPainter.HEIGHT;
-    private static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private static final String RUN = "Run Audit";
     private static final String RUNNING = "running: saving the draft and auditing it on the server";
     private static final String OPEN_MARK = "v";
@@ -41,7 +40,7 @@ final class AuditPane {
     private final AuditTab audit;
     private final ManagerDraft draft;
     private final ManagerActions actions;
-    private final ScrollBar sectionsBar = new ScrollBar(SCROLL_STEP);
+    private final ScrollBar sectionsBar = new ScrollBar(ScrollBar.WHEEL_STEP);
     private final ScrollBar progressBar = ScrollBar.tailing(1);
     private int progressTop;
     private int progressBottom;
@@ -78,6 +77,13 @@ final class AuditPane {
             return;
         }
         sectionsBar.wheel(amount);
+    }
+
+    /**
+     * @return the sections' scroll bar
+     */
+    ScrollBar sectionsBar() {
+        return sectionsBar;
     }
 
     private void run() {
