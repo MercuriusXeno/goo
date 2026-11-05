@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.google.gson.JsonElement;
+import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -910,6 +912,36 @@ class GroupsPaneTest {
         when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
         return new GroupsPane(groups, values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
                 List::of));
+    }
+
+    /**
+     * A change in the Groups builder writes the group's base into the draft and reaches draftChanged on the same call,
+     * as the Items and Prefabs builders do, with no group request ahead of it (decision
+     * one-red-error-line-under-every-value).
+     */
+    @Test
+    void builderChangeReachesDraftChangedOnTheSameCall() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "4", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        GroupsPane pane = new GroupsPane(new GroupsTab(draft), new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        pane.writeBase("logs", "9");
+        verify(actions).draftChanged();
+        verify(actions, never()).request(eq(WorkbenchOperations.APPLY_TO_GROUP), anyString(), any());
+        String base = draft.members().asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(member -> member.get("key").getAsString().equals("#logs")).findFirst().orElseThrow()
+                .get("text").getAsString();
+        assertEquals("9", base);
     }
 
     /**

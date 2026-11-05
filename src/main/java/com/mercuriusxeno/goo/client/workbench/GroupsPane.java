@@ -73,6 +73,8 @@ final class GroupsPane {
     private static final String MEMBERS_COLON = "Members:";
     private static final String USED_BY = "Used by ";
     private static final String VALUE_LABEL = "Value:";
+    // The draft's line naming a group's base reads its name after #.
+    private static final String GROUP_PREFIX = "#";
     // A key suffix no group name spells, so a card's Used by line expands apart from its Members line.
     private static final String REFERENTS_KEY = ":usedBy";
     // Decision detail-is-members-plus-or-tag-members-with-the-tag-id.
@@ -373,7 +375,7 @@ final class GroupsPane {
         drawCardHead(graphics, font, card, targets);
         drawMembers(graphics, font, card.row().name(), laid.members(), targets);
         drawReferents(graphics, font, laid.referents(), area.left() + ControlFlow.INDENT, laid.usedByTop(), targets);
-        Built built = new Built(target, card.base(), null, typed -> apply(groups.baseRequest(typed)),
+        Built built = new Built(target, card.base(), null, typed -> writeBase(card.row().name(), typed),
                 () -> pickGroup(card.row().name()));
         int valueHeight = BuilderFrame.draw(graphics, font, laid.frame(), new BuilderFrame.Value(buildingHere,
                 laid.value(), errorOf(card), box -> drawBuilt(graphics, font, box, box.top(), built, targets)));
@@ -947,6 +949,23 @@ final class GroupsPane {
     private void closeBuilder() {
         building = null;
         builder.close();
+    }
+
+    /**
+     * Writes a group's base into the draft's #group line, a blank base dropping it, then evaluates the draft afresh on
+     * the same call, as the Items and Prefabs builders write (decision one-red-error-line-under-every-value).
+     *
+     * @param group the group's name
+     * @param typed the base the builder holds
+     */
+    void writeBase(String group, String typed) {
+        String key = GROUP_PREFIX + group;
+        if (typed.isBlank()) {
+            values.dropEntry(key);
+        } else {
+            values.edit(key, typed);
+        }
+        actions.draftChanged();
     }
 
     private void apply(String request) {
