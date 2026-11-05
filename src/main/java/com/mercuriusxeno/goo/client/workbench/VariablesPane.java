@@ -509,22 +509,42 @@ final class VariablesPane {
         int labelX = bounds.left() + ControlFlow.INDENT;
         List<ExpressionLines.Run> shown = block.expression().isBlank() ? List.of()
                 : ExpressionLines.shownRuns(block.expression(), icons::nameOf);
-        boolean set = !shown.isEmpty();
-        AmountGridLine amount = set ? amountLine(shown, block) : AmountGridLine.NONE;
-        List<ExpressionLines.Run> runs = set ? expressionRuns(shown, block.error()) : List.of();
-        int viewX = set ? labelX + font.width(VALUE_LABEL) + VALUE_GAP : labelX;
-        int boxTop = y;
-        if (!amount.isEmpty()) {
-            amount.draw(font, viewX + ButtonPainter.PADDING, y, readPainter(graphics, block, targets));
-            graphics.text(font, VALUE_LABEL, labelX, y + amount.textOffset(font), GRAY);
-            boxTop = y + amount.height() + AMOUNT_GAP;
+        if (shown.isEmpty()) {
+            return drawReadView(graphics, font, block, shown, new GroupsPane.Bounds(labelX, bounds.top(),
+                    bounds.right(), bounds.bottom()), y, targets);
         }
+        AmountGridLine amount = amountLine(shown, block);
+        List<ExpressionLines.Run> runs = expressionRuns(shown, block.error());
+        int viewX = labelX + font.width(VALUE_LABEL) + VALUE_GAP;
+        int boxTop = drawAmountLine(graphics, font, block, amount, new AmountPlace(labelX, viewX, y), targets);
         int height = drawReadView(graphics, font, block, runs, new GroupsPane.Bounds(viewX, bounds.top(),
                 bounds.right(), bounds.bottom()), boxTop, targets);
-        if (set && amount.isEmpty()) {
+        if (amount.isEmpty()) {
             graphics.text(font, VALUE_LABEL, labelX, ReadValueButton.textTop(font, runs, y), GRAY);
         }
         return boxTop - y + height;
+    }
+
+    /**
+     * Where the amount line draws.
+     *
+     * @param labelX  Value:'s x
+     * @param amountX the value box's left, which the amounts line up over
+     * @param top     the line's top
+     */
+    private record AmountPlace(int labelX, int amountX, int top) {
+    }
+
+    // The amount line with Value: on it, above the box; answers the box's top, the line's own top where no amount
+    // draws.
+    private int drawAmountLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
+                               AmountGridLine amount, AmountPlace at, ClickTargets targets) {
+        if (amount.isEmpty()) {
+            return at.top();
+        }
+        amount.draw(font, at.amountX() + ButtonPainter.PADDING, at.top(), readPainter(graphics, block, targets));
+        graphics.text(font, VALUE_LABEL, at.labelX(), at.top() + amount.textOffset(font), GRAY);
+        return at.top() + amount.height() + AMOUNT_GAP;
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
