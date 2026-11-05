@@ -15,6 +15,7 @@ final class ReadValueButton {
     static final String NOT_SET = "Value: Not explicitly set";
     /** The pencil segment's label. */
     static final String PENCIL = "✎";
+    private static final String PENCIL_HINT = "Rename";
     // The expression stands a pixel in from the frame's top border and a pixel above its bottom one.
     private static final int CONTENT_INSET = 2;
 
@@ -102,6 +103,8 @@ final class ReadValueButton {
                 ButtonPainter.width(font, PENCIL), frame.height());
         Frame.draw(graphics, Frame.BUTTON, pencil);
         graphics.text(font, PENCIL, pencil.left() + ButtonPainter.PADDING, textTop, Palette.LINK);
-        ButtonPainter.reserve(targets, pencil, open, null);
+        // Decision diagnose-and-correct-the-read-value-pencil-without-its-hint: the pencil hovers what every pencil
+        // hovers; the frame around the value hovers nothing.
+        ButtonPainter.reserve(targets, pencil, open, BuilderOverlays.hintKey(PENCIL_HINT));
     }
 }
