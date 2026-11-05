@@ -60,6 +60,7 @@ public final class VariablesTab {
     private final ManagerDraft draft;
     private final Map<String, JsonObject> results = new LinkedHashMap<>();
     private @Nullable String editing;
+    private @Nullable String selected;
     private Search.Query search = Search.EVERYTHING;
 
     /**
@@ -212,12 +213,21 @@ public final class VariablesTab {
     }
 
     /**
-     * A $name link opens its variable's edit box.
+     * A $name link lands on its variable selected and read-only, an edit standing open closing (decision
+     * every-follow-lands-selected-and-read-only).
      *
      * @param name the variable the link names
      */
     public void jumpTo(String name) {
-        editing = name;
+        editing = null;
+        selected = name;
+    }
+
+    /**
+     * @return the prefab a follow last landed on, empty before any
+     */
+    public Optional<String> selected() {
+        return Optional.ofNullable(selected);
     }
 
     /**

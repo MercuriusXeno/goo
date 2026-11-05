@@ -234,6 +234,8 @@ class GroupsPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         assertEquals("", search.getValue());
         assertTrue(frame.texts().contains("#" + groupName(target)), frame.texts().toString());
+        // Decision every-follow-lands-selected-and-read-only: the followed group stands selected.
+        assertEquals(groupName(target), groups.selected().orElseThrow().name());
     }
 
     /**

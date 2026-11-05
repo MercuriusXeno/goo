@@ -157,6 +157,21 @@ class ProcessesPaneTest {
     }
 
     /**
+     * A follow lands on the Conversions row selected: reveal selects it and the row draws in the selected fill
+     * (decision every-follow-lands-selected-and-read-only).
+     */
+    @Test
+    void revealSelectsTheRowAndDrawsItInTheSelectedFill() {
+        pane.reveal("waxed");
+        assertEquals(Optional.of("waxed"), pane.selected());
+        DrawnFrame frame = frame();
+        DrawnFrame.Text name = first(frame, "waxed");
+        List<int[]> fills = frame.fillsOf(Palette.SELECTED_FILL);
+        assertTrue(fills.size() == 1 && fills.getFirst()[1] <= name.y() && name.y() < fills.getFirst()[3],
+                fills.size() + " selected fills over " + name);
+    }
+
+    /**
      * The pane leads with its entries under no sub-tab: the first row under Mutators is the first mutator, and no
      * Conversions or Post conversions control draws (decision conversions-is-the-one-section-and-the-pane-name).
      */

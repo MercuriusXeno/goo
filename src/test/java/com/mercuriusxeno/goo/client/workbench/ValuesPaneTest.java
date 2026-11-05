@@ -888,6 +888,8 @@ class ValuesPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         assertEquals("", search.getValue());
         assertTrue(frame.texts().contains(itemName(target)), frame.texts().toString());
+        // Decision every-follow-lands-selected-and-read-only: the followed item stands selected.
+        assertEquals("minecraft:item_%02d".formatted(target), values.selectedRow().orElseThrow().id());
     }
 
     private static final int LARGE_LIST = 3000;
