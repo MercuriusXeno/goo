@@ -495,6 +495,18 @@ class MutatorControlsTest {
             }
         }
 
+        /**
+         * A mutator inside an iterator's chain hovers the formula card its own row hovers (decision
+         * mutator-name-hovers-its-formula-wherever-it-stands).
+         */
+        @Test
+        void chainedMutatorHoversItsFormula() {
+            DrawnFrame frame = frame("#ores", List.of("@smelt"));
+            DrawnFrame.Text smelt = frame.find("smelt");
+            assertEquals(Optional.of(ConversionHovers.hoverKey(SECTION, "smelt")),
+                    frame.targets.hovered(smelt.x() + 1, smelt.y() + 1));
+        }
+
         @Test
         void eachChainedMutatorTakesItsOwnLine() {
             DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));

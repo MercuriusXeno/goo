@@ -84,14 +84,17 @@ class PrefabHoversTest {
         }
 
         /**
-         * Each mutator an assignment's chain applies lays one hover area keyed to its name.
+         * Each mutator an assignment's chain applies lays one hover area keyed to its formula (decision
+         * mutator-name-hovers-its-formula-wherever-it-stands).
          */
         @Test
-        void eachAppliedMutatorHoversItsName() {
+        void eachAppliedMutatorHoversItsFormula() {
             controls(new Processes.Assignment("logs", List.of("@waxed", "@smelt"))).draw(graphics, font(),
                     "_mutators", "#logs", new GroupsPane.Bounds(0, 0, 400, 400), 0, targets);
-            assertEquals(1, prefabHovers(targets, "waxed"));
-            assertEquals(1, prefabHovers(targets, "smelt"));
+            for (String applied : List.of("waxed", "smelt")) {
+                assertEquals(1, targets.hoverKeys().stream()
+                        .filter(ConversionHovers.hoverKey("_mutators", applied)::equals).count(), applied);
+            }
         }
     }
 
