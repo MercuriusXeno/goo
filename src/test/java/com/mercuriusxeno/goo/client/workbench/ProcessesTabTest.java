@@ -97,6 +97,22 @@ class ProcessesTabTest {
     }
 
     /**
+     * A leading # in the iterator search narrows to the iterators over a group and is stripped before the match, so
+     * #cop keeps #copper as copper does, and a leading $ keeps no iterator (decision
+     * one-search-rule-serves-every-box-and-dropdown).
+     */
+    @Test
+    void iteratorSearchReadsTheGroupMark() {
+        tab.searchIterators("#cop");
+        assertEquals(List.of("#copper"), tab.sections().get(1).rows().stream().map(ProcessesTab.ProcessRow::key)
+                .toList(), "#cop");
+        tab.searchIterators("copper");
+        assertEquals(1, tab.sections().get(1).rows().size(), "copper");
+        tab.searchIterators("$cop");
+        assertEquals(List.of(), tab.sections().get(1).rows(), "$cop");
+    }
+
+    /**
      * A delete drops the entry.
      */
     @Test
