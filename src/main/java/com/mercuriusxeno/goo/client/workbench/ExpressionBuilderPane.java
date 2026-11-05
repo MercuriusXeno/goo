@@ -397,14 +397,14 @@ final class ExpressionBuilderPane {
     private boolean dragDeletable() {
         Drag term = dragging;
         RowDrag row = rowDragging;
-        return term != null && term.deletable || row != null && row.deletable;
+        return term != null && term.lightsTrash() || row != null && row.deletable;
     }
 
     // Whether the term or type row held stands over the trash strip.
     private boolean dragOverTrash() {
         Drag term = dragging;
         RowDrag row = rowDragging;
-        return term != null && term.overTrash || row != null && row.overTrash;
+        return term != null && term.dropsOnTrash() || row != null && row.overTrash;
     }
 
     // A blinking blue bar along the row slot the held type row would drop into.
@@ -487,8 +487,7 @@ final class ExpressionBuilderPane {
         RowDrag row = rowDragging;
         SignDrag sign = signDragging;
         if (term != null) {
-            return withTrash(slotHoles(slot -> holds(edited -> edited.canMoveTo(term.from, slot.sum(),
-                    slot.index()))), holds(edited -> edited.canRemove(term.from)));
+            return withTrash(slotHoles(term::takes), term.lightsTrash());
         }
         if (row != null) {
             List<DragMask.Rect> holes = rowSlots.stream().filter(slot -> holds(edited -> edited.canMoveRow(row.row,
@@ -539,7 +538,7 @@ final class ExpressionBuilderPane {
     private @Nullable Slot heldSlot() {
         Drag term = dragging;
         if (term != null) {
-            return term.target;
+            return term.target();
         }
         SignDrag sign = signDragging;
         return sign == null ? null : sign.target;
@@ -854,17 +853,21 @@ final class ExpressionBuilderPane {
     }
 
     /**
-     * A term held by its rail: where it came from, what it reads, where the pointer stands and the slot it would
-     * drop into, or the trash strip.
+     * A term or a parenthetical held by its rail: where it came from, what it reads, where the pointer stands, the
+     * slot a move and a copy would drop into, or the trash strip, and whether Ctrl turns the drop into a copy.
+     * Decision ctrl-during-a-rail-drag-shows-a-green-plus-and-drops-a-copy: Ctrl is read live through the hold, so
+     * both targets stand ready and its state at the release picks one.
      */
     private final class Drag implements ClickTargets.PointerGrab {
         private final List<Integer> from;
         private final ExpressionBuilder.Piece piece;
         private double x;
         private double y;
-        private @Nullable Slot target;
-        private boolean overTrash;
-        private boolean deletable;
+        private @Nullable Slot moveTarget;
+        private @Nullable Slot copyTarget;
+        private boolean overStrip;
+        private boolean removable;
+        private boolean copying;
 
         Drag(List<Integer> from, ExpressionBuilder.Piece piece) {
             this.from = from;
@@ -878,22 +881,60 @@ final class ExpressionBuilderPane {
             dragging = this;
             x = movedX;
             y = movedY;
-            deletable = holds(edited -> edited.canRemove(from));
-            overTrash = deletable && overTrash(x, y);
-            Slot nearest = overTrash(x, y) ? null : nearestSlot(x, y);
-            target = nearest != null && holds(edited -> edited.canMoveTo(from, nearest.sum(), nearest.index()))
+            removable = holds(edited -> edited.canRemove(from));
+            overStrip = overTrash(x, y);
+            Slot nearest = overStrip ? null : nearestSlot(x, y);
+            moveTarget = nearest != null && holds(edited -> edited.canMoveTo(from, nearest.sum(), nearest.index()))
                     ? nearest : null;
+            copyTarget = nearest != null && holds(edited -> edited.canCopyTo(from, nearest.sum(), nearest.index()))
+                    ? nearest : null;
+        }
+
+        @Override
+        public void holdControl(boolean held) {
+            copying = held;
+        }
+
+        @Override
+        public boolean copies() {
+            return copying;
+        }
+
+        @Nullable Slot target() {
+            return copying ? copyTarget : moveTarget;
+        }
+
+        boolean takes(Slot slot) {
+            return holds(edited -> copying ? edited.canCopyTo(from, slot.sum(), slot.index())
+                    : edited.canMoveTo(from, slot.sum(), slot.index()));
+        }
+
+        // Decision drags-indicate-only-a-drop-the-builder-takes: the strip deletes nothing a copy holds, so a copy
+        // lights it not.
+        boolean lightsTrash() {
+            return !copying && removable;
+        }
+
+        boolean dropsOnTrash() {
+            return lightsTrash() && overStrip;
         }
 
         // Decision terms-and-type-rows-drag-to-a-trash-strip: a release on the strip deletes the term.
         @Override
         public void released() {
-            Slot dropped = target;
             boolean held = dragging == this;
             dragging = null;
-            if (held && overTrash) {
+            if (held && dropsOnTrash()) {
                 apply(b -> b.remove(from));
-            } else if (held && dropped != null) {
+            } else if (held) {
+                dropAt(target());
+            }
+        }
+
+        private void dropAt(@Nullable Slot dropped) {
+            if (dropped != null && copying) {
+                apply(b -> b.copyTo(from, dropped.sum(), dropped.index()));
+            } else if (dropped != null) {
                 apply(b -> b.moveTo(from, dropped.sum(), dropped.index()));
             }
         }
