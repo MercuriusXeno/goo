@@ -9,7 +9,9 @@ import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -82,11 +84,10 @@ final class ProcessesPane {
     // iterators column's.
     private final ScrollBar[] bars = {new ScrollBar(ScrollBar.WHEEL_STEP), new ScrollBar(ScrollBar.WHEEL_STEP)};
     private int columnsMiddle;
-    private @Nullable String revealPending;
-    private @Nullable RevealedRow revealedRow;
+    // The iterators column's index among the pane's two lists, the mutators column's being 0.
+    private static final int ITERATORS_COLUMN = 1;
+    private final Reveal revealing = new Reveal();
     private final RevealGlow glow = new RevealGlow();
-    // Which column the glowing row stands in.
-    private boolean glowIterators;
     private @Nullable EditBox nameBox;
     // Decision one-search-row-per-list-with-its-create-control-beside-it: the mutators column's search, then the
     // iterators column's.
@@ -94,10 +95,6 @@ final class ProcessesPane {
     private @Nullable Naming naming;
     private boolean nameBoxPlaced;
     private boolean visible;
-
-    // Where the row a follow revealed stood inside the list's content this frame.
-    private record RevealedRow(boolean iterators, int top, int height) {
-    }
 
     /**
      * A pane whose add rows draw no reduced value.
@@ -110,7 +107,7 @@ final class ProcessesPane {
      */
     ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions, ItemIcons icons,
                   Supplier<List<String>> treePrefabs) {
-        this(processes, draft, actions, icons, treePrefabs, prefab -> java.util.Map.of());
+        this(processes, draft, actions, icons, treePrefabs, prefab -> Map.of());
     }
 
     /**
@@ -124,7 +121,7 @@ final class ProcessesPane {
      */
     ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions, ItemIcons icons,
                   Supplier<List<String>> treePrefabs,
-                  java.util.function.Function<String, java.util.Map<String, String>> prefabAmounts) {
+                  Function<String, Map<String, String>> prefabAmounts) {
         this.processes = processes;
         this.draft = draft;
         this.actions = actions;
@@ -243,14 +240,22 @@ final class ProcessesPane {
         for (boolean iterators : KINDS) {
             drawSearchRow(new Frame(graphics, font, columnOf(pane, pane.top(), iterators), targets), iterators);
         }
-        processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
-                .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
-                        pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
+        // Decision one-reveal-primitive-centers-before-the-first-draw: a followed row stands centered and glowing from
+        // the first frame drawn.
+        revealing.centerBeforeDraw(graphics, scratch -> drawConversions(graphics, font, pane, scratch),
+                column -> columnBar(column == ITERATORS_COLUMN), glow);
+        drawConversions(graphics, font, pane, targets);
         if (nameBox != null) {
             nameBox.visible = visible && nameBoxPlaced;
         }
-        centerRevealedRow();
         overlays.draw(graphics, font, targets);
+    }
+
+    private void drawConversions(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane,
+                                 ClickTargets targets) {
+        processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
+                .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
+                        pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
     }
 
     // The section's mutators in the left column and its iterators in the right, from the area's top.
@@ -302,7 +307,7 @@ final class ProcessesPane {
         frame.targets().clip(column.left(), listTop, column.right(), column.bottom());
         int y = drawRows(new Frame(graphics, frame.font(), rows, frame.targets()), section, iterators,
                 listTop - bar.offset());
-        if (iterators == glowIterators) {
+        if (revealing.glowsIn(iterators ? ITERATORS_COLUMN : 0)) {
             glow.draw(graphics, rows.left(), listTop - bar.offset(), rows.right());
         }
         frame.targets().unclip();
@@ -333,10 +338,8 @@ final class ProcessesPane {
             int rowTop = y;
             ProcessesTab.ProcessRow row = kindRows.get(index);
             y = drawRow(frame.graphics(), frame.font(), section.section(), row, rows, y, frame.targets());
-            if (row.key().equals(revealPending)) {
-                revealedRow = new RevealedRow(iterators, rowTop - rows.top() + columnBar(iterators).offset(),
-                        y - rowTop);
-            }
+            revealing.laid(row.key(), rowTop - rows.top() + columnBar(iterators).offset(), y - rowTop,
+                    iterators ? ITERATORS_COLUMN : 0);
         }
         return y;
     }
@@ -545,27 +548,15 @@ final class ProcessesPane {
      * @param key the mutator's key
      */
     void reveal(String key) {
-        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
-        for (EditBox box : searches) {
-            if (box != null) {
-                box.setValue(NO_TEXT);
+        revealing.follow(key, () -> {
+            for (EditBox box : searches) {
+                if (box != null) {
+                    box.setValue(NO_TEXT);
+                }
             }
-        }
-        processes.searchMutators(NO_TEXT);
-        processes.searchIterators(NO_TEXT);
-        revealPending = key;
-    }
-
-    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list, glowing it
-    // from the next frame (decision followed-target-glows-briefly).
-    private void centerRevealedRow() {
-        if (revealedRow != null) {
-            columnBar(revealedRow.iterators()).center(revealedRow.top(), revealedRow.height());
-            glowIterators = revealedRow.iterators();
-            glow.start(revealedRow.top(), revealedRow.height());
-            revealedRow = null;
-            revealPending = null;
-        }
+            processes.searchMutators(NO_TEXT);
+            processes.searchIterators(NO_TEXT);
+        });
     }
 
     /**

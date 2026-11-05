@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -9,9 +10,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -233,8 +240,8 @@ class VariablesPaneTest {
         ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), bottoms.capture(),
                 colors.capture());
-        List<Integer> separators = new java.util.ArrayList<>();
-        List<int[]> spans = new java.util.ArrayList<>();
+        List<Integer> separators = new ArrayList<>();
+        List<int[]> spans = new ArrayList<>();
         int listRight = TALL_VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
         for (int index = 0; index < tops.getAllValues().size(); index++) {
             if (colors.getAllValues().get(index) == Palette.SEPARATOR) {
@@ -245,7 +252,7 @@ class VariablesPaneTest {
         }
         frame.drawn().forEach(text -> spans.add(new int[] {text.y(), text.y() + GAME_LINE_HEIGHT}));
         ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).item(any(), anyInt(), itemTops.capture());
+        verify(frame.graphics, Mockito.atLeast(0)).item(any(), anyInt(), itemTops.capture());
         itemTops.getAllValues().forEach(top -> spans.add(new int[] {top, top + SPRITE}));
         assertFalse(separators.isEmpty());
         for (int separator : separators) {
@@ -289,8 +296,8 @@ class VariablesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
         List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
-                .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
-        assertEquals(List.of("Rename", "Delete"), hints.stream().sorted(java.util.Comparator.reverseOrder()).toList());
+                .flatMap(Optional::stream).map(component -> component.getString()).distinct().toList();
+        assertEquals(List.of("Rename", "Delete"), hints.stream().sorted(Comparator.reverseOrder()).toList());
     }
 
     private static final int GAME_LINE_HEIGHT = 9;
@@ -394,7 +401,55 @@ class VariablesPaneTest {
         int blockHeight = tops.get(target + 1) - tops.get(target);
         assertTrue(blockHeight <= list[3] - list[1], "the edited block outgrows the list");
         assertEquals(tops.get(target) + blockHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
-        assertEquals(java.util.Optional.of("prefab" + target), variables.editing());
+        assertEquals(Optional.of("prefab" + target), variables.editing());
+    }
+
+    /**
+     * The first frame after a follow already draws the block centered, where it settles, and glowing at age zero,
+     * with the search empty (decision one-reveal-primitive-centers-before-the-first-draw).
+     */
+    @Test
+    void jumpDrawsTheBlockCenteredAndGlowingOnTheFirstFrame() {
+        searchBox().setValue("prefab1");
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, searched.targets, 0, 0);
+        pane.jumpTo("prefab6");
+        assertBlockRevealedOnTheFirstFrame(pane, "prefab6", FITS_THE_EDITED_BLOCK);
+        assertEquals("", searchBox().getValue());
+    }
+
+    /**
+     * Creating a prefab with "wax" in the search empties the search and draws the new block centered and glowing on
+     * the next frame (decision create-reveals-the-new-row-like-a-follow).
+     */
+    @Test
+    void createRevealsTheNewBlockCenteredAndGlowing() {
+        searchBox().setValue("wax");
+        DrawnFrame list = new DrawnFrame();
+        pane.extract(list.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, list.targets, 0, 0);
+        list.click("+");
+        DrawnFrame naming = new DrawnFrame();
+        pane.extract(naming.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, naming.targets, 0, 0);
+        EditBox box = pane.nameBox();
+        assertNotNull(box);
+        box.setValue("zz_fresh");
+        naming.click("✓");
+        assertBlockRevealedOnTheFirstFrame(pane, "zz_fresh", FITS_THE_EDITED_BLOCK);
+        assertEquals("", searchBox().getValue());
+    }
+
+    // The next frame draws the block where it settles, scrolled into the list, glowing at age zero over its name.
+    private static void assertBlockRevealedOnTheFirstFrame(VariablesPane shown, String name, GroupsPane.Bounds view) {
+        DrawnFrame first = new DrawnFrame();
+        shown.extract(first.graphics, DrawnFrame.font(), view, first.targets, 0, 0);
+        assertTrue(shown.listBar().offset() > 0, name + " scrolled to");
+        DrawnFrame.Text drawn = first.find(PrefabNames.marked(name));
+        DrawnFrame settled = new DrawnFrame();
+        shown.extract(settled.graphics, DrawnFrame.font(), view, settled.targets, 0, 0);
+        assertEquals(settled.find(PrefabNames.marked(name)).y(), drawn.y(), "drawn where it settles");
+        List<int[]> glows = first.fillsOf(Palette.GLOW);
+        assertTrue(glows.size() == 1 && glows.getFirst()[1] <= drawn.y() && drawn.y() < glows.getFirst()[3],
+                glows.size() + " glows over " + drawn);
     }
 
     /**
@@ -413,7 +468,7 @@ class VariablesPaneTest {
         int[] list = frame.firstScissor();
         assertTrue(tops.get(target + 1) - tops.get(target) > list[3] - list[1], "the edited block fits the list");
         assertEquals(tops.get(target), pane.listBar().offset());
-        assertEquals(java.util.Optional.of("prefab" + target), variables.editing());
+        assertEquals(Optional.of("prefab" + target), variables.editing());
     }
 
     /**
@@ -675,7 +730,7 @@ class VariablesPaneTest {
 
     private static List<Integer> itemXs(DrawnFrame frame) {
         ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).item(any(), xs.capture(), anyInt());
+        verify(frame.graphics, Mockito.atLeast(0)).item(any(), xs.capture(), anyInt());
         return xs.getAllValues();
     }
 
@@ -710,7 +765,7 @@ class VariablesPaneTest {
         DrawnFrame list = new DrawnFrame();
         read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
         DrawnFrame.Text readRef = linkText(list, "$wood");
-        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("wood")),
+        assertEquals(Optional.of(PrefabHovers.hoverKey("wood")),
                 list.targets.hovered(readRef.x() + 1, readRef.y() + 1));
         list.click("$wood");
         DrawnFrame editing = new DrawnFrame();
@@ -718,7 +773,7 @@ class VariablesPaneTest {
         DrawnFrame building = new DrawnFrame();
         read.extract(building.graphics, DrawnFrame.font(), TALL_VIEW, building.targets, 0, 0);
         DrawnFrame.Text builderRef = linkText(building, "$wood");
-        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("wood")),
+        assertEquals(Optional.of(PrefabHovers.hoverKey("wood")),
                 building.targets.hovered(builderRef.x() + 1, builderRef.y() + 1));
     }
 
@@ -733,14 +788,14 @@ class VariablesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text plank = linkText(frame, "$plank");
-        assertEquals(java.util.Optional.of(PrefabHovers.hoverKey("plank")),
+        assertEquals(Optional.of(PrefabHovers.hoverKey("plank")),
                 frame.targets.hovered(plank.x() + 1, plank.y() + 1));
-        assertTrue(frame.targets.click(plank.x() + 1, plank.y() + 1, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT,
-                org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT));
+        assertTrue(frame.targets.click(plank.x() + 1, plank.y() + 1, GLFW.GLFW_MOUSE_BUTTON_LEFT,
+                GLFW.GLFW_MOD_SHIFT));
         verify(actions).openVariable("plank");
         DrawnFrame.Text logs = linkText(frame, "#logs");
-        assertTrue(frame.targets.click(logs.x() + 1, logs.y() + 1, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT,
-                org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT));
+        assertTrue(frame.targets.click(logs.x() + 1, logs.y() + 1, GLFW.GLFW_MOUSE_BUTTON_LEFT,
+                GLFW.GLFW_MOD_SHIFT));
         verify(actions).openGroup("logs");
     }
 
@@ -1099,9 +1154,9 @@ class VariablesPaneTest {
         }
 
         private void verifyNoDelete(ManagerActions recorded) {
-            verify(recorded, never()).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
+            verify(recorded, never()).request(eq(WorkbenchOperations.DELETE_CONSTANT),
                     anyString(), any());
-            verify(recorded, never()).stream(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
+            verify(recorded, never()).stream(eq(WorkbenchOperations.DELETE_CONSTANT),
                     anyString(), any(), any(), any());
         }
 
@@ -1122,7 +1177,7 @@ class VariablesPaneTest {
             assertEquals(cross.x(), arrow.x());
             assertEquals(cross.y(), arrow.y());
             assertEquals(Palette.GOLD, arrow.color());
-            assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Restore")),
+            assertEquals(Optional.of(BuilderOverlays.hintKey("Restore")),
                     after.targets.hovered(arrow.x() + 1, arrow.y() + 1));
             verify(actions).markUnsaved();
             verifyNoDelete(actions);
@@ -1154,8 +1209,8 @@ class VariablesPaneTest {
     @Test
     void confirmMarksAndTheSaveDeletesBeforeTheWrite() {
         ManagerActions actions = mock(ManagerActions.class);
-        org.mockito.Mockito.doAnswer(call -> {
-            call.<java.util.function.Consumer<String>>getArgument(3).accept("""
+        Mockito.doAnswer(call -> {
+            call.<Consumer<String>>getArgument(3).accept("""
                     {"path": "base_values.json", "members": []}""");
             return null;
         }).when(actions).stream(anyString(), anyString(), any(), any(), any());
@@ -1171,12 +1226,12 @@ class VariablesPaneTest {
         read.extract(after.graphics, DrawnFrame.font(), VIEW, after.targets, 0, 0);
         assertTrue(after.texts().contains("↺"), after.texts().toString());
         verify(actions, never()).stream(anyString(), anyString(), any(), any(), any());
-        read.applyRemovals(() -> actions.request(com.mercuriusxeno.goo.workbench.WorkbenchOperations.SAVE_MODEL, "",
+        read.applyRemovals(() -> actions.request(WorkbenchOperations.SAVE_MODEL, "",
                 reply -> { }));
-        org.mockito.InOrder order = org.mockito.Mockito.inOrder(actions);
-        order.verify(actions).stream(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.DELETE_CONSTANT),
-                org.mockito.ArgumentMatchers.contains("\"name\":\"base\""), any(), any(), any());
-        order.verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.SAVE_MODEL),
+        InOrder order = Mockito.inOrder(actions);
+        order.verify(actions).stream(eq(WorkbenchOperations.DELETE_CONSTANT),
+                ArgumentMatchers.contains("\"name\":\"base\""), any(), any(), any());
+        order.verify(actions).request(eq(WorkbenchOperations.SAVE_MODEL),
                 anyString(), any());
     }
 
@@ -1187,7 +1242,7 @@ class VariablesPaneTest {
      */
     @Test
     void renameBoxTakesADoneCheckAndANevermindArrow() {
-        List<AbstractWidget> widgets = new java.util.ArrayList<>();
+        List<AbstractWidget> widgets = new ArrayList<>();
         ManagerActions actions = mock(ManagerActions.class);
         when(actions.addWidget(any())).thenAnswer(call -> {
             widgets.add(call.getArgument(0));
@@ -1211,8 +1266,8 @@ class VariablesPaneTest {
         assertNameBoxButtons(open, box);
         box.setValue("renamed");
         open.click("✓");
-        verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.RENAME_CONSTANT),
-                org.mockito.ArgumentMatchers.contains("\"to\":\"renamed\""), any());
+        verify(actions).request(eq(WorkbenchOperations.RENAME_CONSTANT),
+                ArgumentMatchers.contains("\"to\":\"renamed\""), any());
         DrawnFrame again = new DrawnFrame();
         read.extract(again.graphics, DrawnFrame.font(), TALL_VIEW, again.targets, 0, 0);
         clickRenameOf(again, last);
@@ -1221,7 +1276,7 @@ class VariablesPaneTest {
         box.setValue("other");
         reopened.click("↺");
         assertFalse(box.visible);
-        verify(actions, never()).request(anyString(), org.mockito.ArgumentMatchers.contains("other"), any());
+        verify(actions, never()).request(anyString(), ArgumentMatchers.contains("other"), any());
         DrawnFrame closed = new DrawnFrame();
         read.extract(closed.graphics, DrawnFrame.font(), TALL_VIEW, closed.targets, 0, 0);
         assertTrue(closed.texts().contains("$" + last), closed.texts().toString());
@@ -1249,9 +1304,9 @@ class VariablesPaneTest {
         assertTrue(Math.abs(done.y() - box.getY()) < ExpressionLines.TEXT_LINE_HEIGHT, done + " vs box " + box.getY());
         assertEquals(done.y(), arrow.y());
         assertEquals(Palette.GOLD, arrow.color());
-        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Done")),
+        assertEquals(Optional.of(BuilderOverlays.hintKey("Done")),
                 frame.targets.hovered(done.x() + 1, done.y() + 1));
-        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Nevermind")),
+        assertEquals(Optional.of(BuilderOverlays.hintKey("Nevermind")),
                 frame.targets.hovered(arrow.x() + 1, arrow.y() + 1));
     }
 
@@ -1352,7 +1407,7 @@ class VariablesPaneTest {
         verify(actions).openVariable("wood");
         assertTrue(prefabs.editing().isEmpty());
         frame.click("$wood");
-        assertEquals(java.util.Optional.of("plank"), prefabs.editing());
+        assertEquals(Optional.of("plank"), prefabs.editing());
     }
 
     /**
@@ -1374,8 +1429,8 @@ class VariablesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         editing.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<java.util.function.Consumer<String>> change =
-                ArgumentCaptor.forClass(java.util.function.Consumer.class);
+        ArgumentCaptor<Consumer<String>> change =
+                ArgumentCaptor.forClass(Consumer.class);
         verify(builder, atLeastOnce()).openPrefab(eq("prefab0"), anyString(), change.capture(), any());
         change.getValue().accept("\"$base / 8\"");
         verify(actions).draftChanged();
@@ -1421,7 +1476,7 @@ class VariablesPaneTest {
      */
     @Test
     void plusRightOfTheSearchNamesANewPrefabAndOpensItsBuilder() {
-        List<AbstractWidget> widgets = new java.util.ArrayList<>();
+        List<AbstractWidget> widgets = new ArrayList<>();
         ManagerActions actions = mock(ManagerActions.class);
         when(actions.addWidget(any())).thenAnswer(call -> {
             widgets.add(call.getArgument(0));
@@ -1449,9 +1504,9 @@ class VariablesPaneTest {
         verify(actions).focus(box);
         GroupsPaneTest.GroupCards.focus(box);
         box.setValue("fresh_prefab");
-        assertTrue(read.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER));
-        assertEquals(java.util.Optional.of(""), prefabs.expressionOf("fresh_prefab").map(ManagerDraft::shownText));
-        assertEquals(java.util.Optional.of("fresh_prefab"), prefabs.editing());
+        assertTrue(read.keyPressed(GLFW.GLFW_KEY_ENTER));
+        assertEquals(Optional.of(""), prefabs.expressionOf("fresh_prefab").map(ManagerDraft::shownText));
+        assertEquals(Optional.of("fresh_prefab"), prefabs.editing());
         verify(actions).draftChanged();
         DrawnFrame opened = new DrawnFrame();
         read.extract(opened.graphics, DrawnFrame.font(), VIEW, opened.targets, 0, 0);
@@ -1464,7 +1519,7 @@ class VariablesPaneTest {
         assertTrue(settled.targets.click(plus.x() + 1, plus.y() + 1), "the + stands where it stood");
         read.extract(new DrawnFrame().graphics, DrawnFrame.font(), VIEW, new ClickTargets(), 0, 0);
         box.setValue("prefab0");
-        assertTrue(read.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER));
+        assertTrue(read.keyPressed(GLFW.GLFW_KEY_ENTER));
         assertEquals(PREFABS + 1, prefabs.blocks().size(), "a taken name adds nothing");
     }
 

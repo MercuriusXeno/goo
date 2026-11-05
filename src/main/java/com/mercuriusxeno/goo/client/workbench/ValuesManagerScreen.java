@@ -18,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.ClientHooks;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -538,8 +539,8 @@ public final class ValuesManagerScreen extends Screen {
     // value-tooltips-draw-each-types-icon-before-its-amount,
     // tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
     static List<Either<FormattedText, TooltipComponent>> tooltipElements(List<TooltipLine> lines) {
-        List<Either<FormattedText, TooltipComponent>> elements = new java.util.ArrayList<>();
-        List<TooltipLine.GooAmount> run = new java.util.ArrayList<>();
+        List<Either<FormattedText, TooltipComponent>> elements = new ArrayList<>();
+        List<TooltipLine.GooAmount> run = new ArrayList<>();
         for (TooltipLine line : lines) {
             if (line instanceof TooltipLine.GooAmount amount) {
                 run.add(amount);

@@ -66,7 +66,6 @@ final class ValuesPane {
     private static final int SEARCH_WIDTH = 180;
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
-    private static final int NO_REVEAL = -1;
     // A hover key no item id, prefab name or goo type key spells.
     private static final String GROUP_MARK = "#";
 
@@ -84,7 +83,7 @@ final class ValuesPane {
     // The item whose expression the builder stands open over, in its row's place.
     private @Nullable String building;
     private boolean visible;
-    private int revealRow = NO_REVEAL;
+    private final Reveal revealing = new Reveal();
     private final RevealGlow glow = new RevealGlow();
 
     ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions, ExpressionBuilderPane builder) {
@@ -140,13 +139,14 @@ final class ValuesPane {
      * @param id the item's id
      */
     void reveal(String id) {
-        int index = values.open(id);
-        if (search != null) {
-            search.setValue(NO_TEXT);
-        }
+        revealing.follow(id, () -> {
+            values.open(id);
+            if (search != null) {
+                search.setValue(NO_TEXT);
+            }
+        });
         builder.close();
         building = null;
-        revealRow = index;
     }
 
     /**
@@ -301,7 +301,9 @@ final class ValuesPane {
             return;
         }
         measureRecipeColumn(font, listed, list.right() - ScrollBar.WIDTH - ScrollBar.GAP - list.left());
-        scrollToRevealed(font, listed, list);
+        // Decision one-reveal-primitive-centers-before-the-first-draw: the rows' read heights lay the target, so no
+        // row draws to measure it.
+        revealing.centerBeforeDraw(graphics, scratch -> layRows(font, listed, list), column -> listBar, glow);
         graphics.enableScissor(list.left(), list.top(), list.right(), list.bottom());
         targets.clip(list.left(), list.top(), list.right(), list.bottom());
         int contentEnd = drawRows(graphics, font, listed, list, targets);
@@ -713,28 +715,17 @@ final class ValuesPane {
         return iconSize + RUN_ICON_GAP - 1 + SmallDigits.width(font, amount);
     }
 
-    // A revealed row's middle stands at the list's middle, a row taller than the list from its top, the clamp
-    // stopping the last rows at the list's end; the rows' read heights place it, the builder closed by the reveal.
-    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
-    // Decision tall-follow-target-shows-from-its-top.
-    private void scrollToRevealed(Font font, List<ValuesTab.ManagerEntry> listed, GroupsPane.Bounds list) {
-        if (revealRow == NO_REVEAL) {
-            return;
-        }
-        int target = Math.min(revealRow, listed.size() - 1);
-        revealRow = NO_REVEAL;
+    // Lays every row at its read height and measures the bar over them, the builder closed by the reveal.
+    // Decisions shift-follow-centers-the-target-in-its-scrolling-view, tall-follow-target-shows-from-its-top.
+    private void layRows(Font font, List<ValuesTab.ManagerEntry> listed, GroupsPane.Bounds list) {
         int width = list.right() - ScrollBar.WIDTH - ScrollBar.GAP - list.left();
-        int targetTop = 0;
         int content = 0;
-        for (int index = 0; index < listed.size(); index++) {
-            targetTop = index == target ? content : targetTop;
-            content += rowHeight(font, listed.get(index), width);
+        for (ValuesTab.ManagerEntry entry : listed) {
+            int height = rowHeight(font, entry, width);
+            revealing.laid(entry.id(), content, height, 0);
+            content += height;
         }
         listBar.measure(content, list.bottom() - list.top());
-        int height = rowHeight(font, listed.get(target), width);
-        listBar.center(targetTop, height);
-        // Decision followed-target-glows-briefly.
-        glow.start(targetTop, height);
     }
 
     /**

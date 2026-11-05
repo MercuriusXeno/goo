@@ -4,15 +4,17 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
+import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import org.mockito.ArgumentCaptor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -270,10 +272,10 @@ class ProcessesPaneTest {
     void iteratorNameAndSourcePreviewTheirGroups() {
         DrawnFrame frame = frame();
         DrawnFrame.Text name = frame.find("#exposed");
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
+        assertEquals(Optional.of(GroupHovers.hoverKey("exposed")),
                 frame.targets.hovered(name.x() + 1, name.y() + 1));
         DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#copper"));
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("copper")),
+        assertEquals(Optional.of(GroupHovers.hoverKey("copper")),
                 frame.targets.hovered(source.x() + 1, source.y() + 1));
     }
 
@@ -391,7 +393,7 @@ class ProcessesPaneTest {
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
                 eq(Palette.SEPARATOR));
-        int rule = java.util.stream.IntStream.range(0, tops.getAllValues().size())
+        int rule = IntStream.range(0, tops.getAllValues().size())
                 .filter(index -> lefts.getAllValues().get(index) <= second.x())
                 .map(index -> tops.getAllValues().get(index)).filter(top -> top < pencilTop).max().orElseThrow();
         assertEquals(rule + 1 + RowLayout.RULE_GAP, pencilTop, secondName + "'s pencil under the rule at " + rule);
@@ -464,8 +466,23 @@ class ProcessesPaneTest {
         assertEquals(waxed.x(), frame.buttonAround(kind)[0], drawn.toString());
     }
 
-    // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane.
-    private static ProcessesPane manyRowsPane() {
+    private ProcessesPane manyRowsPane() {
+        return manyRowsPane(new ArrayList<>());
+    }
+
+    // The described rows of the many-rows pane, which a test grows by a created row and reads again, as the server's
+    // next describe reply does.
+    private final List<String> manyDescribed = new ArrayList<>();
+
+    private void describeMany() {
+        processes.readDescribed("""
+                {"sections": [{"section": "_conversions", "processes": [%s]}]}"""
+                .formatted(String.join(", ", manyDescribed)));
+    }
+
+    // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane, its actions
+    // recording every widget it stands.
+    private ProcessesPane manyRowsPane(List<AbstractWidget> widgets) {
         int many = 20;
         String entry = """
                 {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "\\"%s\\"", "entries": [], "leading": null,
@@ -473,23 +490,95 @@ class ProcessesPaneTest {
         String described = """
                 {"key": "%s", "kind": "%s", "text": "\\"%s\\"", "parsed": true}""";
         List<String> entries = new ArrayList<>();
-        List<String> processes = new ArrayList<>();
+        manyDescribed.clear();
         for (int index = 0; index < many; index++) {
             entries.add(entry.formatted("m%02d".formatted(index), "+$oak"));
-            processes.add(described.formatted("m%02d".formatted(index), "ADDITIVE", "+$oak"));
+            manyDescribed.add(described.formatted("m%02d".formatted(index), "ADDITIVE", "+$oak"));
             entries.add(entry.formatted("#i%02d".formatted(index), "#copper @solo"));
-            processes.add(described.formatted("#i%02d".formatted(index), "ASSIGNMENT", "#copper @solo"));
+            manyDescribed.add(described.formatted("#i%02d".formatted(index), "ASSIGNMENT", "#copper @solo"));
         }
-        ManagerDraft draft = new ManagerDraft();
+        draft = new ManagerDraft();
         draft.read("""
                 {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "copper", "keySeparator": null, "kind": "VALUE", "text": "[\\"copper_block\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
                   {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
                    "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ", entries)));
-        ProcessesTab tab = new ProcessesTab(draft);
-        tab.readDescribed("""
-                {"sections": [{"section": "_conversions", "processes": [%s]}]}"""
-                .formatted(String.join(", ", processes)));
-        return new ProcessesPane(tab, draft, mock(ManagerActions.class), null, () -> List.of("oak"));
+        processes = new ProcessesTab(draft);
+        describeMany();
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        return new ProcessesPane(processes, draft, actions, null, () -> List.of("oak"));
+    }
+
+    /**
+     * The first frame after a follow already draws the target centered in its column, where it settles, and glowing
+     * at age zero, with both searches empty (decision one-reveal-primitive-centers-before-the-first-draw).
+     */
+    @Test
+    void revealDrawsTheRowCenteredAndGlowingOnTheFirstFrame() {
+        for (String target : List.of("m15", "#i15")) {
+            widgets.clear();
+            pane = manyRowsPane(widgets);
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+            searchBox("Search mutators").setValue("m0");
+            searchBox("Search iterators").setValue("#i0");
+            frame();
+            pane.reveal(target);
+            assertRevealedOnTheFirstFrame(target);
+        }
+    }
+
+    /**
+     * Creating a mutator or an iterator with "wax" in its column's search empties the searches and draws the new row
+     * centered and glowing on the next frame (decision create-reveals-the-new-row-like-a-follow).
+     */
+    @Test
+    void createRevealsTheNewRowCenteredAndGlowing() {
+        for (boolean iterators : new boolean[] {false, true}) {
+            widgets.clear();
+            pane = manyRowsPane(widgets);
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+            searchBox(iterators ? "Search iterators" : "Search mutators").setValue("wax");
+            DrawnFrame list = frame();
+            int middle = list.find("Iterators").x();
+            DrawnFrame.Text plus = list.drawn().stream().filter(text -> text.text().equals("+")
+                    && text.x() >= middle == iterators).findFirst().orElseThrow();
+            assertTrue(list.targets.click(plus.x() + 1, plus.y() + 1));
+            DrawnFrame naming = frame();
+            String created = iterators ? "#copper" : "zz_fresh";
+            searchBox("name, Enter").setValue(created);
+            naming.click("✓");
+            frame();
+            assertEquals(0, pane.columnBar(iterators).offset(), "the reveal waits on the describe reply");
+            manyDescribed.add("""
+                    {"key": "%s", "kind": "%s", "text": "\\"+$oak\\"", "parsed": true}"""
+                    .formatted(created, iterators ? "ASSIGNMENT" : "ADDITIVE"));
+            describeMany();
+            assertRevealedOnTheFirstFrame(created);
+        }
+    }
+
+    // The next frame draws the row where it settles, scrolled into its column, glowing at age zero over its name, both
+    // searches empty.
+    private void assertRevealedOnTheFirstFrame(String target) {
+        DrawnFrame first = frame();
+        for (String hint : List.of("Search mutators", "Search iterators")) {
+            assertEquals("", searchBox(hint).getValue(), hint);
+        }
+        assertTrue(pane.columnBar(ProcessesTab.isIterator(target)).offset() > 0, target + " scrolled to");
+        DrawnFrame.Text name = first(first, target);
+        assertEquals(first(frame(), target).y(), name.y(), target + " drawn where it settles");
+        List<int[]> glows = first.fillsOf(Palette.GLOW);
+        assertTrue(glows.size() == 1 && glows.getFirst()[1] <= name.y() && name.y() < glows.getFirst()[3],
+                glows.size() + " glows over " + name);
     }
 
     /**
@@ -510,7 +599,7 @@ class ProcessesPaneTest {
                 boolean right = cross.x() >= middle;
                 int barLeft = (right ? width : middle - 6) - ScrollBar.WIDTH - ScrollBar.GAP;
                 List<DrawnFrame.Text> head = drawn.stream().filter(text -> Math.abs(text.y() - cross.y()) <= 5
-                        && text.x() >= middle == right).sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                        && text.x() >= middle == right).sorted(Comparator.comparingInt(DrawnFrame.Text::x))
                         .toList();
                 assertTrue(head.size() >= 3, head.toString());
                 DrawnFrame.Text last = head.getLast();
@@ -535,7 +624,7 @@ class ProcessesPaneTest {
     void everyTooltipHintIsRenameDeleteOrAVerdict() {
         DrawnFrame frame = frame();
         List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
-                .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
+                .flatMap(Optional::stream).map(component -> component.getString()).distinct().toList();
         assertTrue(hints.containsAll(List.of("Rename", "Delete")), hints.toString());
         assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
                 || hint.startsWith("Valid") || hint.startsWith("Invalid")), hints.toString());
@@ -634,13 +723,13 @@ class ProcessesPaneTest {
         assertEquals("waxed", ProcessesPane.shownName("waxed"));
         DrawnFrame frame = frame(WIDE_PANE);
         DrawnFrame.Text waxed = first(frame, "waxed");
-        assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "waxed")),
+        assertEquals(Optional.of(ConversionHovers.hoverKey(SECTION, "waxed")),
                 frame.targets.hovered(waxed.x() + 1, waxed.y() + 1));
         DrawnFrame.Text cut = frame.find("copper_oxidation_and…end1");
         String cutKey = frame.targets.hovered(cut.x() + 1, cut.y() + 1).orElseThrow();
         List<TooltipLine> lines = ConversionHovers.tooltipFor(processes, new VariablesTab(draft), cutKey)
                 .orElseThrow(() -> new AssertionError(cutKey + " shows no tooltip"));
-        assertEquals(new TooltipLine.Text(net.minecraft.network.chat.Component.literal(LONG_NAME)), lines.getFirst());
+        assertEquals(new TooltipLine.Text(Component.literal(LONG_NAME)), lines.getFirst());
         assertTrue(lines.size() > 1, "the formula follows the name: " + lines);
     }
 
@@ -721,7 +810,7 @@ class ProcessesPaneTest {
         return frame.drawn().stream().filter(text -> text.text().equals(glyph) && text.x() > name.x()
                 && (name.x() >= split || text.x() < split)
                 && Math.abs(text.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT)
-                .max(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                .max(Comparator.comparingInt(DrawnFrame.Text::x))
                 .orElseThrow(() -> new AssertionError(glyph + " on " + key + " in " + frame.drawn()));
     }
 
@@ -747,7 +836,7 @@ class ProcessesPaneTest {
         DrawnFrame.Text arrow = rowControl(marked, key, "↺");
         assertEquals(cross.x(), arrow.x());
         assertEquals(Palette.GOLD, arrow.color());
-        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Restore")),
+        assertEquals(Optional.of(BuilderOverlays.hintKey("Restore")),
                 marked.targets.hovered(arrow.x() + 1, arrow.y() + 1));
         assertTrue(postConversionKeys().contains(key), postConversionKeys().toString());
         assertTrue(marked.targets.click(arrow.x() + 1, arrow.y() + 1));

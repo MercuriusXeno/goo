@@ -7,10 +7,14 @@ import net.minecraft.client.gui.navigation.ScreenRectangle;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -106,8 +110,8 @@ final class ExpressionBuilderPane {
     // Where the last frame's lines ended, short of the trash strip.
     private int linesRight;
     // What each rail laid this frame drags, by the name it drags: a term's path or a type row's index.
-    private final java.util.Map<String, List<Integer>> termRails = new java.util.HashMap<>();
-    private final java.util.Map<String, Integer> rowRails = new java.util.HashMap<>();
+    private final Map<String, List<Integer>> termRails = new HashMap<>();
+    private final Map<String, Integer> rowRails = new HashMap<>();
     // Where the builder drew visible this frame, the pane's scissor, null where none clipped it.
     private DragMask.@Nullable Rect visible;
     // The row slots the last frame laid, and the type row a rail holds while it drags.
@@ -266,7 +270,7 @@ final class ExpressionBuilderPane {
 
     // The slot the last frame laid nearest the pointer, null where it laid none.
     private @Nullable Slot nearestSlot(double x, double y) {
-        return slots.stream().min(java.util.Comparator.comparingDouble(slot -> slot.distanceTo(x, y))).orElse(null);
+        return slots.stream().min(Comparator.comparingDouble(slot -> slot.distanceTo(x, y))).orElse(null);
     }
 
     /**
@@ -415,7 +419,7 @@ final class ExpressionBuilderPane {
     }
 
     // Whether the open builder answers yes, false where none stands open.
-    private boolean holds(java.util.function.Predicate<ExpressionBuilder> query) {
+    private boolean holds(Predicate<ExpressionBuilder> query) {
         ExpressionBuilder edited = builder;
         return edited != null && query.test(edited);
     }
@@ -500,7 +504,7 @@ final class ExpressionBuilderPane {
         return wrapping == null ? null : boxes.stream().map(TermBox::rect).toList();
     }
 
-    private List<DragMask.Rect> slotHoles(java.util.function.Predicate<Slot> takes) {
+    private List<DragMask.Rect> slotHoles(Predicate<Slot> takes) {
         return slots.stream().filter(takes).map(this::slotHole).toList();
     }
 
@@ -749,7 +753,7 @@ final class ExpressionBuilderPane {
 
     // The row slot the last frame laid nearest the pointer's line, null where it laid none.
     private @Nullable RowSlot nearestRowSlot(double y) {
-        return rowSlots.stream().min(java.util.Comparator.comparingDouble(slot -> slot.distanceTo(y))).orElse(null);
+        return rowSlots.stream().min(Comparator.comparingDouble(slot -> slot.distanceTo(y))).orElse(null);
     }
 
     /**
@@ -926,7 +930,7 @@ final class ExpressionBuilderPane {
             x = movedX;
             y = movedY;
             target = boxes.stream().filter(TermBox::takesFactor).filter(term -> term.holds(x, y))
-                    .min(java.util.Comparator.comparingLong(TermBox::area)).orElse(null);
+                    .min(Comparator.comparingLong(TermBox::area)).orElse(null);
         }
 
         // A release on a term opens the number box at that side of its factor, its value selected whole, a commit
@@ -1212,7 +1216,7 @@ final class ExpressionBuilderPane {
 
     // The innermost term box the last frame laid under the pointer, null where none holds it.
     private @Nullable TermBox boxUnder(double x, double y) {
-        return boxes.stream().filter(term -> term.holds(x, y)).min(java.util.Comparator.comparingLong(TermBox::area))
+        return boxes.stream().filter(term -> term.holds(x, y)).min(Comparator.comparingLong(TermBox::area))
                 .orElse(null);
     }
 

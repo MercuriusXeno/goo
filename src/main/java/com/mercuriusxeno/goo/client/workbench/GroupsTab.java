@@ -422,7 +422,7 @@ public final class GroupsTab {
      * @return whether the draft held the group
      */
     public boolean deleteGroup(String name) {
-        com.google.gson.JsonArray members = draft.members();
+        JsonArray members = draft.members();
         boolean removed = false;
         for (int index = members.size() - 1; index >= 0; index--) {
             JsonObject member = members.get(index).getAsJsonObject();
@@ -445,7 +445,7 @@ public final class GroupsTab {
         if (entries == null || !entries.isJsonArray()) {
             return false;
         }
-        com.google.gson.JsonArray array = entries.getAsJsonArray();
+        JsonArray array = entries.getAsJsonArray();
         for (int index = 0; index < array.size(); index++) {
             if (key.equals(keyOf(array.get(index).getAsJsonObject()))) {
                 array.remove(index);

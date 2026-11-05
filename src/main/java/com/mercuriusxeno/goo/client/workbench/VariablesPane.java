@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,8 +83,6 @@ final class VariablesPane {
     private final ManagerActions actions;
     private final ExpandedLists expandedUsedBy = new ExpandedLists();
     private final ScrollBar cascadeBar = new ScrollBar(1);
-    private final Map<String, Integer> blockTops = new HashMap<>();
-    private final Map<String, Integer> blockHeights = new HashMap<>();
     private final ExpressionBuilderPane builder;
     private @Nullable String building;
     private @Nullable EditBox search;
@@ -93,7 +91,7 @@ final class VariablesPane {
     private @Nullable EditBox nameBox;
     private boolean naming;
     private @Nullable String deleting;
-    private @Nullable String jumpPending;
+    private final Reveal revealing = new Reveal();
     private final RevealGlow glow = new RevealGlow();
     private boolean visible;
     private final ScrollBar bar = new ScrollBar(ScrollBar.WHEEL_STEP);
@@ -105,6 +103,13 @@ final class VariablesPane {
         this.icons = icons;
         this.actions = actions;
         this.builder = builder;
+    }
+
+    /**
+     * @return the box naming a new prefab, null before init
+     */
+    @Nullable EditBox nameBox() {
+        return nameBox;
     }
 
     /**
@@ -176,13 +181,13 @@ final class VariablesPane {
      */
     void jumpTo(String name) {
         deleting = null;
-        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
-        if (search != null) {
-            search.setValue(NO_TEXT);
-        }
-        variables.search(NO_TEXT);
+        revealing.follow(name, () -> {
+            if (search != null) {
+                search.setValue(NO_TEXT);
+            }
+            variables.search(NO_TEXT);
+        });
         startEditing(name);
-        jumpPending = name;
     }
 
     /**
@@ -270,7 +275,7 @@ final class VariablesPane {
     }
 
     private static Map<String, String> typedAmounts(String resolved) {
-        Map<String, String> amounts = new java.util.LinkedHashMap<>();
+        Map<String, String> amounts = new LinkedHashMap<>();
         for (String part : resolved.split(RESOLVED_SEPARATOR)) {
             int space = part.indexOf(' ');
             if (space > 0) {
@@ -284,12 +289,11 @@ final class VariablesPane {
     // gap. Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
     private int drawBlock(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                           GroupsPane.Bounds bounds, int top, ClickTargets targets) {
-        blockTops.put(block.name(), top + bar.offset() - bounds.top());
         int headY = RowLayout.nameTop(font, top + SEPARATOR_ROW);
         int y = headY + drawHead(graphics, font, block, bounds, headY, targets);
         y += drawValueLine(graphics, font, block, bounds, y, targets);
         y += BLOCK_GAP;
-        blockHeights.put(block.name(), y - top);
+        revealing.laid(block.name(), top + bar.offset() - bounds.top(), y - top, 0);
         return y - top;
     }
 
@@ -304,10 +308,12 @@ final class VariablesPane {
         List<VariablesTab.ConstantBlock> blocks = variables.listed();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(view.left(), listTop,
                 view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
-        int end = drawBlocks(graphics, font, blocks, bounds, targets);
-        bar.measureAndDraw(graphics, targets, end, view.right(), bounds.top(), view.bottom());
+        // Decision one-reveal-primitive-centers-before-the-first-draw: a followed block stands centered and glowing
+        // from the first frame drawn.
+        revealing.centerBeforeDraw(graphics, scratch -> drawList(graphics, font, blocks, bounds, scratch),
+                column -> bar, glow);
+        drawList(graphics, font, blocks, bounds, targets);
         drawCreate(graphics, font, view, targets);
-        applyPendingJump();
         showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
         builder.drawOverlays(graphics, font, targets);
         drawDeleteDialog(graphics, font, view, targets);
@@ -330,6 +336,14 @@ final class VariablesPane {
             });
         }
         return builder.extract(graphics, font, box, box.top(), targets);
+    }
+
+    // The listed blocks and the list's bar, which stands right of the blocks' bounds.
+    private void drawList(GuiGraphicsExtractor graphics, Font font, List<VariablesTab.ConstantBlock> blocks,
+                          GroupsPane.Bounds bounds, ClickTargets targets) {
+        int end = drawBlocks(graphics, font, blocks, bounds, targets);
+        bar.measureAndDraw(graphics, targets, end, bounds.right() + ScrollBar.GAP + ScrollBar.WIDTH, bounds.top(),
+                bounds.bottom());
     }
 
     // The listed blocks clipped to the list's bounds; answers the y the last one ended at.
@@ -411,6 +425,7 @@ final class VariablesPane {
 
     // A free name adds the prefab and opens its builder centered in the list, the jump clearing the search so the
     // list holds it; a blank, illegal or held name leaves the box open.
+    // Decision create-reveals-the-new-row-like-a-follow.
     private void createPrefab(String typed) {
         Optional<String> created = variables.createPrefab(typed);
         if (created.isEmpty()) {
@@ -421,16 +436,6 @@ final class VariablesPane {
         jumpTo(created.get());
     }
 
-    // Once the jumped block has drawn, editing, and the bar has measured this frame, centers the block in the list,
-    // glowing it from the next frame.
-    // Decisions shift-follow-centers-the-target-in-its-scrolling-view, followed-target-glows-briefly.
-    private void applyPendingJump() {
-        if (jumpPending != null && blockTops.containsKey(jumpPending)) {
-            bar.center(blockTops.get(jumpPending), blockHeights.get(jumpPending));
-            glow.start(blockTops.get(jumpPending), blockHeights.get(jumpPending));
-            jumpPending = null;
-        }
-    }
 
     // Name [pencil], padding, Used by with its run, then the x at the right end; the rename box stands in place of the
     // name while the block is renamed. Answers how far the line reaches below the head's text top.

@@ -100,8 +100,7 @@ final class GroupsPane {
     private final ExpandedLists expandedRows = new ExpandedLists();
     private final ScrollBar listBar = new ScrollBar(ScrollBar.WHEEL_STEP);
     private final ScrollBar detailBar = new ScrollBar(ScrollBar.WHEEL_STEP);
-    private @Nullable String revealPending;
-    private @Nullable RevealedRow revealedRow;
+    private final Reveal revealing = new Reveal();
     private final RevealGlow glow = new RevealGlow();
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
@@ -110,10 +109,6 @@ final class GroupsPane {
     private boolean renaming;
     private boolean visible;
     private int listWidth;
-
-    // Where the row a follow revealed stood inside the list's content this frame.
-    private record RevealedRow(int top, int height) {
-    }
 
     GroupsPane(GroupsTab groups, ValuesTab values, ItemIcons icons, ManagerActions actions,
                ExpressionBuilderPane builder) {
@@ -234,7 +229,15 @@ final class GroupsPane {
         overlays.draw(graphics, font, targets);
     }
 
+    // Decision one-reveal-primitive-centers-before-the-first-draw: a followed row stands centered and glowing from the
+    // first frame drawn.
     private void drawList(GuiGraphicsExtractor graphics, Font font, Bounds bounds, ClickTargets targets) {
+        revealing.centerBeforeDraw(graphics, scratch -> drawListRows(graphics, font, bounds, scratch),
+                column -> listBar, glow);
+        drawListRows(graphics, font, bounds, targets);
+    }
+
+    private void drawListRows(GuiGraphicsExtractor graphics, Font font, Bounds bounds, ClickTargets targets) {
         int left = bounds.left();
         int top = drawNewGroup(graphics, font, left, bounds.top(), targets);
         int rowRight = left + listWidth - ScrollBar.WIDTH - ScrollBar.GAP;
@@ -248,28 +251,13 @@ final class GroupsPane {
             RowLayout.drawSeparatorAbove(graphics, index, y, left, rowRight);
             int height = drawGroupCard(graphics, font, new GroupCard(row, groups.group(row.name()),
                     new Bounds(left, y, rowRight, bounds.bottom()), row.name().equals(selected)), targets);
-            if (row.name().equals(revealPending)) {
-                revealedRow = new RevealedRow(y - top + listBar.offset(), height);
-            }
+            revealing.laid(row.name(), y - top + listBar.offset(), height, 0);
             y += height;
         }
         glow.draw(graphics, left, top - listBar.offset(), rowRight);
         targets.unclip();
         graphics.disableScissor();
         listBar.measureAndDraw(graphics, targets, y, left + listWidth, top, bounds.bottom());
-        centerRevealedRow();
-    }
-
-    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list, glowing it
-    // from the next frame.
-    // Decisions shift-follow-centers-the-target-in-its-scrolling-view, followed-target-glows-briefly.
-    private void centerRevealedRow() {
-        if (revealedRow != null) {
-            listBar.center(revealedRow.top(), revealedRow.height());
-            glow.start(revealedRow.top(), revealedRow.height());
-            revealedRow = null;
-            revealPending = null;
-        }
     }
 
     // The operator's ruling: one row, the search box at the left and + Custom and + Tag to its right; a new group's
@@ -301,8 +289,8 @@ final class GroupsPane {
 
     private void createTag(String tagId) {
         apply(groups.createTagRequest(tagId));
-        closeBuilder();
-        groups.selectGroup(GroupsTab.referentName(tagId));
+        // Decision create-reveals-the-new-row-like-a-follow.
+        reveal(GroupsTab.referentName(tagId));
     }
 
     /**
@@ -614,13 +602,13 @@ final class GroupsPane {
      * @param name the group's name
      */
     void reveal(String name) {
-        // Decision following-a-link-clears-the-panes-search-bar: the target stands in the unfiltered list.
-        if (search != null) {
-            search.setValue(NO_TEXT);
-        }
-        groups.search(NO_TEXT, values.entries());
+        revealing.follow(name, () -> {
+            if (search != null) {
+                search.setValue(NO_TEXT);
+            }
+            groups.search(NO_TEXT, values.entries());
+        });
         pickGroup(name);
-        revealPending = name;
     }
 
     private void pickGroup(String name) {
@@ -913,8 +901,8 @@ final class GroupsPane {
             return;
         }
         apply(groups.createRequest(name));
-        closeBuilder();
-        groups.selectGroup(name);
+        // Decision create-reveals-the-new-row-like-a-follow.
+        reveal(name);
     }
 
     private void removeMember(String member) {
