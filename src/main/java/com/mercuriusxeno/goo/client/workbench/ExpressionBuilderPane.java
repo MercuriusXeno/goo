@@ -1339,8 +1339,7 @@ final class ExpressionBuilderPane {
         switch (piece.operand()) {
             case ExpressionBuilder.Num num -> drawNumber(flow, path, num, place);
             case ExpressionBuilder.Ref ref -> {
-                flow.runsSegment(refRuns(ref), possessiveOf(ref), at -> overlays.openDropdown(at, termList(place),
-                        choice -> apply(b -> b.setOperand(path, refFor(choice, place)))));
+                flow.runsSegment(refRuns(ref), possessiveOf(ref), refPressed(path, place));
                 drawMember(flow, path, ref, place);
             }
             case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ -> flow.runsSegment(operandRuns(piece), BLANK,
@@ -1359,6 +1358,23 @@ final class ExpressionBuilderPane {
                 digits -> apply(b -> b.setNumber(path, digits)));
         List<BuilderOverlays.Option> modes = amountModes(path, place, openBox);
         flow.labelSegment(shown, null, modes.size() > 1 ? at -> overlays.openOptions(at, modes) : openBox);
+    }
+
+    // A click on a prefab or item term opens the amount modes where its place reads numbers, number standing the term
+    // on a typed number with its count kept, so a term set to a ref changes back; elsewhere it opens the list of
+    // what may stand in its place.
+    // Decision ref-term-takes-a-number-again.
+    // Decision term-number-opens-number-prefab-relative-modes.
+    private Consumer<BuilderOverlays.Anchor> refPressed(List<Integer> path, Place place) {
+        Consumer<BuilderOverlays.Anchor> pickRef = at -> overlays.openDropdown(at, termList(place),
+                choice -> apply(b -> b.setOperand(path, refFor(choice, place))));
+        if (!takesNumbers(place)) {
+            return pickRef;
+        }
+        Consumer<BuilderOverlays.Anchor> openBox = at -> overlays.openMixedNumber(at, ExpressionBuilder.ONE_TEXT,
+                digits -> apply(b -> b.setNumberInPlaceOfRef(path, digits)));
+        List<BuilderOverlays.Option> modes = amountModes(path, place, openBox);
+        return at -> overlays.openOptions(at, modes);
     }
 
     // A number term reads its number over its divisor as a mixed number, as 2 1/2, on its segment and in its box; a

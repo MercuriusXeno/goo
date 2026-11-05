@@ -1306,7 +1306,13 @@ class ExpressionBuilderPaneTest {
             DrawnFrame.Text name = frame.findFirst("$base");
             int[] segment = frame.buttonAround(name);
             clickAt(frame, name);
-            builder.frameAt(AREA, top);
+            DrawnFrame opened = builder.frameAt(AREA, top);
+            // Decision ref-term-takes-a-number-again: where the place reads numbers the name opens its amount modes
+            // first, prefab among them, which opens the list.
+            if (opened.texts().contains("prefab")) {
+                opened.click("prefab");
+                builder.frameAt(AREA, top);
+            }
             ArgumentCaptor<AbstractWidget> widgets = ArgumentCaptor.forClass(AbstractWidget.class);
             verify(builder.actions, atLeastOnce()).addWidget(widgets.capture());
             AbstractWidget search = widgets.getAllValues().stream().filter(widget -> widget.visible).findFirst()
@@ -2112,6 +2118,23 @@ class ExpressionBuilderPaneTest {
             builder.frame().click("number");
             builder.commitNumber("7");
             assertEquals("{\"metal\": \"7\"}", builder.written.getLast());
+        }
+
+        /**
+         * A term standing on a prefab with a count opens the amount modes, number among them, and a number typed in
+         * replaces the prefab with the count kept (decision ref-term-takes-a-number-again).
+         */
+        @Test
+        void refTermTakesANumberAgainWithItsCountKept() {
+            Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"3 $base\"}");
+            builder.frame().click("$base");
+            DrawnFrame modes = builder.frame();
+            assertTrue(modes.texts().containsAll(List.of("number", "prefab")), modes.texts().toString());
+            modes.click("number");
+            builder.commitNumber("7");
+            String written = builder.written.getLast();
+            assertFalse(written.contains("$base"), written);
+            assertTrue(written.matches(".*\\b3\\b.*") && written.matches(".*\\b7\\b.*"), written);
         }
 
         /**

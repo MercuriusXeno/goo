@@ -523,6 +523,26 @@ final class ExpressionBuilder {
     }
 
     /**
+     * Stands a prefab or item term on a number typed in its place, its join and its multiplier kept; a fraction
+     * becomes the term's divisor, a whole number keeps the divisor the term held (decisions
+     * ref-term-takes-a-number-again, number-box-takes-a-mixed-number).
+     *
+     * @param path   the term's place
+     * @param digits the box's text: a whole, a fraction or both
+     */
+    void setNumberInPlaceOfRef(List<Integer> path, String digits) {
+        Optional<BigInteger[]> fraction = mixedNumber(digits);
+        if (fraction.isEmpty()) {
+            refuse(NOT_A_NUMBER);
+            return;
+        }
+        Num number = new Num(fraction.get()[0].toString());
+        BigInteger denominator = fraction.get()[1];
+        editPiece(path, piece -> BigInteger.ONE.equals(denominator) ? piece.withOperand(number)
+                : piece.withOperand(number).withSide(Op.DIVIDE, denominator.toString()));
+    }
+
+    /**
      * The number box's text for a number term: its number over its divisor as a mixed number, "2 1/2" for 5 / 2
      * (decision number-box-takes-a-mixed-number).
      *

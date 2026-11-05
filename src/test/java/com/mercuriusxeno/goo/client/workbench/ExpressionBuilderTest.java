@@ -143,6 +143,21 @@ class ExpressionBuilderTest {
                     ExpressionTerms.writeValue(ExpressionTerms.parseShown(builder.text()).orElseThrow()));
         }
 
+        /**
+         * A number typed over a prefab term stands the term on it with its count kept, and over a prefab term with a
+         * divisor keeps the divisor (decision ref-term-takes-a-number-again).
+         */
+        @Test
+        void numberInPlaceOfARefKeepsItsCountAndDivisor() {
+            ExpressionBuilder counted = ExpressionBuilder.of("3 $base");
+            counted.setNumberInPlaceOfRef(List.of(0), "7");
+            // A number term writes its count after it, as the grammar reads "number times another".
+            assertEquals(Optional.of("7 * 3"), counted.written());
+            ExpressionBuilder divided = ExpressionBuilder.of("$base / 2");
+            divided.setNumberInPlaceOfRef(List.of(0), "7");
+            assertEquals(Optional.of("7 / 2"), divided.written());
+        }
+
         @Test
         void numberBoxRefusesAZeroDenominatorAndOtherText() {
             ExpressionBuilder builder = ExpressionBuilder.of("4");
