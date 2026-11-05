@@ -37,9 +37,6 @@ final class VariablesPane {
     private static final int SEARCH_WIDTH = 180;
     private static final int SEARCH_GAP = 3;
     private static final int KIND_GAP = 8;
-    private static final int VALUE_GAP = 4;
-    // The room between the amount line and the value's box below it.
-    private static final int AMOUNT_GAP = 2;
     private static final int ACTION_GAP = 6;
     private static final int CARD_PADDING = 6;
     private static final int DIALOG_WIDTH = 300;
@@ -244,23 +241,7 @@ final class VariablesPane {
         return key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
     }
 
-    /**
-     * The read view's expression runs, a failed evaluation's error after them; the evaluated amount draws on its own
-     * line above them, through {@link #amountLine}.
-     * Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
-     *
-     * @param runs  the expression's runs
-     * @param error why it failed to resolve, empty where it resolved
-     * @return the runs the read view draws below the amount line
-     */
-    static List<ExpressionLines.Run> expressionRuns(List<ExpressionLines.Run> runs, String error) {
-        if (error.isEmpty()) {
-            return runs;
-        }
-        List<ExpressionLines.Run> failed = new java.util.ArrayList<>(runs);
-        failed.add(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, error, null));
-        return failed;
-    }
+    
 
     /**
      * The evaluated amount a read view draws above its expression: a typed prefab's amounts highest first, a
@@ -308,9 +289,7 @@ final class VariablesPane {
         blockTops.put(block.name(), top + bar.offset() - bounds.top());
         int headY = RowLayout.nameTop(font, top + SEPARATOR_ROW);
         int y = headY + drawHead(graphics, font, block, bounds, headY, targets);
-        boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
-        y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
-                : drawValueLine(graphics, font, block, bounds, y, targets);
+        y += drawValueLine(graphics, font, block, bounds, y, targets);
         y += BLOCK_GAP;
         blockHeights.put(block.name(), y - top);
         return y - top;
@@ -338,9 +317,9 @@ final class VariablesPane {
 
     // The builder over the block being edited, each change written to the draft and evaluated afresh, so the value
     // shown is the value the builder holds (decision expression-builder-composes-every-form-without-typing); answers
-    // the height it took. The builder starts its panel's overhang lower, so the panel clears the head's Used by icons.
+    // the height it took; the frame reserves the panel's overhang above it.
     private int drawBuilder(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
-                            GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+                            GroupsPane.Bounds box, ClickTargets targets) {
         if (!builder.isOpen() || !block.name().equals(building)) {
             building = block.name();
             builder.openPrefab(block.name(), block.expression(), typed -> {
@@ -352,8 +331,7 @@ final class VariablesPane {
                 actions.draftChanged();
             });
         }
-        return ExpressionBuilderPane.PANEL_ABOVE + builder.extract(graphics, font, bounds,
-                y + ExpressionBuilderPane.PANEL_ABOVE, targets);
+        return builder.extract(graphics, font, box, box.top(), targets);
     }
 
     // The listed blocks clipped to the list's bounds; answers the y the last one ended at.
@@ -486,47 +464,22 @@ final class VariablesPane {
     // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount; the operator's rulings of 2026-11-04
     // stand Value: on the amount line and the amount line above the box.
     // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
+    // Decisions one-builder-frame-on-every-pane, one-red-error-line-under-every-value: the read view and the builder
+    // both lay in the frame, the label and the amount line kept above the builder and the error a red line under it.
     private int drawValueLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                               GroupsPane.Bounds bounds, int y, ClickTargets targets) {
-        int labelX = bounds.left() + ControlFlow.INDENT;
+        boolean editing = variables.editing().filter(block.name()::equals).isPresent();
         List<ExpressionLines.Run> shown = block.expression().isBlank() ? List.of()
                 : ExpressionLines.shownRuns(block.expression(), icons::nameOf);
-        if (shown.isEmpty()) {
-            return drawReadView(graphics, font, block, shown, new GroupsPane.Bounds(labelX, bounds.top(),
-                    bounds.right(), bounds.bottom()), y, targets);
+        if (shown.isEmpty() && !editing) {
+            return drawReadView(graphics, font, block, shown, new GroupsPane.Bounds(bounds.left() + ControlFlow.INDENT,
+                    y, bounds.right(), bounds.bottom()), targets);
         }
-        GooAmountGrid amount = amountLine(shown, block);
-        List<ExpressionLines.Run> runs = expressionRuns(shown, block.error());
-        int viewX = labelX + font.width(VALUE_LABEL) + VALUE_GAP;
-        int boxTop = drawAmountLine(graphics, font, amount, new AmountPlace(labelX, viewX, y));
-        int height = drawReadView(graphics, font, block, runs, new GroupsPane.Bounds(viewX, bounds.top(),
-                bounds.right(), bounds.bottom()), boxTop, targets);
-        if (amount.isEmpty()) {
-            graphics.text(font, VALUE_LABEL, labelX, ReadValueButton.textTop(font, runs, y), Palette.MUTED);
-        }
-        return boxTop - y + height;
-    }
-
-    /**
-     * Where the amount line draws.
-     *
-     * @param labelX  Value:'s x
-     * @param amountX the value box's left, which the amounts line up over
-     * @param top     the line's top
-     */
-    private record AmountPlace(int labelX, int amountX, int top) {
-    }
-
-    // The amount line with Value: on it, above the box; answers the box's top, the line's own top where no amount
-    // draws.
-    private static int drawAmountLine(GuiGraphicsExtractor graphics, Font font, GooAmountGrid amount,
-                                      AmountPlace at) {
-        if (amount.isEmpty()) {
-            return at.top();
-        }
-        amount.draw(graphics, font, at.amountX() + ButtonPainter.PADDING, at.top());
-        graphics.text(font, VALUE_LABEL, at.labelX(), at.top() + amount.textOffset(font), Palette.MUTED);
-        return at.top() + amount.getHeight(font) + AMOUNT_GAP;
+        BuilderFrame.Row row = new BuilderFrame.Row(new GroupsPane.Bounds(bounds.left(), y, bounds.right(),
+                bounds.bottom()), VALUE_LABEL, amountLine(shown, block), true);
+        return BuilderFrame.draw(graphics, font, row, new BuilderFrame.Value(editing, shown, block.error(),
+                box -> editing ? drawBuilder(graphics, font, block, box, targets)
+                        : drawReadView(graphics, font, block, shown, box, targets)));
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
@@ -566,17 +519,15 @@ final class VariablesPane {
     // Decision shift-left-click-follows-plain-left-modifies.
     // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
-                             List<ExpressionLines.Run> runs, GroupsPane.Bounds bounds, int y, ClickTargets targets) {
-        return ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(bounds.left(), y, bounds.right(),
-                () -> startEditing(block.name())), readPainter(graphics, block, targets), targets);
+                             List<ExpressionLines.Run> runs, GroupsPane.Bounds box, ClickTargets targets) {
+        return ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(box.left(), box.top(),
+                box.right(), () -> startEditing(block.name())), readPainter(graphics, targets), targets);
     }
 
-    // The read view's runs paint white, red where the prefab fails to resolve, a $name among them a link.
-    private ExpressionLines.Painter readPainter(GuiGraphicsExtractor graphics, VariablesTab.ConstantBlock block,
-                                                ClickTargets targets) {
+    // The read view's runs paint white, a $name among them a link; an error reads as the frame's red line under it.
+    private ExpressionLines.Painter readPainter(GuiGraphicsExtractor graphics, ClickTargets targets) {
         // Decision value-hover-reads-the-same-editing-and-read-only: a ref keys the prefab's tooltip as the builder's.
-        return new ExpressionLines.Painter(graphics, icons, targets,
-                block.error().isEmpty() ? Palette.TEXT : Palette.DANGER, Palette.LINK,
+        return new ExpressionLines.Painter(graphics, icons, targets, Palette.TEXT, Palette.LINK,
                 ExpressionLines.followedOnShiftClick(targets, actions::openVariable));
     }
 

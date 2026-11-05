@@ -297,6 +297,36 @@ class ValuesPaneTest {
                     || text.equals("?")), frame.texts().toString());
         }
 
+        // Decision one-builder-frame-on-every-pane: the builder opens in the read box's place, at the value's indent,
+        // short of the entry's x, its panel's overhang reserved above it.
+        @Test
+        void builderOpensInTheFrameAtTheIndentShortOfTheDelete() {
+            DrawnFrame read = frame();
+            DrawnFrame.Text wood = read.find("$wood");
+            int[] box = read.buttonAround(wood);
+            int boxRight = read.buttonAround(read.drawn().stream().filter(text -> text.text().equals(
+                    ReadValueButton.PENCIL) && Math.abs(text.y() - wood.y()) <= 2).findFirst().orElseThrow())[2];
+            BuilderFrame.Laid laid = BuilderFrame.lay(DrawnFrame.font(), new BuilderFrame.Row(
+                    new GroupsPane.Bounds(PANE.left(), box[1], LIST_RIGHT, PANE.bottom()), null, GooAmountGrid.NONE,
+                    true));
+            assertEquals(List.of(laid.valueX(), laid.boxRight()), List.of(box[0], boxRight), "the read box");
+            read.click("$wood");
+            int[] panel = frame().fillsOf(Palette.PANEL_FILL).getFirst();
+            assertEquals(List.of(laid.valueX() - RowLayout.BOX_MARGIN, laid.boxTop(), laid.boxRight()),
+                    List.of(panel[0], panel[1], panel[2]), "the builder's panel");
+        }
+
+        // Decision one-red-error-line-under-every-value: a value that fails draws one red line under its box.
+        @Test
+        void failingValueDrawsOneRedLineUnderItsBox() {
+            DrawnFrame frame = frame();
+            int[] box = frame.buttonAround(frame.find("$missing"));
+            List<DrawnFrame.Text> red = frame.drawn().stream().filter(text -> text.color() == Palette.DANGER
+                    && text.text().contains("Unknown constant")).toList();
+            assertEquals(1, red.size(), frame.drawn().toString());
+            assertEquals(box[3], red.getFirst().y());
+        }
+
         // Decision one-lettering-primitive-names-three-text-roles: an entry's name centers on its row through the one
         // centering helper, as every list pane's does.
         @Test

@@ -671,6 +671,67 @@ class VariablesPaneTest {
                 && (text.text().contains("(") || text.text().contains(")"))), frame.drawn().toString());
     }
 
+    /**
+     * An edited prefab keeps its Value: label and its amount line above the builder, and the builder opens in the read
+     * box's place, short of the delete x, its panel's overhang reserved (decision one-builder-frame-on-every-pane).
+     */
+    @Test
+    void editedBlockKeepsItsLabelAndAmountLineAboveTheBuilder() {
+        VariablesPane pane = fourTypeRows();
+        GroupsPane.Bounds view = new GroupsPane.Bounds(0, 20, 2000, 400);
+        DrawnFrame read = new DrawnFrame();
+        pane.extract(read.graphics, DrawnFrame.font(), view, read.targets, 0, 0);
+        int[] box = read.buttonAround(read.find(":"));
+        int listRight = view.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        assertEquals(listRight - BuilderFrame.deleteInset(DrawnFrame.font()),
+                read.buttonAround(read.find(ReadValueButton.PENCIL))[2], "the box short of the x");
+        read.click(ReadValueButton.PENCIL);
+        DrawnFrame open = new DrawnFrame();
+        pane.extract(open.graphics, DrawnFrame.font(), view, open.targets, 0, 0);
+        int[] panel = open.fillsOf(Palette.PANEL_FILL).getFirst();
+        assertEquals(List.of(box[0] - RowLayout.BOX_MARGIN, box[1],
+                listRight - BuilderFrame.deleteInset(DrawnFrame.font())), List.of(panel[0], panel[1], panel[2]),
+                "the builder's panel in the read box's place");
+        DrawnFrame.Text label = open.find("Value:");
+        List<DrawnFrame.Placed> amounts = open.placements().stream()
+                .filter(placed -> placed.scale() == Lettering.AMOUNT_SCALE && placed.y() < panel[1]).toList();
+        assertEquals(List.of("96768", "32256", "336", "192"), amounts.stream().map(DrawnFrame.Placed::text).toList(),
+                "the amount line above the builder");
+        assertTrue(label.y() < panel[1], "the label above the builder");
+    }
+
+    /**
+     * A prefab whose value fails draws its error as one red line under its box, not inside it (decision
+     * one-red-error-line-under-every-value).
+     */
+    @Test
+    void failingPrefabDrawsOneRedLineUnderItsBox() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "broken", "keySeparator": null, "kind": "VALUE", "text": "\\"$missing + 1\\"",
+                     "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "broken", "kind": "scalar", "value": null,
+                                "error": "Unknown constant $missing", "usedBy": [], "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane pane = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        int[] box = frame.buttonAround(frame.find("$missing"));
+        List<DrawnFrame.Text> red = frame.drawn().stream().filter(text -> text.color() == Palette.DANGER
+                && text.text().contains("Unknown constant")).toList();
+        assertEquals(1, red.size(), frame.drawn().toString());
+        assertEquals(box[3], red.getFirst().y());
+    }
+
     // A prefab of four type rows, each a plain amount, resolving to the four amounts typedPreview's does.
     private static VariablesPane fourTypeRows() {
         ManagerDraft draft = new ManagerDraft();
