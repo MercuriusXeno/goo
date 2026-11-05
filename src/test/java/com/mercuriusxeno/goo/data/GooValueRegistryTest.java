@@ -85,6 +85,45 @@ class GooValueRegistryTest {
         return warnings;
     }
 
+    /**
+     * A prefab values no item of its name: an item reads a prefab's value through its own entry, and without one
+     * the recipes derive it (decision diagnose-and-correct-iron-values-standing-without-a-source; the operator's
+     * report of 2026-11-04: iron_nugget's prefab read 1 metal while the nugget item read 4, smelted from chainmail
+     * boots valued as 4 $iron_nugget, and the ingot 36).
+     */
+    @Nested
+    class PrefabsValueNoItemOfTheirName {
+        private static final String PREFAB = "{\"_constants\": {\"iron_nugget\": {\"metal\": \"1\"}}, "
+                + "\"chainmail_boots\": \"4 $iron_nugget\"";
+
+        private GooValue[] nuggetAndIngot(String json) throws IOException {
+            registry.parseBaseValues(new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+            registry.publishBaseAsEffective();
+            String[][] nuggets = new String[9][];
+            Arrays.fill(nuggets, slot("minecraft:iron_nugget"));
+            registry.deriveFromRecipeInputs(List.of(
+                    recipe("minecraft:iron_nugget", 1, slot("minecraft:chainmail_boots")),
+                    recipe("minecraft:iron_ingot", 1, nuggets),
+                    recipe("minecraft:iron_nugget", 9, slot("minecraft:iron_ingot"))), false);
+            return new GooValue[] {registry.table().lookup(id("minecraft:iron_nugget")),
+                    registry.table().lookup(id("minecraft:iron_ingot"))};
+        }
+
+        @Test
+        void itemEntryReadsItsPrefabsValueAndTheIngotFollows() throws IOException {
+            GooValue[] values = nuggetAndIngot(PREFAB + ", \"iron_nugget\": \"$iron_nugget\"}");
+            assertEquals(GooFraction.of(1), values[0].exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(9), values[1].exact(GooTypes.METAL));
+        }
+
+        @Test
+        void prefabAloneLeavesTheItemToItsRecipes() throws IOException {
+            GooValue[] values = nuggetAndIngot(PREFAB + "}");
+            assertEquals(GooFraction.of(4), values[0].exact(GooTypes.METAL), "smelted from the boots");
+            assertEquals(GooFraction.of(36), values[1].exact(GooTypes.METAL));
+        }
+    }
+
     // ── LCD Derivation ──────────────────────────────────────────────────
 
     @Nested
