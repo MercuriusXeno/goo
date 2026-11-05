@@ -73,20 +73,22 @@ final class GooValueValidator {
     }
 
     /**
-     * Validates the _constants block: checks expression tokens within each constant definition.
+     * Validates the _constants block: checks expression tokens within each constant definition against every
+     * constant the block names, wherever it sits
+     * (decision prefabs-resolve-by-dependency-graph-conversions-alone-stay-ordered).
      *
      * @param json     the root JSON object
      * @param warnings accumulator for validation warnings
      * @return the set of known constant names, in definition order
      */
     private static Set<String> validateConstantsSection(JsonObject json, List<String> warnings) {
-        Set<String> knownConstants = new LinkedHashSet<>();
         if (!json.has(CONSTANTS_SUFFIX)) {
-            return knownConstants;
+            return new LinkedHashSet<>();
         }
-        for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject(CONSTANTS_SUFFIX).entrySet()) {
+        JsonObject constants = json.getAsJsonObject(CONSTANTS_SUFFIX);
+        Set<String> knownConstants = new LinkedHashSet<>(constants.keySet());
+        for (Map.Entry<String, JsonElement> entry : constants.entrySet()) {
             validateConstantEntry(entry, knownConstants, warnings);
-            knownConstants.add(entry.getKey());
         }
         return knownConstants;
     }
@@ -95,7 +97,7 @@ final class GooValueValidator {
      * Validates expression tokens within a single constant definition.
      *
      * @param entry          the constant entry to validate
-     * @param knownConstants known constant names defined so far
+     * @param knownConstants every constant name the block holds
      * @param warnings       accumulator for validation warnings
      */
     private static void validateConstantEntry(Map.Entry<String, JsonElement> entry,

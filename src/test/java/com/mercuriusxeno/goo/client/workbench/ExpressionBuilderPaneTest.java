@@ -2173,6 +2173,24 @@ class ExpressionBuilderPaneTest {
             assertEquals("{\"metal\": \"$base\"}", builder.written.getLast());
         }
 
+        /**
+         * The builder over the first prefab offers the number prefab set below it in its prefab dropdown, and never
+         * the edited prefab itself (decision prefabs-resolve-by-dependency-graph-conversions-alone-stay-ordered).
+         */
+        @Test
+        void firstPrefabsDropdownOffersThePrefabBelowAndNeverItself() {
+            Builder builder = Builder.prefab(List.of(new BuilderGrammar.Prefab("edited", false),
+                    new BuilderGrammar.Prefab("base", false), new BuilderGrammar.Prefab("waxed", true)),
+                    "{\"metal\": \"5\"}");
+            builder.frame().click("5");
+            builder.frame().click("prefab");
+            DrawnFrame offered = builder.frame();
+            assertTrue(offered.texts().contains("$base"), offered.texts().toString());
+            assertEquals(0, offered.count("$edited"), offered.texts().toString());
+            offered.click("$base");
+            assertEquals("{\"metal\": \"$base\"}", builder.written.getLast());
+        }
+
         // Decision term-number-opens-number-prefab-relative-modes: number opens the number box.
         @Test
         void numberModeOpensTheNumberBox() {
