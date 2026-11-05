@@ -136,7 +136,20 @@ final class StackedFractions {
      * @param color    its color
      */
     static void draw(GuiGraphicsExtractor graphics, Font font, String amount, int x, int textTop, int color) {
-        Mixed mixed = of(amount);
+        draw(graphics, font, of(amount), x, textTop, color);
+    }
+
+    /**
+     * Draws a mixed number on a text line, as {@link #draw(GuiGraphicsExtractor, Font, String, int, int, int)} does.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param mixed    the amount as a mixed number
+     * @param x        its left edge
+     * @param textTop  the line's text top
+     * @param color    its color
+     */
+    static void draw(GuiGraphicsExtractor graphics, Font font, Mixed mixed, int x, int textTop, int color) {
         int stackLeft = x;
         if (!mixed.whole().isEmpty()) {
             graphics.text(font, mixed.whole(), x, textTop, color);
