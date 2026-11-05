@@ -823,15 +823,29 @@ class GroupsPaneTest {
                 expanded.texts().toString());
     }
 
+    // Decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane: a selected group's card head cuts
+    // its long name and hovers it whole through drawEntryName.
     @Test
     void wideNameHoversWhole() {
-        String key = GroupsPane.nameHoverKey(font(), WIDE, 78).orElseThrow();
-        assertEquals(Optional.of(new TooltipLine.Text(Component.literal(WIDE))), GroupsPane.nameTooltipFor(key));
-    }
-
-    @Test
-    void fittingNameLeavesNoHover() {
-        assertEquals(Optional.empty(), GroupsPane.nameHoverKey(font(), "#logs", 78));
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        String name = WIDE.substring(1);
+        groups.readDescribed("""
+                {"groups": [{"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """.formatted(name));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        groups.selectGroup(name);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 300, 300), frame.targets);
+        DrawnFrame.Text cut = frame.drawn().stream().filter(text -> text.text().contains(ButtonPainter.ELLIPSIS))
+                .reduce((first, last) -> last).orElseThrow(() -> new AssertionError(frame.texts().toString()));
+        String key = frame.targets.hoveredArea(cut.x() + 1, cut.y() + 1).orElseThrow().hoverKey();
+        assertEquals(Optional.of(new TooltipLine.Text(Component.literal(WIDE))), ButtonPainter.wholeNameTooltip(key));
     }
 
     /**

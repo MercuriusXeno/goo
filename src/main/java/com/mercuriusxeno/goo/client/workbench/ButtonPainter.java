@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 
 /**
  * Draws every clickable option the manager offers as a bordered box with its label inside, the box its click target,
@@ -24,6 +26,12 @@ final class ButtonPainter {
      * one-search-row-per-list-with-its-create-control-beside-it).
      */
     static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
+    /** The mark a cut name stands in its cut. */
+    static final String ELLIPSIS = "…";
+    // A hover key no item id, prefab or hint spells.
+    private static final String WHOLE_NAME_KEY = "goo-entry-name:";
+    // A cut name keeps its last four letters, which tell its siblings apart.
+    private static final int NAME_TAIL = 4;
     /** The room a type-icon button leaves each side of its icon (decision type-icon-buttons-shrink-their-padding). */
     static final int ICON_PADDING = 1;
     // A glyph's baseline stands seven pixels under the text's top, the underline one under that, as the font's own.
@@ -415,6 +423,92 @@ final class ButtonPainter {
     static void drawEntryName(GuiGraphicsExtractor graphics, Font font, String name, int x, int textTop,
                               boolean marked) {
         drawEntryName(graphics, font, name, x, textTop, marked, Palette.TEXT);
+    }
+
+    /**
+     * An entry's name as a pane's row draws it.
+     *
+     * @param name        the whole name
+     * @param x           its left edge
+     * @param textTop     its text's top
+     * @param room        the width its column leaves it
+     * @param marked      whether the entry is marked for removal
+     * @param color       its color while unmarked
+     * @param cutHoverKey what a cut name hovers, null for its whole name
+     */
+    record EntryName(String name, int x, int textTop, int room, boolean marked, int color,
+                     @Nullable String cutHoverKey) {
+        /**
+         * @param name    the whole name
+         * @param x       its left edge
+         * @param textTop its text's top
+         * @param room    the width its column leaves it
+         * @param marked  whether the entry is marked for removal
+         * @return the name in the text color, a cut one hovering its whole name
+         */
+        static EntryName of(String name, int x, int textTop, int room, boolean marked) {
+            return new EntryName(name, x, textTop, room, marked, Palette.TEXT, null);
+        }
+    }
+
+    /**
+     * Draws an entry's name cut to its room with the ellipsis, and lays the whole name's hover where it cut, on every
+     * pane alike (decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane).
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param targets  the frame's click areas
+     * @param entry    the name and where it draws
+     * @return the name as drawn
+     */
+    static String drawEntryName(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, EntryName entry) {
+        String shown = cut(font, entry.name(), entry.room());
+        drawEntryName(graphics, font, shown, entry.x(), entry.textTop(), entry.marked(), entry.color());
+        if (!shown.equals(entry.name())) {
+            targets.addHover(entry.x(), entry.textTop(), font.width(shown), ExpressionLines.TEXT_LINE_HEIGHT,
+                    entry.cutHoverKey() != null ? entry.cutHoverKey() : wholeNameKey(entry.name()));
+        }
+        return shown;
+    }
+
+    /**
+     * @param font the font
+     * @param name a name
+     * @param room the width it may take
+     * @return the name whole where it fits, else its head shortened a letter at a time before the ellipsis and its
+     *     last four letters until it fits
+     */
+    static String cut(Font font, String name, int room) {
+        if (font.width(name) <= room) {
+            return name;
+        }
+        if (name.length() <= NAME_TAIL + 1) {
+            return font.plainSubstrByWidth(name, room);
+        }
+        String tail = name.substring(name.length() - NAME_TAIL);
+        int head = name.length() - NAME_TAIL;
+        while (head > 1 && font.width(name.substring(0, head) + ELLIPSIS + tail) > room) {
+            head--;
+        }
+        return name.substring(0, head) + ELLIPSIS + tail;
+    }
+
+    /**
+     * @param name a whole name
+     * @return the hover key whose tooltip reads it
+     */
+    static String wholeNameKey(String name) {
+        return WHOLE_NAME_KEY + name;
+    }
+
+    /**
+     * @param hoverKey what the hovered area names
+     * @return the whole name where the area is a cut name's, empty otherwise
+     */
+    static Optional<TooltipLine> wholeNameTooltip(String hoverKey) {
+        return hoverKey.startsWith(WHOLE_NAME_KEY)
+                ? Optional.of(new TooltipLine.Text(Component.literal(hoverKey.substring(WHOLE_NAME_KEY.length()))))
+                : Optional.empty();
     }
 
     /**

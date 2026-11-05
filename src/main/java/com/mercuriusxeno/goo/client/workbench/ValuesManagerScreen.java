@@ -526,7 +526,7 @@ public final class ValuesManagerScreen extends Screen {
     // then its value.
     private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
         Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
-                .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
+                .<TooltipLine>map(TooltipLine.Text::new).or(() -> ButtonPainter.wholeNameTooltip(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
                         .or(() -> GroupHovers.tooltipFor(groupsTab, values, hoverKey))

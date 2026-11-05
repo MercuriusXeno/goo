@@ -4,6 +4,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
@@ -317,6 +318,31 @@ class VariablesPaneTest {
         read.init(DrawnFrame.font());
         read.show(true);
         return read;
+    }
+
+    /**
+     * A long prefab name cuts with the ellipsis and hovers whole (decision
+     * one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane).
+     */
+    @Test
+    void longPrefabNameCutsAndHoversWhole() {
+        String name = "a_really_long_prefab_name_that_runs_on";
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """.formatted(name));
+        VariablesPane pane = twelvePrefabs(new VariablesTab(draft), draft);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text cut = frame.drawn().stream().filter(text -> text.text().contains(ButtonPainter.ELLIPSIS))
+                .findFirst().orElseThrow(() -> new AssertionError(frame.texts().toString()));
+        String key = frame.targets.hoveredArea(cut.x() + 1, cut.y() + 1).orElseThrow().hoverKey();
+        assertEquals(Optional.of(new TooltipLine.Text(Component.literal("$" + name))),
+                ButtonPainter.wholeNameTooltip(key));
     }
 
     /**

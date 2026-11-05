@@ -434,20 +434,22 @@ final class VariablesPane {
 
     // Name [pencil], padding, Used by with its run, then the x at the right end; the rename box stands in place of the
     // name while the block is renamed. Answers how far the line reaches below the head's text top.
-    // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
+    // Decisions prefab-head-is-name-pencil-used-by-then-value-with-its-amount,
+    // hash-marks-groups-and-dollar-marks-prefabs-everywhere (the name reads after $),
+    // one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane.
     private int drawHead(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                          GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int x = bounds.left();
         boolean renamingThis = rename != null && block.name().equals(renaming);
-        int pencilWidth = ButtonPainter.width(font, RENAME);
-        // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab's name reads after $.
-        String shown = PrefabNames.marked(block.name());
-        int nameWidth = font.width(shown) + ButtonPainter.PENCIL_GAP + pencilWidth;
+        String marked = PrefabNames.marked(block.name());
+        String shown = ButtonPainter.cut(font, marked, NAME_WIDTH);
+        int nameWidth = font.width(shown) + ButtonPainter.PENCIL_GAP + ButtonPainter.width(font, RENAME);
         if (renamingThis) {
             drawRenameBox(graphics, font, rename, block.name(), x, y, targets);
             nameWidth = NAME_WIDTH;
         } else {
-            ButtonPainter.drawEntryName(graphics, font, shown, x, y, isMarked(block.name()));
+            ButtonPainter.drawEntryName(graphics, font, targets, ButtonPainter.EntryName.of(marked, x, y, NAME_WIDTH,
+                    isMarked(block.name())));
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
             ButtonPainter.draw(graphics, font, RENAME, x + font.width(shown) + ButtonPainter.PENCIL_GAP,
                     y - ButtonPainter.labelInset(font), ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
