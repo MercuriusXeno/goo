@@ -472,6 +472,20 @@ public final class ValuesManagerScreen extends Screen {
         // Decision ctrl-during-a-rail-drag-shows-a-green-plus-and-drops-a-copy.
         targets.holdControl(minecraft.hasControlDown());
         ManagerChrome.draw(graphics, font, targets, width, tab, chromeActions());
+        extractPane(graphics, mouseX, mouseY);
+        drawTitleAndStatus(graphics);
+        // Decision dropdowns-draw-on-one-stratum-above-everything-but-tooltip-and-dialog: the open lists draw here
+        // alone, after every pane and chrome draw, then the dialogs, the explainer and the tooltip over them.
+        OverlayStratum.drawOverlays(graphics, font, targets, overlayLayers());
+        drawDialogs(graphics);
+        explainer.extract(graphics, width, height, targets);
+        // decision goo-types-draw-as-icons-named-on-hover
+        extractTooltip(graphics, mouseX, mouseY);
+        // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
+        linkCursor.frame(targets, mouseX, mouseY, graphics::requestCursor);
+    }
+
+    private void extractPane(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         GroupsPane.Bounds content = contentBounds();
         switch (tab) {
             case VALUES -> valuesPane.extract(graphics, font, content, targets);
@@ -480,18 +494,35 @@ public final class ValuesManagerScreen extends Screen {
             case PROCESSES -> processesPane.extract(graphics, font, content, targets);
             case AUDIT -> auditPane.extract(graphics, font, content, targets);
         }
+    }
+
+    // The title, the gold badge while the draft differs from the value file, and the status line.
+    private void drawTitleAndStatus(GuiGraphicsExtractor graphics) {
         graphics.text(font, title, MARGIN, TITLE_Y, Palette.TEXT);
         if (draft.differs()) {
             graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TITLE_GAP, TITLE_Y, Palette.GOLD);
         }
         graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
                 statusIsError ? Palette.DANGER : Palette.MUTED);
+    }
+
+    // The Prefabs tab's delete confirm, then the draft's confirm, each over the overlay stratum.
+    private void drawDialogs(GuiGraphicsExtractor graphics) {
+        if (tab == ManagerTab.VARIABLES) {
+            variablesPane.drawDialog(graphics, font, targets);
+        }
         draftPane.extract(graphics, font, targets);
-        explainer.extract(graphics, width, height, targets);
-        // decision goo-types-draw-as-icons-named-on-hover
-        extractTooltip(graphics, mouseX, mouseY);
-        // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
-        linkCursor.frame(targets, mouseX, mouseY, graphics::requestCursor);
+    }
+
+    // The active tab's open lists, which the overlay stratum draws.
+    private List<OverlayStratum.Layer> overlayLayers() {
+        return switch (tab) {
+            case VALUES -> valuesPane.overlayLayers();
+            case GROUPS -> groupsPane.overlayLayers();
+            case VARIABLES -> variablesPane.overlayLayers();
+            case PROCESSES -> processesPane.overlayLayers();
+            case AUDIT -> List.of();
+        };
     }
 
     @Override
