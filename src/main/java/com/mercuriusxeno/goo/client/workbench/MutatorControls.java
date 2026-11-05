@@ -235,7 +235,8 @@ final class MutatorControls {
         // amount in parentheses as the prefab's amount line reads, each pair wrapping whole; the hover stays.
         Map<String, String> amounts = prefabAmounts.apply(additive.constant());
         if (!amounts.isEmpty()) {
-            AmountGridLine.typed(amounts).cells().forEach(cell -> flow.runs(cell, null, null));
+            // Decision one-amount-grid-draws-every-amount-list: the grid's cells inline, its parens round them.
+            GooAmountGrid.reduced(amounts).inlineRuns().forEach(cell -> flow.runs(cell, null, null));
         }
     }
 
