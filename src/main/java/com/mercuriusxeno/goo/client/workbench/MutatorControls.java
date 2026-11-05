@@ -6,12 +6,12 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
 
 /**
  * One Mutators entry drawn as a sentence of controls, every field the game's conversion parser reads a click away:
@@ -26,8 +26,6 @@ import java.util.regex.Pattern;
  */
 final class MutatorControls {
     private static final int HALF = 2;
-    // Nine digits always fit an int.
-    private static final Pattern DIGITS = Pattern.compile("\\d{1,9}");
     private static final String NOTHING_TARGET = "0";
     private static final String GROUP_MARK = "#";
     private static final String STACK_MARK = "@";
@@ -205,8 +203,8 @@ final class MutatorControls {
         flow.text(SOURCE_SHARE, Palette.MUTED);
         // Decision ratio-colon-takes-the-builders-spacing: a clear pixel each side of the colon.
         flow.ratioColon(RATIO, Palette.MUTED);
-        divisorControl(flow, formula.sourceDivisor(), null,
-                divisor -> processes.setFormulaDivisor(section, key, divisor));
+        RatioWriter ratio = (multiplier, divisor) -> processes.setFormulaRatio(section, key, multiplier, divisor);
+        divisorControl(flow, formula.sourceDivisor(), typed -> setSourceDivisor(entry, formula, typed, ratio));
         flow.text(ARROW, Palette.MUTED);
         Consumer<BuilderOverlays.Anchor> pickTarget = at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaTarget(section, key, type)),
@@ -216,11 +214,22 @@ final class MutatorControls {
             return;
         }
         flow.typeIcon(formula.target(), pickTarget);
-        numberControl(flow, formula.multiplier(), null,
-                multiplier -> processes.setFormulaRatio(section, key, multiplier, formula.divisor()));
+        // The target's ratio takes a mixed number either side, M : K reading M / K, reduced as it is written.
+        numberControl(flow, formula.multiplier(),
+                typed -> writeRatio(typed.numerator(), typed.denominator() * formula.divisor(), ratio));
         flow.ratioColon(RATIO, Palette.MUTED);
-        divisorControl(flow, formula.divisor(), null,
-                divisor -> processes.setFormulaRatio(section, key, formula.multiplier(), divisor));
+        divisorControl(flow, formula.divisor(),
+                typed -> writeRatio(formula.multiplier() * typed.denominator(), typed.numerator(), ratio));
+    }
+
+    // A fraction typed for the source's divisor folds its denominator into the target's multiplier.
+    private void setSourceDivisor(Entry entry, Processes.Formula formula, Fraction typed, RatioWriter ratio) {
+        if (typed.numerator() <= Integer.MAX_VALUE) {
+            processes.setFormulaDivisor(entry.section(), entry.key(), (int) typed.numerator());
+        }
+        if (typed.denominator() != 1 && !NOTHING_TARGET.equals(formula.target())) {
+            writeRatio(formula.multiplier() * typed.denominator(), formula.divisor(), ratio);
+        }
     }
 
     private void drawAdditive(Entry entry, Processes.Additive additive) {
@@ -248,8 +257,7 @@ final class MutatorControls {
         // Decision every-linkable-thing-hovers-its-preview-value: the mutator a stack applies hovers its formula.
         flow.hoverLast(ConversionHovers.hoverKey(entry.section(), stack.formula()));
         flow.text(TIMES_MARK, Palette.MUTED);
-        numberControl(flow, stack.count(), null,
-                count -> processes.setStackCount(entry.section(), entry.key(), count));
+        countControl(flow, stack.count(), count -> processes.setStackCount(entry.section(), entry.key(), count));
     }
 
     // "copies [source]" one indent in under the name line, then the chain; the row draws no ratio.
@@ -355,22 +363,71 @@ final class MutatorControls {
         overlays.openDropdown(at, names, choice -> edit(() -> pick.accept(choice.id())));
     }
 
-    // A number drawn as a link whose click opens the number box; a box holding no integer changes nothing.
-    private void numberControl(ControlFlow flow, int number, String hint, IntConsumer commit) {
-        flow.control(String.valueOf(number), hint, at -> overlays.openNumber(at, String.valueOf(number),
-                typed -> integerOf(typed).ifPresent(parsed -> edit(() -> commit.accept(parsed)))));
+    // A number as the builder draws one: a segment 14 tall on the builder's line whose click opens the builder's
+    // mixed-number box on the number, its text selected; the box's value, reduced, reaches commit, and text the box
+    // reads as no number changes nothing.
+    // Decision conversions-sentences-are-built-from-the-builders-controls.
+    private void numberControl(ControlFlow flow, int number, Consumer<Fraction> commit) {
+        String shown = String.valueOf(number);
+        flow.openSegments(ButtonPainter.width(flow.letters(), shown), ButtonPainter.HEIGHT);
+        flow.labelSegment(shown, null, at -> overlays.openMixedNumber(at, shown,
+                typed -> fractionOf(typed).ifPresent(parsed -> edit(() -> commit.accept(parsed)))));
+        flow.closeSegments();
     }
 
-    // Decision mutator-sentences-read-in-symbols: a divisor box takes no 0 key and commits no 0.
-    private void divisorControl(ControlFlow flow, int number, String hint, IntConsumer commit) {
-        flow.control(String.valueOf(number), hint, at -> overlays.openNumber(at, String.valueOf(number),
-                typed -> integerOf(typed).stream().filter(parsed -> parsed > 0).findFirst()
-                        .ifPresent(parsed -> edit(() -> commit.accept(parsed))), true));
+    // A whole count alone, as a stack applies its mutator a whole number of times.
+    private void countControl(ControlFlow flow, int number, IntConsumer commit) {
+        numberControl(flow, number, typed -> typed.whole().ifPresent(commit));
     }
 
-    private static OptionalInt integerOf(String typed) {
-        String trimmed = typed.trim();
-        return DIGITS.matcher(trimmed).matches() ? OptionalInt.of(Integer.parseInt(trimmed)) : OptionalInt.empty();
+    // Decision mutator-sentences-read-in-symbols: a divisor commits no 0.
+    private void divisorControl(ControlFlow flow, int number, Consumer<Fraction> commit) {
+        numberControl(flow, number, typed -> {
+            if (typed.numerator() > 0) {
+                commit.accept(typed);
+            }
+        });
+    }
+
+    /**
+     * A number box's value reduced to its numerator over its denominator.
+     *
+     * @param numerator   above the bar
+     * @param denominator below it, never 0
+     */
+    private record Fraction(long numerator, long denominator) {
+        // The value where it is whole, empty for a fraction.
+        OptionalInt whole() {
+            return denominator == 1 ? OptionalInt.of((int) numerator) : OptionalInt.empty();
+        }
+    }
+
+    // A whole, a fraction or a whole then a fraction, as the builder's box reads them; empty where it reads none or a
+    // part outgrows an int.
+    private static Optional<Fraction> fractionOf(String typed) {
+        return ExpressionBuilder.mixedNumber(typed).filter(parts -> parts[0].bitLength() < Integer.SIZE
+                && parts[1].bitLength() < Integer.SIZE).map(parts -> new Fraction(parts[0].longValue(),
+                parts[1].longValue()));
+    }
+
+    // A ratio a : b reduced to its lowest terms, empty where a term outgrows an int; written through write.
+    private static void writeRatio(long first, long second, RatioWriter write) {
+        long common = gcd(first, second);
+        long reducedFirst = first / common;
+        long reducedSecond = second / common;
+        if (reducedFirst <= Integer.MAX_VALUE && reducedSecond <= Integer.MAX_VALUE) {
+            write.accept((int) reducedFirst, (int) reducedSecond);
+        }
+    }
+
+    private static long gcd(long first, long second) {
+        return second == 0 ? Math.max(1, first) : gcd(second, first % second);
+    }
+
+    // Takes a reduced ratio's two terms.
+    @FunctionalInterface
+    private interface RatioWriter {
+        void accept(int first, int second);
     }
 
     private void write(Entry entry, Processes.Form form) {

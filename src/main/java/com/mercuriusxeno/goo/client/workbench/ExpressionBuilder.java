@@ -568,9 +568,12 @@ final class ExpressionBuilder {
         return split[0].signum() == 0 ? part : split[0] + MIXED_GAP + part;
     }
 
-    // A whole, a fraction n/d, or a whole then a fraction, reduced to its numerator and denominator; empty for a
-    // zero denominator or any other text (decision number-box-takes-a-mixed-number).
-    private static Optional<BigInteger[]> mixedNumber(String text) {
+    /**
+     * @param text a number box's text
+     * @return a whole, a fraction n/d, or a whole then a fraction, reduced to its numerator and denominator; empty
+     *     for a zero denominator or any other text (decision number-box-takes-a-mixed-number)
+     */
+    static Optional<BigInteger[]> mixedNumber(String text) {
         Matcher matcher = MIXED_NUMBER.matcher(text.trim());
         if (!matcher.matches()) {
             return Optional.empty();
