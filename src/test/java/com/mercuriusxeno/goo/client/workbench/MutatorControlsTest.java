@@ -19,7 +19,9 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -285,13 +287,55 @@ class MutatorControlsTest {
                     options.getValue().stream().map(BuilderOverlays.Option::label).toList());
         }
 
-        // Clicks a number box's control and commits the typed text through the box it opened.
+        // Clicks a number's segment and commits the typed text through the builder's mixed-number box it opened on
+        // the number's own text (decision conversions-sentences-are-built-from-the-builders-controls).
         private void commitTyped(DrawnFrame frame, String label, String typed) {
             frame.click(label);
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Consumer<String>> commits = ArgumentCaptor.forClass(Consumer.class);
-            verify(overlays).openNumber(any(), anyString(), commits.capture(), anyBoolean());
+            verify(overlays, atLeastOnce()).openMixedNumber(any(), eq(label), commits.capture());
             commits.getValue().accept(typed);
+        }
+
+        /**
+         * A convert's multiplier takes a mixed number: 2 1/2 over a divisor of 1 writes the ratio 5 : 2, and over a
+         * divisor of 2 writes 5 : 4 (decision conversions-sentences-are-built-from-the-builders-controls).
+         */
+        @Test
+        void multiplierTakesAMixedNumber() {
+            commitTyped(frame(new Processes.Formula("metal", 4, "yore", 3, 1)), "3", "2 1/2");
+            verify(processes).setFormulaRatio(SECTION, "rust", 5, 2);
+        }
+
+        @Test
+        void multiplierOverADivisorFoldsTheFractionIn() {
+            commitTyped(frame(new Processes.Formula("metal", 4, "yore", 3, 2)), "3", "2 1/2");
+            verify(processes).setFormulaRatio(SECTION, "rust", 5, 4);
+        }
+
+        /**
+         * A stack's count is the same mixed-number box, taking a whole count and refusing a fraction it cannot hold.
+         */
+        @Test
+        void stackCountTakesAWholeAndRefusesAFraction() {
+            commitTyped(frame(new Processes.Stack(2, "smelt")), "2", "1/2");
+            verify(processes, never()).setStackCount(anyString(), anyString(), anyInt());
+            commitTyped(frame(new Processes.Stack(2, "smelt")), "2", "3");
+            verify(processes).setStackCount(SECTION, "rust", 3);
+        }
+
+        /**
+         * Every number in a sentence draws as a builder segment 14 tall on the builder's line: its box spans the
+         * line from top to bottom.
+         */
+        @Test
+        void numbersDrawAsBuilderSegmentsFourteenTall() {
+            DrawnFrame frame = frame(new Processes.Formula("metal", 4, "yore", 3, 2));
+            for (String number : List.of("4", "3", "2")) {
+                int[] box = frame.buttonAround(frame.find(number));
+                assertEquals(ButtonPainter.HEIGHT, box[3] - box[1], number);
+            }
+            assertEquals(14, ButtonPainter.HEIGHT);
         }
 
         @Test
