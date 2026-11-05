@@ -25,8 +25,6 @@ import java.util.regex.Pattern;
  * expression-builder-composes-every-form-without-typing).
  */
 final class MutatorControls {
-    private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
     private static final int HALF = 2;
     // Nine digits always fit an int.
     private static final Pattern DIGITS = Pattern.compile("\\d{1,9}");
@@ -204,12 +202,12 @@ final class MutatorControls {
         flow.typeIcon(formula.source(), at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaSource(section, key, type))));
         // Decision mutator-sentences-read-in-symbols: "[source] 1 : [#] becomes [target] [#] : [#]".
-        flow.text(SOURCE_SHARE, GRAY);
+        flow.text(SOURCE_SHARE, Palette.MUTED);
         // Decision ratio-colon-takes-the-builders-spacing: a clear pixel each side of the colon.
-        flow.ratioColon(RATIO, GRAY);
+        flow.ratioColon(RATIO, Palette.MUTED);
         divisorControl(flow, formula.sourceDivisor(), null,
                 divisor -> processes.setFormulaDivisor(section, key, divisor));
-        flow.text(ARROW, GRAY);
+        flow.text(ARROW, Palette.MUTED);
         Consumer<BuilderOverlays.Anchor> pickTarget = at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaTarget(section, key, type)),
                 () -> edit(() -> processes.setFormulaTarget(section, key, NOTHING_TARGET)));
@@ -220,14 +218,14 @@ final class MutatorControls {
         flow.typeIcon(formula.target(), pickTarget);
         numberControl(flow, formula.multiplier(), null,
                 multiplier -> processes.setFormulaRatio(section, key, multiplier, formula.divisor()));
-        flow.ratioColon(RATIO, GRAY);
+        flow.ratioColon(RATIO, Palette.MUTED);
         divisorControl(flow, formula.divisor(), null,
                 divisor -> processes.setFormulaRatio(section, key, formula.multiplier(), divisor));
     }
 
     private void drawAdditive(Entry entry, Processes.Additive additive) {
         ControlFlow flow = entry.flow();
-        flow.text(PLUS, GRAY);
+        flow.text(PLUS, Palette.MUTED);
         // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab reads after $.
         nameControl(flow, new Ref(PrefabNames.marked(additive.constant()), () -> actions.openVariable(additive.constant())),
                 null, SearchDropdown.over(List.of(), treePrefabs.get(), false),
@@ -248,7 +246,7 @@ final class MutatorControls {
                 formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
         // Decision every-linkable-thing-hovers-its-preview-value: the mutator a stack applies hovers its formula.
         flow.hoverLast(ConversionHovers.hoverKey(entry.section(), stack.formula()));
-        flow.text(TIMES_MARK, GRAY);
+        flow.text(TIMES_MARK, Palette.MUTED);
         numberControl(flow, stack.count(), null,
                 count -> processes.setStackCount(entry.section(), entry.key(), count));
     }
@@ -259,7 +257,7 @@ final class MutatorControls {
     private void drawAssignment(Entry entry, Processes.Assignment assignment) {
         ControlFlow flow = entry.flow();
         flow.indent();
-        flow.text(COPIES, GRAY);
+        flow.text(COPIES, Palette.MUTED);
         drawSource(entry, assignment.source());
         drawChain(entry, assignment.chain());
     }
@@ -319,7 +317,7 @@ final class MutatorControls {
         flow.newLine();
         flow.alignRight(letters.width(words) + BuilderOverlays.GAP + ButtonPainter.width(letters, applied)
                 + BuilderOverlays.GAP + ButtonPainter.width(letters, REMOVE_LINK) + entry.chainInset());
-        flow.text(words, GRAY);
+        flow.text(words, Palette.MUTED);
         // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
         flow.followLink(applied, PrefabHovers.hoverKey(applied), () -> actions.openMutator(applied));
         flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
@@ -328,8 +326,8 @@ final class MutatorControls {
 
     private void drawUnread(Entry entry, Processes.Unread unread, boolean assignment) {
         ControlFlow flow = entry.flow();
-        flow.text(UNREAD, RED);
-        flow.text(unread.text(), RED);
+        flow.text(UNREAD, Palette.DANGER);
+        flow.text(unread.text(), Palette.DANGER);
         List<String> groups = processes.groupNames();
         if (assignment && !groups.isEmpty()) {
             flow.control(START_OVER, null, at -> write(entry,

@@ -109,7 +109,7 @@ class ValuesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, font, bounds, frame.targets);
-        assertEquals(ValuesPane.RED, frame.find("Negative 1").color());
+        assertEquals(Palette.DANGER, frame.find("Negative 1").color());
         List<String> drawnLabels = List.of("Items", "Uncovered 0", "Fractional", "Negative 1");
         ValuesPane.Chip negative = ValuesPane.layChips(drawnLabels, font::width,
                 ValuesPane.chipsLeft(drawnLabels, font::width, bounds), 0, values.filter()).chips().get(3);
@@ -312,7 +312,7 @@ class ValuesPaneTest {
             int removeBottom = remove.y() - ButtonPainter.TEXT_NUDGE + ButtonPainter.HEIGHT;
             ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, atLeastOnce()).fill(anyInt(), tops.capture(), anyInt(), anyInt(),
-                    eq(RowLayout.SEPARATOR_COLOR));
+                    eq(Palette.SEPARATOR));
             int rule = tops.getAllValues().stream().filter(top -> top >= removeBottom).min(Integer::compare)
                     .orElseThrow(() -> new AssertionError("no rule under " + removeBottom + ": " + tops.getAllValues()));
             assertEquals(RowLayout.RULE_GAP, rule - removeBottom, "the x over the rule at " + rule);
@@ -372,7 +372,7 @@ class ValuesPaneTest {
             ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(),
-                    bottoms.capture(), eq(ButtonPainter.BORDER));
+                    bottoms.capture(), eq(Palette.BORDER));
             boolean expressionFramed = IntStream.range(0, lefts.getAllValues().size()).anyMatch(index ->
                     lefts.getAllValues().get(index) < wood.x()
                             && rights.getAllValues().get(index) > wood.x() + DrawnFrame.font().width(wood.text())
@@ -591,7 +591,7 @@ class ValuesPaneTest {
             ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), anyInt(), rights.capture(), anyInt(),
-                    eq(ExpressionBuilderPane.TRASH_REST));
+                    eq(Palette.TRASH_REST));
             return (lefts.getValue() + rights.getValue()) / 2.0;
         }
 
@@ -893,7 +893,7 @@ class ValuesPaneTest {
 
     // One glow fill spans the list's width and holds the row's name, as tall as the row.
     static void assertGlowCovers(DrawnFrame frame, DrawnFrame.Text name, int rowHeight) {
-        List<int[]> glows = frame.fillsOf(RevealGlow.GLOW);
+        List<int[]> glows = frame.fillsOf(Palette.GLOW);
         assertEquals(1, glows.size(), "glow fills: " + glows.size());
         int[] glow = glows.getFirst();
         assertTrue(glow[1] <= name.y() && name.y() < glow[3], java.util.Arrays.toString(glow) + " vs " + name);
@@ -1191,7 +1191,7 @@ class ValuesPaneTest {
         int left = label.x() - ButtonPainter.PADDING;
         int top = label.y() - 3;
         int right = left + ButtonPainter.width(DrawnFrame.font(), "#lights");
-        verify(frame.graphics).fill(left, top, right, top + ButtonPainter.HEIGHT, ButtonPainter.BORDER);
+        verify(frame.graphics).fill(left, top, right, top + ButtonPainter.HEIGHT, Palette.BORDER);
         frame.shiftClick("#lights");
         verify(actions, atLeastOnce()).openGroup("lights");
     }

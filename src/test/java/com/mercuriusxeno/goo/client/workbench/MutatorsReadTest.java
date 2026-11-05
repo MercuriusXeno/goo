@@ -50,11 +50,11 @@ class MutatorsReadTest {
         ProcessesPane.VerdictMark valid = ProcessesPane.verdictMark(new ProcessesTab.ProcessRow("rust", "formula",
                 "metal / 4 -> yore / 9", true, "Valid", ""));
         assertEquals("✔", valid.glyph());
-        assertEquals(ProcessesPane.GREEN, valid.color());
+        assertEquals(Palette.GOOD, valid.color());
         ProcessesPane.VerdictMark invalid = ProcessesPane.verdictMark(new ProcessesTab.ProcessRow("broken",
                 "formula", "metal ->", false, "Invalid", "Formula lacks a right side"));
         assertEquals("✘", invalid.glyph());
-        assertEquals(ProcessesPane.RED, invalid.color());
+        assertEquals(Palette.DANGER, invalid.color());
     }
 
     /**

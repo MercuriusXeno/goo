@@ -10,15 +10,9 @@ import org.jspecify.annotations.Nullable;
  * (decision blue-text-options-draw-as-bordered-buttons).
  */
 final class ButtonPainter {
-    /** The one link color: a button's label and border, and a prefab named inside an expression. */
-    static final int LINK = 0xFF80C0FF;
-    /** The gold a restore arrow draws in (decision every-delete-marks-for-removal-and-a-gold-arrow-restores). */
-    static final int GOLD = 0xFFE0C060;
     /** The circular arrow a restore button reads. */
     static final String RESTORE = "↺";
     private static final String RESTORE_HINT = "Restore";
-    private static final int MARKED_COLOR = 0xFFA0A0A0;
-    private static final int NAME_COLOR = 0xFFFFFFFF;
     // A strike through a marked name stands at the glyphs' middle.
     private static final int STRIKE_DROP = 4;
     /** A button's height. */
@@ -27,10 +21,6 @@ final class ButtonPainter {
     static final int PADDING = 3;
     /** The room a type-icon button leaves each side of its icon (decision type-icon-buttons-shrink-their-padding). */
     static final int ICON_PADDING = 1;
-    /** A button's border color. */
-    static final int BORDER = 0xFF5070A0;
-    /** A button's inner fill. */
-    static final int FILL = 0xFF182030;
     /** How far a button drawn at a text's top reaches above that top. */
     static final int TEXT_NUDGE = 3;
     // A glyph's baseline stands seven pixels under the text's top, the underline one under that, as the font's own.
@@ -96,7 +86,7 @@ final class ButtonPainter {
      */
     static Box draw(GuiGraphicsExtractor graphics, Font font, String label, int x, int lineTop, int lineHeight,
                     ClickTargets targets, Runnable pressed, @Nullable String hoverKey) {
-        return drawColored(graphics, font, label, LINK, x, lineTop, lineHeight, targets, pressed, hoverKey);
+        return drawColored(graphics, font, label, Palette.LINK, x, lineTop, lineHeight, targets, pressed, hoverKey);
     }
 
     /**
@@ -208,8 +198,8 @@ final class ButtonPainter {
 
     private static void drawLinkLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
                                       ClickTargets targets) {
-        int[] place = drawLabel(graphics, lettering, label, box, LINK);
-        underlineWhileShiftHeld(graphics, targets, lettering, place[0], place[1], lettering.width(label), LINK);
+        int[] place = drawLabel(graphics, lettering, label, box, Palette.LINK);
+        underlineWhileShiftHeld(graphics, targets, lettering, place[0], place[1], lettering.width(label), Palette.LINK);
     }
 
     /**
@@ -296,8 +286,8 @@ final class ButtonPainter {
      */
     static void drawFrame(GuiGraphicsExtractor graphics, Box box) {
         int bottom = box.top() + box.height();
-        graphics.fill(box.left(), box.top(), box.right(), bottom, BORDER);
-        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, bottom - 1, FILL);
+        graphics.fill(box.left(), box.top(), box.right(), bottom, Palette.BORDER);
+        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, bottom - 1, Palette.FILL);
     }
 
     /**
@@ -359,8 +349,8 @@ final class ButtonPainter {
      */
     static Box drawRestore(GuiGraphicsExtractor graphics, Font font, int right, int lineTop, int lineHeight,
                            ClickTargets targets, Runnable restored) {
-        return drawColored(graphics, font, RESTORE, GOLD, right - width(font, RESTORE), lineTop, lineHeight, targets,
-                restored, BuilderOverlays.hintKey(RESTORE_HINT));
+        return drawColored(graphics, font, RESTORE, Palette.GOLD, right - width(font, RESTORE), lineTop, lineHeight,
+                targets, restored, BuilderOverlays.hintKey(RESTORE_HINT));
     }
 
     /**
@@ -378,11 +368,11 @@ final class ButtonPainter {
     static void drawEntryName(GuiGraphicsExtractor graphics, Font font, String name, int x, int textTop,
                               boolean marked) {
         if (!marked) {
-            graphics.text(font, name, x, textTop, NAME_COLOR);
+            graphics.text(font, name, x, textTop, Palette.TEXT);
             return;
         }
-        graphics.text(font, name, x, textTop, MARKED_COLOR);
-        graphics.fill(x, textTop + STRIKE_DROP, x + font.width(name), textTop + STRIKE_DROP + 1, MARKED_COLOR);
+        graphics.text(font, name, x, textTop, Palette.MUTED);
+        graphics.fill(x, textTop + STRIKE_DROP, x + font.width(name), textTop + STRIKE_DROP + 1, Palette.MUTED);
     }
 
     /**

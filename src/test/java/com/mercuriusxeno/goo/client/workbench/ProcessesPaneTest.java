@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.mockito.ArgumentCaptor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -303,7 +304,7 @@ class ProcessesPaneTest {
         DrawnFrame.Text then = frame.find("mutated by");
         DrawnFrame.Text and = frame.find("and");
         int edge = frame.buttonAround(onLineOf(frame, then, "x"))[2];
-        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the lines end inside the box");
+        assertTrue(edge < columnRightAt(frame, then.x()), "the lines end inside the column");
         assertEquals(edge, frame.buttonAround(onLineOf(frame, and, "x"))[2], frame.drawn().toString());
         for (DrawnFrame.Text words : List.of(then, and)) {
             DrawnFrame.Text applied = onLineOf(frame, words, words == then ? "waxed" : "rust");
@@ -341,7 +342,7 @@ class ProcessesPaneTest {
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
-                eq(RowLayout.SEPARATOR_COLOR));
+                eq(Palette.SEPARATOR));
         int rule = java.util.stream.IntStream.range(0, tops.getAllValues().size())
                 .filter(index -> lefts.getAllValues().get(index) <= second.x())
                 .map(index -> tops.getAllValues().get(index)).filter(top -> top < pencilTop).max().orElseThrow();
@@ -354,26 +355,35 @@ class ProcessesPaneTest {
         assertEquals(RowLayout.RULE_GAP, rule - lastBottom, firstName + "'s last button over the rule");
     }
 
+    /**
+     * A row spans its column with its separator alone and no row fill under it, so the rows read like the Items and
+     * Prefabs rows (decision fills-are-two-roles-selected-and-panel).
+     */
+    @Test
+    void rowsSpanTheirColumnWithTheSeparatorAlone() {
+        DrawnFrame frame = frame();
+        int[] separator = frame.fillsOf(Palette.SEPARATOR).getFirst();
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), anyInt(), rights.capture(), anyInt(),
+                colors.capture());
+        List<Integer> spanning = IntStream.range(0, colors.getAllValues().size())
+                .filter(index -> lefts.getAllValues().get(index) == separator[0]
+                        && rights.getAllValues().get(index) == separator[2])
+                .mapToObj(colors.getAllValues()::get).distinct().toList();
+        assertEquals(List.of(Palette.SEPARATOR), spanning);
+    }
+
     private static DrawnFrame.Text onLineOf(DrawnFrame frame, DrawnFrame.Text anchor, String label) {
         return frame.drawn().stream().filter(text -> text.y() == anchor.y() && text.text().equals(label)).findFirst()
                 .orElseThrow(() -> new AssertionError(label + " on " + anchor + ": " + frame.drawn()));
     }
 
-    // The right edge of the row box filled across a point.
-    private static int boxRightAt(DrawnFrame frame, int x, int y) {
-        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
-                eq(ProcessesPane.ROW_COLOR));
-        for (int index = 0; index < tops.getAllValues().size(); index++) {
-            if (lefts.getAllValues().get(index) <= x && rights.getAllValues().get(index) > x
-                    && tops.getAllValues().get(index) <= y && bottoms.getAllValues().get(index) > y) {
-                return rights.getAllValues().get(index);
-            }
-        }
-        throw new AssertionError("no row box at " + y);
+    // The right edge of the column whose row separators span a point's x, the rows' own right edge.
+    private static int columnRightAt(DrawnFrame frame, int x) {
+        return frame.fillsOf(Palette.SEPARATOR).stream().filter(fill -> fill[0] <= x && fill[2] > x)
+                .mapToInt(fill -> fill[2]).findFirst().orElseThrow(() -> new AssertionError("no column at " + x));
     }
 
     /**
@@ -599,7 +609,7 @@ class ProcessesPaneTest {
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeast(1)).fill(anyInt(), tops.capture(), anyInt(), bottoms.capture(),
-                eq(RowLayout.SEPARATOR_COLOR));
+                eq(Palette.SEPARATOR));
         int rule = tops.getAllValues().stream().filter(top -> top > waxedTop && top < longTop).findFirst()
                 .orElseThrow();
         assertEquals(rule + 1, (int) bottoms.getAllValues().get(tops.getAllValues().indexOf(rule)));
@@ -682,14 +692,14 @@ class ProcessesPaneTest {
         DrawnFrame marked = frame();
         DrawnFrame.Text arrow = rowControl(marked, key, "↺");
         assertEquals(cross.x(), arrow.x());
-        assertEquals(ButtonPainter.GOLD, arrow.color());
+        assertEquals(Palette.GOLD, arrow.color());
         assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Restore")),
                 marked.targets.hovered(arrow.x() + 1, arrow.y() + 1));
         assertTrue(postConversionKeys().contains(key), postConversionKeys().toString());
         assertTrue(marked.targets.click(arrow.x() + 1, arrow.y() + 1));
         DrawnFrame restored = frame();
         DrawnFrame.Text again = rowControl(restored, key, "✗");
-        assertEquals(ProcessesPane.RED, again.color());
+        assertEquals(Palette.DANGER, again.color());
         assertTrue(restored.targets.click(again.x() + 1, again.y() + 1));
         assertEquals(List.of("_conversions\n" + key), draft.removals().marked(RemovalMarks.Tab.MUTATORS));
         pane.applyRemovals();

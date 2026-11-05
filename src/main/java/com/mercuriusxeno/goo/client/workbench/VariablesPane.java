@@ -60,12 +60,6 @@ final class VariablesPane {
      */
     static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + BLOCK_GAP + TEXT_NUDGE + BARE_HEAD_HEIGHT
             + ButtonPainter.HEIGHT + BLOCK_GAP;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
-    private static final int LINK = ButtonPainter.LINK;
-    private static final int CARD_COLOR = 0xF0181818;
-    private static final int DIM_COLOR = 0xA0000000;
     private static final String RESOLVED_SEPARATOR = ", ";
     private static final String TAG_PREFIX = "#";
     private static final String VALUE_LABEL = "Value:";
@@ -327,7 +321,7 @@ final class VariablesPane {
                  int mouseX, int mouseY) {
         int listTop = placeSearch(view);
         if (variables.blocks().isEmpty()) {
-            graphics.text(font, NO_CONSTANTS, view.left(), listTop, GRAY);
+            graphics.text(font, NO_CONSTANTS, view.left(), listTop, Palette.MUTED);
             drawCreate(graphics, font, view, targets);
             return;
         }
@@ -507,7 +501,7 @@ final class VariablesPane {
         int height = drawReadView(graphics, font, block, runs, new GroupsPane.Bounds(viewX, bounds.top(),
                 bounds.right(), bounds.bottom()), boxTop, targets);
         if (amount.isEmpty()) {
-            graphics.text(font, VALUE_LABEL, labelX, ReadValueButton.textTop(font, runs, y), GRAY);
+            graphics.text(font, VALUE_LABEL, labelX, ReadValueButton.textTop(font, runs, y), Palette.MUTED);
         }
         return boxTop - y + height;
     }
@@ -530,7 +524,7 @@ final class VariablesPane {
             return at.top();
         }
         amount.draw(font, at.amountX() + ButtonPainter.PADDING, at.top(), readPainter(graphics, block, targets));
-        graphics.text(font, VALUE_LABEL, at.labelX(), at.top() + amount.textOffset(font), GRAY);
+        graphics.text(font, VALUE_LABEL, at.labelX(), at.top() + amount.textOffset(font), Palette.MUTED);
         return at.top() + amount.height() + AMOUNT_GAP;
     }
 
@@ -561,8 +555,8 @@ final class VariablesPane {
                     () -> draft.removals().restore(RemovalMarks.Tab.PREFABS, name));
             return;
         }
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), top,
-                ButtonPainter.HEIGHT, targets, () -> askDelete(name), BuilderOverlays.hintKey(DELETE_HINT));
+        ButtonPainter.drawColored(graphics, font, DELETE, Palette.DANGER, right - ButtonPainter.width(font, DELETE),
+                top, ButtonPainter.HEIGHT, targets, () -> askDelete(name), BuilderOverlays.hintKey(DELETE_HINT));
     }
 
     // A plain left click on the read view's button, its pencil or a ref in it, starts editing its block, and a
@@ -579,7 +573,8 @@ final class VariablesPane {
     private ExpressionLines.Painter readPainter(GuiGraphicsExtractor graphics, VariablesTab.ConstantBlock block,
                                                 ClickTargets targets) {
         // Decision value-hover-reads-the-same-editing-and-read-only: a ref keys the prefab's tooltip as the builder's.
-        return new ExpressionLines.Painter(graphics, icons, targets, block.error().isEmpty() ? WHITE : RED, LINK,
+        return new ExpressionLines.Painter(graphics, icons, targets,
+                block.error().isEmpty() ? Palette.TEXT : Palette.DANGER, Palette.LINK,
                 ExpressionLines.followedOnShiftClick(targets, actions::openVariable));
     }
 
@@ -625,7 +620,7 @@ final class VariablesPane {
         if (usedBy.count() == 0) {
             return 0;
         }
-        graphics.text(font, USED_BY, x, y + TEXT_NUDGE, GRAY);
+        graphics.text(font, USED_BY, x, y + TEXT_NUDGE, Palette.MUTED);
         int itemsX = x + font.width(USED_BY);
         int itemsWidth = x + width - itemsX;
         List<Integer> widths = usedBy.widths(font);
@@ -672,7 +667,7 @@ final class VariablesPane {
     private void drawUsedByEnd(GuiGraphicsExtractor graphics, Font font, String label, int x, int y,
                                @Nullable String expandKey, boolean expanded, ClickTargets targets) {
         if (expandKey == null) {
-            graphics.text(font, label, x, y + TEXT_NUDGE, GRAY);
+            graphics.text(font, label, x, y + TEXT_NUDGE, Palette.MUTED);
         } else if (expanded) {
             ButtonPainter.draw(graphics, font, label, x, y, ICON_SIZE, targets, () -> expandedUsedBy.hide(expandKey));
         } else {
@@ -775,15 +770,15 @@ final class VariablesPane {
         }
         String name = deleting;
         graphics.nextStratum();
-        graphics.fill(bounds.left(), bounds.top(), bounds.right(), bounds.bottom(), DIM_COLOR);
+        graphics.fill(bounds.left(), bounds.top(), bounds.right(), bounds.bottom(), Palette.DIALOG_DIM);
         targets.addShield(bounds.left(), bounds.top(), bounds.right() - bounds.left(), bounds.bottom() - bounds.top(),
                 () -> { });
         int left = (bounds.left() + bounds.right() - DIALOG_WIDTH) / HALF;
         int top = (bounds.top() + bounds.bottom() - DIALOG_HEIGHT) / HALF;
         GroupsPane.Bounds dialog = new GroupsPane.Bounds(left, top, left + DIALOG_WIDTH, top + DIALOG_HEIGHT);
-        graphics.fill(dialog.left(), dialog.top(), dialog.right(), dialog.bottom(), CARD_COLOR);
+        graphics.fill(dialog.left(), dialog.top(), dialog.right(), dialog.bottom(), Palette.DIALOG_CARD);
         graphics.text(font, DELETE_TITLE_START + name + DELETE_TITLE_END, left + CARD_PADDING,
-                top + CARD_PADDING, WHITE);
+                top + CARD_PADDING, Palette.TEXT);
         drawCascade(graphics, font, name, dialog, targets);
         drawDialogButtons(graphics, font, name, dialog, targets);
     }
@@ -829,7 +824,7 @@ final class VariablesPane {
                                    ClickTargets targets) {
         int x = dialog.left() + CARD_PADDING;
         int buttonY = dialog.bottom() - LINE_HEIGHT - CARD_PADDING;
-        ButtonPainter.Box deleteBox = ButtonPainter.drawColored(graphics, font, CONFIRM_DELETE, RED, x,
+        ButtonPainter.Box deleteBox = ButtonPainter.drawColored(graphics, font, CONFIRM_DELETE, Palette.DANGER, x,
                 buttonY - ButtonPainter.PADDING, ButtonPainter.HEIGHT, targets, () -> markForRemoval(name), null);
         ButtonPainter.drawAtText(graphics, font, CANCEL, deleteBox.right() + ACTION_GAP * HALF, buttonY, targets, () -> {
             deleting = null;
@@ -849,7 +844,7 @@ final class VariablesPane {
         }
         if (GROUP_KIND.equals(reader.kind())) {
             String label = reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id();
-            graphics.text(font, label, x, y + TEXT_NUDGE, GRAY);
+            graphics.text(font, label, x, y + TEXT_NUDGE, Palette.MUTED);
             return font.width(label);
         }
         graphics.item(icons.of(reader.id()), x, y);

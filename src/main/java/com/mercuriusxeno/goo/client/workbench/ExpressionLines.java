@@ -30,12 +30,6 @@ final class ExpressionLines {
     private static final int ICON_NUDGE = 1;
     private static final int GLYPH_GAP = 1;
     private static final int HALF = 2;
-    private static final int RED = 0xFFFF5555;
-    /**
-     * The = + - x ( ) symbols' color, which stands out from the text's (decision
-     * read-view-reads-type-equals-possessive-terms).
-     */
-    static final int SYMBOL_COLOR = 0xFFE0C060;
     private static final String NOTHING = "";
     private static final String PLUS = "+";
     private static final String MINUS = "-";
@@ -157,7 +151,7 @@ final class ExpressionLines {
     record Painter(GuiGraphicsExtractor graphics, @Nullable ItemIcons icons, ClickTargets targets, int textColor,
                    int linkColor, LinkSink links, int symbolColor) {
         /**
-         * A painter drawing the symbols in {@link #SYMBOL_COLOR}.
+         * A painter drawing the symbols in {@link #Palette.GOLD}.
          *
          * @param graphics  the frame's graphics
          * @param icons     the items' icons, null where no item draws
@@ -168,7 +162,7 @@ final class ExpressionLines {
          */
         Painter(GuiGraphicsExtractor graphics, @Nullable ItemIcons icons, ClickTargets targets, int textColor,
                 int linkColor, LinkSink links) {
-            this(graphics, icons, targets, textColor, linkColor, links, SYMBOL_COLOR);
+            this(graphics, icons, targets, textColor, linkColor, links, Palette.GOLD);
         }
     }
 
@@ -723,7 +717,7 @@ final class ExpressionLines {
                 case AMOUNT -> SmallDigits.draw(graphics, lettering.font(), piece, x,
                         lineTop + GooTypeIcons.centered(lineHeight, SmallDigits.GLYPH_HEIGHT) + 1, painter.textColor());
                 case LINK -> drawLink(lettering, run, piece, new int[] {x, textTop}, painter);
-                case ERROR -> lettering.draw(graphics, piece, x, textTop, RED);
+                case ERROR -> lettering.draw(graphics, piece, x, textTop, Palette.DANGER);
                 // Decision read-view-reads-type-equals-possessive-terms.
                 case OPERATOR, FLUSH_SYMBOL -> lettering.draw(graphics, piece, x, textTop, painter.symbolColor());
                 default -> lettering.draw(graphics, piece, x, textTop, painter.textColor());

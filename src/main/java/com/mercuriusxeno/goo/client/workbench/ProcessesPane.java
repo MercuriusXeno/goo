@@ -54,17 +54,10 @@ final class ProcessesPane {
     private static final int COLUMN_GAP = 12;
     private static final int HALF = 2;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
-    private static final int WHITE = 0xFFFFFFFF;
-    /** An Invalid verdict's color. */
-    static final int RED = 0xFFFF5555;
-    /** A Valid verdict's color. */
-    static final int GREEN = 0xFF80E080;
     private static final String CHECK = "✔";
     private static final String CROSS = "✘";
     private static final String REASON_GAP = ": ";
     private static final String NO_REASON = "";
-    /** A mutator or iterator row's box fill. */
-    static final int ROW_COLOR = 0x20FFFFFF;
     private static final String DELETE = "✗";
     // A section key starts with an underscore and holds no newline, so a newline parts it from the entry's key.
     private static final char MARK_SEPARATOR = '\n';
@@ -274,7 +267,7 @@ final class ProcessesPane {
         GroupsPane.Bounds column = frame.rows();
         GuiGraphicsExtractor graphics = frame.graphics();
         graphics.text(frame.font(), iterators ? ITERATORS : MUTATORS, column.left(), column.top() + HEADING_NUDGE,
-                WHITE);
+                Palette.TEXT);
         drawCreate(frame, section.section(), iterators, column.top());
         int listTop = column.top() + ControlFlow.FULL_LINE + GAP;
         ScrollBar bar = columnBar(iterators);
@@ -404,9 +397,9 @@ final class ProcessesPane {
                         GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         drawHeadLine(new Frame(graphics, font, bounds, targets), section, row, y);
         int sentenceTop = y + HEAD_HEIGHT + SENTENCE_PAD;
+        // Decision fills-are-two-roles-selected-and-panel: no row fill, so the rows read like Items and Prefabs.
         int below = controls.draw(graphics, font, section, row.key(), new GroupsPane.Bounds(bounds.left(),
                 sentenceTop, bounds.right(), bounds.bottom()), sentenceTop, targets) + SENTENCE_PAD;
-        graphics.fill(bounds.left(), y, bounds.right(), below, ROW_COLOR);
         return below + ROW_GAP;
     }
 
@@ -446,7 +439,7 @@ final class ProcessesPane {
                     frame.targets(), () -> draft.removals().restore(RemovalMarks.Tab.MUTATORS, mark));
             return;
         }
-        ButtonPainter.drawColored(frame.graphics(), frame.font(), DELETE, RED,
+        ButtonPainter.drawColored(frame.graphics(), frame.font(), DELETE, Palette.DANGER,
                 frame.rows().right() - ButtonPainter.width(frame.font(), DELETE), top, ButtonPainter.HEIGHT,
                 frame.targets(), () -> markEntry(mark), BuilderOverlays.hintKey(DELETE_HINT));
     }
@@ -535,7 +528,7 @@ final class ProcessesPane {
      *     (decision mutators-read-valid-or-invalid-with-a-mark)
      */
     static VerdictMark verdictMark(ProcessesTab.ProcessRow row) {
-        return row.parsed() ? new VerdictMark(CHECK, GREEN) : new VerdictMark(CROSS, RED);
+        return row.parsed() ? new VerdictMark(CHECK, Palette.GOOD) : new VerdictMark(CROSS, Palette.DANGER);
     }
 
     /**

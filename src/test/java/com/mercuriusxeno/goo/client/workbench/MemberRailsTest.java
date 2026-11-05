@@ -30,7 +30,7 @@ class MemberRailsTest {
         frame.targets.drag(third.left() + 1, listTop + 1);
         DrawnFrame held = new DrawnFrame();
         rails.drawHeld(held.graphics, detail);
-        List<int[]> lit = DragMaskFills.of(held, DragMask.HIGHLIGHT);
+        List<int[]> lit = DragMaskFills.of(held, Palette.DRAG_HIGHLIGHT);
         assertEquals(1, lit.size(), "one lit row");
         assertEquals(List.of(detail.left(), detail.top(), detail.right(), listTop + GroupsPane.CARD_HEIGHT),
                 List.of(lit.getFirst()[0], lit.getFirst()[1], lit.getFirst()[2], lit.getFirst()[3]),

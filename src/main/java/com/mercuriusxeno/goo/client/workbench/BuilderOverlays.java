@@ -41,9 +41,6 @@ final class BuilderOverlays {
     private static final int DROPDOWN_HEIGHT = DROPDOWN_CHROME + SearchDropdown.SHOWN * SearchDropdown.ROW_HEIGHT;
     private static final int OPTION_ROW = ButtonPainter.HEIGHT;
     private static final int OPTION_TEXT_NUDGE = 3;
-    private static final int OPTION_BACKGROUND = 0xF0101010;
-    private static final int OPTION_BORDER = 0xFF606060;
-    private static final int WHITE = 0xFFFFFFFF;
 
     private final ManagerActions actions;
     private final ItemIcons icons;
@@ -516,12 +513,12 @@ final class BuilderOverlays {
         int left = placed.left();
         int top = placed.top();
         graphics.nextStratum();
-        graphics.fill(left - 1, top - 1, left + width + 1, top + open.size() * OPTION_ROW + 1, OPTION_BORDER);
-        graphics.fill(left, top, left + width, top + open.size() * OPTION_ROW, OPTION_BACKGROUND);
+        graphics.fill(left - 1, top - 1, left + width + 1, top + open.size() * OPTION_ROW + 1, Palette.POPUP_BORDER);
+        graphics.fill(left, top, left + width, top + open.size() * OPTION_ROW, Palette.POPUP_FILL);
         for (int index = 0; index < open.size(); index++) {
             Option option = open.get(index);
             int rowTop = top + index * OPTION_ROW;
-            graphics.text(font, option.label(), left + ButtonPainter.PADDING, rowTop + OPTION_TEXT_NUDGE, WHITE);
+            graphics.text(font, option.label(), left + ButtonPainter.PADDING, rowTop + OPTION_TEXT_NUDGE, Palette.TEXT);
             targets.add(left, rowTop, width, OPTION_ROW, () -> pickOption(option), hintKey(option.hint()));
         }
     }

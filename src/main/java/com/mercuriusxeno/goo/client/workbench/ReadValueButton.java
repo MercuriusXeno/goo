@@ -15,7 +15,6 @@ final class ReadValueButton {
     static final String NOT_SET = "Value: Not explicitly set";
     /** The pencil segment's label. */
     static final String PENCIL = "✎";
-    private static final int NOT_SET_COLOR = 0xFFA0A0A0;
     // The expression stands a pixel in from the frame's top border and a pixel above its bottom one.
     private static final int CONTENT_INSET = 2;
 
@@ -86,7 +85,7 @@ final class ReadValueButton {
         drawPencil(graphics, font, frame, textTop(font, runs, place.top()), targets, place.open());
         if (runs.isEmpty()) {
             graphics.text(font, NOT_SET, place.left() + ButtonPainter.PADDING, place.top() + ButtonPainter.TEXT_NUDGE,
-                    NOT_SET_COLOR);
+                    Palette.MUTED);
         } else {
             ExpressionLines.draw(font, runs, place.left() + ButtonPainter.PADDING, place.top() + CONTENT_INSET,
                     contentWidth(font, place.right() - place.left()), painter);
@@ -100,7 +99,7 @@ final class ReadValueButton {
         ButtonPainter.Box pencil = new ButtonPainter.Box(frame.right() - 1, frame.top(),
                 ButtonPainter.width(font, PENCIL), frame.height());
         ButtonPainter.drawFrame(graphics, pencil);
-        graphics.text(font, PENCIL, pencil.left() + ButtonPainter.PADDING, textTop, ButtonPainter.LINK);
+        graphics.text(font, PENCIL, pencil.left() + ButtonPainter.PADDING, textTop, Palette.LINK);
         ButtonPainter.reserve(targets, pencil, open, null);
     }
 }
