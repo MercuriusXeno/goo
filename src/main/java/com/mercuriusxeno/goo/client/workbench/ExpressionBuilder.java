@@ -415,14 +415,53 @@ final class ExpressionBuilder {
      * @return whether the drop moves the term
      */
     boolean canMoveTo(List<Integer> from, List<Integer> toSum, int toIndex) {
-        List<Integer> ownSum = from.subList(0, from.size() - 1);
-        boolean origin = toSum.equals(ownSum) && (toIndex == from.getLast() || toIndex == from.getLast() + 1);
-        if (origin) {
+        if (isOwnSlot(from, toSum, toIndex)) {
             return false;
         }
         Leaving leaving = leavingOf(from);
         List<Integer> fromSum = leaving.path().subList(0, leaving.path().size() - 1);
         return !dropBreaksTheTree(leaving.path(), toSum, sumAt(fromSum).size());
+    }
+
+    /**
+     * Copies a term or a parenthetical to a slot of any sum, carrying its sign and leaving the source standing; a drop
+     * on the term's own slots either side, or a whole term beside type rows, is refused.
+     * Decision ctrl-during-a-rail-drag-shows-a-green-plus-and-drops-a-copy.
+     *
+     * @param from    the term's place
+     * @param toSum   the sum the copy drops into
+     * @param toIndex the slot in that sum, before the term at that index, or the sum's size for its end
+     * @return whether the copy landed
+     */
+    boolean copyTo(List<Integer> from, List<Integer> toSum, int toIndex) {
+        if (!canCopyTo(from, toSum, toIndex)) {
+            return refuse(MOVE_CHANGES_VALUE);
+        }
+        Piece copied = pieceAt(from);
+        changed();
+        List<Piece> landing = new ArrayList<>(sumAt(toSum));
+        landing.add(toIndex, copied);
+        replaceSum(toSum, signed(landing));
+        return true;
+    }
+
+    /**
+     * Whether copyTo would take the drop (decision drags-indicate-only-a-drop-the-builder-takes).
+     *
+     * @param from    the term's place
+     * @param toSum   the sum the copy would drop into
+     * @param toIndex the slot in that sum
+     * @return whether the drop copies the term
+     */
+    boolean canCopyTo(List<Integer> from, List<Integer> toSum, int toIndex) {
+        boolean beside = toSum.isEmpty() && !rows.isEmpty();
+        return !beside && toIndex >= 0 && !isOwnSlot(from, toSum, toIndex) && toIndex <= sumAt(toSum).size();
+    }
+
+    // A slot either side of the term in its own sum.
+    private static boolean isOwnSlot(List<Integer> from, List<Integer> toSum, int toIndex) {
+        List<Integer> ownSum = from.subList(0, from.size() - 1);
+        return toSum.equals(ownSum) && (toIndex == from.getLast() || toIndex == from.getLast() + 1);
     }
 
     /**
