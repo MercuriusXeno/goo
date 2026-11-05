@@ -80,6 +80,52 @@ class ControlFlowTest {
     }
 
     /**
+     * A ref term's runs segment on the flow's first line hands its click the segment's own left and that line's top,
+     * however many lines the flow drew after it (decision
+     * diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom).
+     */
+    @Test
+    void runsSegmentAnchorsAtItsOwnLineAfterLaterLines() {
+        ClickTargets targets = new ClickTargets();
+        ControlFlow flow = new ControlFlow(mock(GuiGraphicsExtractor.class), font(), targets, null, 0, 400, 0);
+        flow.control("lead", null, at -> { });
+        int segmentLeft = flow.column();
+        List<BuilderOverlays.Anchor> pressed = new ArrayList<>();
+        flow.openSegments(100, ControlFlow.FULL_LINE);
+        flow.runsSegment(REF, "", pressed::add);
+        flow.closeSegments();
+        drawTwoMoreLines(flow);
+        assertTrue(targets.click(segmentLeft + 1, 1));
+        assertEquals(List.of(new BuilderOverlays.Anchor(segmentLeft, 0)), pressed);
+    }
+
+    /**
+     * A goo type segment on the flow's first line hands its click the segment's own left and that line's top, however
+     * many lines the flow drew after it (decision diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom).
+     */
+    @Test
+    void typeSegmentAnchorsAtItsOwnLineAfterLaterLines() {
+        ClickTargets targets = new ClickTargets();
+        ControlFlow flow = new ControlFlow(mock(GuiGraphicsExtractor.class), font(), targets, null, 0, 400, 0);
+        flow.control("lead", null, at -> { });
+        int segmentLeft = flow.column();
+        List<BuilderOverlays.Anchor> pressed = new ArrayList<>();
+        flow.openSegments(ControlFlow.typeSegmentWidth("metal"), ControlFlow.FULL_LINE);
+        flow.typeSegment("metal", pressed::add);
+        flow.closeSegments();
+        drawTwoMoreLines(flow);
+        assertTrue(targets.click(segmentLeft + 1, 1));
+        assertEquals(List.of(new BuilderOverlays.Anchor(segmentLeft, 0)), pressed);
+    }
+
+    private static void drawTwoMoreLines(ControlFlow flow) {
+        flow.newLine();
+        flow.control("second", null, at -> { });
+        flow.newLine();
+        flow.control("third", null, at -> { });
+    }
+
+    /**
      * A run that takes no click lays no box and no target.
      */
     @Test

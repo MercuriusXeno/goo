@@ -922,8 +922,11 @@ final class ControlFlow {
         int size = GooTypeIcons.sizeOf(type);
         GooTypeIcons.blit(graphics, type, box.left() + ButtonPainter.ICON_PADDING,
                 box.top() + GooTypeIcons.centered(box.height(), size));
-        targets.add(box.left(), box.top(), box.width(), box.height(),
-                () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)), GooTypeIcons.pickHoverKey(type));
+        // Decision diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom: the anchor is taken while the
+        // segment draws, since by click time the flow stands on its last line.
+        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+        targets.add(box.left(), box.top(), box.width(), box.height(), () -> pressed.accept(at),
+                GooTypeIcons.pickHoverKey(type));
     }
 
     /**
@@ -937,8 +940,9 @@ final class ControlFlow {
     void runsSegment(List<ExpressionLines.Run> runs, String suffix, @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
         ButtonPainter.Box box = nextSegment(runsSegmentWidth(letters, runs, suffix));
         if (pressed != null) {
-            targets.add(box.left(), box.top(), box.width(), box.height(),
-                    () -> pressed.accept(new BuilderOverlays.Anchor(box.left(), y)), null);
+            // Decision diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom.
+            BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+            targets.add(box.left(), box.top(), box.width(), box.height(), () -> pressed.accept(at), null);
         }
         int runsWidth = ExpressionLines.width(letters, runs);
         ExpressionLines.draw(letters, runs, new ExpressionLines.Span(box.left() + ButtonPainter.PADDING, box.top(),
