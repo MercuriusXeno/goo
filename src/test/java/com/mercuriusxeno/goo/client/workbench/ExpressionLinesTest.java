@@ -222,15 +222,16 @@ class ExpressionLinesTest {
     }
 
     /**
-     * A tree constant's resolved value draws each type as its icon beside its amount.
+     * A tree constant's resolved value draws each type as its icon beside its amount, an amount run drawn small and
+     * mixed (decision groups-value-draws-as-every-other-panes-value).
      */
     @Test
     void resolvedTreeDrawsTypeIconsBesideAmounts() {
         List<ExpressionLines.Run> runs = ExpressionLines.resolvedRuns("blaze 24, rock 3/2");
         assertEquals(List.of(new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "blaze"),
-                run(ExpressionLines.Kind.NUMBER, "24"),
+                run(ExpressionLines.Kind.AMOUNT, "24"),
                 new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "rock"),
-                run(ExpressionLines.Kind.NUMBER, "3/2")), runs);
+                run(ExpressionLines.Kind.AMOUNT, "3/2")), runs);
         assertCurated(runs);
     }
 

@@ -53,8 +53,9 @@ final class AmountGridLine {
         return new AmountGridLine(List.of(List.of(amount(OPEN + amount + CLOSE))));
     }
 
+    // Decision groups-value-draws-as-every-other-panes-value: small and mixed, as every pane's goo amount.
     private static ExpressionLines.Run amount(String text) {
-        return new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, text, null);
+        return ExpressionLines.amount(text);
     }
 
     // The first amount opens the paren, the last closes it, and a comma follows each but the last.

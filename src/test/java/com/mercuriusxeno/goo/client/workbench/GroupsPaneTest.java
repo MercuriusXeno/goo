@@ -880,6 +880,49 @@ class GroupsPaneTest {
     }
 
     /**
+     * A group worth 21/2 glow draws its goo value as the Items row draws an amount: small, as the mixed number 10
+     * and a half, the half stacked over its bar, and never 21/2 at full size (decision
+     * groups-value-draws-as-every-other-panes-value).
+     */
+    @Test
+    void cardValueDrawsSmallAsAMixedNumber() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_log", "Oak Log")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": \\"21/2\\"}",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "oak_log", "value": {"glow": "21/2"}, "denied": false}]}
+                """);
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": "{\\"glow\\": \\"21/2\\"}", "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        assertEquals(SmallDigits.SCALE, frame.placed("10").scale(), frame.placements().toString());
+        assertTrue(frame.placements().stream().anyMatch(placed -> placed.text().equals("2")
+                && placed.scale() < SmallDigits.SCALE), "the half stacks: " + frame.placements());
+        assertTrue(frame.placements().stream().noneMatch(placed -> placed.text().contains("21/2")
+                && placed.scale() == 1f && placed.y() < frame.find(ReadValueButton.PENCIL).y() - 4),
+                frame.placements().toString());
+    }
+
+    /**
      * A valued group card draws its value framed with a pencil segment at its right, and a click on the pencil opens
      * the builder in its place (decision read-mode-builder-is-a-button-with-a-pencil-segment).
      */

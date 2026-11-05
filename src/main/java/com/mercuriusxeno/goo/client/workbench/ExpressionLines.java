@@ -72,8 +72,14 @@ final class ExpressionLines {
         ITEM,
         /** A prefab's name as a link; its ref is the prefab. */
         LINK,
-        /** An integer or an amount. */
+        /** An integer an expression writes, or a count. */
         NUMBER,
+        /**
+         * A goo amount, drawn small a pixel lower and as a mixed number, its part under 1 stacked over its bar, as the
+         * Items row draws one (decisions goo-amounts-draw-smaller-and-a-pixel-lower-everywhere,
+         * groups-value-draws-as-every-other-panes-value); marks around it, as "(10½,", ride with it.
+         */
+        AMOUNT,
         /** An operator or a parenthesis. */
         OPERATOR,
         /** Plain text. */
@@ -203,7 +209,7 @@ final class ExpressionLines {
 
     /**
      * @param resolved a prefab's resolved value: "type amount" pairs joined by commas, or a scalar
-     * @return each type as its icon beside its amount, and any other part as text
+     * @return each type as its icon beside its amount, small and mixed, and any other part as text
      */
     static List<Run> resolvedRuns(String resolved) {
         List<Run> runs = new ArrayList<>();
@@ -211,12 +217,20 @@ final class ExpressionLines {
             int space = part.indexOf(AMOUNT_SEPARATOR);
             if (space > 0 && ExpressionTerms.isGooType(part.substring(0, space))) {
                 runs.add(type(part.substring(0, space)));
-                runs.add(number(part.substring(space + 1)));
+                runs.add(amount(part.substring(space + 1)));
             } else if (!part.isEmpty()) {
-                runs.add(part.chars().allMatch(Character::isDigit) ? number(part) : text(part));
+                runs.add(part.chars().allMatch(Character::isDigit) ? amount(part) : text(part));
             }
         }
         return runs;
+    }
+
+    /**
+     * @param text a goo amount, whole, n/d, or riding marks as "(10,"
+     * @return it as an amount run, drawn small and mixed (decision groups-value-draws-as-every-other-panes-value)
+     */
+    static Run amount(String text) {
+        return new Run(Kind.AMOUNT, text, null);
     }
 
     /**
@@ -514,6 +528,7 @@ final class ExpressionLines {
         return switch (run.kind()) {
             case TYPE -> typeSize.applyAsInt(String.valueOf(run.ref()));
             case ITEM -> ITEM_SPRITE_SIZE + ICON_TEXT_GAP + lettering.width(run.text());
+            case AMOUNT -> SmallDigits.width(lettering.font(), run.text());
             case BREAK -> 0;
             default -> lettering.width(run.text());
         };
@@ -704,6 +719,9 @@ final class ExpressionLines {
                             lineTop + GooTypeIcons.centered(lineHeight, size), size);
                 }
                 case ITEM -> drawItem(lettering, run, piece, new int[] {x, lineTop}, painter);
+                // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: as the Items row's SmallDigits.
+                case AMOUNT -> SmallDigits.draw(graphics, lettering.font(), piece, x,
+                        lineTop + GooTypeIcons.centered(lineHeight, SmallDigits.GLYPH_HEIGHT) + 1, painter.textColor());
                 case LINK -> drawLink(lettering, run, piece, new int[] {x, textTop}, painter);
                 case ERROR -> lettering.draw(graphics, piece, x, textTop, RED);
                 // Decision read-view-reads-type-equals-possessive-terms.

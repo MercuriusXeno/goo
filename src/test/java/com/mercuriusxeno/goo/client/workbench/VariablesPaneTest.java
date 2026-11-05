@@ -262,6 +262,12 @@ class VariablesPaneTest {
     }
 
     private static final int GAME_LINE_HEIGHT = 9;
+
+    // A small amount stands a pixel or three lower than a full-size label on its line (decision
+    // goo-amounts-draw-smaller-and-a-pixel-lower-everywhere), so one line holds texts within half a line's height.
+    private static boolean onLine(int labelY, int amountY) {
+        return Math.abs(labelY - amountY) < ExpressionLines.TEXT_LINE_HEIGHT / 2;
+    }
     private static final int SPRITE = 16;
 
     private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 20, 400, 6000);
@@ -603,11 +609,11 @@ class VariablesPaneTest {
         assertTrue(value.y() > name.y(), value + " below " + name);
         DrawnFrame.Text glowAmount = frame.find("(6,");
         DrawnFrame.Text leafAmount = frame.find("4)");
-        assertEquals(List.of(value.y(), value.y()), List.of(glowAmount.y(), leafAmount.y()), frame.drawn().toString());
+        assertTrue(onLine(value.y(), glowAmount.y()) && onLine(value.y(), leafAmount.y()), frame.drawn().toString());
         DrawnFrame.Text leafRow = frame.find("4");
         DrawnFrame.Text glowRow = frame.find("6");
         assertTrue(value.y() < leafRow.y() && leafRow.y() < glowRow.y(), frame.drawn().toString());
-        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() > value.y()
+        assertTrue(frame.drawn().stream().noneMatch(text -> text.y() > glowAmount.y()
                 && (text.text().contains("(") || text.text().contains(")"))), frame.drawn().toString());
     }
 
@@ -649,7 +655,7 @@ class VariablesPaneTest {
                 frame.targets, 0, 0);
         DrawnFrame.Text value = frame.find("Value:");
         List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::find).toList();
-        assertEquals(value.y(), amounts.getFirst().y(), frame.drawn().toString());
+        assertTrue(onLine(value.y(), amounts.getFirst().y()), frame.drawn().toString());
         List<Integer> rowLines = frame.drawn().stream().filter(text -> text.text().equals(":"))
                 .map(DrawnFrame.Text::y).toList();
         assertEquals(4, rowLines.size(), frame.drawn().toString());
@@ -700,7 +706,7 @@ class VariablesPaneTest {
                 .reduce((first, last) -> last).orElseThrow();
         DrawnFrame.Text amount = frame.find("(192)");
         DrawnFrame.Text wood = linkText(frame, "$wood");
-        assertEquals(beamValue.y(), amount.y(), frame.drawn().toString());
+        assertTrue(onLine(beamValue.y(), amount.y()), frame.drawn().toString());
         assertTrue(wood.y() > amount.y(), wood + " below " + amount);
         assertTrue(frame.drawn().stream().noneMatch(text -> text.y() == wood.y() && text.text().contains("(")),
                 frame.drawn().toString());
@@ -770,7 +776,7 @@ class VariablesPaneTest {
         // prefab-head-is-name-pencil-used-by-then-value-with-its-amount), so the second row stands an icon line down.
         assertEquals(PREVIEWED_TYPES.size(), blitsBetween(frame, value.y() - ButtonPainter.HEIGHT,
                 value.y() + ExpressionLines.ICON_LINE_HEIGHT + ButtonPainter.HEIGHT), frame.drawn().toString());
-        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().startsWith("(96768") && text.y() == value.y()),
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().startsWith("(96768") && onLine(text.y(), value.y())),
                 frame.drawn().toString());
     }
 
