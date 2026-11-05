@@ -225,8 +225,13 @@ final class GroupsPane {
         } else {
             drawDetail(graphics, font, detail, selected.get(), targets);
         }
-        builder.drawOverlays(graphics, font, targets);
-        overlays.draw(graphics, font, targets);
+    }
+
+    /**
+     * @return the builder's open lists, then the pane's own, which the screen draws on the overlay stratum
+     */
+    List<OverlayStratum.Layer> overlayLayers() {
+        return List.of(builder::drawOverlays, overlays::draw);
     }
 
     // Decision one-reveal-primitive-centers-before-the-first-draw: a followed row stands centered and glowing from the
