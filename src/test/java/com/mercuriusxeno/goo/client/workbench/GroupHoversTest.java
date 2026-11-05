@@ -34,6 +34,25 @@ class GroupHoversTest {
                 {"path": "base_values.json", "members": [
                   {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "\\"#stones @waxed @cooked\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "waxed", "keySeparator": null, "kind": "VALUE", "text": "\\"+$waxed\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "cooked", "keySeparator": null, "kind": "VALUE", "text": "\\"glow / 1 -> zeal / 2\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "oxidation_metal", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"metal / 4 -> yore / 9\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "oxidation_pulse", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"pulse / 4 -> yore / 9\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "exposed_metal", "keySeparator": null, "kind": "VALUE", "text": "\\"@oxidation_metal\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "exposed_pulse", "keySeparator": null, "kind": "VALUE", "text": "\\"@oxidation_pulse\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "#exposed", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#copper @exposed_metal @exposed_pulse\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "#waxed_exposed", "keySeparator": null, "kind": "VALUE", "text": "\\"#exposed @waxed\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null}]}
                 """);
@@ -60,16 +79,33 @@ class GroupHoversTest {
         return GroupHovers.tooltipFor(groups, values, processes, GroupHovers.hoverKey(group)).orElseThrow();
     }
 
+    private List<TooltipLine> iteratorCard(String iterator) {
+        return GroupHovers.tooltipFor(groups, values, processes, GroupHovers.iteratorHoverKey(iterator)).orElseThrow();
+    }
+
     /**
-     * An iterator's card reads the group it fills, its members and value, then what the iterator does: its ratio and
-     * each mutator it applies in the order its row reads them (decision iterator-hover-adds-its-ratio-and-mutators).
+     * An iterator's card reads the group it fills, its members and value, then what the iterator does: the group it
+     * copies from, then each mutator it applies in the order its row reads them, an additive marked + and a formula
+     * marked * (decisions iterator-hover-adds-its-ratio-and-mutators, group-hover-reads-source-arrow-then-plus-
+     * additives-and-star-multipliers).
      */
     @Test
-    void iteratorCardEndsOnItsRatioAndMutators() {
-        List<TooltipLine> card = GroupHovers.tooltipFor(groups, values, processes,
-                GroupHovers.iteratorHoverKey("#logs")).orElseThrow();
+    void iteratorCardEndsOnItsSourceAndMarkedMutators() {
+        List<TooltipLine> card = iteratorCard("#logs");
         assertEquals(hover("logs"), card.subList(0, card.size() - 1));
-        assertEquals(new TooltipLine.Text(Component.literal("x1 -> waxed, cooked")), card.getLast());
+        assertEquals(new TooltipLine.Text(Component.literal("#stones -> +waxed, *cooked")), card.getLast());
+    }
+
+    @Test
+    void iteratorApplyingAnAdditiveMarksItPlus() {
+        assertEquals(new TooltipLine.Text(Component.literal("#exposed -> +waxed")),
+                iteratorCard("#waxed_exposed").getLast());
+    }
+
+    @Test
+    void iteratorApplyingStacksMarksEachStarByItsMutatorsName() {
+        assertEquals(new TooltipLine.Text(Component.literal("#copper -> *exposed_metal, *exposed_pulse")),
+                iteratorCard("#exposed").getLast());
     }
 
     @Test
