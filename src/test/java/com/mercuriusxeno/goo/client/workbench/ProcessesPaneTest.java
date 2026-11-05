@@ -290,29 +290,28 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Each mutation line right packs against a column edge a gap left of the row's validity marker: its x ends at
-     * the edge, the mutator buttons share one x, each line's words stand one gap left of its button, and
-     * "+ optional mutation" ends at the edge too (decisions iterator-reads-copies-then-mutates-using-and,
-     * mutator-chain-forms-a-column-left-of-the-validity-marker).
+     * Each mutation line right packs against one edge left of the row's validity marker, half as far from the row's
+     * right as the marker set before: its x ends at the edge one gap past its own mutator's button, each line's words
+     * stand one gap left of its button, and "+ optional mutation" ends at the edge too (decisions
+     * iterator-reads-copies-then-mutates-using-and, chain-lines-inset-halves-at-most,
+     * chain-x-follows-its-mutator-at-one-gap).
      */
     @Test
-    void iteratorMutationLinesRightPackWithTheirButtonsAligned() {
+    void iteratorMutationLinesRightPackEachXByItsMutator() {
         pane = chainedIterators(mock(ManagerActions.class));
         DrawnFrame frame = frame();
         DrawnFrame.Text then = frame.find("mutated by");
         DrawnFrame.Text and = frame.find("and");
-        DrawnFrame.Text waxed = onLineOf(frame, then, "waxed");
-        DrawnFrame.Text rust = onLineOf(frame, and, "rust");
-        DrawnFrame.Text marker = frame.drawn().stream().filter(text -> text.text().equals("✔") && text.x() > then.x())
-                .findFirst().orElseThrow();
-        int edge = marker.x() - BuilderOverlays.GAP;
-        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the column ends inside the box");
-        assertEquals(edge, frame.buttonAround(onLineOf(frame, then, "x"))[2], frame.drawn().toString());
+        int edge = frame.buttonAround(onLineOf(frame, then, "x"))[2];
+        assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the lines end inside the box");
         assertEquals(edge, frame.buttonAround(onLineOf(frame, and, "x"))[2], frame.drawn().toString());
-        int buttonLeft = frame.buttonAround(waxed)[0];
-        assertEquals(buttonLeft, frame.buttonAround(rust)[0], waxed + " vs " + rust);
-        assertEquals(buttonLeft - BuilderOverlays.GAP, then.x() + LETTERS.width(then.text()), then.toString());
-        assertEquals(buttonLeft - BuilderOverlays.GAP, and.x() + LETTERS.width(and.text()), and.toString());
+        for (DrawnFrame.Text words : List.of(then, and)) {
+            DrawnFrame.Text applied = onLineOf(frame, words, words == then ? "waxed" : "rust");
+            int[] button = frame.buttonAround(applied);
+            assertEquals(button[2] + BuilderOverlays.GAP, frame.buttonAround(onLineOf(frame, words, "x"))[0],
+                    applied.toString());
+            assertEquals(button[0] - BuilderOverlays.GAP, words.x() + LETTERS.width(words.text()), words.toString());
+        }
         DrawnFrame.Text add = frame.drawn().stream().filter(text -> text.text().equals("+ optional mutation")
                 && text.y() > and.y()).findFirst().orElseThrow();
         assertEquals(edge, frame.buttonAround(add)[2], add.toString());

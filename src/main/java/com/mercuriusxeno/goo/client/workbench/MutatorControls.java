@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 final class MutatorControls {
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
+    private static final int HALF = 2;
     // Nine digits always fit an int.
     private static final Pattern DIGITS = Pattern.compile("\\d{1,9}");
     private static final String NOTHING_TARGET = "0";
@@ -99,8 +100,9 @@ final class MutatorControls {
         ControlFlow flow = ControlFlow.lettered(graphics, font, targets, null,
                 new ControlFlow.Span(area.left(), area.right(), top), ref -> { });
         boolean iterator = ProcessesTab.isIterator(key);
-        // Decision mutator-chain-forms-a-column-left-of-the-validity-marker.
-        int chainInset = area.right() - ProcessesPane.markerLeft(font, area.right()) + BuilderOverlays.GAP;
+        // Decision mutator-chain-forms-a-column-left-of-the-validity-marker, its inset halved by decision
+        // chain-lines-inset-halves-at-most.
+        int chainInset = (area.right() - ProcessesPane.markerLeft(font, area.right()) + BuilderOverlays.GAP) / HALF;
         Entry entry = new Entry(flow, section, key, chainInset);
         Processes.Form form = processes.formOf(section, key);
         // Decision mutator-row-is-kind-then-type-reading-add-and-no-applies: a mutator's line starts unindented at
@@ -260,8 +262,8 @@ final class MutatorControls {
 
     // The processes the assignment applies in order, each removable on its own line under the source, the first
     // after "mutated by" and each later one after "and", then "+ optional mutation" on a line of its own; each line
-    // right packs, its x a gap left of the row's validity marker and every mutator button at one x, the words just
-    // left of it, so the lines form a column clear of the marker and the row's remove X.
+    // right packs, its x at one edge left of the row's validity marker, so the lines stand clear of the marker and
+    // the row's remove X.
     // Decision each-chained-mutator-takes-its-own-indented-line.
     // Decision mutator-chain-forms-a-column-left-of-the-validity-marker.
     // Decision iterator-reads-copies-then-mutates-using-and.
@@ -271,10 +273,8 @@ final class MutatorControls {
         String section = entry.section();
         String key = entry.key();
         int inset = entry.chainInset();
-        int widest = chain.stream().mapToInt(link -> ButtonPainter.width(letters, link.substring(STACK_MARK.length())))
-                .max().orElse(0);
         for (int index = 0; index < chain.size(); index++) {
-            drawLink(entry, chain.get(index).substring(STACK_MARK.length()), index, widest);
+            drawLink(entry, chain.get(index).substring(STACK_MARK.length()), index);
         }
         flow.newLine();
         flow.alignRight(ButtonPainter.width(letters, ADD_MUTATION) + inset);
@@ -282,19 +282,18 @@ final class MutatorControls {
                 processes.processNames(section)), name -> processes.addAssignmentLink(section, key, STACK_MARK + name)));
     }
 
-    // One chained mutator's line: its words, the mutator's button at the column's one x, then its x.
-    private void drawLink(Entry entry, String applied, int index, int widest) {
+    // One chained mutator's line, right packed whole: its words, the mutator's button, then its x one gap past it.
+    // Decision chain-x-follows-its-mutator-at-one-gap.
+    private void drawLink(Entry entry, String applied, int index) {
         ControlFlow flow = entry.flow();
         Lettering letters = flow.letters();
-        int removeWidth = ButtonPainter.width(letters, REMOVE_LINK);
         String words = index == 0 ? MUTATED_BY : AND;
         flow.newLine();
-        flow.alignRight(letters.width(words) + BuilderOverlays.GAP + widest + BuilderOverlays.GAP + removeWidth
-                + entry.chainInset());
+        flow.alignRight(letters.width(words) + BuilderOverlays.GAP + ButtonPainter.width(letters, applied)
+                + BuilderOverlays.GAP + ButtonPainter.width(letters, REMOVE_LINK) + entry.chainInset());
         flow.text(words, GRAY);
         // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
         flow.followLink(applied, PrefabHovers.hoverKey(applied), () -> actions.openMutator(applied));
-        flow.alignRight(removeWidth + entry.chainInset());
         flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                 at -> edit(() -> processes.removeAssignmentLink(entry.section(), entry.key(), index)));
     }
