@@ -58,7 +58,7 @@ public final class ValuesManagerScreen extends Screen {
     private final ItemIcons icons = new ItemIcons(values::worthOf);
     private final ClickTargets targets = new ClickTargets();
     private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
-            PointerHand::cursor);
+            PointerHand::cursor, CopyPlus::cursor);
     private final ExplainerMode explainer = new ExplainerMode(ExplainerTargets.forTabs(this::tabBounds));
     private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
@@ -398,6 +398,9 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        // Decision ctrl-during-a-rail-drag-shows-a-green-plus-and-drops-a-copy: Ctrl's state as the button comes up
+        // decides a copy from a move.
+        targets.holdControl(minecraft.hasControlDown());
         return targets.release() || super.mouseReleased(event);
     }
 
@@ -466,6 +469,8 @@ public final class ValuesManagerScreen extends Screen {
         targets.clear();
         // Decision holding-shift-underlines-every-link.
         targets.holdShift(minecraft.hasShiftDown());
+        // Decision ctrl-during-a-rail-drag-shows-a-green-plus-and-drops-a-copy.
+        targets.holdControl(minecraft.hasControlDown());
         ManagerChrome.draw(graphics, font, targets, width, tab, chromeActions());
         extractPane(graphics, mouseX, mouseY);
         drawTitleAndStatus(graphics);
