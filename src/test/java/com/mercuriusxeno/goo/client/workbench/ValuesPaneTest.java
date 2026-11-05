@@ -86,7 +86,7 @@ class ValuesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
         ScreenDraw.extract(pane, frame.graphics, font, bounds, frame.targets);
         assertEquals(List.of(), frame.texts().stream().filter("Tags"::equals).toList());
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0", "Goo");
         ValuesPane.Chip fractional = ValuesPane.layChips(labels, font::width,
                 ValuesPane.chipsLeft(labels, font::width, bounds), 0, values.filter()).chips().get(2);
         frame.targets.click(fractional.left() + 1, fractional.top() + 1);
@@ -122,7 +122,7 @@ class ValuesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         ScreenDraw.extract(pane, frame.graphics, font, bounds, frame.targets);
         assertEquals(Palette.DANGER, frame.find("Negative 1").color());
-        List<String> drawnLabels = List.of("Items", "Uncovered 0", "Fractional", "Negative 1");
+        List<String> drawnLabels = List.of("Items", "Uncovered 0", "Fractional", "Negative 1", "Goo");
         ValuesPane.Chip negative = ValuesPane.layChips(drawnLabels, font::width,
                 ValuesPane.chipsLeft(drawnLabels, font::width, bounds), 0, values.filter()).chips().get(3);
         frame.targets.click(negative.left() + 1, negative.top() + 1);
@@ -133,6 +133,34 @@ class ValuesPaneTest {
         new ValuesPane(none, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of))
                 .extract(empty.graphics, font, bounds, empty.targets);
         assertEquals(0xFFFFFFFF, empty.find("Negative 0").color());
+    }
+
+    /**
+     * A Goo chip stands right of Negative, sharing its border, a click on it holds the Goo filter and it draws filled
+     * while the tab holds it (decision goo-chip-switches-the-search-to-goo-type-names).
+     */
+    @Test
+    void gooChipStandsRightOfNegativeAndHoldsTheGooFilter() {
+        Font font = sixPixelFont();
+        ValuesTab values = new ValuesTab();
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
+        DrawnFrame frame = new DrawnFrame();
+        ScreenDraw.extract(pane, frame.graphics, font, bounds, frame.targets);
+        frame.find("Goo");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0", "Goo");
+        int left = ValuesPane.chipsLeft(labels, font::width, bounds);
+        ValuesPane.Chip clicked = ValuesPane.layChips(labels, font::width, left, 0, values.filter()).chips().get(4);
+        frame.targets.click(clicked.left() + 1, clicked.top() + 1);
+        assertEquals(ValuesTab.Filter.GOO, values.filter());
+        List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, font::width, left, 0, values.filter()).chips();
+        ValuesPane.Chip goo = chips.get(4);
+        ValuesPane.Chip negative = chips.get(3);
+        assertEquals(List.of("Goo", ValuesTab.Filter.GOO, true, negative.left() + negative.width() - 1),
+                List.of(goo.label(), goo.filter(), goo.filled(), goo.left()));
     }
 
     /**
@@ -161,7 +189,7 @@ class ValuesPaneTest {
         EditBox search = widgets.stream()
                 .filter(EditBox.class::isInstance)
                 .map(EditBox.class::cast).findFirst().orElseThrow();
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0", "Goo");
         List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, font::width,
                 ValuesPane.chipsLeft(labels, font::width, bounds), bounds.top(), values.filter()).chips();
         chips.forEach(chip -> assertEquals(search.getY(), chip.top(), chip.toString()));
@@ -509,7 +537,7 @@ class ValuesPaneTest {
         ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), bounds, frame.targets);
         EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
                 .filter(box -> "Search items".equals(box.getMessage().getString())).findFirst().orElseThrow();
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0", "Goo");
         int chips = ValuesPane.chipsLeft(labels, DrawnFrame.font()::width, bounds);
         assertEquals(List.of(bounds.top(), SearchRow.HEIGHT, chips - SearchRow.GAP),
                 List.of(search.getY(), search.getHeight(), search.getX() + search.getWidth()));
@@ -543,7 +571,7 @@ class ValuesPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         ScreenDraw.extract(pane, frame.graphics, sixPixelFont(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0", "Goo");
         ValuesPane.Chip selected = ValuesPane.layChips(labels, sixPixelFont()::width,
                 ValuesPane.chipsLeft(labels, sixPixelFont()::width, new GroupsPane.Bounds(0, 0, 500, 200)), 0,
                 values.filter()).chips().getFirst();
