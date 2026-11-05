@@ -144,18 +144,31 @@ class ExpressionBuilderTest {
         }
 
         /**
-         * A number typed over a prefab term stands the term on it with its count kept, and over a prefab term with a
-         * divisor keeps the divisor (decision ref-term-takes-a-number-again).
+         * A number typed over a prefab term is the term's whole value: the count and divisor go, the term writes and
+         * reads the number typed, and its box opened on the count it held (decision ref-term-takes-a-number-again;
+         * the operator's ruling of 2026-11-04: drop the multiplier, never sneak it into what I type).
          */
         @Test
-        void numberInPlaceOfARefKeepsItsCountAndDivisor() {
+        void numberInPlaceOfARefIsTheWholeValue() {
             ExpressionBuilder counted = ExpressionBuilder.of("3 $base");
-            counted.setNumberInPlaceOfRef(List.of(0), "7");
-            // A number term writes its count after it, as the grammar reads "number times another".
-            assertEquals(Optional.of("7 * 3"), counted.written());
-            ExpressionBuilder divided = ExpressionBuilder.of("$base / 2");
-            divided.setNumberInPlaceOfRef(List.of(0), "7");
-            assertEquals(Optional.of("7 / 2"), divided.written());
+            assertEquals("3", counted.countText(List.of(0)));
+            counted.setNumber(List.of(0), "2");
+            assertEquals(Optional.of("2"), counted.written());
+            assertEquals("2", counted.numberText(List.of(0)));
+            ExpressionBuilder divided = ExpressionBuilder.of("3 $base / 2");
+            assertEquals("1 1/2", divided.countText(List.of(0)));
+            divided.setNumber(List.of(0), "2 1/2");
+            assertEquals(Optional.of("5 / 2"), divided.written());
+        }
+
+        /**
+         * A number typed over a number term carrying a count the builder draws nowhere is the term's whole value too.
+         */
+        @Test
+        void numberTypedOverACountedNumberIsTheWholeValue() {
+            ExpressionBuilder counted = ExpressionBuilder.of("5 * 2");
+            counted.setNumber(List.of(0), "3");
+            assertEquals(Optional.of("3"), counted.written());
         }
 
         @Test
