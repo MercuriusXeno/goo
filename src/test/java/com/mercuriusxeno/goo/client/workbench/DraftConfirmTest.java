@@ -120,6 +120,6 @@ class DraftConfirmTest {
      */
     @Test
     void topbarReadsSaveRevertPromote() {
-        assertEquals(List.of("Save", "Revert", "Promote"), ValuesManagerScreen.topbarLabels());
+        assertEquals(List.of("Save", "Revert", "Promote"), ManagerChrome.topbarLabels());
     }
 }

@@ -11,6 +11,11 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 final class Frame {
     /** A button's frame: its blue border round its dark fill, as the Items chips and the read-value frame draw too. */
     static final Role BUTTON = new Role(Palette.BORDER, Palette.FILL, 1, false);
+    /**
+     * A selected button, as the active tab draws: the button's border round the selected fill, its see-through fill
+     * kept off the border (decision fills-are-two-roles-selected-and-panel).
+     */
+    static final Role SELECTED = new Role(Palette.BORDER, Palette.SELECTED_FILL, 1, true);
     /** A dropdown's, a picker's and an option list's dark chrome. */
     static final Role POPUP = new Role(Palette.POPUP_BORDER, Palette.POPUP_FILL, 1, false);
     /**
