@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Parses the _constants block from base_values.json into scalar and tree constants.
@@ -15,12 +16,13 @@ public final class GooConstantParser {
     private static final String CONSTANTS_SUFFIX = "_constants";
     private static final String LOG_LOADED_CONSTANTS = "Loaded {} constants ({} scalar, {} tree)";
     private static final String LOG_UNRESOLVED_ITEM = "Constant ${} names {}, which holds no value, so it loads no value";
+    private static final String LOG_CYCLE = "Prefabs {}";
 
     private GooConstantParser() {
     }
 
     /**
-     * Parses the _constants object from the JSON root, if present.
+     * Parses the _constants object from the JSON root, if present, each prefab after every prefab it reads.
      *
      * @param json  the root JSON object containing the _constants key
      * @param state mutable parsing state
@@ -32,8 +34,15 @@ public final class GooConstantParser {
             return;
         }
         JsonObject obj = json.getAsJsonObject(CONSTANTS_SUFFIX);
-        for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-            parseOneConstant(entry.getKey(), entry.getValue(), state);
+        PrefabDependencyGraph graph = PrefabDependencyGraph.of(obj);
+        Set<String> cycled = graph.cycled();
+        for (String name : graph.order()) {
+            if (!cycled.contains(name)) {
+                parseOneConstant(name, obj.get(name), state);
+            }
+        }
+        if (Goo.LOGGER.isWarnEnabled()) {
+            graph.cycles().forEach(cycle -> Goo.LOGGER.warn(LOG_CYCLE, PrefabDependencyGraph.cycleError(cycle)));
         }
         logConstantCounts(state);
     }

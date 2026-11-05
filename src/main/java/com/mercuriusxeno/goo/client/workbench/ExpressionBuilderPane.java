@@ -160,7 +160,7 @@ final class ExpressionBuilderPane {
     }
 
     /**
-     * Opens the builder over a prefab's value, which reads only the prefabs above it.
+     * Opens the builder over a prefab's value, which reads every other prefab.
      *
      * @param prefab the prefab's name
      * @param shown  the value as the draft's edit box shows it

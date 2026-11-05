@@ -1960,6 +1960,38 @@ class GooValueRegistryTest {
         }
 
         /**
+         * A $ref to a prefab set below the entry is no mistake, since prefabs resolve by their dependency graph, and a
+         * $ref no entry names still warns unknown (decision
+         * prefabs-resolve-by-dependency-graph-conversions-alone-stay-ordered).
+         */
+        @Test
+        void prefabBelowIsKnownAndAPrefabNoEntryNamesWarnsUnknown() {
+            List<String> warnings = validateJsonString("""
+                    {
+                        "_constants": {
+                            "copper_nugget": "$iron_nugget * 2 + $missing",
+                            "iron_nugget": 3
+                        }
+                    }
+                    """);
+            assertEquals(List.of("_constants.copper_nugget: unknown constant $missing"), warnings);
+        }
+
+        /**
+         * A cycle among prefabs warns once, naming each prefab in it (decision
+         * cycled-prefabs-error-and-the-rest-load).
+         */
+        @Test
+        void prefabCycleWarnsOnceNamingItsPrefabs() {
+            List<String> warnings = validateJsonString("""
+                    {
+                        "_constants": { "a": "$b + 1", "b": "$a + 1", "c": "4" }
+                    }
+                    """);
+            assertEquals(List.of("_constants: $a, $b read each other in a cycle and load no value"), warnings);
+        }
+
+        /**
          * An item valued below an entry naming it is no mistake: the entry waits for it (decision
          * diagnose-and-correct-item-reference-unrecognized-token).
          */

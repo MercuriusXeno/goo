@@ -42,7 +42,8 @@ public final class GooConstantResolver {
     }
 
     /**
-     * Resolves each constant in order, each reading only the constants above it, as the game loads them.
+     * Resolves each constant after every constant it reads, as the game loads them, wherever it sits in the block
+     * (decision prefabs-resolve-by-dependency-graph-conversions-alone-stay-ordered).
      *
      * @param constants the _constants block
      * @return each constant resolved, in the block's order
@@ -55,11 +56,21 @@ public final class GooConstantResolver {
         validateTreeFields(constants, warnings);
         GooValueLoader.ParseState state = new GooValueLoader.ParseState(new HashMap<>(), new HashMap<>(),
                 new HashSet<>(), new HashSet<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new HashMap<>());
-        List<ResolvedConstant> resolved = new ArrayList<>();
-        for (Map.Entry<String, JsonElement> constant : constants.entrySet()) {
-            resolved.add(resolveOne(constant.getKey(), constant.getValue(), state, warnings));
+        PrefabDependencyGraph graph = PrefabDependencyGraph.of(constants);
+        Map<String, ResolvedConstant> byName = new HashMap<>();
+        // Decision cycled-prefabs-error-and-the-rest-load.
+        for (List<String> cycle : graph.cycles()) {
+            for (String name : cycle) {
+                List<String> own = new ArrayList<>(warningsFor(name, warnings));
+                own.add(PrefabDependencyGraph.cycleError(cycle));
+                byName.put(name, new ResolvedConstant(name, constants.get(name).isJsonObject(), null, Map.of(),
+                        String.join(WARNING_SEPARATOR, own)));
+            }
         }
-        return resolved;
+        for (String name : graph.order()) {
+            byName.computeIfAbsent(name, resolving -> resolveOne(resolving, constants.get(resolving), state, warnings));
+        }
+        return constants.keySet().stream().map(byName::get).toList();
     }
 
     @SuppressWarnings("PMD.AvoidCatchingGenericException")
@@ -90,13 +101,13 @@ public final class GooConstantResolver {
 
     /**
      * The game's validator reads a scalar constant's expression; a tree constant's per-type expressions
-     * take the same token check here, against the constants above it.
+     * take the same token check here, against every constant the block names.
      *
      * @param constants the _constants block
      * @param warnings  the warnings so far, added to
      */
     private static void validateTreeFields(JsonObject constants, List<String> warnings) {
-        Set<String> known = new LinkedHashSet<>();
+        Set<String> known = constants.keySet();
         for (Map.Entry<String, JsonElement> constant : constants.entrySet()) {
             if (constant.getValue().isJsonObject()) {
                 for (Map.Entry<String, JsonElement> field : constant.getValue().getAsJsonObject().entrySet()) {
@@ -107,7 +118,6 @@ public final class GooConstantResolver {
                     }
                 }
             }
-            known.add(constant.getKey());
         }
     }
 }
