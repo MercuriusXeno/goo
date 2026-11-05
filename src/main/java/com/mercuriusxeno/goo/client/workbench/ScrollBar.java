@@ -14,6 +14,10 @@ final class ScrollBar {
     static final int WIDTH = 4;
     /** The gap a pane keeps between its content and the track. */
     static final int GAP = 2;
+    /**
+     * How far one wheel notch moves every pixel-scrolled list (decision one-wheel-step-and-one-dialog-primitive).
+     */
+    static final int WHEEL_STEP = 30;
     private static final int MIN_THUMB = 4;
     private static final double HALF = 0.5;
 

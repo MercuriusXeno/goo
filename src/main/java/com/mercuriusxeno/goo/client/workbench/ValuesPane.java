@@ -83,8 +83,7 @@ final class ValuesPane {
     private int valueColumn;
     private @Nullable ColumnInputs columnInputs;
     /** How far one wheel notch moves the Items list, in pixels (decision items-list-scrolls-by-pixel). */
-    static final int SCROLL_STEP = LINE_HEIGHT * 3;
-    private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
+    private final ScrollBar listBar = new ScrollBar(ScrollBar.WHEEL_STEP);
     // The item whose expression the builder stands open over, in its row's place.
     private @Nullable String building;
     private boolean visible;
