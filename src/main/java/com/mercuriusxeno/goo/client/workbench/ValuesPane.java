@@ -456,7 +456,7 @@ final class ValuesPane {
     }
 
     private static String headName(Font font, ValuesTab.ManagerEntry entry, int rowWidth) {
-        return font.plainSubstrByWidth(entry.name(), rowWidth / NAME_SHARE);
+        return ButtonPainter.cut(font, entry.name(), rowWidth / NAME_SHARE);
     }
 
     // Name, = and the goo value at the value column, the recipe right packed, the plain left click on the head
@@ -464,12 +464,13 @@ final class ValuesPane {
     // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right.
     private int drawHead(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                          GroupsPane.Bounds row, ClickTargets targets) {
-        String name = headName(font, entry, row.right() - row.left());
         HeadPlaces places = placeHead(font, entry, row);
         targets.add(row.left(), row.top(), row.right() - row.left(), places.height(), () -> values.select(entry.id()));
         HeadLine line = headLine(font, row.top(), row.right());
         ValuesTab.Source source = values.sourceOf(entry.id());
-        graphics.text(font, name, places.nameLeft(), line.textTop(), Palette.TEXT);
+        // Decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane.
+        ButtonPainter.drawEntryName(graphics, font, targets, ButtonPainter.EntryName.of(entry.name(),
+                places.nameLeft(), line.textTop(), (row.right() - row.left()) / NAME_SHARE, false));
         drawValue(graphics, font, entry.id(), source, places.valueLeft(), line, targets);
         drawRecipe(graphics, font, entry.id(), source, places.recipeLeft(), headLine(font, places.recipeTop(),
                 row.right()), targets);

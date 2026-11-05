@@ -52,7 +52,6 @@ final class GroupsPane {
     private static final int SECTION_GAP = 6;
     private static final int HALF = 2;
     // A hover key no item id, prefab name or goo type key spells.
-    private static final String NAME_HOVER_PREFIX = "goo-group-name:";
     // Nine digits always fit an int.
     private static final int MAX_DIGITS = 9;
     private static final String NEW_GROUP = "+ Custom";
@@ -446,15 +445,12 @@ final class GroupsPane {
                     targets);
             return;
         }
-        String shown = font.plainSubstrByWidth(name, nameTextWidth);
         int textTop = RowLayout.nameTop(font, y);
-        // Decision one-search-row-per-list-with-its-create-control-beside-it: the name draws as every pane's does.
-        ButtonPainter.drawEntryName(graphics, font, shown, area.left(), textTop,
-                groups.removals().isMarked(RemovalMarks.Tab.GROUPS, card.row().name()),
-                card.row().unknownCount() == 0 ? Palette.TEXT : Palette.DANGER);
-        // decision hovering-a-truncated-group-name-shows-the-full-name
-        nameHoverKey(font, name, nameTextWidth).ifPresent(key -> targets.addHover(area.left(), textTop,
-                nameTextWidth, font.lineHeight, key));
+        // Decisions one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane,
+        // hovering-a-truncated-group-name-shows-the-full-name: the name cuts and hovers as every pane's does.
+        String shown = ButtonPainter.drawEntryName(graphics, font, targets, new ButtonPainter.EntryName(name,
+                area.left(), textTop, nameTextWidth, groups.removals().isMarked(RemovalMarks.Tab.GROUPS,
+                card.row().name()), card.row().unknownCount() == 0 ? Palette.TEXT : Palette.DANGER, null));
         int afterX = area.left() + font.width(shown) + ButtonPainter.PENCIL_GAP;
         if (card.tag()) {
             graphics.text(font, after, afterX, textTop, Palette.MUTED);
@@ -576,26 +572,6 @@ final class GroupsPane {
      */
     static int listWidth(Bounds pane) {
         return (pane.right() - pane.left()) * LIST_PARTS / PARTS;
-    }
-
-    /**
-     * @param font  the font the name draws in
-     * @param name  a row's #name as drawn
-     * @param width the name column's text width
-     * @return the hover key whose tooltip reads the whole name where the name column truncates it, empty where it fits
-     */
-    static Optional<String> nameHoverKey(Font font, String name, int width) {
-        return font.width(name) > width ? Optional.of(NAME_HOVER_PREFIX + name) : Optional.empty();
-    }
-
-    /**
-     * @param hoverKey what the hovered area names
-     * @return the whole group name where the area is a truncated name's, empty otherwise
-     */
-    static Optional<TooltipLine> nameTooltipFor(String hoverKey) {
-        return hoverKey.startsWith(NAME_HOVER_PREFIX)
-                ? Optional.of(new TooltipLine.Text(Component.literal(hoverKey.substring(NAME_HOVER_PREFIX.length()))))
-                : Optional.empty();
     }
 
     // Decision expanded-used-by-lists-take-a-hide-button: ..+n expands the row, Hide collapses it again.

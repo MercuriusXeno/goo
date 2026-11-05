@@ -27,7 +27,6 @@ final class ProcessesPane {
     private static final int MARK_WIDTH = 14;
     private static final int NAME_HEAD = 20;
     private static final int NAME_TAIL = 4;
-    private static final String ELLIPSIS = "…";
     // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
     private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename";
@@ -477,14 +476,6 @@ final class ProcessesPane {
     // fills.
     // Decision conversion-controls-hover-their-formula: a mutator's name hovers its formula, a cut one its whole name
     // above it (the operator's report of 2026-11-04: a cut name hovered its name alone, a whole one nothing).
-    private static String nameHoverKey(String section, String key, String shown) {
-        if (ProcessesTab.isIterator(key)) {
-            return GroupHovers.iteratorHoverKey(key);
-        }
-        return shown.equals(key) ? ConversionHovers.hoverKey(section, key)
-                : ConversionHovers.namedHoverKey(section, key);
-    }
-
     private void drawName(Frame frame, String section, String key, NameSlot slot) {
         int x = frame.rows().left();
         int y = slot.y();
@@ -493,13 +484,28 @@ final class ProcessesPane {
             placeNameBox(frame, nameBox, x, y, room);
             return;
         }
-        String shown = fittedName(frame.font(), key, slot.room());
-        ButtonPainter.drawEntryName(frame.graphics(), frame.font(), shown, x, RowLayout.nameTop(frame.font(), y),
-                draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)));
-        frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, nameHoverKey(section, key, shown));
+        String shown = drawNameText(frame, section, key, slot);
         ButtonPainter.draw(frame.graphics(), frame.font(), RENAME,
-                x + frame.font().width(shown) + ButtonPainter.PENCIL_GAP, y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
-                        ProcessesTab.isIterator(key), key)), BuilderOverlays.hintKey(RENAME_HINT));
+                x + frame.font().width(shown) + ButtonPainter.PENCIL_GAP, y + BUTTON_INSET, ButtonPainter.HEIGHT,
+                frame.targets(), () -> startNaming(new Naming(section, ProcessesTab.isIterator(key), key)),
+                BuilderOverlays.hintKey(RENAME_HINT));
+    }
+
+    // Decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane: a cut name hovers its whole name above
+    // its formula, or the group an iterator fills; a whole one hovers its formula or its group. Answers the name drawn.
+    private String drawNameText(Frame frame, String section, String key, NameSlot slot) {
+        int x = frame.rows().left();
+        boolean iterator = ProcessesTab.isIterator(key);
+        String shown = ButtonPainter.drawEntryName(frame.graphics(), frame.font(), frame.targets(),
+                new ButtonPainter.EntryName(key, x, RowLayout.nameTop(frame.font(), slot.y()),
+                        Math.min(slot.room(), frame.font().width(shownName(key))),
+                        draft.removals().isMarked(RemovalMarks.Tab.MUTATORS, markKey(section, key)), Palette.TEXT,
+                        iterator ? GroupHovers.iteratorHoverKey(key) : ConversionHovers.namedHoverKey(section, key)));
+        if (shown.equals(key)) {
+            frame.targets().addHover(x, slot.y(), frame.font().width(shown), HEAD_HEIGHT, iterator
+                    ? GroupHovers.iteratorHoverKey(key) : ConversionHovers.hoverKey(section, key));
+        }
+        return shown;
     }
 
     /**
@@ -509,22 +515,10 @@ final class ProcessesPane {
      */
     static String shownName(String key) {
         return key.length() <= NAME_HEAD + NAME_TAIL ? key
-                : key.substring(0, NAME_HEAD) + ELLIPSIS + key.substring(key.length() - NAME_TAIL);
+                : key.substring(0, NAME_HEAD) + ButtonPainter.ELLIPSIS + key.substring(key.length() - NAME_TAIL);
     }
 
-    // The shown name, its head shortened a letter at a time until it fits the room, its last four kept.
-    private static String fittedName(Font font, String key, int room) {
-        String shown = shownName(key);
-        if (font.width(shown) <= room || key.length() <= NAME_TAIL + 1) {
-            return shown;
-        }
-        String tail = key.substring(key.length() - NAME_TAIL);
-        int head = Math.min(NAME_HEAD, key.length() - NAME_TAIL);
-        while (head > 1 && font.width(key.substring(0, head) + ELLIPSIS + tail) > room) {
-            head--;
-        }
-        return key.substring(0, head) + ELLIPSIS + tail;
-    }
+
 
     /**
      * The mark a row's verdict draws behind.

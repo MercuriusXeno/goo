@@ -4,6 +4,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import org.joml.Matrix3x2fStack;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -303,6 +304,21 @@ class ValuesPaneTest {
                     || text.equals("?")), frame.texts().toString());
         }
 
+        // Decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane: a long item name cuts with the
+        // ellipsis and hovers whole.
+        @Test
+        void longItemNameCutsAndHoversWhole() {
+            String name = "Extraordinarily Long Polished Blackstone Brick Stairs";
+            values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName("minecraft:stairs",
+                    name)), List.of()));
+            DrawnFrame frame = frame();
+            DrawnFrame.Text cut = frame.drawn().stream().filter(text -> text.text().contains(ButtonPainter.ELLIPSIS))
+                    .findFirst().orElseThrow(() -> new AssertionError(frame.texts().toString()));
+            String key = frame.targets.hoveredArea(cut.x() + 1, cut.y() + 1).orElseThrow().hoverKey();
+            assertEquals(Optional.of(new TooltipLine.Text(Component.literal(name))),
+                    ButtonPainter.wholeNameTooltip(key));
+        }
+
         // Decision one-builder-frame-on-every-pane: the builder opens in the read box's place, at the value's indent,
         // short of the entry's x, its panel's overhang reserved above it.
         @Test
@@ -375,8 +391,13 @@ class ValuesPaneTest {
             int listRight = narrow.right() - ScrollBar.WIDTH - ScrollBar.GAP;
             DrawnFrame frame = new DrawnFrame();
             pane.extract(frame.graphics, DrawnFrame.font(), narrow, frame.targets);
-            DrawnFrame.Text planks = frame.find("Oak Planks");
-            assertEquals(List.of("Oak Planks", "=", "2"), onLine(frame, planks).stream().map(DrawnFrame.Text::text)
+            // A row this narrow cuts the name to its column (decision
+            // one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane).
+            DrawnFrame.Text planks = frame.drawn().stream().filter(text -> text.text().startsWith("O")
+                    && text.text().endsWith("anks")).findFirst().orElseThrow(() -> new AssertionError(frame.texts()
+                    .toString()));
+            String cut = planks.text();
+            assertEquals(List.of(cut, "=", "2"), onLine(frame, planks).stream().map(DrawnFrame.Text::text)
                     .toList(), frame.drawn().toString());
             assertEquals(1, itemXsAround(frame, planks.y()).size(), "the recipe left the name line, its own sprite "
                     + "stays: " + itemXsAround(frame, planks.y()));
