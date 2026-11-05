@@ -16,6 +16,7 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.ClientHooks;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.Map;
@@ -404,7 +405,27 @@ public final class ValuesManagerScreen extends Screen {
         if (event.key() == GLFW.GLFW_KEY_ESCAPE && explainer.leave()) {
             return true;
         }
-        return paneTakesKey(event.key()) || super.keyPressed(event);
+        return paneTakesKey(event.key())
+                || event.key() == GLFW.GLFW_KEY_ESCAPE && escapeEmpties(getFocused(), () -> setFocused(null))
+                || super.keyPressed(event);
+    }
+
+    /**
+     * Empties the focused text box through setValue, so its responder refills the list it filters, and drops its
+     * focus, as a right click empties a box; the manager closes only from an Escape with no box focused (decision
+     * escape-empties-the-box-and-never-closes-the-manager).
+     *
+     * @param focused the screen's focused element, null for none
+     * @param unfocus drops the screen's focus
+     * @return whether a box took the Escape
+     */
+    static boolean escapeEmpties(@Nullable GuiEventListener focused, Runnable unfocus) {
+        if (!(focused instanceof EditBox box) || !box.visible) {
+            return false;
+        }
+        box.setValue(EMPTIED);
+        unfocus.run();
+        return true;
     }
 
     private boolean paneTakesKey(int key) {

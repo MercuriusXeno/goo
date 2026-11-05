@@ -98,6 +98,30 @@ class ValuesManagerScreenTest {
     }
 
     /**
+     * Escape with a text box focused empties it through its responder and drops its focus, leaving the manager open;
+     * an Escape with no box focused falls through to the close (decision
+     * escape-empties-the-box-and-never-closes-the-manager).
+     */
+    @Test
+    void escapeEmptiesTheFocusedBoxAndOnlyAnUnfocusedEscapeCloses() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName("minecraft:wax", "Wax"),
+                new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        EditBox box = new EditBox(DrawnFrame.font(), 0, 0, 100, SearchRow.HEIGHT, Component.literal("Search items"));
+        box.setResponder(values::search);
+        box.setValue("wax");
+        assertEquals(1, values.listed().size());
+        List<String> unfocused = new ArrayList<>();
+        assertTrue(ValuesManagerScreen.escapeEmpties(box, () -> unfocused.add("focus dropped")),
+                "the focused box takes the Escape");
+        assertEquals(List.of("", 2, List.of("focus dropped")), List.of(box.getValue(), values.listed().size(),
+                unfocused));
+        assertFalse(ValuesManagerScreen.escapeEmpties(null, () -> unfocused.add("again")),
+                "with no box focused the Escape closes the manager");
+        assertEquals(1, unfocused.size());
+    }
+
+    /**
      * The topbar's X, [?], Save, Revert and Promote and the five tabs draw as the panes' flat 14 px button frames, the
      * active tab in the selected fill, and a press on Save reaches the save through the frame's click areas (decision
      * one-flat-painter-draws-every-button).
