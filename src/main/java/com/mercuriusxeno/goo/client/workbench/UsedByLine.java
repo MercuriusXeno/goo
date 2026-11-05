@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -16,7 +18,73 @@ final class UsedByLine {
     // Decision more-button-reads-dot-dot-plus-n.
     private static final String MORE_START = "..+";
 
+    /** A prefab user's kind, as the evaluation names it. */
+    static final String PREFAB_USER = "constant";
+    /** A group user's kind, as the evaluation names it. */
+    static final String GROUP_USER = "group";
+    private static final String GROUP_MARK = "#";
+
     private UsedByLine() {
+    }
+
+    /**
+     * Where users draw.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param icons    the item stacks the icons draw from
+     * @param actions  the panes' line back to the screen, which the follows open
+     * @param targets  the frame's click areas
+     */
+    record Painter(GuiGraphicsExtractor graphics, Font font, ItemIcons icons, ManagerActions actions,
+                   ClickTargets targets) {
+    }
+
+    /**
+     * @param font the font
+     * @param user a user of a prefab
+     * @return the width its chip or icon takes
+     */
+    static int userWidth(Font font, VariablesTab.Reader user) {
+        return switch (user.kind()) {
+            case PREFAB_USER -> ButtonPainter.width(font, PrefabNames.marked(user.id()));
+            case GROUP_USER -> ButtonPainter.width(font, groupLabel(user.id()));
+            default -> ItemLinks.ICON_SIZE;
+        };
+    }
+
+    /**
+     * Draws one user as the head's Used by line and the delete dialog both draw it: an item its linked icon, a prefab
+     * its $chip following to its block and hovering its value, a group its #chip following to its group (decisions
+     * one-used-by-primitive-draws-the-row-line-and-the-dialog, shift-left-click-follows-plain-left-modifies).
+     *
+     * @param painter where it draws
+     * @param user    the user
+     * @param x       its left edge
+     * @param y       its top
+     * @return the width it took
+     */
+    static int drawUser(Painter painter, VariablesTab.Reader user, int x, int y) {
+        String id = user.id();
+        ManagerActions actions = painter.actions();
+        if (PREFAB_USER.equals(user.kind())) {
+            return ButtonPainter.drawFollow(painter.graphics(), painter.font(), PrefabNames.marked(id), x, y,
+                    ItemLinks.ICON_SIZE, painter.targets(), () -> actions.openVariable(id), PrefabHovers.hoverKey(id))
+                    .width();
+        }
+        if (GROUP_USER.equals(user.kind())) {
+            String label = groupLabel(id);
+            String group = label.substring(GROUP_MARK.length());
+            // Decision group-referent-previews-shorthand-members-then-its-value.
+            return ButtonPainter.drawFollow(painter.graphics(), painter.font(), label, x, y, ItemLinks.ICON_SIZE,
+                    painter.targets(), () -> actions.openGroup(group), GroupHovers.hoverKey(group)).width();
+        }
+        ItemLinks.draw(painter.graphics(), painter.icons(), painter.targets(), actions, id, x, y);
+        return ItemLinks.ICON_SIZE;
+    }
+
+    private static String groupLabel(String id) {
+        return id.startsWith(GROUP_MARK) ? id : GROUP_MARK + id;
     }
 
     /**

@@ -419,8 +419,50 @@ class VariablesPaneTest {
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame().holdingShift();
         read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
-        assertTrue(confirm.underlined("egg"));
+        assertTrue(confirm.underlined("$egg"));
         assertFalse(confirm.underlined("Delete"));
+    }
+
+    /**
+     * The delete confirm's prefab and group readers draw as the head's Used by line draws them: the same $chip and
+     * #chip with the same hovers (decision one-used-by-primitive-draws-the-row-line-and-the-dialog).
+     */
+    @Test
+    void deleteConfirmsReadersDrawAsTheUsedByLineDrawsThem() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "base", "keySeparator": null, "kind": "VALUE", "text": "384", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "base", "kind": "scalar", "value": "384", "error": null, "usedBy": [],
+                                "readers": [{"id": "egg", "kind": "constant"}, {"id": "logs", "kind": "group"}]}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        List<Optional<String>> head = List.of(hoverOf(list, "$egg"), hoverOf(list, "#logs"));
+        list.click("✗");
+        DrawnFrame confirm = new DrawnFrame();
+        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        assertEquals(List.of(Optional.of(PrefabHovers.hoverKey("egg")), Optional.of(GroupHovers.hoverKey("logs"))),
+                head, "the head's Used by line");
+        assertEquals(head, List.of(hoverOf(confirm, "$egg"), hoverOf(confirm, "#logs")), "the dialog's readers");
+    }
+
+    private static Optional<String> hoverOf(DrawnFrame frame, String label) {
+        DrawnFrame.Text text = frame.find(label);
+        return frame.targets.hoveredArea(text.x() + 1, text.y() + 1).map(ClickTargets.HoveredArea::hoverKey);
     }
 
     /**
@@ -1097,7 +1139,7 @@ class VariablesPaneTest {
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
         read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
-        assertTrue(confirm.texts().contains("egg"), confirm.texts().toString());
+        assertTrue(confirm.texts().contains("$egg"), confirm.texts().toString());
         confirm.click("Delete");
         DrawnFrame after = new DrawnFrame();
         read.extract(after.graphics, DrawnFrame.font(), VIEW, after.targets, 0, 0);
@@ -1242,11 +1284,11 @@ class VariablesPaneTest {
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
         read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
-        confirm.click("egg");
+        confirm.click("$egg");
         verify(actions, never()).openVariable(anyString());
         DrawnFrame standing = new DrawnFrame();
         read.extract(standing.graphics, DrawnFrame.font(), VIEW, standing.targets, 0, 0);
-        standing.shiftClick("egg");
+        standing.shiftClick("$egg");
         verify(actions).openVariable("egg");
     }
 

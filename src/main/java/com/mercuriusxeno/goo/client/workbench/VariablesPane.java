@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 /**
  * Draws the Variables tab: each constant's block with its expression, what it resolves to or its error, and the
@@ -55,7 +56,6 @@ final class VariablesPane {
     static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + RowLayout.SPRITE_ROW_HEIGHT + ButtonPainter.HEIGHT
             + BLOCK_GAP;
     private static final String RESOLVED_SEPARATOR = ", ";
-    private static final String TAG_PREFIX = "#";
     private static final String VALUE_LABEL = "Value:";
     private static final String RENAME = "✎";
     private static final String DELETE = "✗";
@@ -73,8 +73,8 @@ final class VariablesPane {
     private static final String SEARCH_HINT = "Search prefabs";
     private static final String NEW_PREFAB = "+";
     private static final String NAME_HINT = "name, Enter";
-    private static final String CONSTANT_KIND = "constant";
-    private static final String GROUP_KIND = "group";
+    // A used-by item's kind, as the evaluation names it.
+    private static final String ITEM_KIND = "item";
     private static final String NO_TEXT = "";
 
     private final VariablesTab variables;
@@ -553,20 +553,15 @@ final class VariablesPane {
             return items.size() + links.size();
         }
 
-        List<Integer> widths(Font font) {
-            List<Integer> widths = new java.util.ArrayList<>();
-            items.forEach(item -> widths.add(ICON_SIZE));
-            links.forEach(link -> widths.add(ButtonPainter.width(font, linkLabel(link))));
-            return widths;
+        // Every user in slot order: the items as item users, then the links.
+        VariablesTab.Reader user(int index) {
+            return index < items.size() ? new VariablesTab.Reader(items.get(index), ITEM_KIND)
+                    : links.get(index - items.size());
         }
-    }
 
-    private static String linkLabel(VariablesTab.Reader link) {
-        return CONSTANT_KIND.equals(link.kind()) ? PrefabNames.marked(link.id()) : groupLabel(link.id());
-    }
-
-    private static String groupLabel(String id) {
-        return id.startsWith(TAG_PREFIX) ? id : TAG_PREFIX + id;
+        List<Integer> widths(Font font) {
+            return IntStream.range(0, count()).mapToObj(index -> UsedByLine.userWidth(font, user(index))).toList();
+        }
     }
 
     // Answers the height the used-by slots took, none where nothing uses the constant. A line too narrow for them
@@ -599,26 +594,10 @@ final class VariablesPane {
         return (UsedByLine.lastRow(slots, endLabel.isPresent()) + 1) * (ICON_SIZE + HALF);
     }
 
-    // An item draws its icon; a prefab's chip follows to its block and hovers its value, a group's to its group, on
-    // shift + left click (decision shift-left-click-follows-plain-left-modifies).
+    // Decision one-used-by-primitive-draws-the-row-line-and-the-dialog: each slot draws as the dialog draws it.
     private void drawUsedBySlot(GuiGraphicsExtractor graphics, Font font, UsedBy usedBy, int index, int x, int y,
                                 ClickTargets targets) {
-        if (index < usedBy.items().size()) {
-            String item = usedBy.items().get(index);
-            ItemLinks.draw(graphics, icons, targets, actions, item, x, y);
-            return;
-        }
-        VariablesTab.Reader link = usedBy.links().get(index - usedBy.items().size());
-        if (CONSTANT_KIND.equals(link.kind())) {
-            ButtonPainter.drawFollow(graphics, font, linkLabel(link), x, y, ICON_SIZE, targets,
-                    () -> actions.openVariable(link.id()), PrefabHovers.hoverKey(link.id()));
-        } else {
-            String label = groupLabel(link.id());
-            String group = label.substring(TAG_PREFIX.length());
-            // Decision group-referent-previews-shorthand-members-then-its-value.
-            ButtonPainter.drawFollow(graphics, font, label, x, y, ICON_SIZE, targets, () -> actions.openGroup(group),
-                    GroupHovers.hoverKey(group));
-        }
+        UsedByLine.drawUser(new UsedByLine.Painter(graphics, font, icons, actions, targets), usedBy.user(index), x, y);
     }
 
     private void drawUsedByEnd(GuiGraphicsExtractor graphics, Font font, String label, int x, int y,
@@ -746,29 +725,21 @@ final class VariablesPane {
         int row = 0;
         int readerX = x;
         for (VariablesTab.Reader reader : variables.deletionCascade(name)) {
-            int readerWidth = readerWidth(font, reader);
+            int readerWidth = UsedByLine.userWidth(font, reader);
             if (readerX + readerWidth > right && readerX > x) {
                 row++;
                 readerX = x;
             }
             int shownRow = row - first;
             if (shownRow >= 0 && shownRow < rowsShown) {
-                drawReader(graphics, font, reader, readerX, top + shownRow * rowHeight, targets);
+                // Decision one-used-by-primitive-draws-the-row-line-and-the-dialog.
+                UsedByLine.drawUser(new UsedByLine.Painter(graphics, font, icons, actions, targets), reader, readerX,
+                        top + shownRow * rowHeight);
             }
             readerX += readerWidth + READER_GAP;
         }
         cascadeBar.measure(row + 1, rowsShown);
         cascadeBar.draw(graphics, targets, dialog.right() - CARD_PADDING, top, top + rowsShown * rowHeight);
-    }
-
-    private static int readerWidth(Font font, VariablesTab.Reader reader) {
-        if (CONSTANT_KIND.equals(reader.kind())) {
-            return ButtonPainter.width(font, reader.id());
-        }
-        if (GROUP_KIND.equals(reader.kind())) {
-            return font.width(reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id());
-        }
-        return ICON_SIZE;
     }
 
     private void drawDialogButtons(GuiGraphicsExtractor graphics, Font font, String name, GroupsPane.Bounds dialog,
@@ -781,25 +752,5 @@ final class VariablesPane {
             deleting = null;
             show(visible);
         });
-    }
-
-    // A constant reads as a $name button a shift + left click follows, hovering the prefab's tooltip, a group or tag
-    // as its #name, and an item as its icon; answers the width the reader took.
-    // Decision shift-left-click-follows-plain-left-modifies.
-    // Decision value-hover-reads-the-same-editing-and-read-only.
-    private int drawReader(GuiGraphicsExtractor graphics, Font font, VariablesTab.Reader reader, int x, int y,
-                           ClickTargets targets) {
-        if (CONSTANT_KIND.equals(reader.kind())) {
-            return ButtonPainter.drawFollow(graphics, font, reader.id(), x, y, ICON_SIZE, targets,
-                    () -> actions.openVariable(reader.id()), PrefabHovers.hoverKey(reader.id())).width();
-        }
-        if (GROUP_KIND.equals(reader.kind())) {
-            String label = reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id();
-            graphics.text(font, label, x, Lettering.full(font).centeredTop(y, ICON_SIZE), Palette.MUTED);
-            return font.width(label);
-        }
-        // Decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own.
-        ItemLinks.draw(graphics, icons, targets, actions, reader.id(), x, y);
-        return ICON_SIZE;
     }
 }
