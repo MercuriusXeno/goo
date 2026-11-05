@@ -3,9 +3,12 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.workbench.SampleDrafts;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -112,7 +115,7 @@ class ValuesTabTest {
                     List.of(ListedEntrySource.sizedTag("minecraft:planks", 3))));
             List<String> order = List.of("minecraft:apple", "minecraft:bread", "goo:cake", "minecraft:cake",
                     "minecraft:zinc");
-            List<String> withTag = new java.util.ArrayList<>(order);
+            List<String> withTag = new ArrayList<>(order);
             withTag.add("#minecraft:planks");
             assertEquals(withTag, ids(fresh.entries()));
             assertEquals(order, ids(fresh.listed()));
@@ -320,8 +323,8 @@ class ValuesTabTest {
             ValuesTab.Source none = tab.sourceOf("minecraft:dirt");
             assertEquals(new ValuesTab.Source("no value", ValuesTab.SourceKind.NONE, false), none);
             List<ValuesTab.Source> notRed = List.of(valued, group, denied, derived);
-            assertEquals(ValuesPane.RED, ValuesPane.colorOf(none.kind()));
-            assertTrue(notRed.stream().noneMatch(source -> ValuesPane.colorOf(source.kind()) == ValuesPane.RED));
+            assertEquals(Palette.DANGER, ValuesPane.colorOf(none.kind()));
+            assertTrue(notRed.stream().noneMatch(source -> ValuesPane.colorOf(source.kind()) == Palette.DANGER));
         }
 
         private static final String POST_CONVERTED_MODEL = """
@@ -365,13 +368,13 @@ class ValuesTabTest {
          * (decision items-row-valued-by-a-tag-reads-the-tag-as-its-group).
          */
         @Test
-        void tagValuedItemReadsTheTagThatValuesIt() throws java.io.IOException {
+        void tagValuedItemReadsTheTagThatValuesIt() throws IOException {
             ValuesTab shipped = new ValuesTab();
             shipped.readEntries(new ListedEntrySource(List.of(), List.of(
                     new ManagerEntrySource.ItemTag("minecraft:saplings",
                             List.of("minecraft:oak_sapling", "minecraft:acacia_sapling")),
                     new ManagerEntrySource.ItemTag("minecraft:leaves", List.of("minecraft:oak_leaves")))));
-            shipped.readModel(com.mercuriusxeno.goo.workbench.SampleDrafts.shippedModelJson());
+            shipped.readModel(SampleDrafts.shippedModelJson());
             assertEquals(new ValuesTab.Source("saplings", ValuesTab.SourceKind.GROUP, false),
                     shipped.sourceOf("minecraft:acacia_sapling"));
             assertEquals(new ValuesTab.Source("leaves", ValuesTab.SourceKind.GROUP, false),

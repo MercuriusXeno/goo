@@ -12,6 +12,19 @@ class LetteringTest {
     private static final float NEAR = 0.01f;
 
     /**
+     * Lettering names three roles: full size, the builder's scale and the amount's small digits (decision
+     * one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void namesTheFullBuilderAndAmountRoles() {
+        Font font = DrawnFrame.font();
+        assertEquals(1f, Lettering.full(font).scale());
+        assertEquals(ControlFlow.BUILDER_SCALE, Lettering.builder(font).scale());
+        assertEquals(0.75f, Lettering.amount(font).scale());
+        assertEquals(Lettering.AMOUNT_SCALE, Lettering.amount(font).scale());
+    }
+
+    /**
      * An operator's label lettered at the builder's scale centers its glyph's ink on its button, left to right and
      * top to bottom, within half a screen pixel, so + and - stand in the middle of their buttons (the operator saw them
      * too far left and slightly too high).

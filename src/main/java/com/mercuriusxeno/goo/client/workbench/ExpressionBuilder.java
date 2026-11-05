@@ -568,9 +568,12 @@ final class ExpressionBuilder {
         return split[0].signum() == 0 ? part : split[0] + MIXED_GAP + part;
     }
 
-    // A whole, a fraction n/d, or a whole then a fraction, reduced to its numerator and denominator; empty for a
-    // zero denominator or any other text (decision number-box-takes-a-mixed-number).
-    private static Optional<BigInteger[]> mixedNumber(String text) {
+    /**
+     * @param text a number box's text
+     * @return a whole, a fraction n/d, or a whole then a fraction, reduced to its numerator and denominator; empty
+     *     for a zero denominator or any other text (decision number-box-takes-a-mixed-number)
+     */
+    static Optional<BigInteger[]> mixedNumber(String text) {
         Matcher matcher = MIXED_NUMBER.matcher(text.trim());
         if (!matcher.matches()) {
             return Optional.empty();
@@ -913,7 +916,7 @@ final class ExpressionBuilder {
         }
         // Decision factor-left-at-one-or-set-to-one-or-zero-erases-its-segment: a side set to 0 or 1 returns to 1,
         // so the file writes no factor for it.
-        String trimmed = new java.math.BigInteger(factor.trim()).compareTo(java.math.BigInteger.ONE) <= 0 ? ONE
+        String trimmed = new BigInteger(factor.trim()).compareTo(BigInteger.ONE) <= 0 ? ONE
                 : factor.trim();
         if (comesApart(path, side, trimmed) && whole.getFirst().operand() instanceof Nest nest) {
             changed();

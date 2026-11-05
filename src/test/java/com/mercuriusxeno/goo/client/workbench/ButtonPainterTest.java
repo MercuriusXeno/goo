@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,6 +17,25 @@ class ButtonPainterTest {
     private static final int X = 10;
     private static final int LINE_TOP = 40;
     private static final int LINE_HEIGHT = 18;
+
+    /**
+     * A name too long for its room is cut with the ellipsis and hovers its whole name; one that fits draws whole and
+     * hovers nothing (decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane).
+     */
+    @Test
+    void entryNameCutsALongNameAndHoversItWhole() {
+        String name = "copper_and_waxed_copper_blocks";
+        DrawnFrame frame = new DrawnFrame();
+        String shown = ButtonPainter.drawEntryName(frame.graphics, DrawnFrame.font(), frame.targets,
+                ButtonPainter.EntryName.of(name, X, LINE_TOP, 60, false));
+        assertTrue(shown.contains(ButtonPainter.ELLIPSIS) && DrawnFrame.font().width(shown) <= 60, shown);
+        String key = frame.targets.hoveredArea(X + 1, LINE_TOP + 1).orElseThrow().hoverKey();
+        assertEquals(Optional.of(new TooltipLine.Text(Component.literal(name))), ButtonPainter.wholeNameTooltip(key));
+        DrawnFrame fits = new DrawnFrame();
+        assertEquals("logs", ButtonPainter.drawEntryName(fits.graphics, DrawnFrame.font(), fits.targets,
+                ButtonPainter.EntryName.of("logs", X, LINE_TOP, 60, false)));
+        assertEquals(List.of(), fits.targets.hoverKeys());
+    }
 
     /**
      * A label's box spans its width plus padding on both sides, 14px high, centered on its line.

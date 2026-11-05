@@ -10,7 +10,6 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
  */
 public final class RunsTooltipComponent implements ClientTooltipComponent {
     private static final int LINE_GAP = 2;
-    private static final int WHITE = 0xFFFFFFFF;
 
     private final TooltipLine.Runs line;
 
@@ -34,7 +33,8 @@ public final class RunsTooltipComponent implements ClientTooltipComponent {
     // A tooltip takes no click, so the runs' hover areas land in a frame of their own.
     @Override
     public void extractImage(Font font, int x, int y, int width, int height, GuiGraphicsExtractor graphics) {
-        ExpressionLines.draw(font, line.runs(), x, y, getWidth(font) + 1, new ExpressionLines.Painter(graphics, null,
-                new ClickTargets(), WHITE, WHITE, (variable, linkX, linkY, linkWidth) -> { }));
+        ExpressionLines.draw(Lettering.full(font), line.runs(), x, y, getWidth(font) + 1,
+                new ExpressionLines.Painter(graphics, null,
+                new ClickTargets(), Palette.TEXT, Palette.TEXT, (variable, linkX, linkY, linkWidth) -> { }));
     }
 }

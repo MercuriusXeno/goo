@@ -14,7 +14,6 @@ public final class RunsGridTooltipComponent implements ClientTooltipComponent {
     // The room between one column's widest cell and the next column.
     private static final int COLUMN_GAP = 6;
     private static final int LINE_GAP = 2;
-    private static final int WHITE = 0xFFFFFFFF;
 
     private final List<List<ExpressionLines.Run>> cells;
     private final int columns;
@@ -73,11 +72,12 @@ public final class RunsGridTooltipComponent implements ClientTooltipComponent {
     public void extractImage(Font font, int x, int y, int width, int height, GuiGraphicsExtractor graphics) {
         int columnWidth = cellWidth(font) + COLUMN_GAP;
         int rowHeight = rowHeight();
-        ExpressionLines.Painter painter = new ExpressionLines.Painter(graphics, null, new ClickTargets(), WHITE, WHITE,
-                (variable, linkX, linkY, linkWidth) -> { });
+        ExpressionLines.Painter painter = new ExpressionLines.Painter(graphics, null, new ClickTargets(), Palette.TEXT,
+                Palette.TEXT, (variable, linkX, linkY, linkWidth) -> { });
         for (int index = 0; index < cells.size(); index++) {
             int row = index / columns;
-            ExpressionLines.draw(font, cells.get(index), x + rowIndent(row) + index % columns * columnWidth,
+            ExpressionLines.draw(Lettering.full(font), cells.get(index),
+                    x + rowIndent(row) + index % columns * columnWidth,
                     y + row * rowHeight, columnWidth, painter);
         }
     }

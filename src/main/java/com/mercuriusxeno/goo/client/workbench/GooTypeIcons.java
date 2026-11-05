@@ -31,7 +31,6 @@ final class GooTypeIcons {
     // A hover key a prefab name never spells, since a name holds no colon.
     private static final String HOVER_PREFIX = "goo-type:";
     private static final String PICK_PREFIX = "goo-type-pick:";
-    private static final int OPAQUE = 0xFFFFFFFF;
     private static final int PNG_WIDTH_OFFSET = 16;
     private static final Map<String, Integer> SIZES = new ConcurrentHashMap<>();
 
@@ -123,7 +122,8 @@ final class GooTypeIcons {
      * @param size     the icon's side
      */
     static void draw(GuiGraphicsExtractor graphics, ClickTargets targets, String type, int x, int y, int size) {
-        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, size, size, size, size, OPAQUE);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, size, size, size, size,
+                Palette.TEXT);
         targets.addHover(x, y, size, size, HOVER_PREFIX + type);
     }
 
@@ -137,7 +137,8 @@ final class GooTypeIcons {
      */
     static void blit(GuiGraphicsExtractor graphics, String type, int x, int y) {
         int size = sizeOf(type);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, size, size, size, size, OPAQUE);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, size, size, size, size,
+                Palette.TEXT);
     }
 
     /**

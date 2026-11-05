@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import org.junit.jupiter.api.Test;
+import java.util.Arrays;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -99,11 +100,30 @@ class DraftConfirmTest {
     }
 
     /**
+     * The dialog's body draws in the palette's muted gray, the one every other pane draws (decision
+     * one-palette-names-every-color-by-role).
+     */
+    @Test
+    void dialogBodyDrawsTheMutedGray() {
+        DraftConfirm confirm = new DraftConfirm();
+        confirm.askPromote(PATH, false);
+        DrawnFrame frame = new DrawnFrame();
+        new DraftPane(confirm, choice -> { }).extract(frame.graphics, DrawnFrame.font(),
+                frame.targets);
+        List<DrawnFrame.Text> body = frame.drawn().stream().filter(text -> text.text().contains("overwrite")).toList();
+        assertFalse(body.isEmpty(), frame.texts().toString());
+        assertTrue(body.stream().allMatch(text -> text.color() == Palette.MUTED), body.toString());
+        // Decision one-wheel-step-and-one-dialog-primitive: the dialog dims the whole screen through Dialog.
+        assertTrue(frame.fillsOf(Dialog.DIM).stream().anyMatch(fill -> Arrays.equals(fill,
+                new int[] {0, 0, DrawnFrame.SCREEN_WIDTH, DrawnFrame.SCREEN_HEIGHT})), "the screen dims");
+    }
+
+    /**
      * The manager's topbar reads Save, Revert, Promote, laid leftward from the title row's right edge (decision
      * topbar-discard-reads-revert).
      */
     @Test
     void topbarReadsSaveRevertPromote() {
-        assertEquals(List.of("Save", "Revert", "Promote"), ValuesManagerScreen.topbarLabels());
+        assertEquals(List.of("Save", "Revert", "Promote"), ManagerChrome.topbarLabels());
     }
 }

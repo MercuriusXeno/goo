@@ -22,9 +22,6 @@ import java.util.function.Function;
 final class PrefabHovers {
     // A hover key no prefab name, item id or hint spells.
     private static final String HOVER_PREFIX = "goo-prefab:";
-    private static final String OPEN = "(";
-    private static final String CLOSE = ")";
-    private static final String SEPARATOR = ",";
     private static final String NO_TEXT = "";
 
     private PrefabHovers() {
@@ -70,13 +67,8 @@ final class PrefabHovers {
         List<TooltipLine> lines = new ArrayList<>();
         lines.add(new TooltipLine.RunsGrid(List.of(termRuns(shown))));
         if (!scalar.isEmpty() && !scalar.equals(shown.trim())) {
-            List<ExpressionLines.Run> reduced = new ArrayList<>();
-            reduced.add(operator(OPEN));
-            // Decision groups-value-draws-as-every-other-panes-value: the reduction's amounts small and mixed.
-            reduced.add(ExpressionLines.amount(scalar));
-            // Decision tooltip-reduction-parens-draw-one-color: the close paren flush, in the open paren's color.
-            reduced.add(flushSymbol(CLOSE));
-            lines.add(new TooltipLine.RunsGrid(List.of(reduced)));
+            // Decision one-amount-grid-draws-every-amount-list: the reduction is the one amount grid, in its parens.
+            lines.add(GooAmountGrid.reducedScalar(scalar));
         }
         return lines;
     }
@@ -94,27 +86,12 @@ final class PrefabHovers {
         boolean reduces = order.stream().anyMatch(type -> !amounts.get(type).isEmpty()
                 && !amounts.get(type).equals(expressions.get(type).trim()));
         if (reduces) {
-            lines.add(new TooltipLine.RunsGrid(reduction(order, amounts)));
+            // Decision one-amount-grid-draws-every-amount-list: each type's icon then its amount, in the grid's parens.
+            Map<String, String> reduced = new LinkedHashMap<>();
+            order.forEach(type -> reduced.put(type, amounts.get(type)));
+            lines.add(GooAmountGrid.reducedLine(reduced));
         }
         return lines;
-    }
-
-    // ({type}: amount, ... {type}: amount): the opening parenthesis on the first cell, a comma closing every cell but
-    // the last, and the closing parenthesis on the last cell, so it never wraps to a row of its own.
-    private static List<List<ExpressionLines.Run>> reduction(List<String> order, Map<String, String> amounts) {
-        List<List<ExpressionLines.Run>> cells = new ArrayList<>();
-        for (int index = 0; index < order.size(); index++) {
-            List<ExpressionLines.Run> cell = new ArrayList<>();
-            if (index == 0) {
-                cell.add(operator(OPEN));
-            }
-            String type = order.get(index);
-            cell.addAll(typed(type, List.of(ExpressionLines.amount(amounts.get(type)))));
-            // Decision tooltip-reduction-parens-draw-one-color: the close paren flush, in the open paren's color.
-            cell.add(index == order.size() - 1 ? flushSymbol(CLOSE) : suffix(SEPARATOR));
-            cells.add(cell);
-        }
-        return cells;
     }
 
     // {type}: then the terms, as the read view writes a type row.
@@ -133,14 +110,6 @@ final class PrefabHovers {
 
     private static ExpressionLines.Run operator(String text) {
         return new ExpressionLines.Run(ExpressionLines.Kind.OPERATOR, text, null);
-    }
-
-    private static ExpressionLines.Run suffix(String text) {
-        return new ExpressionLines.Run(ExpressionLines.Kind.SUFFIX, text, null);
-    }
-
-    private static ExpressionLines.Run flushSymbol(String text) {
-        return new ExpressionLines.Run(ExpressionLines.Kind.FLUSH_SYMBOL, text, null);
     }
 
     // A typed prefab's text is an object of goo type to expression; anything else is a scalar's.

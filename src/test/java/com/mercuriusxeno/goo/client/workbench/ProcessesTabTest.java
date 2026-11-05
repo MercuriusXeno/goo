@@ -74,11 +74,42 @@ class ProcessesTabTest {
      */
     @Test
     void searchKeepsTheEntriesWhoseNameHoldsTheText() {
-        tab.search("RU");
-        assertEquals(List.of(List.of("rust"), List.of()), tab.sections().stream().map(section -> section.rows()
-                .stream().map(ProcessesTab.ProcessRow::key).toList()).toList());
-        tab.search(" ");
+        tab.searchMutators("RU");
+        assertEquals(List.of("rust"), tab.sections().getFirst().rows().stream().map(ProcessesTab.ProcessRow::key)
+                .toList());
+        tab.searchMutators(" ");
         assertEquals(List.of(2, 1), tab.sections().stream().map(section -> section.rows().size()).toList());
+    }
+
+    /**
+     * The mutator search filters the mutators alone and the iterator search the iterators alone, each column under
+     * its own search (decision one-search-row-per-list-with-its-create-control-beside-it).
+     */
+    @Test
+    void eachSearchFiltersItsOwnColumn() {
+        tab.searchMutators("RU");
+        assertEquals(List.of(1, 1), tab.sections().stream().map(section -> section.rows().size()).toList(),
+                "the iterator stays under a mutator search");
+        tab.searchMutators("");
+        tab.searchIterators("zzz");
+        assertEquals(List.of(2, 0), tab.sections().stream().map(section -> section.rows().size()).toList(),
+                "the mutators stay under an iterator search");
+    }
+
+    /**
+     * A leading # in the iterator search narrows to the iterators over a group and is stripped before the match, so
+     * #cop keeps #copper as copper does, and a leading $ keeps no iterator (decision
+     * one-search-rule-serves-every-box-and-dropdown).
+     */
+    @Test
+    void iteratorSearchReadsTheGroupMark() {
+        tab.searchIterators("#cop");
+        assertEquals(List.of("#copper"), tab.sections().get(1).rows().stream().map(ProcessesTab.ProcessRow::key)
+                .toList(), "#cop");
+        tab.searchIterators("copper");
+        assertEquals(1, tab.sections().get(1).rows().size(), "copper");
+        tab.searchIterators("$cop");
+        assertEquals(List.of(), tab.sections().get(1).rows(), "$cop");
     }
 
     /**

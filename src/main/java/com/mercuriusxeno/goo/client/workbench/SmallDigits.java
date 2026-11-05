@@ -10,9 +10,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * still stacks over its bar through StackedFractions, inside the smaller scale.
  */
 final class SmallDigits {
-    /** The scale the digits draw at, the font's 8px glyphs reading 6px. */
-    static final float SCALE = 0.75f;
-    /** A small glyph's height on the screen. */
+    /** A small glyph's height on the screen, at {@link Lettering#AMOUNT_SCALE}. */
     static final int GLYPH_HEIGHT = 6;
     private static final String NO_TRAIL = "";
 
@@ -36,9 +34,7 @@ final class SmallDigits {
      * @return the width it draws at, small
      */
     static int width(Font font, String amount) {
-        Punctuated punctuated = Punctuated.of(amount);
-        return (int) Math.ceil((StackedFractions.width(font, punctuated.mixed())
-                + font.width(punctuated.trail())) * SCALE);
+        return width(font, Punctuated.of(amount));
     }
 
     /**
@@ -97,10 +93,36 @@ final class SmallDigits {
      * @param color    its color
      */
     static void draw(GuiGraphicsExtractor graphics, Font font, String amount, int x, int top, int color) {
-        Punctuated punctuated = Punctuated.of(amount);
+        draw(graphics, font, Punctuated.of(amount), x, top, color);
+    }
+
+    /**
+     * Draws an Items recipe count in its sprite's corner, its whole and its stack small as every amount draws, so the
+     * corner's fraction stacks at the value column's size (decision one-lettering-primitive-names-three-text-roles).
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param count    the count as a mixed number
+     * @param right    the count's right edge on the screen
+     * @param top      its glyphs' top on the screen
+     * @param color    its color
+     */
+    static void drawCorner(GuiGraphicsExtractor graphics, Font font, StackedFractions.Mixed count, int right, int top,
+                           int color) {
+        Punctuated punctuated = new Punctuated(count, NO_TRAIL);
+        draw(graphics, font, punctuated, right - width(font, punctuated), top, color);
+    }
+
+    private static int width(Font font, Punctuated punctuated) {
+        return (int) Math.ceil((StackedFractions.width(font, punctuated.mixed())
+                + font.width(punctuated.trail())) * Lettering.AMOUNT_SCALE);
+    }
+
+    private static void draw(GuiGraphicsExtractor graphics, Font font, Punctuated punctuated, int x, int top,
+                             int color) {
         graphics.pose().pushMatrix();
         graphics.pose().translate(x, top);
-        graphics.pose().scale(SCALE, SCALE);
+        graphics.pose().scale(Lettering.AMOUNT_SCALE, Lettering.AMOUNT_SCALE);
         StackedFractions.draw(graphics, font, punctuated.mixed(), 0, 0, color);
         if (!punctuated.trail().isEmpty()) {
             graphics.text(font, punctuated.trail(), StackedFractions.width(font, punctuated.mixed()), 0, color);

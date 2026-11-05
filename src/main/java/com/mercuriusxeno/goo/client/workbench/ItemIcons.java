@@ -84,8 +84,16 @@ final class ItemIcons {
         if (id.startsWith(TAG_PREFIX)) {
             return ItemStack.EMPTY;
         }
-        Identifier parsed = Identifier.tryParse(id.contains(NAMESPACE_SEPARATOR) ? id : DEFAULT_NAMESPACE + id);
+        Identifier parsed = Identifier.tryParse(namespaced(id));
         return parsed == null ? ItemStack.EMPTY : BuiltInRegistries.ITEM.getValue(parsed).getDefaultInstance();
+    }
+
+    /**
+     * @param id an item id, bare in the minecraft namespace as the file spells it, or whole
+     * @return the whole id, which the Items rows and every item's value are keyed by
+     */
+    static String namespaced(String id) {
+        return id.contains(NAMESPACE_SEPARATOR) ? id : DEFAULT_NAMESPACE + id;
     }
 
     /**

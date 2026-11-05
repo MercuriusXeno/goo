@@ -3,9 +3,12 @@ package com.mercuriusxeno.goo.client.workbench;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Lays a builder's words and controls left to right across an area, a piece too wide for what is left of its line
@@ -34,46 +37,20 @@ final class ControlFlow {
     private static final int FRAME_BORDERS = 2;
     // A term container's ring.
     private static final int RING = 2;
-    /**
-     * A term container's ring, brighter than a segment's border (decision
-     * term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
-     */
-    static final int TERM_BORDER = 0xFF9AB4E0;
-    /** A term seam's left pixel. */
-    static final int SEAM_LIGHT = 0xFF6A86B4;
-    /** A term seam's right pixel, darker than its left. */
-    static final int SEAM_DARK = 0xFF0C121C;
     // A parenthetical container's border, and the clear pixel inside it, either side of its contents.
     private static final int FRAME = 1 + 1;
     private static final int GAP = BuilderOverlays.GAP;
-    private static final int TEXT_NUDGE = 5;
     private static final int HALF = 2;
     // The one clear pixel between a ratio's colon and each of its boxes.
     private static final int CLEAR = 1;
     /** A drag rail's width. */
     static final int RAIL_WIDTH = 6;
-    // Decision rails-fill-the-left-edge-of-their-box: the rail fills its segment flush inside the border, and three
-    // grip lines mark it as a rail.
-    private static final int GRIP_LINES = 3;
-    private static final int GRIP_PITCH = 2;
     /** A rail segment's width: the rail and the border either side of it. */
     static final int RAIL_SEGMENT_WIDTH = RAIL_WIDTH + 2;
     /** How far a rail moves the next piece: its width and a gap. */
     static final int RAIL_ADVANCE = RAIL_WIDTH + GAP;
-    /** A drag rail's fill. */
-    static final int RAIL_COLOR = 0xFF7080A0;
-    /** The grip lines a drag rail draws. */
-    static final int GRIP_COLOR = 0xFFD0D8F0;
-    /** A rail's fill where what it holds has nowhere to drop, so it takes no press. */
-    static final int LOCKED_RAIL_COLOR = 0xFF3C3C3C;
-    // A locked rail's grip lines, dimmed with it.
-    private static final int LOCKED_GRIP_COLOR = 0xFF5A5A5A;
     /** How far one indent step moves a line's left edge. */
     static final int INDENT = 12;
-    private static final int WHITE = 0xFFFFFFFF;
-    // The gray a member's 's draws in after its name.
-    private static final int SUFFIX_COLOR = 0xFFA0A0A0;
-    private static final int LINK = ButtonPainter.LINK;
     private static final String DROPDOWN_MARKER = " ▼";
     private static final String NONE_CHOSEN = "pick one";
 
@@ -91,7 +68,7 @@ final class ControlFlow {
     private int lineOverhang;
     private final ClickTargets targets;
     private final @Nullable ItemIcons icons;
-    private final Consumer<String> followRef;
+    private final @Nullable ManagerActions actions;
     private int left;
     // The right edge pieces stand short of: the area's, or a parenthetical box's inside its clear pixel and border.
     private int right;
@@ -102,7 +79,7 @@ final class ControlFlow {
     private int pieceTop;
     private int pieceWidth;
     // The parenthetical boxes standing open, the innermost first, each the right edge of its widest line so far.
-    private final java.util.Deque<int[]> openBoxes = new java.util.ArrayDeque<>();
+    private final Deque<int[]> openBoxes = new ArrayDeque<>();
     // Every rail the flow laid this frame, which paintRails draws and arms once the pane knows which can drag.
     private final List<LaidRail> laidRails = new ArrayList<>();
     // The segmented container open: its left, its top and height, and the left the next segment's border takes.
@@ -127,7 +104,7 @@ final class ControlFlow {
      */
     ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, int left,
                 int right, int top) {
-        this(graphics, font, targets, icons, new Span(left, right, top), ref -> { });
+        this(graphics, targets, icons, new Span(left, right, top), null, Lettering.full(font), FULL_LINE);
     }
 
     /**
@@ -141,19 +118,6 @@ final class ControlFlow {
     }
 
     /**
-     * @param graphics  the frame's graphics
-     * @param font      the font
-     * @param targets   the frame's click areas
-     * @param icons     the items' icons, null where no item draws
-     * @param span      where the lines lay
-     * @param followRef opens the prefab a reference run names, on a shift + left click
-     */
-    ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, Span span,
-                Consumer<String> followRef) {
-        this(graphics, targets, icons, span, followRef, Lettering.full(font), FULL_LINE);
-    }
-
-    /**
      * A flow lettered at the expression builder's smaller scale on the builder's tighter line, its icons at their
      * native size (decision builder-font-and-spacing-shrink-padding-untouched).
      *
@@ -162,16 +126,17 @@ final class ControlFlow {
      * @param targets   the frame's click areas
      * @param icons     the items' icons, null where no item draws
      * @param span      where the lines lay
-     * @param followRef opens the prefab a reference run names, on a shift + left click
+     * @param actions   the panes' line back to the screen, through which a reference run follows to its prefab and
+     *                  an item icon to Items on a shift + left click; null where nothing follows
      * @return the flow
      */
     static ControlFlow lettered(GuiGraphicsExtractor graphics, Font font, ClickTargets targets,
-                                @Nullable ItemIcons icons, Span span, Consumer<String> followRef) {
-        return new ControlFlow(graphics, targets, icons, span, followRef, new Lettering(font, BUILDER_SCALE), LINE);
+                                @Nullable ItemIcons icons, Span span, @Nullable ManagerActions actions) {
+        return new ControlFlow(graphics, targets, icons, span, actions, new Lettering(font, BUILDER_SCALE), LINE);
     }
 
     private ControlFlow(GuiGraphicsExtractor graphics, ClickTargets targets, @Nullable ItemIcons icons, Span span,
-                        Consumer<String> followRef, Lettering letters, int line) {
+                        @Nullable ManagerActions actions, Lettering letters, int line) {
         this.graphics = graphics;
         this.font = letters.font();
         this.letters = letters;
@@ -179,7 +144,7 @@ final class ControlFlow {
         this.lineGap = letters.isFull() ? 0 : BUILDER_LINE_GAP;
         this.targets = targets;
         this.icons = icons;
-        this.followRef = followRef;
+        this.actions = actions;
         this.left = span.left();
         this.right = span.right();
         this.lineLeft = span.left();
@@ -204,10 +169,9 @@ final class ControlFlow {
         lineOverhang = 0;
     }
 
-    // Where the flow's words stand on its line: the font's nudge at full size, centered in the line when lettered
-    // smaller.
+    // Where the flow's words stand on its line: centered in it at every scale.
     private int wordsTop() {
-        return letters.isFull() ? y + TEXT_NUDGE : letters.centeredTop(y, line);
+        return letters.centeredTop(y, line);
     }
 
     /**
@@ -457,16 +421,11 @@ final class ControlFlow {
      * Fills a parenthetical's container in its depth's tone inside a 1 px border (decision
      * parentheticals-alternate-gray-tones-by-depth).
      *
-     * @param box    the container, its border's outer edges
-     * @param tone   the fill
-     * @param border the border's color
+     * @param box  the container, its border's outer edges
+     * @param tone the fill
      */
-    void boxed(GroupsPane.Bounds box, int tone, int border) {
-        graphics.fill(box.left(), box.top(), box.right(), box.top() + 1, border);
-        graphics.fill(box.left(), box.bottom() - 1, box.right(), box.bottom(), border);
-        graphics.fill(box.left(), box.top() + 1, box.left() + 1, box.bottom() - 1, border);
-        graphics.fill(box.right() - 1, box.top() + 1, box.right(), box.bottom() - 1, border);
-        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, box.bottom() - 1, tone);
+    void boxed(GroupsPane.Bounds box, int tone) {
+        Frame.draw(graphics, Frame.NEST.toned(tone), box);
     }
 
     // A piece filling its line's height, as a goo type's button stands.
@@ -521,30 +480,29 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      */
     void control(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
-        coloredControl(label, LINK, hint, pressed);
+        coloredControl(label, Palette.LINK, hint, pressed);
     }
 
+
     /**
-     * A control naming a ref: a plain left click runs pressed, a shift + left click follows the ref, and the label
-     * underlines while shift is held.
-     * Decision shift-left-click-follows-plain-left-modifies.
+     * A ref as the builder draws one: a segment whose plain left click runs pressed, whose shift + left click follows
+     * the ref and whose hover shows the ref's card, its label underlined while shift is held (decision
+     * conversions-sentences-are-built-from-the-builders-controls).
      *
-     * @param label   the control's label
-     * @param hint    what a plain click does, shown on hover
-     * @param pressed takes where it was clicked
-     * @param follow  opens what the label names
+     * @param label    the ref's label
+     * @param hoverKey the ref's card
+     * @param pressed  takes where it was clicked
+     * @param follow   opens what the label names
      */
-    void linkControl(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
+    void refSegment(String label, String hoverKey, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
         int width = ButtonPainter.width(letters, label);
-        reserve(width);
-        markButton(width);
-        int controlX = x;
-        int controlY = y;
-        ButtonPainter.Box box = ButtonPainter.layout(letters.width(label), controlX, controlY, line);
-        ButtonPainter.drawLink(graphics, letters, label, box, targets, new ClickTargets.LinkGestures(
-                () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)), follow),
-                BuilderOverlays.hintKey(hint));
-        x = box.right() + GAP;
+        openSegments(width, line);
+        ButtonPainter.Box box = nextSegment(width);
+        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+        ButtonPainter.drawLinkLabel(graphics, letters, label, box, targets);
+        targets.addLink(box.left(), box.top(), box.width(), box.height(),
+                new ClickTargets.LinkGestures(() -> pressed.accept(at), follow), hoverKey);
+        closeSegments();
     }
 
     /**
@@ -732,7 +690,7 @@ final class ControlFlow {
         markPiece(width);
         int iconX = x;
         int iconY = y;
-        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(iconX, iconY, width, line));
+        Frame.draw(graphics, Frame.BUTTON, new ButtonPainter.Box(iconX, iconY, width, line));
         GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.ICON_PADDING,
                 iconY + GooTypeIcons.centered(line, size));
         targets.add(iconX, iconY, width, line,
@@ -767,52 +725,18 @@ final class ControlFlow {
      *
      * @param draggable whether the thing a rail drags, by the name it drags, has a place to drop
      */
-    void paintRails(java.util.function.Predicate<String> draggable) {
+    void paintRails(Predicate<String> draggable) {
         for (LaidRail rail : laidRails) {
             String name = rail.grab().name();
             if (draggable.test(name)) {
-                drawRail(graphics, new RailPaint(rail.left(), rail.top(), rail.bottom(), RAIL_COLOR, GRIP_COLOR));
+                Rails.draw(graphics, rail.left(), rail.top(), rail.bottom());
                 targets.addGrab(rail.left(), rail.top(), RAIL_WIDTH, rail.bottom() - rail.top(), rail.grab().grab(),
                         name);
             } else {
-                drawRail(graphics, new RailPaint(rail.left(), rail.top(), rail.bottom(), LOCKED_RAIL_COLOR,
-                        LOCKED_GRIP_COLOR));
+                Rails.drawLocked(graphics, rail.left(), rail.top(), rail.bottom());
             }
         }
         laidRails.clear();
-    }
-
-    /**
-     * Where a rail paints and in which colors.
-     *
-     * @param left   its left edge
-     * @param top    its top
-     * @param bottom its bottom
-     * @param fill   its fill
-     * @param grips  its grip lines' color
-     */
-    private record RailPaint(int left, int top, int bottom, int fill, int grips) {
-    }
-
-    /**
-     * Draws a rail and its three grip lines centered in it, as a group member's rail does outside any builder line.
-     *
-     * @param graphics the frame's graphics
-     * @param left     the rail's left edge
-     * @param top      its top
-     * @param bottom   its bottom
-     */
-    static void drawRail(GuiGraphicsExtractor graphics, int left, int top, int bottom) {
-        drawRail(graphics, new RailPaint(left, top, bottom, RAIL_COLOR, GRIP_COLOR));
-    }
-
-    private static void drawRail(GuiGraphicsExtractor graphics, RailPaint rail) {
-        graphics.fill(rail.left(), rail.top(), rail.left() + RAIL_WIDTH, rail.bottom(), rail.fill());
-        int first = (rail.top() + rail.bottom()) / HALF - GRIP_PITCH * (GRIP_LINES / HALF);
-        for (int line = 0; line < GRIP_LINES; line++) {
-            int gripTop = first + line * GRIP_PITCH;
-            graphics.fill(rail.left() + 1, gripTop, rail.left() + RAIL_WIDTH - 1, gripTop + 1, rail.grips());
-        }
     }
 
     /**
@@ -831,9 +755,9 @@ final class ControlFlow {
         markButton(width);
         ButtonPainter.Box box = ButtonPainter.layout(letters.width(label), x, y, line);
         ButtonPainter.Box railed = new ButtonPainter.Box(box.left(), box.top(), width, box.height());
-        ButtonPainter.drawFrame(graphics, railed);
-        drawRail(graphics, railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
-        letters.draw(graphics, label, railed.left() + 1 + labelLeftRoom, wordsTop(), LINK);
+        Frame.draw(graphics, Frame.BUTTON, railed);
+        Rails.draw(graphics, railed.left() + 1, railed.top() + 1, railed.top() + railed.height() - 1);
+        letters.draw(graphics, label, railed.left() + 1 + labelLeftRoom, wordsTop(), Palette.LINK);
         targets.addGrab(railed.left(), railed.top(), railed.width(), railed.height(), grab);
         String hoverKey = BuilderOverlays.hintKey(hint);
         if (hoverKey != null) {
@@ -894,9 +818,9 @@ final class ControlFlow {
     }
 
     /**
-     * Opens a term's container: a 2 px ring in TERM_BORDER, brighter than a segment's border, around its segments,
-     * each segment's fill standing between 2 px seams, SEAM_LIGHT left of each seam and SEAM_DARK right of it, so
-     * the term reads as one raised unit (decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams). Each
+     * Opens a term's container: a 2 px ring in Palette.TERM_BORDER, brighter than a segment's border, around its
+     * segments, each segment's fill standing between 2 px seams, Palette.SEAM_LIGHT left of each seam and
+     * Palette.SEAM_DARK right of it, so the term reads as one raised unit (decision term-draws-a-two-pixel-brighter-border-with-two-tone-seams). Each
      * segment keeps the room a framed segment of its width would give its content.
      *
      * @param width  the container's width, as ringedWidth answers it
@@ -940,18 +864,16 @@ final class ControlFlow {
     private ButtonPainter.Box nextSegment(int width) {
         if (!ringed) {
             ButtonPainter.Box box = new ButtonPainter.Box(nextSegmentLeft, segmentsTop, width, segmentsHeight);
-            ButtonPainter.drawFrame(graphics, box);
+            Frame.draw(graphics, Frame.BUTTON, box);
             nextSegmentLeft = box.right() - 1;
             return box;
         }
         int bottom = segmentsTop + segmentsHeight;
-        if (seamDue) {
-            graphics.fill(nextInterior, segmentsTop, nextInterior + 1, bottom, SEAM_LIGHT);
-            graphics.fill(nextInterior + 1, segmentsTop, nextInterior + SEAM, bottom, SEAM_DARK);
-            nextInterior += SEAM;
-        }
-        int fillRight = nextInterior + width - FRAME_BORDERS;
-        graphics.fill(nextInterior, segmentsTop + RING, fillRight, bottom - RING, ButtonPainter.FILL);
+        int seam = seamDue ? SEAM : 0;
+        int fillRight = nextInterior + seam + width - FRAME_BORDERS;
+        Frame.termSegment(graphics, new GroupsPane.Bounds(nextInterior, segmentsTop + RING, fillRight, bottom - RING),
+                seam);
+        nextInterior += seam;
         ButtonPainter.Box framed = new ButtonPainter.Box(nextInterior - 1, segmentsTop + 1, width,
                 segmentsHeight - FRAME_BORDERS);
         nextInterior = fillRight;
@@ -983,7 +905,7 @@ final class ControlFlow {
      */
     BuilderOverlays.Anchor labelSegment(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
         ButtonPainter.Box box = nextSegment(ButtonPainter.width(letters, label));
-        ButtonPainter.drawLabel(graphics, letters, label, box, LINK);
+        ButtonPainter.drawLabel(graphics, letters, label, box, Palette.LINK);
         BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
         ButtonPainter.reserve(targets, box, () -> pressed.accept(at), BuilderOverlays.hintKey(hint));
         return at;
@@ -1020,10 +942,9 @@ final class ControlFlow {
         }
         int runsWidth = ExpressionLines.width(letters, runs);
         ExpressionLines.draw(letters, runs, new ExpressionLines.Span(box.left() + ButtonPainter.PADDING, box.top(),
-                runsWidth + 1, box.height()), new ExpressionLines.Painter(graphics, icons,
-                targets, pressed == null ? WHITE : LINK, LINK, ExpressionLines.followedOnShiftClick(targets, followRef)));
+                runsWidth + 1, box.height()), runsPainter(pressed == null ? Palette.TEXT : Palette.LINK));
         if (!suffix.isEmpty()) {
-            letters.draw(graphics, suffix, box.left() + ButtonPainter.PADDING + runsWidth, wordsTop(), SUFFIX_COLOR);
+            letters.draw(graphics, suffix, box.left() + ButtonPainter.PADDING + runsWidth, wordsTop(), Palette.MUTED);
         }
     }
 
@@ -1045,10 +966,7 @@ final class ControlFlow {
 
     // A term's 2 px ring, drawn over the seams' ends so it runs unbroken round the container.
     private void drawRing(GroupsPane.Bounds box) {
-        graphics.fill(box.left(), box.top(), box.right(), box.top() + RING, TERM_BORDER);
-        graphics.fill(box.left(), box.bottom() - RING, box.right(), box.bottom(), TERM_BORDER);
-        graphics.fill(box.left(), box.top() + RING, box.left() + RING, box.bottom() - RING, TERM_BORDER);
-        graphics.fill(box.right() - RING, box.top() + RING, box.right(), box.bottom() - RING, TERM_BORDER);
+        Frame.draw(graphics, Frame.TERM, box);
     }
 
     /**
@@ -1064,8 +982,8 @@ final class ControlFlow {
         markPiece(line);
         int boxX = x;
         int boxY = y;
-        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(boxX, boxY, line, line));
-        letters.draw(graphics, label, boxX + (line - letters.width(label)) / HALF, wordsTop(), LINK);
+        Frame.draw(graphics, Frame.BUTTON, new ButtonPainter.Box(boxX, boxY, line, line));
+        letters.draw(graphics, label, boxX + (line - letters.width(label)) / HALF, wordsTop(), Palette.LINK);
         targets.add(boxX, boxY, line, line, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)),
                 BuilderOverlays.hintKey(hint));
         x += line + GAP;
@@ -1094,10 +1012,19 @@ final class ControlFlow {
         }
         addRunsTarget(band, width + inset + inset, hint, pressed);
         ExpressionLines.draw(letters, runs, new ExpressionLines.Span(x + inset, band.top(), width + 1, band.height()),
-                new ExpressionLines.Painter(graphics, icons, targets, pressed == null ? WHITE : LINK, LINK,
-                        ExpressionLines.followedOnShiftClick(targets, followRef)));
+                runsPainter(pressed == null ? Palette.TEXT : Palette.LINK));
         lineOverhang = Math.max(lineOverhang, y - band.top());
         x += width + inset + inset + GAP;
+    }
+
+    // Decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own: in the builder's edit view an
+    // item icon hovers its value and follows to Items as a $prefab follows to Prefabs.
+    private ExpressionLines.Painter runsPainter(int textColor) {
+        if (icons != null && actions != null) {
+            return ExpressionLines.Painter.linked(graphics, icons, targets, textColor, actions);
+        }
+        return new ExpressionLines.Painter(graphics, icons, targets, textColor, Palette.LINK,
+                ExpressionLines.followedOnShiftClick(targets, ref -> { }));
     }
 
     /**
@@ -1110,13 +1037,14 @@ final class ControlFlow {
     private record RunsBand(int top, int height, boolean filled) {
     }
 
-    // At full size an icon line's runs fill the line and text runs stand at the words' nudge; lettered smaller, runs
+    // At full size an icon line's runs fill the line and text runs center on the line; lettered smaller, runs
     // fill the builder's line, and a 16 px item sprite's line stands taller, reaching past the line evenly above and
     // below (decision builder-font-and-spacing-shrink-padding-untouched, as the operator ruled).
     private RunsBand bandOf(List<ExpressionLines.Run> runs) {
         int natural = ExpressionLines.lineHeight(runs);
         if (letters.isFull()) {
-            return natural == line ? new RunsBand(y, line, true) : new RunsBand(y + TEXT_NUDGE, natural, false);
+            return natural == line ? new RunsBand(y, line, true) : new RunsBand(letters.centeredTop(y, line), natural,
+                    false);
         }
         boolean sprite = runs.stream().anyMatch(run -> run.kind() == ExpressionLines.Kind.ITEM);
         int height = sprite ? ExpressionLines.ICON_LINE_HEIGHT : line;
@@ -1135,7 +1063,7 @@ final class ControlFlow {
     // Decision blue-text-options-draw-as-bordered-buttons: a clickable run is a button, its runs inside; runs that
     // fill their band take the band's height.
     private void drawRunsFrame(RunsBand band, int width) {
-        ButtonPainter.drawFrame(graphics, band.filled()
+        Frame.draw(graphics, Frame.BUTTON, band.filled()
                 ? new ButtonPainter.Box(x, band.top(), width + ButtonPainter.PADDING + ButtonPainter.PADDING,
                         band.height())
                 : ButtonPainter.layout(width, x, y, line));

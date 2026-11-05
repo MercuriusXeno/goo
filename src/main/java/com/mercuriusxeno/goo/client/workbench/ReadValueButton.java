@@ -15,7 +15,7 @@ final class ReadValueButton {
     static final String NOT_SET = "Value: Not explicitly set";
     /** The pencil segment's label. */
     static final String PENCIL = "✎";
-    private static final int NOT_SET_COLOR = 0xFFA0A0A0;
+    private static final String PENCIL_HINT = "Rename";
     // The expression stands a pixel in from the frame's top border and a pixel above its bottom one.
     private static final int CONTENT_INSET = 2;
 
@@ -43,7 +43,7 @@ final class ReadValueButton {
      * @return the top of the button's first line of text, so a label beside it stands on that line
      */
     static int textTop(Font font, List<ExpressionLines.Run> runs, int top) {
-        return runs.isEmpty() ? top + ButtonPainter.TEXT_NUDGE
+        return runs.isEmpty() ? top + ButtonPainter.labelInset(font)
                 : top + CONTENT_INSET + ExpressionLines.textOffset(font, runs);
     }
 
@@ -81,14 +81,16 @@ final class ReadValueButton {
         int frameRight = runs.isEmpty() ? place.left() + ButtonPainter.width(font, NOT_SET)
                 : place.right() - ButtonPainter.width(font, PENCIL) + 1;
         ButtonPainter.Box frame = new ButtonPainter.Box(place.left(), place.top(), frameRight - place.left(), height);
-        ButtonPainter.drawFrame(graphics, frame);
+        Frame.draw(graphics, Frame.BUTTON, frame);
         ButtonPainter.reserve(targets, frame, place.open(), null);
         drawPencil(graphics, font, frame, textTop(font, runs, place.top()), targets, place.open());
         if (runs.isEmpty()) {
-            graphics.text(font, NOT_SET, place.left() + ButtonPainter.PADDING, place.top() + ButtonPainter.TEXT_NUDGE,
-                    NOT_SET_COLOR);
+            graphics.text(font, NOT_SET, place.left() + ButtonPainter.PADDING,
+                    place.top() + ButtonPainter.labelInset(font),
+                    Palette.MUTED);
         } else {
-            ExpressionLines.draw(font, runs, place.left() + ButtonPainter.PADDING, place.top() + CONTENT_INSET,
+            ExpressionLines.draw(Lettering.full(font), runs, place.left() + ButtonPainter.PADDING,
+                    place.top() + CONTENT_INSET,
                     contentWidth(font, place.right() - place.left()), painter);
         }
         return height;
@@ -99,8 +101,10 @@ final class ReadValueButton {
                                    ClickTargets targets, Runnable open) {
         ButtonPainter.Box pencil = new ButtonPainter.Box(frame.right() - 1, frame.top(),
                 ButtonPainter.width(font, PENCIL), frame.height());
-        ButtonPainter.drawFrame(graphics, pencil);
-        graphics.text(font, PENCIL, pencil.left() + ButtonPainter.PADDING, textTop, ButtonPainter.LINK);
-        ButtonPainter.reserve(targets, pencil, open, null);
+        Frame.draw(graphics, Frame.BUTTON, pencil);
+        graphics.text(font, PENCIL, pencil.left() + ButtonPainter.PADDING, textTop, Palette.LINK);
+        // Decision diagnose-and-correct-the-read-value-pencil-without-its-hint: the pencil hovers what every pencil
+        // hovers; the frame around the value hovers nothing.
+        ButtonPainter.reserve(targets, pencil, open, BuilderOverlays.hintKey(PENCIL_HINT));
     }
 }

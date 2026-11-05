@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -10,9 +13,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -51,17 +58,7 @@ class GroupsPaneTest {
 
     // A Groups pane over forty groups of one member each, none selected.
     private static GroupsPane manyGroups(GroupsTab groups) {
-        String described = IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> """
-                {"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
-                 "base": "8", "tweaks": [], "preview": []}""".formatted(groupName(index)))
-                .collect(Collectors.joining(", "));
-        groups.readDescribed("{\"groups\": [" + described + "]}");
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
-        ManagerDraft draft = new ManagerDraft();
-        return new GroupsPane(groups, new ValuesTab(draft), icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        return manyGroups(groups, mock(ManagerActions.class));
     }
 
     // Each group row's top inside the list's content, read off a view tall enough to draw every row unscrolled.
@@ -107,8 +104,6 @@ class GroupsPaneTest {
         pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
         int target = 25;
         pane.reveal(groupName(target));
-        DrawnFrame centering = new DrawnFrame();
-        pane.extract(centering.graphics, DrawnFrame.font(), SHORT_VIEW, centering.targets);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         ValuesPaneTest.assertGlowCovers(frame, frame.find("#" + groupName(target)),
@@ -143,6 +138,38 @@ class GroupsPaneTest {
      * filters the list and returns the list's bar to its top, and a right click on it lists every group again
      * (decisions groups-search-matches-a-name-or-any-member, right-click-empties-every-text-box-in-the-manager).
      */
+    @Test
+    void searchRowStretchesToCustomAndTagAndThePencilStandsOneGapPastTheName() {
+        // Decision one-search-row-per-list-with-its-create-control-beside-it: no 2px offset, 14 tall, one gap short
+        // of + Custom, and the rename pencil one pencil gap past the name.
+        List<AbstractWidget> widgets = new ArrayList<>();
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()), widgets);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        int[] custom = frame.buttonAround(frame.find("+ Custom"));
+        assertEquals(List.of(SHORT_VIEW.top(), SearchRow.HEIGHT, custom[0] - SearchRow.GAP),
+                List.of(search.getY(), search.getHeight(), search.getX() + search.getWidth()));
+        groupsSelectFirst(pane, frame);
+    }
+
+    // Selects the first group and checks its card's pencil stands one pencil gap past its name.
+    private static void groupsSelectFirst(GroupsPane pane, DrawnFrame list) {
+        list.click("#" + groupName(0));
+        DrawnFrame card = new DrawnFrame();
+        pane.extract(card.graphics, DrawnFrame.font(), SHORT_VIEW, card.targets);
+        DrawnFrame.Text name = card.drawn().stream().filter(text -> text.text().equals("#" + groupName(0)))
+                .reduce((first, last) -> last).orElseThrow();
+        DrawnFrame.Text pencil = card.drawn().stream().filter(text -> text.text().equals("✎")
+                && Math.abs(text.y() - name.y()) <= 2 && text.x() > name.x()).findFirst()
+                .orElseThrow(() -> new AssertionError(card.drawn().toString()));
+        assertEquals(name.x() + DrawnFrame.font().width(name.text()) + ButtonPainter.PENCIL_GAP,
+                card.buttonAround(pencil)[0]);
+    }
+
     @Test
     void searchBoxFiltersTheListAndARightClickEmptiesIt() {
         GroupsTab groups = new GroupsTab(new ManagerDraft());
@@ -198,20 +225,121 @@ class GroupsPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         assertEquals("", search.getValue());
         assertTrue(frame.texts().contains("#" + groupName(target)), frame.texts().toString());
+        // Decision every-follow-lands-selected-and-read-only: the followed group stands selected.
+        assertEquals(groupName(target), groups.selected().orElseThrow().name());
     }
 
-    // A Groups pane over forty groups whose actions record every widget the pane stands.
-    private static GroupsPane manyGroups(GroupsTab groups, List<AbstractWidget> widgets) {
-        String described = IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> """
-                {"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
-                 "base": "8", "tweaks": [], "preview": []}""".formatted(groupName(index)))
-                .collect(Collectors.joining(", "));
-        groups.readDescribed("{\"groups\": [" + described + "]}");
+    /**
+     * The first frame after a follow already draws the group's row centered, where it settles, and glowing at age
+     * zero, with the search empty (decision one-reveal-primitive-centers-before-the-first-draw).
+     */
+    @Test
+    void revealDrawsTheRowCenteredAndGlowingOnTheFirstFrame() {
+        List<Integer> tops = rowTops();
+        List<AbstractWidget> widgets = new ArrayList<>();
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()), widgets);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue(groupName(7));
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        int target = 25;
+        pane.reveal(groupName(target));
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        assertEquals("", search.getValue());
+        int[] list = first.firstScissor();
+        int rowHeight = tops.get(target + 1) - tops.get(target);
+        assertEquals(tops.get(target) + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
+        DrawnFrame.Text name = first.find("#" + groupName(target));
+        DrawnFrame settled = new DrawnFrame();
+        pane.extract(settled.graphics, DrawnFrame.font(), SHORT_VIEW, settled.targets);
+        assertEquals(settled.find("#" + groupName(target)).y(), name.y(), "drawn where it settles");
+        ValuesPaneTest.assertGlowCovers(first, name, rowHeight);
+    }
+
+    /**
+     * Enter on the name box with a new group's name empties the search at once, and once the create's reply lists the
+     * group, the first frame draws its row centered and glowing (decision create-reveals-the-new-row-like-a-follow).
+     */
+    @Test
+    void createRevealsTheNewGroupOnceTheReplyListsIt() {
+        String created = groupName(25) + "a";
+        List<String> listed = new ArrayList<>(IntStream.range(0, FOLLOWED_GROUPS).mapToObj(GroupsPaneTest::groupName)
+                .toList());
+        listed.add(26, created);
+        DrawnFrame tall = new DrawnFrame();
+        GroupsTab tallGroups = new GroupsTab(new ManagerDraft());
+        GroupsPane tallPane = manyGroups(tallGroups, new ArrayList<>());
+        tallGroups.readDescribed("{\"groups\": [" + describedGroups(listed) + "]}");
+        tallPane.extract(tall.graphics, DrawnFrame.font(), TALL_VIEW, tall.targets);
+        List<Integer> tops = tall.topsOf(listed.stream().map(each -> "#" + each).toList());
+        int target = listed.indexOf(created);
+        int rowTop = tops.get(target) - tops.getFirst();
+        int rowHeight = tops.get(target + 1) - tops.get(target);
+
+        GroupsTab groups = new GroupsTab(new ManagerDraft());
+        List<AbstractWidget> widgets = new ArrayList<>();
         ManagerActions actions = mock(ManagerActions.class);
         when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
             widgets.add(call.getArgument(0));
             return call.getArgument(0);
         });
+        GroupsPane pane = manyGroups(groups, actions);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue(groupName(7));
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        searched.click("+ Custom");
+        EditBox nameBox = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> box != search).findFirst().orElseThrow();
+        GroupCards.focus(nameBox);
+        nameBox.setValue(created);
+        assertTrue(pane.keyPressed(GLFW.GLFW_KEY_ENTER));
+        assertEquals("", search.getValue(), "the create empties the search at once");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Consumer<String>> answered = ArgumentCaptor.forClass(Consumer.class);
+        verify(actions).request(eq(WorkbenchOperations.APPLY_TO_GROUP), anyString(), answered.capture());
+        answered.getValue().accept("""
+                {"model": {"path": "", "members": [
+                   {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [],
+                    "leading": null, "trailing": null, "closingGap": null}]},
+                 "groups": [%s]}
+                """.formatted(describedGroups(listed)));
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int[] list = first.firstScissor();
+        assertEquals(rowTop + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset(), "centered");
+        ValuesPaneTest.assertGlowCovers(first, first.find("#" + created), rowHeight);
+    }
+
+    // The groups reply's entries for each name, one member each.
+    private static String describedGroups(List<String> names) {
+        return names.stream().map(name -> """
+                {"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                 "base": "8", "tweaks": [], "preview": []}""".formatted(name)).collect(Collectors.joining(", "));
+    }
+
+    // A Groups pane over forty groups whose actions record every widget the pane stands.
+    private static GroupsPane manyGroups(GroupsTab groups, List<AbstractWidget> widgets) {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        return manyGroups(groups, actions);
+    }
+
+    // A Groups pane over forty groups answering to the actions given.
+    private static GroupsPane manyGroups(GroupsTab groups, ManagerActions actions) {
+        groups.readDescribed("{\"groups\": [" + describedGroups(IntStream.range(0, FOLLOWED_GROUPS)
+                .mapToObj(GroupsPaneTest::groupName).toList()) + "]}");
         ItemIcons icons = mock(ItemIcons.class);
         when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
         return new GroupsPane(groups, new ValuesTab(new ManagerDraft()), icons, actions,
@@ -276,7 +404,7 @@ class GroupsPaneTest {
         @Test
         void everyTooltipHintIsRenameDeleteOrACutName() {
             List<String> hints = frame().targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
-                    .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
+                    .flatMap(Optional::stream).map(component -> component.getString()).distinct().toList();
             assertTrue(hints.containsAll(List.of("Rename", "Delete")), hints.toString());
             assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
                     || hint.contains(LONG_GROUP)), hints.toString());
@@ -407,20 +535,20 @@ class GroupsPaneTest {
                        "leading": null, "trailing": null, "closingGap": null}]}""".formatted(LONG_GROUP));
             DrawnFrame frame = frame();
             DrawnFrame.Text cross = frame.find("✗");
-            assertEquals(ProcessesPane.RED, cross.color());
+            assertEquals(Palette.DANGER, cross.color());
             frame.click("✗");
             DrawnFrame marked = frame();
             DrawnFrame.Text arrow = marked.find("↺");
             assertEquals(cross.x(), arrow.x());
             assertEquals(cross.y(), arrow.y());
-            assertEquals(ButtonPainter.GOLD, arrow.color());
+            assertEquals(Palette.GOLD, arrow.color());
             assertEquals(Optional.of(BuilderOverlays.hintKey("Restore")),
                     marked.targets.hovered(arrow.x() + 1, arrow.y() + 1));
             assertFalse(startingWith(marked, "#" + LONG_GROUP).isEmpty(), marked.texts().toString());
             assertEquals(1, draft.sectionEntries("_groups").size());
             marked.click("↺");
             DrawnFrame restored = frame();
-            assertEquals(ProcessesPane.RED, restored.find("✗").color());
+            assertEquals(Palette.DANGER, restored.find("✗").color());
             restored.click("✗");
             pane.applyRemovals();
             assertEquals(0, draft.sectionEntries("_groups").size());
@@ -489,7 +617,7 @@ class GroupsPaneTest {
         // EditBox.setFocused reaches the game client, which a unit test holds none of, so the flag is set directly.
         static void focus(EditBox box) {
             try {
-                java.lang.reflect.Field focused = AbstractWidget.class.getDeclaredField("focused");
+                Field focused = AbstractWidget.class.getDeclaredField("focused");
                 focused.setAccessible(true);
                 focused.setBoolean(box, true);
             } catch (ReflectiveOperationException unreachable) {
@@ -537,7 +665,7 @@ class GroupsPaneTest {
             assertTrue(value.y() > planksMembers.y() && value.y() < logs.y(), value.toString());
             // Decisions read-mode-builder-is-a-button-with-a-pencil-segment,
             // group-card-shows-its-goo-value-above-a-labelled-builder: the value stands inside its frame past Value:.
-            assertEquals(ControlFlow.INDENT + "Value:".length() * 6 + BuilderOverlays.GAP + ButtonPainter.PADDING,
+            assertEquals(ControlFlow.INDENT + "Value:".length() * 6 + BuilderFrame.LABEL_GAP + ButtonPainter.PADDING,
                     value.x());
             assertTrue(inList(frame, "4").getFirst().y() > members.getLast().y(), frame.drawn().toString());
             assertFalse(frame.texts().contains("Value"), frame.texts().toString());
@@ -642,8 +770,8 @@ class GroupsPaneTest {
             ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-            verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
-                    rights.capture(), bottoms.capture(), eq(ControlFlow.RAIL_COLOR));
+            verify(frame.graphics, Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
+                    rights.capture(), bottoms.capture(), eq(Palette.RAIL));
             return IntStream.range(0, lefts.getAllValues().size()).filter(index ->
                     lefts.getAllValues().get(index) >= DETAIL_LEFT).mapToObj(index -> new int[] {
                         lefts.getAllValues().get(index), tops.getAllValues().get(index),
@@ -682,7 +810,7 @@ class GroupsPaneTest {
         void tagGroupMembersDrawNoNumberAndNoRail() {
             DrawnFrame frame = frame("logs");
             assertEquals(List.of(), detailNumbers(frame));
-            assertEquals(List.of(), detailRails(frame).stream().map(java.util.Arrays::toString).toList());
+            assertEquals(List.of(), detailRails(frame).stream().map(Arrays::toString).toList());
         }
 
         /**
@@ -697,10 +825,10 @@ class GroupsPaneTest {
             frame.targets.drag(third[0] + 1, firstRow);
             frame.targets.release();
             ArgumentCaptor<String> posted = ArgumentCaptor.forClass(String.class);
-            verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.APPLY_TO_GROUP),
+            verify(actions).request(eq(WorkbenchOperations.APPLY_TO_GROUP),
                     posted.capture(), any());
             assertEquals(List.of("minecraft:spruce_log", "minecraft:oak_log", "minecraft:birch_log"),
-                    com.google.gson.JsonParser.parseString(posted.getValue()).getAsJsonObject()
+                    JsonParser.parseString(posted.getValue()).getAsJsonObject()
                             .getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
         }
     }
@@ -740,9 +868,9 @@ class GroupsPaneTest {
         int logs = frame.find("#logs").y();
         assertTrue(usedBy.getFirst().y() > members.getFirst().y() && usedBy.getFirst().y() < logs, usedBy.toString());
         DrawnFrame.Text link = frame.find("#exposed");
-        assertEquals(ButtonPainter.LINK, link.color());
+        assertEquals(Palette.LINK, link.color());
         // Decision group-referent-previews-shorthand-members-then-its-value: the iterator previews its group.
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
+        assertEquals(Optional.of(GroupHovers.iteratorHoverKey("#exposed")),
                 frame.targets.hovered(link.x() + 1, link.y() + 1));
         assertTrue(Math.abs(link.y() - usedBy.getFirst().y()) < ExpressionLines.TEXT_LINE_HEIGHT, link.toString());
         frame.shiftClick("#exposed");
@@ -789,15 +917,29 @@ class GroupsPaneTest {
                 expanded.texts().toString());
     }
 
+    // Decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane: a selected group's card head cuts
+    // its long name and hovers it whole through drawEntryName.
     @Test
     void wideNameHoversWhole() {
-        String key = GroupsPane.nameHoverKey(font(), WIDE, 78).orElseThrow();
-        assertEquals(Optional.of(new TooltipLine.Text(Component.literal(WIDE))), GroupsPane.nameTooltipFor(key));
-    }
-
-    @Test
-    void fittingNameLeavesNoHover() {
-        assertEquals(Optional.empty(), GroupsPane.nameHoverKey(font(), "#logs", 78));
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        String name = WIDE.substring(1);
+        groups.readDescribed("""
+                {"groups": [{"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """.formatted(name));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        groups.selectGroup(name);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 300, 300), frame.targets);
+        DrawnFrame.Text cut = frame.drawn().stream().filter(text -> text.text().contains(ButtonPainter.ELLIPSIS))
+                .reduce((first, last) -> last).orElseThrow(() -> new AssertionError(frame.texts().toString()));
+        String key = frame.targets.hoveredArea(cut.x() + 1, cut.y() + 1).orElseThrow().hoverKey();
+        assertEquals(Optional.of(new TooltipLine.Text(Component.literal(WIDE))), ButtonPainter.wholeNameTooltip(key));
     }
 
     /**
@@ -871,11 +1013,10 @@ class GroupsPaneTest {
                 .toString()));
         assertTrue(building.findFirst("37").y() < kind.y(), building.drawn().toString());
         DrawnFrame.Text label = building.find("Value:");
-        // The full-size label and the builder's smaller kind label center on the builder's first line.
-        Font font = DrawnFrame.font();
-        int labelCenter = label.y() * 2 + font.lineHeight;
-        int kindCenter = kind.y() * 2 + new Lettering(font, ControlFlow.BUILDER_SCALE).lineHeight();
-        assertTrue(Math.abs(labelCenter - kindCenter) <= 2, label + " vs " + kind);
+        // Decision one-builder-frame-on-every-pane: Value: stands on the goo value line, above the builder.
+        DrawnFrame.Text worthLine = building.findFirst("37");
+        assertTrue(Math.abs(label.y() - worthLine.y()) <= ExpressionLines.TEXT_LINE_HEIGHT / 2
+                && label.y() < kind.y(), label + " vs " + worthLine + " and " + kind);
         assertTrue(label.x() < kind.x(), label + " vs " + kind);
     }
 
@@ -884,6 +1025,108 @@ class GroupsPaneTest {
      * and a half, the half stacked over its bar, and never 21/2 at full size (decision
      * groups-value-draws-as-every-other-panes-value).
      */
+    // A Groups pane over logs valued by the base given, oak_log resolving to the value or the error given.
+    private static GroupsPane logsValued(String base, String resolved) {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_log", "Oak Log")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "%s",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """.formatted(base.replace("\"", "\\\\\\\"")));
+        values.readResolved("{\"entries\": [{\"key\": \"oak_log\", " + resolved + ", \"denied\": false}]}");
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": "%s", "tweaks": [], "preview": []}]}
+                """.formatted(base.replace("\"", "\\\"")));
+        groups.selectGroup("logs");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        return new GroupsPane(groups, values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
+                List::of));
+    }
+
+    /**
+     * A change in the Groups builder writes the group's base into the draft and reaches draftChanged on the same call,
+     * as the Items and Prefabs builders do, with no group request ahead of it (decision
+     * one-red-error-line-under-every-value).
+     */
+    @Test
+    void builderChangeReachesDraftChangedOnTheSameCall() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "4", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        GroupsPane pane = new GroupsPane(new GroupsTab(draft), new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        pane.writeBase("logs", "9");
+        verify(actions).draftChanged();
+        verify(actions, never()).request(eq(WorkbenchOperations.APPLY_TO_GROUP), anyString(), any());
+        String base = draft.members().asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(member -> member.get("key").getAsString().equals("#logs")).findFirst().orElseThrow()
+                .get("text").getAsString();
+        assertEquals("9", base);
+    }
+
+    /**
+     * A group's builder opens in the read box's place below its goo value line, short of the delete x, its panel's
+     * overhang reserved, and Value: and the goo value stay above it (decision one-builder-frame-on-every-pane).
+     */
+    @Test
+    void builderOpensInTheFrameBelowTheGooValueLine() {
+        GroupsPane pane = logsValued("{\"glow\": \"4\"}", "\"value\": {\"glow\": \"4\"}");
+        GroupsPane.Bounds view = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame read = new DrawnFrame();
+        pane.extract(read.graphics, DrawnFrame.font(), view, read.targets);
+        int[] box = read.buttonAround(read.find(ReadValueButton.PENCIL));
+        DrawnFrame.Placed worth = read.placements().stream().filter(placed -> placed.scale() == Lettering.AMOUNT_SCALE)
+                .findFirst().orElseThrow(() -> new AssertionError(read.placements().toString()));
+        assertTrue(worth.y() < box[1], "the goo value line above the box");
+        read.click(ReadValueButton.PENCIL);
+        DrawnFrame open = new DrawnFrame();
+        pane.extract(open.graphics, DrawnFrame.font(), view, open.targets);
+        int[] panel = open.fillsOf(Palette.PANEL_FILL).getFirst();
+        int[] readBox = read.fillsOf(Palette.BORDER).stream().filter(border -> border[1] == box[1]
+                && border[0] < box[0]).findFirst().orElse(box);
+        assertEquals(List.of(readBox[0] - RowLayout.BOX_MARGIN, box[1]), List.of(panel[0], panel[1]),
+                "the builder's panel in the read box's place");
+        assertTrue(open.texts().contains("Value:"), open.texts().toString());
+        assertTrue(open.placements().stream().anyMatch(placed -> placed.scale() == Lettering.AMOUNT_SCALE
+                && placed.y() < panel[1]), "the goo value stays above the builder");
+    }
+
+    /**
+     * A group whose value fails draws one red line under its box carrying the error (decision
+     * one-red-error-line-under-every-value).
+     */
+    @Test
+    void failingGroupValueDrawsOneRedLineUnderItsBox() {
+        GroupsPane pane = logsValued("$missing", "\"value\": null, \"error\": \"Unknown constant $missing\"");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        int[] box = frame.buttonAround(frame.find("$missing"));
+        List<DrawnFrame.Text> red = frame.drawn().stream().filter(text -> text.color() == Palette.DANGER
+                && text.text().contains("Unknown constant")).toList();
+        assertEquals(1, red.size(), frame.drawn().toString());
+        assertEquals(box[3], red.getFirst().y());
+    }
+
     @Test
     void cardValueDrawsSmallAsAMixedNumber() {
         ManagerDraft draft = new ManagerDraft();
@@ -914,9 +1157,9 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
-        assertEquals(SmallDigits.SCALE, frame.placed("10").scale(), frame.placements().toString());
+        assertEquals(Lettering.AMOUNT_SCALE, frame.placed("10").scale(), frame.placements().toString());
         assertTrue(frame.placements().stream().anyMatch(placed -> placed.text().equals("2")
-                && placed.scale() < SmallDigits.SCALE), "the half stacks: " + frame.placements());
+                && placed.scale() < Lettering.AMOUNT_SCALE), "the half stacks: " + frame.placements());
         assertTrue(frame.placements().stream().noneMatch(placed -> placed.text().contains("21/2")
                 && placed.scale() == 1f && placed.y() < frame.find(ReadValueButton.PENCIL).y() - 4),
                 frame.placements().toString());
@@ -1025,9 +1268,92 @@ class GroupsPaneTest {
                 .reduce((first, last) -> last).orElseThrow();
         ArgumentCaptor<Integer> fillYs = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).fill(anyInt(), fillYs.capture(), anyInt(), anyInt(),
-                eq(RowLayout.SEPARATOR_COLOR));
+                eq(Palette.SEPARATOR));
         int rule = fillYs.getAllValues().stream().filter(y -> y > oak && y < birch).findFirst().orElseThrow();
         assertEquals(RowLayout.RULE_PADDING, rule - (oakSprite + RowLayout.SPRITE_SIZE));
+    }
+
+    /**
+     * One wheel notch over the group list moves it one wheel step (decision one-wheel-step-and-one-dialog-primitive).
+     */
+    @Test
+    void wheelNotchMovesTheListOneWheelStep() {
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        pane.scroll(SHORT_VIEW.left() + 1, SHORT_VIEW.top() + 60, SHORT_VIEW.left(), -1);
+        assertEquals(ScrollBar.WHEEL_STEP, pane.listBar().offset());
+    }
+
+    /**
+     * A group's name centers on its list row through the one centering helper, as every list pane's does (decision
+     * one-lettering-primitive-names-three-text-roles).
+     */
+    @Test
+    void groupNameCentersOnItsRow() {
+        DrawnFrame tall = new DrawnFrame();
+        manyGroups(new GroupsTab(new ManagerDraft())).extract(tall.graphics, DrawnFrame.font(), TALL_VIEW,
+                tall.targets);
+        DrawnFrame.Text second = tall.findFirst("#" + groupName(1));
+        assertEquals(Lettering.full(DrawnFrame.font()).centeredTop(tall.rowTopAbove(second),
+                RowLayout.SPRITE_ROW_HEIGHT), second.y());
+    }
+
+    /**
+     * A member-list card's sprite hovers the item's value and follows to Items on shift + left click, as every item
+     * icon does (decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own).
+     */
+    @Test
+    void memberCardSpriteHoversAndLinksAsEveryItemIcon() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        groups.selectGroup("logs");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
+        int x = xs.getAllValues().getLast() + 1;
+        int y = ys.getAllValues().getLast() + 1;
+        assertEquals(Optional.of(ItemIcons.hoverKey("minecraft:oak_log")),
+                frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
+        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
+        verify(actions).openItem("minecraft:oak_log");
+    }
+
+    /**
+     * The selected group's card fills in the palette's selected fill (decision fills-are-two-roles-selected-and-panel).
+     */
+    @Test
+    void selectedCardFillsTheSelectedRole() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        groups.selectGroup("logs");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        DrawnFrame.Text members = frame.find("Members:");
+        assertTrue(frame.fillsOf(Palette.SELECTED_FILL).stream().anyMatch(fill -> fill[0] <= members.x()
+                && members.x() < fill[2] && fill[1] <= members.y() && members.y() < fill[3]), frame.drawn().toString());
     }
 
     /**

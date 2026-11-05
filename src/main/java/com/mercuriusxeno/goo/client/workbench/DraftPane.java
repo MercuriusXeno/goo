@@ -14,14 +14,9 @@ import java.util.function.Consumer;
 final class DraftPane {
     private static final int WIDTH = 320;
     private static final int PADDING = 8;
-    private static final int LINE_HEIGHT = 10;
+    private static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     private static final int ACTION_GAP = 12;
     private static final int HALF = 2;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFC0C0C0;
-    private static final int RED = 0xFFFF5555;
-    private static final int DIM_COLOR = 0xB0000000;
-    private static final int CARD_COLOR = 0xF0181818;
     private final DraftConfirm confirm;
     private final Consumer<DraftConfirm.Choice> onChoice;
 
@@ -37,27 +32,23 @@ final class DraftPane {
         return confirm.dialog().isPresent();
     }
 
-    void extract(GuiGraphicsExtractor graphics, Font font, int screenWidth, int screenHeight, ClickTargets targets) {
+    void extract(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         Optional<DraftConfirm.Dialog> dialog = confirm.dialog();
         if (dialog.isEmpty()) {
             return;
         }
-        graphics.nextStratum();
-        graphics.fill(0, 0, screenWidth, screenHeight, DIM_COLOR);
-        targets.addShield(0, 0, screenWidth, screenHeight, () -> { });
         int textWidth = WIDTH - PADDING * HALF;
         List<ExpressionLines.Run> body = ExpressionLines.textRuns(dialog.get().text());
         int bodyHeight = ExpressionLines.height(font, body, textWidth);
         int height = PADDING * HALF + bodyHeight + LINE_HEIGHT * (HALF + 1);
-        int left = (screenWidth - WIDTH) / HALF;
-        int top = (screenHeight - height) / HALF;
-        graphics.fill(left, top, left + WIDTH, top + height, CARD_COLOR);
-        int x = left + PADDING;
-        int y = top + PADDING;
-        graphics.text(font, dialog.get().title(), x, y, WHITE);
+        // Decision one-wheel-step-and-one-dialog-primitive.
+        GroupsPane.Bounds card = Dialog.open(graphics, targets, WIDTH, height);
+        int x = card.left() + PADDING;
+        int y = card.top() + PADDING;
+        graphics.text(font, dialog.get().title(), x, y, Palette.TEXT);
         y += LINE_HEIGHT * HALF;
-        ExpressionLines.draw(font, body, x, y, textWidth, new ExpressionLines.Painter(graphics, null, targets, GRAY, GRAY,
-                (name, linkX, linkY, width) -> { }));
+        ExpressionLines.draw(Lettering.full(font), body, x, y, textWidth, new ExpressionLines.Painter(graphics, null,
+                targets, Palette.MUTED, Palette.MUTED, (name, linkX, linkY, width) -> { }));
         drawChoices(graphics, font, x, y + bodyHeight + LINE_HEIGHT, targets);
     }
 
@@ -66,8 +57,8 @@ final class DraftPane {
         for (DraftConfirm.Choice choice : confirm.choices()) {
             Runnable pressed = () -> onChoice.accept(choice);
             ButtonPainter.Box box = losesWork(choice)
-                    ? ButtonPainter.drawColored(graphics, font, choice.label(), RED, x, y - ButtonPainter.PADDING,
-                            ButtonPainter.HEIGHT, targets, pressed, null)
+                    ? ButtonPainter.drawColored(graphics, font, choice.label(), Palette.DANGER, x,
+                            y - ButtonPainter.PADDING, ButtonPainter.HEIGHT, targets, pressed, null)
                     : ButtonPainter.drawAtText(graphics, font, choice.label(), x, y, targets, pressed);
             x = box.right() + ACTION_GAP;
         }

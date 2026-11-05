@@ -4,7 +4,6 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,7 +22,7 @@ import java.util.function.ToIntFunction;
  */
 final class ValuesPane {
     /** A text line's height. */
-    static final int LINE_HEIGHT = 10;
+    static final int LINE_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT;
     private static final int BOX_HEIGHT = 14;
     /** An Items row's head line's height, its sprite's and margin. */
     static final int ROW_HEIGHT = 18;
@@ -43,26 +42,15 @@ final class ValuesPane {
     private static final String MINUS = "-";
     private static final String FRACTION_DIVIDER = "/";
     private static final String MIXED_SPACE = " ";
-    // Half scale doubles every coordinate the fraction draws at.
-    private static final int FRACTION_SPACE = 2;
     // A stack count's right and bottom edges stand a pixel past the sprite's.
     private static final int COUNT_OVERHANG = 1;
     // Where a stack count's glyphs end under the sprite's top: its text top 9 down and its 8px glyphs.
     private static final int COUNT_GLYPHS_BOTTOM = 17;
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
-    private static final int CHIP_TEXT_NUDGE = 3;
     /** The room between the search line and the list. */
     static final int GAP = 3;
     private static final int HALF = 2;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
-    /** The color of no value, the one red source. */
-    static final int RED = 0xFFFF5555;
-    // The break a loader error wraps at.
-    private static final String WORD_BREAK = " ";
-    private static final int GREEN = 0xFF80E080;
-    private static final int DERIVED_COLOR = 0xFFA0C8F0;
     /** The room between two runs of an Items row's value. */
     static final int RUN_GAP = 3;
     /** The room between a run's type icon and its amount. */
@@ -70,20 +58,14 @@ final class ValuesPane {
     // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: an amount stands a pixel further from the next
     // run's icon than the run gap alone.
     private static final int RUN_STEP = RUN_GAP + 1;
-    private static final int GOLD = 0xFFE0C060;
-    private static final int CHIP_OFF = 0xFF808080;
-    private static final int CHIP_HOLLOW = 0xFF202020;
-    private static final int CHIP_FILLED_TEXT = 0xFF000000;
     private static final String ITEMS_CHIP = "Items";
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String FRACTIONAL_CHIP = "Fractional";
     private static final String NEGATIVE_CHIP = "Negative ";
     private static final String SEARCH_HINT = "Search items";
     private static final int SEARCH_WIDTH = 180;
-    private static final int LINK = ButtonPainter.LINK;
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
-    private static final int NO_REVEAL = -1;
     // A hover key no item id, prefab name or goo type key spells.
     private static final String GROUP_MARK = "#";
 
@@ -97,12 +79,11 @@ final class ValuesPane {
     private int valueColumn;
     private @Nullable ColumnInputs columnInputs;
     /** How far one wheel notch moves the Items list, in pixels (decision items-list-scrolls-by-pixel). */
-    static final int SCROLL_STEP = LINE_HEIGHT * 3;
-    private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
+    private final ScrollBar listBar = new ScrollBar(ScrollBar.WHEEL_STEP);
     // The item whose expression the builder stands open over, in its row's place.
     private @Nullable String building;
     private boolean visible;
-    private int revealRow = NO_REVEAL;
+    private final Reveal revealing = new Reveal();
     private final RevealGlow glow = new RevealGlow();
 
     ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions, ExpressionBuilderPane builder) {
@@ -158,13 +139,14 @@ final class ValuesPane {
      * @param id the item's id
      */
     void reveal(String id) {
-        int index = values.open(id);
-        if (search != null) {
-            search.setValue(NO_TEXT);
-        }
+        revealing.follow(id, () -> {
+            values.open(id);
+            if (search != null) {
+                search.setValue(NO_TEXT);
+            }
+        });
         builder.close();
         building = null;
-        revealRow = index;
     }
 
     /**
@@ -262,13 +244,13 @@ final class ValuesPane {
         int left = chipsLeft(labels, font::width, line);
         ChipLayout layout = layChips(labels, font::width, left, line.top(), values.filter());
         for (Chip chip : layout.chips()) {
-            drawChip(graphics, font, chip, warns(chip.filter(), uncovered, negative) ? RED : WHITE, targets);
+            drawChip(graphics, font, chip, warns(chip.filter(), uncovered, negative) ? Palette.DANGER : Palette.TEXT,
+                    targets);
         }
-        if (search != null) {
-            search.setPosition(line.left(), line.top());
-            search.setWidth(Math.max(1, left - GAP - line.left()));
-        }
-        return Math.max(layout.bottom(), line.top() + BOX_HEIGHT);
+        // Decision one-search-row-per-list-with-its-create-control-beside-it: the box stretches to the chips.
+        SearchRow.Laid laid = SearchRow.lay(line.left(), line.top(), line.right(), line.right() - left);
+        SearchRow.place(search, laid);
+        return Math.max(layout.bottom(), line.top() + SearchRow.HEIGHT);
     }
 
     // Uncovered and Negative draw red while they count an item (decision items-filter-set-takes-a-negative-chip).
@@ -289,14 +271,15 @@ final class ValuesPane {
     static void drawChipFace(GuiGraphicsExtractor graphics, Font font, Chip chip, int color) {
         int right = chip.left() + chip.width();
         int bottom = chip.top() + chip.height();
-        graphics.fill(chip.left(), chip.top(), right, bottom, chip.filled() ? color : CHIP_OFF);
-        graphics.fill(chip.left() + 1, chip.top() + 1, right - 1, bottom - 1, chip.filled() ? color : CHIP_HOLLOW);
+        // Decision one-frame-primitive-draws-every-bordered-box: a hollow chip frames as a button does.
+        Frame.draw(graphics, chip.filled() ? Frame.BUTTON.solid(color) : Frame.BUTTON,
+                new GroupsPane.Bounds(chip.left(), chip.top(), right, bottom));
         int labelX = chip.left() + ButtonPainter.PADDING;
-        int labelY = chip.top() + CHIP_TEXT_NUDGE;
+        int labelY = Lettering.full(font).centeredTop(chip.top(), chip.height());
         if (chip.filled()) {
             // Decision selected-filter-chip-text-contrasts-its-shadow: the dark label draws with no shadow, which
             // would be dark too.
-            graphics.text(font, chip.label(), labelX, labelY, CHIP_FILLED_TEXT, false);
+            graphics.text(font, chip.label(), labelX, labelY, Palette.CHIP_FILLED_TEXT, false);
         } else {
             graphics.text(font, chip.label(), labelX, labelY, color);
         }
@@ -314,11 +297,13 @@ final class ValuesPane {
     private void drawEntries(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds list, ClickTargets targets) {
         List<ValuesTab.ManagerEntry> listed = values.listed();
         if (listed.isEmpty()) {
-            graphics.text(font, NO_ENTRIES, list.left(), list.top(), GRAY);
+            graphics.text(font, NO_ENTRIES, list.left(), list.top(), Palette.MUTED);
             return;
         }
         measureRecipeColumn(font, listed, list.right() - ScrollBar.WIDTH - ScrollBar.GAP - list.left());
-        scrollToRevealed(font, listed, list);
+        // Decision one-reveal-primitive-centers-before-the-first-draw: the rows' read heights lay the target, so no
+        // row draws to measure it.
+        revealing.centerBeforeDraw(graphics, scratch -> layRows(font, listed, list), column -> listBar, glow);
         graphics.enableScissor(list.left(), list.top(), list.right(), list.bottom());
         targets.clip(list.left(), list.top(), list.right(), list.bottom());
         int contentEnd = drawRows(graphics, font, listed, list, targets);
@@ -362,22 +347,23 @@ final class ValuesPane {
         int head = drawHead(graphics, font, entry, row, targets);
         int expressionTop = row.top() + head;
         boolean entered = hasNonEmptyEntry(entry);
-        int expressionLeft = row.left() + ControlFlow.INDENT;
-        GroupsPane.Bounds expression = new GroupsPane.Bounds(expressionLeft, expressionTop,
-                expressionLeft + expressionWidth(font, entry, row.right() - row.left()), row.bottom());
         ValuesTab.EntryRow shown = values.rowOf(entry.id());
-        int height = isBuilding(entry)
-                ? builder.extract(graphics, font, expression, expressionTop, targets)
-                : drawValueView(graphics, font, shown, expression, targets);
+        boolean editing = isBuilding(entry);
+        // Decisions one-builder-frame-on-every-pane, one-red-error-line-under-every-value: no label and no amount line,
+        // the item's goo value standing on its head line.
+        int height = BuilderFrame.draw(graphics, font, frameRow(new GroupsPane.Bounds(row.left(), expressionTop,
+                row.right(), row.bottom()), entered), new BuilderFrame.Value(editing, expressionRuns(shown),
+                shown.error(), box -> editing ? builder.extract(graphics, font, box, box.top(), targets)
+                        : drawValueView(graphics, font, shown, box, targets)));
         if (entered) {
             drawRemoval(graphics, font, entry.id(), row.right(), expressionTop, targets);
         }
-        for (String line : errorLines(font, shown.error(), expression.right() - expression.left())) {
-            graphics.text(font, line, expression.left(), expressionTop + height, RED);
-            height += LINE_HEIGHT;
-        }
         // Decision spacing-rules-are-one-set-across-every-pane: the x keeps the rule gap over the rule below.
         return head + height + RowLayout.RULE_SPAN;
+    }
+
+    private static BuilderFrame.Row frameRow(GroupsPane.Bounds value, boolean entered) {
+        return new BuilderFrame.Row(value, null, GooAmountGrid.NONE, entered);
     }
 
     // The red x marks the entry for removal; a marked entry's gold arrow in its place restores it until the save.
@@ -389,8 +375,8 @@ final class ValuesPane {
                     () -> values.restoreRemoval(id));
             return;
         }
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), top,
-                ButtonPainter.HEIGHT, targets, () -> {
+        ButtonPainter.drawColored(graphics, font, DELETE, Palette.DANGER, right - ButtonPainter.width(font, DELETE),
+                top, ButtonPainter.HEIGHT, targets, () -> {
                     values.markRemoval(id);
                     actions.markUnsaved();
                 }, BuilderOverlays.hintKey(DELETE_HINT));
@@ -472,7 +458,7 @@ final class ValuesPane {
     }
 
     private static String headName(Font font, ValuesTab.ManagerEntry entry, int rowWidth) {
-        return font.plainSubstrByWidth(entry.name(), rowWidth / NAME_SHARE);
+        return ButtonPainter.cut(font, entry.name(), rowWidth / NAME_SHARE);
     }
 
     // Name, = and the goo value at the value column, the recipe right packed, the plain left click on the head
@@ -480,12 +466,13 @@ final class ValuesPane {
     // Decision items-row-reads-item-equals-goo-values-then-the-recipe-at-the-far-right.
     private int drawHead(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                          GroupsPane.Bounds row, ClickTargets targets) {
-        String name = headName(font, entry, row.right() - row.left());
         HeadPlaces places = placeHead(font, entry, row);
         targets.add(row.left(), row.top(), row.right() - row.left(), places.height(), () -> values.select(entry.id()));
         HeadLine line = headLine(font, row.top(), row.right());
         ValuesTab.Source source = values.sourceOf(entry.id());
-        graphics.text(font, name, places.nameLeft(), line.textTop(), WHITE);
+        // Decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane.
+        ButtonPainter.drawEntryName(graphics, font, targets, ButtonPainter.EntryName.of(entry.name(),
+                places.nameLeft(), line.textTop(), (row.right() - row.left()) / NAME_SHARE, false));
         drawValue(graphics, font, entry.id(), source, places.valueLeft(), line, targets);
         drawRecipe(graphics, font, entry.id(), source, places.recipeLeft(), headLine(font, places.recipeTop(),
                 row.right()), targets);
@@ -493,7 +480,7 @@ final class ValuesPane {
     }
 
     private static HeadLine headLine(Font font, int top, int right) {
-        return new HeadLine(top + 1, ExpressionLines.centeredTextTop(top, ROW_HEIGHT, font.lineHeight), right);
+        return new HeadLine(top + 1, Lettering.full(font).centeredTop(top, ROW_HEIGHT), right);
     }
 
     // Valued, derived and grouped items show their goo value; no value and denied have none to show.
@@ -553,7 +540,7 @@ final class ValuesPane {
             graphics.text(font, label, left, line.textTop(), colorOf(shown.kind()));
             return;
         }
-        graphics.text(font, EQUALS, left - ICON_GAP - font.width(EQUALS), line.textTop(), WHITE);
+        graphics.text(font, EQUALS, left - ICON_GAP - font.width(EQUALS), line.textTop(), Palette.TEXT);
         drawValueRuns(graphics, font, worthShown(id, shown), left, line, targets);
     }
 
@@ -606,12 +593,10 @@ final class ValuesPane {
         for (int index = 0; index < recipe.inputs().size(); index++) {
             ValuesTab.Input input = recipe.inputs().get(index);
             int x = laid.spriteLefts().get(index);
-            ItemStack stack = icons.of(input.id());
-            graphics.item(stack, x, line.spriteTop());
+            ItemLinks.draw(graphics, icons, targets, actions, input.id(), x, line.spriteTop());
             drawCount(graphics, font, countParts(input.count(), recipe.output()), x, line.spriteTop());
-            ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
-        laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
+        laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), Palette.TEXT));
         return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;
     }
 
@@ -627,30 +612,20 @@ final class ValuesPane {
         for (int index = 0; index < terms.size(); index++) {
             ValuesTab.Input term = terms.get(index);
             int x = laid.spriteLefts().get(index);
-            ItemStack stack = icons.of(term.id());
-            graphics.item(stack, x, line.spriteTop());
+            ItemLinks.draw(graphics, icons, targets, actions, term.id(), x, line.spriteTop());
             drawCount(graphics, font, countParts(term.count(), recipe.output()), x, line.spriteTop());
-            ItemLinks.add(targets, actions, term.id(), x, line.spriteTop());
         }
-        laid.plusLefts().forEach(x -> graphics.text(font, MINUS, x, line.textTop(), WHITE));
+        laid.plusLefts().forEach(x -> graphics.text(font, MINUS, x, line.textTop(), Palette.TEXT));
         return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;
     }
 
-    // The whole part draws full size as an inventory draws a stack count; the fraction draws at half scale in the
-    // sprite's bottom-right corner as its numerator over a bar over its denominator, the whole just left of it.
+    // The count draws small in the sprite's bottom-right corner, its right edge where a stack count's stands and its
+    // glyphs a pixel under a stack count's bottom (decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere),
+    // its fraction stacking at the value column's size (decision one-lettering-primitive-names-three-text-roles).
     private static void drawCount(GuiGraphicsExtractor graphics, Font font,
                                   StackedFractions.Mixed parts, int x, int y) {
-        CornerCount placed = placeCornerCount(x, y, font.width(parts.numerator()), font.width(parts.denominator()));
-        if (!parts.whole().isEmpty()) {
-            // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere: the whole draws small, its right edge
-            // where a stack count's stands and its glyphs a pixel under a stack count's bottom.
-            int right = placed.wholeX() + ICON_SIZE + COUNT_OVERHANG;
-            SmallDigits.draw(graphics, font, parts.whole(), right - SmallDigits.width(font, parts.whole()),
-                    y + COUNT_GLYPHS_BOTTOM - SmallDigits.GLYPH_HEIGHT + 1, WHITE);
-        }
-        if (parts.stacked()) {
-            StackedFractions.drawStack(graphics, font, parts, placed.stack(), WHITE);
-        }
+        SmallDigits.drawCorner(graphics, font, parts, x + ICON_SIZE + COUNT_OVERHANG,
+                y + COUNT_GLYPHS_BOTTOM - SmallDigits.GLYPH_HEIGHT + 1, Palette.TEXT);
     }
 
     /**
@@ -665,35 +640,6 @@ final class ValuesPane {
         String joined = parts.whole().isEmpty() || fraction.isEmpty() ? parts.whole() + fraction
                 : parts.whole() + MIXED_SPACE + fraction;
         return joined.isEmpty() ? Optional.empty() : Optional.of(joined);
-    }
-
-    /**
-     * Where an input count draws on its sprite.
-     *
-     * @param wholeX the x the whole part's stack decoration takes, so it ends just left of the stack
-     * @param stack  the fraction's stack, in half-scale space
-     */
-    record CornerCount(int wholeX, StackedFractions.Stack stack) {
-    }
-
-    /**
-     * Stands the half-scale fraction stack in the sprite's bottom-right corner, its right and bottom edges where a
-     * stack count's stand, and moves the whole part left by the stack's drawn width (decision
-     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
-     *
-     * @param spriteLeft       the sprite's left edge
-     * @param spriteTop        the sprite's top edge
-     * @param numeratorWidth   the numerator's width at full scale, 0 where the count is whole
-     * @param denominatorWidth the denominator's width at full scale, 0 where the count is whole
-     * @return the whole part's x and the stack
-     */
-    static CornerCount placeCornerCount(int spriteLeft, int spriteTop, int numeratorWidth, int denominatorWidth) {
-        int barWidth = Math.max(numeratorWidth, denominatorWidth);
-        int right = (spriteLeft + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
-        int bottom = (spriteTop + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
-        int wholeX = barWidth == 0 ? spriteLeft : spriteLeft - barWidth / FRACTION_SPACE - 1;
-        return new CornerCount(wholeX, StackedFractions.layStack(right - barWidth,
-                bottom - StackedFractions.STACK_HEIGHT, numeratorWidth, denominatorWidth));
     }
 
     /**
@@ -753,7 +699,7 @@ final class ValuesPane {
             GooTypeIcons.draw(graphics, targets, amount.getKey(), x, iconTop, size);
             // Decision goo-amounts-draw-smaller-and-a-pixel-lower-everywhere.
             SmallDigits.drawBesideIcon(graphics, font, amount.getValue(), new SmallDigits.Icon(x + size, iconTop, size,
-                    RUN_ICON_GAP), WHITE);
+                    RUN_ICON_GAP), Palette.TEXT);
             x += runWidth(font, amount.getValue(), size) + RUN_STEP;
         }
         return worth.isEmpty() ? x : x - RUN_STEP;
@@ -769,28 +715,17 @@ final class ValuesPane {
         return iconSize + RUN_ICON_GAP - 1 + SmallDigits.width(font, amount);
     }
 
-    // A revealed row's middle stands at the list's middle, a row taller than the list from its top, the clamp
-    // stopping the last rows at the list's end; the rows' read heights place it, the builder closed by the reveal.
-    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
-    // Decision tall-follow-target-shows-from-its-top.
-    private void scrollToRevealed(Font font, List<ValuesTab.ManagerEntry> listed, GroupsPane.Bounds list) {
-        if (revealRow == NO_REVEAL) {
-            return;
-        }
-        int target = Math.min(revealRow, listed.size() - 1);
-        revealRow = NO_REVEAL;
+    // Lays every row at its read height and measures the bar over them, the builder closed by the reveal.
+    // Decisions shift-follow-centers-the-target-in-its-scrolling-view, tall-follow-target-shows-from-its-top.
+    private void layRows(Font font, List<ValuesTab.ManagerEntry> listed, GroupsPane.Bounds list) {
         int width = list.right() - ScrollBar.WIDTH - ScrollBar.GAP - list.left();
-        int targetTop = 0;
         int content = 0;
-        for (int index = 0; index < listed.size(); index++) {
-            targetTop = index == target ? content : targetTop;
-            content += rowHeight(font, listed.get(index), width);
+        for (ValuesTab.ManagerEntry entry : listed) {
+            int height = rowHeight(font, entry, width);
+            revealing.laid(entry.id(), content, height, 0);
+            content += height;
         }
         listBar.measure(content, list.bottom() - list.top());
-        int height = rowHeight(font, listed.get(target), width);
-        listBar.center(targetTop, height);
-        // Decision followed-target-glows-briefly.
-        glow.start(targetTop, height);
     }
 
     /**
@@ -799,11 +734,11 @@ final class ValuesPane {
      */
     static int colorOf(ValuesTab.SourceKind kind) {
         return switch (kind) {
-            case ENTRY -> GREEN;
-            case GROUP -> GOLD;
-            case DENIED -> GRAY;
-            case DERIVED -> DERIVED_COLOR;
-            case NONE -> RED;
+            case ENTRY -> Palette.GOOD;
+            case GROUP -> Palette.GOLD;
+            case DENIED -> Palette.MUTED;
+            case DERIVED -> Palette.DERIVED;
+            case NONE -> Palette.DANGER;
         };
     }
 
@@ -859,30 +794,11 @@ final class ValuesPane {
     }
 
     private int measureRow(Font font, ValuesTab.ManagerEntry entry, ValuesTab.EntryRow row, int width) {
-        int expression = ReadValueButton.height(font, expressionRuns(row), expressionWidth(font, entry, width));
+        BuilderFrame.Row frame = frameRow(new GroupsPane.Bounds(0, 0, width, 0), hasNonEmptyEntry(entry));
+        BuilderFrame.Laid laid = BuilderFrame.lay(font, frame);
+        int expression = ReadValueButton.height(font, expressionRuns(row), laid.boxRight() - laid.valueX());
         int head = placeHead(font, entry, new GroupsPane.Bounds(0, 0, width, 0)).height();
-        int error = errorLines(font, row.error(), expressionWidth(font, entry, width)).size() * LINE_HEIGHT;
-        return head + expression + error + RowLayout.RULE_SPAN;
-    }
-
-    // A loader error's lines, wrapped at word breaks to the room given, so the whole error reads inside the row; a
-    // word wider than the room stands on a line of its own, cut to it.
-    static List<String> errorLines(Font font, String error, int width) {
-        List<String> lines = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-        for (String word : error.split(WORD_BREAK)) {
-            String joined = line.isEmpty() ? word : line + WORD_BREAK + word;
-            if (!line.isEmpty() && font.width(joined) > width) {
-                lines.add(line.toString());
-                line = new StringBuilder(word);
-            } else {
-                line = new StringBuilder(joined);
-            }
-        }
-        if (!line.isEmpty()) {
-            lines.add(line.toString());
-        }
-        return lines.stream().map(wrapped -> font.plainSubstrByWidth(wrapped, width)).toList();
+        return head + BuilderFrame.measure(font, frame, expression, row.error()) + RowLayout.RULE_SPAN;
     }
 
     // The entry's value curated, a plain left click on it opening the builder in its place, with the row selected,
@@ -894,15 +810,10 @@ final class ValuesPane {
     private int drawValueView(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
                               GroupsPane.Bounds area, ClickTargets targets) {
         return ReadValueButton.draw(graphics, font, expressionRuns(row), new ReadValueButton.Place(area.left(),
-                area.top(), area.right(), () -> openBuilder(row)), new ExpressionLines.Painter(graphics, icons,
-                targets, WHITE, LINK, ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
+                area.top(), area.right(), () -> openBuilder(row)), ExpressionLines.Painter.linked(graphics, icons,
+                targets, Palette.TEXT, actions), targets);
     }
 
-    // The expression's room: one indent in, short of the entry's x where it has one.
-    private int expressionWidth(Font font, ValuesTab.ManagerEntry entry, int rowWidth) {
-        int width = rowWidth - ControlFlow.INDENT;
-        return hasNonEmptyEntry(entry) ? width - ButtonPainter.width(font, DELETE) - ICON_GAP : width;
-    }
 
     // An empty entry offers neither the x nor the restore arrow; it reads as no entry at all.
     // Decision removed-entry-shows-the-derived-value-and-no-restore-on-empty.
