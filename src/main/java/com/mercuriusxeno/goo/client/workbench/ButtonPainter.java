@@ -254,8 +254,17 @@ final class ButtonPainter {
         return box;
     }
 
-    private static void drawLinkLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
-                                      ClickTargets targets) {
+    /**
+     * Draws a link's label inside its box, underlined while the frame holds shift.
+     *
+     * @param graphics  the frame's graphics
+     * @param lettering the label's font and scale
+     * @param label     the link's label
+     * @param box       the link's box
+     * @param targets   the frame's click areas, which say whether shift is held
+     */
+    static void drawLinkLabel(GuiGraphicsExtractor graphics, Lettering lettering, String label, Box box,
+                              ClickTargets targets) {
         int[] place = drawLabel(graphics, lettering, label, box, Palette.LINK);
         underlineWhileShiftHeld(graphics, targets, lettering, place[0], place[1], lettering.width(label), Palette.LINK);
     }

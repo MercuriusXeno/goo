@@ -24,6 +24,7 @@ import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -202,6 +203,27 @@ class MutatorControlsTest {
             valued.draw(bare.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(0, 0, 590, 390), 0,
                     bare.targets);
             assertTrue(bare.drawn().stream().noneMatch(text -> text.text().contains("(")), bare.drawn().toString());
+        }
+
+        /**
+         * A stack applying an add twice draws the stack's total on the row through the amount grid: a prefab reducing
+         * to 3 metal reads 6 metal (decision prefab-hovers-its-card-and-the-row-shows-the-stack-preview).
+         */
+        @Test
+        void stackOverAnAddDrawsTheStacksTotal() {
+            MutatorControls valued = new MutatorControls(processes, overlays, mock(ManagerActions.class),
+                    () -> List.of("oak"), () -> List.of("metal"), () -> { },
+                    name -> Map.of("oak", Map.of("metal", "3")).getOrDefault(name, Map.of()));
+            when(processes.formOf(SECTION, "grow")).thenReturn(new Processes.Additive("oak"));
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Stack(2, "grow"));
+            DrawnFrame frame = new DrawnFrame();
+            valued.draw(frame.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
+            List<String> texts = frame.texts();
+            List<String> cells = GooAmountGrid.reduced(Map.of("metal", "6")).inlineRuns().stream()
+                    .flatMap(List::stream).map(ExpressionLines.Run::text).filter(text -> !text.isEmpty()).toList();
+            assertEquals(cells, texts.subList(texts.indexOf("2") + 1, texts.size()), texts.toString());
+            assertTrue(cells.contains("6"), cells.toString());
         }
 
         private static Map<String, String> orderedAmounts() {
@@ -618,6 +640,57 @@ class MutatorControlsTest {
             frame("rust", new Processes.Stack(2, "smelt")).click("smelt");
             assertTrue(overlays.listOpen());
             verify(actions, never()).openMutator(anyString());
+        }
+
+        // The click areas a row registers, watched, for the form drawn under the key.
+        private ClickTargets watchedTargets(String key, Processes.Form form) {
+            when(processes.formOf(SECTION, key)).thenReturn(form);
+            ClickTargets watched = spy(new ClickTargets());
+            controls.draw(new DrawnFrame().graphics, DrawnFrame.font(), SECTION, key,
+                    new GroupsPane.Bounds(0, 0, 590, 390), 0, watched);
+            return watched;
+        }
+
+        // The ref's one link area: it carries the ref's card as its own hover, and its shift + left click follows.
+        private void assertRefSegment(ClickTargets watched, String hoverKey) {
+            ArgumentCaptor<ClickTargets.LinkGestures> gestures =
+                    ArgumentCaptor.forClass(ClickTargets.LinkGestures.class);
+            verify(watched).addLink(anyInt(), anyInt(), anyInt(), eq(ControlFlow.LINE), gestures.capture(),
+                    eq(hoverKey));
+            gestures.getValue().follow().run();
+        }
+
+        /**
+         * An iterator's #group source is the builder's ref segment: one link area carrying the group's card and
+         * opening the group on shift + left click (decision
+         * conversions-sentences-are-built-from-the-builders-controls).
+         */
+        @Test
+        void groupSourceIsTheBuildersRefSegment() {
+            assertRefSegment(watchedTargets("#ores", new Processes.Assignment("ores", List.of("@smelt"))),
+                    GroupHovers.hoverKey("ores"));
+            verify(actions).openGroup("ores");
+        }
+
+        /**
+         * An add's $prefab is the builder's ref segment carrying the prefab's card and opening the prefab.
+         */
+        @Test
+        void additivePrefabIsTheBuildersRefSegment() {
+            assertRefSegment(watchedTargets("rust", new Processes.Additive("oak")), PrefabHovers.hoverKey("oak"));
+            verify(actions).openVariable("oak");
+        }
+
+        /**
+         * A convert's goo types are the builder's type icon buttons, each naming its pick on hover.
+         */
+        @Test
+        void goosTypesAreTheBuildersTypeIcons() {
+            ClickTargets watched = watchedTargets("rust", new Processes.Formula("metal", 4, "yore", 2, 3));
+            for (String type : List.of("metal", "yore")) {
+                verify(watched).add(anyInt(), anyInt(), anyInt(), eq(ControlFlow.LINE), any(Runnable.class),
+                        eq(GooTypeIcons.pickHoverKey(type)));
+            }
         }
 
         @Test
