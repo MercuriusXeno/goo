@@ -47,6 +47,24 @@ class ControlFlowTest {
     }
 
     /**
+     * A parenthetical's box draws Frame's nest role in its depth's tone, and a term's container closes on Frame's 2 px
+     * term ring round its segments (decision one-frame-primitive-draws-every-bordered-box).
+     */
+    @Test
+    void nestBoxAndTermRingDrawTheirFrameRoles() {
+        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+        ControlFlow flow = new ControlFlow(graphics, font(), new ClickTargets(), null, 0, 400, 0);
+        flow.boxed(new GroupsPane.Bounds(0, 0, 40, 20), Palette.NEST_DARKER);
+        verify(graphics).fill(0, 0, 40, 1, Frame.NEST.border());
+        verify(graphics).fill(1, 1, 39, 19, Palette.NEST_DARKER);
+        flow.openTerm(ControlFlow.ringedWidth(ButtonPainter.width(font(), "x")), ButtonPainter.HEIGHT);
+        flow.labelSegment("x", null, at -> { });
+        GroupsPane.Bounds term = flow.closeSegments();
+        verify(graphics).fill(term.left(), term.top(), term.right(), term.top() + Frame.TERM.thickness(),
+                Frame.TERM.border());
+    }
+
+    /**
      * A type-icon button's border is the icon plus one pixel each side, and the next piece starts a gap past it
      * (decision type-icon-buttons-shrink-their-padding).
      */

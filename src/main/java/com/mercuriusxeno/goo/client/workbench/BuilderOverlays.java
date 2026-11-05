@@ -512,8 +512,8 @@ final class BuilderOverlays {
         int left = placed.left();
         int top = placed.top();
         graphics.nextStratum();
-        graphics.fill(left - 1, top - 1, left + width + 1, top + open.size() * OPTION_ROW + 1, Palette.POPUP_BORDER);
-        graphics.fill(left, top, left + width, top + open.size() * OPTION_ROW, Palette.POPUP_FILL);
+        Frame.around(graphics, Frame.POPUP, new GroupsPane.Bounds(left, top, left + width,
+                top + open.size() * OPTION_ROW));
         for (int index = 0; index < open.size(); index++) {
             Option option = open.get(index);
             int rowTop = top + index * OPTION_ROW;

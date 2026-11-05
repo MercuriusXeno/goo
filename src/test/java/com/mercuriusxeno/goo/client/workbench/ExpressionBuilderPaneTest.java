@@ -443,9 +443,13 @@ class ExpressionBuilderPaneTest {
         Builder builder = Builder.item("$waxed + $edited + $base");
         DrawnFrame frame = builder.frame();
         int[] panel = fills(frame, Palette.PANEL_FILL).getFirst();
-        int[] strip = fills(frame, Palette.TRASH_REST).getFirst();
-        assertEquals(List.of(AREA.right() - ExpressionBuilderPane.TRASH_WIDTH, panel[1], AREA.right(), panel[3]),
-                List.of(strip[0], strip[1], strip[2], strip[3]), "the strip spans the builder's right edge");
+        // Decision one-frame-primitive-draws-every-bordered-box: the strip is Frame's trash role, its rest tone a
+        // pixel inside its border.
+        int[] tone = fills(frame, Frame.TRASH.fill()).getFirst();
+        assertEquals(List.of(AREA.right() - ExpressionBuilderPane.TRASH_WIDTH + 1, panel[1] + 1, AREA.right() - 1,
+                panel[3] - 1), List.of(tone[0], tone[1], tone[2], tone[3]), "the strip spans the builder's right edge");
+        assertTrue(fills(frame, Frame.TRASH.border()).stream().anyMatch(edge -> edge[0] == tone[0] - 1
+                && edge[1] == tone[1] - 1 && edge[2] == tone[2] + 1 && edge[3] == tone[1]), "the border's top edge");
         double[] rail = railOf(frame, List.of(1));
         assertTrue(frame.targets.click(rail[0], rail[1]));
         assertTrue(frame.targets.drag(AREA.left() + 1, rail[1]));
@@ -621,7 +625,9 @@ class ExpressionBuilderPaneTest {
         rest.targets.release();
     }
 
-    private static void assertBorderAndCan(DrawnFrame frame, int[] strip) {
+    // The tone fills a pixel inside the strip's border (decision one-frame-primitive-draws-every-bordered-box).
+    private static void assertBorderAndCan(DrawnFrame frame, int[] tone) {
+        int[] strip = {tone[0] - 1, tone[1] - 1, tone[2] + 1, tone[3] + 1};
         List<int[]> border = fills(frame, Palette.TRASH_BORDER);
         assertTrue(border.stream().anyMatch(side -> side[0] == strip[0] && side[2] == strip[0] + 1), "left edge");
         assertTrue(border.stream().anyMatch(side -> side[2] == strip[2] && side[0] == strip[2] - 1), "right edge");

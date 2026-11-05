@@ -240,8 +240,7 @@ final class GooTypePicker {
         }
         fitRows(rows);
         graphics.nextStratum();
-        graphics.fill(x - 1, y - 1, x + COLUMNS * CELL + 1, y + shownRows * CELL + 1, Palette.POPUP_BORDER);
-        graphics.fill(x, y, x + COLUMNS * CELL, y + shownRows * CELL, Palette.POPUP_FILL);
+        Frame.around(graphics, Frame.POPUP, new GroupsPane.Bounds(x, y, x + COLUMNS * CELL, y + shownRows * CELL));
         for (Cell cell : cells()) {
             if (shows(cell)) {
                 int inset = iconInset(GooTypeIcons.sizeOf(cell.type()));

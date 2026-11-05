@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests the searchable dropdown's filtering, its icons and its pick, with no Screen
@@ -19,6 +20,19 @@ class SearchDropdownTest {
             new ValuesTab.ManagerEntry("minecraft:copper_block", "Block of Copper", false),
             new ValuesTab.ManagerEntry("minecraft:stick", "Stick", false),
             new ValuesTab.ManagerEntry("#minecraft:logs", "2 members", true));
+
+    /**
+     * The open list frames itself in the popup role (decision one-frame-primitive-draws-every-bordered-box).
+     */
+    @Test
+    void openListFramesInThePopupRole() {
+        SearchDropdown dropdown = SearchDropdown.over(INVENTORY, List.of("base"), true);
+        dropdown.open();
+        DrawnFrame frame = new DrawnFrame();
+        dropdown.draw(frame.graphics, DrawnFrame.font(), mock(ItemIcons.class), frame.targets, 10, 10, 160, 4,
+                choice -> { });
+        frame.assertOneFrameIn(Frame.POPUP);
+    }
 
     /**
      * Typed text keeps the items and prefabs whose name or id holds it, each item carrying its id for its icon and

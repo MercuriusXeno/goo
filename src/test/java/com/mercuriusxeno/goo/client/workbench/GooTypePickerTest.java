@@ -56,6 +56,16 @@ class GooTypePickerTest {
      * and closes the grid.
      */
     @Test
+    void openGridFramesInThePopupRole() {
+        // Decision one-frame-primitive-draws-every-bordered-box.
+        GooTypePicker picker = new GooTypePicker(TYPES);
+        picker.open();
+        DrawnFrame frame = new DrawnFrame();
+        picker.draw(frame.graphics, DrawnFrame.font(), frame.targets, LEFT, TOP, 4, type -> { }, null);
+        frame.assertOneFrameIn(Frame.POPUP);
+    }
+
+    @Test
     void openClickThenCellClickAnswersTheCellsType() {
         GooTypePicker picker = new GooTypePicker(TYPES);
         AtomicReference<String> picked = new AtomicReference<>();

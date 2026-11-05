@@ -8,7 +8,9 @@ import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -174,6 +176,21 @@ final class DrawnFrame {
                 rights.getAllValues().get(index), bottoms.getAllValues().get(index)});
         }
         return fills;
+    }
+
+    /**
+     * Asserts the frame drew one box in a frame role's look: its border a pixel outside its fill (decision
+     * one-frame-primitive-draws-every-bordered-box).
+     *
+     * @param role the role the box should draw in
+     */
+    void assertOneFrameIn(Frame.Role role) {
+        List<int[]> borders = fillsOf(role.border());
+        List<int[]> fills = fillsOf(role.fill());
+        assertTrue(borders.size() == 1 && fills.size() == 1, borders.size() + " borders, " + fills.size() + " fills");
+        int[] fill = fills.getFirst();
+        assertEquals(List.of(fill[0] - 1, fill[1] - 1, fill[2] + 1, fill[3] + 1),
+                Arrays.stream(borders.getFirst()).boxed().toList(), "the border a pixel outside the fill");
     }
 
     /**

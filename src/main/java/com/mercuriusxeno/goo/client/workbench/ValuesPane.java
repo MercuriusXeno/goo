@@ -276,9 +276,9 @@ final class ValuesPane {
     static void drawChipFace(GuiGraphicsExtractor graphics, Font font, Chip chip, int color) {
         int right = chip.left() + chip.width();
         int bottom = chip.top() + chip.height();
-        graphics.fill(chip.left(), chip.top(), right, bottom, chip.filled() ? color : Palette.CHIP_OFF);
-        graphics.fill(chip.left() + 1, chip.top() + 1, right - 1, bottom - 1,
-                chip.filled() ? color : Palette.CHIP_HOLLOW);
+        // Decision one-frame-primitive-draws-every-bordered-box: a hollow chip frames as a button does.
+        Frame.draw(graphics, chip.filled() ? Frame.BUTTON.solid(color) : Frame.BUTTON,
+                new GroupsPane.Bounds(chip.left(), chip.top(), right, bottom));
         int labelX = chip.left() + ButtonPainter.PADDING;
         int labelY = Lettering.full(font).centeredTop(chip.top(), chip.height());
         if (chip.filled()) {

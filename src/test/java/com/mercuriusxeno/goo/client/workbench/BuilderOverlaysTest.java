@@ -33,6 +33,24 @@ class BuilderOverlaysTest {
             "dropdown", at -> BuilderOverlays.placeDropdown(at, SCREEN_WIDTH, SCREEN_HEIGHT),
             "number", at -> BuilderOverlays.placeNumber(at, SCREEN_WIDTH, SCREEN_HEIGHT));
 
+    /**
+     * The open option list frames itself in the popup role (decision one-frame-primitive-draws-every-bordered-box).
+     */
+    @Test
+    void optionListFramesInThePopupRole() {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+        BuilderOverlays overlays = new BuilderOverlays(actions, null);
+        overlays.init(DrawnFrame.font());
+        overlays.show(true);
+        overlays.openOptions(new BuilderOverlays.Anchor(20, 20), List.of(
+                new BuilderOverlays.Option("relative", null, at -> { }),
+                new BuilderOverlays.Option("absolute", null, at -> { })));
+        DrawnFrame frame = new DrawnFrame();
+        overlays.draw(frame.graphics, DrawnFrame.font(), frame.targets);
+        frame.assertOneFrameIn(Frame.POPUP);
+    }
+
     @Nested
     class WithRoomBelow {
         /**

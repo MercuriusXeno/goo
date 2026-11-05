@@ -241,8 +241,7 @@ final class SearchDropdown {
         List<Choice> shown = shown(rows);
         int height = Math.max(1, shown.size()) * ROW_HEIGHT;
         graphics.nextStratum();
-        graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, Palette.POPUP_BORDER);
-        graphics.fill(x, y, x + width, y + height, Palette.POPUP_FILL);
+        Frame.around(graphics, Frame.POPUP, new GroupsPane.Bounds(x, y, x + width, y + height));
         boolean scrolls = choices().size() > rows;
         int labelWidth = width - LABEL_X - (scrolls ? ScrollBar.WIDTH + ScrollBar.GAP : 0);
         for (int index = 0; index < shown.size(); index++) {

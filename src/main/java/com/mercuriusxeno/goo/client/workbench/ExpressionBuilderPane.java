@@ -367,12 +367,7 @@ final class ExpressionBuilderPane {
         if (tone == Palette.TRASH_REST && dragDeletable()) {
             tone = Palette.TRASH_LIT;
         }
-        graphics.fill(strip.left(), strip.top(), strip.right(), strip.bottom(), tone);
-        // Decision trash-strip-draws-a-can-and-a-lighter-red-border.
-        graphics.fill(strip.left(), strip.top(), strip.right(), strip.top() + 1, Palette.TRASH_BORDER);
-        graphics.fill(strip.left(), strip.bottom() - 1, strip.right(), strip.bottom(), Palette.TRASH_BORDER);
-        graphics.fill(strip.left(), strip.top() + 1, strip.left() + 1, strip.bottom() - 1, Palette.TRASH_BORDER);
-        graphics.fill(strip.right() - 1, strip.top() + 1, strip.right(), strip.bottom() - 1, Palette.TRASH_BORDER);
+        Frame.draw(graphics, Frame.TRASH.toned(tone), strip);
         drawCan(graphics, strip.left() + (strip.right() - strip.left() - CAN_WIDTH) / HALF,
                 strip.top() + (strip.bottom() - strip.top() - CAN_HEIGHT) / HALF);
     }
@@ -1434,7 +1429,7 @@ final class ExpressionBuilderPane {
             divisor = drawSide(flow, path, piece, ExpressionBuilder.Op.DIVIDE);
             right = Math.max(right, flow.closeSegments().right());
         }
-        flow.boxed(container, nestTone(depthOf(path, place)), Palette.NEST_BORDER);
+        flow.boxed(container, nestTone(depthOf(path, place)));
         boxes.add(new TermBox(path, new GroupsPane.Bounds(lead.left(), Math.min(lead.top(), container.top()), right,
                 Math.max(lead.bottom(), container.bottom())), new Factors(piece, multiplier, divisor)));
     }

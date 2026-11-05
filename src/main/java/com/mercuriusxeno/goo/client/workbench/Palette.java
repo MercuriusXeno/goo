@@ -55,10 +55,8 @@ final class Palette {
     static final int SCROLL_TRACK = 0x40FFFFFF;
     /** A scroll bar's thumb. */
     static final int SCROLL_THUMB = 0xC0C0C0C0;
-    /** A chip switched off. */
-    static final int CHIP_OFF = 0xFF808080;
-    /** A hollow chip's inside. */
-    static final int CHIP_HOLLOW = 0xFF202020;
+    /** No color: a frame role that fills nothing inside its border. */
+    static final int CLEAR = 0x00000000;
     /** The text on a filled chip. */
     static final int CHIP_FILLED_TEXT = 0xFF000000;
     /**
