@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * The Values tab's state with no Screen: the client's items and tags filtered by the search text, each entry as
@@ -71,6 +72,7 @@ public final class ValuesTab {
     private final Map<String, List<String>> tagMembers = new HashMap<>();
     private Filter filter = Filter.ITEMS;
     private Search.Query search = Search.EVERYTHING;
+    private Function<String, String> typeNames = Function.identity();
     private @Nullable String selected;
     private @Nullable Index frozen;
 
@@ -222,6 +224,13 @@ public final class ValuesTab {
     }
 
     /**
+     * @param names answers a goo type key's display name, which the Goo filter's search matches beside the key
+     */
+    public void typeNames(Function<String, String> names) {
+        typeNames = names;
+    }
+
+    /**
      * @return every item and tag the client lists, unfiltered, as the group picker offers them
      */
     public List<ManagerEntry> entries() {
@@ -229,13 +238,24 @@ public final class ValuesTab {
     }
 
     /**
-     * @return the entries the filter keeps whose id or name holds the search text, every one while it is blank
+     * @return the entries the filter keeps whose id or name holds the search text, or under the Goo filter whose
+     *     goo types' keys or names hold it, every one while it is blank
      */
     public List<ManagerEntry> listed() {
-        // Decision one-search-rule-serves-every-box-and-dropdown: a tag matches its #id, never its member count.
-        return entries.stream().filter(this::keptByFilter).filter(entry -> entry.tag()
-                ? Search.matches(search, Search.Kind.GROUP, entry.id())
-                : Search.matches(search, Search.Kind.ITEM, entry.id(), entry.name())).toList();
+        return entries.stream().filter(this::keptByFilter).filter(this::matchesSearch).toList();
+    }
+
+    // Decision one-search-rule-serves-every-box-and-dropdown: a tag matches its #id, never its member count.
+    // Decision goo-chip-switches-the-search-to-goo-type-names: under Goo an item matches by its goo types alone.
+    private boolean matchesSearch(ManagerEntry entry) {
+        if (entry.tag()) {
+            return Search.matches(search, Search.Kind.GROUP, entry.id());
+        }
+        if (filter == Filter.GOO) {
+            return worthOf(entry.id()).keySet().stream()
+                    .anyMatch(type -> Search.matches(search, Search.Kind.ITEM, type, typeNames.apply(type)));
+        }
+        return Search.matches(search, Search.Kind.ITEM, entry.id(), entry.name());
     }
 
     private boolean keptByFilter(ManagerEntry entry) {
@@ -244,6 +264,7 @@ public final class ValuesTab {
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
             case FRACTIONAL -> fractionalItem(entry);
             case NEGATIVE -> negativeItem(entry);
+            case GOO -> !entry.tag() && !worthOf(entry.id()).isEmpty();
         };
     }
 
@@ -292,9 +313,10 @@ public final class ValuesTab {
     }
 
     /**
-     * Which items the sidebar lists, as the page's chips choose them: every item, the uncovered, the fractional and
-     * the negative; tags live on the Groups tab as referents (decisions items-selector-set-reads-items-and-uncovered,
-     * items-filter-set-takes-a-negative-chip).
+     * Which items the sidebar lists, as the page's chips choose them: every item, the uncovered, the fractional, the
+     * negative and those holding a searched goo type; tags live on the Groups tab as referents (decisions
+     * items-selector-set-reads-items-and-uncovered, items-filter-set-takes-a-negative-chip,
+     * goo-chip-switches-the-search-to-goo-type-names).
      */
     public enum Filter {
         /** Every item. */
@@ -304,7 +326,9 @@ public final class ValuesTab {
         /** The items where any one goo type's amount has a part under 1. */
         FRACTIONAL,
         /** The items where any one goo type's amount reads below zero. */
-        NEGATIVE
+        NEGATIVE,
+        /** The items whose resolved value holds a goo type the search names. */
+        GOO
     }
 
     /**
