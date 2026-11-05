@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1156,26 +1157,34 @@ class VariablesPaneTest {
     }
 
     /**
-     * At every width the four amounts lay as the tooltip's grid, ceil(sqrt(4)) = 2 columns filled row by row, the
-     * second row's icons under the first row's, the open paren on the first amount and the close paren on the last,
-     * never a paren alone (decisions prefab-head-is-name-pencil-used-by-then-value-with-its-amount,
-     * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+     * At every width the four amounts fill each line the row's width holds before the next starts, the later lines'
+     * icons under the first line's, the open paren on the first amount and the close paren on the last, never a paren
+     * alone; a wide row holds all four on one line.
+     * Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
+     * Decision row-amount-grid-fills-the-width-and-wraps-past-it.
      */
     @Test
-    void typedAmountLineLaysAsTheTooltipGrid() {
+    void typedAmountLineFillsTheRowsWidth() {
         for (int width = 200; width <= 700; width++) {
             int right = width;
             DrawnFrame frame = new DrawnFrame();
             typedPreview().extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 20, right, 4000),
                     frame.targets, 0, 0);
             List<DrawnFrame.Text> amounts = FOUR_AMOUNTS.stream().map(frame::findFirst).toList();
-            assertEquals(List.of(amounts.get(0).y(), amounts.get(2).y()), List.of(amounts.get(1).y(),
-                    amounts.get(3).y()), "at " + right + ": " + amounts);
-            assertTrue(amounts.get(2).y() > amounts.get(0).y(), "at " + right + ": " + amounts);
             List<int[]> icons = blitsAt(frame);
             assertEquals(PREVIEWED_TYPES.size(), icons.size(), "at " + right);
-            assertEquals(List.of(icons.get(0)[0], icons.get(1)[0]), List.of(icons.get(2)[0], icons.get(3)[0]),
-                    "at " + right + ": the second row's icons stand under the first's");
+            List<List<Integer>> lines = List.copyOf(icons.stream().collect(Collectors.groupingBy(icon -> icon[1],
+                    TreeMap::new, Collectors.mapping(icon -> icon[0], Collectors.toList()))).values());
+            for (List<Integer> line : lines) {
+                assertEquals(lines.getFirst().subList(0, line.size()), line,
+                        "at " + right + ": every line's icons stand under the first line's");
+            }
+            for (List<Integer> line : lines.subList(0, lines.size() - 1)) {
+                assertEquals(lines.getFirst().size(), line.size(), "at " + right + ": only the last line runs short");
+            }
+            if (right == 700) {
+                assertEquals(1, lines.size(), "a wide row holds all four on one line: " + lines);
+            }
             // Decision one-amount-grid-draws-every-amount-list: the open paren stands before the first cell and the
             // close paren flush after the last, on its row.
             DrawnFrame.Text open = frame.find("(");
