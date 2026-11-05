@@ -149,7 +149,7 @@ class ProcessesPaneTest {
     void mutatorsLeftIteratorsRightEachScrollingAlone() {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 590, 390);
-        int middle = (bounds.right() - bounds.left()) * 3 / 5;
+        int middle = (bounds.right() - bounds.left()) / 2;
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
         DrawnFrame.Text mutators = frame.find("Mutators");
@@ -175,9 +175,9 @@ class ProcessesPaneTest {
     }
 
     /**
-     * In a pane 500 wide, the iterators column starts at three fifths, 300, plus half the column gap, the mutators
-     * rows' x stands left of 300, and the wheel scrolls the column it turns over (decision
-     * mutators-iterators-split-sixty-forty).
+     * In a pane 500 wide, the iterators column starts at half, 250, plus half the column gap, the mutators rows' x
+     * stands left of 250, and the wheel scrolls the column it turns over (decision
+     * mutators-iterators-split-fifty-fifty).
      */
     @Test
     void wheelScrollsTheColumnItTurnsOver() {
@@ -185,15 +185,15 @@ class ProcessesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 390);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
-        assertEquals(300 + 12 / 2, frame.find("Iterators").x());
+        assertEquals(250 + 12 / 2, frame.find("Iterators").x());
         DrawnFrame.Text firstMutator = first(frame, "m00");
-        assertTrue(rowControl(frame, "m00", "✗").x() < 300, frame.drawn().toString());
-        assertTrue(firstMutator.x() < 300);
-        pane.scroll(320, -3);
-        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 320 scrolls the iterators");
+        assertTrue(rowControl(frame, "m00", "✗").x() < 250, frame.drawn().toString());
+        assertTrue(firstMutator.x() < 250);
+        pane.scroll(270, -3);
+        assertTrue(pane.columnBar(true).offset() > 0, "the wheel at 270 scrolls the iterators");
         assertEquals(0, pane.columnBar(false).offset());
-        pane.scroll(280, -3);
-        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 280 scrolls the mutators");
+        pane.scroll(230, -3);
+        assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 230 scrolls the mutators");
     }
 
     /**
@@ -431,7 +431,7 @@ class ProcessesPaneTest {
         for (int width : new int[] {590, 464}) {
             DrawnFrame frame = new DrawnFrame();
             pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
-            int middle = width * 3 / 5;
+            int middle = width / 2;
             List<DrawnFrame.Text> drawn = frame.drawn();
             List<DrawnFrame.Text> crosses = drawn.stream().filter(text -> text.text().equals("✗")).toList();
             assertEquals(3, crosses.size(), drawn.toString());
@@ -474,7 +474,7 @@ class ProcessesPaneTest {
         return frame(590);
     }
 
-    // A pane 740 wide gives the mutators column its three fifths, 444, more than a 20-character cut name takes.
+    // A pane 740 wide gives the mutators column its half, 370, more than a 20-character cut name takes.
     private static final int WIDE_PANE = 740;
 
     private DrawnFrame frame(int width) {
@@ -484,14 +484,15 @@ class ProcessesPaneTest {
     }
 
     /**
-     * The mutators column takes 60 percent of the pane and the iterators column 40, the gap centered on the split,
-     * and each column's scroll bar stands at its own right edge (decision mutators-iterators-split-sixty-forty).
+     * In a pane 600 wide the mutators column ends at 300 less half the column gap and the iterators column begins at
+     * 300 plus half of it, read off the iterators heading and each column's scroll bar at its right edge (decision
+     * mutators-iterators-split-fifty-fifty).
      */
     @Test
-    void columnsSplitThePaneSixtyForty() {
-        int width = 590;
+    void columnsSplitThePaneInHalf() {
+        int width = 600;
         DrawnFrame frame = frame(width);
-        int middle = width * 3 / 5;
+        int middle = 300;
         int halfGap = 6;
         assertEquals(middle + halfGap, frame.find("Iterators").x());
         assertEquals(0, frame.find("Mutators").x());
@@ -533,7 +534,7 @@ class ProcessesPaneTest {
     void everyRowDrawsItsColumnsAtTheSameLefts() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
-        int middle = 590 * 3 / 5;
+        int middle = 590 / 2;
         for (String column : List.of("✗", "✔")) {
             for (boolean right : new boolean[] {false, true}) {
                 List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)

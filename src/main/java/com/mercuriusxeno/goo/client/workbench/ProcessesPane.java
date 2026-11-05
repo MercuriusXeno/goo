@@ -49,9 +49,6 @@ final class ProcessesPane {
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
     private static final int HALF = 2;
-    // The mutators column takes three fifths of the pane and the iterators column two.
-    private static final int MUTATORS_FIFTHS = 3;
-    private static final int FIFTHS = 5;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
     /** An Invalid verdict's color. */
@@ -226,8 +223,8 @@ final class ProcessesPane {
             search.setPosition(pane.left(), pane.top());
         }
         nameBoxPlaced = false;
-        // Decision mutators-iterators-split-sixty-forty.
-        columnsMiddle = pane.left() + (pane.right() - pane.left()) * MUTATORS_FIFTHS / FIFTHS;
+        // Decision mutators-iterators-split-fifty-fifty: the two columns meet at the pane's midpoint.
+        columnsMiddle = pane.left() + (pane.right() - pane.left()) / HALF;
         processes.sections().stream().filter(section -> section.section().equals(CONVERSIONS)).findFirst()
                 .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
                         pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
