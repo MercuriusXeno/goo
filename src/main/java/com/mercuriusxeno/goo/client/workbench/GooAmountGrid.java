@@ -9,11 +9,14 @@ import java.util.Map;
 import java.util.function.ToIntFunction;
 
 /**
- * The one grid every list of goo amounts draws as, in a tooltip and in a row: ceil(sqrt(count)) columns filled row by
- * row, every column as wide as the widest cell so the icons align down each column, each cell a type's icon then its
- * amount in the amount role's small digits, one gap between columns, no colon and no indent; a reduced value's
- * parens stand flush round the grid in the symbols' color, one color both sides (decisions
- * one-amount-grid-draws-every-amount-list, tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
+ * The one grid every list of goo amounts draws as, in a tooltip and in a row: a tooltip's in ceil(sqrt(count))
+ * columns and a row's in as many columns as the row's width holds, filled row by row, every column as wide as the
+ * widest cell so the icons align down each column, each cell a type's icon then its amount in the amount role's small
+ * digits, one gap between columns, no colon and no indent; a reduced value's parens stand flush round the grid in the
+ * symbols' color, one color both sides.
+ * Decision one-amount-grid-draws-every-amount-list.
+ * Decision tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits.
+ * Decision row-amount-grid-fills-the-width-and-wraps-past-it.
  */
 public final class GooAmountGrid implements ClientTooltipComponent {
     /** The open paren a reduced value's grid stands after. */
@@ -22,8 +25,8 @@ public final class GooAmountGrid implements ClientTooltipComponent {
     static final ExpressionLines.Run CLOSE = new ExpressionLines.Run(ExpressionLines.Kind.FLUSH_SYMBOL, ")", null);
     /** The grid a value draws no amount for: a plain number, a blank value or a failed evaluation. */
     static final GooAmountGrid NONE = new GooAmountGrid(new TooltipLine.GooAmounts(List.of()));
-    // The room between one column's widest cell and the next column's icons.
-    private static final int COLUMN_GAP = 4;
+    /** The room between one column's widest cell and the next column's icons. */
+    static final int COLUMN_GAP = 4;
     private static final int ICON_GAP = 2;
     private static final int LINE_GAP = 2;
     private static final String NO_TYPE = "";
@@ -32,6 +35,7 @@ public final class GooAmountGrid implements ClientTooltipComponent {
     private final boolean reduced;
     private final ToIntFunction<String> sizeOf;
     private final int columns;
+    private final boolean widthBound;
 
     /**
      * @param amounts the run of amounts the grid lays
@@ -45,18 +49,62 @@ public final class GooAmountGrid implements ClientTooltipComponent {
      * @param sizeOf  a type icon's side by its type
      */
     GooAmountGrid(TooltipLine.GooAmounts amounts, ToIntFunction<String> sizeOf) {
-        this.amounts = amounts.amounts();
-        this.reduced = amounts.reduced();
+        this(amounts.amounts(), amounts.reduced(), sizeOf, squareColumns(amounts.amounts().size()), false);
+    }
+
+    private static int squareColumns(int count) {
+        return Math.max(1, (int) Math.ceil(Math.sqrt(count)));
+    }
+
+    private GooAmountGrid(List<TooltipLine.GooAmount> amounts, boolean reduced, ToIntFunction<String> sizeOf,
+                          int columns, boolean widthBound) {
+        this.amounts = amounts;
+        this.reduced = reduced;
         this.sizeOf = sizeOf;
-        this.columns = Math.max(1, (int) Math.ceil(Math.sqrt(this.amounts.size())));
+        this.columns = columns;
+        this.widthBound = widthBound;
+    }
+
+    /**
+     * @param amounts the run of amounts a row lays
+     * @return the grid a row lays: one line until {@link #within(Font, int)} hands it the row's width, then as many
+     *     columns as that width holds
+     */
+    static GooAmountGrid inRow(TooltipLine.GooAmounts amounts) {
+        return inRow(amounts, GooTypeIcons::sizeOf);
+    }
+
+    /**
+     * @param amounts the run of amounts a row lays
+     * @param sizeOf  a type icon's side by its type
+     * @return the grid a row lays, width-bound
+     */
+    static GooAmountGrid inRow(TooltipLine.GooAmounts amounts, ToIntFunction<String> sizeOf) {
+        return new GooAmountGrid(amounts.amounts(), amounts.reduced(), sizeOf, Math.max(1, amounts.amounts().size()),
+                true);
     }
 
     /**
      * @param amounts each goo type with its amount, in the order the grid lays them
-     * @return the grid over a typed value's reduced amounts, in its parens
+     * @return the grid a row lays over a typed value's reduced amounts, in its parens
      */
     static GooAmountGrid reduced(Map<String, String> amounts) {
-        return new GooAmountGrid(reducedLine(amounts));
+        return inRow(reducedLine(amounts));
+    }
+
+    /**
+     * @param font  the font
+     * @param width the room the grid may take, from its left edge
+     * @return a row's grid laid with the most columns that fit the room, at least one, wrapping only past it; a
+     *     tooltip's grid keeps its ceil(sqrt(count)) columns
+     */
+    GooAmountGrid within(Font font, int width) {
+        if (!widthBound || amounts.isEmpty()) {
+            return this;
+        }
+        int room = width - openWidth(font) - closeWidth(font) + COLUMN_GAP;
+        int fit = Math.clamp(room / (columnWidth(font) + COLUMN_GAP), 1, amounts.size());
+        return new GooAmountGrid(amounts, reduced, sizeOf, fit, true);
     }
 
     /**
@@ -138,6 +186,10 @@ public final class GooAmountGrid implements ClientTooltipComponent {
         return reduced ? font.width(OPEN.text()) : 0;
     }
 
+    private int closeWidth(Font font) {
+        return reduced ? font.width(CLOSE.text()) : 0;
+    }
+
     /**
      * @param font  the font
      * @param index a cell's place in the grid, from 0
@@ -162,8 +214,7 @@ public final class GooAmountGrid implements ClientTooltipComponent {
 
     @Override
     public int getWidth(Font font) {
-        int close = reduced ? font.width(CLOSE.text()) : 0;
-        return openWidth(font) + columns * (columnWidth(font) + COLUMN_GAP) - COLUMN_GAP + close;
+        return openWidth(font) + columns * (columnWidth(font) + COLUMN_GAP) - COLUMN_GAP + closeWidth(font);
     }
 
     @Override
