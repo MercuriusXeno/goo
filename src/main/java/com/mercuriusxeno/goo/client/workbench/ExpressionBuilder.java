@@ -508,8 +508,13 @@ final class ExpressionBuilder {
     }
 
     /**
+     * Stands the term on the number typed, a number, a prefab or an item before: what is typed is the term's whole
+     * value, its join kept and the count and divisor it held dropped, a fraction becoming its divisor (decisions
+     * number-box-takes-a-mixed-number, ref-term-takes-a-number-again; the operator's ruling of 2026-11-04: drop the
+     * multiplier, never sneak it into what I type).
+     *
      * @param path   the term's place: the indices of the sums holding it, outermost first, then its own
-     * @param digits the number the term holds in place of its operand
+     * @param digits the box's text: a whole, a fraction or both
      */
     void setNumber(List<Integer> path, String digits) {
         Optional<BigInteger[]> fraction = mixedNumber(digits);
@@ -519,27 +524,8 @@ final class ExpressionBuilder {
         }
         String numerator = fraction.get()[0].toString();
         String denominator = fraction.get()[1].toString();
-        editPiece(path, piece -> piece.withOperand(new Num(numerator)).withSide(Op.DIVIDE, denominator));
-    }
-
-    /**
-     * Stands a prefab or item term on a number typed in its place, its join and its multiplier kept; a fraction
-     * becomes the term's divisor, a whole number keeps the divisor the term held (decisions
-     * ref-term-takes-a-number-again, number-box-takes-a-mixed-number).
-     *
-     * @param path   the term's place
-     * @param digits the box's text: a whole, a fraction or both
-     */
-    void setNumberInPlaceOfRef(List<Integer> path, String digits) {
-        Optional<BigInteger[]> fraction = mixedNumber(digits);
-        if (fraction.isEmpty()) {
-            refuse(NOT_A_NUMBER);
-            return;
-        }
-        Num number = new Num(fraction.get()[0].toString());
-        BigInteger denominator = fraction.get()[1];
-        editPiece(path, piece -> BigInteger.ONE.equals(denominator) ? piece.withOperand(number)
-                : piece.withOperand(number).withSide(Op.DIVIDE, denominator.toString()));
+        editPiece(path, piece -> piece.withOperand(new Num(numerator)).withSide(Op.MULTIPLY, ONE)
+                .withSide(Op.DIVIDE, denominator));
     }
 
     /**
@@ -554,8 +540,26 @@ final class ExpressionBuilder {
         if (!(piece.operand() instanceof Num num)) {
             return NO_NUMBER;
         }
-        BigInteger numerator = new BigInteger(num.digits());
-        BigInteger denominator = new BigInteger(piece.divisor());
+        return mixed(new BigInteger(num.digits()), new BigInteger(piece.divisor()));
+    }
+
+    /**
+     * The number box's text for a prefab or item term changing to a number: its count over its divisor as a mixed
+     * number, "3" for 3 $x and "1 1/2" for 3 $x / 2 (decision ref-term-takes-a-number-again).
+     *
+     * @param path the term's place
+     * @return the box's text
+     */
+    String countText(List<Integer> path) {
+        Piece piece = pieceAt(path);
+        BigInteger multiplier = new BigInteger(piece.multiplier());
+        BigInteger divisor = new BigInteger(piece.divisor());
+        BigInteger common = multiplier.gcd(divisor);
+        return mixed(multiplier.divide(common), divisor.divide(common));
+    }
+
+    // A fraction as a mixed number: its whole, its part under 1 as n/d, or both.
+    private static String mixed(BigInteger numerator, BigInteger denominator) {
         BigInteger[] split = numerator.divideAndRemainder(denominator);
         if (split[1].signum() == 0) {
             return split[0].toString();
