@@ -251,7 +251,13 @@ final class ProcessesPane {
         if (nameBox != null) {
             nameBox.visible = visible && nameBoxPlaced;
         }
-        overlays.draw(graphics, font, targets);
+    }
+
+    /**
+     * @return the pane's open lists, which the screen draws on the overlay stratum
+     */
+    List<OverlayStratum.Layer> overlayLayers() {
+        return List.of(overlays::draw);
     }
 
     private void drawConversions(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane,

@@ -89,7 +89,7 @@ class VariablesPaneTest {
     }
 
     private void draw() {
-        pane.extract(graphics, font, VIEW, new ClickTargets(), 0, 0);
+        ScreenDraw.extract(pane, graphics, font, VIEW, new ClickTargets(), 0, 0);
     }
 
     private EditBox searchBox() {
@@ -119,7 +119,7 @@ class VariablesPaneTest {
     @Test
     void prefabRowsTakeTheTighterPitch() {
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, font, new GroupsPane.Bounds(0, 20, 400, 4000), frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, font, new GroupsPane.Bounds(0, 20, 400, 4000), frame.targets, 0, 0);
         List<Integer> tops = frame.topsOf(List.of("$prefab0", "$prefab1"));
         int pitch = tops.get(1) - tops.get(0);
         assertEquals(VariablesPane.UNUSED_PREFAB_PITCH, pitch);
@@ -156,7 +156,7 @@ class VariablesPaneTest {
     @Test
     void searchRowStretchesToItsCreateControlAndThePencilStandsOneGapPastTheName() {
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         EditBox box = searchBox();
         int[] plus = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals("+")
                 && text.y() < VIEW.top() + SearchRow.HEIGHT).findFirst().orElseThrow());
@@ -238,7 +238,7 @@ class VariablesPaneTest {
     @Test
     void noDrawnElementCrossesASeparator() {
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
@@ -275,7 +275,7 @@ class VariablesPaneTest {
     @Test
     void headDrawsPencilByTheNameAndARedXAtTheEnd() {
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text name = frame.drawn().stream().filter(text -> text.text().equals("$prefab0")).findFirst()
                 .orElseThrow();
         DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")).findFirst()
@@ -299,7 +299,7 @@ class VariablesPaneTest {
     @Test
     void everyTooltipHintIsRenameOrDelete() {
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
         List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
                 .flatMap(Optional::stream).map(component -> component.getString()).distinct().toList();
         assertEquals(List.of("Rename", "Delete"), hints.stream().sorted(Comparator.reverseOrder()).toList());
@@ -349,7 +349,7 @@ class VariablesPaneTest {
                 """.formatted(name));
         VariablesPane pane = twelvePrefabs(new VariablesTab(draft), draft);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text cut = frame.drawn().stream().filter(text -> text.text().contains(ButtonPainter.ELLIPSIS))
                 .findFirst().orElseThrow(() -> new AssertionError(frame.texts().toString()));
         String key = frame.targets.hoveredArea(cut.x() + 1, cut.y() + 1).orElseThrow().hoverKey();
@@ -367,7 +367,7 @@ class VariablesPaneTest {
         draft.read(model());
         VariablesPane pane = twelvePrefabs(new VariablesTab(draft), draft);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text second = frame.findFirst("$prefab1");
         assertEquals(Lettering.full(DrawnFrame.font()).centeredTop(frame.rowTopAbove(second),
                 RowLayout.SPRITE_ROW_HEIGHT), second.y());
@@ -381,9 +381,9 @@ class VariablesPaneTest {
         VariablesPane tall = twelvePrefabs(new VariablesTab(draft), draft);
         tall.jumpTo(name);
         DrawnFrame frame = new DrawnFrame();
-        tall.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(tall, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame settled = new DrawnFrame();
-        tall.extract(settled.graphics, DrawnFrame.font(), TALL_VIEW, settled.targets, 0, 0);
+        ScreenDraw.extract(tall, settled.graphics, DrawnFrame.font(), TALL_VIEW, settled.targets, 0, 0);
         List<Integer> names = settled.topsOf(IntStream.range(0, PREFABS).mapToObj(index -> "$prefab" + index)
                 .toList());
         return names.stream().map(y -> y - names.getFirst()).toList();
@@ -398,10 +398,10 @@ class VariablesPaneTest {
         int target = 6;
         List<Integer> tops = blockTopsFollowed("prefab" + target);
         DrawnFrame before = new DrawnFrame();
-        pane.extract(before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
+        ScreenDraw.extract(pane, before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
         pane.jumpTo("prefab" + target);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
         int[] list = frame.firstScissor();
         int blockHeight = tops.get(target + 1) - tops.get(target);
         assertTrue(blockHeight <= list[3] - list[1], "the followed block outgrows the list");
@@ -426,7 +426,7 @@ class VariablesPaneTest {
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions, builder);
         prefabs.startEditing("prefab2");
         DrawnFrame editing = new DrawnFrame();
-        read.extract(editing.graphics, DrawnFrame.font(), TALL_VIEW, editing.targets, 0, 0);
+        ScreenDraw.extract(read, editing.graphics, DrawnFrame.font(), TALL_VIEW, editing.targets, 0, 0);
         assertTrue(builder.isOpen(), "the builder stood open over $prefab2");
         read.jumpTo("prefab6");
         assertEquals(Optional.empty(), prefabs.editing());
@@ -434,7 +434,7 @@ class VariablesPaneTest {
         assertEquals(Optional.of("prefab6"), prefabs.selected());
         verify(actions, never()).draftChanged();
         DrawnFrame landed = new DrawnFrame();
-        read.extract(landed.graphics, DrawnFrame.font(), TALL_VIEW, landed.targets, 0, 0);
+        ScreenDraw.extract(read, landed.graphics, DrawnFrame.font(), TALL_VIEW, landed.targets, 0, 0);
         assertFalse(builder.isOpen(), "no builder opens on the landing");
         DrawnFrame.Text name = landed.find("$prefab6");
         List<int[]> fills = landed.fillsOf(Palette.SELECTED_FILL);
@@ -450,7 +450,7 @@ class VariablesPaneTest {
     void jumpDrawsTheBlockCenteredAndGlowingOnTheFirstFrame() {
         searchBox().setValue("prefab1");
         DrawnFrame searched = new DrawnFrame();
-        pane.extract(searched.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, searched.targets, 0, 0);
+        ScreenDraw.extract(pane, searched.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, searched.targets, 0, 0);
         pane.jumpTo("prefab6");
         assertBlockRevealedOnTheFirstFrame(pane, "prefab6", FITS_THE_EDITED_BLOCK);
         assertEquals("", searchBox().getValue());
@@ -464,10 +464,10 @@ class VariablesPaneTest {
     void createRevealsTheNewBlockCenteredAndGlowing() {
         searchBox().setValue("wax");
         DrawnFrame list = new DrawnFrame();
-        pane.extract(list.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, list.targets, 0, 0);
+        ScreenDraw.extract(pane, list.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, list.targets, 0, 0);
         list.click("+");
         DrawnFrame naming = new DrawnFrame();
-        pane.extract(naming.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, naming.targets, 0, 0);
+        ScreenDraw.extract(pane, naming.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, naming.targets, 0, 0);
         EditBox box = pane.nameBox();
         assertNotNull(box);
         box.setValue("zz_fresh");
@@ -479,11 +479,11 @@ class VariablesPaneTest {
     // The next frame draws the block where it settles, scrolled into the list, glowing at age zero over its name.
     private static void assertBlockRevealedOnTheFirstFrame(VariablesPane shown, String name, GroupsPane.Bounds view) {
         DrawnFrame first = new DrawnFrame();
-        shown.extract(first.graphics, DrawnFrame.font(), view, first.targets, 0, 0);
+        ScreenDraw.extract(shown, first.graphics, DrawnFrame.font(), view, first.targets, 0, 0);
         assertTrue(shown.listBar().offset() > 0, name + " scrolled to");
         DrawnFrame.Text drawn = first.find(PrefabNames.marked(name));
         DrawnFrame settled = new DrawnFrame();
-        shown.extract(settled.graphics, DrawnFrame.font(), view, settled.targets, 0, 0);
+        ScreenDraw.extract(shown, settled.graphics, DrawnFrame.font(), view, settled.targets, 0, 0);
         assertEquals(settled.find(PrefabNames.marked(name)).y(), drawn.y(), "drawn where it settles");
         List<int[]> glows = first.fillsOf(Palette.GLOW);
         assertTrue(glows.size() == 1 && glows.getFirst()[1] <= drawn.y() && drawn.y() < glows.getFirst()[3],
@@ -499,10 +499,10 @@ class VariablesPaneTest {
         int target = 5;
         List<Integer> tops = blockTopsFollowed("prefab" + target);
         GroupsPane.Bounds shortView = new GroupsPane.Bounds(0, 20, 400, 50);
-        pane.extract(graphics, font, shortView, new ClickTargets(), 0, 0);
+        ScreenDraw.extract(pane, graphics, font, shortView, new ClickTargets(), 0, 0);
         pane.jumpTo("prefab" + target);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), shortView, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), shortView, frame.targets, 0, 0);
         int[] list = frame.firstScissor();
         assertTrue(tops.get(target + 1) - tops.get(target) > list[3] - list[1], "the block fits the list");
         assertEquals(tops.get(target), pane.listBar().offset());
@@ -515,10 +515,10 @@ class VariablesPaneTest {
     @Test
     void jumpToTheLastPrefabStopsAtTheListsEnd() {
         DrawnFrame before = new DrawnFrame();
-        pane.extract(before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
+        ScreenDraw.extract(pane, before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
         pane.jumpTo("prefab" + (PREFABS - 1));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
         assertTrue(pane.listBar().maximum() > 0);
         assertEquals(pane.listBar().maximum(), pane.listBar().offset());
     }
@@ -531,12 +531,12 @@ class VariablesPaneTest {
     void cascadeReaderUnderlinesWhileShiftIsHeldAndModifyButtonsNever() {
         VariablesPane read = readByEgg(mock(ManagerActions.class));
         DrawnFrame list = new DrawnFrame().holdingShift();
-        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
         assertFalse(list.underlined("✎"));
         assertFalse(list.underlined("✗"));
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame().holdingShift();
-        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        ScreenDraw.extract(read, confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         assertTrue(confirm.underlined("$egg"));
         assertFalse(confirm.underlined("Delete"));
     }
@@ -568,11 +568,11 @@ class VariablesPaneTest {
         read.init(DrawnFrame.font());
         read.show(true);
         DrawnFrame list = new DrawnFrame();
-        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
         List<Optional<String>> head = List.of(hoverOf(list, "$egg"), hoverOf(list, "#logs"));
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
-        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        ScreenDraw.extract(read, confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         assertEquals(List.of(Optional.of(PrefabHovers.hoverKey("egg")), Optional.of(GroupHovers.hoverKey("logs"))),
                 head, "the head's Used by line");
         assertEquals(head, List.of(hoverOf(confirm, "$egg"), hoverOf(confirm, "#logs")), "the dialog's readers");
@@ -610,10 +610,10 @@ class VariablesPaneTest {
         read.init(DrawnFrame.font());
         read.show(true);
         DrawnFrame list = new DrawnFrame();
-        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
-        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        ScreenDraw.extract(read, confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
         verify(confirm.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
@@ -653,7 +653,7 @@ class VariablesPaneTest {
         read.init(DrawnFrame.font());
         read.show(true);
         DrawnFrame frame = new DrawnFrame();
-        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(read, frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
@@ -673,10 +673,10 @@ class VariablesPaneTest {
     void deleteConfirmDimsTheWholeScreenThroughDialog() {
         VariablesPane read = readByEgg(mock(ManagerActions.class));
         DrawnFrame list = new DrawnFrame();
-        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
-        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        ScreenDraw.extract(read, confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         assertTrue(confirm.fillsOf(Dialog.DIM).stream().anyMatch(fill -> fill[0] == 0 && fill[1] == 0
                 && fill[2] == DrawnFrame.SCREEN_WIDTH && fill[3] == DrawnFrame.SCREEN_HEIGHT), "the screen dims");
         assertFalse(confirm.fillsOf(Dialog.CARD).isEmpty(), "the card draws");
@@ -692,7 +692,7 @@ class VariablesPaneTest {
     void scalarHeadReadsNameUsedByThenValueWithItsAmount() {
         VariablesPane read = readByEgg(mock(ManagerActions.class));
         DrawnFrame frame = new DrawnFrame();
-        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(read, frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         DrawnFrame.Text name = frame.find("$base");
         DrawnFrame.Text pencil = frame.findFirst("✎");
         DrawnFrame.Text usedBy = frame.find("Used by ");
@@ -716,7 +716,7 @@ class VariablesPaneTest {
         assertFalse(frame.texts().contains("="), frame.texts().toString());
         frame.clickFirst("✎");
         DrawnFrame renaming = new DrawnFrame();
-        read.extract(renaming.graphics, DrawnFrame.font(), VIEW, renaming.targets, 0, 0);
+        ScreenDraw.extract(read, renaming.graphics, DrawnFrame.font(), VIEW, renaming.targets, 0, 0);
         assertFalse(renaming.texts().contains("$base"), renaming.texts().toString());
         assertEquals(frame.count("✎") - 1, renaming.count("✎"), "the rename box stands in the pencil's place");
     }
@@ -732,14 +732,14 @@ class VariablesPaneTest {
         ManagerActions actions = mock(ManagerActions.class);
         VariablesPane read = readByEgg(actions);
         DrawnFrame frame = new DrawnFrame();
-        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(read, frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         DrawnFrame.Text value = frame.find("Value:");
         DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals(ReadValueButton.PENCIL)
                 && text.y() == value.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
         assertTrue(pencil.x() > frame.find("384").x(), pencil.toString());
         assertTrue(frame.targets.click(pencil.x() + 1, pencil.y() + 1));
         DrawnFrame editing = new DrawnFrame();
-        read.extract(editing.graphics, DrawnFrame.font(), VIEW, editing.targets, 0, 0);
+        ScreenDraw.extract(read, editing.graphics, DrawnFrame.font(), VIEW, editing.targets, 0, 0);
         assertTrue(editing.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
                 editing.texts().toString());
 
@@ -753,11 +753,11 @@ class VariablesPaneTest {
                 """);
         VariablesPane unset = twelvePrefabs(new VariablesTab(draft), draft);
         DrawnFrame blank = new DrawnFrame();
-        unset.extract(blank.graphics, DrawnFrame.font(), VIEW, blank.targets, 0, 0);
+        ScreenDraw.extract(unset, blank.graphics, DrawnFrame.font(), VIEW, blank.targets, 0, 0);
         assertTrue(blank.texts().contains(ReadValueButton.NOT_SET), blank.texts().toString());
         blank.click(ReadValueButton.NOT_SET);
         DrawnFrame opened = new DrawnFrame();
-        unset.extract(opened.graphics, DrawnFrame.font(), VIEW, opened.targets, 0, 0);
+        ScreenDraw.extract(unset, opened.graphics, DrawnFrame.font(), VIEW, opened.targets, 0, 0);
         assertTrue(opened.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
                 opened.texts().toString());
     }
@@ -820,7 +820,7 @@ class VariablesPaneTest {
     void usedByDrawsDirectItemsThenPrefabAndGroupLinks() {
         VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
         DrawnFrame frame = new DrawnFrame();
-        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(read, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         assertTrue(frame.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:stick")));
         assertFalse(frame.targets.hoverKeys().contains(ItemIcons.hoverKey("minecraft:cake")),
                 frame.targets.hoverKeys().toString());
@@ -840,15 +840,15 @@ class VariablesPaneTest {
     void readViewRefHoversTheKeyTheBuildersRefHovers() {
         VariablesPane read = woodReadByPlankAndLogs(mock(ManagerActions.class));
         DrawnFrame list = new DrawnFrame();
-        read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
         DrawnFrame.Text readRef = linkText(list, "$wood");
         assertEquals(Optional.of(PrefabHovers.hoverKey("wood")),
                 list.targets.hovered(readRef.x() + 1, readRef.y() + 1));
         list.click("$wood");
         DrawnFrame editing = new DrawnFrame();
-        read.extract(editing.graphics, DrawnFrame.font(), TALL_VIEW, editing.targets, 0, 0);
+        ScreenDraw.extract(read, editing.graphics, DrawnFrame.font(), TALL_VIEW, editing.targets, 0, 0);
         DrawnFrame building = new DrawnFrame();
-        read.extract(building.graphics, DrawnFrame.font(), TALL_VIEW, building.targets, 0, 0);
+        ScreenDraw.extract(read, building.graphics, DrawnFrame.font(), TALL_VIEW, building.targets, 0, 0);
         DrawnFrame.Text builderRef = linkText(building, "$wood");
         assertEquals(Optional.of(PrefabHovers.hoverKey("wood")),
                 building.targets.hovered(builderRef.x() + 1, builderRef.y() + 1));
@@ -863,7 +863,7 @@ class VariablesPaneTest {
         ManagerActions actions = mock(ManagerActions.class);
         VariablesPane read = woodReadByPlankAndLogs(actions);
         DrawnFrame frame = new DrawnFrame();
-        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(read, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text plank = linkText(frame, "$plank");
         assertEquals(Optional.of(PrefabHovers.hoverKey("plank")),
                 frame.targets.hovered(plank.x() + 1, plank.y() + 1));
@@ -901,7 +901,7 @@ class VariablesPaneTest {
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(read, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text name = frame.find("$wood");
         DrawnFrame.Text usedBy = frame.find("Used by ");
         DrawnFrame.Text cross = frame.find("✗");
@@ -944,14 +944,14 @@ class VariablesPaneTest {
         VariablesPane pane = fourTypeRows();
         GroupsPane.Bounds view = new GroupsPane.Bounds(0, 20, 2000, 400);
         DrawnFrame read = new DrawnFrame();
-        pane.extract(read.graphics, DrawnFrame.font(), view, read.targets, 0, 0);
+        ScreenDraw.extract(pane, read.graphics, DrawnFrame.font(), view, read.targets, 0, 0);
         int[] box = read.buttonAround(read.find(":"));
         int listRight = view.right() - ScrollBar.WIDTH - ScrollBar.GAP;
         assertEquals(listRight - BuilderFrame.deleteInset(DrawnFrame.font()),
                 read.buttonAround(read.find(ReadValueButton.PENCIL))[2], "the box short of the x");
         read.click(ReadValueButton.PENCIL);
         DrawnFrame open = new DrawnFrame();
-        pane.extract(open.graphics, DrawnFrame.font(), view, open.targets, 0, 0);
+        ScreenDraw.extract(pane, open.graphics, DrawnFrame.font(), view, open.targets, 0, 0);
         int[] panel = open.fillsOf(Palette.PANEL_FILL).getFirst();
         assertEquals(List.of(box[0] - RowLayout.BOX_MARGIN, box[1],
                 listRight - BuilderFrame.deleteInset(DrawnFrame.font())), List.of(panel[0], panel[1], panel[2]),
@@ -988,7 +988,7 @@ class VariablesPaneTest {
         VariablesPane pane = new VariablesPane(prefabs, draft, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         int[] box = frame.buttonAround(frame.find("$missing"));
         List<DrawnFrame.Text> red = frame.drawn().stream().filter(text -> text.color() == Palette.DANGER
                 && text.text().contains("Unknown constant")).toList();
@@ -1024,7 +1024,7 @@ class VariablesPaneTest {
         VariablesPane pane = new VariablesPane(prefabs, draft, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         // Each prefab's delete glyph draws in the same red, so the error lines are the red texts but that glyph.
         List<DrawnFrame.Text> errorLines = frame.drawn().stream()
                 .filter(text -> text.color() == Palette.DANGER && !"✗".equals(text.text())).toList();
@@ -1148,7 +1148,7 @@ class VariablesPaneTest {
         VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(read, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         DrawnFrame.Text beamValue = frame.drawn().stream().filter(text -> text.text().equals("Value:"))
                 .reduce((first, last) -> last).orElseThrow();
         DrawnFrame.Text amount = frame.find("192");
@@ -1301,7 +1301,7 @@ class VariablesPaneTest {
 
         private DrawnFrame drawn(VariablesPane drawnPane) {
             DrawnFrame frame = new DrawnFrame();
-            drawnPane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+            ScreenDraw.extract(drawnPane, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
             return frame;
         }
 
@@ -1368,14 +1368,14 @@ class VariablesPaneTest {
         }).when(actions).stream(anyString(), anyString(), any(), any(), any());
         VariablesPane read = readByEgg(actions);
         DrawnFrame list = new DrawnFrame();
-        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
-        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        ScreenDraw.extract(read, confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         assertTrue(confirm.texts().contains("$egg"), confirm.texts().toString());
         confirm.click("Delete");
         DrawnFrame after = new DrawnFrame();
-        read.extract(after.graphics, DrawnFrame.font(), VIEW, after.targets, 0, 0);
+        ScreenDraw.extract(read, after.graphics, DrawnFrame.font(), VIEW, after.targets, 0, 0);
         assertTrue(after.texts().contains("↺"), after.texts().toString());
         verify(actions, never()).stream(anyString(), anyString(), any(), any(), any());
         read.applyRemovals(() -> actions.request(WorkbenchOperations.SAVE_MODEL, "",
@@ -1409,10 +1409,10 @@ class VariablesPaneTest {
         read.show(true);
         String last = "prefab" + (PREFABS - 1);
         DrawnFrame list = new DrawnFrame();
-        read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
         clickRenameOf(list, last);
         DrawnFrame open = new DrawnFrame();
-        read.extract(open.graphics, DrawnFrame.font(), TALL_VIEW, open.targets, 0, 0);
+        ScreenDraw.extract(read, open.graphics, DrawnFrame.font(), TALL_VIEW, open.targets, 0, 0);
         EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
                 .filter(each -> each.visible && last.equals(each.getValue())).findFirst().orElseThrow();
         assertNameBoxButtons(open, box);
@@ -1421,16 +1421,16 @@ class VariablesPaneTest {
         verify(actions).request(eq(WorkbenchOperations.RENAME_CONSTANT),
                 ArgumentMatchers.contains("\"to\":\"renamed\""), any());
         DrawnFrame again = new DrawnFrame();
-        read.extract(again.graphics, DrawnFrame.font(), TALL_VIEW, again.targets, 0, 0);
+        ScreenDraw.extract(read, again.graphics, DrawnFrame.font(), TALL_VIEW, again.targets, 0, 0);
         clickRenameOf(again, last);
         DrawnFrame reopened = new DrawnFrame();
-        read.extract(reopened.graphics, DrawnFrame.font(), TALL_VIEW, reopened.targets, 0, 0);
+        ScreenDraw.extract(read, reopened.graphics, DrawnFrame.font(), TALL_VIEW, reopened.targets, 0, 0);
         box.setValue("other");
         reopened.click("↺");
         assertFalse(box.visible);
         verify(actions, never()).request(anyString(), ArgumentMatchers.contains("other"), any());
         DrawnFrame closed = new DrawnFrame();
-        read.extract(closed.graphics, DrawnFrame.font(), TALL_VIEW, closed.targets, 0, 0);
+        ScreenDraw.extract(read, closed.graphics, DrawnFrame.font(), TALL_VIEW, closed.targets, 0, 0);
         assertTrue(closed.texts().contains("$" + last), closed.texts().toString());
     }
 
@@ -1513,14 +1513,14 @@ class VariablesPaneTest {
         read.init(DrawnFrame.font());
         read.show(true);
         DrawnFrame list = new DrawnFrame();
-        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
         list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
-        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        ScreenDraw.extract(read, confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         confirm.click("$egg");
         verify(actions, never()).openVariable(anyString());
         DrawnFrame standing = new DrawnFrame();
-        read.extract(standing.graphics, DrawnFrame.font(), VIEW, standing.targets, 0, 0);
+        ScreenDraw.extract(read, standing.graphics, DrawnFrame.font(), VIEW, standing.targets, 0, 0);
         standing.shiftClick("$egg");
         verify(actions).openVariable("egg");
     }
@@ -1551,7 +1551,7 @@ class VariablesPaneTest {
         read.init(DrawnFrame.font());
         read.show(true);
         DrawnFrame frame = new DrawnFrame();
-        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(read, frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         assertFalse(frame.rightClick("$wood"));
         verify(actions, never()).openVariable(anyString());
         assertTrue(prefabs.editing().isEmpty());
@@ -1579,7 +1579,7 @@ class VariablesPaneTest {
         editing.show(true);
         prefabs.startEditing("prefab0");
         DrawnFrame frame = new DrawnFrame();
-        editing.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(editing, frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Consumer<String>> change =
                 ArgumentCaptor.forClass(Consumer.class);
@@ -1600,7 +1600,7 @@ class VariablesPaneTest {
                 {"constants": [{"name": "prefab0", "kind": "scalar", "value": "8", "direct": [%s]}]}
                 """.formatted(direct));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         assertTrue(frame.texts().stream().anyMatch(text -> text.matches("^\\.\\.\\+\\d+$")), frame.texts().toString());
     }
 
@@ -1612,11 +1612,11 @@ class VariablesPaneTest {
     void jumpToClearsTheSearchAndDrawsTheTarget() {
         searchBox().setValue("prefab1");
         DrawnFrame searched = new DrawnFrame();
-        pane.extract(searched.graphics, font, TALL_VIEW, searched.targets, 0, 0);
+        ScreenDraw.extract(pane, searched.graphics, font, TALL_VIEW, searched.targets, 0, 0);
         assertFalse(searched.texts().contains("$prefab5"), "the search hides the target");
         pane.jumpTo("prefab5");
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
         assertEquals("", searchBox().getValue());
         assertTrue(frame.texts().contains("$prefab5"), frame.texts().toString());
     }
@@ -1643,12 +1643,12 @@ class VariablesPaneTest {
         read.init(DrawnFrame.font());
         read.show(true);
         DrawnFrame list = new DrawnFrame();
-        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        ScreenDraw.extract(read, list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
         DrawnFrame.Text plus = list.find("+");
         assertTrue(plus.x() > VIEW.left() + 180, plus + " stands right of the search box");
         list.click("+");
         DrawnFrame naming = new DrawnFrame();
-        read.extract(naming.graphics, DrawnFrame.font(), VIEW, naming.targets, 0, 0);
+        ScreenDraw.extract(read, naming.graphics, DrawnFrame.font(), VIEW, naming.targets, 0, 0);
         EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
                 .filter(each -> each.visible && each != read.searchBox()).findFirst()
                 .orElseThrow(() -> new AssertionError("no name box stood open"));
@@ -1661,15 +1661,15 @@ class VariablesPaneTest {
         assertEquals(Optional.of("fresh_prefab"), prefabs.editing());
         verify(actions).draftChanged();
         DrawnFrame opened = new DrawnFrame();
-        read.extract(opened.graphics, DrawnFrame.font(), VIEW, opened.targets, 0, 0);
+        ScreenDraw.extract(read, opened.graphics, DrawnFrame.font(), VIEW, opened.targets, 0, 0);
         DrawnFrame settled = new DrawnFrame();
-        read.extract(settled.graphics, DrawnFrame.font(), VIEW, settled.targets, 0, 0);
+        ScreenDraw.extract(read, settled.graphics, DrawnFrame.font(), VIEW, settled.targets, 0, 0);
         assertTrue(settled.texts().contains("$fresh_prefab"), settled.texts().toString());
         assertTrue(settled.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
                 settled.texts().toString());
 
         assertTrue(settled.targets.click(plus.x() + 1, plus.y() + 1), "the + stands where it stood");
-        read.extract(new DrawnFrame().graphics, DrawnFrame.font(), VIEW, new ClickTargets(), 0, 0);
+        ScreenDraw.extract(read, new DrawnFrame().graphics, DrawnFrame.font(), VIEW, new ClickTargets(), 0, 0);
         box.setValue("prefab0");
         assertTrue(read.keyPressed(GLFW.GLFW_KEY_ENTER));
         assertEquals(PREFABS + 1, prefabs.blocks().size(), "a taken name adds nothing");
@@ -1687,7 +1687,7 @@ class VariablesPaneTest {
                 """);
         variables.startEditing("prefab0");
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
         ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), itemTops.capture());
         int panelTop = fillTopsAt(frame, Palette.PANEL_FILL).getFirst();
