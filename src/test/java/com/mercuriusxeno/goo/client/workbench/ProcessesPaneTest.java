@@ -243,7 +243,7 @@ class ProcessesPaneTest {
         // Decision one-wheel-step-and-one-dialog-primitive.
         pane = manyRowsPane();
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 390), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 390), frame.targets);
         pane.scroll(230, -1);
         assertEquals(ScrollBar.WHEEL_STEP, pane.columnBar(false).offset());
     }
@@ -253,7 +253,7 @@ class ProcessesPaneTest {
         pane = manyRowsPane();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 390);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), bounds, frame.targets);
         assertEquals(250 + 12 / 2, frame.find("Iterators").x());
         DrawnFrame.Text firstMutator = first(frame, "m00");
         assertTrue(rowControl(frame, "m00", "✗").x() < 250, frame.drawn().toString());
@@ -605,7 +605,7 @@ class ProcessesPaneTest {
     void rowHeadsFitLeftOfTheirColumnsScrollBar() {
         for (int width : new int[] {590, 464}) {
             DrawnFrame frame = new DrawnFrame();
-            pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
+            ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
             int middle = width / 2;
             List<DrawnFrame.Text> drawn = frame.drawn();
             List<DrawnFrame.Text> crosses = drawn.stream().filter(text -> text.text().equals("✗")).toList();
@@ -654,7 +654,7 @@ class ProcessesPaneTest {
 
     private DrawnFrame frame(int width) {
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
         return frame;
     }
 

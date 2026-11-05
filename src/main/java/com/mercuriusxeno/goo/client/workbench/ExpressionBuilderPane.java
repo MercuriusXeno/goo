@@ -588,8 +588,8 @@ final class ExpressionBuilderPane {
     }
 
     /**
-     * Draws the builder's open list or grid above everything the pane drew; the pane calls it once its own clip is
-     * lifted.
+     * Draws the builder's open list or grid above everything the pane drew; the screen draws it on the overlay stratum,
+     * after every pane and chrome draw (decision dropdowns-draw-on-one-stratum-above-everything-but-tooltip-and-dialog).
      *
      * @param graphics the frame's graphics
      * @param font     the font
