@@ -81,11 +81,11 @@ class GroupsPaneTest {
         GroupsTab groups = new GroupsTab(new ManagerDraft());
         GroupsPane pane = manyGroups(groups);
         DrawnFrame first = new DrawnFrame();
-        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
         int target = 25;
         pane.reveal(groupName(target));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         int[] list = frame.firstScissor();
         int rowHeight = tops.get(target + 1) - tops.get(target);
         assertEquals(tops.get(target) + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
@@ -101,19 +101,19 @@ class GroupsPaneTest {
         List<Integer> tops = rowTops();
         GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
         DrawnFrame first = new DrawnFrame();
-        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
         int target = 25;
         pane.reveal(groupName(target));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         ValuesPaneTest.assertGlowCovers(frame, frame.find("#" + groupName(target)),
                 tops.get(target + 1) - tops.get(target));
         for (int extracted = 1; extracted < RevealGlow.FRAMES; extracted++) {
             DrawnFrame fading = new DrawnFrame();
-            pane.extract(fading.graphics, DrawnFrame.font(), SHORT_VIEW, fading.targets);
+            ScreenDraw.extract(pane, fading.graphics, DrawnFrame.font(), SHORT_VIEW, fading.targets);
         }
         DrawnFrame after = new DrawnFrame();
-        pane.extract(after.graphics, DrawnFrame.font(), SHORT_VIEW, after.targets);
+        ScreenDraw.extract(pane, after.graphics, DrawnFrame.font(), SHORT_VIEW, after.targets);
         ValuesPaneTest.assertNoGlow(after);
     }
 
@@ -125,10 +125,10 @@ class GroupsPaneTest {
     void revealOfTheLastGroupStopsAtTheListsEnd() {
         GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
         DrawnFrame first = new DrawnFrame();
-        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
         pane.reveal(groupName(FOLLOWED_GROUPS - 1));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         assertTrue(pane.listBar().maximum() > 0);
         assertEquals(pane.listBar().maximum(), pane.listBar().offset());
     }
@@ -147,7 +147,7 @@ class GroupsPaneTest {
         pane.init(DrawnFrame.font());
         pane.show(true);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
                 .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
         int[] custom = frame.buttonAround(frame.find("+ Custom"));
@@ -160,7 +160,7 @@ class GroupsPaneTest {
     private static void groupsSelectFirst(GroupsPane pane, DrawnFrame list) {
         list.click("#" + groupName(0));
         DrawnFrame card = new DrawnFrame();
-        pane.extract(card.graphics, DrawnFrame.font(), SHORT_VIEW, card.targets);
+        ScreenDraw.extract(pane, card.graphics, DrawnFrame.font(), SHORT_VIEW, card.targets);
         DrawnFrame.Text name = card.drawn().stream().filter(text -> text.text().equals("#" + groupName(0)))
                 .reduce((first, last) -> last).orElseThrow();
         DrawnFrame.Text pencil = card.drawn().stream().filter(text -> text.text().equals("✎")
@@ -184,7 +184,7 @@ class GroupsPaneTest {
         assertTrue(search.visible);
 
         DrawnFrame first = new DrawnFrame();
-        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
         DrawnFrame.Text custom = first.find("+ Custom");
         int firstRow = first.find("#" + groupName(0)).y();
         assertTrue(Math.abs(search.getY() + search.getHeight() / 2 - (custom.y() + 4)) <= 4
@@ -218,11 +218,11 @@ class GroupsPaneTest {
         search.setValue(groupName(7));
         int target = 3;
         DrawnFrame searched = new DrawnFrame();
-        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        ScreenDraw.extract(pane, searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
         assertFalse(searched.texts().contains("#" + groupName(target)), "the search hides the target");
         pane.reveal(groupName(target));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         assertEquals("", search.getValue());
         assertTrue(frame.texts().contains("#" + groupName(target)), frame.texts().toString());
         // Decision every-follow-lands-selected-and-read-only: the followed group stands selected.
@@ -244,18 +244,18 @@ class GroupsPaneTest {
                 .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
         search.setValue(groupName(7));
         DrawnFrame searched = new DrawnFrame();
-        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        ScreenDraw.extract(pane, searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
         int target = 25;
         pane.reveal(groupName(target));
         DrawnFrame first = new DrawnFrame();
-        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
         assertEquals("", search.getValue());
         int[] list = first.firstScissor();
         int rowHeight = tops.get(target + 1) - tops.get(target);
         assertEquals(tops.get(target) + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
         DrawnFrame.Text name = first.find("#" + groupName(target));
         DrawnFrame settled = new DrawnFrame();
-        pane.extract(settled.graphics, DrawnFrame.font(), SHORT_VIEW, settled.targets);
+        ScreenDraw.extract(pane, settled.graphics, DrawnFrame.font(), SHORT_VIEW, settled.targets);
         assertEquals(settled.find("#" + groupName(target)).y(), name.y(), "drawn where it settles");
         ValuesPaneTest.assertGlowCovers(first, name, rowHeight);
     }
@@ -274,7 +274,7 @@ class GroupsPaneTest {
         GroupsTab tallGroups = new GroupsTab(new ManagerDraft());
         GroupsPane tallPane = manyGroups(tallGroups, new ArrayList<>());
         tallGroups.readDescribed("{\"groups\": [" + describedGroups(listed) + "]}");
-        tallPane.extract(tall.graphics, DrawnFrame.font(), TALL_VIEW, tall.targets);
+        ScreenDraw.extract(tallPane, tall.graphics, DrawnFrame.font(), TALL_VIEW, tall.targets);
         List<Integer> tops = tall.topsOf(listed.stream().map(each -> "#" + each).toList());
         int target = listed.indexOf(created);
         int rowTop = tops.get(target) - tops.getFirst();
@@ -294,7 +294,7 @@ class GroupsPaneTest {
                 .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
         search.setValue(groupName(7));
         DrawnFrame searched = new DrawnFrame();
-        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        ScreenDraw.extract(pane, searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
         searched.click("+ Custom");
         EditBox nameBox = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
                 .filter(box -> box != search).findFirst().orElseThrow();
@@ -313,7 +313,7 @@ class GroupsPaneTest {
                  "groups": [%s]}
                 """.formatted(describedGroups(listed)));
         DrawnFrame first = new DrawnFrame();
-        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
         int[] list = first.firstScissor();
         assertEquals(rowTop + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset(), "centered");
         ValuesPaneTest.assertGlowCovers(first, first.find("#" + created), rowHeight);
@@ -393,7 +393,7 @@ class GroupsPaneTest {
 
         private DrawnFrame frame() {
             DrawnFrame frame = new DrawnFrame();
-            pane.extract(frame.graphics, cuttingFont(), PANE, frame.targets);
+            ScreenDraw.extract(pane, frame.graphics, cuttingFont(), PANE, frame.targets);
             return frame;
         }
 
@@ -602,7 +602,7 @@ class GroupsPaneTest {
 
         private DrawnFrame frame() {
             DrawnFrame frame = new DrawnFrame();
-            pane.extract(frame.graphics, DrawnFrame.font(), PANE, frame.targets);
+            ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), PANE, frame.targets);
             return frame;
         }
 
@@ -760,7 +760,7 @@ class GroupsPaneTest {
         private DrawnFrame frame(String group) {
             groups.selectGroup(group);
             DrawnFrame frame = new DrawnFrame();
-            pane.extract(frame.graphics, DrawnFrame.font(), PANE, frame.targets);
+            ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), PANE, frame.targets);
             return frame;
         }
 
@@ -861,7 +861,7 @@ class GroupsPaneTest {
         GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
         List<DrawnFrame.Text> members = frame.drawn().stream().filter(text -> text.text().equals("Members:")).toList();
         List<DrawnFrame.Text> usedBy = frame.drawn().stream().filter(text -> text.text().equals("Used by ")).toList();
         assertEquals(1, usedBy.size(), frame.drawn().toString());
@@ -906,13 +906,13 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), bounds, frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), bounds, frame.targets);
         long shown = frame.texts().stream().filter(text -> text.matches("^#iter\\d\\d$")).count();
         assertTrue(shown > 0 && shown < iterators, frame.texts().toString());
         String more = UsedByLine.moreLabel(iterators - (int) shown);
         frame.click(more);
         DrawnFrame expanded = new DrawnFrame();
-        pane.extract(expanded.graphics, DrawnFrame.font(), bounds, expanded.targets);
+        ScreenDraw.extract(pane, expanded.graphics, DrawnFrame.font(), bounds, expanded.targets);
         assertEquals(iterators, expanded.texts().stream().filter(text -> text.matches("^#iter\\d\\d$")).count(),
                 expanded.texts().toString());
     }
@@ -935,7 +935,7 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         groups.selectGroup(name);
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 300, 300), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 300, 300), frame.targets);
         DrawnFrame.Text cut = frame.drawn().stream().filter(text -> text.text().contains(ButtonPainter.ELLIPSIS))
                 .reduce((first, last) -> last).orElseThrow(() -> new AssertionError(frame.texts().toString()));
         String key = frame.targets.hoveredArea(cut.x() + 1, cut.y() + 1).orElseThrow().hoverKey();
@@ -961,7 +961,7 @@ class GroupsPaneTest {
         GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         assertTrue(frame.texts().stream().anyMatch(text -> text.matches("^\\.\\.\\+\\d+$")), frame.texts().toString());
     }
 
@@ -999,7 +999,7 @@ class GroupsPaneTest {
         GroupsPane pane = new GroupsPane(groups, values, icons, actions, builder);
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
         DrawnFrame listed = new DrawnFrame();
-        pane.extract(listed.graphics, DrawnFrame.font(), bounds, listed.targets);
+        ScreenDraw.extract(pane, listed.graphics, DrawnFrame.font(), bounds, listed.targets);
         DrawnFrame.Text worth = listed.findFirst("37");
         DrawnFrame.Text members = listed.find("Members:");
         DrawnFrame.Text pencil = listed.find(ReadValueButton.PENCIL);
@@ -1007,7 +1007,7 @@ class GroupsPaneTest {
                 + pencil);
         assertTrue(listed.targets.click(pencil.x() + 1, pencil.y() + 1));
         DrawnFrame building = new DrawnFrame();
-        pane.extract(building.graphics, DrawnFrame.font(), bounds, building.targets);
+        ScreenDraw.extract(pane, building.graphics, DrawnFrame.font(), bounds, building.targets);
         DrawnFrame.Text kind = building.drawn().stream().filter(text -> text.text().endsWith(
                 ControlFlow.dropdownLabel(""))).findFirst().orElseThrow(() -> new AssertionError(building.texts()
                 .toString()));
@@ -1027,6 +1027,11 @@ class GroupsPaneTest {
      */
     // A Groups pane over logs valued by the base given, oak_log resolving to the value or the error given.
     private static GroupsPane logsValued(String base, String resolved) {
+        return logsValued(base, resolved, mock(ManagerActions.class));
+    }
+
+    // A Groups pane over logs valued by the base given, its line back to the screen the actions given.
+    private static GroupsPane logsValued(String base, String resolved, ManagerActions actions) {
         ManagerDraft draft = new ManagerDraft();
         ValuesTab values = new ValuesTab(draft);
         values.readEntries(new ListedEntrySource(
@@ -1047,11 +1052,25 @@ class GroupsPaneTest {
                    "base": "%s", "tweaks": [], "preview": []}]}
                 """.formatted(base.replace("\"", "\\\"")));
         groups.selectGroup("logs");
-        ManagerActions actions = mock(ManagerActions.class);
         ItemIcons icons = mock(ItemIcons.class);
         when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
         return new GroupsPane(groups, values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of,
                 List::of));
+    }
+
+    /**
+     * In a group's read value a shift + left click on an item's name beside its sprite opens Items on the item's
+     * whole id, the name and sprite being one link (decision
+     * diagnose-and-correct-read-mode-item-icons-that-do-not-follow).
+     */
+    @Test
+    void readValueItemNameFollowsOnShiftClick() {
+        ManagerActions actions = mock(ManagerActions.class);
+        GroupsPane pane = logsValued("stick / 2", "\"value\": {\"glow\": \"4\"}", actions);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        frame.shiftClick("stick");
+        verify(actions).openItem("minecraft:stick");
     }
 
     /**
@@ -1093,14 +1112,14 @@ class GroupsPaneTest {
         GroupsPane pane = logsValued("{\"glow\": \"4\"}", "\"value\": {\"glow\": \"4\"}");
         GroupsPane.Bounds view = new GroupsPane.Bounds(0, 0, 500, 300);
         DrawnFrame read = new DrawnFrame();
-        pane.extract(read.graphics, DrawnFrame.font(), view, read.targets);
+        ScreenDraw.extract(pane, read.graphics, DrawnFrame.font(), view, read.targets);
         int[] box = read.buttonAround(read.find(ReadValueButton.PENCIL));
         DrawnFrame.Placed worth = read.placements().stream().filter(placed -> placed.scale() == Lettering.AMOUNT_SCALE)
                 .findFirst().orElseThrow(() -> new AssertionError(read.placements().toString()));
         assertTrue(worth.y() < box[1], "the goo value line above the box");
         read.click(ReadValueButton.PENCIL);
         DrawnFrame open = new DrawnFrame();
-        pane.extract(open.graphics, DrawnFrame.font(), view, open.targets);
+        ScreenDraw.extract(pane, open.graphics, DrawnFrame.font(), view, open.targets);
         int[] panel = open.fillsOf(Palette.PANEL_FILL).getFirst();
         int[] readBox = read.fillsOf(Palette.BORDER).stream().filter(border -> border[1] == box[1]
                 && border[0] < box[0]).findFirst().orElse(box);
@@ -1119,7 +1138,7 @@ class GroupsPaneTest {
     void failingGroupValueDrawsOneRedLineUnderItsBox() {
         GroupsPane pane = logsValued("$missing", "\"value\": null, \"error\": \"Unknown constant $missing\"");
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
         int[] box = frame.buttonAround(frame.find("$missing"));
         List<DrawnFrame.Text> red = frame.drawn().stream().filter(text -> text.color() == Palette.DANGER
                 && text.text().contains("Unknown constant")).toList();
@@ -1156,7 +1175,7 @@ class GroupsPaneTest {
         GroupsPane pane = new GroupsPane(groups, values, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
         assertEquals(Lettering.AMOUNT_SCALE, frame.placed("10").scale(), frame.placements().toString());
         assertTrue(frame.placements().stream().anyMatch(placed -> placed.text().equals("2")
                 && placed.scale() < Lettering.AMOUNT_SCALE), "the half stacks: " + frame.placements());
@@ -1184,7 +1203,7 @@ class GroupsPaneTest {
         GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions, builder);
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
         DrawnFrame listed = new DrawnFrame();
-        pane.extract(listed.graphics, DrawnFrame.font(), bounds, listed.targets);
+        ScreenDraw.extract(pane, listed.graphics, DrawnFrame.font(), bounds, listed.targets);
         DrawnFrame.Text value = listed.find("8");
         DrawnFrame.Text pencil = listed.drawn().stream().filter(text -> text.text().equals(ReadValueButton.PENCIL)
                 && Math.abs(text.y() - value.y()) < ExpressionLines.TEXT_LINE_HEIGHT).findFirst()
@@ -1193,7 +1212,7 @@ class GroupsPaneTest {
         assertTrue(listed.targets.click(pencil.x() + 1, pencil.y() + 1));
         assertTrue(builder.isOpen());
         DrawnFrame building = new DrawnFrame();
-        pane.extract(building.graphics, DrawnFrame.font(), bounds, building.targets);
+        ScreenDraw.extract(pane, building.graphics, DrawnFrame.font(), bounds, building.targets);
         assertTrue(building.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
                 building.texts().toString());
     }
@@ -1223,7 +1242,7 @@ class GroupsPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
 
         DrawnFrame listed = new DrawnFrame();
-        pane.extract(listed.graphics, DrawnFrame.font(), bounds, listed.targets);
+        ScreenDraw.extract(pane, listed.graphics, DrawnFrame.font(), bounds, listed.targets);
         assertTrue(listed.texts().containsAll(List.of("#logs", "#saplings")), listed.texts().toString());
         // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
         assertEquals(2, listed.texts().stream().filter(ReadValueButton.NOT_SET::equals).count(),
@@ -1233,7 +1252,7 @@ class GroupsPaneTest {
         assertTrue(builder.isOpen());
         assertEquals(Optional.of("saplings"), groups.selected().map(GroupsTab.Group::name));
         DrawnFrame building = new DrawnFrame();
-        pane.extract(building.graphics, DrawnFrame.font(), bounds, building.targets);
+        ScreenDraw.extract(pane, building.graphics, DrawnFrame.font(), bounds, building.targets);
         DrawnFrame.Text kind = building.find(ControlFlow.dropdownLabel("by type"));
         assertTrue(kind.x() < GroupsPane.listWidth(bounds), "the builder stands on the card: " + kind);
         // Decision add-type-is-a-big-square-plus-question-button-below-the-list: the +? stands under the kind.
@@ -1259,7 +1278,7 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         groups.selectGroup("logs");
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
         int oak = frame.find("minecraft:oak_log").y();
         int birch = frame.find("minecraft:birch_log").y();
         ArgumentCaptor<Integer> itemYs = ArgumentCaptor.forClass(Integer.class);
@@ -1280,7 +1299,7 @@ class GroupsPaneTest {
     void wheelNotchMovesTheListOneWheelStep() {
         GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         pane.scroll(SHORT_VIEW.left() + 1, SHORT_VIEW.top() + 60, SHORT_VIEW.left(), -1);
         assertEquals(ScrollBar.WHEEL_STEP, pane.listBar().offset());
     }
@@ -1319,7 +1338,7 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         groups.selectGroup("logs");
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
         ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
@@ -1350,7 +1369,7 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         groups.selectGroup("logs");
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
         DrawnFrame.Text members = frame.find("Members:");
         assertTrue(frame.fillsOf(Palette.SELECTED_FILL).stream().anyMatch(fill -> fill[0] <= members.x()
                 && members.x() < fill[2] && fill[1] <= members.y() && members.y() < fill[3]), frame.drawn().toString());
@@ -1376,7 +1395,7 @@ class GroupsPaneTest {
         GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions, builder);
         groups.selectGroup("logs");
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
         assertTrue(!frame.rightClick("$wood"));
         verify(actions, never()).openVariable(anyString());
         assertTrue(!builder.isOpen());
@@ -1414,7 +1433,7 @@ class GroupsPaneTest {
         pane.show(true);
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
         DrawnFrame closed = new DrawnFrame();
-        pane.extract(closed.graphics, DrawnFrame.font(), bounds, closed.targets);
+        ScreenDraw.extract(pane, closed.graphics, DrawnFrame.font(), bounds, closed.targets);
         DrawnFrame.Text newGroup = closed.find("+ Custom");
         DrawnFrame.Text addTag = closed.find("+ Tag");
         assertEquals(newGroup.y(), addTag.y());
@@ -1422,7 +1441,7 @@ class GroupsPaneTest {
         assertTrue(addTag.x() > newGroup.x(), closed.drawn().toString());
         closed.click("+ Tag");
         DrawnFrame open = new DrawnFrame();
-        pane.extract(open.graphics, DrawnFrame.font(), bounds, open.targets);
+        ScreenDraw.extract(pane, open.graphics, DrawnFrame.font(), bounds, open.targets);
         assertTrue(open.texts().containsAll(List.of("#minecraft:leaves, 8 members", "#minecraft:logs, 40 members")),
                 open.texts().toString());
         assertEquals(List.of(), open.texts().stream().filter(text -> text.startsWith("#minecraft:saplings")).toList());
