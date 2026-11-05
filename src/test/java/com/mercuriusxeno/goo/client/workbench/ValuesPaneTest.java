@@ -1,20 +1,25 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import org.joml.Matrix3x2fStack;
 import org.junit.jupiter.api.Test;
+import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import java.util.ArrayList;
+import java.util.ArrayList;
+import java.util.ArrayList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Optional;
-import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.ArrayList;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -140,7 +145,7 @@ class ValuesPaneTest {
         ValuesTab values = new ValuesTab();
         values.readEntries(new ListedEntrySource(
                 List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
-        List<net.minecraft.client.gui.components.AbstractWidget> widgets = new java.util.ArrayList<>();
+        List<AbstractWidget> widgets = new ArrayList<>();
         ManagerActions actions = mock(ManagerActions.class);
         when(actions.addWidget(any())).thenAnswer(call -> {
             widgets.add(call.getArgument(0));
@@ -153,9 +158,9 @@ class ValuesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, font, bounds, frame.targets);
-        net.minecraft.client.gui.components.EditBox search = widgets.stream()
-                .filter(net.minecraft.client.gui.components.EditBox.class::isInstance)
-                .map(net.minecraft.client.gui.components.EditBox.class::cast).findFirst().orElseThrow();
+        EditBox search = widgets.stream()
+                .filter(EditBox.class::isInstance)
+                .map(EditBox.class::cast).findFirst().orElseThrow();
         List<String> labels = List.of("Items", "Uncovered 0", "Fractional", "Negative 0");
         List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, font::width,
                 ValuesPane.chipsLeft(labels, font::width, bounds), bounds.top(), values.filter()).chips();
@@ -223,14 +228,14 @@ class ValuesPaneTest {
         // goo-amounts-draw-smaller-and-a-pixel-lower-everywhere).
         private static List<DrawnFrame.Text> onLine(DrawnFrame frame, DrawnFrame.Text anchor) {
             return frame.drawn().stream().filter(text -> Math.abs(text.y() - anchor.y()) <= AMOUNT_DROP)
-                    .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).toList();
+                    .sorted(Comparator.comparingInt(DrawnFrame.Text::x)).toList();
         }
 
         private static List<Integer> itemXsAround(DrawnFrame frame, int y) {
             ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
-            List<Integer> found = new java.util.ArrayList<>();
+            List<Integer> found = new ArrayList<>();
             for (int index = 0; index < xs.getAllValues().size(); index++) {
                 if (Math.abs(ys.getAllValues().get(index) - y) < ROW_HEIGHT_OF_LINE) {
                     found.add(xs.getAllValues().get(index));
@@ -264,9 +269,9 @@ class ValuesPaneTest {
             ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, atLeast(0)).blit(any(), any(), xs.capture(), ys.capture(),
-                    org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(), anyInt(),
+                    ArgumentMatchers.anyFloat(), ArgumentMatchers.anyFloat(), anyInt(),
                     anyInt(), anyInt(), anyInt(), anyInt());
-            List<Integer> found = new java.util.ArrayList<>();
+            List<Integer> found = new ArrayList<>();
             for (int index = 0; index < xs.getAllValues().size(); index++) {
                 if (Math.abs(ys.getAllValues().get(index) - y) < ROW_HEIGHT_OF_LINE) {
                     found.add(xs.getAllValues().get(index));
@@ -613,8 +618,8 @@ class ValuesPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         frame.click("$wood");
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<java.util.function.Consumer<String>> change =
-                ArgumentCaptor.forClass(java.util.function.Consumer.class);
+        ArgumentCaptor<Consumer<String>> change =
+                ArgumentCaptor.forClass(Consumer.class);
         verify(builder).open(anyString(), change.capture(), any());
         change.getValue().accept("\"$wood / 8\"");
         verify(actions).draftChanged();
@@ -861,7 +866,7 @@ class ValuesPaneTest {
                 new ManagerEntrySource.ItemName("minecraft:item_%02d".formatted(index), itemName(index))).toList(),
                 List.of()));
         ManagerActions actions = mock(ManagerActions.class);
-        List<Object> widgets = new java.util.ArrayList<>();
+        List<Object> widgets = new ArrayList<>();
         when(actions.addWidget(any())).thenAnswer(call -> {
             widgets.add(call.getArgument(0));
             return call.getArgument(0);
@@ -869,9 +874,9 @@ class ValuesPaneTest {
         ValuesPane pane = manyItems(values, actions);
         pane.init(DrawnFrame.font());
         pane.show(true);
-        net.minecraft.client.gui.components.EditBox search = widgets.stream()
-                .filter(net.minecraft.client.gui.components.EditBox.class::isInstance)
-                .map(net.minecraft.client.gui.components.EditBox.class::cast)
+        EditBox search = widgets.stream()
+                .filter(EditBox.class::isInstance)
+                .map(EditBox.class::cast)
                 .filter(box -> "Search items".equals(box.getMessage().getString())).findFirst().orElseThrow();
         search.setValue(itemName(3));
         int target = 25;
@@ -1005,7 +1010,7 @@ class ValuesPaneTest {
         List<int[]> glows = frame.fillsOf(Palette.GLOW);
         assertEquals(1, glows.size(), "glow fills: " + glows.size());
         int[] glow = glows.getFirst();
-        assertTrue(glow[1] <= name.y() && name.y() < glow[3], java.util.Arrays.toString(glow) + " vs " + name);
+        assertTrue(glow[1] <= name.y() && name.y() < glow[3], Arrays.toString(glow) + " vs " + name);
         assertEquals(rowHeight, glow[3] - glow[1]);
         assertEquals(frame.firstScissor()[0], glow[0], "the glow starts at the list's left");
     }
@@ -1044,11 +1049,11 @@ class ValuesPaneTest {
         DrawnFrame open = new DrawnFrame();
         pane.extract(open.graphics, DrawnFrame.font(), tall, open.targets);
         open.click("2");
-        ArgumentCaptor<net.minecraft.client.gui.components.AbstractWidget> focused =
-                ArgumentCaptor.forClass(net.minecraft.client.gui.components.AbstractWidget.class);
+        ArgumentCaptor<AbstractWidget> focused =
+                ArgumentCaptor.forClass(AbstractWidget.class);
         verify(actions, atLeastOnce()).focus(focused.capture());
-        ((net.minecraft.client.gui.components.EditBox) focused.getValue()).setValue("3");
-        assertTrue(pane.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER), "no number box stood open");
+        ((EditBox) focused.getValue()).setValue("3");
+        assertTrue(pane.keyPressed(GLFW.GLFW_KEY_ENTER), "no number box stood open");
         GroupsPane.Bounds squat = new GroupsPane.Bounds(0, 0, 500, 50);
         for (int notch = 0; notch < 20; notch++) {
             DrawnFrame scrolled = new DrawnFrame();
@@ -1061,7 +1066,7 @@ class ValuesPaneTest {
         for (String label : List.of("✓ Done", "✗ Cancel")) {
             DrawnFrame.Text button = frame.find(label);
             assertTrue(button.y() >= list[1] && button.y() + LINE_HEIGHT <= list[3],
-                    button + " outside the list " + java.util.Arrays.toString(list));
+                    button + " outside the list " + Arrays.toString(list));
         }
     }
 
@@ -1271,7 +1276,7 @@ class ValuesPaneTest {
         values.readEntries(new ListedEntrySource(
                 List.of(new ManagerEntrySource.ItemName("minecraft:torch", "Torch")), List.of()));
         String listed = members.stream().map(member -> "\\\"" + member + "\\\"")
-                .collect(java.util.stream.Collectors.joining(", "));
+                .collect(Collectors.joining(", "));
         values.readModel("""
                 {"path": "base_values.json", "members": [
                   {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
@@ -1405,7 +1410,7 @@ class ValuesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         DrawnFrame.Text label = frame.find("#lights");
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("lights")),
+        assertEquals(Optional.of(GroupHovers.hoverKey("lights")),
                 frame.targets.hovered(label.x() + 1, label.y() + 1));
     }
 

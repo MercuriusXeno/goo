@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.google.gson.JsonPrimitive;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -139,7 +140,7 @@ class ExpressionBuilderTest {
             builder.setNumber(0, "3");
             assertEquals(Optional.of("3"), builder.written());
             assertEquals("3", builder.numberText(List.of(0)));
-            assertEquals(new com.google.gson.JsonPrimitive(3),
+            assertEquals(new JsonPrimitive(3),
                     ExpressionTerms.writeValue(ExpressionTerms.parseShown(builder.text()).orElseThrow()));
         }
 

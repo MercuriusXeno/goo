@@ -3,7 +3,9 @@ package com.mercuriusxeno.goo.client.workbench;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -77,7 +79,7 @@ final class ControlFlow {
     private int pieceTop;
     private int pieceWidth;
     // The parenthetical boxes standing open, the innermost first, each the right edge of its widest line so far.
-    private final java.util.Deque<int[]> openBoxes = new java.util.ArrayDeque<>();
+    private final Deque<int[]> openBoxes = new ArrayDeque<>();
     // Every rail the flow laid this frame, which paintRails draws and arms once the pane knows which can drag.
     private final List<LaidRail> laidRails = new ArrayList<>();
     // The segmented container open: its left, its top and height, and the left the next segment's border takes.

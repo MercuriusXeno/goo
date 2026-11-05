@@ -6,9 +6,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
-import org.mockito.ArgumentCaptor;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,10 +17,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -31,6 +30,12 @@ final class DrawnFrame {
     final GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
     final ClickTargets targets = new ClickTargets();
     private final List<Placed> placed = new ArrayList<>();
+    // Each fill as left, top, right, bottom and color, the fills an empty scissor culls left out.
+    private final List<int[]> fills = new ArrayList<>();
+    // Each scissor set with room in it, as left, top, right and bottom.
+    private final List<int[]> scissors = new ArrayList<>();
+    // Whether each scissor set holds no room, its own or its parent's, as the game's scissor stack intersects them.
+    private final Deque<Boolean> culling = new ArrayDeque<>();
     // A pose stack deep enough for every nesting a pane draws, and pose-free graphics a test swaps in reads as none.
     private static final int POSE_DEPTH = 16;
 
@@ -53,6 +58,31 @@ final class DrawnFrame {
                     call.getArgument(4));
             return null;
         }).when(graphics).text(any(Font.class), any(Component.class), anyInt(), anyInt(), anyInt());
+        doAnswer(call -> {
+            if (!culled()) {
+                fills.add(new int[] {call.getArgument(0), call.getArgument(1), call.getArgument(2),
+                    call.getArgument(3), call.getArgument(4)});
+            }
+            return null;
+        }).when(graphics).fill(anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        doAnswer(call -> {
+            int[] box = {call.getArgument(0), call.getArgument(1), call.getArgument(2), call.getArgument(3)};
+            boolean empty = culled() || box[2] <= box[0] || box[3] <= box[1];
+            culling.push(empty);
+            if (!empty) {
+                scissors.add(box);
+            }
+            return null;
+        }).when(graphics).enableScissor(anyInt(), anyInt(), anyInt(), anyInt());
+        doAnswer(call -> {
+            culling.pop();
+            return null;
+        }).when(graphics).disableScissor();
+    }
+
+    // An element drawn under a scissor holding no room never reaches the screen.
+    private boolean culled() {
+        return !culling.isEmpty() && culling.peek();
     }
 
     // Records a text where it landed on the screen, the pose it drew under applied.
@@ -62,6 +92,9 @@ final class DrawnFrame {
 
     // The font's plain text call draws a drop shadow; the call naming the shadow draws one only where asked.
     private void place(String text, boolean bold, int x, int y, int color, boolean shadow) {
+        if (culled()) {
+            return;
+        }
         Matrix3x2fStack pose = graphics.pose();
         // A mocked pose a test swaps in answers zeros, which reads as no pose at all.
         boolean posed = pose != null && pose.m00() != 0;
@@ -164,18 +197,7 @@ final class DrawnFrame {
      * @return each fill drawn in it, as left, top, right and bottom
      */
     List<int[]> fillsOf(int color) {
-        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-        verify(graphics, atLeast(0)).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
-                org.mockito.ArgumentMatchers.eq(color));
-        List<int[]> fills = new ArrayList<>();
-        for (int index = 0; index < lefts.getAllValues().size(); index++) {
-            fills.add(new int[] {lefts.getAllValues().get(index), tops.getAllValues().get(index),
-                rights.getAllValues().get(index), bottoms.getAllValues().get(index)});
-        }
-        return fills;
+        return fills.stream().filter(fill -> fill[4] == color).map(fill -> Arrays.copyOf(fill, 4)).toList();
     }
 
     /**
@@ -276,37 +298,18 @@ final class DrawnFrame {
         Text text = find(label);
         // A lettered label underlines at its lettered width, a full-size one at the font's own.
         int right = text.x() + new Lettering(font(), placed(label).scale()).width(label);
-        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
-        verify(graphics, atLeast(0)).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
-                colors.capture());
-        for (int index = 0; index < lefts.getAllValues().size(); index++) {
-            int top = tops.getAllValues().get(index);
-            if (lefts.getAllValues().get(index) == text.x() && rights.getAllValues().get(index) == right
-                    && bottoms.getAllValues().get(index) == top + 1 && top > text.y()
-                    && top < text.y() + ExpressionLines.TEXT_LINE_HEIGHT
-                    && colors.getAllValues().get(index) == Palette.LINK) {
-                return true;
-            }
-        }
-        return false;
+        return fillsOf(Palette.LINK).stream().anyMatch(fill -> fill[0] == text.x() && fill[2] == right
+                && fill[3] == fill[1] + 1 && fill[1] > text.y()
+                && fill[1] < text.y() + ExpressionLines.TEXT_LINE_HEIGHT);
     }
 
     /**
-     * @return the first scissor the frame set, as left, top, right and bottom, which a pane sets over its list
+     * @return the first scissor with room in it the frame set, as left, top, right and bottom, which a pane sets over
+     *     its list
      */
     int[] firstScissor() {
-        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-        verify(graphics, atLeast(1)).enableScissor(lefts.capture(), tops.capture(), rights.capture(),
-                bottoms.capture());
-        return new int[] {lefts.getAllValues().getFirst(), tops.getAllValues().getFirst(),
-            rights.getAllValues().getFirst(), bottoms.getAllValues().getFirst()};
+        assertTrue(!scissors.isEmpty(), "no scissor set");
+        return scissors.getFirst();
     }
 
     /**

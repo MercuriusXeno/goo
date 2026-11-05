@@ -9,13 +9,20 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.network.chat.Style;
+import org.joml.Vector2i;
+import org.joml.Vector2ic;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.lwjgl.glfw.GLFW;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -160,12 +167,12 @@ class ValuesManagerScreenTest {
                 new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)));
 
         private List<DragMask.Rect> fills(DrawnFrame frame, int color) {
-            org.mockito.ArgumentCaptor<Integer> lefts = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            org.mockito.ArgumentCaptor<Integer> tops = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            org.mockito.ArgumentCaptor<Integer> rights = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            org.mockito.ArgumentCaptor<Integer> bottoms = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            org.mockito.Mockito.verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(),
-                    tops.capture(), rights.capture(), bottoms.capture(), org.mockito.ArgumentMatchers.eq(color));
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+            Mockito.verify(frame.graphics, Mockito.atLeast(0)).fill(lefts.capture(),
+                    tops.capture(), rights.capture(), bottoms.capture(), ArgumentMatchers.eq(color));
             List<DragMask.Rect> rects = new ArrayList<>();
             for (int index = 0; index < lefts.getAllValues().size(); index++) {
                 rects.add(new DragMask.Rect(lefts.getAllValues().get(index), tops.getAllValues().get(index),
@@ -188,7 +195,7 @@ class ValuesManagerScreenTest {
             explainer.toggle();
             DrawnFrame frame = frame();
             assertFalse(fills(frame, Palette.DRAG_SHADOW).isEmpty(), "the shadow covers the screen");
-            List<DragMask.Rect> tabs = java.util.Arrays.stream(ManagerTab.values()).map(tab ->
+            List<DragMask.Rect> tabs = Arrays.stream(ManagerTab.values()).map(tab ->
                     new DragMask.Rect(8 + tab.ordinal() * 50, 20, 56 + tab.ordinal() * 50, 34)).toList();
             assertEquals(tabs, fills(frame, Palette.DRAG_HIGHLIGHT));
         }
@@ -221,8 +228,8 @@ class ValuesManagerScreenTest {
                 if (ExplainerMode.CODE_STYLE.equals(style)) {
                     styled.add(piece);
                 }
-                return java.util.Optional.empty();
-            }, net.minecraft.network.chat.Style.EMPTY);
+                return Optional.empty();
+            }, Style.EMPTY);
             assertEquals(List.of("anchor items", "Anchor items"), styled);
         }
 
@@ -256,7 +263,7 @@ class ValuesManagerScreenTest {
             explainer.toggle();
             DrawnFrame frame = frame();
             assertEquals(List.of(), fills(frame, Palette.DRAG_SHADOW));
-            assertEquals(java.util.Optional.empty(), frame.targets.hovered(20, 25));
+            assertEquals(Optional.empty(), frame.targets.hovered(20, 25));
         }
     }
 
@@ -290,15 +297,15 @@ class ValuesManagerScreenTest {
     void tooltipStaysPutAsTheCursorMovesOverOneElement() {
         ClickTargets targets = new ClickTargets();
         targets.addHover(40, 20, 50, 14, "stick");
-        List<org.joml.Vector2ic> points = new ArrayList<>();
+        List<Vector2ic> points = new ArrayList<>();
         for (int mouseX : new int[] {42, 85}) {
             int mouseY = mouseX == 42 ? 22 : 31;
             points.add(ValuesManagerScreen.anchoredTooltip(targets, mouseX, mouseY).orElseThrow()
                     .positionTooltip(400, 300, mouseX, mouseY, 60, 30));
         }
         TooltipAnchor.Point anchored = TooltipAnchor.place(new GroupsPane.Bounds(40, 20, 90, 34), 60, 30, 400, 300);
-        assertEquals(List.of(new org.joml.Vector2i(anchored.x(), anchored.y()),
-                new org.joml.Vector2i(anchored.x(), anchored.y())), points);
+        assertEquals(List.of(new Vector2i(anchored.x(), anchored.y()),
+                new Vector2i(anchored.x(), anchored.y())), points);
     }
 
     @Nested
@@ -531,6 +538,6 @@ class ValuesManagerScreenTest {
         var elements = ValuesManagerScreen.tooltipElements(List.of(new TooltipLine.Text(Component.literal("stick")),
                 metal, rock, new TooltipLine.Text(Component.literal("after"))));
         assertEquals(3, elements.size(), elements.toString());
-        assertEquals(java.util.Optional.of(new TooltipLine.GooAmounts(List.of(metal, rock))), elements.get(1).right());
+        assertEquals(Optional.of(new TooltipLine.GooAmounts(List.of(metal, rock))), elements.get(1).right());
     }
 }

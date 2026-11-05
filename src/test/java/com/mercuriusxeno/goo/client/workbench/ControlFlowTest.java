@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -97,7 +98,7 @@ class ControlFlowTest {
     @Test
     void choicesDrawOneButtonWhoseClickListsTheSet() {
         BuilderOverlays overlays = new BuilderOverlays(mock(ManagerActions.class), null);
-        List<String> picked = new java.util.ArrayList<>();
+        List<String> picked = new ArrayList<>();
         List<BuilderOverlays.Option> options = List.of(
                 new BuilderOverlays.Option("north", "go north", at -> picked.add("north")),
                 new BuilderOverlays.Option("south", "go south", at -> picked.add("south")));

@@ -3,6 +3,10 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.google.gson.JsonParser;
 import net.minecraft.client.gui.Font;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -77,9 +81,9 @@ class ExpressionLinesTest {
         ExpressionLines.draw(Lettering.full(font), ExpressionLines.shownRuns("anvil - bucket", NAMES), 0, 40, 400,
                 new ExpressionLines.Painter(frame.graphics, mock(ItemIcons.class), frame.targets, 0xFFFFFFFF,
                         Palette.LINK, (ref, x, y, width) -> { }));
-        org.mockito.ArgumentCaptor<Integer> spriteTops = org.mockito.ArgumentCaptor.forClass(Integer.class);
-        org.mockito.Mockito.verify(frame.graphics, org.mockito.Mockito.atLeastOnce()).item(
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(), spriteTops.capture());
+        ArgumentCaptor<Integer> spriteTops = ArgumentCaptor.forClass(Integer.class);
+        Mockito.verify(frame.graphics, Mockito.atLeastOnce()).item(
+                ArgumentMatchers.any(), ArgumentMatchers.anyInt(), spriteTops.capture());
         int spriteTop = spriteTops.getValue();
         assertEquals(spriteTop + (16 - font.lineHeight + 1) / 2, frame.find("-").y());
         assertEquals(spriteTop + (16 - font.lineHeight + 1) / 2, frame.find("Bucket").y());
@@ -141,12 +145,12 @@ class ExpressionLinesTest {
     @Test
     void beetrootReadsTypeColonThenPossessiveTermsInline() {
         ExpressionTerms.Value beetroot = ExpressionTerms.parseValue(JsonParser.parseString(BEETROOT)).orElseThrow();
-        List<ExpressionLines.Run> inner = new java.util.ArrayList<>(possessive("food", "jelly"));
+        List<ExpressionLines.Run> inner = new ArrayList<>(possessive("food", "jelly"));
         inner.add(symbol("+"));
         inner.addAll(possessive("saturation", "jelly"));
         inner.add(symbol("x"));
         inner.add(run(ExpressionLines.Kind.NUMBER, "12"));
-        List<ExpressionLines.Run> expected = new java.util.ArrayList<>(List.of(type("jelly"), symbol(":")));
+        List<ExpressionLines.Run> expected = new ArrayList<>(List.of(type("jelly"), symbol(":")));
         expected.addAll(inner);
         expected.addAll(List.of(run(ExpressionLines.Kind.BREAK, ""), type("leaf"), symbol(":")));
         expected.addAll(possessive("dye", "leaf"));

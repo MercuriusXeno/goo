@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * What the builders' controls open below themselves: one number box, one searchable dropdown with its search box,
@@ -401,7 +402,7 @@ final class BuilderOverlays {
     }
 
     private void openBox(Anchor at, String current, Consumer<String> commits,
-                         java.util.function.Predicate<String> accepts) {
+                         Predicate<String> accepts) {
         closeLists();
         numberCommits = typed -> {
             if (!typed.isBlank()) {

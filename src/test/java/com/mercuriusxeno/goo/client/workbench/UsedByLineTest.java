@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
+import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -42,8 +43,8 @@ class UsedByLineTest {
      */
     @Test
     void slotsOfTheirOwnWidthFitByTheirSum() {
-        assertEquals(new UsedByLine.Fit(2, 0), UsedByLine.fitSlots(java.util.List.of(16, 40), 2, 100, more -> 20));
-        assertEquals(new UsedByLine.Fit(3, 1), UsedByLine.fitSlots(java.util.List.of(16, 16, 40, 40), 2, 100,
+        assertEquals(new UsedByLine.Fit(2, 0), UsedByLine.fitSlots(List.of(16, 40), 2, 100, more -> 20));
+        assertEquals(new UsedByLine.Fit(3, 1), UsedByLine.fitSlots(List.of(16, 16, 40, 40), 2, 100,
                 more -> 20));
     }
 
@@ -53,9 +54,9 @@ class UsedByLineTest {
      */
     @Test
     void slotsFlowAndWrapWithTheEndButtonAfterTheLast() {
-        assertEquals(java.util.List.of(new UsedByLine.Slot(0, 0), new UsedByLine.Slot(18, 0),
+        assertEquals(List.of(new UsedByLine.Slot(0, 0), new UsedByLine.Slot(18, 0),
                 new UsedByLine.Slot(0, 1), new UsedByLine.Slot(42, 1)),
-                UsedByLine.flow(java.util.List.of(16, 40, 40), 2, 70, 20));
+                UsedByLine.flow(List.of(16, 40, 40), 2, 70, 20));
     }
 
     /**

@@ -6,8 +6,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -201,7 +203,7 @@ class MutatorControlsTest {
         }
 
         private static Map<String, String> orderedAmounts() {
-            Map<String, String> amounts = new java.util.LinkedHashMap<>();
+            Map<String, String> amounts = new LinkedHashMap<>();
             amounts.put("rock", "192");
             amounts.put("yore", "336");
             return amounts;
@@ -236,7 +238,7 @@ class MutatorControlsTest {
                     new Processes.Additive("oak"), new Processes.Stack(2, "smelt"))) {
                 DrawnFrame frame = frame(form);
                 DrawnFrame.Text kind = frame.drawn().getFirst();
-                assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "rust")),
+                assertEquals(Optional.of(ConversionHovers.hoverKey(SECTION, "rust")),
                         frame.targets.hovered(kind.x() + 1, kind.y() + 1), form.toString());
             }
         }
@@ -249,7 +251,7 @@ class MutatorControlsTest {
         void stacksMutatorLinkHoversThatMutatorsFormula() {
             DrawnFrame frame = frame(new Processes.Stack(2, "smelt"));
             DrawnFrame.Text applied = frame.find("smelt");
-            assertEquals(java.util.Optional.of(ConversionHovers.hoverKey(SECTION, "smelt")),
+            assertEquals(Optional.of(ConversionHovers.hoverKey(SECTION, "smelt")),
                     frame.targets.hovered(applied.x() + 1, applied.y() + 1));
         }
 

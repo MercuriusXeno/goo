@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -12,7 +13,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -109,8 +113,6 @@ class GroupsPaneTest {
         pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
         int target = 25;
         pane.reveal(groupName(target));
-        DrawnFrame centering = new DrawnFrame();
-        pane.extract(centering.graphics, DrawnFrame.font(), SHORT_VIEW, centering.targets);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         ValuesPaneTest.assertGlowCovers(frame, frame.find("#" + groupName(target)),
@@ -234,6 +236,37 @@ class GroupsPaneTest {
         assertTrue(frame.texts().contains("#" + groupName(target)), frame.texts().toString());
     }
 
+    /**
+     * The first frame after a follow already draws the group's row centered, where it settles, and glowing at age
+     * zero, with the search empty (decision one-reveal-primitive-centers-before-the-first-draw).
+     */
+    @Test
+    void revealDrawsTheRowCenteredAndGlowingOnTheFirstFrame() {
+        List<Integer> tops = rowTops();
+        List<AbstractWidget> widgets = new ArrayList<>();
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()), widgets);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue(groupName(7));
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        int target = 25;
+        pane.reveal(groupName(target));
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        assertEquals("", search.getValue());
+        int[] list = first.firstScissor();
+        int rowHeight = tops.get(target + 1) - tops.get(target);
+        assertEquals(tops.get(target) + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
+        DrawnFrame.Text name = first.find("#" + groupName(target));
+        DrawnFrame settled = new DrawnFrame();
+        pane.extract(settled.graphics, DrawnFrame.font(), SHORT_VIEW, settled.targets);
+        assertEquals(settled.find("#" + groupName(target)).y(), name.y(), "drawn where it settles");
+        ValuesPaneTest.assertGlowCovers(first, name, rowHeight);
+    }
+
     // A Groups pane over forty groups whose actions record every widget the pane stands.
     private static GroupsPane manyGroups(GroupsTab groups, List<AbstractWidget> widgets) {
         String described = IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> """
@@ -310,7 +343,7 @@ class GroupsPaneTest {
         @Test
         void everyTooltipHintIsRenameDeleteOrACutName() {
             List<String> hints = frame().targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
-                    .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
+                    .flatMap(Optional::stream).map(component -> component.getString()).distinct().toList();
             assertTrue(hints.containsAll(List.of("Rename", "Delete")), hints.toString());
             assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
                     || hint.contains(LONG_GROUP)), hints.toString());
@@ -523,7 +556,7 @@ class GroupsPaneTest {
         // EditBox.setFocused reaches the game client, which a unit test holds none of, so the flag is set directly.
         static void focus(EditBox box) {
             try {
-                java.lang.reflect.Field focused = AbstractWidget.class.getDeclaredField("focused");
+                Field focused = AbstractWidget.class.getDeclaredField("focused");
                 focused.setAccessible(true);
                 focused.setBoolean(box, true);
             } catch (ReflectiveOperationException unreachable) {
@@ -676,7 +709,7 @@ class GroupsPaneTest {
             ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
             ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-            verify(frame.graphics, org.mockito.Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
+            verify(frame.graphics, Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
                     rights.capture(), bottoms.capture(), eq(Palette.RAIL));
             return IntStream.range(0, lefts.getAllValues().size()).filter(index ->
                     lefts.getAllValues().get(index) >= DETAIL_LEFT).mapToObj(index -> new int[] {
@@ -716,7 +749,7 @@ class GroupsPaneTest {
         void tagGroupMembersDrawNoNumberAndNoRail() {
             DrawnFrame frame = frame("logs");
             assertEquals(List.of(), detailNumbers(frame));
-            assertEquals(List.of(), detailRails(frame).stream().map(java.util.Arrays::toString).toList());
+            assertEquals(List.of(), detailRails(frame).stream().map(Arrays::toString).toList());
         }
 
         /**
@@ -731,10 +764,10 @@ class GroupsPaneTest {
             frame.targets.drag(third[0] + 1, firstRow);
             frame.targets.release();
             ArgumentCaptor<String> posted = ArgumentCaptor.forClass(String.class);
-            verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.APPLY_TO_GROUP),
+            verify(actions).request(eq(WorkbenchOperations.APPLY_TO_GROUP),
                     posted.capture(), any());
             assertEquals(List.of("minecraft:spruce_log", "minecraft:oak_log", "minecraft:birch_log"),
-                    com.google.gson.JsonParser.parseString(posted.getValue()).getAsJsonObject()
+                    JsonParser.parseString(posted.getValue()).getAsJsonObject()
                             .getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
         }
     }
@@ -776,7 +809,7 @@ class GroupsPaneTest {
         DrawnFrame.Text link = frame.find("#exposed");
         assertEquals(Palette.LINK, link.color());
         // Decision group-referent-previews-shorthand-members-then-its-value: the iterator previews its group.
-        assertEquals(java.util.Optional.of(GroupHovers.hoverKey("exposed")),
+        assertEquals(Optional.of(GroupHovers.hoverKey("exposed")),
                 frame.targets.hovered(link.x() + 1, link.y() + 1));
         assertTrue(Math.abs(link.y() - usedBy.getFirst().y()) < ExpressionLines.TEXT_LINE_HEIGHT, link.toString());
         frame.shiftClick("#exposed");
