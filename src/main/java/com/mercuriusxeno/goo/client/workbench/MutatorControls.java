@@ -351,8 +351,10 @@ final class MutatorControls {
         flow.alignRight(letters.width(words) + BuilderOverlays.GAP + ButtonPainter.width(letters, applied)
                 + BuilderOverlays.GAP + ButtonPainter.width(letters, REMOVE_LINK) + entry.chainInset());
         flow.text(words, Palette.MUTED);
-        // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
-        flow.followLink(applied, PrefabHovers.hoverKey(applied), () -> actions.openMutator(applied));
+        // Decision mutator-name-hovers-its-formula-wherever-it-stands: an applied mutator, waxed among them, hovers the
+        // formula its own row hovers.
+        flow.followLink(applied, ConversionHovers.hoverKey(entry.section(), applied),
+                () -> actions.openMutator(applied));
         flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                 at -> edit(() -> processes.removeAssignmentLink(entry.section(), entry.key(), index)));
     }

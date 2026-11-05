@@ -809,7 +809,7 @@ class GroupsPaneTest {
         DrawnFrame.Text link = frame.find("#exposed");
         assertEquals(Palette.LINK, link.color());
         // Decision group-referent-previews-shorthand-members-then-its-value: the iterator previews its group.
-        assertEquals(Optional.of(GroupHovers.hoverKey("exposed")),
+        assertEquals(Optional.of(GroupHovers.iteratorHoverKey("#exposed")),
                 frame.targets.hovered(link.x() + 1, link.y() + 1));
         assertTrue(Math.abs(link.y() - usedBy.getFirst().y()) < ExpressionLines.TEXT_LINE_HEIGHT, link.toString());
         frame.shiftClick("#exposed");

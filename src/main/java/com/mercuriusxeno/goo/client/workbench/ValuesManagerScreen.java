@@ -530,7 +530,7 @@ public final class ValuesManagerScreen extends Screen {
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> ButtonPainter.wholeNameTooltip(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
-                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, hoverKey))
+                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, processesTab, hoverKey))
                         .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey));
     }
 

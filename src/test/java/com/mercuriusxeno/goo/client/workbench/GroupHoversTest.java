@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class GroupHoversTest {
     private final ValuesTab values;
     private final GroupsTab groups;
+    private final ProcessesTab processes;
 
     GroupHoversTest() {
         ManagerDraft draft = new ManagerDraft();
@@ -27,6 +29,15 @@ class GroupHoversTest {
                   {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": 37}", "entries": [],
                    "leading": null, "trailing": null, "closingGap": null}]}
                 """);
+        ManagerDraft conversions = new ManagerDraft();
+        conversions.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "\\"#stones @waxed @cooked\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        processes = new ProcessesTab(conversions);
         values.readResolved("""
                 {"entries": [{"key": "oak_log", "value": {"glow": "37"}, "denied": false}]}
                 """);
@@ -46,7 +57,19 @@ class GroupHoversTest {
     }
 
     private List<TooltipLine> hover(String group) {
-        return GroupHovers.tooltipFor(groups, values, GroupHovers.hoverKey(group)).orElseThrow();
+        return GroupHovers.tooltipFor(groups, values, processes, GroupHovers.hoverKey(group)).orElseThrow();
+    }
+
+    /**
+     * An iterator's card reads the group it fills, its members and value, then what the iterator does: its ratio and
+     * each mutator it applies in the order its row reads them (decision iterator-hover-adds-its-ratio-and-mutators).
+     */
+    @Test
+    void iteratorCardEndsOnItsRatioAndMutators() {
+        List<TooltipLine> card = GroupHovers.tooltipFor(groups, values, processes,
+                GroupHovers.iteratorHoverKey("#logs")).orElseThrow();
+        assertEquals(hover("logs"), card.subList(0, card.size() - 1));
+        assertEquals(new TooltipLine.Text(Component.literal("x1 -> waxed, cooked")), card.getLast());
     }
 
     @Test

@@ -272,7 +272,7 @@ class ProcessesPaneTest {
     void iteratorNameAndSourcePreviewTheirGroups() {
         DrawnFrame frame = frame();
         DrawnFrame.Text name = frame.find("#exposed");
-        assertEquals(Optional.of(GroupHovers.hoverKey("exposed")),
+        assertEquals(Optional.of(GroupHovers.iteratorHoverKey("#exposed")),
                 frame.targets.hovered(name.x() + 1, name.y() + 1));
         DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#copper"));
         assertEquals(Optional.of(GroupHovers.hoverKey("copper")),

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.mercuriusxeno.goo.workbench.Processes;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -72,6 +73,20 @@ class ConversionHoversTest {
     void convertToNothingReadsTimesZero() {
         assertEquals(List.of(new TooltipLine.Runs(List.of(type("metal"), symbol("=>"), number("x0")))),
                 hover("burn", new Processes.Formula("metal", 1, "0", 1, 1)));
+    }
+
+    /**
+     * The key a chained mutator hovers reads the lines its own row's head hovers (decision
+     * mutator-name-hovers-its-formula-wherever-it-stands).
+     */
+    @Test
+    void chainedMutatorsKeyReadsItsRowsFormula() {
+        Processes.Formula smelt = new Processes.Formula("metal", 3, "yore", 2, 1);
+        List<TooltipLine> head = hover("smelt", smelt);
+        assertEquals(List.of(new TooltipLine.Runs(List.of(type("metal"), symbol("/"), number("3"), symbol("=>"),
+                number("2"), type("yore")))), head);
+        assertEquals(Optional.of(head), ConversionHovers.tooltipFor(processes, variables,
+                ConversionHovers.hoverKey(SECTION, "smelt")));
     }
 
     @Test
