@@ -171,7 +171,13 @@ final class ValuesPane {
         } finally {
             values.thaw();
         }
-        builder.drawOverlays(graphics, font, targets);
+    }
+
+    /**
+     * @return the builder's open lists, which the screen draws on the overlay stratum
+     */
+    List<OverlayStratum.Layer> overlayLayers() {
+        return List.of(builder::drawOverlays);
     }
 
     /**
