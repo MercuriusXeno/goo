@@ -2,12 +2,15 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.lwjgl.glfw.GLFW;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests the Audit tab's pane through drawn frames of recorded sections, with no Screen (decisions
@@ -105,6 +108,33 @@ class AuditPaneTest {
             assertTrue(loud.stream().noneMatch(piece -> piece.text().contains(CHECKMARK)), loud.toString());
             assertTrue(loud.stream().allMatch(piece -> piece.color() == WHITE), loud.toString());
         }
+    }
+
+    /**
+     * An item, a $prefab and a #group a finding names each hover and follow on shift + left click as they do on every
+     * other tab (decision audit-findings-link-and-hover-like-every-other-tab).
+     */
+    @Test
+    void findingNamesLinkAndHoverAsOnEveryOtherTab() {
+        AuditTab tab = new AuditTab();
+        tab.readSections(sections(section("Undercuts", "minecraft:iron_ingot undercuts $wax in #planks.")));
+        ManagerActions actions = mock(ManagerActions.class);
+        DrawnFrame frame = draw(new AuditPane(tab, new ManagerDraft(), actions));
+        assertLinked(frame, "minecraft:iron_ingot", ItemIcons.hoverKey("minecraft:iron_ingot"));
+        verify(actions).openItem("minecraft:iron_ingot");
+        assertLinked(frame, "$wax", PrefabHovers.hoverKey("wax"));
+        verify(actions).openVariable("wax");
+        assertLinked(frame, "#planks", GroupHovers.hoverKey("planks"));
+        verify(actions).openGroup("planks");
+    }
+
+    private static void assertLinked(DrawnFrame frame, String label, String hoverKey) {
+        DrawnFrame.Text line = frame.drawn().stream().filter(piece -> piece.text().contains(label)).findFirst()
+                .orElseThrow(() -> new AssertionError(label + " not drawn in " + frame.texts()));
+        int x = line.x() + DrawnFrame.font().width(line.text().substring(0, line.text().indexOf(label))) + 1;
+        assertEquals(Optional.of(hoverKey), frame.targets.hoveredArea(x, line.y() + 1)
+                .map(ClickTargets.HoveredArea::hoverKey), label);
+        assertTrue(frame.targets.click(x, line.y() + 1, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT), label);
     }
 
     /**
