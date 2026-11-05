@@ -144,12 +144,15 @@ final class ExpressionLines {
      * @param targets   the frame's click areas, which take each type icon's hover
      * @param textColor text's color
      * @param linkColor a link's color
-     * @param links     takes where each piece of a link landed
+     * @param links       takes where each piece of a link landed
+     * @param symbolColor an operator's and a flush symbol's color
+     * @param actions     the panes' line back to the screen, through which each item icon hovers and follows; null
+     *                    where the runs stand in no read or edit view, as in a tooltip or a drag preview
      */
     record Painter(GuiGraphicsExtractor graphics, @Nullable ItemIcons icons, ClickTargets targets, int textColor,
-                   int linkColor, LinkSink links, int symbolColor) {
+                   int linkColor, LinkSink links, int symbolColor, @Nullable ManagerActions actions) {
         /**
-         * A painter drawing the symbols in {@link #Palette.GOLD}.
+         * A painter drawing the symbols in {@link Palette#GOLD}, its item icons linking nothing.
          *
          * @param graphics  the frame's graphics
          * @param icons     the items' icons, null where no item draws
@@ -160,7 +163,24 @@ final class ExpressionLines {
          */
         Painter(GuiGraphicsExtractor graphics, @Nullable ItemIcons icons, ClickTargets targets, int textColor,
                 int linkColor, LinkSink links) {
-            this(graphics, icons, targets, textColor, linkColor, links, Palette.GOLD);
+            this(graphics, icons, targets, textColor, linkColor, links, Palette.GOLD, null);
+        }
+
+        /**
+         * A read or edit view's painter: a $prefab follows to Prefabs and an item icon to Items on shift + left
+         * click, each hovering its value (decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own).
+         *
+         * @param graphics  the frame's graphics
+         * @param icons     the items' icons
+         * @param targets   the frame's click areas
+         * @param textColor text's color
+         * @param actions   the panes' line back to the screen
+         * @return the painter
+         */
+        static Painter linked(GuiGraphicsExtractor graphics, ItemIcons icons, ClickTargets targets, int textColor,
+                              ManagerActions actions) {
+            return new Painter(graphics, icons, targets, textColor, Palette.LINK,
+                    followedOnShiftClick(targets, actions::openVariable), Palette.GOLD, actions);
         }
     }
 
@@ -742,8 +762,12 @@ final class ExpressionLines {
         int x = place[0];
         int top = place[1];
         ItemIcons icons = painter.icons();
-        if (icons != null) {
-            ItemLinks.sprite(painter.graphics(), icons.of(String.valueOf(run.ref())), x, top + ICON_INSET);
+        ManagerActions actions = painter.actions();
+        String id = String.valueOf(run.ref());
+        if (icons != null && actions != null) {
+            ItemLinks.draw(painter.graphics(), icons, painter.targets(), actions, id, x, top + ICON_INSET);
+        } else if (icons != null) {
+            ItemLinks.sprite(painter.graphics(), icons.of(id), x, top + ICON_INSET);
         }
         lettering.draw(painter.graphics(), piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP,
                 lettering.centeredTop(top + ICON_INSET, ITEM_SPRITE_SIZE), painter.textColor());

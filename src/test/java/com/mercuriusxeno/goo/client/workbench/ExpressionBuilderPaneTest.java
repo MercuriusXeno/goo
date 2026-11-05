@@ -122,6 +122,26 @@ class ExpressionBuilderPaneTest {
     }
 
 
+    /**
+     * An item term's icon in the builder hovers the item's value and follows to Items on shift + left click, as every
+     * item icon in a read or edit view does (decision
+     * one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own).
+     */
+    @Test
+    void itemTermsIconHoversAndLinksAsEveryItemIcon() {
+        Builder builder = Builder.item("minecraft:stick + $base");
+        DrawnFrame frame = builder.frame();
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
+        int x = xs.getAllValues().getFirst() + 1;
+        int y = ys.getAllValues().getFirst() + 1;
+        assertEquals(Optional.of(ItemIcons.hoverKey("minecraft:stick")),
+                frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
+        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
+        verify(builder.actions).openItem("minecraft:stick");
+    }
+
     private static void clickAt(DrawnFrame frame, DrawnFrame.Text text) {
         assertTrue(frame.targets.click(text.x() + 1, text.y() + 1), text + " took no click");
     }

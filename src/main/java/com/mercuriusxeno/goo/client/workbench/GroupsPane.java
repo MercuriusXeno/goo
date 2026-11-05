@@ -711,8 +711,8 @@ final class GroupsPane {
         };
         return ReadValueButton.draw(graphics, font, valueRuns(shown, built.empty()),
                 new ReadValueButton.Place(detail.left(), y,
-                detail.right(), open), new ExpressionLines.Painter(graphics, icons, targets, Palette.TEXT, Palette.LINK,
-                ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
+                detail.right(), open), ExpressionLines.Painter.linked(graphics, icons, targets, Palette.TEXT, actions),
+                targets);
     }
 
     // Answers the y below the cards; a card cut by the pane's edge is not drawn, so no icon shows half. A railed list,

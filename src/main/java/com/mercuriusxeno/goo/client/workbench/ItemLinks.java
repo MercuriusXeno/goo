@@ -36,8 +36,9 @@ final class ItemLinks {
     }
 
     /**
-     * Draws an item's sprite alone, where no click or hover can reach it: inside a tooltip, a dropdown's row or an
-     * Items row's own start.
+     * Draws an item's sprite alone, outside the read and edit views: inside a tooltip, which closes as the pointer
+     * nears it; in a dropdown's row; and in the builder's drag preview, which the pointer holds while it moves (the
+     * operator's ruling of 2026-11-05: links stand in the read and edit views only).
      *
      * @param graphics the frame's graphics
      * @param stack    the item's stack
@@ -73,6 +74,8 @@ final class ItemLinks {
      * @param height  its height
      */
     static void add(ClickTargets targets, ManagerActions actions, String id, int x, int y, int width, int height) {
-        targets.addFollow(x, y, width, height, () -> actions.openItem(id), ItemIcons.hoverKey(id));
+        // An expression spells a minecraft item bare, as the file does; its row and its value answer the whole id.
+        String whole = ItemIcons.namespaced(id);
+        targets.addFollow(x, y, width, height, () -> actions.openItem(whole), ItemIcons.hoverKey(whole));
     }
 }
