@@ -25,6 +25,9 @@ import static org.mockito.Mockito.when;
  * Screen (decisions expression-builder-composes-every-form-without-typing, exclusive-choice-sets-draw-as-dropdowns).
  */
 class MutatorControlsTest {
+    // The expression builder's lettering on the mocked font, which the rows letter at (decision
+    // conversions-rows-letter-at-the-builders-scale).
+    private static final Lettering LETTERS = new Lettering(DrawnFrame.font(), ControlFlow.BUILDER_SCALE);
 
     /**
      * A process's kind line draws one dropdown reading its kind; picking another kind writes that kind.
@@ -127,6 +130,38 @@ class MutatorControlsTest {
                     sentence(new Processes.Formula("metal", 4, "yore", 2, 3)));
         }
 
+        /**
+         * A convert's ratio colons stand one clear pixel from what stands each side of them: the source side's "1" and
+         * its divisor box, the target side's multiplier box and its divisor box (decision
+         * ratio-colon-takes-the-builders-spacing).
+         */
+        @Test
+        void ratioColonsStandOneClearPixelFromEachSide() {
+            DrawnFrame frame = frame(new Processes.Formula("metal", 4, "yore", 3, 2));
+            List<DrawnFrame.Text> colons = frame.drawn().stream().filter(text -> text.text().equals(":")).toList();
+            assertEquals(2, colons.size(), frame.drawn().toString());
+            int colonWidth = LETTERS.width(":");
+            DrawnFrame.Text one = frame.find("1");
+            DrawnFrame.Text sourceColon = colons.getFirst();
+            assertEquals(one.x() + LETTERS.width("1") + 1, sourceColon.x(), frame.drawn().toString());
+            assertEquals(sourceColon.x() + colonWidth + 1, frame.buttonAround(frame.find("4"))[0]);
+            DrawnFrame.Text targetColon = colons.getLast();
+            assertEquals(frame.buttonAround(frame.find("3"))[2] + 1, targetColon.x(), frame.drawn().toString());
+            assertEquals(targetColon.x() + colonWidth + 1, frame.buttonAround(frame.find("2"))[0]);
+        }
+
+        /**
+         * A one-line sentence stands on the expression builder's line (decision
+         * conversions-rows-letter-at-the-builders-scale).
+         */
+        @Test
+        void oneLineSentenceTakesTheBuildersLine() {
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Additive("oak"));
+            int bottom = controls.draw(new DrawnFrame().graphics, DrawnFrame.font(), SECTION, "rust",
+                    new GroupsPane.Bounds(0, 0, 590, 390), 0, new ClickTargets());
+            assertEquals(ControlFlow.LINE, bottom);
+        }
+
         @Test
         void formulaToNothingReadsArrowNothing() {
             assertEquals(List.of(ControlFlow.dropdownLabel("convert"), "1", ":", "4", "=>", "nothing"),
@@ -185,10 +220,10 @@ class MutatorControlsTest {
                     0, frame.targets);
             String kind = ControlFlow.dropdownLabel("convert");
             DrawnFrame.Text drawnKind = frame.find(kind);
-            assertEquals(40 + ButtonPainter.PADDING, drawnKind.x(), frame.drawn().toString());
+            assertEquals(40, frame.buttonAround(drawnKind)[0], frame.drawn().toString());
             DrawnFrame.Text share = frame.find("1");
             assertEquals(drawnKind.y(), share.y(), "the kind and the ratio share the line");
-            assertTrue(share.x() > 40 + ButtonPainter.width(DrawnFrame.font(), kind) + GooTypeIcons.sizeOf("metal"),
+            assertTrue(share.x() > 40 + ButtonPainter.width(LETTERS, kind) + GooTypeIcons.sizeOf("metal"),
                     "the type's button stands between the kind and the ratio: " + frame.drawn());
         }
 
@@ -335,6 +370,18 @@ class MutatorControlsTest {
             return frame;
         }
 
+        /**
+         * An iterator's words and its chained mutator's label letter at the expression builder's scale (decision
+         * conversions-rows-letter-at-the-builders-scale).
+         */
+        @Test
+        void chainWordsAndLabelsLetterAtTheBuildersScale() {
+            DrawnFrame frame = frame("#ores", List.of("@smelt"));
+            for (String label : List.of("copies", "mutated by", "smelt")) {
+                assertEquals(ControlFlow.BUILDER_SCALE, frame.placed(label).scale(), label);
+            }
+        }
+
         @Test
         void eachChainedMutatorTakesItsOwnLine() {
             DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
@@ -349,10 +396,12 @@ class MutatorControlsTest {
             assertTrue(source.x() > copies.x(), source + " vs " + copies);
             assertFalse(frame.texts().contains(":"), frame.texts().toString());
             // Decision iterator-reads-copies-then-mutates-using-and: the words right pack, ending at one x.
-            assertEquals(then.x() + DrawnFrame.font().width(then.text()), and.x() + DrawnFrame.font().width(and.text()),
+            assertEquals(then.x() + LETTERS.width(then.text()), and.x() + LETTERS.width(and.text()),
                     frame.drawn().toString());
-            assertEquals(List.of(source.y() + ControlFlow.FULL_LINE, then.y() + ControlFlow.FULL_LINE),
-                    List.of(then.y(), and.y()), frame.drawn().toString());
+            // Decision conversions-rows-letter-at-the-builders-scale: the lines stand the builder's pitch apart.
+            int pitch = ControlFlow.LINE + ControlFlow.BUILDER_LINE_GAP;
+            assertEquals(List.of(source.y() + pitch, then.y() + pitch), List.of(then.y(), and.y()),
+                    frame.drawn().toString());
             assertEquals(List.of(then.y(), and.y()), List.of(smelt.y(), melt.y()), frame.drawn().toString());
             assertTrue(smelt.x() > then.x() && melt.x() > and.x(), frame.drawn().toString());
             List<DrawnFrame.Text> removes = frame.drawn().stream().filter(text -> text.text().equals("x")).toList();
@@ -362,7 +411,7 @@ class MutatorControlsTest {
             assertEquals(melt.y(), removes.get(1).y());
             assertTrue(removes.get(1).x() > melt.x());
             DrawnFrame.Text add = frame.find("+ optional mutation");
-            assertEquals(melt.y() + ControlFlow.FULL_LINE, add.y(), add + " vs " + melt);
+            assertEquals(melt.y() + pitch, add.y(), add + " vs " + melt);
             int firstHeight = bottom;
             frame("#gems", List.of("@rust", "@melt"));
             assertEquals(firstHeight, bottom, "two-link chains take equal heights");
@@ -378,9 +427,8 @@ class MutatorControlsTest {
             DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
             Font font = DrawnFrame.font();
             List<Integer> rights = new ArrayList<>(frame.drawn().stream().filter(text -> text.text().equals("x"))
-                    .map(text -> text.x() + font.width("x") + ButtonPainter.PADDING).toList());
-            DrawnFrame.Text add = frame.find("+ optional mutation");
-            rights.add(add.x() + font.width(add.text()) + ButtonPainter.PADDING);
+                    .map(text -> frame.buttonAround(text)[2]).toList());
+            rights.add(frame.buttonAround(frame.find("+ optional mutation"))[2]);
             assertEquals(3, rights.size(), frame.drawn().toString());
             assertEquals(1, rights.stream().distinct().count(), "the lines share one right edge: " + rights);
             int markerLeft = ProcessesPane.markerLeft(font, 590);

@@ -44,6 +44,9 @@ class ProcessesPaneTest {
             ]}
             """;
     private static final String LONG_NAME = "copper_oxidation_and_waxing_end1";
+    // The rows' sentences letter at the expression builder's scale (decision
+    // conversions-rows-letter-at-the-builders-scale).
+    private static final Lettering LETTERS = new Lettering(DrawnFrame.font(), ControlFlow.BUILDER_SCALE);
     private static final String DESCRIBED = """
             {"sections": [
               {"section": "_conversions", "processes": [
@@ -304,15 +307,15 @@ class ProcessesPaneTest {
                 .findFirst().orElseThrow();
         int edge = marker.x() - BuilderOverlays.GAP;
         assertTrue(edge < boxRightAt(frame, then.x(), then.y()), "the column ends inside the box");
-        assertEquals(edge, rightOf(onLineOf(frame, then, "x")), frame.drawn().toString());
-        assertEquals(edge, rightOf(onLineOf(frame, and, "x")), frame.drawn().toString());
-        assertEquals(waxed.x(), rust.x(), waxed + " vs " + rust);
-        int buttonLeft = waxed.x() - ButtonPainter.PADDING;
-        assertEquals(buttonLeft - BuilderOverlays.GAP, then.x() + DrawnFrame.font().width(then.text()), then.toString());
-        assertEquals(buttonLeft - BuilderOverlays.GAP, and.x() + DrawnFrame.font().width(and.text()), and.toString());
+        assertEquals(edge, frame.buttonAround(onLineOf(frame, then, "x"))[2], frame.drawn().toString());
+        assertEquals(edge, frame.buttonAround(onLineOf(frame, and, "x"))[2], frame.drawn().toString());
+        int buttonLeft = frame.buttonAround(waxed)[0];
+        assertEquals(buttonLeft, frame.buttonAround(rust)[0], waxed + " vs " + rust);
+        assertEquals(buttonLeft - BuilderOverlays.GAP, then.x() + LETTERS.width(then.text()), then.toString());
+        assertEquals(buttonLeft - BuilderOverlays.GAP, and.x() + LETTERS.width(and.text()), and.toString());
         DrawnFrame.Text add = frame.drawn().stream().filter(text -> text.text().equals("+ optional mutation")
                 && text.y() > and.y()).findFirst().orElseThrow();
-        assertEquals(edge, rightOf(add), add.toString());
+        assertEquals(edge, frame.buttonAround(add)[2], add.toString());
     }
 
     /**
@@ -348,17 +351,13 @@ class ProcessesPaneTest {
                 pencil.x() - ButtonPainter.PADDING, secondName + "'s pencil past its name");
         DrawnFrame.Text last = frame.drawn().stream().filter(text -> text.text().equals(lastButton)
                 && text.y() > first.y() && text.y() < second.y()).reduce((earlier, later) -> later).orElseThrow();
-        int lastBottom = last.y() - ButtonPainter.TEXT_NUDGE + ButtonPainter.HEIGHT;
+        int lastBottom = frame.buttonAround(last)[3];
         assertEquals(RowLayout.RULE_GAP, rule - lastBottom, firstName + "'s last button over the rule");
     }
 
     private static DrawnFrame.Text onLineOf(DrawnFrame frame, DrawnFrame.Text anchor, String label) {
         return frame.drawn().stream().filter(text -> text.y() == anchor.y() && text.text().equals(label)).findFirst()
                 .orElseThrow(() -> new AssertionError(label + " on " + anchor + ": " + frame.drawn()));
-    }
-
-    private static int rightOf(DrawnFrame.Text button) {
-        return button.x() + DrawnFrame.font().width(button.text()) + ButtonPainter.PADDING;
     }
 
     // The right edge of the row box filled across a point.
@@ -390,7 +389,7 @@ class ProcessesPaneTest {
         DrawnFrame.Text kind = drawn.get(drawn.indexOf(waxed) + 4);
         assertEquals(ControlFlow.dropdownLabel("add"), kind.text(), drawn.toString());
         assertTrue(kind.y() > waxed.y(), kind + " below " + waxed);
-        assertEquals(waxed.x() + ButtonPainter.PADDING, kind.x(), drawn.toString());
+        assertEquals(waxed.x(), frame.buttonAround(kind)[0], drawn.toString());
     }
 
     // A Mutators pane over twenty mutators and twenty iterators, each column overflowing a 390-tall pane.
