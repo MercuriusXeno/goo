@@ -10,9 +10,10 @@ import java.util.Optional;
 /**
  * The tooltip every referent to a group shows on hover, a #group link and an iterator link alike since an iterator
  * fills its group: the group's members as sprites on one line, cut at eight with +n for the rest, then its value's
- * amounts where it has one, which the tooltip lays as a grid, an iterator's ending on its ratio and the mutators it
- * applies (decisions group-referent-previews-shorthand-members-then-its-value, group-link-hovers-member-icons-then-
- * plus-n, every-linkable-thing-hovers-its-preview-value, iterator-hover-adds-its-ratio-and-mutators).
+ * amounts where it has one, which the tooltip lays as a grid, an iterator's ending on the group it copies from and the
+ * mutators it applies (decisions group-referent-previews-shorthand-members-then-its-value, group-link-hovers-member-
+ * icons-then-plus-n, every-linkable-thing-hovers-its-preview-value, iterator-hover-adds-its-ratio-and-mutators,
+ * group-hover-reads-source-arrow-then-plus-additives-and-star-multipliers).
  */
 final class GroupHovers {
     // Hover keys no prefab name, item id or hint spells.
@@ -21,8 +22,9 @@ final class GroupHovers {
     private static final String ITERATOR_MARK = "#";
     private static final String STACK_MARK = "@";
     private static final String CONVERSIONS = "_conversions";
-    // Decision iterator-drops-its-ratio-from-row-and-grammar: an iterator copies its source one to one.
-    private static final String RATIO = "x1";
+    private static final String ADDITIVE_MARK = "+";
+    private static final String MULTIPLIER_MARK = "*";
+    private static final String NO_TEXT = "";
     private static final String APPLIES = " -> ";
     private static final String LIST_SEPARATOR = ", ";
     // How many member sprites the line draws before +n stands for the rest.
@@ -52,8 +54,8 @@ final class GroupHovers {
      * @param values    the Items tab's state, holding the members' values
      * @param processes the Conversions tab's state, holding what an iterator applies
      * @param hoverKey  what the hovered area names
-     * @return the member line, then the value's amounts, then for an iterator its ratio and the mutators it applies;
-     *     empty where the area previews no group
+     * @return the member line, then the value's amounts, then for an iterator its source group and the mutators it
+     *     applies; empty where the area previews no group
      */
     static Optional<List<TooltipLine>> tooltipFor(GroupsTab groups, ValuesTab values, ProcessesTab processes,
                                                    String hoverKey) {
@@ -69,13 +71,25 @@ final class GroupHovers {
                 : Optional.empty();
     }
 
-    // Decision iterator-hover-adds-its-ratio-and-mutators: what the iterator does, its ratio then each mutator it
-    // applies in the order its row reads them, as x1 -> waxed, cooked.
+    // Decision group-hover-reads-source-arrow-then-plus-additives-and-star-multipliers: what the iterator does, the
+    // group it copies from, then each mutator it applies in the order its row reads them, an additive marked + and a
+    // formula or stack marked *, as #exposed -> +waxed.
     private static String doesLine(ProcessesTab processes, String iterator) {
-        List<String> chain = processes.formOf(CONVERSIONS, iterator) instanceof Processes.Assignment assignment
-                ? assignment.chain().stream().map(link -> link.startsWith(STACK_MARK)
-                ? link.substring(STACK_MARK.length()) : link).toList() : List.of();
-        return chain.isEmpty() ? RATIO : RATIO + APPLIES + String.join(LIST_SEPARATOR, chain);
+        if (!(processes.formOf(CONVERSIONS, iterator) instanceof Processes.Assignment assignment)) {
+            return NO_TEXT;
+        }
+        String source = assignment.source().isEmpty() ? NO_TEXT : ITERATOR_MARK + assignment.source();
+        List<String> chain = assignment.chain().stream().map(link -> link.startsWith(STACK_MARK)
+                ? link.substring(STACK_MARK.length()) : link).map(name -> markOf(processes, name) + name).toList();
+        return chain.isEmpty() ? source : source + APPLIES + String.join(LIST_SEPARATOR, chain);
+    }
+
+    private static String markOf(ProcessesTab processes, String mutator) {
+        return switch (processes.formOf(CONVERSIONS, mutator)) {
+            case Processes.Additive _ -> ADDITIVE_MARK;
+            case Processes.Formula _, Processes.Stack _ -> MULTIPLIER_MARK;
+            default -> NO_TEXT;
+        };
     }
 
     private static List<TooltipLine> groupLines(GroupsTab groups, ValuesTab values, String name) {
