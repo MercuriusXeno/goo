@@ -26,6 +26,7 @@ final class ClickTargets {
     private double pressedX;
     private double pressedY;
     private boolean shiftHeld;
+    private boolean controlHeld;
 
     // What an area does on a plain left click and on a shift + left click; a shield takes every click with its
     // modify action.
@@ -80,6 +81,26 @@ final class ClickTargets {
      */
     boolean shiftHeld() {
         return shiftHeld;
+    }
+
+    /**
+     * Hands Ctrl's state to the held grab, so a rail drag reads it live through the hold and its state at the release
+     * decides a copy from a move (decision ctrl-during-a-rail-drag-shows-a-green-plus-and-drops-a-copy).
+     *
+     * @param held whether Ctrl is down now, as the screen reads it each frame and as the button comes up
+     */
+    void holdControl(boolean held) {
+        controlHeld = held;
+        if (grabbed != null) {
+            grabbed.holdControl(held);
+        }
+    }
+
+    /**
+     * @return whether the held grab would drop a copy, which the frame's cursor shows
+     */
+    boolean copying() {
+        return grabbed != null && grabbed.copies();
     }
 
     /**
@@ -236,6 +257,20 @@ final class ClickTargets {
          * The button came up.
          */
         void released();
+
+        /**
+         * @param held whether Ctrl is down, at the press and at each change until the release; a grab that never
+         *             copies ignores it
+         */
+        default void holdControl(boolean held) {
+        }
+
+        /**
+         * @return whether the release would drop a copy rather than move the thing held
+         */
+        default boolean copies() {
+            return false;
+        }
     }
 
     /**
@@ -275,6 +310,7 @@ final class ClickTargets {
     void addGrab(int left, int top, int width, int height, PointerGrab grab) {
         add(left, top, width, height, () -> {
             grabbed = grab;
+            grab.holdControl(controlHeld);
             grab.moved(pressedX, pressedY);
         });
     }

@@ -2717,4 +2717,110 @@ class ExpressionBuilderPaneTest {
     }
 
     private static final String CANCEL = "✗ Cancel";
+
+    /**
+     * Ctrl read live through a term's or a parenthetical's rail drag: down at the release, the drop writes a copy at
+     * the slot and leaves the source standing; up, the drop moves as before; a type row's drag moves either way
+     * (decision ctrl-during-a-rail-drag-shows-a-green-plus-and-drops-a-copy).
+     */
+    @Nested
+    class CtrlDragCopies {
+
+        /**
+         * A term released past the last term with Ctrl down copies to the end, the source kept, and the held drag
+         * reports a copy for the frame's cursor.
+         */
+        @Test
+        void termReleasedWithCtrlDownCopiesToTheSlotAndKeepsTheSource() {
+            Builder builder = Builder.item("$waxed + $edited + $base");
+            DrawnFrame frame = builder.frame();
+            double[] rail = railOf(frame, List.of(0));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            frame.targets.holdControl(true);
+            assertTrue(frame.targets.drag(AREA.right() - 40, frame.find("$base").y()));
+            assertEquals(1, cursorTops(builder.frame()).size(), "one drop cursor at the copy's slot");
+            assertTrue(frame.targets.copying(), "the held term reports no copy");
+            frame.targets.release();
+            assertEquals("$waxed + $edited + $base + $waxed", builder.written.getLast());
+        }
+
+        /**
+         * A parenthetical released at the sum's first slot with Ctrl down copies there whole, the source kept.
+         */
+        @Test
+        void parentheticalReleasedWithCtrlDownCopiesWhole() {
+            Builder builder = Builder.item("$base + ($waxed - $edited)");
+            DrawnFrame frame = builder.frame();
+            double[] rail = railOf(frame, List.of(1));
+            double[] first = railOf(frame, List.of(0));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            frame.targets.holdControl(true);
+            assertTrue(frame.targets.drag(first[0], first[1]));
+            builder.frame();
+            frame.targets.release();
+            assertEquals("($waxed - $edited) + $base + ($waxed - $edited)", builder.written.getLast());
+        }
+
+        /**
+         * Ctrl pressed and let go again mid-hold leaves the release a move, so its state at the release decides.
+         */
+        @Test
+        void ctrlLetGoBeforeTheReleaseMovesAsBefore() {
+            Builder builder = Builder.item("$waxed + $edited + $base");
+            DrawnFrame frame = builder.frame();
+            double[] rail = railOf(frame, List.of(0));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            frame.targets.holdControl(true);
+            assertTrue(frame.targets.drag(AREA.right() - 40, frame.find("$base").y()));
+            builder.frame();
+            frame.targets.holdControl(false);
+            assertFalse(frame.targets.copying(), "the hold still reports a copy");
+            frame.targets.release();
+            assertEquals("$edited + $base + $waxed", builder.written.getLast());
+        }
+
+        /**
+         * A copy released on the term's own slot, or on the trash strip, writes nothing, and neither lights an
+         * indicator: no drop cursor at the own slot, the strip resting under the pointer (decision
+         * drags-indicate-only-a-drop-the-builder-takes).
+         */
+        @Test
+        void copyOnItsOwnSlotOrTheTrashWritesNothingAndLightsNothing() {
+            Builder builder = Builder.item("$waxed + $edited + $base");
+            DrawnFrame frame = builder.frame();
+            double[] rail = railOf(frame, List.of(1));
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            frame.targets.holdControl(true);
+            assertTrue(frame.targets.drag(rail[0], rail[1]));
+            assertTrue(cursorTops(builder.frame()).isEmpty(), "a cursor at the copy's own slot");
+            frame.targets.release();
+            DrawnFrame again = builder.frame();
+            double[] held = railOf(again, List.of(1));
+            assertTrue(again.targets.click(held[0], held[1]));
+            again.targets.holdControl(true);
+            assertTrue(again.targets.drag(AREA.right() - ExpressionBuilderPane.TRASH_WIDTH / 2.0, held[1]));
+            DrawnFrame overTrash = builder.frame();
+            assertEquals(List.of(), fills(overTrash, Palette.TRASH_HOVER), "the strip brightens under a copy");
+            assertEquals(List.of(), fills(overTrash, Palette.TRASH_LIT), "the strip lights for a copy");
+            again.targets.release();
+            assertEquals(List.of(), builder.written);
+        }
+
+        /**
+         * A type row's rail drag with Ctrl down still moves the row, and reports no copy.
+         */
+        @Test
+        void typeRowDragWithCtrlDownStillMoves() {
+            Builder builder = Builder.item(TWO_TYPES);
+            DrawnFrame frame = builder.frame();
+            double[] rail = rowRailOf(frame, 0);
+            assertTrue(frame.targets.click(rail[0], rail[1]));
+            frame.targets.holdControl(true);
+            assertTrue(frame.targets.drag(rail[0], frame.find("+?").y()));
+            builder.frame();
+            assertFalse(frame.targets.copying(), "a type row reports a copy");
+            frame.targets.release();
+            assertEquals("{\"pulse\": \"2\", \"metal\": \"5\"}", builder.written.getLast());
+        }
+    }
 }
