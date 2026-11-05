@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,17 +58,7 @@ class GroupsPaneTest {
 
     // A Groups pane over forty groups of one member each, none selected.
     private static GroupsPane manyGroups(GroupsTab groups) {
-        String described = IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> """
-                {"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
-                 "base": "8", "tweaks": [], "preview": []}""".formatted(groupName(index)))
-                .collect(Collectors.joining(", "));
-        groups.readDescribed("{\"groups\": [" + described + "]}");
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
-        ManagerDraft draft = new ManagerDraft();
-        return new GroupsPane(groups, new ValuesTab(draft), icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        return manyGroups(groups, mock(ManagerActions.class));
     }
 
     // Each group row's top inside the list's content, read off a view tall enough to draw every row unscrolled.
@@ -269,18 +260,86 @@ class GroupsPaneTest {
         ValuesPaneTest.assertGlowCovers(first, name, rowHeight);
     }
 
-    // A Groups pane over forty groups whose actions record every widget the pane stands.
-    private static GroupsPane manyGroups(GroupsTab groups, List<AbstractWidget> widgets) {
-        String described = IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> """
-                {"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
-                 "base": "8", "tweaks": [], "preview": []}""".formatted(groupName(index)))
-                .collect(Collectors.joining(", "));
-        groups.readDescribed("{\"groups\": [" + described + "]}");
+    /**
+     * Enter on the name box with a new group's name empties the search at once, and once the create's reply lists the
+     * group, the first frame draws its row centered and glowing (decision create-reveals-the-new-row-like-a-follow).
+     */
+    @Test
+    void createRevealsTheNewGroupOnceTheReplyListsIt() {
+        String created = groupName(25) + "a";
+        List<String> listed = new ArrayList<>(IntStream.range(0, FOLLOWED_GROUPS).mapToObj(GroupsPaneTest::groupName)
+                .toList());
+        listed.add(26, created);
+        DrawnFrame tall = new DrawnFrame();
+        GroupsTab tallGroups = new GroupsTab(new ManagerDraft());
+        GroupsPane tallPane = manyGroups(tallGroups, new ArrayList<>());
+        tallGroups.readDescribed("{\"groups\": [" + describedGroups(listed) + "]}");
+        tallPane.extract(tall.graphics, DrawnFrame.font(), TALL_VIEW, tall.targets);
+        List<Integer> tops = tall.topsOf(listed.stream().map(each -> "#" + each).toList());
+        int target = listed.indexOf(created);
+        int rowTop = tops.get(target) - tops.getFirst();
+        int rowHeight = tops.get(target + 1) - tops.get(target);
+
+        GroupsTab groups = new GroupsTab(new ManagerDraft());
+        List<AbstractWidget> widgets = new ArrayList<>();
         ManagerActions actions = mock(ManagerActions.class);
         when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
             widgets.add(call.getArgument(0));
             return call.getArgument(0);
         });
+        GroupsPane pane = manyGroups(groups, actions);
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        search.setValue(groupName(7));
+        DrawnFrame searched = new DrawnFrame();
+        pane.extract(searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
+        searched.click("+ Custom");
+        EditBox nameBox = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> box != search).findFirst().orElseThrow();
+        GroupCards.focus(nameBox);
+        nameBox.setValue(created);
+        assertTrue(pane.keyPressed(GLFW.GLFW_KEY_ENTER));
+        assertEquals("", search.getValue(), "the create empties the search at once");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Consumer<String>> answered = ArgumentCaptor.forClass(Consumer.class);
+        verify(actions).request(eq(WorkbenchOperations.APPLY_TO_GROUP), anyString(), answered.capture());
+        answered.getValue().accept("""
+                {"model": {"path": "", "members": [
+                   {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [],
+                    "leading": null, "trailing": null, "closingGap": null}]},
+                 "groups": [%s]}
+                """.formatted(describedGroups(listed)));
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int[] list = first.firstScissor();
+        assertEquals(rowTop + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset(), "centered");
+        ValuesPaneTest.assertGlowCovers(first, first.find("#" + created), rowHeight);
+    }
+
+    // The groups reply's entries for each name, one member each.
+    private static String describedGroups(List<String> names) {
+        return names.stream().map(name -> """
+                {"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                 "base": "8", "tweaks": [], "preview": []}""".formatted(name)).collect(Collectors.joining(", "));
+    }
+
+    // A Groups pane over forty groups whose actions record every widget the pane stands.
+    private static GroupsPane manyGroups(GroupsTab groups, List<AbstractWidget> widgets) {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        return manyGroups(groups, actions);
+    }
+
+    // A Groups pane over forty groups answering to the actions given.
+    private static GroupsPane manyGroups(GroupsTab groups, ManagerActions actions) {
+        groups.readDescribed("{\"groups\": [" + describedGroups(IntStream.range(0, FOLLOWED_GROUPS)
+                .mapToObj(GroupsPaneTest::groupName).toList()) + "]}");
         ItemIcons icons = mock(ItemIcons.class);
         when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
         return new GroupsPane(groups, new ValuesTab(new ManagerDraft()), icons, actions,
