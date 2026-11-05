@@ -303,6 +303,22 @@ final class ControlFlow {
         x += width + GAP;
     }
 
+    /**
+     * A ratio's colon, one clear pixel from the piece before it and from the piece after it, in place of a gap each
+     * side (decision ratio-colon-takes-the-builders-spacing).
+     *
+     * @param colon the colon
+     * @param color its color
+     */
+    void ratioColon(String colon, int color) {
+        x += CLEAR - GAP;
+        int width = letters.width(colon);
+        reserve(width);
+        letters.draw(graphics, colon, x, wordsTop(), color);
+        markText(width);
+        x += width + CLEAR;
+    }
+
 
     /**
      * @param font          the font

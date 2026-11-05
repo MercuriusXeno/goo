@@ -44,7 +44,8 @@ class PrefabHoversTest {
     @Nested
     class Areas {
         private final ClickTargets targets = new ClickTargets();
-        private final GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+        // A drawn frame's graphics carry the pose the rows' lettered words scale through.
+        private final GuiGraphicsExtractor graphics = new DrawnFrame().graphics;
 
         /**
          * Each prefab run an expression lands lays one hover area keyed to its prefab.

@@ -95,7 +95,9 @@ final class MutatorControls {
      */
     int draw(GuiGraphicsExtractor graphics, Font font, String section, String key, GroupsPane.Bounds area, int top,
              ClickTargets targets) {
-        ControlFlow flow = new ControlFlow(graphics, font, targets, null, area.left(), area.right(), top);
+        // Decision conversions-rows-letter-at-the-builders-scale: the sentence letters as the expression builder does.
+        ControlFlow flow = ControlFlow.lettered(graphics, font, targets, null,
+                new ControlFlow.Span(area.left(), area.right(), top), ref -> { });
         boolean iterator = ProcessesTab.isIterator(key);
         // Decision mutator-chain-forms-a-column-left-of-the-validity-marker.
         int chainInset = area.right() - ProcessesPane.markerLeft(font, area.right()) + BuilderOverlays.GAP;
@@ -179,7 +181,8 @@ final class MutatorControls {
                 type -> edit(() -> processes.setFormulaSource(section, key, type))));
         // Decision mutator-sentences-read-in-symbols: "[source] 1 : [#] becomes [target] [#] : [#]".
         flow.text(SOURCE_SHARE, GRAY);
-        flow.text(RATIO, GRAY);
+        // Decision ratio-colon-takes-the-builders-spacing: a clear pixel each side of the colon.
+        flow.ratioColon(RATIO, GRAY);
         divisorControl(flow, formula.sourceDivisor(), null,
                 divisor -> processes.setFormulaDivisor(section, key, divisor));
         flow.text(ARROW, GRAY);
@@ -193,7 +196,7 @@ final class MutatorControls {
         flow.typeIcon(formula.target(), pickTarget);
         numberControl(flow, formula.multiplier(), null,
                 multiplier -> processes.setFormulaRatio(section, key, multiplier, formula.divisor()));
-        flow.text(RATIO, GRAY);
+        flow.ratioColon(RATIO, GRAY);
         divisorControl(flow, formula.divisor(), null,
                 divisor -> processes.setFormulaRatio(section, key, formula.multiplier(), divisor));
     }
@@ -264,17 +267,17 @@ final class MutatorControls {
     // Decision iterator-reads-copies-then-mutates-using-and.
     private void drawChain(Entry entry, List<String> chain) {
         ControlFlow flow = entry.flow();
-        Font font = flow.font();
+        Lettering letters = flow.letters();
         String section = entry.section();
         String key = entry.key();
         int inset = entry.chainInset();
-        int widest = chain.stream().mapToInt(link -> ButtonPainter.width(font, link.substring(STACK_MARK.length())))
+        int widest = chain.stream().mapToInt(link -> ButtonPainter.width(letters, link.substring(STACK_MARK.length())))
                 .max().orElse(0);
         for (int index = 0; index < chain.size(); index++) {
             drawLink(entry, chain.get(index).substring(STACK_MARK.length()), index, widest);
         }
         flow.newLine();
-        flow.alignRight(ButtonPainter.width(font, ADD_MUTATION) + inset);
+        flow.alignRight(ButtonPainter.width(letters, ADD_MUTATION) + inset);
         flow.control(ADD_MUTATION, null, at -> openNames(at, SearchDropdown.overMutators(
                 processes.processNames(section)), name -> processes.addAssignmentLink(section, key, STACK_MARK + name)));
     }
@@ -282,11 +285,11 @@ final class MutatorControls {
     // One chained mutator's line: its words, the mutator's button at the column's one x, then its x.
     private void drawLink(Entry entry, String applied, int index, int widest) {
         ControlFlow flow = entry.flow();
-        Font font = flow.font();
-        int removeWidth = ButtonPainter.width(font, REMOVE_LINK);
+        Lettering letters = flow.letters();
+        int removeWidth = ButtonPainter.width(letters, REMOVE_LINK);
         String words = index == 0 ? MUTATED_BY : AND;
         flow.newLine();
-        flow.alignRight(font.width(words) + BuilderOverlays.GAP + widest + BuilderOverlays.GAP + removeWidth
+        flow.alignRight(letters.width(words) + BuilderOverlays.GAP + widest + BuilderOverlays.GAP + removeWidth
                 + entry.chainInset());
         flow.text(words, GRAY);
         // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.

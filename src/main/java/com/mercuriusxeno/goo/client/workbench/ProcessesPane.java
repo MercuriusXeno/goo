@@ -38,14 +38,18 @@ final class ProcessesPane {
     private static final int PENCIL_GAP = RowLayout.BUTTON_GAP;
     private static final int BUTTON_INSET = RowLayout.RULE_GAP;
     private static final int HEAD_TEXT_NUDGE = BUTTON_INSET + ButtonPainter.TEXT_NUDGE;
-    // The sentence line centers its buttons, so they stand the rule gap under the head line's.
     private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT;
+    // The sentence's lettered line is as tall as its buttons, so the sentence stands the rule gap under the head
+    // line's buttons and its last buttons the rule gap over the rule below
+    // (decisions conversions-rows-letter-at-the-builders-scale, spacing-rules-are-one-set-across-every-pane).
+    private static final int SENTENCE_PAD = RowLayout.RULE_GAP;
     private static final int ROW_GAP = 1;
     /**
-     * A row whose sentence takes one line, from its top to the next row's
-     * (decision mutator-delete-clears-a-thinner-rule-and-lines-tighten).
+     * A row whose sentence takes one line, from its top to the next row's, the sentence on the expression builder's
+     * line (decisions mutator-delete-clears-a-thinner-rule-and-lines-tighten,
+     * conversions-rows-letter-at-the-builders-scale).
      */
-    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.FULL_LINE + ROW_GAP;
+    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + SENTENCE_PAD + ControlFlow.LINE + SENTENCE_PAD + ROW_GAP;
     private static final int GAP = 6;
     private static final int COLUMN_GAP = 12;
     private static final int HALF = 2;
@@ -382,9 +386,9 @@ final class ProcessesPane {
     private int drawRow(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
                         GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         drawHeadLine(new Frame(graphics, font, bounds, targets), section, row, y);
-        int sentenceTop = y + HEAD_HEIGHT;
+        int sentenceTop = y + HEAD_HEIGHT + SENTENCE_PAD;
         int below = controls.draw(graphics, font, section, row.key(), new GroupsPane.Bounds(bounds.left(),
-                sentenceTop, bounds.right(), bounds.bottom()), sentenceTop, targets);
+                sentenceTop, bounds.right(), bounds.bottom()), sentenceTop, targets) + SENTENCE_PAD;
         graphics.fill(bounds.left(), y, bounds.right(), below, ROW_COLOR);
         return below + ROW_GAP;
     }

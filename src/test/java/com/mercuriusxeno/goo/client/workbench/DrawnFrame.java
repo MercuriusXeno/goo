@@ -247,7 +247,8 @@ final class DrawnFrame {
      */
     boolean underlined(String label) {
         Text text = find(label);
-        int right = text.x() + label.length() * 6;
+        // A lettered label underlines at its lettered width, a full-size one at the font's own.
+        int right = text.x() + new Lettering(font(), placed(label).scale()).width(label);
         ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
