@@ -596,6 +596,74 @@ class ValuesPaneTest {
     }
 
     /**
+     * In an Items row's read value an item is one link: a shift + left click on its name beside the sprite opens
+     * Items on the item's whole id, and a plain left click on the same name opens the builder over the value
+     * (decisions diagnose-and-correct-read-mode-item-icons-that-do-not-follow,
+     * shift-left-click-follows-plain-left-modifies, read-mode-builder-is-a-button-with-a-pencil-segment).
+     */
+    @Test
+    void readValueItemNameFollowsOnShiftClickAndOpensTheBuilderOnPlainClick() {
+        ManagerActions actions = mock(ManagerActions.class);
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, itemIcons(), List::of, List::of);
+        ValuesPane pane = stickReadingPlanks(actions, builder);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        frame.shiftClick("oak_planks");
+        verify(actions).openItem("minecraft:oak_planks");
+        assertTrue(!builder.isOpen());
+        frame.click("oak_planks");
+        assertTrue(builder.isOpen());
+    }
+
+    /**
+     * In a read value an item's name draws in the link color, and while shift is held one underline in the link color
+     * spans its sprite and its name; with shift up none draws (decisions
+     * diagnose-and-correct-read-mode-item-icons-that-do-not-follow, holding-shift-underlines-every-link).
+     */
+    @Test
+    void readValueItemDrawsAsALinkUnderlinedAcrossSpriteAndNameWhileShiftIsHeld() {
+        ManagerActions actions = mock(ManagerActions.class);
+        ValuesPane pane = stickReadingPlanks(actions,
+                new ExpressionBuilderPane(actions, itemIcons(), List::of, List::of));
+        DrawnFrame held = new DrawnFrame().holdingShift();
+        pane.extract(held.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), held.targets);
+        DrawnFrame.Text name = held.find("oak_planks");
+        assertEquals(Palette.LINK, name.color());
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        verify(held.graphics, atLeastOnce()).item(any(), xs.capture(), anyInt());
+        int spriteLeft = xs.getAllValues().getLast();
+        int nameRight = name.x() + DrawnFrame.font().width("oak_planks");
+        assertTrue(held.fillsOf(Palette.LINK).stream().anyMatch(fill -> fill[0] == spriteLeft
+                && fill[2] == nameRight && fill[3] == fill[1] + 1 && fill[1] > name.y()
+                && fill[1] < name.y() + ExpressionLines.ICON_LINE_HEIGHT), "one underline spans sprite and name");
+        DrawnFrame up = new DrawnFrame();
+        pane.extract(up.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), up.targets);
+        assertTrue(up.fillsOf(Palette.LINK).stream().noneMatch(fill -> fill[2] == nameRight),
+                "no underline with shift up");
+    }
+
+    // An Items pane listing stick, whose value reads oak_planks / 2, selected and read.
+    private static ValuesPane stickReadingPlanks(ManagerActions actions, ExpressionBuilderPane builder) {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"oak_planks / 2\\"",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.select("minecraft:stick");
+        return new ValuesPane(values, itemIcons(), actions, builder);
+    }
+
+    // Item icons naming each item by its bare id.
+    private static ItemIcons itemIcons() {
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        return icons;
+    }
+
+    /**
      * Each change the builder writes evaluates the draft afresh while the builder stays open, so the value the row
      * shows is the value the builder holds.
      */
