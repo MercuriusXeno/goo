@@ -130,6 +130,11 @@ public enum HostCapability {
      */
     POCKET(PocketHost.class),
     /**
+     * A channeling player who can be carried into their Outsider room
+     * (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
+     */
+    OUTSIDER(OutsiderHost.class),
+    /**
      * A landing a meteor can be called down on (decision
      * meteo-needs-a-clear-sky).
      */

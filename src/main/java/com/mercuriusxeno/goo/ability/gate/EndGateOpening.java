@@ -115,7 +115,6 @@ public final class EndGateOpening {
      */
     public static void closeExpired(MinecraftServer server, long now) {
         for (EndGates.Pair pair : EndGates.get(server.overworld()).takeExpired(now)) {
-            VoidPocketOpening.carryOutTravellers(server, pair);
             restore(server, pair.near());
             restore(server, pair.far());
         }
