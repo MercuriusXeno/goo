@@ -12,12 +12,11 @@ import java.util.stream.Stream;
  * Resolves where a blink lands. Free aim sits a fixed range along the look:
  * where the body fits there it lands there, behind a wall or not, and where
  * the spot is inside a solid it shorts to the nearest face the look crosses.
- * A press begun on a block face pins that face's plane, and the landing
- * slides on the plane where the look crosses it, so pitch and yaw pick the
- * other two axes. Either way a spot the body does not fit backs off toward
- * where the blinker stands until it fits, and a blink with nowhere to go is
- * refused. The server's teleport and the client's cursor both call here.
+ * A spot the body does not fit backs off toward where the blinker stands
+ * until it fits, and a blink with nowhere to go is refused. The server's
+ * teleport and the client's cursor both call here.
  * Decision blink-lands-safely-costed-by-distance.
+ * Decision blink-drops-the-face-axis-pin.
  * Decision ripple-outline-is-the-blink-cursor.
  */
 public final class BlinkResolver {
@@ -36,9 +35,6 @@ public final class BlinkResolver {
 
     private static final double HALF = 0.5;
 
-    /** Where along the look a plane parallel to it is crossed: never, read as behind the eye. */
-    private static final double NO_CROSSING = -1;
-
     private BlinkResolver() {
     }
 
@@ -50,20 +46,18 @@ public final class BlinkResolver {
      * @param look  the unit look vector
      * @param range the blink's range in blocks
      * @param body  the blinker's size
-     * @param pin   the face plane the press began on, empty for free aim
      * @return the landing, empty when no spot the body fits lies on the way
      */
     public static Optional<BlinkLanding> resolve(BlinkSpace space, Vec3 feet, Vec3 look, double range,
-            BlinkBody body, Optional<ChannelAim.FacePlane> pin) {
+            BlinkBody body) {
         Vec3 eye = feet.add(0, body.eyeHeight(), 0);
-        Vec3 aimed = pin.map(plane -> onPinnedPlane(eye, look, range, plane, body))
-                .orElseGet(() -> freeAim(space, feet, eye, look, range, body));
+        Vec3 aimed = freeAim(space, feet, eye, look, range, body);
         return settle(space, feet, withinRange(feet, aimed, range), body);
     }
 
     /**
-     * Pulls an aimed spot back toward the blinker to the range, so a plane
-     * pinned at the press and walked away from never carries a blink past it.
+     * Pulls an aimed spot back toward the blinker to the range, so a spot
+     * stood against a face never carries a blink past it.
      *
      * @param feet  where the blinker's feet stand
      * @param aimed the feet of the aimed spot
@@ -116,21 +110,6 @@ public final class BlinkResolver {
     }
 
     /**
-     * The face a press pins: the first block face the look crosses within the
-     * blink's range.
-     *
-     * @param space the world as the blink reads it
-     * @param eye   the blinker's eye
-     * @param look  the unit look vector
-     * @param range the blink's range in blocks
-     * @return the pinned face plane, empty when the look crosses no face in range
-     */
-    public static Optional<ChannelAim.FacePlane> pinAt(BlinkSpace space, Vec3 eye, Vec3 look, double range) {
-        return space.firstFace(eye, eye.add(look.scale(range)))
-                .map(hit -> new ChannelAim.FacePlane(hit.block(), hit.face()));
-    }
-
-    /**
      * The free-aim spot: the range along the look where the body fits there,
      * else standing against the first face the look crosses.
      *
@@ -150,31 +129,6 @@ public final class BlinkResolver {
         return space.firstFace(eye, eye.add(look.scale(range)))
                 .map(hit -> standAgainst(hit.point(), hit.face(), body))
                 .orElse(spot);
-    }
-
-    /**
-     * The spot on a pinned plane: where the look crosses the plane within the
-     * range, else the range's end along the look laid onto the plane.
-     *
-     * @param eye   the blinker's eye
-     * @param look  the unit look vector
-     * @param range the blink's range in blocks
-     * @param plane the pinned face plane
-     * @param body  the blinker's size
-     * @return the feet of the aimed spot, which may not fit yet
-     */
-    private static Vec3 onPinnedPlane(Vec3 eye, Vec3 look, double range, ChannelAim.FacePlane plane,
-            BlinkBody body) {
-        Direction face = plane.face();
-        Direction.Axis axis = face.getAxis();
-        double planeAt = plane.block().get(axis) + (face.getAxisDirection() == Direction.AxisDirection.POSITIVE
-                ? 1 : 0);
-        double along = look.get(axis);
-        double crossingAt = along == 0 ? NO_CROSSING : (planeAt - eye.get(axis)) / along;
-        Vec3 crossing = crossingAt >= 0 && crossingAt <= range
-                ? eye.add(look.scale(crossingAt))
-                : eye.add(look.scale(range)).with(axis, planeAt);
-        return standAgainst(crossing, face, body);
     }
 
     /**
