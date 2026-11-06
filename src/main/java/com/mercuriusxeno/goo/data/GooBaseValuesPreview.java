@@ -87,9 +87,13 @@ public final class GooBaseValuesPreview {
      * @param roots      the clique roots _roots names, in file order
      * @param unresolved each entry naming an item no line values, with that item, which only the recipes may value
      *                   (decision diagnose-and-correct-item-reference-unrecognized-token)
+     * @param lackedTypes each entry reading a goo type its referent holds no amount of, with the error naming both;
+     *                    such an entry loads no value
+     *                    (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line)
      */
     public record Loaded(Map<Identifier, GooValue> baseValues, Set<Identifier> denied, Set<Identifier> restricted,
-                         List<String> warnings, List<Identifier> roots, Map<Identifier, String> unresolved) {
+                         List<String> warnings, List<Identifier> roots, Map<Identifier, String> unresolved,
+                         Map<Identifier, String> lackedTypes) {
     }
 
     /**
@@ -116,7 +120,7 @@ public final class GooBaseValuesPreview {
         Map<Identifier, GooValue> values = new LinkedHashMap<>(state.baseValues);
         values.putAll(state.negativeItems);
         return new Loaded(values, state.deniedItems, state.restrictedItems, warnings, List.copyOf(state.rootItems),
-                Map.copyOf(state.unresolvedItems));
+                Map.copyOf(state.unresolvedItems), Map.copyOf(state.lackedTypes));
     }
 
     /**

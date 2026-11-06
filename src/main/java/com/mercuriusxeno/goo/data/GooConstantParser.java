@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.data;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
+import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.Set;
 
@@ -17,6 +18,7 @@ public final class GooConstantParser {
     private static final String LOG_LOADED_CONSTANTS = "Loaded {} constants ({} scalar, {} tree)";
     private static final String LOG_UNRESOLVED_ITEM = "Constant ${} names {}, which holds no value, so it loads no value";
     private static final String LOG_CYCLE = "Prefabs {}";
+    private static final String LOG_LACKED_TYPE = "Constant ${}: {}, so it loads no value";
 
     private GooConstantParser() {
     }
@@ -66,13 +68,22 @@ public final class GooConstantParser {
      * @param name  the constant name
      * @param value the JSON value (object for tree, string for scalar/expression)
      * @param state mutable parsing state
+     * @return the error naming a referent and a goo type the constant reads that the referent holds no amount of,
+     *     where it reads one and so loads no value, or null
      */
-    static void parseOneConstant(String name, JsonElement value, GooValueLoader.ParseState state) {
+    static @Nullable String parseOneConstant(String name, JsonElement value, GooValueLoader.ParseState state) {
         try {
             parseConstantValue(name, value, state);
         } catch (UnresolvedItemReference unresolved) {
             Goo.LOGGER.warn(LOG_UNRESOLVED_ITEM, name, unresolved.item());
+        } catch (ReferentLacksType lacking) {
+            // Decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line.
+            if (Goo.LOGGER.isErrorEnabled()) {
+                Goo.LOGGER.error(LOG_LACKED_TYPE, name, lacking.getMessage());
+            }
+            return lacking.getMessage();
         }
+        return null;
     }
 
     private static void parseConstantValue(String name, JsonElement value, GooValueLoader.ParseState state) {
