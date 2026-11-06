@@ -50,58 +50,6 @@
         "settings": "minecraft:nether"
       }
     },
-    "goo:lunar": {
-      "type": "goo:lunar",
-      "generator": {
-        "type": "minecraft:flat",
-        "settings": {
-          "biome": "goo:lunar",
-          "features": true,
-          "lakes": false,
-          "layers": [
-            {
-              "block": "minecraft:bedrock",
-              "height": 1
-            },
-            {
-              "block": "minecraft:tuff",
-              "height": 59
-            },
-            {
-              "block": "minecraft:gravel",
-              "height": 4
-            }
-          ],
-          "structure_overrides": []
-        }
-      }
-    },
-    "goo:solar": {
-      "type": "goo:solar",
-      "generator": {
-        "type": "minecraft:flat",
-        "settings": {
-          "biome": "goo:solar",
-          "features": true,
-          "lakes": false,
-          "layers": [
-            {
-              "block": "minecraft:bedrock",
-              "height": 1
-            },
-            {
-              "block": "minecraft:calcite",
-              "height": 59
-            },
-            {
-              "block": "minecraft:calcite",
-              "height": 4
-            }
-          ],
-          "structure_overrides": []
-        }
-      }
-    },
     "goo:pocket": {
       "type": "goo:pocket",
       "generator": {

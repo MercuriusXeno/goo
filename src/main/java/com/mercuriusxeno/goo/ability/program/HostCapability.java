@@ -120,11 +120,6 @@ public enum HostCapability {
      */
     PHASE_BLOCKS(PhaseBlocksHost.class),
     /**
-     * A struck surface Astral's gate can open over (decision
-     * astral-visits-lunar-and-solar-dimensions).
-     */
-    ASTRAL_GATE(GateHost.class),
-    /**
      * A struck surface Void's pocket gate can open over, for a caster the
      * landing knows (decision void-opens-a-pocket-dimension).
      */
