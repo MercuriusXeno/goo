@@ -209,7 +209,7 @@
   "goo.ability.ender.zone": "Zone",
   "goo.ability.ender.zone.description": "Curse a mob with teleportitis, preventing it from reaching you.",
   "goo.ability.ender.blink": "Blink",
-  "goo.ability.ender.blink.description": "Teleport short distances. Hold on a block face to lock to that plane. Blink to a prism to make an Oculus.",
+  "goo.ability.ender.blink.description": "Teleport short distances. Blink to a prism to make an Oculus.",
   "goo.ability.ender.blink.cost_mechanics": "Plus %s per block travelled and %s more through a wall; Oculus Blinks cost %s percent.",
   "goo.ability.ender.end": "End",
   "goo.ability.ender.end.description": "A temporary portal, takes you to the End at will.",
