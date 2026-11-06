@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
-import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -62,10 +61,8 @@ public final class GooSelfHandler {
      * @param player  the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
-     * @param pin     the face plane the press pinned, which a blink slides on; empty for free aim
      */
-    static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
-            Optional<ChannelAim.FacePlane> pin) {
+    static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge()) || ability.delivery().charges()) {
             return;
         }
@@ -74,7 +71,7 @@ public final class GooSelfHandler {
             HeldEffectsEvents.end(player, ability.id());
         } else if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
-        } else if (invoke(PlayerHost.blinking(player.level(), player, pin), gooType, ability)) {
+        } else if (invoke(new PlayerHost(player.level(), player), gooType, ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
     }
@@ -172,7 +169,7 @@ public final class GooSelfHandler {
             AbilityDefinition ability) {
         ServerPlayer player = host.player();
         Optional<BlinkLanding> trip = TeleportStep.tripOf(ability.behaviors(), player, player.position(),
-                player.getLookAngle(), host.blinkPin());
+                player.getLookAngle());
         int cost = ability.distancePrice().priceOf(ability.cost(), trip);
         if (!affords(player, gooType, ability, cost)) {
             return false;
