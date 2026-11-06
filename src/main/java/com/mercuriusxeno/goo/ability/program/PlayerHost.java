@@ -351,8 +351,20 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     /** Carries the player into their Outsider room (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
     @Override
-    public void enterPocket() {
-        OutsiderRooms.enter(player);
+    public void enterPocket(int cost) {
+        if (GooSourceScanner.hasEnough(player, GooTypes.VOID, cost) && OutsiderRooms.enter(player)) {
+            GooSourceScanner.deplete(player, GooTypes.VOID, cost);
+        }
+    }
+
+    /** Grows the player's Outsider platform (decision
+     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
+    @Override
+    public void feedPlatform(int feed, int costStep) {
+        if (GooSourceScanner.hasEnough(player, GooTypes.VOID, feed)) {
+            GooSourceScanner.deplete(player, GooTypes.VOID, feed);
+            OutsiderRooms.feedPlatform(player, feed, costStep);
+        }
     }
 
     @Override

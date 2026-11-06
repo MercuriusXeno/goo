@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
+import com.mercuriusxeno.goo.ability.outsider.PlatformSpiral;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
@@ -43,6 +45,54 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_AND_VOIDSTONE_RESPAWN,
                 OutsiderTests::doorAndVoidstoneRespawn);
         GooTestFunctions.registerTest(registrar, OUTSIDER_VOID_CATCHES_THE_FALLER, OutsiderTests::voidCatchesTheFaller);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD,
+                OutsiderTests::platformSpiralsWhileHeldInside);
+    }
+
+    private static final String OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD = "outsider_platform_spirals_while_held_inside";
+    /** Ticks the caster keeps holding once inside. */
+    private static final int HELD_INSIDE = 20;
+    /**
+     * Cells twenty fed ticks grow: at 50 mB fed a tick and each cell costing 50 mB more than the last,
+     * cells cost 1, 2, 3, 4 and 5 ticks of feed, 15 in all, and the sixth's 6 more would pass 20.
+     */
+    private static final int CELLS_GROWN = 5;
+    private static final int VOID_FOR_GROWTH = 20 * GooStacks.THOUSAND;
+    private static final String SHOULD_GROW = "Cell %d at %s should be grown floor, %s stands there";
+    private static final String SHOULD_WAIT = "Cell %d at %s should not be grown yet, %s stands there";
+    private static final String SHOULD_KEEP_COUNT = "The room should keep %d platform cells, keeps %d";
+
+    /**
+     * A caster held on inside their room grows the platform one cell at a
+     * time along the spiral, each cell taking longer than the last, and the
+     * room keeps the count it reached.
+     *
+     * @param helper the gametest helper
+     */
+    public static void platformSpiralsWhileHeldInside(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, VOID_FOR_GROWTH));
+        holdFor(helper, caster, CHARGE_TICKS + HELD_INSIDE);
+        helper.runAfterDelay(CHARGE_TICKS + HELD_INSIDE + 1, () -> {
+            ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+            Integer room = pocket == null ? null : OutsiderRooms.roomOf(pocket, caster.getUUID());
+            helper.assertTrue(room != null && caster.level() == pocket,
+                    String.format(SHOULD_ENTER, "", caster.position(), caster.level().dimension().identifier()));
+            int grownTo = PlatformSpiral.START_CELLS + CELLS_GROWN;
+            for (int index = PlatformSpiral.START_CELLS; index <= grownTo; index++) {
+                PlatformSpiral.Cell cell = PlatformSpiral.cellAt(index);
+                BlockPos at = OutsiderRooms.voidstoneOf(room).offset(cell.x(), 0, cell.z());
+                boolean floor = !pocket.getBlockState(at).isAir();
+                if (index < grownTo) {
+                    helper.assertTrue(floor, String.format(SHOULD_GROW, index, at, pocket.getBlockState(at)));
+                } else {
+                    helper.assertTrue(!floor, String.format(SHOULD_WAIT, index, at, pocket.getBlockState(at)));
+                }
+            }
+            int kept = OutsiderRooms.platformCells(pocket, caster.getUUID());
+            helper.assertTrue(kept == grownTo, String.format(SHOULD_KEEP_COUNT, grownTo, kept));
+            helper.succeed();
+        });
     }
 
     private static final Identifier OUTSIDER = Identifier.parse("goo:void_outsider");

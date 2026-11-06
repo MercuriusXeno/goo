@@ -8,21 +8,33 @@ import java.util.stream.Stream;
 /**
  * Void's Outsider, run each held tick of the channel: the tick the hold
  * reaches its charge carries a player standing outside the pocket into their
- * room. Void's Outsider is {@code outsider charge=20}.
+ * room for the way in's cost, and each held tick inside feeds void into the
+ * room's platform, which grows along its spiral, each cell costing a step
+ * more than the last. Void's Outsider is
+ * {@code outsider charge=20 enter=1000 feed=50 cell_cost=50}.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  *
- * @param charge the held ticks the channel asks before it carries the caster in
+ * @param charge   the held ticks the channel asks before it carries the caster in
+ * @param enter    the void the way in costs (mB)
+ * @param feed     the void each held tick inside feeds the platform (mB)
+ * @param cellCost the void each grown cell costs more than the one before (mB)
  */
-public record OutsiderStep(Expr charge) implements Step {
+public record OutsiderStep(Expr charge, Expr enter, Expr feed, Expr cellCost) implements Step {
 
     private static final String NAME = "outsider";
     private static final String FIELD_CHARGE = "charge";
+    private static final String FIELD_ENTER = "enter";
+    private static final String FIELD_FEED = "feed";
+    private static final String FIELD_CELL_COST = "cell_cost";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<OutsiderStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_CHARGE).forGetter(OutsiderStep::charge)
+            Expr.CODEC.fieldOf(FIELD_CHARGE).forGetter(OutsiderStep::charge),
+            Expr.CODEC.fieldOf(FIELD_ENTER).forGetter(OutsiderStep::enter),
+            Expr.CODEC.fieldOf(FIELD_FEED).forGetter(OutsiderStep::feed),
+            Expr.CODEC.fieldOf(FIELD_CELL_COST).forGetter(OutsiderStep::cellCost)
     ).apply(inst, OutsiderStep::new));
 
     /**
@@ -38,16 +50,17 @@ public record OutsiderStep(Expr charge) implements Step {
     @Override
     public boolean tick(StepContext context) {
         OutsiderHost host = context.hostAs(OutsiderHost.class);
-        int held = host.channelAim().map(ChannelAim::held).orElse(0);
-        if (!host.standsInPocket() && held == charge.evaluateInt(context)) {
-            host.enterPocket();
+        if (host.standsInPocket()) {
+            host.feedPlatform(feed.evaluateInt(context), cellCost.evaluateInt(context));
+        } else if (host.channelAim().map(ChannelAim::held).orElse(0) == charge.evaluateInt(context)) {
+            host.enterPocket(enter.evaluateInt(context));
         }
         return true;
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(charge);
+        return Stream.of(charge, enter, feed, cellCost);
     }
 
     @Override

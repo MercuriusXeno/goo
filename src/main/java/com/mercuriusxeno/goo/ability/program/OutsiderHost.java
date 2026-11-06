@@ -14,7 +14,18 @@ public interface OutsiderHost extends ChannelHost {
     boolean standsInPocket();
 
     /**
-     * Carries the player into their room, keeping where they stood for its door.
+     * Carries the player into their room, keeping where they stood for its
+     * door, when they can pay the way in.
+     *
+     * @param cost the void the way in costs (mB)
      */
-    void enterPocket();
+    void enterPocket(int cost);
+
+    /**
+     * Feeds void the player carries into their room's platform, when they carry it.
+     *
+     * @param feed     the void fed (mB)
+     * @param costStep the void each cell costs more than the one before (mB)
+     */
+    void feedPlatform(int feed, int costStep);
 }
