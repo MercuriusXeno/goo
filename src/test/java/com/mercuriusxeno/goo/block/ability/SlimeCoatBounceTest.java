@@ -86,8 +86,23 @@ class SlimeCoatBounceTest {
     class Boing {
 
         @Test
-        void eachBounceSoundsTheBoing() {
-            assertEquals(GooSoundIds.BOING, SlimeCoatBounce.BOUNCE_SOUND);
+        void aBounceSoundsTheBoing() {
+            FakeLander lander = new FakeLander(ARRIVING, false, false, 0);
+
+            SlimeCoatBounce.bounce(lander);
+
+            assertEquals(ARRIVING * SlimeCoatBounce.RELEASED_DECAY, lander.launched, 1e-9);
+            assertEquals(1, lander.boings);
+        }
+
+        @Test
+        void aSettledLandingSoundsNone() {
+            FakeLander lander = new FakeLander(SlimeCoatBounce.SETTLED_LAUNCH / 2, false, false, 0);
+
+            SlimeCoatBounce.bounce(lander);
+
+            assertEquals(0, lander.launched);
+            assertEquals(0, lander.boings);
         }
 
         @Test
@@ -106,6 +121,94 @@ class SlimeCoatBounceTest {
                 assertTrue(in != null, SOUNDS_JSON + " is not on the classpath");
                 return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             }
+        }
+    }
+
+    @Nested
+    class Memory {
+
+        @Test
+        void aHeldBounceRampsOffTheLaunchBefore() {
+            FakeLander lander = new FakeLander(ARRIVING, true, false, 0);
+            SlimeCoatBounce.bounce(lander);
+            double first = lander.launched;
+
+            lander.fall(ARRIVING, 1);
+            SlimeCoatBounce.bounce(lander);
+
+            assertEquals(first * SlimeCoatBounce.RAMP_PER_BOUNCE, lander.launched, 1e-9);
+        }
+
+        @Test
+        void aLanderBackAfterAPauseStartsItsRampAfresh() {
+            FakeLander lander = new FakeLander(ARRIVING, true, false, 0);
+            for (int bounce = 0; bounce < 50; bounce++) {
+                lander.fall(lander.launched == 0 ? ARRIVING : lander.launched, bounce);
+                SlimeCoatBounce.bounce(lander);
+            }
+            assertEquals(SlimeCoatBounce.HIGHEST_LAUNCH, lander.launched, 1e-9);
+
+            lander.fall(ARRIVING, 50 + SlimeCoatBounce.FORGET_TICKS + 1);
+            SlimeCoatBounce.bounce(lander);
+
+            assertEquals(ARRIVING * SlimeCoatBounce.RAMP_PER_BOUNCE, lander.launched, 1e-9);
+        }
+    }
+
+    /** A lander the test drives: how it falls, what it holds, and what the bounce did to it. */
+    private static final class FakeLander implements SlimeCoatBounce.Lander {
+        private double falling;
+        private final boolean jumpHeld;
+        private final boolean sneaking;
+        private long gameTime;
+        private double launched;
+        private int boings;
+
+        FakeLander(double falling, boolean jumpHeld, boolean sneaking, long gameTime) {
+            this.falling = falling;
+            this.jumpHeld = jumpHeld;
+            this.sneaking = sneaking;
+            this.gameTime = gameTime;
+        }
+
+        @Override
+        public Object identity() {
+            return this;
+        }
+
+        void fall(double speed, long at) {
+            falling = speed;
+            gameTime = at;
+        }
+
+        @Override
+        public double fallSpeed() {
+            return falling;
+        }
+
+        @Override
+        public boolean jumpHeld() {
+            return jumpHeld;
+        }
+
+        @Override
+        public boolean sneaking() {
+            return sneaking;
+        }
+
+        @Override
+        public long gameTime() {
+            return gameTime;
+        }
+
+        @Override
+        public void launch(double speed) {
+            launched = speed;
+        }
+
+        @Override
+        public void boing(double launch) {
+            boings++;
         }
     }
 
