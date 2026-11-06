@@ -18,6 +18,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Draws a mob being encased: its model, and the shell it wears over it such
@@ -58,6 +59,8 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
 
     /** The outer shell the mob shows over its body, which the encasement covers too while it shows. */
     private final MobShells.Shell shell;
+    /** The body the encasement draws, or null to draw the renderer's own model. */
+    private final @Nullable EntityModel<? super S> body;
     /** The share this layer reads off the render state. */
     private final ContextKey<Float> shareKey;
     /** The render type sampling this encasement's texture. */
@@ -66,13 +69,15 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
     /**
      * @param parent     the living entity renderer the layer draws over
      * @param shell      the outer shell the mob wears, or MobShells.NONE
+     * @param body       the body to encase, from EncasedBodies, or null for the renderer's own model
      * @param shareKey   the render data carrying this encasement's share
      * @param renderType the render type sampling its texture
      */
-    public EncasementLayer(RenderLayerParent<S, M> parent, MobShells.Shell shell, ContextKey<Float> shareKey,
-                           RenderType renderType) {
+    public EncasementLayer(RenderLayerParent<S, M> parent, MobShells.Shell shell,
+                           @Nullable EntityModel<? super S> body, ContextKey<Float> shareKey, RenderType renderType) {
         super(parent);
         this.shell = shell;
+        this.body = body;
         this.shareKey = shareKey;
         this.renderType = renderType;
     }
@@ -83,12 +88,13 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
      *
      * @param renderer the renderer
      * @param shell    the outer shell its mob wears, or MobShells.NONE
+     * @param body     the body to encase, from EncasedBodies, or null for the renderer's own model
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static void addTo(EntityRenderer<?, ?> renderer, MobShells.Shell shell) {
+    public static void addTo(EntityRenderer<?, ?> renderer, MobShells.Shell shell, @Nullable EntityModel<?> body) {
         if (renderer instanceof LivingEntityRenderer living) {
-            living.addLayer(new EncasementLayer<>(living, shell, PETRIFIED, GooRenderTypes.PETRIFY_STONE_TYPE));
-            living.addLayer(new EncasementLayer<>(living, shell, FROZEN, GooRenderTypes.FROST_ICE_TYPE));
+            living.addLayer(new EncasementLayer(living, shell, body, PETRIFIED, GooRenderTypes.PETRIFY_STONE_TYPE));
+            living.addLayer(new EncasementLayer(living, shell, body, FROZEN, GooRenderTypes.FROST_ICE_TYPE));
         }
     }
 
@@ -149,7 +155,8 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
         if (state.isInvisible || share <= 0f) {
             return;
         }
-        submitEncasement(submitNodeCollector, getParentModel(), state, poseStack, lightCoords, share);
+        submitEncasement(submitNodeCollector, body != null ? body : getParentModel(), state, poseStack, lightCoords,
+                share);
         EntityModel<?> shown = shell.shown(state);
         if (shown != null) {
             submitShellEncasement(submitNodeCollector, shown, state, poseStack, lightCoords, share);
