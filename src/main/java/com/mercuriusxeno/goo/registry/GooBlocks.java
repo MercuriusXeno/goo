@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
@@ -153,6 +154,21 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.SLIME_BLOCK)
                     .mapColor(MapColor.COLOR_MAGENTA)
                     .noLootTable());
+    /**
+     * Slime coat: the thin green film Weird's Coat lays on a block's top,
+     * standing until destroyed and dropping nothing
+     * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
+     */
+    public static final DeferredBlock<SlimeCoatBlock> SLIME_COAT = BLOCKS.registerBlock(
+            "slime_coat", SlimeCoatBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.GRASS)
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).

@@ -21,9 +21,8 @@ import java.util.OptionalDouble;
  * spray's source, so a burst can treat the floor it landed on apart from
  * the rest (decision colonize-blob-grows-the-network).
  *
- * <p>A timed block stands in the open cell above the floor, so Coat's
- * stream leaves a bounce pad on each floor it hits; a floor that already is
- * that block takes none, so a held stream lays no pad on a pad.
+ * <p>A timed block stands in the open cell above the floor; a floor that
+ * already is that block takes none, so a held spray lays no block on its own.
  * weird-bounces-and-softens-harm
  *
  * @param level    the server level

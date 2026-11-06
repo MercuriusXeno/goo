@@ -39,7 +39,6 @@ public final class WeirdTests {
     private static final Identifier COAT = Identifier.parse("goo:weird_coat");
     private static final String ABILITY_REQUIRED = "Ability registry must hold goo:weird_coat";
     private static final String COAT_COOLS_LAVA = "coat_cools_lava_to_magma";
-    private static final String COAT_LAYS_PADS = "coat_lays_a_pad_on_the_floor";
     private static final String SOFTEN_TRADES_DAMAGE = "coat_softens_the_mob_it_hits";
     private static final BlockPos POOL_FLOOR = new BlockPos(2, 0, 2);
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
@@ -52,11 +51,22 @@ public final class WeirdTests {
     private static final List<BlockPos> LAVA_CELLS = List.of(new BlockPos(3, 0, 2), new BlockPos(4, 0, 2));
     private static final BlockPos ZOMBIE_POS = new BlockPos(4, 1, 2);
     private static final int COAT_HOLD_TICKS = 10;
-    /** The open cells above the floor Coat's cone reaches when pitched at it run along the look from here. */
-    private static final int PAD_NEAR_X = 1;
-    private static final int PAD_FAR_X = 7;
+    private static final String COAT_LAYS_A_COAT = "coat_lays_a_slime_coat_over_the_block";
+    private static final String COAT_ONCE = "coat_coats_each_cell_once_per_activation";
+    private static final String COAT_PAST_NINE_TENTHS_FINISHES = "coat_past_nine_tenths_finishes_after_release";
+    /** Three blocks east of the streamer, at its height, on a block the test lays. */
+    private static final BlockPos COATED_POS = STREAMER_POS.east(3);
+    /** Pitch down from the eye toward the stone's center three blocks off. */
+    private static final float AT_THE_STONE = 20.5f;
+    /** weird_coat.json's coat ticks: twenty ticks of stream coat a block. */
+    private static final int COAT_STEP_TICKS = 20;
+    /** Ticks past a coat's worth, so a coat has surely landed. */
+    private static final int COAT_SLACK_TICKS = 5;
+    /** A hold three coats long, so a second coat would land without the once rule. */
+    private static final int THREE_COATS = 3;
+    /** A hold past nine tenths of a coat, short of the whole. */
+    private static final int PAST_NINE_TENTHS_TICKS = COAT_STEP_TICKS - 1;
     private static final String LAVA_LEFT = "Coat's stream should leave magma where the lava stood at ";
-    private static final String NO_COAT_PAD = "Coat's stream held on a stone floor should leave a bounce pad on it";
     private static final String BOUNCE = "goo:weird_bounce";
     private static final String PAD_BREAKS_THE_FALL = "weird_pad_breaks_the_fall";
     /** The test bay's roof stands five blocks over the pad, so the pig starts under it. */
@@ -85,7 +95,10 @@ public final class WeirdTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, COAT_COOLS_LAVA, WeirdTests::coatCoolsLavaToMagma);
-        GooTestFunctions.registerTest(registrar, COAT_LAYS_PADS, WeirdTests::coatLaysAPadOnTheFloor);
+        GooTestFunctions.registerTest(registrar, COAT_LAYS_A_COAT, WeirdTests::coatLaysASlimeCoatOverTheBlock);
+        GooTestFunctions.registerTest(registrar, COAT_ONCE, WeirdTests::coatCoatsEachCellOncePerActivation);
+        GooTestFunctions.registerTest(registrar, COAT_PAST_NINE_TENTHS_FINISHES,
+                WeirdTests::coatPastNineTenthsFinishesAfterRelease);
         GooTestFunctions.registerTest(registrar, PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
         GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::coatSoftensTheMobItHits);
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
@@ -179,28 +192,92 @@ public final class WeirdTests {
     }
 
     /**
-     * Coat's stream held on a stone floor leaves a bounce pad standing on
-     * it, in an open cell its cone reaches.
+     * Coat's stream held on a stone block past one coat's worth lays a slime
+     * coat on the stone's top and leaves the stone standing as stone.
      *
      * @param helper the gametest helper
      */
-    public static void coatLaysAPadOnTheFloor(GameTestHelper helper) {
-        for (BlockPos floor : coneFloor()) {
-            helper.setBlock(floor, Blocks.STONE);
-        }
-        ServerPlayer streamer = streamerAt(helper, AT_THE_FLOOR);
-        holdCoat(helper, streamer, () -> {
-            boolean padded = false;
-            for (BlockPos floor : coneFloor()) {
-                padded |= helper.getBlockState(floor.above()).is(GooBlocks.BOUNCE_PAD.get());
-            }
-            helper.assertTrue(padded, NO_COAT_PAD);
+    public static void coatLaysASlimeCoatOverTheBlock(GameTestHelper helper) {
+        ServerPlayer streamer = coaterOverStone(helper);
+        holdCoatFor(helper, streamer, COAT_STEP_TICKS + COAT_SLACK_TICKS);
+        helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
+            helper.assertBlockPresent(Blocks.STONE, COATED_POS);
+            helper.succeed();
         });
     }
 
-    private static Iterable<BlockPos> coneFloor() {
-        return BlockPos.betweenClosed(new BlockPos(PAD_NEAR_X, 0, STREAMER_POS.getZ() - 1),
-                new BlockPos(PAD_FAR_X, 0, STREAMER_POS.getZ() + 1));
+    /**
+     * Coat's stream held on a stone block for three coats' worth, the coat
+     * cleared away once it has landed: the hold lays no second coat there.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatCoatsEachCellOncePerActivation(GameTestHelper helper) {
+        ServerPlayer streamer = coaterOverStone(helper);
+        int held = COAT_STEP_TICKS * THREE_COATS;
+        holdCoatFor(helper, streamer, held);
+        helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS, () -> {
+            helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
+            helper.setBlock(COATED_POS.above(), Blocks.AIR);
+        });
+        helper.runAfterDelay(held + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertBlockPresent(Blocks.AIR, COATED_POS.above());
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Coat's stream held on a stone block past nine tenths of a coat and
+     * released: the coat finishes on its own.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatPastNineTenthsFinishesAfterRelease(GameTestHelper helper) {
+        ServerPlayer streamer = coaterOverStone(helper);
+        holdCoatFor(helper, streamer, PAST_NINE_TENTHS_TICKS);
+        helper.runAfterDelay(PAST_NINE_TENTHS_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertBlockPresent(Blocks.AIR, COATED_POS.above());
+        });
+        helper.runAfterDelay(PAST_NINE_TENTHS_TICKS + COAT_STEP_TICKS, () -> {
+            helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lays stone on bedrock three blocks east of the streamer and stands a
+     * Coat streamer aimed at it.
+     *
+     * @param helper the gametest helper
+     * @return the streamer
+     */
+    private static ServerPlayer coaterOverStone(GameTestHelper helper) {
+        helper.setBlock(COATED_POS.below(), Blocks.BEDROCK);
+        helper.setBlock(COATED_POS, Blocks.STONE);
+        ServerPlayer streamer = streamerAt(helper, AT_THE_STONE);
+        AbilityDefinition coat = AbilityRegistry.of(helper.getLevel()).getAbility(COAT);
+        helper.assertTrue(coat != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(streamer, coat);
+        return streamer;
+    }
+
+    /**
+     * Streams Coat every tick of a hold from the first tick, aimed wherever the streamer looks.
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streaming player
+     * @param ticks    how many ticks the hold lasts
+     */
+    private static void holdCoatFor(GameTestHelper helper, ServerPlayer streamer, int ticks) {
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.WEIRD), COAT.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        for (int held = 1; held <= ticks; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
+        }
     }
 
     /**

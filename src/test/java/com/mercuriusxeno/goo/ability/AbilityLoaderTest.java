@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.BouncePadStep;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
@@ -642,19 +643,13 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void coatStreamsAPadOnTheFloorItHits() {
+        void coatStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
             AbilityDefinition coat = AbilityJson.decode("weird_coat");
+            List<Step> blockPass = ChannelHost.passSteps(coat.behaviors(), true);
 
             assertEquals(DeliveryKind.STREAM, coat.delivery().kind());
-            assertEquals(List.of(BouncePadStep.class), coat.onBlocks().stream().map(Object::getClass).toList());
-            assertTrue(ProgramBehavior.serves(coat.onBlocks(), HostKind.SURFACE), "the sprayed floor runs the pad");
-        }
-
-        @Test
-        void coatCoolsTheLavaInItsConeInTheBlockPass() {
-            List<Step> blockPass = ChannelHost.passSteps(AbilityJson.decode("weird_coat").behaviors(), true);
-
-            assertEquals(List.of(CoolLavaStep.class), blockPass.stream().map(Object::getClass).toList());
+            // coat-is-a-green-slime-film-over-the-blocks-own-texture
+            assertEquals(List.of(CoolLavaStep.class, CoatStep.class), blockPass.stream().map(Object::getClass).toList());
             assertTrue(ProgramBehavior.serves(blockPass, HostKind.PLAYER), "the channeling player runs the block pass");
         }
 

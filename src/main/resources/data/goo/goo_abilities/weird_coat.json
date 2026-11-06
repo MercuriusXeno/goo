@@ -8,10 +8,12 @@
     "kind": "stream",
     "range": 8,
     "cone": 16,
-    "ticks_per_charge": 20
+    "ticks_per_charge": 20,
+    "particle": "minecraft:item_slime"
   },
   "behaviors": [
     { "type": "cool_lava" },
+    { "type": "coat", "ticks": 20 },
     {
       "type": "target",
       "where": ["mob"],
@@ -20,9 +22,6 @@
         { "type": "ailment_overlay", "kind": "wobble", "duration": 600 }
       ]
     }
-  ],
-  "on_blocks": [
-    { "type": "bounce_pad", "ticks": 200 }
   ],
   "tags": ["stream"]
 }

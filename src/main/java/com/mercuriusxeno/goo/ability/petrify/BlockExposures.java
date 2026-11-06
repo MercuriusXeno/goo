@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -54,8 +55,24 @@ public final class BlockExposures {
      * @param lastExposed the game time something last built it
      * @param finishRate  the share it builds each tick on its own once left to finish, 0 while it decays instead
      * @param tint        the RGB the client tints the mingled block by, {@link #UNTINTED} for none
+     * @param from        the block the cell held when the exposure began, which it finishes alone only while
+     *                    the cell still holds; null in a share no level built
      */
-    record Exposure(BlockState toward, float share, long lastExposed, float finishRate, int tint) {
+    record Exposure(BlockState toward, float share, long lastExposed, float finishRate, int tint,
+                    @Nullable Block from) {
+
+        /**
+         * An exposure no level built, holding no starting block.
+         *
+         * @param toward      the state the block becomes at a full share
+         * @param share       the share built
+         * @param lastExposed the game time something last built it
+         * @param finishRate  the share it builds each tick on its own once left to finish
+         * @param tint        the RGB the client tints the mingled block by
+         */
+        Exposure(BlockState toward, float share, long lastExposed, float finishRate, int tint) {
+            this(toward, share, lastExposed, finishRate, tint, null);
+        }
 
         /**
          * An untinted exposure.
@@ -113,13 +130,15 @@ public final class BlockExposures {
     public float expose(ServerLevel level, BlockPos pos, BlockState toward, float amount, int tint) {
         Exposed key = new Exposed(level.dimension(), pos.immutable());
         Exposure before = exposures.get(key);
-        float start = before != null && before.toward() == toward ? before.share() : 0f;
+        boolean continues = before != null && before.toward() == toward;
+        float start = continues ? before.share() : 0f;
         float share = Math.min(1f, start + amount);
         if (share >= 1f) {
             exposures.remove(key);
             return 1f;
         }
-        exposures.put(key, new Exposure(toward, share, level.getGameTime(), 0f, tint));
+        Block from = continues ? before.from() : level.getBlockState(pos).getBlock();
+        exposures.put(key, new Exposure(toward, share, level.getGameTime(), 0f, tint, from));
         send(level, pos, toward, share, tint);
         return share;
     }
@@ -145,7 +164,8 @@ public final class BlockExposures {
             return;
         }
         float shown = Math.min(1f, share);
-        exposures.put(key, new Exposure(toward, shown, level.getGameTime(), 0f, tint));
+        exposures.put(key, new Exposure(toward, shown, level.getGameTime(), 0f, tint,
+                level.getBlockState(pos).getBlock()));
         send(level, pos, toward, shown, tint);
     }
 
@@ -173,7 +193,7 @@ public final class BlockExposures {
     public void finishAlone(ServerLevel level, BlockPos pos, float rate) {
         exposures.computeIfPresent(new Exposed(level.dimension(), pos.immutable()),
                 (key, exposure) -> new Exposure(exposure.toward(), exposure.share(), exposure.lastExposed(), rate,
-                        exposure.tint()));
+                        exposure.tint(), exposure.from()));
     }
 
     /**
@@ -232,7 +252,7 @@ public final class BlockExposures {
         }
         BlockPos pos = entry.getKey().pos();
         if (after != null && after.share() >= 1f) {
-            finish(level, pos, after.toward());
+            finish(level, pos, after.toward(), after.from());
             return false;
         }
         send(level, pos, exposure.toward(), after == null ? 0f : after.share(), exposure.tint());
@@ -245,14 +265,17 @@ public final class BlockExposures {
 
     /**
      * Steps a block left to finish on its own, unless something has since
-     * cleared it to air.
+     * replaced the block the exposure began on; an open cell a coat builds
+     * over finishes as any block does
+     * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
      *
      * @param level  the server level
      * @param pos    the block
      * @param toward the state it becomes
+     * @param from   the block the cell held when the exposure began
      */
-    private static void finish(ServerLevel level, BlockPos pos, BlockState toward) {
-        if (!level.getBlockState(pos).isAir()) {
+    private static void finish(ServerLevel level, BlockPos pos, BlockState toward, @Nullable Block from) {
+        if (level.getBlockState(pos).is(from)) {
             BlockBreakHost.transform(level, pos, toward);
         }
     }
@@ -268,14 +291,14 @@ public final class BlockExposures {
     static Exposure decayed(Exposure exposure, long now) {
         if (exposure.finishing()) {
             return new Exposure(exposure.toward(), Math.min(1f, exposure.share() + exposure.finishRate()),
-                    exposure.lastExposed(), exposure.finishRate(), exposure.tint());
+                    exposure.lastExposed(), exposure.finishRate(), exposure.tint(), exposure.from());
         }
         if (now - exposure.lastExposed() <= DECAY_DELAY_TICKS) {
             return exposure;
         }
         float left = exposure.share() - DECAY_PER_TICK;
         return left <= 0f ? null : new Exposure(exposure.toward(), left, exposure.lastExposed(), 0f,
-                exposure.tint());
+                exposure.tint(), exposure.from());
     }
 
     /** Drops every share, as a server stop does. */
