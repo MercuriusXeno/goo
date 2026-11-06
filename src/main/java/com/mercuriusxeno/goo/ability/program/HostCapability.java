@@ -105,8 +105,8 @@ public enum HostCapability {
      */
     CONVOKE(ConvokeHost.class),
     /**
-     * A column under the landed block that can churn (decision
-     * churn-rotates-a-plus-shaped-column).
+     * A vein under the landed block that a churn lifts (decision
+     * churn-pulls-a-vein-up-as-a-fluid-chain).
      */
     CHURN(ChurnHost.class),
     /**

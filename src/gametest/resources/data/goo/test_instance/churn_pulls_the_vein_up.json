@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:churn_swaps_the_layers",
+  "function": "goo:churn_pulls_the_vein_up",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 100,

@@ -1,16 +1,17 @@
 package com.mercuriusxeno.goo.ability.program;
 
 /**
- * A host that can churn the column under the block it landed on
- * (decision churn-rotates-a-plus-shaped-column).
+ * A host that can lift the vein under the block it landed on
+ * (decision churn-pulls-a-vein-up-as-a-fluid-chain).
  */
 public interface ChurnHost extends StepHost {
 
     /**
-     * Turns the column under the landed block one step: the core rises a
-     * layer and the strips sink one.
+     * Lifts the vein under the landed block one layer, finding it the first
+     * time it is called.
      *
-     * @param depth the column's layers, the landed block's layer the top
+     * @param depth how far down the landed block's column the churn reaches for a mineral
+     * @return true while a vein cell rose this tick
      */
-    void churnColumn(int depth);
+    boolean pullVein(int depth);
 }

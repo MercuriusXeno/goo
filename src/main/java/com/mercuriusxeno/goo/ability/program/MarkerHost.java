@@ -55,6 +55,8 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      * (decision black-hole-leaves-a-compression-sphere).
      */
     static final int BLOCKS_TAKEN_PER_TICK = 2048;
+    /** The most cells one churn lifts, a large ore vein whole. */
+    static final int VEIN_CELLS = 64;
 
     @Override
     public HostKind kind() {
@@ -262,14 +264,22 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Turns the column under the block the marker landed on, that block one
-     * of the core's four middle cells.
-     * decision churn-rotates-a-plus-shaped-column
+     * Lifts the vein under the block the marker landed on, no higher than
+     * that block's layer, keeping the vein on the marker between ticks.
+     * decision churn-pulls-a-vein-up-as-a-fluid-chain
      */
     @Override
-    public void churnColumn(int depth) {
+    public boolean pullVein(int depth) {
         BlockPos landed = pos.relative(be.getPlacedFace().getOpposite());
-        ChurnColumn.turn(ChurnMap.originUnder(landed), depth, new LevelChurnCells(level));
+        LevelChurnCells cells = new LevelChurnCells(level);
+        ChurnVeinState vein = be.programState().churnVein();
+        if (!vein.found()) {
+            vein.standAt(ChurnVein.find(landed, depth, VEIN_CELLS, cells));
+        }
+        List<BlockPos> risen = ChurnVein.rise(vein.cells(), landed.getY(), cells);
+        boolean rose = !risen.equals(vein.cells());
+        vein.standAt(risen);
+        return rose;
     }
 
     @Override
