@@ -68,6 +68,13 @@ final class ValuesPane {
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
     private static final String ANCHORS = "anchors";
+    /** The hover key over the vs of an explicit row's would-be equivalency; no item id or name spells it. */
+    static final String VS_HOVER_KEY = "goo-explicit-vs:";
+    private static final String VS_PAREN = "(";
+    private static final String VS_WORD = "vs.";
+    private static final String VS_OPEN = VS_PAREN + VS_WORD;
+    private static final String VS_CLOSE = ")";
+    private static final String VS_WHY = "Using explicit value instead of derivative recipe shown here";
     // A hover key no item id, prefab name or goo type key spells.
     private static final String GROUP_MARK = "#";
 
@@ -576,13 +583,48 @@ final class ValuesPane {
         return carriesRuns(shown.kind()) ? valueWidth(font, worthShown(id, shown)) : font.width(headLabel(shown));
     }
 
-    // What the value equals, drawn at the far right: the group's link, the recipe, or nothing for an entry.
+    // What the value equals, drawn at the far right: the group's link, the recipe, or for an entry the equivalency it
+    // would derive.
     private int recipeWidth(Font font, String id, ValuesTab.Source shown) {
         return switch (shown.kind()) {
             case GROUP -> ButtonPainter.width(font, GROUP_MARK + shown.label());
             case DERIVED -> inputsWidth(font, id);
+            case ENTRY -> wouldBeWidth(font, wouldBeOf(id));
             default -> 0;
         };
+    }
+
+    private ValuesTab.@Nullable Recipe wouldBeOf(String id) {
+        ValuesTab.Recipe wouldBe = values.derivedFrom(id).wouldBe();
+        return wouldBe == null || wouldBe.inputs().isEmpty() ? null : wouldBe;
+    }
+
+    private static int wouldBeWidth(Font font, ValuesTab.@Nullable Recipe wouldBe) {
+        return wouldBe == null ? 0 : font.width(VS_OPEN) + ICON_GAP + equivalencyWidth(wouldBe.inputs().size(),
+                font.width(PLUS)) + ICON_GAP + font.width(VS_CLOSE);
+    }
+
+    /**
+     * @param hoverKey what the hovered area names
+     * @return why an explicit row reads its would-be equivalency, where the area is the vs before it
+     */
+    static Optional<Component> vsTooltipFor(String hoverKey) {
+        return VS_HOVER_KEY.equals(hoverKey) ? Optional.of(Component.literal(VS_WHY)) : Optional.empty();
+    }
+
+    // "(vs." then the equivalency the entry would derive, its inputs linked, then ")", the word vs hovering why.
+    // Decision explicit-value-row-reads-vs-its-would-be-derivative.
+    private void drawWouldBe(GuiGraphicsExtractor graphics, Font font, String id, int left, HeadLine line,
+                             ClickTargets targets) {
+        ValuesTab.Recipe wouldBe = wouldBeOf(id);
+        if (wouldBe == null) {
+            return;
+        }
+        graphics.text(font, VS_OPEN, left, line.textTop(), Palette.MUTED);
+        targets.addHover(left + font.width(VS_PAREN), line.spriteTop() - 1, font.width(VS_WORD), ROW_HEIGHT,
+                VS_HOVER_KEY);
+        int past = drawEquivalency(graphics, font, wouldBe, left + font.width(VS_OPEN) + ICON_GAP, line, targets);
+        graphics.text(font, VS_CLOSE, past + ICON_GAP, line.textTop(), Palette.MUTED);
     }
 
     private int inputsWidth(Font font, String id) {
@@ -620,13 +662,16 @@ final class ValuesPane {
         drawValueRuns(graphics, font, worthShown(id, shown), left, line, targets);
     }
 
-    // The group's link or the recipe at the far right, with no sprite or = before it; an entry draws nothing there.
+    // The group's link, the recipe, or an entry's would-be equivalency at the far right, with no sprite or = before
+    // it.
     private void drawRecipe(GuiGraphicsExtractor graphics, Font font, String id, ValuesTab.Source shown, int left,
                             HeadLine line, ClickTargets targets) {
-        if (shown.kind() == ValuesTab.SourceKind.GROUP) {
-            drawGroupLink(graphics, font, shown.label(), left, line, targets);
-        } else if (shown.kind() == ValuesTab.SourceKind.DERIVED) {
-            drawInputs(graphics, font, id, left, line, targets);
+        switch (shown.kind()) {
+            case GROUP -> drawGroupLink(graphics, font, shown.label(), left, line, targets);
+            case DERIVED -> drawInputs(graphics, font, id, left, line, targets);
+            case ENTRY -> drawWouldBe(graphics, font, id, left, line, targets);
+            default -> {
+            }
         }
     }
 
