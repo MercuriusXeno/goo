@@ -38,6 +38,30 @@ class HeldSweepVisualTest {
     private static final AABB FENCE_POST = new AABB(0.375, 0, 0.375, 0.625, 1.5, 0.625);
     private static final float TOLERANCE = 0.01f;
 
+    /**
+     * Once the hold lets go no radius arrives, so every frame after the last
+     * radius's tick draws the shell where it stopped, never swinging back
+     * toward last tick's radius as the partial tick wraps (the flicker the
+     * operator saw on an early release).
+     */
+    @Test
+    void aLetGoShellStandsStillWhileItFades() {
+        long lastRadiusAt = 100;
+        float previous = 20f;
+        float stopped = 30f;
+        for (long now = lastRadiusAt + 1; now <= lastRadiusAt + ScryReveal.FADE_TICKS; now++) {
+            for (float partial : new float[] {0f, 0.5f, 0.99f}) {
+                assertEquals(stopped, HeldSweepVisual.drawnRadius(previous, stopped, lastRadiusAt, now, partial), 0f,
+                        "tick " + now + " at partial " + partial);
+            }
+        }
+    }
+
+    @Test
+    void aHeldShellSweepsBetweenTicksOnTheTickItsRadiusArrived() {
+        assertEquals(25f, HeldSweepVisual.drawnRadius(20f, 30f, 100, 100, 0.5f), 1e-6f);
+    }
+
     @Test
     void aSlabsTopShowsAtItsHalfHeight() {
         List<RecordingVertexConsumer.Vertex> quad = emit(BOTTOM_SLAB, Direction.UP);
