@@ -1,0 +1,205 @@
+package com.mercuriusxeno.goo.ability.outsider;
+
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.registry.GooBlocks;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
+import java.util.UUID;
+
+/**
+ * Void's Outsider rooms in goo:pocket, an empty dimension where each
+ * player's room stands apart from every other and keeps whatever was built
+ * in it. A room starts as a 3 by 3 floor: the voidstone at its center, where
+ * the player arrives, ringed by eight cells of ordinary floor, and the
+ * dimension door standing on the ring's north cell. The door leads back to
+ * where the player cast Outsider from; the voidstone and the door stand
+ * again if anything removes them; and a player falling below the floor is
+ * set back on the voidstone unharmed, the pocket folding them back.
+ * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ */
+public final class OutsiderRooms {
+
+    /** The empty dimension the rooms stand in. */
+    public static final ResourceKey<Level> POCKET = ResourceKey.create(Registries.DIMENSION,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "pocket"));
+    /** Ticks between checks that every loaded room still holds its voidstone and door. */
+    public static final int RESTORE_INTERVAL = 20;
+    /** Blocks along x between one room's centre and the next, so no room reaches another. */
+    static final int ROOM_SPACING = 1024;
+    /** The height of every room's floor. */
+    public static final int ROOM_FLOOR_Y = 63;
+    /** How far below the floor a falling player drops before the pocket folds them back. */
+    static final int CATCH_DEPTH = 8;
+    private static final int RING_REACH = 1;
+    private static final int FOLD_PARTICLES = 48;
+    private static final double FOLD_SPREAD = 0.5;
+    private static final double FOLD_SPEED = 0.6;
+    private static final float FOLD_VOLUME = 0.6f;
+    private static final float FOLD_PITCH = 0.7f;
+
+    private OutsiderRooms() {
+    }
+
+    /**
+     * The voidstone at a room's center, the block its player arrives on.
+     *
+     * @param room the room number
+     * @return the voidstone's block
+     */
+    public static BlockPos voidstoneOf(int room) {
+        return new BlockPos(room * ROOM_SPACING, ROOM_FLOOR_Y, 0);
+    }
+
+    /**
+     * The dimension door's block, standing on the ring cell north of the voidstone.
+     *
+     * @param room the room number
+     * @return the door's block
+     */
+    public static BlockPos doorOf(int room) {
+        return voidstoneOf(room).north().above();
+    }
+
+    /**
+     * Where a player arriving in a room stands: on top of the voidstone.
+     *
+     * @param room the room number
+     * @return the arrival point
+     */
+    public static Vec3 arrivalOf(int room) {
+        return Vec3.atBottomCenterOf(voidstoneOf(room).above());
+    }
+
+    /**
+     * A player's room number, if one was handed out.
+     *
+     * @param level  any level of the server
+     * @param player the player's id
+     * @return the room number, or null for a player with no room yet
+     */
+    public static @Nullable Integer roomOf(ServerLevel level, UUID player) {
+        return VoidPockets.get(level).roomOf(player);
+    }
+
+    /**
+     * The room whose column a point in the pocket stands nearest.
+     *
+     * @param x the point's x
+     * @return the room number
+     */
+    static int roomNear(double x) {
+        return (int) Math.max(0, Math.round(x / ROOM_SPACING));
+    }
+
+    /**
+     * Carries a player from where they stand into their room, keeping where
+     * they cast from for the door, and laying the room the first time; a
+     * player already in the pocket, or a server not holding it, goes nowhere.
+     *
+     * @param player the caster
+     * @return true once the player stands in their room
+     */
+    public static boolean enter(ServerPlayer player) {
+        ServerLevel pocket = player.level().getServer().getLevel(POCKET);
+        if (pocket == null || player.level().dimension() == POCKET) {
+            return false;
+        }
+        VoidPockets pockets = VoidPockets.get(pocket);
+        Integer room = pockets.roomOf(player.getUUID());
+        if (room == null) {
+            room = pockets.handOut(player.getUUID());
+            layRoom(pocket, room);
+        }
+        pockets.keepReturn(player.getUUID(), new VoidPockets.ReturnPoint(player.level().dimension(),
+                player.position(), player.getYRot(), player.getXRot()));
+        Vec3 arrival = arrivalOf(room);
+        player.teleport(new TeleportTransition(pocket, arrival, Vec3.ZERO, player.getYRot(), player.getXRot(),
+                TeleportTransition.PLAY_PORTAL_SOUND));
+        return true;
+    }
+
+    /**
+     * Carries a player through the door back to the exact place and facing
+     * they cast Outsider from; a player with no such place, or one whose
+     * level is gone, goes to the world's respawn point.
+     *
+     * @param player the player using the door
+     */
+    public static void returnHome(ServerPlayer player) {
+        VoidPockets.ReturnPoint point = VoidPockets.get(player.level()).returnOf(player.getUUID());
+        ServerLevel home = point == null ? null : player.level().getServer().getLevel(point.dimension());
+        if (point == null || home == null) {
+            player.teleport(TeleportTransition.createDefault(player, TeleportTransition.PLAY_PORTAL_SOUND));
+            return;
+        }
+        player.teleport(new TeleportTransition(home, point.position(), Vec3.ZERO, point.yRot(), point.xRot(),
+                TeleportTransition.PLAY_PORTAL_SOUND));
+    }
+
+    /**
+     * Stands the voidstone and the door again in every room whose center is
+     * loaded, where anything removed them.
+     *
+     * @param pocket the pocket dimension
+     */
+    public static void restoreFixtures(ServerLevel pocket) {
+        for (int room : VoidPockets.get(pocket).rooms()) {
+            restore(pocket, voidstoneOf(room), GooBlocks.VOIDSTONE.get().defaultBlockState());
+            restore(pocket, doorOf(room), GooBlocks.DIMENSION_DOOR.get().defaultBlockState());
+        }
+    }
+
+    private static void restore(ServerLevel pocket, BlockPos pos, BlockState fixture) {
+        if (pocket.isLoaded(pos) && !pocket.getBlockState(pos).is(fixture.getBlock())) {
+            pocket.setBlock(pos, fixture, Block.UPDATE_ALL);
+        }
+    }
+
+    /**
+     * Sets a player who fell below their room's floor back on its voidstone
+     * with no fall built up, the pocket folding them back in a burst of void.
+     *
+     * @param player the player
+     * @return true when the player was caught
+     */
+    public static boolean catchFalling(ServerPlayer player) {
+        if (player.level().dimension() != POCKET || player.getY() >= ROOM_FLOOR_Y - CATCH_DEPTH) {
+            return false;
+        }
+        ServerLevel pocket = player.level();
+        Vec3 arrival = arrivalOf(roomNear(player.getX()));
+        player.teleport(new TeleportTransition(pocket, arrival, Vec3.ZERO, player.getYRot(), player.getXRot(),
+                TeleportTransition.DO_NOTHING));
+        player.resetFallDistance();
+        pocket.sendParticles(ParticleTypes.REVERSE_PORTAL, arrival.x, arrival.y + 1, arrival.z, FOLD_PARTICLES,
+                FOLD_SPREAD, FOLD_SPREAD, FOLD_SPREAD, FOLD_SPEED);
+        pocket.playSound(null, arrival.x, arrival.y, arrival.z, SoundEvents.PLAYER_TELEPORT, SoundSource.PLAYERS,
+                FOLD_VOLUME, FOLD_PITCH);
+        return true;
+    }
+
+    private static void layRoom(ServerLevel pocket, int room) {
+        BlockPos center = voidstoneOf(room);
+        for (int x = -RING_REACH; x <= RING_REACH; x++) {
+            for (int z = -RING_REACH; z <= RING_REACH; z++) {
+                pocket.setBlock(center.offset(x, 0, z), Blocks.BLACK_CONCRETE.defaultBlockState(), Block.UPDATE_ALL);
+            }
+        }
+        pocket.setBlock(center, GooBlocks.VOIDSTONE.get().defaultBlockState(), Block.UPDATE_ALL);
+        pocket.setBlock(doorOf(room), GooBlocks.DIMENSION_DOOR.get().defaultBlockState(), Block.UPDATE_ALL);
+    }
+}
