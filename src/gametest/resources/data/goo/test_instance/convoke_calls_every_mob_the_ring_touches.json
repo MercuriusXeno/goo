@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:convoke_pulls_a_chunk_mob",
+  "function": "goo:convoke_calls_every_mob_the_ring_touches",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 100,
+  "max_ticks": 200,
   "setup_ticks": 0,
   "required": true
 }

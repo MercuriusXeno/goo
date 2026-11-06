@@ -1,25 +1,26 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * A convoke tries once each period its JSON names
- * (decision convoke-blob-throbs-until-a-mob-arrives).
+ * A convoke's ring leaves the blob at radius zero and reaches its reach as
+ * the period ends, growing evenly between
+ * (decision convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches).
  */
 class ConvokeStepTest {
 
-    private static final int PERIOD = 20;
+    private static final int PERIOD = 40;
+    private static final double REACH = 16;
 
     @Test
-    void triesOnEachMultipleOfThePeriod() {
-        assertTrue(ConvokeStep.triesOn(40, PERIOD));
-        assertFalse(ConvokeStep.triesOn(41, PERIOD));
+    void ringLeavesTheBlobAtZero() {
+        assertEquals(0, ConvokeStep.ringRadius(0, PERIOD, REACH));
     }
 
     @Test
-    void triesEveryTickForAPeriodOfOne() {
-        assertTrue(ConvokeStep.triesOn(41, 1));
+    void ringGrowsEvenlyToTheReach() {
+        assertEquals(4, ConvokeStep.ringRadius(10, PERIOD, REACH));
+        assertEquals(REACH, ConvokeStep.ringRadius(PERIOD, PERIOD, REACH));
     }
 }

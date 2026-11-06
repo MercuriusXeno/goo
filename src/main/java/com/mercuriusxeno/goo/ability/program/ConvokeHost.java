@@ -1,28 +1,17 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import net.minecraft.resources.ResourceKey;
-
 /**
- * A host that can convoke: pull a mob from somewhere in its chunk to the
- * spot it names, with the blink effect at both ends.
- * Decisions convoke-blob-throbs-until-a-mob-arrives and convoke-drip-rolls-a-small-chance.
+ * A host that can sound a convoke's sculk call: draw the ring at its radius
+ * and set every mob the ring crosses walking to the host
+ * (decision convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches).
  */
 public interface ConvokeHost extends StepHost {
 
     /**
-     * The game time now, which a convoke's pulse period reads.
+     * Draws the ring and calls every mob between its two radii.
      *
-     * @return the level's game time
+     * @param inner the ring's radius at the start of this tick
+     * @param outer the ring's radius at the end of this tick
      */
-    long gameTime();
-
-    /**
-     * Pulls one mob from the host's chunk to its convoke spot, or pulses the
-     * blink effect where none comes.
-     *
-     * @param goo the goo type whose color the afterimages wear
-     * @return true once a mob stands at the spot
-     */
-    boolean convokeFromChunk(ResourceKey<GooTypeDefinition> goo);
+    void callRing(double inner, double outer);
 }
