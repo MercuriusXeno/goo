@@ -62,6 +62,29 @@ public final class BlinkResolver {
     }
 
     /**
+     * Where a blink to a spot in sight lands: standing against the first face
+     * the look crosses within the range, else the range's end along the look,
+     * backed off toward the blinker until the body fits. It never reaches
+     * behind a wall.
+     * swap-body-stands-where-you-aim
+     *
+     * @param space the world as the blink reads it
+     * @param feet  where the blinker's feet stand
+     * @param look  the unit look vector
+     * @param range the blink's range in blocks
+     * @param body  the blinker's size
+     * @return the landing, empty when no spot the body fits lies on the way
+     */
+    public static Optional<BlinkLanding> inSight(BlinkSpace space, Vec3 feet, Vec3 look, double range,
+            BlinkBody body) {
+        Vec3 eye = feet.add(0, body.eyeHeight(), 0);
+        Vec3 aimed = space.firstFace(eye, eye.add(look.scale(range)))
+                .map(hit -> standAgainst(hit.point(), hit.face(), body))
+                .orElseGet(() -> feet.add(look.scale(range)));
+        return settle(space, feet, aimed, body);
+    }
+
+    /**
      * Pulls an aimed spot back toward the blinker to the range, so a plane
      * pinned at the press and walked away from never carries a blink past it.
      *
