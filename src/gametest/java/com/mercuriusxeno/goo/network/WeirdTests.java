@@ -80,6 +80,8 @@ public final class WeirdTests {
     private static final String PAD_STANDS = "The bounce pad should be gone once its time has passed";
     private static final String SLIME = "goo:weird_slime";
     private static final String SLIME_BLOB_MAKES_A_SLIME = "slime_blob_makes_a_slime";
+    /** SpawnSlimeStep's morph: the ticks the blob takes to become the slime. */
+    private static final int SLIME_MORPH_TICKS = 16;
     private static final String NOT_WOBBLED = "A zombie in Coat's stream should be wobbled";
     private static final String HURT_BY_SOFTENED = "A softened zombie's hit should leave the player's health full, has ";
     private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
@@ -105,9 +107,10 @@ public final class WeirdTests {
     }
 
     /**
-     * A Weird Slime blob lands on stone and a slime stands in the cell it
-     * landed in.
-     * slime-creates-slimes-at-will
+     * A Weird Slime blob lands on stone: no slime stands anywhere while the
+     * blob morphs, and once the morph ends a slime stands in the cell the
+     * blob landed in.
+     * slime-blob-morphs-into-the-slime-it-becomes
      *
      * @param helper the gametest helper
      */
@@ -115,8 +118,12 @@ public final class WeirdTests {
         helper.setBlock(POOL_FLOOR, Blocks.STONE);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
                 NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, SLIME));
-        helper.assertEntityPresent(EntityType.SLIME, POOL_FLOOR.above());
-        helper.succeed();
+        helper.assertEntityNotPresent(EntityType.SLIME);
+        helper.runAfterDelay(SLIME_MORPH_TICKS - 1, () -> helper.assertEntityNotPresent(EntityType.SLIME));
+        helper.runAfterDelay(SLIME_MORPH_TICKS + 1, () -> {
+            helper.assertEntityPresent(EntityType.SLIME, POOL_FLOOR.above());
+            helper.succeed();
+        });
     }
 
     /**
