@@ -18,6 +18,7 @@ import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -47,6 +48,8 @@ public final class SunbeamVisual {
     private static final float SCROLL_PER_TICK = 0.2f;
     private static final double SHORTEST_SEGMENT = 1.0e-3;
     private static final double HALF = 0.5;
+    /** How far past the server's end a sight line probes for the face another caster's ray burnt, in blocks. */
+    private static final double PROBE_PAST_THE_END = 0.25;
 
     private static final Map<Integer, Ray> RAYS = new HashMap<>();
 
@@ -128,9 +131,39 @@ public final class SunbeamVisual {
      * @return the world point the ray ends at
      */
     private static Vec3 drawnEnd(Minecraft mc, Entity caster, Ray ray, float partialTick) {
-        SunbeamRayEnd.OwnAim own = caster == mc.player ? ownAim(mc.player, partialTick) : null;
-        return SunbeamRayEnd.drawnEnd(ray.end(), own, ray.range(), (eye, reach) ->
-                RayStep.castFrom(caster.level(), caster, eye, reach, living -> true).getLocation());
+        double now = caster.level().getGameTime() + (double) partialTick;
+        if (caster != mc.player || !(caster instanceof Player player)) {
+            burnWhereTheServerStruck(caster, ray, partialTick, now);
+            return ray.end();
+        }
+        return SunbeamRayEnd.drawnEnd(ray.end(), ownAim(player, partialTick), ray.range(), (eye, reach) -> {
+            HitResult hit = RayStep.castFrom(caster.level(), caster, eye, reach, living -> true);
+            // sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
+            SunbeamScorch.burn(caster.getId(), hit, now);
+            return hit.getLocation();
+        });
+    }
+
+    /**
+     * Burns the spot another caster's ray struck into its scorch: the server
+     * sends where the ray stopped and not what it stopped on, so a sight line
+     * from the caster's eye just past that point finds the face it burnt.
+     * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
+     *
+     * @param caster      the casting entity
+     * @param ray         the caster's latest ray from the server
+     * @param partialTick the frame's partial tick
+     * @param now         the game time, in ticks, with the frame's partial tick
+     */
+    private static void burnWhereTheServerStruck(Entity caster, Ray ray, float partialTick, double now) {
+        Vec3 eye = caster.getEyePosition(partialTick);
+        Vec3 toEnd = ray.end().subtract(eye);
+        if (toEnd.lengthSqr() < SHORTEST_SEGMENT) {
+            return;
+        }
+        Vec3 pastTheEnd = ray.end().add(toEnd.normalize().scale(PROBE_PAST_THE_END));
+        SunbeamScorch.burn(caster.getId(), RayStep.castFrom(caster.level(), caster, eye, pastTheEnd, living -> true),
+                now);
     }
 
     /**
