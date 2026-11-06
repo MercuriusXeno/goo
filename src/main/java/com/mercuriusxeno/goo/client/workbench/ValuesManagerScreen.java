@@ -55,7 +55,7 @@ public final class ValuesManagerScreen extends Screen {
     private final VariablesTab variablesTab = new VariablesTab(draft);
     private final ProcessesTab processesTab = new ProcessesTab(draft);
     private final AuditTab auditTab = new AuditTab();
-    private final ItemIcons icons = new ItemIcons(values::worthOf);
+    private final ItemIcons icons = itemIconsOver(values);
     private final ClickTargets targets = new ClickTargets();
     private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
             PointerHand::cursor, CopyPlus::cursor);
@@ -538,6 +538,15 @@ public final class ValuesManagerScreen extends Screen {
     public void removed() {
         linkCursor.release();
         super.removed();
+    }
+
+    /**
+     * @param values the Items tab, which answers each item's value and anchors
+     * @return the item stacks every pane draws from, each icon hovering its item's value and anchors
+     */
+    static ItemIcons itemIconsOver(ValuesTab values) {
+        // decision item-hover-lists-its-anchors
+        return new ItemIcons(values::worthOf, values::anchorsOf);
     }
 
     // Decision tooltips-anchor-below-their-element-and-grow-upward-when-short-of-room.

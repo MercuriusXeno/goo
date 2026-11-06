@@ -643,6 +643,25 @@ class ValuesManagerScreenTest {
     }
 
     /**
+     * The icons the screen builds hover each item's anchors as the Items tab reads them, so every icon ItemLinks
+     * draws lists them (decision item-hover-lists-its-anchors).
+     */
+    @Test
+    void itemIconsHoverTheAnchorsTheItemsTabReads() {
+        ValuesTab values = new ValuesTab();
+        values.readDerivedFrom("""
+                {"items": {"minecraft:bronze_rod": {"inputs": [{"id": "minecraft:bronze_ingot", "count": 1}],
+                  "output": 1, "anchors": ["minecraft:copper_ingot", "minecraft:tin_ingot"]}}}
+                """);
+        // The name reads the item registry, which a unit test leaves unbound.
+        ItemIcons icons = Mockito.spy(ValuesManagerScreen.itemIconsOver(values));
+        Mockito.doReturn("Bronze Rod").when(icons).nameOf(anyString());
+        List<TooltipLine> lines = icons.tooltipFor(ItemIcons.hoverKey("minecraft:bronze_rod")).orElseThrow();
+        assertEquals(new TooltipLine.Members(values.anchorsOf("minecraft:bronze_rod"), 0), lines.getLast());
+        assertEquals(2, values.anchorsOf("minecraft:bronze_rod").size());
+    }
+
+    /**
      * A run of goo amount lines reaches the tooltip as one grid element between the text lines around it (decision
      * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
      */
