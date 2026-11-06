@@ -150,6 +150,23 @@ public final class HeldSweepVisual {
     }
 
     /**
+     * The radius a frame draws at: swept between the last two radii through
+     * the tick the last one arrived, then standing at the last one, so a
+     * let-go shell holds still as it fades rather than swinging back toward
+     * last tick's radius each time the partial tick wraps.
+     *
+     * @param from         last tick's radius
+     * @param to           this tick's radius
+     * @param lastRadiusAt the game time the last radius arrived
+     * @param now          the game time
+     * @param partial      the partial tick, 0 to 1
+     * @return the radius to draw
+     */
+    static float drawnRadius(float from, float to, long lastRadiusAt, long now, float partial) {
+        return now == lastRadiusAt ? radiusBetween(from, to, partial) : to;
+    }
+
+    /**
      * Draws the sphere and the shell once the world has drawn, while the
      * sweep still shows.
      *
@@ -167,7 +184,8 @@ public final class HeldSweepVisual {
             clear();
             return;
         }
-        float drawn = radiusBetween(previousRadius, radius, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+        float drawn = drawnRadius(previousRadius, radius, lastRadiusAt, now,
+                mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
         // a face the shell has passed never draws again this pulse
         REVEALED.removeIf(block -> block.distance() <= drawn - pace.shellThickness(drawn));
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
