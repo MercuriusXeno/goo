@@ -53,6 +53,7 @@ class StepCodecTest {
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("cool_lava", new CoolLavaStep()),
             Map.entry("bounce_pad", new BouncePadStep(Expr.literal(200))),
+            Map.entry("coat", new CoatStep(20)),
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "gem_ores")), 64, 1, 100)),
