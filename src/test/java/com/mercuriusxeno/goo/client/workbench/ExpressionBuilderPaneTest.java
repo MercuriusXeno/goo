@@ -2221,6 +2221,28 @@ class ExpressionBuilderPaneTest {
         }
 
         /**
+         * On a by-type value wrapping past one line, the prefab mode picked from the first row's term opens the prefab
+         * dropdown's search box one line under that term's line, not under the builder's last line (decision
+         * diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom).
+         */
+        @Test
+        void prefabModeOpensItsDropdownUnderTheClickedTermsLine() {
+            Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"3 $base\", \"pulse\": \"2\", \"glow\": \"1\"}");
+            DrawnFrame frame = builder.frame();
+            DrawnFrame.Text name = frame.findFirst("$base");
+            assertTrue(frame.find("1").y() > name.y() + ControlFlow.LINE, "the value wraps past the term's line");
+            clickAt(frame, name);
+            builder.frame().click("prefab");
+            builder.frame();
+            ArgumentCaptor<AbstractWidget> widgets = ArgumentCaptor.forClass(AbstractWidget.class);
+            verify(builder.actions, atLeastOnce()).addWidget(widgets.capture());
+            AbstractWidget search = widgets.getAllValues().stream().filter(widget -> widget.visible).findFirst()
+                    .orElseThrow(() -> new AssertionError("no list opened"));
+            assertEquals(name.y() - WORDS_DROP + BuilderOverlays.LINE, search.getY(),
+                    "the search box stands a line under the term's line at " + (name.y() - WORDS_DROP));
+        }
+
+        /**
          * A scalar prefab's number box takes 1 1/3 typed whole, writes the exact fraction 4 / 3 and draws the number
          * as 1 1/3, where it drew 4 alone (decision number-box-takes-a-mixed-number).
          */

@@ -13,8 +13,9 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * What the builders' controls open below themselves: one number box, one searchable dropdown with its search box,
- * an exclusive set's option list, and the goo type picker, at most one standing at a time, so the Items, Prefabs and Mutators builders pick and
+ * What the builders' controls open against themselves, each standing by one placement rule: one number box, one
+ * searchable dropdown with its search box, an exclusive set's option list, and the goo type picker, at most one
+ * standing at a time, so the Items, Prefabs and Mutators builders pick and
  * count with nothing typed but a number or a search (decisions expression-builder-composes-every-form-without-typing,
  * goo-type-picker-is-a-seven-by-four-icon-grid). They draw after the pane they open over, outside its clip, so they
  * stand above everything the pane drew, and a click outside the open list or grid closes it. A control names what it
@@ -39,8 +40,11 @@ final class BuilderOverlays {
     private static final int GRID_HEIGHT = GooTypePicker.ROWS * GooTypePicker.CELL;
     // The search box, the pixel under it and the list's bottom border.
     private static final int DROPDOWN_CHROME = BOX_HEIGHT + 1 + 1;
-    private static final int DROPDOWN_HEIGHT = DROPDOWN_CHROME + SearchDropdown.SHOWN * SearchDropdown.ROW_HEIGHT;
     private static final int OPTION_ROW = ButtonPainter.HEIGHT;
+    // The options list's border, a pixel above its rows and a pixel below.
+    private static final int OPTIONS_BORDER = 1;
+    private static final int OPTIONS_BORDERS = OPTIONS_BORDER + OPTIONS_BORDER;
+    private static final int SCROLL_STRIP = ScrollBar.GAP + ScrollBar.WIDTH;
 
     private final ManagerActions actions;
     private final ItemIcons icons;
@@ -49,6 +53,13 @@ final class BuilderOverlays {
     private @Nullable EditBox searchField;
     private @Nullable SearchDropdown dropdown;
     private @Nullable List<Option> options;
+    // The options list scrolls a row per wheel notch where it holds more rows than its placement shows.
+    private final ScrollBar optionsBar = new ScrollBar(1);
+    private int dropdownChoices = SearchDropdown.SHOWN;
+    // The screen as the last frame measured it, so a box opened between frames stands where the frame will draw it;
+    // unbounded until the first frame, which draws before any control can be clicked.
+    private int lastScreenWidth = Integer.MAX_VALUE;
+    private int lastScreenHeight = Integer.MAX_VALUE;
     private @Nullable Consumer<SearchDropdown.Choice> dropdownPicks;
     private @Nullable Consumer<String> pickerPicks;
     private @Nullable Runnable pickerNothing;
@@ -94,17 +105,38 @@ final class BuilderOverlays {
      * @return where the goo type picker's grid stands
      */
     static Placement placePicker(Anchor at, int screenWidth, int screenHeight) {
-        return placeUnder(at, GRID_WIDTH + 1, GRID_HEIGHT + 1, screenWidth, screenHeight);
+        return place(at, GRID_WIDTH + 1, GRID_HEIGHT + 1, screenWidth, screenHeight);
     }
 
     /**
      * @param at           where the opening control was clicked
+     * @param choices      how many choices the list holds, of which it shows at most SearchDropdown.SHOWN
      * @param screenWidth  the screen's width
      * @param screenHeight the screen's height
      * @return where the search box and its dropdown stand
      */
-    static Placement placeDropdown(Anchor at, int screenWidth, int screenHeight) {
-        return placeUnder(at, SEARCH_WIDTH + 1, DROPDOWN_HEIGHT, screenWidth, screenHeight);
+    static Placement placeDropdown(Anchor at, int choices, int screenWidth, int screenHeight) {
+        return place(at, SEARCH_WIDTH + 1, dropdownHeight(choices), screenWidth, screenHeight);
+    }
+
+    private static int dropdownHeight(int rows) {
+        return DROPDOWN_CHROME + Math.clamp(rows, 1, SearchDropdown.SHOWN) * SearchDropdown.ROW_HEIGHT;
+    }
+
+    /**
+     * @param at           where the opening dropdown was clicked
+     * @param width        the widest option's width
+     * @param rows         how many options the list holds
+     * @param screenWidth  the screen's width
+     * @param screenHeight the screen's height
+     * @return where the options list stands, its border included
+     */
+    static Placement placeOptions(Anchor at, int width, int rows, int screenWidth, int screenHeight) {
+        return place(at, width, optionsHeight(rows), screenWidth, screenHeight);
+    }
+
+    private static int optionsHeight(int rows) {
+        return rows * OPTION_ROW + OPTIONS_BORDERS;
     }
 
     /**
@@ -114,22 +146,45 @@ final class BuilderOverlays {
      * @return where the number box stands
      */
     static Placement placeNumber(Anchor at, int screenWidth, int screenHeight) {
-        return placeUnder(at, NUMBER_WIDTH, BOX_HEIGHT, screenWidth, screenHeight);
+        return place(at, NUMBER_WIDTH, BOX_HEIGHT, screenWidth, screenHeight);
     }
 
-    // Decision popups-anchor-under-the-line-that-opened-them: the popup stands under its line; short of room there it
-    // opens above the line, its bottom on the line's top, where the room above is the larger, since a popup cut at
-    // the screen's bottom cannot be used (the operator's report of the item list running off the screen). Either way
-    // it draws shorter where the room still falls short, and a popup that would run off the right edge shifts left.
-    private static Placement placeUnder(Anchor at, int width, int height, int screenWidth, int screenHeight) {
+    /**
+     * The one rule every popup stands by, as TooltipAnchor places a tooltip: below the opener's line where the whole
+     * content fits there, above it, its bottom on the line's top, where only above fits it whole, and otherwise on
+     * the side with more room at the height that side holds, the popup scrolling what it cannot show. A popup that
+     * would run off the right edge shifts left.
+     * Decision every-popup-measures-flows-to-fit-and-scrolls.
+     * Decision popups-anchor-under-the-line-that-opened-them.
+     *
+     * @param at           where the opening control was clicked
+     * @param width        the popup's width
+     * @param content      the popup's whole content's height, measured
+     * @param screenWidth  the screen's width
+     * @param screenHeight the screen's height
+     * @return where the popup stands
+     */
+    static Placement place(Anchor at, int width, int content, int screenWidth, int screenHeight) {
         int below = at.y() + LINE;
         int left = Math.max(0, Math.min(at.x(), screenWidth - width));
-        int roomBelow = screenHeight - below;
-        if (roomBelow >= height || roomBelow >= at.y()) {
-            return new Placement(left, below, Math.max(0, Math.min(height, roomBelow)));
+        int roomBelow = Math.max(0, screenHeight - below);
+        int roomAbove = Math.max(0, at.y());
+        if (content <= roomBelow) {
+            return new Placement(left, below, content);
         }
-        int shown = Math.min(height, at.y());
-        return new Placement(left, at.y() - shown, shown);
+        if (content <= roomAbove) {
+            return new Placement(left, at.y() - content, content);
+        }
+        if (roomBelow >= roomAbove) {
+            return new Placement(left, below, roomBelow);
+        }
+        return new Placement(left, at.y() - roomAbove, roomAbove);
+    }
+
+    // A popup drawing shorter than its placement keeps the edge facing its line: its top below the line, its bottom
+    // above it.
+    private static int drawnTop(Placement placed, Anchor at, int drawnHeight) {
+        return placed.top() < at.y() ? placed.top() + placed.height() - drawnHeight : placed.top();
     }
 
     /**
@@ -347,6 +402,8 @@ final class BuilderOverlays {
         opener = at;
         dropdown = list;
         list.open();
+        // Measured as it opens, so a search narrowing the choices leaves the box where it opened.
+        dropdownChoices = list.choices().size();
         dropdownPicks = picks;
         if (searchField != null) {
             searchField.setValue(NOTHING);
@@ -365,6 +422,7 @@ final class BuilderOverlays {
         closeLists();
         opener = at;
         options = List.copyOf(set);
+        optionsBar.reset();
     }
 
     /**
@@ -413,7 +471,7 @@ final class BuilderOverlays {
             numberField.setFilter(accepts);
             numberField.setValue(current);
             numberOpener = at;
-            Placement placed = placeNumber(at, Integer.MAX_VALUE, Integer.MAX_VALUE);
+            Placement placed = placeNumber(at, lastScreenWidth, lastScreenHeight);
             numberField.setPosition(placed.left(), placed.top());
             numberField.visible = visible;
             actions.focus(numberField);
@@ -425,7 +483,8 @@ final class BuilderOverlays {
     }
 
     /**
-     * Scrolls the open dropdown's choices, or the open goo type picker's grid, where it stands shorter than its rows.
+     * Scrolls the open dropdown's choices, the open options list, or the open goo type picker's grid, where it stands
+     * shorter than its rows.
      *
      * @param amount the wheel's turn
      * @return whether a list or the grid stood open and took the turn
@@ -433,6 +492,10 @@ final class BuilderOverlays {
     boolean scrollList(double amount) {
         if (dropdown != null) {
             dropdown.scroll(amount);
+            return true;
+        }
+        if (options != null) {
+            optionsBar.wheel(amount);
             return true;
         }
         if (!picker.isOpen()) {
@@ -450,12 +513,25 @@ final class BuilderOverlays {
      * @param targets  the frame's click areas
      */
     void draw(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
+        lastScreenWidth = graphics.guiWidth();
+        lastScreenHeight = graphics.guiHeight();
         drawDropdown(graphics, font, targets);
         drawOptions(graphics, font, targets);
+        drawPicker(graphics, font, targets);
+        if (numberField != null) {
+            Placement box = placeNumber(numberOpener, lastScreenWidth, lastScreenHeight);
+            numberField.setPosition(box.left(), box.top());
+        }
+        drawOnTop(graphics, searchField);
+        drawOnTop(graphics, numberField);
+    }
+
+    private void drawPicker(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         Runnable nothing = pickerNothing;
-        Placement grid = placePicker(opener, graphics.guiWidth(), graphics.guiHeight());
+        Placement grid = placePicker(opener, lastScreenWidth, lastScreenHeight);
         int gridRows = Math.max(1, (grid.height() - 1) / GooTypePicker.CELL);
-        picker.draw(graphics, font, targets, grid.left(), grid.top(), gridRows, type -> {
+        int gridTop = drawnTop(grid, opener, gridRows * GooTypePicker.CELL + 1);
+        picker.draw(graphics, font, targets, grid.left(), gridTop, gridRows, type -> {
             Consumer<String> picks = pickerPicks;
             closeLists();
             if (picks != null) {
@@ -465,12 +541,6 @@ final class BuilderOverlays {
             closeLists();
             nothing.run();
         });
-        if (numberField != null) {
-            Placement box = placeNumber(numberOpener, graphics.guiWidth(), graphics.guiHeight());
-            numberField.setPosition(box.left(), box.top());
-        }
-        drawOnTop(graphics, searchField);
-        drawOnTop(graphics, numberField);
     }
 
     // The screen draws its boxes before the panes, so a box standing open draws again above what the pane drew.
@@ -492,35 +562,54 @@ final class BuilderOverlays {
             return;
         }
         targets.addShield(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
-        Placement placed = placeDropdown(opener, graphics.guiWidth(), graphics.guiHeight());
-        searchField.setPosition(placed.left(), placed.top());
+        Placement placed = placeDropdown(opener, dropdownChoices, lastScreenWidth, lastScreenHeight);
         int rows = Math.max(1, (placed.height() - DROPDOWN_CHROME) / SearchDropdown.ROW_HEIGHT);
-        open.draw(graphics, font, icons, targets, placed.left(), placed.top() + BOX_HEIGHT + 1, SEARCH_WIDTH, rows,
+        int top = drawnTop(placed, opener, DROPDOWN_CHROME + rows * SearchDropdown.ROW_HEIGHT);
+        searchField.setPosition(placed.left(), top);
+        open.draw(graphics, font, icons, targets, placed.left(), top + BOX_HEIGHT + 1, SEARCH_WIDTH, rows,
                 this::pickChoice);
     }
 
     // Decision exclusive-choice-sets-draw-as-dropdowns: the set's options stand listed under its button, each
     // naming what it does on hover; a pick closes the list before the option runs, so a popup it opens stays open.
+    // Decision every-popup-measures-flows-to-fit-and-scrolls: a list longer than its placement draws the rows it holds
+    // beside a scroll bar.
     private void drawOptions(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         List<Option> open = options;
         if (open == null) {
             return;
         }
         targets.addShield(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
-        int width = open.stream().mapToInt(option -> ButtonPainter.width(font, option.label())).max().orElse(0);
-        Placement placed = placeUnder(opener, width, open.size() * OPTION_ROW, graphics.guiWidth(),
-                graphics.guiHeight());
+        int labels = open.stream().mapToInt(option -> ButtonPainter.width(font, option.label())).max().orElse(0);
+        Placement placed = placeOptions(opener, labels, open.size(), lastScreenWidth, lastScreenHeight);
+        int rows = Math.clamp((placed.height() - OPTIONS_BORDERS) / OPTION_ROW, 1, Math.max(1, open.size()));
+        boolean scrolls = rows < open.size();
+        int width = scrolls ? labels + SCROLL_STRIP : labels;
+        if (scrolls) {
+            placed = placeOptions(opener, width, open.size(), lastScreenWidth, lastScreenHeight);
+        }
+        optionsBar.measure(open.size(), rows);
         int left = placed.left();
-        int top = placed.top();
+        int top = drawnTop(placed, opener, optionsHeight(rows)) + OPTIONS_BORDER;
         graphics.nextStratum();
-        Frame.around(graphics, Frame.POPUP, new GroupsPane.Bounds(left, top, left + width,
-                top + open.size() * OPTION_ROW));
-        for (int index = 0; index < open.size(); index++) {
-            Option option = open.get(index);
-            int rowTop = top + index * OPTION_ROW;
-            graphics.text(font, option.label(), left + ButtonPainter.PADDING, Lettering.full(font).centeredTop(rowTop,
-                    OPTION_ROW), Palette.TEXT);
-            targets.add(left, rowTop, width, OPTION_ROW, () -> pickOption(option), hintKey(option.hint()));
+        Frame.around(graphics, Frame.POPUP, new GroupsPane.Bounds(left, top, left + width, top + rows * OPTION_ROW));
+        drawOptionRows(graphics, font, targets, open.subList(optionsBar.offset(),
+                Math.min(open.size(), optionsBar.offset() + rows)), new ButtonPainter.Box(left, top, labels, 0));
+        if (scrolls) {
+            optionsBar.draw(graphics, targets, left + width, top, top + rows * OPTION_ROW);
+        }
+    }
+
+    // Each shown option's label and click, row under row from the rows' top-left, as wide as the widest label.
+    private void drawOptionRows(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, List<Option> shown,
+                                ButtonPainter.Box rows) {
+        for (int index = 0; index < shown.size(); index++) {
+            Option option = shown.get(index);
+            int rowTop = rows.top() + index * OPTION_ROW;
+            graphics.text(font, option.label(), rows.left() + ButtonPainter.PADDING,
+                    Lettering.full(font).centeredTop(rowTop, OPTION_ROW), Palette.TEXT);
+            targets.add(rows.left(), rowTop, rows.width(), OPTION_ROW, () -> pickOption(option),
+                    hintKey(option.hint()));
         }
     }
 
