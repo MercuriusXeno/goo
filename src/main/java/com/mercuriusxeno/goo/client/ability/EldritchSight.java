@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
+import com.mercuriusxeno.goo.entity.EldritchMonstrosity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -18,10 +19,12 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLivingEvent;
 
 /**
- * Draws the out-of-phase for the eldritch alone: an out-of-phase mob goes
- * undrawn to a plain player, and to an eldritch one it is drawn warped,
- * its body swelling and twisting out of true.
+ * Draws eldritch beings for the eldritch alone: an out-of-phase monstrosity
+ * goes undrawn to a plain player, and to an eldritch one it is drawn warped,
+ * its body swelling and twisting out of true. A thing Quantum's phase put out
+ * of phase draws as a ghost through PhaseLook instead.
  * eldritch-sight-reveals-the-out-of-phase
+ * phased-things-draw-as-a-ghostly-image
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class EldritchSight {
@@ -43,6 +46,8 @@ public final class EldritchSight {
     public enum Phase {
         /** In phase: drawn as it is. */
         IN_PHASE,
+        /** Out of phase through Quantum's phase: drawn as a ghost to every viewer. */
+        GHOST,
         /** Out of phase and the viewer plain: undrawn. */
         UNSEEN,
         /** Out of phase and the viewer eldritch: drawn warped. */
@@ -54,27 +59,35 @@ public final class EldritchSight {
 
     /**
      * Stamps how this frame draws the entity onto its render state, read
-     * off its out-of-phase flag and the local player's eldritch state.
+     * off its out-of-phase flag, whether it is an eldritch being, and the
+     * local player's eldritch state.
      *
      * @param entity the entity
      * @param state  its render state
      */
     public static void stampPhase(Entity entity, EntityRenderState state) {
         LocalPlayer viewer = Minecraft.getInstance().player;
-        state.setRenderData(PHASE, phaseOf(EldritchEvents.isOutOfPhase(entity),
-                viewer != null && EldritchEvents.isEldritch(viewer)));
+        state.setRenderData(PHASE, drawOf(EldritchEvents.isOutOfPhase(entity),
+                entity instanceof EldritchMonstrosity, viewer != null && EldritchEvents.isEldritch(viewer)));
     }
 
     /**
-     * How a mob is drawn to a viewer.
+     * How an entity is drawn to a viewer. A thing Quantum's phase put out of
+     * phase draws as a ghost to everyone; an eldritch being, out of phase and
+     * eldritch combined, is seen by the eldritch alone, warped.
+     * phased-things-draw-as-a-ghostly-image
      *
-     * @param outOfPhase whether the mob is out of phase
-     * @param eldritch   whether the viewer is eldritch
+     * @param outOfPhase    whether the entity is out of phase
+     * @param eldritchBeing whether the entity is an eldritch being, as a monstrosity is
+     * @param eldritch      whether the viewer is eldritch
      * @return the phase the frame draws it in
      */
-    static Phase phaseOf(boolean outOfPhase, boolean eldritch) {
+    static Phase drawOf(boolean outOfPhase, boolean eldritchBeing, boolean eldritch) {
         if (!outOfPhase) {
             return Phase.IN_PHASE;
+        }
+        if (!eldritchBeing) {
+            return Phase.GHOST;
         }
         return eldritch ? Phase.WARPED : Phase.UNSEEN;
     }

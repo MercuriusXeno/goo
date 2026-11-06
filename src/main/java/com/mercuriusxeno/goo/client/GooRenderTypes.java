@@ -944,15 +944,16 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Phase pipeline (decision phase-shares-a-plane-between-the-phased): a
-     * phased entity's body drawn in place of its own through the ghost vertex
-     * shader and {@code goo_phase.fsh}, its skin washed toward grey and
-     * translucent under the vertex alpha. Depth write on, as vanilla's
-     * translucent entity, so the body hides its own far side.
+     * Phase pipeline (decision phased-things-draw-as-a-ghostly-image): a
+     * phased entity's body drawn in place of its own through
+     * {@code goo_phase.vsh / .fsh}, its skin washed toward grey, translucent
+     * under the vertex alpha, with a faint pale outline at its silhouette.
+     * Depth write on, as vanilla's translucent entity, so the body hides its
+     * own far side.
      */
     public static final RenderPipeline GOO_PHASE = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_phase"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_phase"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_phase"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
