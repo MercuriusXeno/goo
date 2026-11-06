@@ -101,7 +101,16 @@ public final class ValuesManagerScreen extends Screen {
     private ExpressionBuilderPane builderPane(ManagerActions actions) {
         return new ExpressionBuilderPane(actions, icons, values::entries, () -> variablesTab.blocks().stream()
                 .map(block -> new BuilderGrammar.Prefab(block.name(), VariablesTab.TREE_KIND.equals(block.kind())))
-                .toList());
+                .toList(), this::worthOf);
+    }
+
+    // A referent's resolved amounts by goo type, a prefab's from the last evaluate reply and an item's from the last
+    // resolve, which the member picker greys the rest of (decision builder-disables-the-type-buttons-the-referent-lacks).
+    private Map<String, String> worthOf(ExpressionBuilder.Ref ref) {
+        if (ref.kind() == SearchDropdown.Kind.PREFAB) {
+            return variablesTab.prefabValue(ref.id()).map(VariablesTab.PrefabValue::tree).orElse(Map.of());
+        }
+        return values.worthOf(ref.id());
     }
 
     /**

@@ -14,8 +14,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Draws the expression builder over a value's curated view (decisions
@@ -93,6 +95,7 @@ final class ExpressionBuilderPane {
     private final BuilderOverlays overlays;
     private final Supplier<List<ValuesTab.ManagerEntry>> inventory;
     private final Supplier<List<BuilderGrammar.Prefab>> prefabs;
+    private final Function<ExpressionBuilder.Ref, Map<String, String>> worth;
     private BuilderGrammar grammar;
     private @Nullable ExpressionBuilder builder;
     // The drop slots the last frame laid, and the term a rail holds while it drags.
@@ -133,11 +136,25 @@ final class ExpressionBuilderPane {
      */
     ExpressionBuilderPane(ManagerActions actions, ItemIcons icons, Supplier<List<ValuesTab.ManagerEntry>> inventory,
                           Supplier<List<BuilderGrammar.Prefab>> prefabs) {
+        this(actions, icons, inventory, prefabs, ref -> Map.of());
+    }
+
+    /**
+     * @param actions   the panes' line back to the screen
+     * @param icons     the items' icons
+     * @param inventory the server's items, which item terms and amounts list
+     * @param prefabs   every prefab, in the file's order
+     * @param worth     each referent's resolved amounts by goo type, a prefab's or an item's, empty where none resolves
+     */
+    ExpressionBuilderPane(ManagerActions actions, ItemIcons icons, Supplier<List<ValuesTab.ManagerEntry>> inventory,
+                          Supplier<List<BuilderGrammar.Prefab>> prefabs,
+                          Function<ExpressionBuilder.Ref, Map<String, String>> worth) {
         this.actions = actions;
         this.icons = icons;
         this.overlays = new BuilderOverlays(actions, icons);
         this.inventory = inventory;
         this.prefabs = prefabs;
+        this.worth = worth;
         this.grammar = BuilderGrammar.forItems(List.of());
     }
 
@@ -1430,7 +1447,18 @@ final class ExpressionBuilderPane {
             return;
         }
         flow.typeSegment(member, at -> overlays.openPicker(at, type -> apply(b -> b.setMember(path, type)),
-                place.inRow() ? null : () -> apply(b -> b.setMember(path, null))));
+                place.inRow() ? null : () -> apply(b -> b.setMember(path, null)), Set.of(), typesLackedBy(ref)));
+    }
+
+    // Decision builder-disables-the-type-buttons-the-referent-lacks: every goo type the referent's resolved value
+    // holds no amount of; a referent resolving to no value lacks nothing the manager can know.
+    private Set<String> typesLackedBy(ExpressionBuilder.Ref ref) {
+        Set<String> held = worth.apply(ref).keySet();
+        if (held.isEmpty()) {
+            return Set.of();
+        }
+        return GooTypes.order().stream().map(GooTypes::id).filter(type -> !held.contains(type))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     // A parenthetical: its rail, sign and Nx, then its tinted container with a 1 px border, a clear pixel between the

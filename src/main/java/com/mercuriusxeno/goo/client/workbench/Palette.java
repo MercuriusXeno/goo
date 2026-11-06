@@ -51,6 +51,11 @@ final class Palette {
     static final int DERIVED = 0xFFA0C8F0;
     /** The type picker's close and nothing glyphs. */
     static final int PICKER_GLYPH = 0xFFFF8080;
+    /**
+     * The tint a control taking no click draws its icon in, greyed down from untinted white (decision
+     * builder-disables-the-type-buttons-the-referent-lacks).
+     */
+    static final int DISABLED = 0xFF505050;
     /** A scroll bar's track. */
     static final int SCROLL_TRACK = 0x40FFFFFF;
     /** A scroll bar's thumb. */
