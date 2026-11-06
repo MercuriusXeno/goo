@@ -34,8 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests every workbench operation's body over temp copies of the files, with no HTTP between, so the loopback page
- * and the in-game manager answer alike (decision goo-workbench-opens-the-in-game-manager-screen). The operations read
+ * Tests every workbench operation's body over temp copies of the files, with no packet between, as the in-game
+ * manager reaches them (decision goo-workbench-opens-the-in-game-manager-screen). The operations read
  * and write files, so this test writes under a temp folder.
  */
 class WorkbenchOperationsTest {
@@ -61,8 +61,7 @@ class WorkbenchOperationsTest {
     @BeforeEach
     void standOperations() throws IOException {
         paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
-                temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"),
-                temp.resolve("goo_audit.json"));
+                temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"), temp.resolve("goo_audit.json"));
         Files.write(paths.baseValues(), BaseValuesModelTest.sampleBytes());
         operations = new WorkbenchOperations(paths, () -> "{\n}\n".getBytes(StandardCharsets.UTF_8), () -> {
             dumpsRun.incrementAndGet();

@@ -22,7 +22,6 @@ public final class GooInventoryJson {
 
     private static final String ID = "id";
     private static final String NAME = "name";
-    private static final String IMAGE = "image";
     private static final String MEMBERS = "members";
     private static final String TYPE = "type";
     private static final String OUTPUT = "output";
@@ -68,9 +67,6 @@ public final class GooInventoryJson {
         JsonObject json = new JsonObject();
         json.addProperty(ID, entry.id());
         json.addProperty(NAME, entry.name());
-        if (entry.image() != null) {
-            json.addProperty(IMAGE, entry.image());
-        }
         return json;
     }
 
