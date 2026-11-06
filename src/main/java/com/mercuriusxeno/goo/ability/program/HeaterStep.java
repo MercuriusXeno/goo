@@ -14,12 +14,12 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -29,17 +29,17 @@ import java.util.stream.Stream;
 /**
  * Blaze's combo on a prism, the heater: a stationary heat source that spews
  * Flames' own fire from the prism's tip at the nearest mob it can see within
- * the radius, and burns everything that fire touches by Flames' rule, one
- * burn every {@code every} ticks, each setting the mob alight. Never a
- * player; a fire-immune mob is passed over. The fire grows out over Flames'
- * quarter second when a mob arrives; each tick it flames, the watchers are
- * told where it points, and they draw it and roar. The step never finishes,
- * so the prism heats until mined.
+ * the radius, and burns by Flames' own spray of {@link FlameRays} from the
+ * tip at that mob, one burn every {@code every} ticks, each setting alight
+ * every mob a ray's line crosses. Never a player; a fire-immune mob is passed
+ * over. Each tick it flames, the watchers are told where it points, and they
+ * draw it and roar. The step never finishes, so the prism heats until mined.
  * heater-prism-flames-nearby-creatures
+ * flames-burns-by-a-spray-of-rays
  * <p>
  * The operator's rulings (idea heater-prism-rulings): mobs only, never
- * players; six blocks, Flames' own reach; Flames' own fire, bouncing like
- * the hand-held one; the drawn fire burns everything it touches.
+ * players; six blocks, Flames' own reach; Flames' own fire, burning as the
+ * hand-held one does.
  *
  * @param radius      the reach the heater finds mobs within and pours its fire to, in blocks
  * @param damage      the fire damage each burn deals, evaluated when it runs
@@ -56,10 +56,6 @@ public record HeaterStep(double radius, Expr damage, int every, int burnSeconds,
     private static final String FIELD_BURN_SECONDS = "burn_seconds";
     private static final String FIELD_CONE = "cone";
     private static final double HALF = 0.5;
-    /** Below this squared length a direction has no way. */
-    private static final double NO_WAY = 1e-6;
-    /** Blocks off a face a line of sight starts, so it never meets the face itself. */
-    private static final double OFF_THE_FACE = 0.05;
     /** One pixel of the 16 to a block, the prism column's length being in pixels. */
     private static final double PIXEL = 1.0 / 16;
     /** Blocks past the column's end the fire pours from. */
@@ -107,11 +103,12 @@ public record HeaterStep(double radius, Expr damage, int every, int burnSeconds,
         }
         int flamed = FLAMING.merge(key, 1, Integer::sum);
         Vec3 axis = target.getBoundingBox().getCenter().subtract(tip).normalize();
-        FlameShape shape = shapeOf(level, tip, axis, flamed);
         if (flamed % every == 0) {
             float amount = damage.evaluateFloat(context);
-            for (Mob mob : level.getEntitiesOfClass(Mob.class, new AABB(tip, tip).inflate(radius * FlameShape.SPLAY),
-                    mob -> mob.isAlive() && shape.touches(mob.getBoundingBox()) && reachable(level, tip, shape, mob))) {
+            List<Mob> inReach = level.getEntitiesOfClass(Mob.class, new AABB(tip, tip).inflate(radius), Mob::isAlive);
+            List<FlameRays.Ray> rays = FlameRays.spray(tip, axis, cone, radius, level.getRandom(),
+                    FlameRays.clipIn(level));
+            for (Mob mob : FlameRays.crossed(rays, inReach, Mob::getBoundingBox)) {
                 FlamesStep.burn(level, mob, amount, burnSeconds);
             }
         }
@@ -163,32 +160,6 @@ public record HeaterStep(double radius, Expr damage, int every, int burnSeconds,
                                 && clearBetween(level, tip, mob.getBoundingBox().getCenter()))
                 .stream().min(Comparator.comparingDouble(mob -> mob.getBoundingBox().getCenter().distanceToSqr(tip)))
                 .orElse(null);
-    }
-
-    /**
-     * The fire's shape this tick: Flames' own, poured from the tip at the
-     * target, its front grown out as far as the flaming has carried it, and
-     * bouncing off any block its line meets within the reach.
-     */
-    private FlameShape shapeOf(ServerLevel level, Vec3 tip, Vec3 axis, int flamed) {
-        Vec3 side = new Vec3(-axis.z, 0, axis.x);
-        side = side.lengthSqr() > NO_WAY ? side.normalize() : new Vec3(1, 0, 0);
-        BlockHitResult hit = level.clip(new ClipContext(tip, tip.add(axis.scale(radius)), ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, CollisionContext.empty()));
-        boolean meets = hit.getType() == HitResult.Type.BLOCK;
-        Direction face = hit.getDirection();
-        return new FlameShape(tip, axis, side, Math.tan(Math.toRadians(cone * HALF)),
-                FlameShape.frontAfter(flamed, radius), meets ? hit.getLocation() : null,
-                meets ? new Vec3(face.getStepX(), face.getStepY(), face.getStepZ()) : null);
-    }
-
-    private static boolean reachable(ServerLevel level, Vec3 tip, FlameShape shape, Mob mob) {
-        Vec3 middle = mob.getBoundingBox().getCenter();
-        if (clearBetween(level, tip, middle)) {
-            return true;
-        }
-        Vec3 hit = shape.hit();
-        return hit != null && clearBetween(level, hit.add(shape.normal().scale(OFF_THE_FACE)), middle);
     }
 
     private static boolean clearBetween(ServerLevel level, Vec3 from, Vec3 to) {
