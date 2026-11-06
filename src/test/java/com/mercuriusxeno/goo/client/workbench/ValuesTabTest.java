@@ -122,14 +122,14 @@ class ValuesTabTest {
         }
 
         /**
-         * The filters read Items, Uncovered, Fractional and Negative; a blank search lists every item and no tag under Items,
-         * while entries() still answers each item tag after #, named by its member count, for the pickers
-         * (decision items-selector-set-reads-items-and-uncovered).
+         * The filters read Items, Uncovered, Fractional, Negative and Goo; a blank search lists every item and no tag
+         * under Items, while entries() still answers each item tag after #, named by its member count, for the pickers
+         * (decisions items-selector-set-reads-items-and-uncovered, goo-chip-switches-the-search-to-goo-type-names).
          */
         @Test
         void blankSearchListsItemsAndTagsUnderTheirFilters() {
             assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL,
-                    ValuesTab.Filter.NEGATIVE), List.of(ValuesTab.Filter.values()));
+                    ValuesTab.Filter.NEGATIVE, ValuesTab.Filter.GOO), List.of(ValuesTab.Filter.values()));
             assertEquals(List.of("goo:gasket", "minecraft:stick", "minecraft:torch"), ids(tab.listed()));
             List<ValuesTab.ManagerEntry> tags = tab.entries().stream().filter(ValuesTab.ManagerEntry::tag).toList();
             assertEquals(List.of("#minecraft:logs"), ids(tags));
@@ -176,6 +176,43 @@ class ValuesTabTest {
             tab.filter(ValuesTab.Filter.NEGATIVE);
             assertEquals(List.of("minecraft:stick", "minecraft:torch"), ids(tab.listed()));
             assertEquals(2, tab.negativeCount());
+        }
+
+        /**
+         * Under the Goo filter the search matches each goo type in an item's resolved value by its key or display
+         * name, trimmed and case-folded, never the item's own id or name; a blank search lists every valued item and
+         * no unvalued item or tag (decision goo-chip-switches-the-search-to-goo-type-names).
+         */
+        @Test
+        void gooFilterMatchesTheSearchAgainstEachItemsGooTypes() {
+            tab.readResolved("""
+                    {"entries": [{"key": "stick", "value": {"leaf": "48", "metal": "3/2"}, "denied": false},
+                                 {"key": "torch", "value": {"glow": "4"}, "denied": false}]}
+                    """);
+            tab.typeNames(type -> Map.of("metal", "Metallic goo").getOrDefault(type, type));
+            tab.filter(ValuesTab.Filter.GOO);
+            assertEquals(List.of("minecraft:stick", "minecraft:torch"), ids(tab.listed()));
+            tab.search("  LEAF ");
+            assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
+            tab.search("metallic");
+            assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
+            tab.search("torch");
+            assertEquals(List.of(), ids(tab.listed()));
+        }
+
+        /**
+         * Switching back to Items with text still searched matches the item's id and name again, so the match rule
+         * follows the chip (decision goo-chip-switches-the-search-to-goo-type-names).
+         */
+        @Test
+        void itemsFilterMatchesIdAndNameAgainAfterGoo() {
+            tab.filter(ValuesTab.Filter.GOO);
+            tab.search("leaf");
+            assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
+            tab.filter(ValuesTab.Filter.ITEMS);
+            assertEquals(List.of(), ids(tab.listed()));
+            tab.search("stick");
+            assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
         }
     }
 
