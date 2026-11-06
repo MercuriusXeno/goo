@@ -224,7 +224,7 @@
   "goo.ability.quantum.anchor": "Portal",
   "goo.ability.quantum.anchor.description": "Makes a prism a quantum anchor that pairs with your next one; a player standing at either anchor is carried to its partner.",
   "goo.ability.quantum.swap": "Swap",
-  "goo.ability.quantum.swap.description": "Leaves a swap body where you stand; casting again trades places with it.",
+  "goo.ability.quantum.swap.description": "Blinks you to the spot you aim at and leaves a swap body where you stood; casting again trades places with it.",
   "goo.ability.quantum.link": "Shared Fate",
   "goo.ability.quantum.link.description": "Links the next two mobs you strike: health lost or gained by one is mirrored to the other, and so are status effects.",
   "goo.ability.frost.snap": "Snap",

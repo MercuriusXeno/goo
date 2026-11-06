@@ -16,9 +16,11 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Quantum's swap: with no body standing, a cast leaves one where the player
- * stands; with one standing, a cast puts the player back in it, at its spot
+ * Quantum's swap: with no body standing, a cast is an exchange, blinking the
+ * player to the spot they aim at in sight and leaving a body where they
+ * stood; with one standing, a cast puts the player back in it, at its spot
  * and with the health it held, and leaves a fresh body where they stood.
+ * swap-body-stands-where-you-aim
  * swap-body-stands-until-reverted
  */
 public final class BodySwap {
@@ -32,14 +34,20 @@ public final class BodySwap {
     /**
      * Casts the swap for a player.
      *
-     * @param level  the player's level
-     * @param player the caster
+     * @param level   the player's level
+     * @param player  the caster
+     * @param blinkTo where a first cast blinks the caster's feet to, empty for nowhere in sight
      */
-    public static void cast(ServerLevel level, ServerPlayer player) {
+    public static void cast(ServerLevel level, ServerPlayer player, Optional<Vec3> blinkTo) {
         Optional<SwapBody> standing = standingBody(level, player);
+        if (standing.isEmpty() && blinkTo.isEmpty()) {
+            return;
+        }
         SwapBody left = leaveBody(level, player);
         if (standing.isPresent()) {
             swapInto(level, player, standing.get());
+        } else {
+            blink(player, blinkTo.get());
         }
         player.setData(GooAttachments.SWAP_BODY, Optional.of(new SwapBodyRef(left.getUUID(),
                 GlobalPos.of(level.dimension(), left.blockPosition()))));
@@ -52,7 +60,7 @@ public final class BodySwap {
      * @param player the player
      * @return the body, empty for none or one out of reach
      */
-    static Optional<SwapBody> standingBody(ServerLevel level, ServerPlayer player) {
+    public static Optional<SwapBody> standingBody(ServerLevel level, ServerPlayer player) {
         return player.getData(GooAttachments.SWAP_BODY).flatMap(ref -> {
             ServerLevel there = level.getServer().getLevel(ref.at().dimension());
             Entity body = there == null ? null : there.getEntity(ref.body());
@@ -80,6 +88,13 @@ public final class BodySwap {
         if (health > 0f) {
             player.setHealth(health);
         }
+        afterimage(player, to);
+    }
+
+    private static void blink(ServerPlayer player, Vec3 to) {
+        afterimage(player, player.position());
+        player.teleportTo(to.x(), to.y(), to.z());
+        player.resetFallDistance();
         afterimage(player, to);
     }
 
