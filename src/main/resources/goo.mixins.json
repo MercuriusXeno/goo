@@ -19,6 +19,7 @@
   "client": [
     "ClientLevelGooValuesMixin",
     "ClientPacketListenerGooMixin",
+    "GameRendererPortalViewMixin",
     "LivingEntityRendererPhaseMixin",
     "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",

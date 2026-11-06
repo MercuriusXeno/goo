@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.Level;
@@ -19,13 +20,17 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
  * Draws the local player's portals on the faces they cover: the entry portal
- * blue, its partner orange, and an unlinked portal its idle face. While the
- * player chooses a partner, every portal of theirs in this level draws
- * through walls (portal vision), the one the look picks brightest.
+ * blue, its partner orange, and an unlinked portal its idle face. A linked
+ * portal whose view drew this frame shows that view, the other side flush
+ * as though right there, inside a rim of its color. While the player
+ * chooses a partner, every portal of theirs in this level draws through
+ * walls (portal vision), the one the look picks brightest.
  * portals-link-by-looking-through-portal-vision
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -40,6 +45,9 @@ public final class PortalFaces {
     private static final int FACE_ALPHA = 190;
     private static final int VISION_ALPHA = 120;
     private static final int PICKED_ALPHA = 235;
+    private static final int OPAQUE = 255;
+    /** The width of the colored rim around a portal's view, in blocks. */
+    private static final double RIM = 0.06;
 
     private PortalFaces() {
     }
@@ -71,29 +79,94 @@ public final class PortalFaces {
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || ClientPortals.portals().isEmpty()) {
+        if (player == null || nothingToDraw(mc)) {
             return;
         }
         Optional<Portal> choosing = ClientPortals.choosing();
         Optional<Portal> picked = choosing.flatMap(from -> ClientPortals.pickedOnLook(ClientPortals.portals(), from,
                 player.getEyePosition(), player.getLookAngle()));
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        PoseStack.Pose pose = event.getPoseStack().last();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        if (choosing.isEmpty()) {
+            drawViews(pose, buffers, camera);
+        }
         RenderType type = choosing.isPresent() ? GooRenderTypes.SPORE_SHELL_THROUGH_BLOCKS_TYPE
                 : GooRenderTypes.SPORE_SHELL_TYPE;
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        drawFaces(event.getPoseStack().last(), buffers.getBuffer(type), mc.gameRenderer.getMainCamera().position(),
-                mc.level.dimension(), choosing, picked);
+        drawFaces(pose, buffers.getBuffer(type), camera, mc.level.dimension(), choosing, picked);
         buffers.endBatch(type);
+    }
+
+    /**
+     * Whether the frame draws no portal: no level, no portal placed, or a
+     * portal view drawing now, which samples no view again.
+     *
+     * @param mc the client
+     * @return true where nothing draws
+     */
+    private static boolean nothingToDraw(Minecraft mc) {
+        return mc.level == null || ClientPortals.portals().isEmpty() || PortalView.drawing();
+    }
+
+    /**
+     * Draws the view through each portal that drew one this frame on its face.
+     * portals-link-by-looking-through-portal-vision
+     *
+     * @param pose    the pose
+     * @param buffers the frame's buffers
+     * @param camera  the main camera's position
+     */
+    private static void drawViews(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera) {
+        for (Portal portal : ClientPortals.portals()) {
+            PortalView.viewOf(portal).ifPresent(view -> {
+                RenderType type = GooRenderTypes.gooPortalView(view);
+                ScrySweep.emitBoxFace(pose, buffers.getBuffer(type), new AABB(portal.block().pos())
+                        .move(camera.reverse()), portal.face(), ARGB.color(OPAQUE, colorOf(portal,
+                        ClientPortals.link())));
+                buffers.endBatch(type);
+            });
+        }
     }
 
     private static void drawFaces(PoseStack.Pose pose, VertexConsumer consumer, Vec3 camera,
             ResourceKey<Level> dimension, Optional<Portal> choosing, Optional<Portal> picked) {
         for (Portal portal : ClientPortals.portals()) {
             if (portal.block().dimension().equals(dimension)) {
-                ScrySweep.emitBoxFace(pose, consumer, new AABB(portal.block().pos()).move(camera.reverse()),
-                        portal.face(), ARGB.color(alphaOf(portal, choosing, picked),
-                                colorOf(portal, ClientPortals.link())));
+                AABB block = new AABB(portal.block().pos()).move(camera.reverse());
+                int color = ARGB.color(alphaOf(portal, choosing, picked), colorOf(portal, ClientPortals.link()));
+                List<AABB> parts = choosing.isEmpty() && PortalView.viewOf(portal).isPresent()
+                        ? rimOf(block, portal.face().getAxis()) : List.of(block);
+                parts.forEach(part -> ScrySweep.emitBoxFace(pose, consumer, part, portal.face(), color));
             }
         }
+    }
+
+    /**
+     * The four strips along a face's edges, the colored rim around a view.
+     *
+     * @param block the block's box
+     * @param axis  the axis the face stands across
+     * @return the strips' boxes
+     */
+    static List<AABB> rimOf(AABB block, Direction.Axis axis) {
+        List<AABB> strips = new ArrayList<>();
+        for (Direction.Axis across : Direction.Axis.values()) {
+            if (across != axis) {
+                double min = block.min(across);
+                double max = block.max(across);
+                strips.add(along(block, across, min, min + RIM));
+                strips.add(along(block, across, max - RIM, max));
+            }
+        }
+        return strips;
+    }
+
+    private static AABB along(AABB box, Direction.Axis axis, double from, double to) {
+        return switch (axis) {
+            case X -> new AABB(from, box.minY, box.minZ, to, box.maxY, box.maxZ);
+            case Y -> new AABB(box.minX, from, box.minZ, box.maxX, to, box.maxZ);
+            case Z -> new AABB(box.minX, box.minY, from, box.maxX, box.maxY, to);
+        };
     }
 
     private static int alphaOf(Portal portal, Optional<Portal> choosing, Optional<Portal> picked) {

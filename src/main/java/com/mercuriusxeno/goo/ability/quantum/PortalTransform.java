@@ -1,0 +1,76 @@
+package com.mercuriusxeno.goo.ability.quantum;
+
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * The camera transform through a linked pair, as the portal gun draws it: a
+ * point in front of the portal looked into maps to the matching point behind
+ * its partner, turned half about the portals' up, so a camera looking into
+ * one sees out of the other as though its side stood right there. Each
+ * portal's frame is its face's normal, an up (world up on a wall, north on a
+ * floor or ceiling) and the right between them.
+ * portals-link-by-looking-through-portal-vision
+ *
+ * @param fromCenter the middle of the face looked into
+ * @param fromRight  its right
+ * @param fromUp     its up
+ * @param fromNormal its outward normal
+ * @param toCenter   the middle of the partner's face
+ * @param toRight    the partner's right
+ * @param toUp       the partner's up
+ * @param toNormal   the partner's outward normal
+ */
+public record PortalTransform(Vec3 fromCenter, Vec3 fromRight, Vec3 fromUp, Vec3 fromNormal,
+                              Vec3 toCenter, Vec3 toRight, Vec3 toUp, Vec3 toNormal) {
+
+    /**
+     * The transform from looking into one portal to looking out of its partner.
+     *
+     * @param from the portal looked into
+     * @param to   its partner
+     * @return the transform
+     */
+    public static PortalTransform between(Portal from, Portal to) {
+        Vec3 fromNormal = from.face().getUnitVec3();
+        Vec3 fromUp = upOf(from.face());
+        Vec3 toNormal = to.face().getUnitVec3();
+        Vec3 toUp = upOf(to.face());
+        return new PortalTransform(from.faceCenter(), fromUp.cross(fromNormal), fromUp, fromNormal,
+                to.faceCenter(), toUp.cross(toNormal), toUp, toNormal);
+    }
+
+    /**
+     * The up of a portal on a face: world up on a wall, north on a floor or ceiling.
+     *
+     * @param face the face
+     * @return the unit up
+     */
+    static Vec3 upOf(Direction face) {
+        return face.getAxis().isHorizontal() ? Direction.UP.getUnitVec3() : Direction.NORTH.getUnitVec3();
+    }
+
+    /**
+     * Maps a point through the pair.
+     *
+     * @param world a point
+     * @return the matching point on the partner's side
+     */
+    public Vec3 point(Vec3 world) {
+        return toCenter.add(direction(world.subtract(fromCenter)));
+    }
+
+    /**
+     * Maps a direction through the pair: the frame of the face looked into,
+     * turned half about up, laid onto the partner's frame.
+     *
+     * @param world a direction
+     * @return the matching direction on the partner's side
+     */
+    public Vec3 direction(Vec3 world) {
+        double right = world.dot(fromRight);
+        double up = world.dot(fromUp);
+        double out = world.dot(fromNormal);
+        return toRight.scale(-right).add(toUp.scale(up)).add(toNormal.scale(-out));
+    }
+}
