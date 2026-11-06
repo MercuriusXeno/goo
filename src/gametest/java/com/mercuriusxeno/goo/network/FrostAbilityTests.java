@@ -61,6 +61,7 @@ public final class FrostAbilityTests {
     private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
     private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
     private static final String FROZEN_WITCH_DRINKS_NO_POTION = "frozen_witch_drinks_no_potion";
+    private static final String FROZEN_WITCH_FALLS_AND_THAWS = "frozen_witch_falls_and_thaws";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -79,6 +80,7 @@ public final class FrostAbilityTests {
         GooTestFunctions.registerTest(registrar, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
         GooTestFunctions.registerTest(registrar, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
         GooTestFunctions.registerTest(registrar, FROZEN_WITCH_DRINKS_NO_POTION, FrostAbilityTests::frozenWitchDrinksNoPotion);
+        GooTestFunctions.registerTest(registrar, FROZEN_WITCH_FALLS_AND_THAWS, FrostAbilityTests::frozenWitchFallsAndThaws);
     }
 
 
@@ -203,6 +205,16 @@ public final class FrostAbilityTests {
     private static final String SHOULD_ENCASE_THE_WITCH = "Three snaps should fill a witch's frozen gauge";
     private static final String SHOULD_HOLD_NO_POTION = "A frozen witch should hold no potion, holds %s on hold tick %s";
     private static final String SHOULD_NOT_DRINK = "A frozen witch should not be drinking, on hold tick %s";
+    /** Three blocks over the bay's floor, so the witch is still falling when the snaps freeze her. */
+    private static final BlockPos WITCH_DROP_POS = new BlockPos(3, 4, 3);
+    /** Ticks into the hold by which a three-block fall has landed. */
+    private static final int LANDED_TICKS = 40;
+    /** Ticks past the hold by which the thaw has taken the gauge below full. */
+    private static final int WITCH_THAW_CHECK_TICKS = 3;
+    private static final String SHOULD_FALL_WHILE_FROZEN =
+            "A frozen witch should fall to the floor while held, stands %s blocks below where she froze, on ground %s";
+    private static final String SHOULD_THAW_THE_WITCH = "A frozen witch should thaw below full once her hold runs out";
+    private static final String SHOULD_GIVE_THE_WITCH_AI_BACK = "A thawed witch should have her AI back";
 
     private FrostAbilityTests() {
     }
@@ -571,6 +583,39 @@ public final class FrostAbilityTests {
             });
         }
         helper.runAfterDelay(SETTLE_TICKS + WITCH_HOLD_TICKS, helper::succeed);
+    }
+
+    /**
+     * A witch frozen full by Snap in mid air still falls to the floor while
+     * encased, and once the hold runs out she thaws below full with her AI
+     * back: the gate on her potion turn leaves the rest of her tick running
+     * (decision diagnose-and-correct-held-mobs-still-acting).
+     *
+     * @param helper the gametest helper
+     */
+    public static void frozenWitchFallsAndThaws(GameTestHelper helper) {
+        Witch witch = helper.spawn(EntityType.WITCH, WITCH_DROP_POS);
+        AbilityDefinition snap = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(FROST_SNAP));
+        helper.assertTrue(snap != null, ABILITY_REQUIRED);
+        double[] frozeAt = new double[1];
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            for (int struck = 0; struck < SNAPS_TO_ENCASE_A_WITCH; struck++) {
+                GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, snap.gooType(),
+                        witch.getId(), witch.blockPosition(), Direction.UP, FROST_SNAP));
+            }
+            helper.assertTrue(witch.getData(GooAttachments.FROZEN).full(), SHOULD_ENCASE_THE_WITCH);
+            frozeAt[0] = witch.getY();
+        });
+        helper.runAfterDelay(SETTLE_TICKS + LANDED_TICKS, () -> {
+            double fallen = frozeAt[0] - witch.getY();
+            helper.assertTrue(witch.getData(GooAttachments.FROZEN).full() && witch.onGround() && fallen > 1,
+                    String.format(SHOULD_FALL_WHILE_FROZEN, fallen, witch.onGround()));
+        });
+        helper.runAfterDelay(SETTLE_TICKS + WITCH_HOLD_TICKS + WITCH_THAW_CHECK_TICKS, () -> {
+            helper.assertFalse(witch.getData(GooAttachments.FROZEN).full(), SHOULD_THAW_THE_WITCH);
+            helper.assertFalse(witch.isNoAi(), SHOULD_GIVE_THE_WITCH_AI_BACK);
+            helper.succeed();
+        });
     }
 
     private static void release(ServerPlayer caster, int heldTicks) {

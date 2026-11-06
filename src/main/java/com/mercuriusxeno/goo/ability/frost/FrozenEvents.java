@@ -55,7 +55,8 @@ public final class FrozenEvents {
     }
 
     /**
-     * Stops a fully frozen mob's own motion, leaving it only to fall.
+     * Stops a fully frozen mob's own motion, leaving it only to fall, which
+     * LivingEntityHeldFallsMixin keeps running with its AI off.
      *
      * @param mob    the mob
      * @param frozen its gauge this tick

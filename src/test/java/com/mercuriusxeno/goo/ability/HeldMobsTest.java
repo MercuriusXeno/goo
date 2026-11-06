@@ -2,13 +2,18 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Covers the shared seam answering whether a goo hold holds a mob, and the gate on a mob's own action. */
+/**
+ * Covers the shared seam answering whether a goo hold holds a mob, the gate on a mob's own action, and the
+ * travel a held mob still falls by.
+ */
 class HeldMobsTest {
 
     private static final FrostCurve CURVE = new FrostCurve(0, 0.01f, 0.5f);
@@ -51,6 +56,33 @@ class HeldMobsTest {
         @Test
         void unmarkedMobIsNotHeld() {
             assertFalse(HeldMobs.held(false, null, false, false, false));
+        }
+    }
+
+    @Nested
+    class Fall {
+
+        private final Vec3 walking = new Vec3(0, 0, 0.98);
+
+        @Test
+        void mobAHoldHoldsTravelsWithItsAiOff() {
+            assertTrue(HeldMobs.travelRuns(false, HeldMobs.heldByAHold(FULL, false, false, false)));
+        }
+
+        @Test
+        void mobWithItsAiSetOffAloneFloatsAsVanillaHasIt() {
+            assertFalse(HeldMobs.travelRuns(false, HeldMobs.heldByAHold(null, false, false, false)));
+        }
+
+        @Test
+        void unheldMobTravelsAsVanillaHasIt() {
+            assertTrue(HeldMobs.travelRuns(true, false));
+            assertEquals(walking, HeldMobs.travelInput(walking, false));
+        }
+
+        @Test
+        void heldMobTravelsOnNoInput() {
+            assertEquals(Vec3.ZERO, HeldMobs.travelInput(walking, true));
         }
     }
 
