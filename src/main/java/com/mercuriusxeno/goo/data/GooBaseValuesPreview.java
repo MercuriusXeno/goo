@@ -159,6 +159,26 @@ public final class GooBaseValuesPreview {
     }
 
     /**
+     * The recipe the derivation would pick for an item were its own value unset: of the recipes making it, the one
+     * ranking best by the derivation's rule over its inputs' standing values, every input holding one; a recipe taking
+     * the item itself is left out, since its own value is the one set aside.
+     * decision explicit-value-row-reads-vs-its-would-be-derivative
+     *
+     * @param item    the item
+     * @param recipes the loadout's recipes
+     * @param values  each item's standing value
+     * @return the recipe picked, or null where no recipe making the item resolves
+     */
+    public static @Nullable RecipeInput wouldBeRecipe(Identifier item, List<RecipeInput> recipes,
+                                                      Map<Identifier, GooValue> values) {
+        List<RecipeInput> making = recipes.stream().filter(recipe -> recipe.output().equals(item))
+                .filter(recipe -> recipe.ingredientAlternatives().stream().noneMatch(slot -> slot.contains(item)))
+                .toList();
+        GooRecipeEvaluator.RecipeResult best = GooRecipeEvaluator.findCheapestRecipeValue(making, Map.of(), values);
+        return best == null ? null : best.source();
+    }
+
+    /**
      * @param json base_values.json text
      * @return the _conversions block as the loader parses it, applied after recipes derive, empty where the file
      *     holds none (decision conversions-is-the-one-section-and-the-pane-name)
