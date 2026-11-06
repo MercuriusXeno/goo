@@ -38,4 +38,16 @@ public final class GooBrewEffect extends MobEffect {
     public ResourceKey<GooTypeDefinition> gooType() {
         return gooType;
     }
+
+    /**
+     * The name key every effect name reads, the inventory's effect list and
+     * the potion tooltip alike: the granted brew ability's name.
+     * decision brew-effect-reads-the-abilitys-own-name
+     *
+     * @return the lang key
+     */
+    @Override
+    public String getDescriptionId() {
+        return BrewEffectName.of(gooType);
+    }
 }

@@ -15,6 +15,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.animal.chicken.Chicken;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -35,6 +36,9 @@ import java.util.function.Consumer;
 public final class UrchinStrikeTests {
 
     private static final String URCHIN_HITS_EVERY_SHOT = "urchin_hits_every_shot";
+    private static final String URCHIN_HURTS_A_CHICKEN = "urchin_hurts_a_chicken";
+    private static final String CHICKEN_UNHURT = "Urchin stabbed the chicken and its health read %.1f of %.1f";
+    private static final String CHICKEN_NEVER_STABBED = "Urchin never stabbed the chicken beside it";
 
     private static final Identifier METAL_SPIKES = Identifier.parse("goo:metal_spikes");
     private static final BlockPos MARKER_POS = new BlockPos(3, 1, 3);
@@ -67,6 +71,35 @@ public final class UrchinStrikeTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, URCHIN_HITS_EVERY_SHOT, UrchinStrikeTests::urchinHitsEveryShot);
+        GooTestFunctions.registerTest(registrar, URCHIN_HURTS_A_CHICKEN, UrchinStrikeTests::urchinHurtsAChicken);
+    }
+
+    /**
+     * An urchin beside a chicken stabs it and the stab hurts it. A chicken
+     * stands in vanilla's fall_damage_immune tag, so a stab dealt as
+     * stalagmite damage, which vanilla's is_fall tag holds, landed on the
+     * chicken and hurt it not at all, the stab the operator saw strike a
+     * chicken over and over in play.
+     *
+     * @param helper the gametest helper
+     */
+    public static void urchinHurtsAChicken(GameTestHelper helper) {
+        AbilityBlockEntity trap = landUrchin(helper);
+        Chicken chicken = helper.spawn(EntityType.CHICKEN, ZOMBIE_POS);
+        chicken.getAttribute(Attributes.MAX_HEALTH).setBaseValue(DURABLE_HEALTH);
+        chicken.setHealth((float) DURABLE_HEALTH);
+        helper.onEachTick(() -> {
+            boolean landed = trap.getFieldEffect().strikes().stream()
+                    .anyMatch(strike -> strike.entityId() == chicken.getId() && strike.age() > LANDING_AGE);
+            if (landed) {
+                helper.assertTrue(chicken.getHealth() < DURABLE_HEALTH,
+                        String.format(CHICKEN_UNHURT, chicken.getHealth(), DURABLE_HEALTH));
+                chicken.discard();
+                helper.setBlock(MARKER_POS, Blocks.AIR);
+                helper.succeed();
+            }
+        });
+        helper.runAfterDelay(DEADLINE, () -> helper.fail(CHICKEN_NEVER_STABBED));
     }
 
     /**
