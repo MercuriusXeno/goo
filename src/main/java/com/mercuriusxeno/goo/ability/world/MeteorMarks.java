@@ -8,22 +8,19 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * What Meteo shows the world as its meteor comes: a ring marking the target
- * through the wind-up while the rock smoulders high above, a trail of fire
- * and smoke as it drops, and a flash where it lands.
+ * What Meteo shows the world as its meteor comes: the rock smouldering high
+ * over its target through the wind-up, a trail of fire and smoke as it
+ * drops, and a flash where it lands.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  */
 public final class MeteorMarks {
 
-    /** The marking ring's radius around the target, in blocks. */
-    static final double MARK_RADIUS = 1.6;
-    /** Points around the marking ring each tick of the wind-up. */
-    static final int MARK_POINTS = 16;
-    private static final double MARK_LIFT = 0.1;
+    /** Points along each tick's fall the trail puffs from, so it runs unbroken. */
+    static final int TRAIL_STEPS = 4;
     private static final int SMOULDER_PARTICLES = 3;
     private static final double SMOULDER_SPREAD = 0.4;
-    private static final int TRAIL_FLAMES = 10;
-    private static final int TRAIL_SMOKE = 6;
+    private static final int TRAIL_FLAMES = 4;
+    private static final int TRAIL_SMOKE = 2;
     private static final int TRAIL_LAVA = 1;
     private static final double TRAIL_SPREAD = 0.45;
     private static final double TRAIL_SPEED = 0.03;
@@ -41,8 +38,8 @@ public final class MeteorMarks {
     }
 
     /**
-     * One tick of the wind-up: the ring at the target, and the rock
-     * smouldering where it hangs; its first tick sounds the call.
+     * One tick of the wind-up: the rock smouldering where it hangs over its
+     * target; its first tick sounds the call.
      *
      * @param level  the server level
      * @param start  where the rock hangs
@@ -54,9 +51,6 @@ public final class MeteorMarks {
             level.playSound(null, target.x, target.y, target.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS,
                     CALL_VOLUME, CALL_PITCH);
         }
-        for (Vec3 point : ringAround(target, age)) {
-            level.sendParticles(ParticleTypes.FLAME, point.x, point.y, point.z, 1, 0, 0, 0, 0);
-        }
         level.sendParticles(ParticleTypes.LARGE_SMOKE, start.x, start.y, start.z, SMOULDER_PARTICLES,
                 SMOULDER_SPREAD, SMOULDER_SPREAD, SMOULDER_SPREAD, TRAIL_SPEED);
         level.sendParticles(ParticleTypes.FLAME, start.x, start.y, start.z, SMOULDER_PARTICLES,
@@ -64,19 +58,17 @@ public final class MeteorMarks {
     }
 
     /**
-     * The marking ring's points on a tick of the wind-up, turning a little
-     * each tick so the ring reads as alive.
+     * The points a tick's trail puffs from: spread evenly along the stretch
+     * the rock fell that tick, so the trail runs unbroken down the sky.
      *
-     * @param target the point the meteor strikes
-     * @param age    the wind-up's tick
-     * @return the ring's points, just above the target
+     * @param from where the rock stood last tick
+     * @param to   where it stands now
+     * @return the points, from just below the last tick's spot down to now
      */
-    static Vec3[] ringAround(Vec3 target, int age) {
-        Vec3[] points = new Vec3[MARK_POINTS];
-        double turn = age * Math.PI / MARK_POINTS;
-        for (int index = 0; index < MARK_POINTS; index++) {
-            double angle = turn + index * Math.TAU / MARK_POINTS;
-            points[index] = target.add(Math.cos(angle) * MARK_RADIUS, MARK_LIFT, Math.sin(angle) * MARK_RADIUS);
+    static Vec3[] trailPoints(Vec3 from, Vec3 to) {
+        Vec3[] points = new Vec3[TRAIL_STEPS];
+        for (int index = 0; index < TRAIL_STEPS; index++) {
+            points[index] = from.lerp(to, (index + 1.0) / TRAIL_STEPS);
         }
         return points;
     }
@@ -93,17 +85,21 @@ public final class MeteorMarks {
     }
 
     /**
-     * One tick of the drop's trail: fire and smoke streaming off the rock.
+     * One tick of the drop's trail: fire and smoke streaming off the rock
+     * all along the stretch it fell this tick.
      *
      * @param level the server level
-     * @param at    where the rock stands
+     * @param from  where the rock stood last tick
+     * @param to    where it stands now
      */
-    public static void trail(ServerLevel level, Vec3 at) {
-        level.sendParticles(ParticleTypes.FLAME, at.x, at.y, at.z, TRAIL_FLAMES, TRAIL_SPREAD, TRAIL_SPREAD,
-                TRAIL_SPREAD, TRAIL_SPEED);
-        level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y, at.z, TRAIL_SMOKE, TRAIL_SPREAD, TRAIL_SPREAD,
-                TRAIL_SPREAD, TRAIL_SPEED);
-        level.sendParticles(ParticleTypes.LAVA, at.x, at.y, at.z, TRAIL_LAVA, TRAIL_SPREAD, TRAIL_SPREAD,
+    public static void trail(ServerLevel level, Vec3 from, Vec3 to) {
+        for (Vec3 at : trailPoints(from, to)) {
+            level.sendParticles(ParticleTypes.FLAME, at.x, at.y, at.z, TRAIL_FLAMES, TRAIL_SPREAD, TRAIL_SPREAD,
+                    TRAIL_SPREAD, TRAIL_SPEED);
+            level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y, at.z, TRAIL_SMOKE, TRAIL_SPREAD,
+                    TRAIL_SPREAD, TRAIL_SPREAD, TRAIL_SPEED);
+        }
+        level.sendParticles(ParticleTypes.LAVA, to.x, to.y, to.z, TRAIL_LAVA, TRAIL_SPREAD, TRAIL_SPREAD,
                 TRAIL_SPREAD, 0);
     }
 

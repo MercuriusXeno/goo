@@ -20,7 +20,7 @@ import net.minecraft.world.phys.Vec3;
  * fire, so it reads as a rock on fire both while it hangs and as it drops.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  */
-public class MeteorRenderer extends EntityRenderer<Meteor, EntityRenderState> {
+public class MeteorRenderer extends EntityRenderer<Meteor, MeteorRenderer.MeteorRenderState> {
 
     /** The rock's edge, in blocks. */
     private static final float ROCK_SIZE = 1.3f;
@@ -50,13 +50,35 @@ public class MeteorRenderer extends EntityRenderer<Meteor, EntityRenderState> {
         super(context);
     }
 
-    @Override
-    public EntityRenderState createRenderState() {
-        return new EntityRenderState();
+    /** A meteor's render state: how far its path stands from where its last position packet put it. */
+    public static class MeteorRenderState extends EntityRenderState {
+        /** The path's point this frame, less the entity's interpolated position. */
+        Vec3 pathOffset = Vec3.ZERO;
     }
 
     @Override
-    public void submit(EntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
+    public MeteorRenderState createRenderState() {
+        return new MeteorRenderState();
+    }
+
+    @Override
+    public void extractRenderState(Meteor meteor, MeteorRenderState state, float partialTick) {
+        super.extractRenderState(meteor, state, partialTick);
+        Vec3 onPath = meteor.pathAt(meteor.level().getGameTime() + partialTick);
+        state.pathOffset = onPath.subtract(state.x, state.y, state.z);
+    }
+
+    /**
+     * Draws the rock where its synced path stands this frame, so it falls
+     * smoothly rather than stepping between position packets.
+     */
+    @Override
+    public Vec3 getRenderOffset(MeteorRenderState state) {
+        return state.pathOffset;
+    }
+
+    @Override
+    public void submit(MeteorRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                        CameraRenderState camera) {
         poseStack.pushPose();
         poseStack.translate(0, ROCK_SIZE * HALF, 0);
@@ -65,7 +87,7 @@ public class MeteorRenderer extends EntityRenderer<Meteor, EntityRenderState> {
         poseStack.mulPose(Axis.XP.rotationDegrees(state.ageInTicks * TUMBLE_X));
         poseStack.mulPose(Axis.ZP.rotationDegrees(state.ageInTicks * TUMBLE_Z));
         poseStack.scale(ROCK_SIZE, ROCK_SIZE, ROCK_SIZE);
-        collector.submitCustomGeometry(poseStack, GooRenderTypes.SPORE_SHELL_TYPE, MeteorRenderer::emitRock);
+        collector.submitCustomGeometry(poseStack, GooRenderTypes.METEOR_ROCK_TYPE, MeteorRenderer::emitRock);
         poseStack.popPose();
         super.submit(state, poseStack, collector, camera);
     }
