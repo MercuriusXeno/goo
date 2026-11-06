@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.gate.AstralGateOpening;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.gate.VoidPocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
-import com.mercuriusxeno.goo.ability.quantum.PortableHole;
+import com.mercuriusxeno.goo.ability.quantum.Wormhole;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
@@ -23,6 +23,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -62,7 +63,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        TimedBlockHost, PhaseBlocksHost, IgniteHost, MeltHost {
+        TimedBlockHost, WormholeHost, IgniteHost, MeltHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -117,13 +118,20 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Phases the struck block and the blocks behind it, running into the struck face.
-     * portable-hole-phases-blocks-for-a-while
+     * Carries the caster from the struck face, the block behind the cell,
+     * through to the first opening ahead; with no caster about, or no opening,
+     * the face shows the hole collapse.
+     * hole-closes-the-space-to-an-opening-ahead
      */
     @Override
-    public int phaseBlocks(int depth, int radius, int lifetime) {
-        return PortableHole.open(level, cell.relative(face.getOpposite()), face.getOpposite(), depth, radius,
-                lifetime);
+    public boolean carryThrough(int reach) {
+        BlockPos struck = cell.relative(face.getOpposite());
+        ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
+        if (player == null || player.level() != level) {
+            Wormhole.collapse(level, struck, face);
+            return false;
+        }
+        return Wormhole.carry(level, player, struck, face, reach);
     }
 
     /**

@@ -115,10 +115,10 @@ public enum HostCapability {
      */
     END_GATE(GateHost.class),
     /**
-     * A struck surface whose blocks can go out of phase (decision
-     * portable-hole-phases-blocks-for-a-while).
+     * A struck surface a wormhole can carry its caster through to the
+     * opening ahead (decision hole-closes-the-space-to-an-opening-ahead).
      */
-    PHASE_BLOCKS(PhaseBlocksHost.class),
+    WORMHOLE(WormholeHost.class),
     /**
      * A struck surface Astral's gate can open over (decision
      * astral-visits-lunar-and-solar-dimensions).
