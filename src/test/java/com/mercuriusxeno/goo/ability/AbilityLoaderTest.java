@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
+import com.mercuriusxeno.goo.ability.program.PushStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -29,6 +30,7 @@ import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.ability.program.WobbleStep;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -119,15 +121,47 @@ class AbilityLoaderTest {
         }
     }
 
-    // decision airborn-steerable-levitation-and-soft-falls
-    @Test
-    void typhoonAirbornNamesItsGlideSpeedAndSteer() {
-        AirbornStep airborn = AbilityJson.decode("typhoon_airborn").behaviors().stream()
-                .filter(AirbornStep.class::isInstance).map(AirbornStep.class::cast).findFirst().orElseThrow();
+    /**
+     * Typhoon's abilities after the flight merge: Shulk levitates the struck
+     * mob, and Float carries Tailwind's push and wind lines with Airborn's air
+     * control as one channel on the self.
+     * decision mob-float-renamed-shulk
+     * decision tailwind-and-airborn-merge-into-float
+     */
+    @Nested
+    class TyphoonFlight {
 
-        assertEquals(Expr.literal(1.2), airborn.glideSpeed());
-        assertEquals(Expr.literal(0.05), airborn.glideSteer());
-        assertEquals(Expr.literal(1.5), airborn.jetBoost());
+        private static final Set<String> TYPHOON_ABILITIES =
+                Set.of("typhoon_shulk", "typhoon_float", "typhoon_gust", "typhoon_updraft");
+
+        @Test
+        void typhoonCarriesShulkFloatGustAndUpdraft() {
+            Set<String> typhoon = scanShipped(AbilityJson.files()).values().stream()
+                    .filter(def -> def.gooType() == GooTypes.TYPHOON)
+                    .map(def -> def.id().getPath()).collect(Collectors.toSet());
+
+            assertEquals(TYPHOON_ABILITIES, typhoon);
+        }
+
+        @Test
+        void shulkLevitatesTheStruckMob() {
+            AbilityDefinition shulk = AbilityJson.decode("typhoon_shulk");
+
+            assertEquals("goo.ability.typhoon.shulk", shulk.displayName());
+            assertEquals(AbilityBadge.MOB, shulk.badge());
+            assertTrue(shulk.behaviors().stream().anyMatch(FloatStep.class::isInstance), "no float step");
+        }
+
+        @Test
+        void floatChannelsThePushTheWindAndTheAirControlOnTheSelf() {
+            AbilityDefinition flight = AbilityJson.decode("typhoon_float");
+
+            assertEquals("goo.ability.typhoon.float", flight.displayName());
+            assertTrue(HeldRoute.channelsOnSelf(flight.delivery(), flight.badge()),
+                    "typhoon_float does not channel on the self");
+            assertEquals(Set.of(AirbornStep.class, PushStep.class, WindStep.class),
+                    flight.behaviors().stream().map(Object::getClass).collect(Collectors.toSet()));
+        }
     }
 
     // decision splat-runs-the-program-no-fuse
@@ -149,30 +183,6 @@ class AbilityLoaderTest {
         assertTrue(scanned.values().stream().anyMatch(def -> def.gooType() == GooTypes.NETHER), "No nether ability scanned");
         assertTrue(scanned.values().stream().filter(def -> def.gooType() == GooTypes.NETHER)
                 .noneMatch(def -> def.id().getPath().contains("wither")), "a nether wither ability still loads");
-    }
-
-    // decision float-blob-levitates-the-mob
-    @Test
-    void typhoonFloatReplacesLevitateWithAFloatStep() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
-        AbilityDefinition floatAbility = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_float"));
-
-        assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_levitate")),
-                "typhoon_levitate still loads");
-        assertEquals("goo.ability.typhoon.float", floatAbility.displayName());
-        assertTrue(floatAbility.behaviors().stream().anyMatch(FloatStep.class::isInstance), "no float step");
-    }
-
-    // decision jet-pushes-along-the-look-while-held
-    @Test
-    void typhoonTailwindReplacesPropelAsAChannelOnTheSelf() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
-        AbilityDefinition tailwind = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_tailwind"));
-
-        assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_propel")),
-                "typhoon_propel still loads");
-        assertTrue(HeldRoute.channelsOnSelf(tailwind.delivery(), tailwind.badge()),
-                "typhoon_tailwind does not channel on the self");
     }
 
     // decision splat-runs-the-program-no-fuse

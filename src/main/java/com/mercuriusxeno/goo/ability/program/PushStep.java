@@ -1,7 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.typhoon.AirbornMotion;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.component.DataComponents;
@@ -19,8 +17,9 @@ import java.util.stream.Stream;
  * velocity a share of the way toward the look at the push's speed: a share of
  * one sets it outright, and a smaller share, run every held tick, steers it
  * round gradually, the elytra share taking over while the target wears an
- * elytra. Typhoon Tailwind is {@code push strength=0.8 steer=0.2 elytra_steer=0.5}.
+ * elytra. Typhoon Float pushes at {@code push strength=1.2 steer=0.2 elytra_steer=0.5}.
  * jet-pushes-along-the-look-while-held
+ * tailwind-and-airborn-merge-into-float
  *
  * @param strength    the speed the push drives toward, in blocks per tick, evaluated when the step runs
  * @param steer       the share of the way the velocity turns toward the push each run, 0 to 1
@@ -69,12 +68,8 @@ public record PushStep(Expr strength, Expr steer, Expr elytraSteer) implements S
         if (thrower != null) {
             LivingEntity target = host.target();
             double share = (wearsElytra(target) ? elytraSteer : steer).evaluate(context);
-            // airborn-steerable-levitation-and-soft-falls: Airborn makes a player's push of itself, Jet's, stronger
-            double speed = target == thrower
-                    ? AirbornMotion.jetStrength(strength.evaluate(context), target.getData(GooAttachments.AIRBORN),
-                            target.level().getGameTime())
-                    : strength.evaluate(context);
-            host.push(steered(target.getDeltaMovement(), thrower.getLookAngle().scale(speed), share));
+            host.push(steered(target.getDeltaMovement(), thrower.getLookAngle().scale(strength.evaluate(context)),
+                    share));
         }
         return true;
     }

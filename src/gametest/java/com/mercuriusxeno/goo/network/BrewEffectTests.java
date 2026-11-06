@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.program.Sight;
-import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -43,7 +42,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  */
 @RegistersGameTests
 public final class BrewEffectTests {
-    private static final String BREW_TYPHOON_AIRBORN = "brew_typhoon_airborn_for_an_hour";
     private static final String BREW_EVERY_POTION_CARRIES = "brew_every_potion_carries_its_effect";
     private static final String BREW_BLAZE_KINDLES = "brew_blaze_kindles_for_an_hour";
     private static final String BREW_LEAF_BARKS = "brew_leaf_barks_for_an_hour";
@@ -69,7 +67,6 @@ public final class BrewEffectTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, BREW_TYPHOON_AIRBORN, BrewEffectTests::typhoonBrewAirbornForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_EVERY_POTION_CARRIES, BrewEffectTests::everyPotionCarriesItsBrewEffect);
         GooTestFunctions.registerTest(registrar, BREW_BLAZE_KINDLES, BrewEffectTests::blazeBrewKindlesForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_LEAF_BARKS, BrewEffectTests::leafBrewBarksForAnHour);
@@ -109,10 +106,6 @@ public final class BrewEffectTests {
     private static final long NOT_HELD = -1;
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
-    /** typhoon_airborn.json's jet boost. */
-    private static final float AIRBORN_JET_BOOST = 1.5f;
-    private static final String SHOULD_BE_AIRBORN =
-            "The typhoon brew should grant Airborn at jet boost %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_LUX = "The glow brew should grant Lux until %d, granted until %d";
     /** hex_lifetap.json's fraction. */
     private static final float LIFETAP_FRACTION = 0.3f;
@@ -301,30 +294,6 @@ public final class BrewEffectTests {
         long expected = now + GooPotions.BREW_DURATION;
         helper.assertTrue(sight.factor() == SIGHT_FACTOR && sight.expiresAt() == expected,
                 String.format(SHOULD_SEE, SIGHT_FACTOR, expected, sight.factor(), sight.expiresAt()));
-        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
-        helper.succeed();
-    }
-
-    /**
-     * Drinking the typhoon brew grants Airborn for an hour, draining no goo
-     * (decision airborn-steerable-levitation-and-soft-falls).
-     *
-     * @param helper the gametest helper
-     */
-    public static void typhoonBrewAirbornForAnHour(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
-        int heldBefore = held(player, GooTypes.TYPHOON);
-        long now = player.level().getGameTime();
-
-        drink(player, GooTypes.TYPHOON);
-
-        Airborn airborn = player.getData(GooAttachments.AIRBORN);
-        int drained = heldBefore - held(player, GooTypes.TYPHOON);
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        long expected = now + GooPotions.BREW_DURATION;
-        helper.assertTrue(airborn.expiresAt() == expected && airborn.jetBoost() == AIRBORN_JET_BOOST,
-                String.format(SHOULD_BE_AIRBORN, AIRBORN_JET_BOOST, expected, airborn.jetBoost(),
-                        airborn.expiresAt()));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }
