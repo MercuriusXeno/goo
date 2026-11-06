@@ -53,7 +53,11 @@ public final class ScryChannelTests {
     private static final int WALL_HEIGHT = 3;
     private static final int BAY_WIDTH = 7;
     private static final BlockPos ZOMBIE_POS = new BlockPos(5, 1, 3);
-    /** The front grows a block a tick: ten ticks carry it well past the zombie four blocks off. */
+    /**
+     * The probe's pulse eases out to its eight block reach, kept inside the
+     * bay so it strikes no other test's player: ten ticks carry it past the
+     * zombie four blocks off, inside its first pulse.
+     */
     private static final int HOLD_TICKS = 10;
     private static final int HELD_GOO = 2;
     private static final float PROBE_DAMAGE = 3f;
