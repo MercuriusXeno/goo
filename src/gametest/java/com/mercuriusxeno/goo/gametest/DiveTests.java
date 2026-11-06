@@ -1,32 +1,31 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametest for Deep's dive: a player standing on the roof of a sealed stone
- * cave casts dive and lands inside the cave below, on its floor, clear of
- * every block (decision dive-drops-you-to-a-cave-below). The scene stands in
- * a chunk of its own far from every other test, so no other test's enclosed
- * air is within the dive's reach.
+ * Gametest for Deep's dive held from the glove: a survival player standing
+ * inside a block of stone swims a whole block through it and, after two
+ * seconds buried, has lost no health to suffocation (decision
+ * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks).
+ * The client moves a real player, so the test moves the mock player the way
+ * the client would and ticks it as its connection would. The stone floats
+ * above the test's own bay.
  */
 @RegistersGameTests
 public final class DiveTests {
-    private static final String DIVE_LANDS = "dive_lands_in_the_cave_below";
+    private static final String DIVE_SWIMS = "dive_swims_through_stone";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -34,105 +33,57 @@ public final class DiveTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, DIVE_LANDS, DiveTests::diveLandsInTheCaveBelow);
+        GooTestFunctions.registerTest(registrar, DIVE_SWIMS, DiveTests::diveSwimsThroughStone);
     }
 
-
     private static final Identifier DEEP_DIVE = Identifier.parse("goo:deep_dive");
-    /** How far off the bay on each horizontal axis the scene's chunk lies, past the convoke tests' chunks. */
-    private static final int FAR_OFF = 16384;
-    private static final int CHUNK_MIDDLE = 8;
-    /** The cave's interior reaches this far from its middle column on each horizontal axis. */
-    private static final int CAVE_HALF_WIDTH = 1;
-    private static final int CAVE_HEIGHT = 3;
-    private static final String ABILITY_REQUIRED = "goo:deep_dive must be loaded";
-    private static final String SHOULD_DIVE = "The dive should land inside the cave %s..%s, landed at %s";
-    private static final String SHOULD_DROP = "The dive should land below where it started at y=%d, landed at y=%d";
-    private static final String SHOULD_STAND = "The landing %s should be air over a sturdy floor";
-    private static final String SHOULD_FIT = "The diver should stand clear of every block at %s";
+    /** How far above the bay's floor the stone's middle floats. */
+    private static final int LIFT = 12;
+    /** The stone reaches this far from its middle cell on every axis. */
+    private static final int STONE_HALF_WIDTH = 2;
+    /** Ticks the player stays buried, long enough for suffocation to strike several times. */
+    private static final int BURIED_TICKS = 40;
+    /** One stroke of the swim, a whole block east, the way the client would move the player. */
+    private static final Vec3 STROKE = new Vec3(1, 0, 0);
+    private static final double SWUM_AT_LEAST = 0.99;
+    private static final String SHOULD_SWIM = "The diver should swim a block east through the stone, moved %.2f";
+    private static final String SHOULD_BREATHE = "The diver should take no suffocation buried in stone, health %.1f of %.1f";
 
     private DiveTests() {
     }
 
     /**
-     * A player on the roof of a sealed cave dives and lands inside it: the
-     * landing cell is air over a sturdy floor, lower than the start, and the
-     * player's box is clear of every block.
+     * A survival player holding dive, set inside stone, ticks two seconds
+     * there, then swims a block east: it moves the whole block and stands at
+     * full health.
      *
      * @param helper the gametest helper
      */
-    public static void diveLandsInTheCaveBelow(GameTestHelper helper) {
+    public static void diveSwimsThroughStone(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        AbilityDefinition dive = AbilityRegistry.of(level).getAbility(DEEP_DIVE);
-        helper.assertTrue(dive != null, ABILITY_REQUIRED);
-        BlockPos caveFloor = buildCave(helper);
-        BlockPos roofTop = caveFloor.above(CAVE_HEIGHT + 1);
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.DEEP);
-        KnownRecipes.teachRequires(player, dive);
-        player.teleportTo(roofTop.getX() + 0.5, roofTop.getY(), roofTop.getZ() + 0.5);
-
-        SelfDeliveryTests.invoke(player, GooTypes.DEEP, DEEP_DIVE);
-
-        BlockPos landed = player.blockPosition();
-        boolean fits = level.noCollision(player, player.getBoundingBox());
+        BlockPos middle = helper.absolutePos(new BlockPos(3, LIFT, 3));
+        fillStone(level, middle, Blocks.STONE);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_DIVE);
+        player.teleportTo(middle.getX() + 0.5, middle.getY(), middle.getZ() + 0.5);
+        for (int tick = 0; tick < BURIED_TICKS; tick++) {
+            player.doTick();
+        }
+        double before = player.getX();
+        player.move(MoverType.SELF, STROKE);
+        double swum = player.getX() - before;
+        float health = player.getHealth();
+        float maxHealth = player.getMaxHealth();
         level.getServer().getPlayerList().remove(player);
-        BlockPos low = caveFloor.offset(-CAVE_HALF_WIDTH, 0, -CAVE_HALF_WIDTH);
-        BlockPos high = caveFloor.offset(CAVE_HALF_WIDTH, CAVE_HEIGHT - 1, CAVE_HALF_WIDTH);
-        boolean inCave = landed.getX() >= low.getX() && landed.getX() <= high.getX()
-                && landed.getY() >= low.getY() && landed.getY() <= high.getY()
-                && landed.getZ() >= low.getZ() && landed.getZ() <= high.getZ();
-        BlockState floor = level.getBlockState(landed.below());
-        boolean stands = level.getBlockState(landed).isAir()
-                && floor.isFaceSturdy(level, landed.below(), Direction.UP);
-        release(helper, caveFloor);
-        helper.assertTrue(inCave, String.format(SHOULD_DIVE, low, high, landed));
-        helper.assertTrue(landed.getY() < roofTop.getY(), String.format(SHOULD_DROP, roofTop.getY(), landed.getY()));
-        helper.assertTrue(stands, String.format(SHOULD_STAND, landed));
-        helper.assertTrue(fits, String.format(SHOULD_FIT, landed));
+        fillStone(level, middle, Blocks.AIR);
+        helper.assertTrue(swum >= SWUM_AT_LEAST, String.format(SHOULD_SWIM, swum));
+        helper.assertTrue(health >= maxHealth, String.format(SHOULD_BREATHE, health, maxHealth));
         helper.succeed();
     }
 
-    /**
-     * Builds a sealed stone cave on the ground of a far chunk held loaded:
-     * a stone shell around a three-wide, three-tall air pocket.
-     *
-     * @param helper the gametest helper
-     * @return the middle cell of the cave's lowest air layer
-     */
-    private static BlockPos buildCave(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos bay = helper.absolutePos(BlockPos.ZERO);
-        ChunkPos chunk = ChunkPos.containing(bay.offset(FAR_OFF, 0, FAR_OFF));
-        level.setChunkForced(chunk.x(), chunk.z(), true);
-        int x = chunk.getMinBlockX() + CHUNK_MIDDLE;
-        int z = chunk.getMinBlockZ() + CHUNK_MIDDLE;
-        BlockPos caveFloor = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z), z);
-        int shell = CAVE_HALF_WIDTH + 1;
-        for (BlockPos cell : BlockPos.betweenClosed(caveFloor.offset(-shell, -1, -shell),
-                caveFloor.offset(shell, CAVE_HEIGHT, shell))) {
-            level.setBlockAndUpdate(cell, Blocks.STONE.defaultBlockState());
+    private static void fillStone(ServerLevel level, BlockPos middle, Block block) {
+        for (BlockPos cell : BlockPos.betweenClosed(middle.offset(-STONE_HALF_WIDTH, -STONE_HALF_WIDTH, -STONE_HALF_WIDTH),
+                middle.offset(STONE_HALF_WIDTH, STONE_HALF_WIDTH, STONE_HALF_WIDTH))) {
+            level.setBlock(cell, block.defaultBlockState(), Block.UPDATE_CLIENTS);
         }
-        for (BlockPos cell : BlockPos.betweenClosed(caveFloor.offset(-CAVE_HALF_WIDTH, 0, -CAVE_HALF_WIDTH),
-                caveFloor.offset(CAVE_HALF_WIDTH, CAVE_HEIGHT - 1, CAVE_HALF_WIDTH))) {
-            level.setBlockAndUpdate(cell, Blocks.AIR.defaultBlockState());
-        }
-        return caveFloor;
-    }
-
-    /**
-     * Clears the cave's shell above the ground and lets the chunk unload.
-     *
-     * @param helper    the gametest helper
-     * @param caveFloor the middle cell of the cave's lowest air layer
-     */
-    private static void release(GameTestHelper helper, BlockPos caveFloor) {
-        ServerLevel level = helper.getLevel();
-        int shell = CAVE_HALF_WIDTH + 1;
-        for (BlockPos cell : BlockPos.betweenClosed(caveFloor.offset(-shell, 0, -shell),
-                caveFloor.offset(shell, CAVE_HEIGHT, shell))) {
-            level.removeBlock(cell, false);
-        }
-        ChunkPos chunk = ChunkPos.containing(caveFloor);
-        level.setChunkForced(chunk.x(), chunk.z(), false);
     }
 }

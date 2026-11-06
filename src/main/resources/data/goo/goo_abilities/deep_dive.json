@@ -1,17 +1,15 @@
 {
   "gooType": "deep",
   "displayName": "goo.ability.deep.dive",
-  "badge": "instant",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
+  "badge": "brew",
   "order": 10,
-  "cost": 400,
+  "upkeep": 1,
   "requires": ["minecraft:nautilus_shell"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "afterimage", "goo": "deep" },
-    { "type": "dive", "radius": 16 },
-    { "type": "ghost_trail", "goo": "deep" },
-    { "type": "afterimage", "goo": "deep" },
-    { "type": "sound", "id": "minecraft:ambient.underwater.enter", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
+    { "type": "dive" },
+    { "type": "sound", "id": "minecraft:entity.warden.listening", "at": "target", "source": "players", "volume": 0.8, "pitch": 0.8 }
   ],
   "tags": ["self"]
 }
