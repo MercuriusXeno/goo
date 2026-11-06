@@ -47,6 +47,17 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     public static final ResourceKey<DamageType> EXPIRE =
             ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Goo.MODID, "expire"));
 
+    /**
+     * Urchin's impale, goo's own copy of vanilla's stalagmite carrying its
+     * death message. Vanilla's is_fall tag holds minecraft:stalagmite, so
+     * every mob in the fall_damage_immune tag, a chicken, a cat, a bee, a
+     * blaze, took Urchin's stab and no damage; goo:stalagmite stands in no
+     * fall tag.
+     * urchin-rests-bristled-and-spears
+     */
+    public static final ResourceKey<DamageType> STALAGMITE =
+            ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Goo.MODID, "stalagmite"));
+
     private static final String NAME = "damage";
     private static final String FIELD_AMOUNT = "amount";
     private static final String FIELD_SOURCE = "source";
@@ -111,9 +122,9 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
      * @return the damage source
      */
     private DamageSource damageSource(LivingEntity target, @Nullable Entity thrower) {
-        if (source == DamageKind.EXPIRE) {
+        if (source == DamageKind.EXPIRE || source == DamageKind.STALAGMITE) {
             return new DamageSource(target.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
-                    .getOrThrow(EXPIRE));
+                    .getOrThrow(source == DamageKind.EXPIRE ? EXPIRE : STALAGMITE));
         }
         DamageSources sources = target.damageSources();
         return source == DamageKind.ATTACK ? attackBy(sources, thrower) : sourceOfItsOwn(sources);
@@ -129,9 +140,8 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
         return switch (source) {
             case MAGIC -> sources.magic();
             case FREEZE -> sources.freeze();
-            case STALAGMITE -> sources.stalagmite();
             case CACTUS -> sources.cactus();
-            case FORCE, ATTACK, EXPIRE -> sources.generic();
+            case FORCE, ATTACK, EXPIRE, STALAGMITE -> sources.generic();
         };
     }
 
