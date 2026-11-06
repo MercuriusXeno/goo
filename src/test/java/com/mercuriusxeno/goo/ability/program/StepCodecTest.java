@@ -190,7 +190,7 @@ class StepCodecTest {
                     List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
             Map.entry("charm", new CharmStep()),
             Map.entry("phase", new PhaseStep(Optional.of(Expr.literal(600)))),
-            Map.entry("quantum_anchor", new QuantumAnchorStep()),
+            Map.entry("quantum_portal", new PortalStep()),
             Map.entry("quantum_swap", new QuantumSwapStep(Expr.literal(32))),
             Map.entry("quantum_link", new QuantumLinkStep(Expr.literal(1200))),
             Map.entry("wormhole", new WormholeStep(Expr.literal(16))),

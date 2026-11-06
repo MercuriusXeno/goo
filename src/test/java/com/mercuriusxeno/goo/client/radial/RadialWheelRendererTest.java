@@ -283,10 +283,10 @@ class RadialWheelRendererTest {
             }));
         }
 
-        /** quantum-anchors-link-two-points: the ability once called Anchor reads Portal; its key stays. */
+        /** portals-link-by-looking-through-portal-vision: Quantum's portal ability reads Portal. */
         @Test
-        void quantumAnchorReadsPortal() throws IOException {
-            assertEquals("Portal", englishLang().get("goo.ability.quantum.anchor").getAsString());
+        void quantumPortalReadsPortal() throws IOException {
+            assertEquals("Portal", englishLang().get("goo.ability.quantum.portal").getAsString());
         }
 
         @Test

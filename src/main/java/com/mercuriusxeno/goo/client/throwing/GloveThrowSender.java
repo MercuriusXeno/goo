@@ -107,7 +107,22 @@ public final class GloveThrowSender {
         }
         return delivery.kind() == DeliveryKind.SELF
                 ? sendSelf(player, gooType, abilityId)
-                : sendAimed(player, gooType, abilityId);
+                : choosesOrSendsAimed(player, gooType, abilityId);
+    }
+
+    /**
+     * Sends an aimed press: with Portal in hand on the player's own portals
+     * it chooses or links instead of throwing.
+     * portals-link-by-looking-through-portal-vision
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when a payload was sent
+     */
+    private static boolean choosesOrSendsAimed(Player player, ResourceKey<GooTypeDefinition> gooType,
+            String abilityId) {
+        return PortalAim.selected(abilityId) && PortalAim.press(player) || sendAimed(player, gooType, abilityId);
     }
 
     /**

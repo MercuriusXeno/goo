@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.ability.gate.AstralGateOpening;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.gate.VoidPocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
 import com.mercuriusxeno.goo.ability.quantum.Wormhole;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
@@ -19,6 +21,7 @@ import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -63,7 +66,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        TimedBlockHost, WormholeHost, IgniteHost, MeltHost {
+        TimedBlockHost, WormholeHost, PortalHost, IgniteHost, MeltHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -132,6 +135,20 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
             return false;
         }
         return Wormhole.carry(level, player, struck, face, reach);
+    }
+
+    /**
+     * Places a portal on the struck face, the block behind the cell, for the caster.
+     * portals-link-by-looking-through-portal-vision
+     */
+    @Override
+    public boolean placePortal() {
+        if (caster == null) {
+            return false;
+        }
+        PortalChoice.place(level, caster, new Portal(GlobalPos.of(level.dimension(), cell.relative(face.getOpposite())),
+                face));
+        return true;
     }
 
     /**

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
+import com.mercuriusxeno.goo.client.ability.ClientPortals;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
@@ -36,6 +37,7 @@ import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
+import com.mercuriusxeno.goo.network.PortalsSyncPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
@@ -77,6 +79,7 @@ public final class GooClientNetworking {
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
         event.register(OpenValuesManagerPayload.TYPE, ValuesManagerHandlers::handleOpen);
         event.register(WorkbenchReplyPayload.TYPE, ValuesManagerHandlers::handleReply);
+        event.register(PortalsSyncPayload.TYPE, ClientPortals::handle);
         registerAbilityVisualHandlers(event);
     }
 

@@ -120,6 +120,11 @@ public enum HostCapability {
      */
     WORMHOLE(WormholeHost.class),
     /**
+     * A struck surface a Quantum portal can be placed on for the caster
+     * (decision portals-link-by-looking-through-portal-vision).
+     */
+    PORTAL(PortalHost.class),
+    /**
      * A struck surface Astral's gate can open over (decision
      * astral-visits-lunar-and-solar-dimensions).
      */
