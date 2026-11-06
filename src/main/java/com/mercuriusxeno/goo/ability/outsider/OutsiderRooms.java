@@ -28,7 +28,9 @@ import java.util.UUID;
  * dimension door standing on the ring's north cell. The door leads back to
  * where the player cast Outsider from; the voidstone and the door stand
  * again if anything removes them; and a player falling below the floor is
- * set back on the voidstone unharmed, the pocket folding them back.
+ * set back on the voidstone unharmed, the pocket folding them back. Held on
+ * inside, Outsider feeds void into the platform, which grows along
+ * {@link PlatformSpiral}.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  */
 public final class OutsiderRooms {
@@ -93,6 +95,50 @@ public final class OutsiderRooms {
      */
     public static @Nullable Integer roomOf(ServerLevel level, UUID player) {
         return VoidPockets.get(level).roomOf(player);
+    }
+
+    /**
+     * The cells a player's platform holds.
+     *
+     * @param level  any level of the server
+     * @param player the player's id
+     * @return the cell count
+     */
+    public static int platformCells(ServerLevel level, UUID player) {
+        return VoidPockets.get(level).platformOf(player).cells();
+    }
+
+    /**
+     * Feeds void into the platform of the room a player stands in: what
+     * was fed reaching the next cell's cost grows that cell along the
+     * spiral, one cell a feed at most, and what is left over carries to the
+     * cell after. A cell a player built into already counts as grown.
+     *
+     * @param player   the player in their room
+     * @param feed     the void fed (mB)
+     * @param costStep the void each cell costs more than the one before (mB)
+     */
+    public static void feedPlatform(ServerPlayer player, int feed, int costStep) {
+        ServerLevel pocket = player.level();
+        VoidPockets pockets = VoidPockets.get(pocket);
+        Integer room = pockets.roomOf(player.getUUID());
+        if (room == null || pocket.dimension() != POCKET) {
+            return;
+        }
+        VoidPockets.Platform platform = pockets.platformOf(player.getUUID());
+        int cells = platform.cells();
+        long fed = platform.fed() + feed;
+        long cost = PlatformSpiral.costOf(cells, costStep);
+        if (fed >= cost) {
+            PlatformSpiral.Cell cell = PlatformSpiral.cellAt(cells);
+            BlockPos at = voidstoneOf(room).offset(cell.x(), 0, cell.z());
+            if (pocket.getBlockState(at).isAir()) {
+                pocket.setBlock(at, Blocks.BLACK_CONCRETE.defaultBlockState(), Block.UPDATE_ALL);
+            }
+            cells++;
+            fed -= cost;
+        }
+        pockets.keepPlatform(player.getUUID(), new VoidPockets.Platform(cells, fed));
     }
 
     /**
