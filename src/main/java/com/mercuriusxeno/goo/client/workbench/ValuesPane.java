@@ -67,6 +67,7 @@ final class ValuesPane {
     private static final int SEARCH_WIDTH = 180;
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
+    private static final String ANCHORS = "anchors";
     // A hover key no item id, prefab name or goo type key spells.
     private static final String GROUP_MARK = "#";
 
@@ -367,8 +368,74 @@ final class ValuesPane {
         if (entered) {
             drawRemoval(graphics, font, entry.id(), row.right(), expressionTop, targets);
         }
+        int anchors = drawAnchors(graphics, font, entry, new GroupsPane.Bounds(row.left(), expressionTop + height,
+                row.right(), row.bottom()), targets);
         // Decision spacing-rules-are-one-set-across-every-pane: the x keeps the rule gap over the rule below.
-        return head + height + RowLayout.RULE_SPAN;
+        return head + height + anchors + RowLayout.RULE_SPAN;
+    }
+
+    /**
+     * Where a derived row's anchors line stands.
+     *
+     * @param iconLefts each anchor icon's left edge, in order
+     * @param iconTops  each anchor icon's line top, in order
+     * @param height    the lines' height, 0 where the row lists no anchors
+     */
+    record AnchorsLine(List<Integer> iconLefts, List<Integer> iconTops, int height) {
+    }
+
+    /**
+     * Lays a derived row's anchors: the word anchors, then each anchor's icon a gap apart, an icon the row's right
+     * edge would cut wrapping to a line of its own under the first icon (decision item-value-view-lists-its-anchors).
+     *
+     * @param left       the line's left edge
+     * @param top        the line's top edge
+     * @param right      the row's right edge
+     * @param labelWidth the word anchors' width
+     * @param anchors    how many anchors the row lists
+     * @return each icon's place and the lines' height
+     */
+    static AnchorsLine layAnchors(int left, int top, int right, int labelWidth, int anchors) {
+        List<Integer> lefts = new ArrayList<>();
+        List<Integer> tops = new ArrayList<>();
+        int first = left + labelWidth + ICON_GAP;
+        int x = first;
+        int y = top;
+        for (int index = 0; index < anchors; index++) {
+            if (index > 0 && x + ICON_SIZE > right) {
+                x = first;
+                y += ROW_HEIGHT;
+            }
+            lefts.add(x);
+            tops.add(y);
+            x += ICON_SIZE + EQUIVALENCY_GAP;
+        }
+        return new AnchorsLine(lefts, tops, anchors == 0 ? 0 : y - top + ROW_HEIGHT);
+    }
+
+    // The anchors line laid at the value box's left edge, under the expression.
+    private AnchorsLine placeAnchors(Font font, ValuesTab.ManagerEntry entry, GroupsPane.Bounds area) {
+        int left = BuilderFrame.lay(font, frameRow(area, hasNonEmptyEntry(entry))).valueX();
+        return layAnchors(left, area.top(), area.right(), font.width(ANCHORS), values.anchorsOf(entry.id()).size());
+    }
+
+    // Each anchor links through ItemLinks, so it follows to its row and hovers its value as every icon does; answers
+    // the height the lines took.
+    // Decision item-value-view-lists-its-anchors.
+    private int drawAnchors(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
+                            GroupsPane.Bounds area, ClickTargets targets) {
+        List<String> anchors = values.anchorsOf(entry.id());
+        if (anchors.isEmpty()) {
+            return 0;
+        }
+        AnchorsLine laid = placeAnchors(font, entry, area);
+        int labelLeft = laid.iconLefts().getFirst() - ICON_GAP - font.width(ANCHORS);
+        graphics.text(font, ANCHORS, labelLeft, headLine(font, area.top(), area.right()).textTop(), Palette.MUTED);
+        for (int index = 0; index < anchors.size(); index++) {
+            ItemLinks.draw(graphics, icons, targets, actions, anchors.get(index), laid.iconLefts().get(index),
+                    headLine(font, laid.iconTops().get(index), area.right()).spriteTop());
+        }
+        return laid.height();
     }
 
     private static BuilderFrame.Row frameRow(GroupsPane.Bounds value, boolean entered) {
@@ -807,7 +874,8 @@ final class ValuesPane {
         BuilderFrame.Laid laid = BuilderFrame.lay(font, frame);
         int expression = ReadValueButton.height(font, expressionRuns(row), laid.boxRight() - laid.valueX());
         int head = placeHead(font, entry, new GroupsPane.Bounds(0, 0, width, 0)).height();
-        return head + BuilderFrame.measure(font, frame, expression, row.error()) + RowLayout.RULE_SPAN;
+        int anchors = placeAnchors(font, entry, new GroupsPane.Bounds(0, 0, width, 0)).height();
+        return head + BuilderFrame.measure(font, frame, expression, row.error()) + anchors + RowLayout.RULE_SPAN;
     }
 
     // The entry's value curated, a plain left click on it opening the builder in its place, with the row selected,

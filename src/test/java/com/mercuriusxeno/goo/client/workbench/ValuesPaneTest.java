@@ -1601,6 +1601,55 @@ class ValuesPaneTest {
     }
 
     /**
+     * A derived row draws an anchors line under its expression: the word anchors, then each anchor as an icon linked
+     * through ItemLinks; an explicitly valued row draws none (decision item-value-view-lists-its-anchors).
+     */
+    @Test
+    void derivedRowListsItsAnchorsAsLinkedIcons() {
+        String copper = "minecraft:copper_ingot";
+        String tin = "minecraft:tin_ingot";
+        DrawnFrame derived = anchorsFrame("""
+                {"path": "base_values.json", "members": []}
+                """);
+        assertTrue(derived.texts().contains("anchors"), derived.texts().toString());
+        List<String> keys = derived.targets.hoverKeys();
+        assertTrue(keys.containsAll(List.of(ItemIcons.hoverKey(copper), ItemIcons.hoverKey(tin))), keys.toString());
+
+        DrawnFrame explicit = anchorsFrame("""
+                {"path": "base_values.json", "members": [
+                  {"key": "bronze_rod", "keySeparator": null, "kind": "VALUE", "text": "{\\"metal\\": 5}",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        assertFalse(explicit.texts().contains("anchors"), explicit.texts().toString());
+        assertTrue(explicit.targets.hoverKeys().stream().noneMatch(List.of(ItemIcons.hoverKey(copper),
+                ItemIcons.hoverKey(tin))::contains), explicit.targets.hoverKeys().toString());
+    }
+
+    // A bronze rod row made from one bronze ingot, its reply naming copper and tin as its anchors, over the model given.
+    private static DrawnFrame anchorsFrame(String model) {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:bronze_rod", "Bronze Rod")), List.of()));
+        values.readModel(model);
+        values.readResolved("""
+                {"entries": [{"key": "bronze_rod", "value": {"metal": "5"}, "denied": false}]}
+                """);
+        values.readDerivedFrom("""
+                {"items": {"minecraft:bronze_rod": {"inputs": [{"id": "minecraft:bronze_ingot", "count": 1}],
+                  "output": 1, "anchors": ["minecraft:copper_ingot", "minecraft:tin_ingot"]}}}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(new Matrix3x2fStack(4));
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200),
+                frame.targets);
+        return frame;
+    }
+
+    /**
      * An input's label reads its summed count over the recipe's output as a reduced mixed number, and nothing where
      * that equals 1 (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      */

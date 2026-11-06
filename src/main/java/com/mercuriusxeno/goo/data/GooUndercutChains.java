@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -53,12 +54,8 @@ public final class GooUndercutChains {
      * @return each undercut manual value with its chains, in id order
      */
     public static List<Undercut> traceEachUndercut(GooValueRegistry values) {
-        Map<Identifier, GooValueRegistry.ValueConflict> undercutByItem = new TreeMap<>();
-        values.diagnostics().conflicts().stream().filter(GooValueRegistry.ValueConflict::isRecipeCheaper)
-                .forEach(conflict -> undercutByItem.put(conflict.item(), conflict));
-        Set<Identifier> entries = new HashSet<>(values.handKeyedItems());
-        entries.removeAll(undercutByItem.keySet());
-        ChainWalk walk = new ChainWalk(values.valueSettingRecipeByItem(), entries);
+        Map<Identifier, GooValueRegistry.ValueConflict> undercutByItem = undercutByItem(values);
+        ChainWalk walk = walkOf(values, undercutByItem.keySet());
         List<Undercut> undercuts = new ArrayList<>();
         undercutByItem.forEach((item, conflict) -> undercuts.add(
                 new Undercut(item, conflict.baseValue(), conflict.recipeValue(), walk.chainsTo(item))));
@@ -66,9 +63,31 @@ public final class GooUndercutChains {
     }
 
     /**
-     * The walk from an undercut item back through each value-setting recipe to the entries.
+     * @param values a registry after derivation
+     * @return the walk any item starts, back through each value-setting recipe to the hand-keyed entries whose
+     *     keyed value held
      */
-    private static final class ChainWalk {
+    public static ChainWalk walkOf(GooValueRegistry values) {
+        return walkOf(values, undercutByItem(values).keySet());
+    }
+
+    private static ChainWalk walkOf(GooValueRegistry values, Set<Identifier> undercut) {
+        Set<Identifier> entries = new HashSet<>(values.handKeyedItems());
+        entries.removeAll(undercut);
+        return new ChainWalk(values.valueSettingRecipeByItem(), entries);
+    }
+
+    private static Map<Identifier, GooValueRegistry.ValueConflict> undercutByItem(GooValueRegistry values) {
+        Map<Identifier, GooValueRegistry.ValueConflict> undercutByItem = new TreeMap<>();
+        values.diagnostics().conflicts().stream().filter(GooValueRegistry.ValueConflict::isRecipeCheaper)
+                .forEach(conflict -> undercutByItem.put(conflict.item(), conflict));
+        return undercutByItem;
+    }
+
+    /**
+     * The walk from an item back through each value-setting recipe to the entries.
+     */
+    public static final class ChainWalk {
         private static final Comparator<List<Step>> CHAIN_ORDER = Comparator.comparing(chain -> chain.stream()
                 .map(step -> step.item().toString()).toList().toString());
         private final Map<Identifier, RecipeInput> sources;
@@ -83,6 +102,41 @@ public final class GooUndercutChains {
             List<List<Step>> chains = new ArrayList<>();
             walk(undercut, new ArrayList<>(), new HashSet<>(), chains);
             return chains.stream().distinct().sorted(CHAIN_ORDER).toList();
+        }
+
+        /**
+         * The anchors are the entries every chain from the item reaches, each chain at most MAX_CHAIN_ITEMS long;
+         * the walk runs breadth first, so each item is entered once, at the shortest chain reaching it.
+         * decision item-value-view-lists-its-anchors
+         *
+         * @param item the item the chains start from
+         * @return each entry a chain reaches, in id order
+         */
+        public SortedSet<Identifier> anchorsOf(Identifier item) {
+            SortedSet<Identifier> anchors = new TreeSet<>();
+            Set<Identifier> seen = new HashSet<>(Set.of(item));
+            List<Identifier> frontier = List.of(item);
+            for (int chainItems = 1; chainItems < MAX_CHAIN_ITEMS && !frontier.isEmpty(); chainItems++) {
+                List<Identifier> next = new ArrayList<>();
+                frontier.forEach(reached -> stepBack(reached, seen, anchors, next));
+                frontier = next;
+            }
+            return anchors;
+        }
+
+        // Each item the reached item's value came from, unseen, lands with the anchors where it is an entry and on
+        // the next frontier otherwise.
+        private void stepBack(Identifier reached, Set<Identifier> seen, Set<Identifier> anchors,
+                              List<Identifier> next) {
+            RecipeInput recipe = sources.get(reached);
+            if (recipe == null) {
+                return;
+            }
+            for (Identifier before : itemsBefore(recipe, !recipe.output().equals(reached))) {
+                if (seen.add(before)) {
+                    (entries.contains(before) ? anchors : next).add(before);
+                }
+            }
         }
 
         /**
