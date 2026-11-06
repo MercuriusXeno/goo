@@ -11,7 +11,7 @@ import java.util.Optional;
  * @param feet        where the blinker's feet land
  * @param distance    the blocks from where they stood to where they land
  * @param throughWall whether the trip passed through a solid block
- * @param node        the oculus the blink snapped to, empty for a free or pinned blink
+ * @param node        the oculus the blink snapped to, empty for a free blink
  * @param converts    the bare prism the blink spends itself into, becoming an oculus, empty for a trip
  */
 public record BlinkLanding(Vec3 feet, double distance, boolean throughWall, Optional<BlockPos> node,
@@ -23,7 +23,7 @@ public record BlinkLanding(Vec3 feet, double distance, boolean throughWall, Opti
      * @param feet        where the blinker's feet land
      * @param distance    the blocks from where they stood to where they land
      * @param throughWall whether the trip passed through a solid block
-     * @param node        the oculus the blink snapped to, empty for a free or pinned blink
+     * @param node        the oculus the blink snapped to, empty for a free blink
      */
     public BlinkLanding(Vec3 feet, double distance, boolean throughWall, Optional<BlockPos> node) {
         this(feet, distance, throughWall, node, Optional.empty());

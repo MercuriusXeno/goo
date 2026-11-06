@@ -117,8 +117,7 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
     }
 
     /**
-     * Where a blink along the thrower's look puts the target, sliding on the
-     * plane the press pinned where the host carries one.
+     * Where a blink along the thrower's look puts the target.
      * decision blink-lands-safely-costed-by-distance
      *
      * @param host  the host whose target blinks
@@ -128,13 +127,13 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
     private Optional<BlinkLanding> blinkAlongLook(TargetHost host, double range) {
         Entity thrower = host.thrower();
         return thrower == null ? Optional.empty()
-                : landing(host.target(), host.target().position(), thrower.getLookAngle(), range, host.blinkPin());
+                : landing(host.target(), host.target().position(), thrower.getLookAngle(), range);
     }
 
     /**
      * Where this step's blink puts an entity: nowhere, spent into the bare
      * prism the look ends on in range; beside the oculus the look snaps to
-     * where it finds one, a pinned face or not; else where the blink lands.
+     * where it finds one; else where the blink lands.
      * Decision oculus-prism-becomes-a-hovering-eye.
      * Decision blink-at-a-prism-spends-into-an-oculus.
      *
@@ -142,11 +141,9 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
      * @param feet    where the entity's feet stand
      * @param look    the unit look vector
      * @param reach   the blink's range in blocks
-     * @param pin     the face plane the press pinned, empty for free aim
      * @return the landing, empty when no spot the entity fits lies on the way
      */
-    public Optional<BlinkLanding> landing(Entity blinker, Vec3 feet, Vec3 look, double reach,
-            Optional<ChannelAim.FacePlane> pin) {
+    public Optional<BlinkLanding> landing(Entity blinker, Vec3 feet, Vec3 look, double reach) {
         Vec3 eye = feet.add(0, blinker.getEyeHeight(), 0);
         // blink-at-a-prism-spends-into-an-oculus: a look ending on a bare prism spends the blink into it
         Optional<BlinkLanding> converting = BlinkResolver.conversion(new LevelBlinkSpace(blinker.level(), blinker),
@@ -155,13 +152,12 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
             return converting;
         }
         double snapRange = nodeRange.evaluate(Variables.NONE);
-        // The oculus wins over a pressed face: a press on any face in range pins it, which would never snap.
         Optional<BlinkLanding> snapped = snapRange <= 0 ? Optional.empty()
                 : OculusNodes.onLook(blinker.level(), eye, look, snapRange,
                         nodeCone.evaluate(Variables.NONE))
                         .flatMap(node -> BlinkResolver.toNode(new LevelBlinkSpace(blinker.level(), blinker), feet,
                                 node, BlinkBody.of(blinker)));
-        return snapped.isPresent() ? snapped : landingAlongLook(blinker, feet, look, reach, pin);
+        return snapped.isPresent() ? snapped : landingAlongLook(blinker, feet, look, reach);
     }
 
     /**
@@ -170,18 +166,17 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
      * stands where the jump lands and the cost shown is the cost drained.
      * Decision ripple-outline-is-the-blink-cursor.
      * Decision blink-lands-safely-costed-by-distance.
+     * Decision blink-drops-the-face-axis-pin.
      *
      * @param blinker the entity blinking, whose level and size the landing reads
      * @param feet    where the entity's feet stand, interpolated for a frame on the client
      * @param look    the unit look vector
      * @param range   the blink's range in blocks
-     * @param pin     the face plane the press pinned, empty for free aim
      * @return the landing, empty when no spot the entity fits lies on the way
      */
-    public static Optional<BlinkLanding> landingAlongLook(Entity blinker, Vec3 feet, Vec3 look, double range,
-            Optional<ChannelAim.FacePlane> pin) {
+    public static Optional<BlinkLanding> landingAlongLook(Entity blinker, Vec3 feet, Vec3 look, double range) {
         return BlinkResolver.resolve(new LevelBlinkSpace(blinker.level(), blinker), feet, look, range,
-                BlinkBody.of(blinker), pin);
+                BlinkBody.of(blinker));
     }
 
     /**
@@ -193,13 +188,11 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
      * @param blinker   the entity that would blink
      * @param feet      where the entity's feet stand
      * @param look      the unit look vector
-     * @param pin       the face plane the press pinned, empty for free aim
      * @return the landing, empty where the ability blinks along no look or lands nowhere
      */
-    public static Optional<BlinkLanding> tripOf(List<Step> behaviors, Entity blinker, Vec3 feet, Vec3 look,
-            Optional<ChannelAim.FacePlane> pin) {
+    public static Optional<BlinkLanding> tripOf(List<Step> behaviors, Entity blinker, Vec3 feet, Vec3 look) {
         return lookStep(behaviors).flatMap(step ->
-                step.landing(blinker, feet, look, step.range().evaluate(Variables.NONE), pin));
+                step.landing(blinker, feet, look, step.range().evaluate(Variables.NONE)));
     }
 
     /**

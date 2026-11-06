@@ -30,7 +30,7 @@ import java.util.OptionalDouble;
 /**
  * The blink cursor: the player's silhouette ripple standing where blink
  * would land them. Each frame it resolves the landing from the local
- * player's look, the ability's range and the face the press pinned through
+ * player's look and the ability's range through
  * the resolver the server's teleport calls
  * (decision blink-lands-safely-costed-by-distance), shows nothing where
  * the blink would land nowhere, captures the player's pose, and draws a ripple there that
