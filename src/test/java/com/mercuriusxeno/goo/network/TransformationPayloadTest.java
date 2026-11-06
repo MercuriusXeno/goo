@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,6 +32,18 @@ class TransformationPayloadTest {
     void aBlockTargetRoundTripsThroughTheStreamCodec() {
         TransformationPayload sent = TransformationPayload.intoBlock(GooTypes.CRYSTAL, new Vec3(1.5, 64, -3.25),
                 new Vec3(1.5, 64.5, -2.5), new BlockPos(1, 64, -3), 16);
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        TransformationPayload.STREAM_CODEC.encode(buf, sent);
+
+        assertEquals(sent, TransformationPayload.STREAM_CODEC.decode(buf));
+    }
+
+    // decision slime-blob-morphs-into-the-slime-it-becomes
+    @Test
+    void aHeldEntityRoundTripsItsStandInThroughTheStreamCodec() {
+        TransformationPayload sent = TransformationPayload.intoHeldEntity(GooTypes.WEIRD, new Vec3(1.5, 64, -3.25),
+                new Vec3(1.5, 64, -3.25), 4242, Identifier.parse("minecraft:slime"), 16);
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         TransformationPayload.STREAM_CODEC.encode(buf, sent);

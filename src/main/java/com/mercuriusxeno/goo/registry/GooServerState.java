@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.Drinks;
+import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.network.FleckLaunches;
@@ -23,6 +24,7 @@ public final class GooServerState {
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final FleckLaunches fleckLaunches = new FleckLaunches();
     private final UnmakeDrops unmakeDrops = new UnmakeDrops();
+    private final MorphBirths morphBirths = new MorphBirths();
     private final Drinks drinks = new Drinks();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
@@ -72,6 +74,16 @@ public final class GooServerState {
      */
     public UnmakeDrops unmakeDrops() {
         return unmakeDrops;
+    }
+
+    /**
+     * The mobs blobs birth, held back while the blob morphs into them
+     * (decision slime-blob-morphs-into-the-slime-it-becomes).
+     *
+     * @return the held births
+     */
+    public MorphBirths morphBirths() {
+        return morphBirths;
     }
 
     /**
@@ -134,6 +146,7 @@ public final class GooServerState {
         }
         drinks.tick(server);
         unmakeDrops.dropArrived(currentTick);
+        morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
     }
 
@@ -147,6 +160,7 @@ public final class GooServerState {
         markerFalls.clear();
         streamHolds.clear();
         unmakeDrops.clear();
+        morphBirths.clear();
         drinks.clear();
         glacialFields.clear();
     }
