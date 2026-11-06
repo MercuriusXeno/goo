@@ -40,6 +40,7 @@ public final class GrabChannelTests {
     private static final String GRAB_THROWS_ALONG_THE_LOOK = "grab_throws_along_the_look";
     private static final String GRAB_THROWS_AN_ITEM = "grab_throws_an_item";
     private static final String GRAB_THROW_FLIES_WHILE_THE_CHANNEL_HOLDS = "grab_throw_flies_while_the_channel_holds";
+    private static final String GRAB_SECOND_CLICK_KEEPS_THE_THROW_FLYING = "grab_second_click_keeps_the_throw_flying";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -53,6 +54,8 @@ public final class GrabChannelTests {
         GooTestFunctions.registerTest(registrar, GRAB_THROWS_AN_ITEM, GrabChannelTests::grabThrowsAnItem);
         GooTestFunctions.registerTest(registrar, GRAB_THROW_FLIES_WHILE_THE_CHANNEL_HOLDS,
                 GrabChannelTests::grabThrowFliesWhileTheChannelHolds);
+        GooTestFunctions.registerTest(registrar, GRAB_SECOND_CLICK_KEEPS_THE_THROW_FLYING,
+                GrabChannelTests::grabSecondClickKeepsTheThrowFlying);
     }
 
 
@@ -172,6 +175,27 @@ public final class GrabChannelTests {
      * @param helper the gametest helper
      */
     public static void grabThrowFliesWhileTheChannelHolds(GameTestHelper helper) {
+        throwWhileTheChannelHolds(helper, false);
+    }
+
+    /**
+     * A second left click after the throw, still within the same right-click
+     * press, throws nothing and leaves the press spent, so the channel ticks
+     * after it lift the flying zombie no more
+     * (decision diagnose-and-correct-grabs-left-click-throw).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabSecondClickKeepsTheThrowFlying(GameTestHelper helper) {
+        throwWhileTheChannelHolds(helper, true);
+    }
+
+    /**
+     * Holds a zombie, throws it on the tick after the hold, optionally clicks
+     * again the tick after that, keeps the channel ticking throughout, and
+     * checks the zombie flew along the look and stands unheld.
+     */
+    private static void throwWhileTheChannelHolds(GameTestHelper helper, boolean clicksAgain) {
         ServerPlayer player = grabber(helper);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
         AtomicReference<Vec3> heldAt = new AtomicReference<>();
@@ -180,6 +204,10 @@ public final class GrabChannelTests {
             heldAt.set(zombie.position());
             helper.assertTrue(GrabEvents.throwHeld(player), "The player should hold the zombie to throw it");
         });
+        if (clicksAgain) {
+            helper.runAfterDelay(HOLD_TICKS + 2, () -> helper.assertTrue(!GrabEvents.throwHeld(player),
+                    "A second click after the throw should hold nothing to throw"));
+        }
         for (int held = HOLD_TICKS + 1; held <= HOLD_TICKS + 1 + FLIGHT_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, holdTick(player)));
         }
