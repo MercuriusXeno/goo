@@ -24,6 +24,7 @@ import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
@@ -441,6 +442,19 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Airborn.NONE)
                             .serialize(Airborn.CODEC, airborn -> airborn.expiresAt() > 0L)
                             .sync(GooAttachments::syncsToOwner, Airborn.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The air Pneuma banks past a player's vanilla air meter and its airless
+     * immunity, saved with the player and synced to the owning client, which
+     * draws the reserve above the air bubbles.
+     * pneuma-overfills-the-air-meter-with-a-brief-airless-immunity
+     */
+    public static final Supplier<AttachmentType<Breath>> BREATH =
+            ATTACHMENT_TYPES.register("breath",
+                    () -> AttachmentType.builder(() -> Breath.NONE)
+                            .serialize(Breath.CODEC, Breath::stands)
+                            .sync(GooAttachments::syncsToOwner, Breath.STREAM_CODEC)
                             .build());
     private GooAttachments() {
     }

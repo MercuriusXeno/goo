@@ -132,10 +132,10 @@ class AbilityLoaderTest {
     class TyphoonFlight {
 
         private static final Set<String> TYPHOON_ABILITIES =
-                Set.of("typhoon_shulk", "typhoon_float", "typhoon_gust", "typhoon_updraft");
+                Set.of("typhoon_shulk", "typhoon_float", "typhoon_gust", "typhoon_updraft", "typhoon_pneuma");
 
         @Test
-        void typhoonCarriesShulkFloatGustAndUpdraft() {
+        void typhoonCarriesShulkFloatGustUpdraftAndPneuma() {
             Set<String> typhoon = scanShipped(AbilityJson.files()).values().stream()
                     .filter(def -> def.gooType() == GooTypes.TYPHOON)
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
