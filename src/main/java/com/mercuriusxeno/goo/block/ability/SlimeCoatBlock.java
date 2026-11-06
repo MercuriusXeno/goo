@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -25,8 +26,10 @@ import java.util.Map;
  * Weird's slime coat: a thin glossy green film laid on a block's top like a
  * snow layer, the block under it unchanged and showing through, drips
  * running down that block's sides at the coat's open edges. It stands until
- * something destroys it and drops nothing.
+ * something destroys it and drops nothing. It is Bounce's pad too: what lands
+ * on it takes no fall damage and bounces, ramping while jump is held.
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
+ * bounce-ramps-jump-height-while-jump-is-held
  */
 public class SlimeCoatBlock extends Block {
 
@@ -130,9 +133,37 @@ public class SlimeCoatBlock extends Block {
     protected void onPlace(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
                            @NonNull BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
+        if (!canSurvive(state, level, pos)) {
+            // a blob landing beside a wall finds no top to coat
+            level.removeBlock(pos, false);
+            return;
+        }
         BlockState fitted = fittedTo(state, level, pos);
         if (fitted != state) {
             level.setBlock(pos, fitted, Block.UPDATE_CLIENTS);
+        }
+    }
+
+    /**
+     * Breaks whatever fall lands on the coat.
+     * bounce-ramps-jump-height-while-jump-is-held
+     */
+    @Override
+    public void fallOn(@NonNull Level level, @NonNull BlockState state, @NonNull BlockPos pos,
+                       @NonNull Entity entity, double fallDistance) {
+        entity.causeFallDamage(fallDistance, 0.0F, level.damageSources().fall());
+    }
+
+    /**
+     * Bounces what lands on the coat, ramping while jump is held.
+     * bounce-ramps-jump-height-while-jump-is-held
+     */
+    @Override
+    public void updateEntityMovementAfterFallOn(@NonNull BlockGetter level, @NonNull Entity entity) {
+        if (entity.getDeltaMovement().y < 0) {
+            SlimeCoatBounce.bounce(entity);
+        } else {
+            super.updateEntityMovementAfterFallOn(level, entity);
         }
     }
 
