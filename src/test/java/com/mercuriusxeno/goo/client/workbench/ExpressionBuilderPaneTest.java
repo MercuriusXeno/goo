@@ -2222,14 +2222,15 @@ class ExpressionBuilderPaneTest {
 
         /**
          * On a by-type value wrapping past one line, the prefab mode picked from the first row's term opens the prefab
-         * dropdown's search box one line under that term's line, not under the builder's last line (decision
-         * diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom).
+         * dropdown's search box flush under that term's drawn ring, not under the builder's last line (decisions
+         * diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom, every-popup-measures-flows-to-fit-and-scrolls).
          */
         @Test
         void prefabModeOpensItsDropdownUnderTheClickedTermsLine() {
             Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"3 $base\", \"pulse\": \"2\", \"glow\": \"1\"}");
             DrawnFrame frame = builder.frame();
             DrawnFrame.Text name = frame.findFirst("$base");
+            int ringBottom = ringAround(frame.buttonAround(name))[3];
             assertTrue(frame.find("1").y() > name.y() + ControlFlow.LINE, "the value wraps past the term's line");
             clickAt(frame, name);
             builder.frame().click("prefab");
@@ -2238,8 +2239,7 @@ class ExpressionBuilderPaneTest {
             verify(builder.actions, atLeastOnce()).addWidget(widgets.capture());
             AbstractWidget search = widgets.getAllValues().stream().filter(widget -> widget.visible).findFirst()
                     .orElseThrow(() -> new AssertionError("no list opened"));
-            assertEquals(name.y() - WORDS_DROP + BuilderOverlays.LINE, search.getY(),
-                    "the search box stands a line under the term's line at " + (name.y() - WORDS_DROP));
+            assertEquals(ringBottom, search.getY(), "the search box stands flush under the term's ring");
         }
 
         /**

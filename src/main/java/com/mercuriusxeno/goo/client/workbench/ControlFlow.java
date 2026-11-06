@@ -192,7 +192,7 @@ final class ControlFlow {
      * @return where the next piece stands, for a list opened from it
      */
     BuilderOverlays.Anchor anchor() {
-        return new BuilderOverlays.Anchor(x, y);
+        return new BuilderOverlays.Anchor(x, y, y + line);
     }
 
     /**
@@ -498,7 +498,7 @@ final class ControlFlow {
         int width = ButtonPainter.width(letters, label);
         openSegments(width, line);
         ButtonPainter.Box box = nextSegment(width);
-        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+        BuilderOverlays.Anchor at = segmentAnchor(box);
         ButtonPainter.drawLinkLabel(graphics, letters, label, box, targets);
         targets.addLink(box.left(), box.top(), box.width(), box.height(),
                 new ClickTargets.LinkGestures(() -> pressed.accept(at), follow), hoverKey);
@@ -533,11 +533,10 @@ final class ControlFlow {
         int width = ButtonPainter.width(letters, label);
         reserve(width);
         markButton(width);
-        int controlX = x;
-        int controlY = y;
+        ButtonPainter.Box drawn = ButtonPainter.layout(letters.width(label), x, y, line);
+        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(drawn.left(), drawn.top(), drawn.bottom());
         ButtonPainter.Box box = ButtonPainter.drawColored(graphics, letters, label, color,
-                new ButtonPainter.Box(controlX, controlY, 0, line), targets,
-                () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)), BuilderOverlays.hintKey(hint));
+                new ButtonPainter.Box(x, y, 0, line), targets, () -> pressed.accept(at), BuilderOverlays.hintKey(hint));
         x = box.right() + GAP;
     }
 
@@ -694,7 +693,8 @@ final class ControlFlow {
         GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.ICON_PADDING,
                 iconY + GooTypeIcons.centered(line, size));
         targets.add(iconX, iconY, width, line,
-                () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
+                () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY, iconY + line)),
+                GooTypeIcons.pickHoverKey(type));
         x += width + GAP;
     }
 
@@ -894,6 +894,12 @@ final class ControlFlow {
                 new RailGrab(grab, name)));
     }
 
+    // Decision every-popup-measures-flows-to-fit-and-scrolls: a segment's popup stands flush against the container's
+    // drawn edges, a term's ring included, so it reads as the segment's own.
+    private BuilderOverlays.Anchor segmentAnchor(ButtonPainter.Box box) {
+        return new BuilderOverlays.Anchor(box.left(), segmentsTop, segmentsTop + segmentsHeight);
+    }
+
     /**
      * A segment whose label centers in it and whose click edits the element it names.
      *
@@ -906,7 +912,7 @@ final class ControlFlow {
     BuilderOverlays.Anchor labelSegment(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
         ButtonPainter.Box box = nextSegment(ButtonPainter.width(letters, label));
         ButtonPainter.drawLabel(graphics, letters, label, box, Palette.LINK);
-        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+        BuilderOverlays.Anchor at = segmentAnchor(box);
         ButtonPainter.reserve(targets, box, () -> pressed.accept(at), BuilderOverlays.hintKey(hint));
         return at;
     }
@@ -924,7 +930,7 @@ final class ControlFlow {
                 box.top() + GooTypeIcons.centered(box.height(), size));
         // Decision diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom: the anchor is taken while the
         // segment draws, since by click time the flow stands on its last line.
-        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+        BuilderOverlays.Anchor at = segmentAnchor(box);
         targets.add(box.left(), box.top(), box.width(), box.height(), () -> pressed.accept(at),
                 GooTypeIcons.pickHoverKey(type));
     }
@@ -941,7 +947,7 @@ final class ControlFlow {
         ButtonPainter.Box box = nextSegment(runsSegmentWidth(letters, runs, suffix));
         if (pressed != null) {
             // Decision diagnose-and-correct-segment-popups-anchoring-at-the-box-bottom.
-            BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(box.left(), y);
+            BuilderOverlays.Anchor at = segmentAnchor(box);
             targets.add(box.left(), box.top(), box.width(), box.height(), () -> pressed.accept(at), null);
         }
         int runsWidth = ExpressionLines.width(letters, runs);
@@ -988,7 +994,7 @@ final class ControlFlow {
         int boxY = y;
         Frame.draw(graphics, Frame.BUTTON, new ButtonPainter.Box(boxX, boxY, line, line));
         letters.draw(graphics, label, boxX + (line - letters.width(label)) / HALF, wordsTop(), Palette.LINK);
-        targets.add(boxX, boxY, line, line, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY)),
+        targets.add(boxX, boxY, line, line, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY, boxY + line)),
                 BuilderOverlays.hintKey(hint));
         x += line + GAP;
     }
@@ -1077,13 +1083,12 @@ final class ControlFlow {
     private void addRunsTarget(RunsBand band, int width, @Nullable String hint,
                                @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
         int runsX = x;
-        int runsY = y;
         int areaTop = band.filled() ? band.top() : y;
         int areaHeight = band.filled() ? band.height() : line;
         String hoverKey = BuilderOverlays.hintKey(hint);
         if (pressed != null) {
-            targets.add(runsX, areaTop, width, areaHeight,
-                    () -> pressed.accept(new BuilderOverlays.Anchor(runsX, runsY)), hoverKey);
+            BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(runsX, areaTop, areaTop + areaHeight);
+            targets.add(runsX, areaTop, width, areaHeight, () -> pressed.accept(at), hoverKey);
         } else if (hoverKey != null) {
             targets.addHover(runsX, areaTop, width, areaHeight, hoverKey);
         }

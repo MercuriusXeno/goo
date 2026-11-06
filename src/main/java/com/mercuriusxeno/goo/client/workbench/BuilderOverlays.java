@@ -70,12 +70,22 @@ final class BuilderOverlays {
     private Anchor numberOpener = new Anchor(0, 0);
 
     /**
-     * Where a control was clicked, so what it opens stands below it.
+     * Where a control was clicked, so what it opens stands flush against it, under its bottom edge or over its top.
      *
-     * @param x the control's left edge
-     * @param y the control's line top
+     * @param x      the control's left edge
+     * @param y      the control's top edge
+     * @param bottom the control's bottom edge
      */
-    record Anchor(int x, int y) {
+    record Anchor(int x, int y, int bottom) {
+        /**
+         * A control a full-size line tall, as the panes outside the builder draw one.
+         *
+         * @param x the control's left edge
+         * @param y the control's top edge
+         */
+        Anchor(int x, int y) {
+            this(x, y, y + LINE);
+        }
     }
 
     /**
@@ -150,8 +160,8 @@ final class BuilderOverlays {
     }
 
     /**
-     * The one rule every popup stands by, as TooltipAnchor places a tooltip: below the opener's line where the whole
-     * content fits there, above it, its bottom on the line's top, where only above fits it whole, and otherwise on
+     * The one rule every popup stands by, as TooltipAnchor places a tooltip: flush under the opener's drawn bottom
+     * edge where the whole content fits there, flush over its top edge where only above fits it whole, and otherwise on
      * the side with more room at the height that side holds, the popup scrolling what it cannot show. A popup that
      * would run off the right edge shifts left.
      * Decision every-popup-measures-flows-to-fit-and-scrolls.
@@ -165,7 +175,7 @@ final class BuilderOverlays {
      * @return where the popup stands
      */
     static Placement place(Anchor at, int width, int content, int screenWidth, int screenHeight) {
-        int below = at.y() + LINE;
+        int below = at.bottom();
         int left = Math.max(0, Math.min(at.x(), screenWidth - width));
         int roomBelow = Math.max(0, screenHeight - below);
         int roomAbove = Math.max(0, at.y());
@@ -256,8 +266,10 @@ final class BuilderOverlays {
      */
     static int control(GuiGraphicsExtractor graphics, Font font, String label, @Nullable String hint, int x, int y,
                        ClickTargets targets, Consumer<Anchor> pressed) {
-        ButtonPainter.Box box = ButtonPainter.draw(graphics, font, label, x, y, LINE, targets,
-                () -> pressed.accept(new Anchor(x, y)), hintKey(hint));
+        ButtonPainter.Box drawn = ButtonPainter.layout(font.width(label), x, y, LINE);
+        Anchor at = new Anchor(drawn.left(), drawn.top(), drawn.bottom());
+        ButtonPainter.Box box = ButtonPainter.draw(graphics, font, label, x, y, LINE, targets, () -> pressed.accept(at),
+                hintKey(hint));
         return box.right() + GAP;
     }
 

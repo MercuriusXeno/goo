@@ -55,6 +55,13 @@ final class ButtonPainter {
         int right() {
             return left + width;
         }
+
+        /**
+         * @return the y past the box
+         */
+        int bottom() {
+            return top + height;
+        }
     }
 
     /**
