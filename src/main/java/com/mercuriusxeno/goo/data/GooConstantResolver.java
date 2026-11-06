@@ -8,10 +8,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Resolves a _constants block through the game's own constant parser and validator, so a tool authoring
@@ -21,6 +19,8 @@ public final class GooConstantResolver {
     private static final String CONSTANTS = "_constants";
     private static final String CONTEXT_PREFIX = "_constants.";
     private static final String CONTEXT_END = ":";
+    // What stands between a validator warning's context and its message.
+    private static final String WARNING_LEAD = CONTEXT_END + " ";
     private static final String TYPE_SEPARATOR = ".";
     private static final String WARNING_SEPARATOR = "; ";
     private static final String UNPARSED = "not parsed: ";
@@ -53,7 +53,6 @@ public final class GooConstantResolver {
         JsonObject root = new JsonObject();
         root.add(CONSTANTS, constants);
         GooValueValidator.validateJson(root, warnings);
-        validateTreeFields(constants, warnings);
         GooValueLoader.ParseState state = new GooValueLoader.ParseState(new HashMap<>(), new HashMap<>(),
                 new HashSet<>(), new HashSet<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new HashMap<>());
         PrefabDependencyGraph graph = PrefabDependencyGraph.of(constants);
@@ -79,7 +78,12 @@ public final class GooConstantResolver {
                                                List<String> warnings) {
         List<String> own = new ArrayList<>(warningsFor(name, warnings));
         try {
-            GooConstantParser.parseOneConstant(name, value, state);
+            String lacked = GooConstantParser.parseOneConstant(name, value, state);
+            // Decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line: one line names the referent and
+            // the type, the validator's where it saw the referent's types, the evaluator's where it could not.
+            if (lacked != null && own.stream().noneMatch(warning -> warning.endsWith(WARNING_LEAD + lacked))) {
+                own.add(lacked);
+            }
         } catch (RuntimeException e) {
             own.add(UNPARSED + e.getMessage());
         }
@@ -97,27 +101,5 @@ public final class GooConstantResolver {
         String exact = CONTEXT_PREFIX + name + CONTEXT_END;
         String typed = CONTEXT_PREFIX + name + TYPE_SEPARATOR;
         return warnings.stream().filter(warning -> warning.startsWith(exact) || warning.startsWith(typed)).toList();
-    }
-
-    /**
-     * The game's validator reads a scalar constant's expression; a tree constant's per-type expressions
-     * take the same token check here, against every constant the block names.
-     *
-     * @param constants the _constants block
-     * @param warnings  the warnings so far, added to
-     */
-    private static void validateTreeFields(JsonObject constants, List<String> warnings) {
-        Set<String> known = constants.keySet();
-        for (Map.Entry<String, JsonElement> constant : constants.entrySet()) {
-            if (constant.getValue().isJsonObject()) {
-                for (Map.Entry<String, JsonElement> field : constant.getValue().getAsJsonObject().entrySet()) {
-                    if (field.getValue().isJsonPrimitive() && field.getValue().getAsJsonPrimitive().isString()) {
-                        GooValueTokenValidator.validateExprTokens(field.getValue().getAsString(), known,
-                                new LinkedHashSet<>(), CONTEXT_PREFIX + constant.getKey() + TYPE_SEPARATOR
-                                        + field.getKey(), warnings);
-                    }
-                }
-            }
-        }
     }
 }

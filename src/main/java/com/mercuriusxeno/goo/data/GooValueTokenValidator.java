@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.data;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -21,6 +22,8 @@ final class GooValueTokenValidator {
 
     /** Warning suffix: unknown constant prefix. */
     private static final String WARN_UNKNOWN_CONST_DOLLAR = ": unknown constant $";
+    /** Warning lead: the referent and the goo type it lacks follow. */
+    private static final String WARN_LACKED_TYPE = ": ";
 
     /** Warning: missing $ prefix pattern start. */
     private static final String WARN_MISSING_DOLLAR_PREFIX = ": '";
@@ -44,11 +47,36 @@ final class GooValueTokenValidator {
     static void validateExprTokens(String expr, Set<String> knownConstants,
                                    Set<String> knownItems, String context,
                                    List<String> warnings) {
+        validateExprTokens(expr, new KnownPrefabs(knownConstants, Map.of()), knownItems, context, warnings);
+    }
+
+    /**
+     * Checks expression tokens for forgotten $ prefixes, unknown constants, out-of-order items, and a $name.type
+     * reading a type an object-form prefab holds no key for.
+     *
+     * @param expr the expression string to validate
+     * @param prefabs the prefabs the block names, with each object-form prefab's goo types
+     * @param knownItems known item IDs (defined before this entry)
+     * @param context the item key for error messages
+     * @param warnings accumulator for validation warnings
+     */
+    static void validateExprTokens(String expr, KnownPrefabs prefabs, Set<String> knownItems, String context,
+                                   List<String> warnings) {
         for (String token : ExpressionTokenizer.tokenize(expr)) {
             if (!isOperatorToken(token)) {
-                classifyAndValidateToken(token, knownConstants, knownItems, context, warnings);
+                classifyAndValidateToken(token, prefabs, knownItems, context, warnings);
             }
         }
+    }
+
+    /**
+     * The prefabs a _constants block names, and the goo types each object-form prefab holds, its JSON keys; a prefab
+     * in string form holds the types its expression resolves to, which only the evaluator knows.
+     *
+     * @param names every prefab name the block holds
+     * @param heldTypes each object-form prefab's goo type ids, by prefab name
+     */
+    record KnownPrefabs(Set<String> names, Map<String, Set<String>> heldTypes) {
     }
 
     /**
@@ -57,18 +85,18 @@ final class GooValueTokenValidator {
      * the load names an item nothing values (decision diagnose-and-correct-item-reference-unrecognized-token).
      *
      * @param token the token to classify and validate
-     * @param knownConstants known constant names
+     * @param prefabs the prefabs the block names, with each object-form prefab's goo types
      * @param knownItems known item IDs defined before this entry
      * @param context the item key for error messages
      * @param warnings accumulator for validation warnings
      */
-    static void classifyAndValidateToken(String token, Set<String> knownConstants,
+    static void classifyAndValidateToken(String token, KnownPrefabs prefabs,
                                          Set<String> knownItems, String context,
                                          List<String> warnings) {
         if (token.startsWith(DOLLAR_PREFIX)) {
-            validateConstantToken(token, knownConstants, context, warnings);
+            validateConstantToken(token, prefabs, context, warnings);
         } else if (!token.contains(COLON) && !Character.isDigit(token.charAt(0))) {
-            validateBareWordToken(token, knownConstants, knownItems, context, warnings);
+            validateBareWordToken(token, prefabs.names(), knownItems, context, warnings);
         }
     }
 
@@ -83,20 +111,28 @@ final class GooValueTokenValidator {
     }
 
     /**
-     * Validates a $-prefixed constant token, stripping dot-notation suffixes for lookup.
+     * Validates a $-prefixed constant token, stripping dot-notation suffixes for lookup, and warns where the suffix
+     * reads a goo type the object-form prefab holds no key for
+     * (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line).
      *
      * @param token the constant token (e.g. "$food.jelly")
-     * @param knownConstants known constant names
+     * @param prefabs the prefabs the block names, with each object-form prefab's goo types
      * @param context the item key for error messages
      * @param warnings accumulator for validation warnings
      */
-    static void validateConstantToken(String token, Set<String> knownConstants,
+    static void validateConstantToken(String token, KnownPrefabs prefabs,
                                       String context, List<String> warnings) {
         String name = token.substring(1);
         int dot = name.indexOf('.');
         String baseName = dot >= 0 ? name.substring(0, dot) : name;
-        if (!knownConstants.contains(baseName)) {
+        if (!prefabs.names().contains(baseName)) {
             warnings.add(context + WARN_UNKNOWN_CONST_DOLLAR + name);
+            return;
+        }
+        Set<String> held = prefabs.heldTypes().get(baseName);
+        String type = name.substring(name.lastIndexOf('.') + 1);
+        if (dot >= 0 && held != null && !held.contains(type)) {
+            warnings.add(context + WARN_LACKED_TYPE + ReferentLacksType.message(baseName, type));
         }
     }
 
