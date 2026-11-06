@@ -74,14 +74,15 @@ class GooTypeResourcesTest {
     }
 
     /**
-     * Each bundled type names itself, its potion and its brew effect in en_us.
+     * Each bundled type names itself and its potion in en_us; BrewEffectNameTest
+     * proves the name its brew effect reads.
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void langNamesEveryBundledType(ResourceKey<GooTypeDefinition> key) {
         String id = GooTypes.id(key);
         for (String langKey : List.of(GooTypeNames.translationKey(key),
-                "item.minecraft.potion.effect." + id + "_goo", "effect.goo." + id + "_brew")) {
+                "item.minecraft.potion.effect." + id + "_goo")) {
             assertTrue(lang.has(langKey), "en_us lacks " + langKey);
         }
     }
