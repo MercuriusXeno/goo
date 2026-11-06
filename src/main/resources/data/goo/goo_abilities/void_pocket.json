@@ -1,12 +1,14 @@
 {
   "gooType": "void",
   "displayName": "goo.ability.void.pocket",
-  "badge": "world",
+  "cost_mechanics": "goo.ability.void.pocket.cost_mechanics",
+  "badge": "instant",
   "order": 10,
-  "cost": 4000,
-  "delivery": { "kind": "arc" },
+  "cost": 0,
+  "cost_formula": "void/item",
+  "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "void_pocket", "lifetime": 1200 }
+    { "type": "pocket_open" }
   ],
-  "tags": ["portal"]
+  "tags": ["self"]
 }

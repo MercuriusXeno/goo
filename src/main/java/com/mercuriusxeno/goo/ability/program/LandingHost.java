@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.ability.gate.AstralGateOpening;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
-import com.mercuriusxeno.goo.ability.gate.VoidPocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.PortableHole;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
@@ -133,15 +132,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public boolean openAstralGate(int lifetime) {
         return AstralGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
-    }
-
-    /**
-     * Opens Void's pocket gate over the block the blob struck, into the caster's room.
-     * decision void-opens-a-pocket-dimension
-     */
-    @Override
-    public boolean openVoidPocket(int lifetime) {
-        return VoidPocketOpening.open(level, cell.relative(face.getOpposite()), face, lifetime, caster);
     }
 
     /**
