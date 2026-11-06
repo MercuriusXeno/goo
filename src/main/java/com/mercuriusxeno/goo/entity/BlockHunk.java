@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.entity;
 
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -12,6 +13,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -26,16 +31,23 @@ import java.util.List;
 /**
  * A hunk of blocks lifted out of the world and carried as one entity: each
  * block keeps its offset from the hunk's origin cell, whose bottom center the
- * entity stands at, and draws there as it moves. A rising hunk climbs from
- * its start to its target over its rise time, eased so it starts and stops
- * gently, and settles its blocks into the cells it reached when the rise ends.
- * Both sides run the rise from the spawn data, so the client draws it without
- * waiting on the server's position updates.
+ * entity stands at, and draws there as it moves.
+ *
+ * A rising hunk climbs from its start to its target over its rise time,
+ * eased so it starts and stops gently, and settles its blocks into the cells
+ * it reached when the rise ends. Both sides run the rise from the spawn data,
+ * so the client draws it without waiting on the server's position updates.
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
+ *
+ * A lifted hunk hangs where a grab's hold puts it; let go or thrown, it flies
+ * under gravity, and whatever it strikes, block or mob, it crushes on impact
+ * before it breaks apart, dropping each of its blocks as the block itself.
+ * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  */
 public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     private static final String TAG_BLOCKS = "Blocks";
+    private static final String TAG_RISING = "Rising";
     private static final String TAG_START = "Start";
     private static final String TAG_TARGET = "Target";
     private static final String TAG_RISE_TICKS = "RiseTicks";
@@ -47,6 +59,24 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     /** Smoothstep's cubic weights: 3t^2 - 2t^3. */
     private static final double SMOOTHSTEP_SQUARE = 3;
     private static final double SMOOTHSTEP_CUBE = 2;
+    /** A flying hunk's fall, in blocks a tick per tick, a falling block's own. */
+    private static final double GRAVITY = 0.04;
+    /** A flying hunk's air drag each tick, a falling block's own. */
+    private static final double DRAG = 0.98;
+    /** The least speed, in blocks a tick, at which an impact crushes what it strikes. */
+    static final double CRUSH_SPEED = 0.3;
+    /** How far past the face it strikes an impact crushes, in blocks. */
+    private static final double CRUSH_DEPTH = 1;
+    /** The hardest block an impact crushes: obsidian and harder stand. */
+    private static final float CRUSHABLE_BELOW = 50f;
+    /** The damage a struck mob takes for each block the hunk carries. */
+    private static final float DAMAGE_PER_BLOCK = 1f;
+    /** The most damage one impact deals a mob. */
+    private static final float MOST_DAMAGE = 20f;
+    /** The longest a let-go hunk flies before it breaks apart where it is, in ticks. */
+    private static final int MOST_FLIGHT_TICKS = 200;
+    /** Shrinks the crush box off the faces the hunk only touches. */
+    private static final double TOUCH_SLACK = 1e-3;
 
     /**
      * One block of a hunk.
@@ -64,10 +94,13 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     private List<HunkBlock> blocks = List.of();
+    private boolean rising = true;
     private Vec3 start = Vec3.ZERO;
     private Vec3 target = Vec3.ZERO;
     private int riseTicks = 1;
     private int age;
+    /** Ticks the hunk has flown free since a hold last stood on it. */
+    private int flightTicks;
 
     /**
      * The constructor the entity type builds a loaded or synced hunk with.
@@ -101,6 +134,29 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         hunk.setPos(hunk.start);
         level.addFreshEntity(hunk);
         return hunk;
+    }
+
+    /**
+     * Lifts blocks out of their cells as a hunk standing where they stood,
+     * which collides with the world as it moves; the caller empties the cells.
+     *
+     * @param level  the server level
+     * @param origin the hunk's origin cell
+     * @param blocks the blocks, each by its offset from the origin cell
+     * @return the lifted hunk, added to the level
+     */
+    public static BlockHunk lift(ServerLevel level, BlockPos origin, List<HunkBlock> blocks) {
+        BlockHunk hunk = new BlockHunk(GooEntities.BLOCK_HUNK.get(), level);
+        hunk.blocks = List.copyOf(blocks);
+        hunk.becomeLifted();
+        hunk.setPos(Vec3.atBottomCenterOf(origin));
+        level.addFreshEntity(hunk);
+        return hunk;
+    }
+
+    private void becomeLifted() {
+        rising = false;
+        noPhysics = false;
     }
 
     /**
@@ -138,16 +194,25 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
-        // the spawn data carries the hunk whole, and both sides run its rise from it
+        // the spawn data carries the hunk whole; a rise runs from it and a flight follows the server's moves
     }
 
     @Override
     public void tick() {
         super.tick();
         age++;
-        setPos(start.lerp(target, risenShare(age, riseTicks)));
-        if (age >= riseTicks && level() instanceof ServerLevel server) {
-            settle(server);
+        if (rising) {
+            setPos(start.lerp(target, risenShare(age, riseTicks)));
+            if (age >= riseTicks && level() instanceof ServerLevel server) {
+                settle(server);
+            }
+        } else if (level() instanceof ServerLevel server) {
+            if (hasData(GooAttachments.GRABBED)) {
+                flightTicks = 0;
+            } else {
+                flightTicks++;
+                fly(server);
+            }
         }
     }
 
@@ -159,15 +224,91 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      */
     private void settle(ServerLevel level) {
         for (HunkBlock block : blocks) {
-            BlockPos cell = BlockPos.containing(cornerOf(position(), block).add(HALF, HALF, HALF));
+            BlockPos cell = cellOf(block);
             if (level.getBlockState(cell).canBeReplaced()) {
                 level.setBlockAndUpdate(cell, block.state());
-                Vec3 center = Vec3.atCenterOf(cell);
-                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, block.state()), center.x, center.y,
-                        center.z, DUST_PER_BLOCK, DUST_SPREAD, DUST_SPREAD, DUST_SPREAD, DUST_SPEED);
+                throwDust(level, cell, block.state());
             }
         }
         discard();
+    }
+
+    /**
+     * One tick of a let-go or thrown hunk's flight: it falls, moves as far as
+     * the world lets it, and strikes whatever stopped it or stands in its way.
+     *
+     * @param level the server level
+     */
+    private void fly(ServerLevel level) {
+        if (!isNoGravity()) {
+            setDeltaMovement(getDeltaMovement().add(0, -GRAVITY, 0));
+        }
+        Vec3 motion = getDeltaMovement();
+        move(MoverType.SELF, motion);
+        List<LivingEntity> struck = level.getEntitiesOfClass(LivingEntity.class, getBoundingBox(),
+                LivingEntity::isAlive);
+        if (horizontalCollision || verticalCollision || !struck.isEmpty() || flightTicks > MOST_FLIGHT_TICKS) {
+            impact(level, motion, struck);
+            return;
+        }
+        setDeltaMovement(getDeltaMovement().scale(DRAG));
+    }
+
+    /**
+     * Strikes on impact: at crushing speed it breaks the blocks a block past
+     * the face it struck and hurts every mob it hit, then it breaks apart.
+     *
+     * @param level  the server level
+     * @param motion the motion the hunk struck with
+     * @param struck the mobs it hit
+     */
+    private void impact(ServerLevel level, Vec3 motion, List<LivingEntity> struck) {
+        if (motion.length() >= CRUSH_SPEED) {
+            AABB crushed = getBoundingBox().expandTowards(motion.normalize().scale(CRUSH_DEPTH)).deflate(TOUCH_SLACK);
+            for (BlockPos cell : BlockPos.betweenClosed(BlockPos.containing(crushed.minX, crushed.minY, crushed.minZ),
+                    BlockPos.containing(crushed.maxX, crushed.maxY, crushed.maxZ))) {
+                if (crushable(level, cell)) {
+                    level.destroyBlock(cell, true, this);
+                }
+            }
+            DamageSource source = level.damageSources().fallingBlock(this);
+            float damage = Math.min(MOST_DAMAGE, DAMAGE_PER_BLOCK * blocks.size());
+            struck.forEach(mob -> mob.hurtServer(level, source, damage));
+        }
+        breakApart(level);
+    }
+
+    private static boolean crushable(ServerLevel level, BlockPos cell) {
+        BlockState state = level.getBlockState(cell);
+        float hardness = state.getDestroySpeed(level, cell);
+        return !state.isAir() && hardness >= 0 && hardness < CRUSHABLE_BELOW;
+    }
+
+    /**
+     * Breaks the hunk apart where it stands, each block dropping as the block
+     * itself, as silk touch would drop it, and ends the hunk.
+     *
+     * @param level the server level
+     */
+    private void breakApart(ServerLevel level) {
+        for (HunkBlock block : blocks) {
+            BlockPos cell = cellOf(block);
+            if (block.state().getBlock().asItem() != Items.AIR) {
+                Block.popResource(level, cell, new ItemStack(block.state().getBlock()));
+            }
+            throwDust(level, cell, block.state());
+        }
+        discard();
+    }
+
+    private BlockPos cellOf(HunkBlock block) {
+        return BlockPos.containing(cornerOf(position(), block).add(HALF, HALF, HALF));
+    }
+
+    private static void throwDust(ServerLevel level, BlockPos cell, BlockState state) {
+        Vec3 center = Vec3.atCenterOf(cell);
+        level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), center.x, center.y, center.z,
+                DUST_PER_BLOCK, DUST_SPREAD, DUST_SPREAD, DUST_SPREAD, DUST_SPEED);
     }
 
     @Override
@@ -201,6 +342,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             buffer.writeBlockPos(block.offset());
             buffer.writeVarInt(Block.getId(block.state()));
         }
+        buffer.writeBoolean(rising);
         writePoint(buffer, start);
         writePoint(buffer, target);
         buffer.writeVarInt(riseTicks);
@@ -215,11 +357,14 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             read.add(new HunkBlock(buffer.readBlockPos(), Block.stateById(buffer.readVarInt())));
         }
         blocks = List.copyOf(read);
+        if (!buffer.readBoolean()) {
+            becomeLifted();
+        }
         start = readPoint(buffer);
         target = readPoint(buffer);
         riseTicks = buffer.readVarInt();
         age = buffer.readVarInt();
-        setPos(start.lerp(target, risenShare(age, riseTicks)));
+        setPos(rising ? start.lerp(target, risenShare(age, riseTicks)) : position());
     }
 
     private static void writePoint(RegistryFriendlyByteBuf buffer, Vec3 point) {
@@ -235,6 +380,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         blocks = input.read(TAG_BLOCKS, HunkBlock.CODEC.listOf()).orElse(List.of());
+        if (!input.getBooleanOr(TAG_RISING, true)) {
+            becomeLifted();
+        }
         start = input.read(TAG_START, Vec3.CODEC).orElse(position());
         target = input.read(TAG_TARGET, Vec3.CODEC).orElse(position());
         riseTicks = Math.max(1, input.getIntOr(TAG_RISE_TICKS, 1));
@@ -245,6 +393,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     @Override
     protected void addAdditionalSaveData(ValueOutput output) {
         output.store(TAG_BLOCKS, HunkBlock.CODEC.listOf(), blocks);
+        output.putBoolean(TAG_RISING, rising);
         output.store(TAG_START, Vec3.CODEC, start);
         output.store(TAG_TARGET, Vec3.CODEC, target);
         output.putInt(TAG_RISE_TICKS, riseTicks);
