@@ -6,18 +6,17 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Airborn's motion: midair input turns the horizontal velocity toward its
+ * Float's air control: midair input turns the horizontal velocity toward its
  * direction, levitation included, the ground and no input leave it be, a fall
- * stops at the cap, steering never brakes a faster flight, Tailwind pushes harder
- * and an elytra glide is drawn faster only while Airborn stands (decision
- * airborn-steerable-levitation-and-soft-falls).
+ * stops at the cap, steering never brakes a faster flight, and an elytra glide
+ * is drawn faster only while Airborn stands (decision tailwind-and-airborn-merge-into-float).
  */
 class AirbornMotionTest {
 
     /** Airborn carries floats, so sums of its values agree to a float's precision. */
     private static final double EPSILON = 1e-6;
-    /** typhoon_airborn.json's values, standing until tick 100. */
-    private static final Airborn AIRBORN = new Airborn(0.35f, 0.15f, 0.4f, 0.5f, 1.5f, 1.2f, 0.05f, 100L);
+    /** typhoon_float.json's air control, standing until tick 100. */
+    private static final Airborn AIRBORN = new Airborn(0.35f, 0.15f, 0.4f, 0.5f, 1.2f, 0.05f, 100L);
     /** Yaw 0 faces south, toward +z. */
     private static final float FACING_SOUTH = 0f;
     private static final Vec3 FORWARD = new Vec3(0, 0, 1);
@@ -87,56 +86,6 @@ class AirbornMotionTest {
         void aFallUnderTheCapAndARiseStay() {
             assertEquals(-0.1, AirbornMotion.cappedFall(-0.1, AIRBORN.fallCap()), EPSILON);
             assertEquals(RISING, AirbornMotion.cappedFall(RISING, AIRBORN.fallCap()), EPSILON);
-        }
-    }
-
-    @Nested
-    class Tailwind {
-
-        private static final double JET_STRENGTH = 0.8;
-        /** typhoon_tailwind.json's steer share. */
-        private static final double JET_STEER = 0.2;
-        /** Vanilla's midair horizontal drag each tick. */
-        private static final double AIR_DRAG = 0.91;
-        private static final int SETTLING_TICKS = 200;
-        /** The steady speed lands within this share of the boost. */
-        private static final double BOOST_TOLERANCE = 0.02;
-
-        @Test
-        void jetFliesFasterByTheBoostWhileSteeringForwardUnderAirborn() {
-            double boosted = steadyJetSpeed(AirbornMotion.jetStrength(JET_STRENGTH, AIRBORN, 0L), AIRBORN);
-            double unboosted = steadyJetSpeed(JET_STRENGTH, null);
-
-            assertEquals(AIRBORN.jetBoost(), boosted / unboosted, BOOST_TOLERANCE);
-        }
-
-        /**
-         * The speed a player holding Tailwind and forward settles at: each tick
-         * Tailwind's push steers the velocity toward the look, Airborn's steering
-         * runs where it stands, then the air drags it.
-         */
-        private static double steadyJetSpeed(double strength, Airborn airborn) {
-            Vec3 velocity = Vec3.ZERO;
-            for (int tick = 0; tick < SETTLING_TICKS; tick++) {
-                velocity = velocity.lerp(FORWARD.scale(strength), JET_STEER);
-                if (airborn != null) {
-                    velocity = AirbornMotion.moved(velocity, FORWARD, FACING_SOUTH, false, airborn);
-                }
-                velocity = velocity.scale(AIR_DRAG);
-            }
-            return velocity.z;
-        }
-
-        @Test
-        void jetPushesHarderWhileAirbornStands() {
-            assertEquals(JET_STRENGTH * AIRBORN.jetBoost(), AirbornMotion.jetStrength(JET_STRENGTH, AIRBORN, 99L),
-                    EPSILON);
-        }
-
-        @Test
-        void jetPushesAtItsOwnStrengthOnceAirbornEnds() {
-            assertEquals(JET_STRENGTH, AirbornMotion.jetStrength(JET_STRENGTH, AIRBORN, 100L), EPSILON);
-            assertEquals(JET_STRENGTH, AirbornMotion.jetStrength(JET_STRENGTH, Airborn.NONE, 0L), EPSILON);
         }
     }
 

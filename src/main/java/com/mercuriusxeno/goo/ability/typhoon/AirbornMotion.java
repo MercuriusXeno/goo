@@ -7,9 +7,9 @@ import net.minecraft.world.phys.Vec3;
  * off the ground, movement input turns the horizontal velocity a share of the
  * way toward the input's direction at the air speed, levitation included, so
  * the player changes direction in the air with ease without being slowed; a
- * fall never passes the cap; Tailwind pushes harder; and an elytra glide is drawn
- * along the look toward the glide speed.
- * airborn-steerable-levitation-and-soft-falls
+ * fall never passes the cap; and an elytra glide is drawn along the look
+ * toward the glide speed.
+ * tailwind-and-airborn-merge-into-float
  */
 public final class AirbornMotion {
 
@@ -37,7 +37,7 @@ public final class AirbornMotion {
      * A midair velocity turned toward the input's direction: the horizontal
      * part moves the steer share of the way toward the input's direction at
      * the air speed or the speed it already has, whichever is faster, so
-     * steering never brakes a faster flight such as Jet's; the vertical part,
+     * steering never brakes Float's faster push; the vertical part,
      * levitation's or a fall's, stays. With no input the velocity stays.
      *
      * @param velocity the velocity now
@@ -52,7 +52,7 @@ public final class AirbornMotion {
             return velocity;
         }
         Vec3 current = new Vec3(velocity.x, 0, velocity.z);
-        // airborn-steerable-levitation-and-soft-falls: faster flight, steering keeps Tailwind's speed rather than braking it
+        // tailwind-and-airborn-merge-into-float: steering keeps Float's pushed speed rather than braking it
         double speed = Math.max(airborn.airSpeed(), current.length());
         Vec3 horizontal = current.lerp(heading.normalize().scale(speed), Math.clamp(airborn.airSteer(), 0f, 1f));
         return new Vec3(horizontal.x, velocity.y, horizontal.z);
@@ -99,18 +99,5 @@ public final class AirbornMotion {
             return velocity;
         }
         return velocity.lerp(look.scale(airborn.glideSpeed()), Math.clamp(airborn.glideSteer(), 0f, 1f));
-    }
-
-    /**
-     * Tailwind's push strength for a player: multiplied by Airborn's jet boost
-     * while it stands.
-     *
-     * @param strength the push's own strength
-     * @param airborn  the player's Airborn
-     * @param gameTime the game time
-     * @return the strength the push drives at
-     */
-    public static double jetStrength(double strength, Airborn airborn, long gameTime) {
-        return airborn.standsAt(gameTime) ? strength * airborn.jetBoost() : strength;
     }
 }

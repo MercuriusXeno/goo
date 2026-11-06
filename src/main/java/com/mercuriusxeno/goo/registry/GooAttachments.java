@@ -431,10 +431,10 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The air control Airborn lays on a player, saved with the player while
-     * it stands and synced to the owning client, which steers it in midair,
-     * caps its fall and draws the rising wind.
-     * airborn-steerable-levitation-and-soft-falls
+     * The air control Float lays on a player while held, saved with the
+     * player while it stands and synced to the owning client, which steers it
+     * in midair, caps its fall and draws the rising wind.
+     * tailwind-and-airborn-merge-into-float
      */
     public static final Supplier<AttachmentType<Airborn>> AIRBORN =
             ATTACHMENT_TYPES.register("airborn",
