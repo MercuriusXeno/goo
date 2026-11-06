@@ -40,6 +40,18 @@ class MeteorTest {
     }
 
     /**
+     * Through its wind-up it has fallen nothing, then a tick more each tick
+     * (decision meteo-winds-up-then-drops-in-a-second-trailing-fire).
+     */
+    @Test
+    void hangsThroughItsWindUpThenFallsATickATime() {
+        int windUp = 20;
+        assertEquals(0, MeteorFall.fallenAt(1, windUp));
+        assertEquals(0, MeteorFall.fallenAt(windUp, windUp));
+        assertEquals(1, MeteorFall.fallenAt(windUp + 1, windUp));
+    }
+
+    /**
      * Past its fall time it stays at the target rather than falling through.
      */
     @Test

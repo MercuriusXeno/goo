@@ -142,12 +142,12 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
      * decision meteo-needs-a-clear-sky
      */
     @Override
-    public boolean callMeteor(float power, int fallTicks) {
+    public boolean callMeteor(float power, int windUpTicks, int fallTicks) {
         if (!MeteorSky.clearAbove(level, cell)) {
             MeteorSky.fizzle(level, cell);
             return false;
         }
-        Meteor.call(level, Vec3.atCenterOf(cell), power, fallTicks);
+        Meteor.call(level, Vec3.atCenterOf(cell), power, windUpTicks, fallTicks);
         return true;
     }
 

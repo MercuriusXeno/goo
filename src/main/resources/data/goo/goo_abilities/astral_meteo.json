@@ -6,7 +6,7 @@
   "cost": 3000,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "meteor", "power": 4.0, "fall_ticks": 60 }
+    { "type": "meteor", "power": 4.0, "wind_up_ticks": 20, "fall_ticks": 20 }
   ],
   "tags": ["explosive", "delayed"]
 }

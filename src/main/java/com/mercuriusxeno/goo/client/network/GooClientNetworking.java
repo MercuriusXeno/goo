@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ability.HeaterFlames;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.MeltAbsorbs;
+import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
@@ -31,6 +32,7 @@ import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.network.MeltAbsorbPayload;
+import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
@@ -130,6 +132,7 @@ public final class GooClientNetworking {
         event.register(MeltAbsorbPayload.TYPE, MeltAbsorbs::onPayload);
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
         event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);
+        event.register(MeteorScorchPayload.TYPE, MeteorScorches::onPayload);
         event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);
         event.register(ArmPosePayload.TYPE, AbilityPoses::onPayload);
     }

@@ -28,6 +28,19 @@ public final class MeteorFall {
     }
 
     /**
+     * The ticks a meteor has fallen at an age: none through its wind-up,
+     * then one more each tick.
+     * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
+     *
+     * @param age         the meteor's age in ticks, 1 on its first
+     * @param windUpTicks the ticks it hangs before it drops
+     * @return the ticks it has fallen, 0 while it hangs
+     */
+    public static int fallenAt(int age, int windUpTicks) {
+        return Math.max(0, age - windUpTicks);
+    }
+
+    /**
      * Where a meteor stands a share of the way through its fall.
      *
      * @param start  where it appeared
