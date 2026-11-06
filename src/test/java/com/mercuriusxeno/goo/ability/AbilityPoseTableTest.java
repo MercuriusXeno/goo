@@ -90,6 +90,7 @@ class AbilityPoseTableTest {
             Map.entry("shroom_sight", ArmPose.HELD_UP),
             Map.entry("typhoon_float", ArmPose.HELD_OUT),
             Map.entry("typhoon_gust", ArmPose.HELD_OUT),
+            Map.entry("typhoon_pneuma", ArmPose.HELD_UP),
             Map.entry("typhoon_shulk", ArmPose.SWUNG),
             Map.entry("typhoon_updraft", ArmPose.SWUNG),
             Map.entry("unstable_buster", ArmPose.HELD_UP),

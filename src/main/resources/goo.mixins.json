@@ -8,6 +8,7 @@
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
     "LivingEntityHeldFallsMixin",
+    "LivingEntityPneumaBreathMixin",
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "PlayerGluttonyEatMixin",

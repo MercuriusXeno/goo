@@ -325,6 +325,8 @@
   "goo.ability.typhoon.shulk.description": "Inflict the mob with levitation, causing it to float.",
   "goo.ability.typhoon.float": "Float",
   "goo.ability.typhoon.float.description": "While held, you fly forward along your look, steer in midair, fall slowly without fall damage and jump higher. Wearing elytra further improves your air control.",
+  "goo.ability.typhoon.pneuma": "Pneuma",
+  "goo.ability.typhoon.pneuma.description": "While held, rapidly refills your air and banks the overflow in a reserve shown above your air bubbles, spent before your air when you cannot breathe. Letting go holds your breath briefly before it starts to run out.",
   "goo.ability.typhoon.gust": "Gust",
   "goo.ability.typhoon.gust.description": "Channel a rushing wind that pushes mobs in its cone away along your aim.",
   "goo.ability.typhoon.updraft": "Updraft",
