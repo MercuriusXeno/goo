@@ -231,10 +231,10 @@ class PlayerHostTest {
         }
 
         @Test
-        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksEffectExtendsFrostAndSiphon() {
+        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksEffectExtendsFrostSiphonAndPocket() {
             assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                             HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS, HostCapability.EXTEND_EFFECTS,
-                            HostCapability.FROST, HostCapability.SIPHON),
+                            HostCapability.FROST, HostCapability.SIPHON, HostCapability.POCKET),
                     HostKind.PLAYER.capabilities());
         }
     }
