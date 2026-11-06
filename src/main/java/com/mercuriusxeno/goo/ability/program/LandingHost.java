@@ -62,7 +62,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        TimedBlockHost, PhaseBlocksHost, IgniteHost, MeltHost {
+        PhaseBlocksHost, IgniteHost, MeltHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -198,13 +198,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                     Vec3.atCenterOf(cell), cell, SlimeTransmuteStep.DEFAULT_MORPH_TICKS));
         }
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
-    }
-
-
-    @Override
-    public void placeForTicks(Block block, int ticks) {
-        level.setBlock(cell, block.defaultBlockState(), Block.UPDATE_ALL);
-        level.scheduleTick(cell, block, ticks);
     }
 
     @Override

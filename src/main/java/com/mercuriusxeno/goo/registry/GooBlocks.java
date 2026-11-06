@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
-import com.mercuriusxeno.goo.block.ability.BouncePadBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
@@ -145,15 +144,6 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
-    /**
-     * Bounce pad: the slime-like block Weird's Bounce leaves where it lands,
-     * gone after the time its ability names (decision weird-bounces-and-softens-harm).
-     */
-    public static final DeferredBlock<BouncePadBlock> BOUNCE_PAD = BLOCKS.registerBlock(
-            "bounce_pad", BouncePadBlock::new,
-            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.SLIME_BLOCK)
-                    .mapColor(MapColor.COLOR_MAGENTA)
-                    .noLootTable());
     /**
      * Slime coat: the thin green film Weird's Coat lays on a block's top,
      * standing until destroyed and dropping nothing

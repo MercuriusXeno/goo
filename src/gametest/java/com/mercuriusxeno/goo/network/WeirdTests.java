@@ -74,10 +74,9 @@ public final class WeirdTests {
     /** A fall a pig at ten health dies of on stone, carried in as the fall it has already made. */
     private static final double FALLEN_BLOCKS = 20;
     private static final double FALL_SPEED = -1.0;
-    private static final String NO_PAD = "Weird Bounce landing on stone should leave a bounce pad above it";
-    private static final String NOT_LAUNCHED = "A pig falling onto the pad should leave it moving upward";
-    private static final String HURT = "A pig falling onto the pad should keep its full health, has ";
-    private static final String PAD_STANDS = "The bounce pad should be gone once its time has passed";
+    private static final String NO_PAD = "Weird Bounce landing on stone should lay a slime coat on it";
+    private static final String NOT_LAUNCHED = "A pig falling onto the slime coat should leave it moving upward";
+    private static final String HURT = "A pig falling onto the slime coat should keep its full health, has ";
     private static final String SLIME = "goo:weird_slime";
     private static final String SLIME_BLOB_MAKES_A_SLIME = "slime_blob_makes_a_slime";
     /** SpawnSlimeStep's morph: the ticks the blob takes to become the slime. */
@@ -153,10 +152,10 @@ public final class WeirdTests {
     }
 
     /**
-     * A Weird Bounce blob lands on stone and leaves a pad; a pig falling onto
-     * the pad with twenty blocks of fall behind it keeps its full health and
-     * leaves the pad moving upward, and the pad is gone once the time
-     * weird_bounce.json names has passed.
+     * A Weird Bounce blob lands on stone and lays a slime coat on it; a pig
+     * falling onto the coat with twenty blocks of fall behind it keeps its
+     * full health and leaves the coat moving upward.
+     * bounce-ramps-jump-height-while-jump-is-held
      *
      * @param helper the gametest helper
      */
@@ -164,19 +163,17 @@ public final class WeirdTests {
         helper.setBlock(POOL_FLOOR, Blocks.STONE);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
                 NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, BOUNCE));
-        BlockPos pad = POOL_FLOOR.above();
-        helper.assertTrue(helper.getBlockState(pad).is(GooBlocks.BOUNCE_PAD.get()), NO_PAD);
-        Pig pig = helper.spawn(EntityType.PIG, pad.above(DROP_START));
+        BlockPos coat = POOL_FLOOR.above();
+        helper.assertTrue(helper.getBlockState(coat).is(GooBlocks.SLIME_COAT.get()), NO_PAD);
+        Pig pig = helper.spawn(EntityType.PIG, coat.above(DROP_START));
         pig.fallDistance = FALLEN_BLOCKS;
         pig.setDeltaMovement(0, FALL_SPEED, 0);
-        double padTop = helper.absolutePos(pad).getY() + 1;
+        double coatBottom = helper.absolutePos(coat).getY();
         helper.startSequence()
                 .thenWaitUntil(() -> {
-                    helper.assertTrue(pig.getDeltaMovement().y > 0 && pig.getY() >= padTop, NOT_LAUNCHED);
+                    helper.assertTrue(pig.getDeltaMovement().y > 0 && pig.getY() >= coatBottom, NOT_LAUNCHED);
                     helper.assertTrue(pig.getHealth() == pig.getMaxHealth(), HURT + pig.getHealth());
                 })
-                .thenWaitUntil(() -> helper.assertFalse(helper.getBlockState(pad).is(GooBlocks.BOUNCE_PAD.get()),
-                        PAD_STANDS))
                 .thenSucceed();
     }
 

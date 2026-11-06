@@ -30,6 +30,12 @@ public final class GooSoundIds {
      */
     public static final Identifier HEAT_HUM = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.heat_hum");
 
+    /**
+     * The slime coat's boing, each bounce: the vanilla slime's own squelches,
+     * short and dry (decision bounce-ramps-jump-height-while-jump-is-held).
+     */
+    public static final Identifier BOING = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.boing");
+
     private GooSoundIds() {
     }
 }

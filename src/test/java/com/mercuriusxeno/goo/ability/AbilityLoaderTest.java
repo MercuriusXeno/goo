@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
-import com.mercuriusxeno.goo.ability.program.BouncePadStep;
 import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
@@ -667,11 +666,13 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void bounceStandsAsTheArcPad() {
+        void bounceLaysTheSlimeCoatWhereItsArcLands() {
             AbilityDefinition bounce = AbilityJson.decode("weird_bounce");
 
             assertEquals(DeliveryKind.ARC, bounce.delivery().kind());
-            assertEquals(List.of(BouncePadStep.class), bounce.behaviors().stream().map(Object::getClass).toList());
+            // bounce-ramps-jump-height-while-jump-is-held: Bounce's blob lays the coat Coat lays
+            assertEquals(List.of(new PlaceBlockStep(Identifier.fromNamespaceAndPath(Goo.MODID, "slime_coat"), Map.of())),
+                    bounce.behaviors());
         }
     }
 
