@@ -296,8 +296,7 @@ public final class GloveThrowSender {
     /**
      * Sends a self ability's payload, naming no target, when the player can
      * afford its cost (decision self-delivery-runs-on-player). A blink is
-     * priced from the trip it would make and carries the face its press
-     * pinned in the payload's target block and face
+     * priced from the trip it would make along the look
      * (decision blink-lands-safely-costed-by-distance).
      *
      * @param player    the local player
@@ -312,10 +311,7 @@ public final class GloveThrowSender {
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        Optional<ChannelAim.FacePlane> pin = BlinkAim.livePin();
-        sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
-                pin.map(ChannelAim.FacePlane::block).orElse(player.blockPosition()),
-                pin.map(plane -> plane.face().get3DDataValue()).orElse(NO_ENTITY),
+        sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
                 false, abilityId, lineOrigin(), player.position()));
         return true;
     }
