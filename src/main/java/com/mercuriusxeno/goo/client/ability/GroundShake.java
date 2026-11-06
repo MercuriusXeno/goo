@@ -39,7 +39,7 @@ import java.util.List;
  * The ground shake bore and flatten play while they run: each solid block
  * within a radius of the working point is drawn again over itself, swollen a
  * hair and jittered in world space by a sum of fast sines, so the ground
- * itself trembles and sheds dust while the camera stays still.
+ * itself trembles and sheds chips of itself while the camera stays still.
  * decision bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera
  * decision flatten-plays-bores-ground-shake
  */
@@ -316,8 +316,8 @@ public final class GroundShake {
     }
 
     /**
-     * Sheds a shaking block's crumbs: a chip hopping up off an open top, and
-     * dust sifting down from an open underside.
+     * Sheds a shaking block's crumbs, chips of its own texture: one hopping
+     * up off an open top, and one dropping from an open underside.
      *
      * @param level  the client level
      * @param random the level's random
@@ -334,7 +334,7 @@ public final class GroundShake {
                     (random.nextDouble() - HALF) * CRUMB_SPEED, CRUMB_SPEED, (random.nextDouble() - HALF) * CRUMB_SPEED);
         }
         if (level.getBlockState(pos.below()).isAir()) {
-            level.addParticle(new BlockParticleOption(ParticleTypes.FALLING_DUST, state),
+            level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, state),
                     pos.getX() + random.nextDouble(), pos.getY() - CRUMB_LIFT, pos.getZ() + random.nextDouble(),
                     0, 0, 0);
         }
