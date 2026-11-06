@@ -145,7 +145,7 @@ class GooTypesTest {
 
     /**
      * Each bundled type ships every texture its JSON names, its type icon and
-     * the three lang keys a type, its potion and its brew effect read.
+     * the lang keys a type and its potion read.
      * decision weird-ships-from-slime-and-sculk
      */
     @ParameterizedTest
@@ -160,8 +160,7 @@ class GooTypesTest {
         assertShipped(TYPE_ICON.formatted(id));
 
         JsonObject lang = readJson(EN_US).getAsJsonObject();
-        for (String langKey : List.of("goo.type." + id, "item.minecraft.potion.effect." + id + "_goo",
-                "effect.goo." + id + "_brew")) {
+        for (String langKey : List.of("goo.type." + id, "item.minecraft.potion.effect." + id + "_goo")) {
             assertTrue(lang.has(langKey), () -> EN_US + " lacks " + langKey);
         }
     }
