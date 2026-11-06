@@ -100,8 +100,8 @@ public enum HostCapability {
      */
     LEVEL(LevelHost.class),
     /**
-     * A spot a mob from the host's chunk can be pulled to (decision
-     * convoke-blob-throbs-until-a-mob-arrives).
+     * A spot a sculk call rings out from, every mob it crosses walking to it (decision
+     * convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches).
      */
     CONVOKE(ConvokeHost.class),
     /**

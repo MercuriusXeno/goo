@@ -9,13 +9,11 @@ import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -255,12 +253,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Pulls a mob from the marker's chunk to stand in the marker's cell.
-     * decision convoke-blob-throbs-until-a-mob-arrives
+     * Sounds the sculk call from the marker's cell, where called mobs walk to.
+     * decision convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches
      */
     @Override
-    public boolean convokeFromChunk(ResourceKey<GooTypeDefinition> goo) {
-        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos), goo);
+    public void callRing(double inner, double outer) {
+        SculkCall.pulse(level, pos, inner, outer);
     }
 
     /**

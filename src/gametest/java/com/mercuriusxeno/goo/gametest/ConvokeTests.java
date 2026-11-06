@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,24 +13,25 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametests for the convoke blob: landed on a floor, it pulls a mob from its
- * chunk to stand where it sits and goes, or with no mob in the chunk lingers
- * through pulse after pulse (decision convoke-blob-throbs-until-a-mob-arrives).
- * A convoke takes any mob in its chunk, and the tests beside one share its
- * chunk, so each test lays its scene in a chunk of its own far from every
- * other test, held loaded while it runs.
+ * Gametest for the convoke blob's sculk call: landed on a stone floor with
+ * a cow near it and a cow far off on the other side, each cow walks toward
+ * the blob once the ring has reached it (decision
+ * convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches). The ring
+ * calls any mob in reach, so the scene stands far from every other test,
+ * its chunks held loaded while it runs.
  */
 @RegistersGameTests
 public final class ConvokeTests {
-    private static final String CONVOKE_PULLS = "convoke_pulls_a_chunk_mob";
-    private static final String CONVOKE_LINGERS = "convoke_lingers_without_a_mob";
+    private static final String CONVOKE_CALLS = "convoke_calls_every_mob_the_ring_touches";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -39,117 +39,146 @@ public final class ConvokeTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, CONVOKE_PULLS, ConvokeTests::convokePullsAChunkMob);
-        GooTestFunctions.registerTest(registrar, CONVOKE_LINGERS, ConvokeTests::convokeLingersWithoutAMob);
+        GooTestFunctions.registerTest(registrar, CONVOKE_CALLS, ConvokeTests::convokeCallsEveryMobTheRingTouches);
     }
 
-
     private static final Identifier DEEP_CONVOKE = Identifier.parse("goo:deep_convoke");
-    /** How far off its own bay each test lays its chunk, past every other test, and apart from each other. */
-    private static final int PULL_FAR_OFF = 4096;
-    private static final int LINGER_FAR_OFF = 8192;
+    /** How far off its own bay the scene lies on each horizontal axis, past every other test. */
+    private static final int FAR_OFF = 4096;
+    /** The floor's reach from the blob along x, past the far cow, and its half width along z. */
+    private static final int FLOOR_LENGTH = 14;
+    private static final int FLOOR_HALF_WIDTH = 3;
+    /** The near cow's and far cow's distances from the blob, east and west of it, both inside deep_convoke.json's reach of 16. */
+    private static final int NEAR = 4;
+    private static final int FAR = 10;
+    /** deep_convoke.json's pulse period and reach: the ring reaches a radius r at r * PERIOD / REACH ticks. */
+    private static final int PERIOD = 40;
+    private static final int REACH = 16;
+    /** Ticks a called cow is given to walk once the ring reaches it. */
+    private static final int WALK_TICKS = 80;
+    /** How much nearer the blob a called cow stands after its walk, more than a wandering cow covers. */
+    private static final double WALKED_NEARER = 2.5;
     private static final String SHOULD_SPAWN = "A cow should spawn";
-    /** How far from the marker the cow stands, inside the marker's chunk. */
-    private static final int COW_OFFSET = 3;
-    private static final int CHUNK_MIDDLE = 8;
-    /** deep_convoke.json's period between tries. */
-    private static final int PERIOD = 20;
-    private static final int PERIODS_WITHOUT_A_MOB = 3;
-    private static final double ARRIVED_WITHIN = 0.1;
+    private static final String SHOULD_TICK = "The far chunks should tick their entities";
     private static final String ABILITY_REQUIRED = "%s must be loaded";
-    private static final String SHOULD_ARRIVE = "The cow should stand at the convoke spot %s, stands at %s";
-    private static final String SHOULD_LEAVE = "The marker should go once a mob arrives";
-    private static final String SHOULD_LINGER = "The marker should still stand after three pulses with no mob in its chunk";
+    private static final String SHOULD_COME = "The cow %d blocks out should walk nearer the blob, stood %.2f off, stands %.2f off";
 
     private ConvokeTests() {
     }
 
     /**
-     * A cow standing elsewhere in the marker's chunk comes to stand in the
-     * marker's cell, and the marker goes.
+     * A cow four blocks east of the blob and one ten blocks west of it each
+     * stand at least two and a half blocks nearer the blob eighty ticks after
+     * the ring reached them. The cows spawn once the far chunks tick their
+     * entities, since a cow added sooner stands frozen.
      *
      * @param helper the gametest helper
      */
-    public static void convokePullsAChunkMob(GameTestHelper helper) {
+    public static void convokeCallsEveryMobTheRingTouches(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos floor = farFloor(helper, PULL_FAR_OFF);
-        BlockPos marker = floor.above();
-        Mob cow = spawnCow(helper, marker.east(COW_OFFSET));
-        landConvoke(helper, floor);
-        Vec3 cell = Vec3.atBottomCenterOf(marker);
-        helper.succeedWhen(() -> {
-            helper.assertTrue(cow.position().distanceTo(cell) < ARRIVED_WITHIN,
-                    String.format(SHOULD_ARRIVE, cell, cow.position()));
-            helper.assertFalse(level.getBlockState(marker).is(GooBlocks.ABILITY_BLOCK.get()), SHOULD_LEAVE);
-            release(helper, floor, cow);
-        });
+        BlockPos floor = buildFloor(helper);
+        Vec3 blob = Vec3.atBottomCenterOf(floor.above());
+        BlockPos nearAt = floor.above().east(NEAR);
+        BlockPos farAt = floor.above().west(FAR);
+        List<Mob> cows = new ArrayList<>();
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(nearAt)
+                        && level.isPositionEntityTicking(farAt), SHOULD_TICK))
+                .thenExecute(() -> {
+                    cows.add(spawnCow(helper, nearAt));
+                    cows.add(spawnCow(helper, farAt));
+                    landConvoke(helper, floor);
+                })
+                .thenIdle(ringReaches(FAR) + WALK_TICKS)
+                .thenExecute(() -> {
+                    double nearOff = across(cows.get(0).position(), blob);
+                    double farOff = across(cows.get(1).position(), blob);
+                    release(helper, floor, cows);
+                    helper.assertTrue(nearOff <= NEAR - WALKED_NEARER,
+                            String.format(SHOULD_COME, NEAR, (double) NEAR, nearOff));
+                    helper.assertTrue(farOff <= FAR - WALKED_NEARER,
+                            String.format(SHOULD_COME, FAR, (double) FAR, farOff));
+                })
+                .thenSucceed();
     }
 
     /**
-     * Spawns a cow with no will at a spot.
-     *
-     * @param helper the gametest helper
-     * @param at     the cow's block, absolute
-     * @return the cow
+     * @param radius a distance from the blob
+     * @return the ticks after the landing the first ring reaches it
      */
+    private static int ringReaches(int radius) {
+        return radius * PERIOD / REACH + 1;
+    }
+
+    /**
+     * @param at   a point
+     * @param blob the blob
+     * @return how far the point stands from the blob across the ground, height left out
+     */
+    private static double across(Vec3 at, Vec3 blob) {
+        return Math.hypot(at.x - blob.x, at.z - blob.z);
+    }
+
     private static Mob spawnCow(GameTestHelper helper, BlockPos at) {
         Mob cow = EntityType.COW.create(helper.getLevel(), EntitySpawnReason.COMMAND);
         helper.assertTrue(cow != null, SHOULD_SPAWN);
-        cow.setNoAi(true);
         cow.snapTo(Vec3.atBottomCenterOf(at));
         helper.getLevel().addFreshEntity(cow);
         return cow;
     }
 
     /**
-     * With no mob in its chunk, the marker still stands after three periods.
+     * Lays a stone floor in a far place held loaded: long along x past both
+     * cows, with a barrier rim a cow cannot wander off.
      *
      * @param helper the gametest helper
+     * @return the floor block the blob lands on, the floor's middle
      */
-    public static void convokeLingersWithoutAMob(GameTestHelper helper) {
-        BlockPos floor = farFloor(helper, LINGER_FAR_OFF);
-        landConvoke(helper, floor);
-        helper.runAfterDelay(PERIODS_WITHOUT_A_MOB * PERIOD + 1, () -> {
-            boolean stands = helper.getLevel().getBlockState(floor.above()).is(GooBlocks.ABILITY_BLOCK.get());
-            helper.getLevel().removeBlock(floor.above(), false);
-            release(helper, floor, null);
-            helper.assertTrue(stands, SHOULD_LINGER);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * The floor a test lands its blob on: the middle of a chunk far off the
-     * test's bay, at the bay's floor height, held loaded for the test.
-     *
-     * @param helper the gametest helper
-     * @param farOff how far off the bay on each horizontal axis the chunk lies
-     * @return the floor block's absolute position
-     */
-    private static BlockPos farFloor(GameTestHelper helper, int farOff) {
-        BlockPos bay = helper.absolutePos(BlockPos.ZERO.above());
-        ChunkPos chunk = ChunkPos.containing(bay.offset(farOff, 0, farOff));
-        helper.getLevel().setChunkForced(chunk.x(), chunk.z(), true);
-        BlockPos floor = new BlockPos(chunk.getMinBlockX() + CHUNK_MIDDLE, bay.getY(),
-                chunk.getMinBlockZ() + CHUNK_MIDDLE);
-        helper.getLevel().setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
+    private static BlockPos buildFloor(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floor = helper.absolutePos(BlockPos.ZERO.above()).offset(FAR_OFF, 0, FAR_OFF);
+        forceChunks(level, floor, true);
+        for (BlockPos cell : floorCells(floor, 1)) {
+            boolean rim = Math.abs(cell.getX() - floor.getX()) == FLOOR_LENGTH + 1
+                    || Math.abs(cell.getZ() - floor.getZ()) == FLOOR_HALF_WIDTH + 1;
+            level.setBlockAndUpdate(cell, Blocks.STONE.defaultBlockState());
+            level.setBlockAndUpdate(cell.above(), rim ? Blocks.BARRIER.defaultBlockState() : Blocks.AIR.defaultBlockState());
+            level.setBlockAndUpdate(cell.above(2), rim ? Blocks.BARRIER.defaultBlockState() : Blocks.AIR.defaultBlockState());
+        }
         return floor;
     }
 
+    private static Iterable<BlockPos> floorCells(BlockPos floor, int rim) {
+        return BlockPos.betweenClosed(floor.offset(-FLOOR_LENGTH - rim, 0, -FLOOR_HALF_WIDTH - rim),
+                floor.offset(FLOOR_LENGTH + rim, 0, FLOOR_HALF_WIDTH + rim));
+    }
+
+    private static void forceChunks(ServerLevel level, BlockPos floor, boolean forced) {
+        ChunkPos low = ChunkPos.containing(floor.offset(-FLOOR_LENGTH - 1, 0, -FLOOR_HALF_WIDTH - 1));
+        ChunkPos high = ChunkPos.containing(floor.offset(FLOOR_LENGTH + 1, 0, FLOOR_HALF_WIDTH + 1));
+        for (int x = low.x(); x <= high.x(); x++) {
+            for (int z = low.z(); z <= high.z(); z++) {
+                level.setChunkForced(x, z, forced);
+            }
+        }
+    }
+
     /**
-     * Clears what a test laid in its far chunk and lets the chunk unload.
+     * Clears the scene: the cows, the blob, the floor and its rim, and lets the chunks unload.
      *
      * @param helper the gametest helper
-     * @param floor  the floor block
-     * @param cow    the cow the test spawned, or null
+     * @param floor  the floor block the blob landed on
+     * @param cows   the cows the test spawned
      */
-    private static void release(GameTestHelper helper, BlockPos floor, @Nullable Mob cow) {
-        if (cow != null) {
-            cow.discard();
+    private static void release(GameTestHelper helper, BlockPos floor, List<Mob> cows) {
+        ServerLevel level = helper.getLevel();
+        cows.forEach(Mob::discard);
+        for (BlockPos cell : floorCells(floor, 1)) {
+            for (int up = 0; up <= 2; up++) {
+                level.setBlock(cell.above(up), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+            }
         }
-        helper.getLevel().removeBlock(floor, false);
-        ChunkPos chunk = ChunkPos.containing(floor);
-        helper.getLevel().setChunkForced(chunk.x(), chunk.z(), false);
+        forceChunks(level, floor, false);
     }
 
     /**
