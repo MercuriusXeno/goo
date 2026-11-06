@@ -5,14 +5,15 @@ import java.nio.file.Path;
 import java.util.function.Consumer;
 
 /**
- * Runs the audit and clique dumps headless, in one server boot (decision workbench-reruns-the-audit-headless).
- * The gradle run supplies one spawning the gametest server (decision gradle-run-stays-on-the-gametest-dump).
+ * Runs the audit and clique dumps, with no dev instance launched for them (decision workbench-reruns-the-audit-headless).
+ * InGameDumps supplies the one runner, in-process on the running server
+ * (decision hosted-workbench-and-image-captures-leave-tools).
  */
 @FunctionalInterface
 public interface DumpRunner {
 
     /**
-     * Runs the dumps over the draft rather than the live file, so the audit reads what the page holds
+     * Runs the dumps over the draft rather than the live file, so the audit reads what the manager holds
      * (decision workbench-authors-a-draft-and-promotes-by-rename).
      *
      * @param draft    the draft base_values file the run loads

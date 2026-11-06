@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 
 /**
  * Every workbench read and write over the draft beside base_values.json, the inventory and the dumps, each taking
- * the posted text and answering a reply, so the loopback page and the in-game manager answer alike
+ * the posted text and answering the in-game manager's request with a reply
  * (decision goo-workbench-opens-the-in-game-manager-screen).
  */
 public final class WorkbenchOperations {
@@ -150,7 +150,7 @@ public final class WorkbenchOperations {
 
     /**
      * Runs the named operation over the posted text; every failure answers as a refusal naming its cause, since an
-     * unanswered request leaves the page or the manager waiting with no word of it.
+     * unanswered request leaves the manager waiting with no word of it.
      *
      * @param operation the operation's name, one of this class's constants
      * @param posted    the posted text, empty for a read
@@ -224,7 +224,7 @@ public final class WorkbenchOperations {
     }
 
     /**
-     * Ends the dump run in flight, as the page's Stop and a stopping game server do.
+     * Ends the dump run in flight, as a stopping game server does.
      */
     public void stopDumps() {
         dumps.stop();

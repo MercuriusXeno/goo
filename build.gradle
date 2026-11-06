@@ -26,8 +26,8 @@ sourceSets {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
     }
-    // Texture, lab-template and architecture generators and the workbench's gradle launcher run from
-    // Gradle, never from the jar; the workbench itself ships in main (decision gradle-run-stays-on-the-gametest-dump).
+    // Texture, lab-template and architecture generators run from Gradle, never from the jar; the values
+    // workbench is the in-game screen in main (decision hosted-workbench-and-image-captures-leave-tools).
     tools {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
@@ -74,9 +74,9 @@ runs {
         if (project.hasProperty('gameTestSelect')) {
             arguments.addAll '--tests', project.property('gameTestSelect').toString()
         }
-        // Folder datapacks the gametest world loads, such as the seventeenth goo type. --packs takes one folder,
-        // so the workbench's dump run names a root holding its draft pack in its place
-        // (decision workbench-authors-a-draft-and-promotes-by-rename).
+        // Folder datapacks the gametest world loads, such as the seventeenth goo type; -PgameTestPacks=<folder>
+        // names another root. No workbench draft rides here: the in-game manager runs its dumps in-process
+        // (decision hosted-workbench-and-image-captures-leave-tools).
         arguments.addAll '--packs', project.findProperty('gameTestPacks') ?: file('src/test/resources/datapacks').absolutePath
         // The Goo Lab template that goo:lab_template_loads opens through the game's save loader
         systemProperty 'goo.labTemplate', file('dev/lab').absolutePath
@@ -85,15 +85,6 @@ runs {
         var wrapperJar = configurations.jacocoAgent.singleFile
         var agentJar = zipTree(wrapperJar).matching { include 'jacocoagent.jar' }.singleFile
         jvmArguments.add("-javaagent:${agentJar}=destfile=${buildDir.get()}/jacoco/gameTest.exec,includes=com.mercuriusxeno.goo.*")
-    }
-    // A client that captures each item its image folder's manifest lacks as its inventory slot draws it, then exits;
-    // -PinventoryImages=<folder> names another image folder (decision images-are-slot-captures-taken-on-detection).
-    // It plays into its own copy of the Goo Lab, since an item's components bind only once a world loads.
-    captureInventory {
-        configure 'client'
-        arguments.addAll '--quickPlaySingleplayer', 'Goo Lab'
-        systemProperty 'goo.captureInventory',
-            file(project.findProperty('inventoryImages') ?: 'runs/gameTestServer/config/goo_inventory').absolutePath
     }
     clientData {
         arguments.addAll '--mod', project.mod_id, '--all',
@@ -276,32 +267,6 @@ tasks.register('generateTextures', JavaExec) {
     workingDir = project.projectDir
 }
 
-// The values workbench's gradle run: the page main ships, fed by the gametest dumps
-// (decision gradle-run-stays-on-the-gametest-dump). It serves until the page's Stop ends it.
-tasks.register('valuesWorkbench', JavaExec) {
-    description = 'Serves the values workbench page and opens it in the browser'
-    group = 'goo'
-    classpath = sourceSets.tools.runtimeClasspath
-    mainClass = 'com.mercuriusxeno.goo.tools.workbench.ValuesWorkbench'
-    workingDir = project.projectDir
-    args project.projectDir.absolutePath, project.findProperty('workbenchPort') ?: '0'
-}
-
-tasks.register('captureInventory') {
-    description = 'Captures each inventory item the image folder lacks as its slot draws it, in a client that exits'
-    group = 'goo'
-    dependsOn 'runCaptureInventory'
-}
-
-tasks.register('seedCaptureLab', Copy) {
-    description = 'Copies dev/lab/ into runs/captureInventory/saves/Goo Lab when that save is absent'
-    group = 'goo'
-    var labSave = file('runs/captureInventory/saves/Goo Lab')
-    from 'dev/lab'
-    into labSave
-    onlyIf('the capture run\'s Goo Lab save is absent') { !labSave.exists() }
-}
-
 // The Goo Lab template tracked at dev/lab/ (decision lab-built-from-code)
 tasks.register('generateLabTemplate', JavaExec) {
     description = 'Rewrites the Goo Lab level template under dev/lab/'
@@ -373,14 +338,6 @@ afterEvaluate {
     tasks.named('runClient').configure {
         dependsOn 'seedLab', 'seedSoundOptions', 'seedFirstLaunchOptions'
         finalizedBy 'saveSoundOptions'
-    }
-    tasks.named('runCaptureInventory').configure {
-        dependsOn 'seedCaptureLab'
-        // A first launch's accessibility screen holds quick play on the title screen until someone dismisses it.
-        var options = file('runs/captureInventory/options.txt')
-        doFirst {
-            replaceOptionLines(options, [onboardAccessibility: 'false'])
-        }
     }
 }
 

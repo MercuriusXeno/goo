@@ -10,7 +10,7 @@ import java.util.Map;
  * on a fake listing. It lists no block: the mod values a block only through its item
  * (decision workbench-drops-the-blocks-list).
  *
- * @param items    every item, with its display name and image
+ * @param items    every item, with its display name
  * @param itemTags every item tag and its members
  * @param gooTypes every goo type's id
  * @param recipes  every recipe the server loaded
@@ -21,11 +21,10 @@ public record GooInventory(List<NamedEntry> items, List<TagEntry> itemTags, List
     /**
      * An item.
      *
-     * @param id    the namespaced id
-     * @param name  the display name
-     * @param image the path under the inventory folder the item's slot capture lands at, or null
+     * @param id   the namespaced id
+     * @param name the display name
      */
-    public record NamedEntry(String id, String name, @Nullable String image) {
+    public record NamedEntry(String id, String name) {
     }
 
     /**
