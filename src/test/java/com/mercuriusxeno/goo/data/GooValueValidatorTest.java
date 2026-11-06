@@ -57,4 +57,31 @@ class GooValueValidatorTest {
                 """);
         assertTrue(warnings.isEmpty(), String.valueOf(warnings));
     }
+
+    /**
+     * nether_gold_ore reading the item gold_ingot, which a prefab also names and no line above values, draws no
+     * missing-$ warning: a bare word naming a registered item reads as that item
+     * (decision diagnose-and-correct-item-reference-unrecognized-token).
+     */
+    @Test
+    void bareWordNamingARegisteredItemAndAPrefabDrawsNoMissingDollarWarning() {
+        List<String> warnings = warningsOver("""
+                {"_constants": {"gold_nugget": 1, "gold_ingot": "9 $gold_nugget", "mundane_block": {"rock": 2}},
+                 "nether_gold_ore": "gold_ingot + $mundane_block"}
+                """);
+        assertTrue(warnings.isEmpty(), String.valueOf(warnings));
+    }
+
+    /**
+     * A bare word naming a prefab and no registered item still reads as a prefab missing its $.
+     */
+    @Test
+    void bareWordNamingAPrefabAndNoItemWarnsOfTheMissingDollar() {
+        List<String> warnings = warningsOver("""
+                {"_constants": {"mundane_block": {"rock": 2}},
+                 "coal_ore": "4 coal + mundane_block"}
+                """);
+        assertEquals(List.of("coal_ore: 'mundane_block' looks like a constant missing its $ prefix (should be"
+                + " $mundane_block)"), warnings);
+    }
 }

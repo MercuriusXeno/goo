@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.data;
 
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,7 +139,9 @@ final class GooValueTokenValidator {
     }
 
     /**
-     * Warns on a bare word naming a constant and no item above, a constant missing its $ prefix.
+     * Warns on a bare word naming a constant and no item, neither one a line above values nor one the item registry
+     * holds, a constant missing its $ prefix. The evaluator reads a bare word as the item it names, so an item a
+     * prefab shares a name with reads as the item (decision diagnose-and-correct-item-reference-unrecognized-token).
      *
      * @param token the bare word token
      * @param knownConstants known constant names
@@ -149,11 +153,21 @@ final class GooValueTokenValidator {
                                       Set<String> knownItems, String context,
                                       List<String> warnings) {
         String bareItem = stripTypeSuffix(token);
-        boolean knownItem = knownItems.contains(DEFAULT_NS_PREFIX + bareItem) || knownItems.contains(bareItem);
+        boolean knownItem = knownItems.contains(DEFAULT_NS_PREFIX + bareItem) || knownItems.contains(bareItem)
+                || isRegisteredItem(bareItem);
         if (!knownItem && knownConstants.contains(token)) {
             warnings.add(context + WARN_MISSING_DOLLAR_PREFIX + token + WARN_MISSING_DOLLAR_MID + token
                     + WARN_MISSING_DOLLAR_SUFFIX);
         }
+    }
+
+    /**
+     * @param bareItem an item path in the minecraft namespace
+     * @return true where the item registry holds the item
+     */
+    private static boolean isRegisteredItem(String bareItem) {
+        Identifier id = Identifier.tryParse(DEFAULT_NS_PREFIX + bareItem);
+        return id != null && BuiltInRegistries.ITEM.containsKey(id);
     }
 
     /**
