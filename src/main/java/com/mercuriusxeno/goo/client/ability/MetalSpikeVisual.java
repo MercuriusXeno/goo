@@ -22,7 +22,7 @@ import java.util.Optional;
 /**
  * Urchin's trap visual: the trap rests as its goo blob once the landing
  * flare retracts, and each strike in flight bristles the landing's chrome
- * spines out as it arms and shoots a telescoping spear ({@link UrchinSpear})
+ * spines out as it arms and shoots one of its spikes ({@link UrchinSpear})
  * at its mob, the spines retracting with the spear. The strikes are the
  * metal_spikes field effect's, read from the marker's
  * {@link FieldEffectState}; each spear aims at its mob's interpolated body

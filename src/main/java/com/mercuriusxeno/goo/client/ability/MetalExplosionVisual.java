@@ -226,19 +226,45 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @param dir    the spike's unit direction
      */
     private static void emitSpike(PoseStack.Pose pose, VertexConsumer c, Urchin urchin, Vector3f dir) {
-        float center = BurnoutGeometry.BLOCK_CENTER;
-        Direction face = urchin.face();
-        ConeGeometry.Cone cone = new ConeGeometry.Cone(
-                center + face.getStepX() * BASE_LIFT, center + face.getStepY() * BASE_LIFT,
-                center + face.getStepZ() * BASE_LIFT, dir.x(), dir.y(), dir.z(), urchin.length(),
-                urchin.baseRadius());
+        emitSpike(pose, c, new Spike(basePoint(urchin.face()), dir, urchin.length(), urchin.baseRadius()),
+                urchin.progressByte(), urchin.alpha());
+    }
+
+    /**
+     * Emits one of the urchin's spikes, the one spine mesh every Urchin
+     * view draws: the landing flare's, the bristle's, the held ghost's and
+     * each shot's.
+     * urchin-spines-return-to-the-original-spikes
+     *
+     * @param pose         the pose entry
+     * @param c            the vertex consumer
+     * @param spike        where the spike stands and its size
+     * @param progressByte where the specular band sits, a byte
+     * @param alpha        the spike's opacity as a byte
+     */
+    static void emitSpike(PoseStack.Pose pose, VertexConsumer c, Spike spike, int progressByte, int alpha) {
+        Vector3f from = spike.base();
+        Vector3f dir = spike.dir();
+        ConeGeometry.Cone cone = new ConeGeometry.Cone(from.x(), from.y(), from.z(), dir.x(), dir.y(), dir.z(),
+                spike.length(), spike.baseRadius());
         float[] basis = ConeGeometry.computeBasis(dir.x(), dir.y(), dir.z());
-        int base = ARGB.color(urchin.alpha(), urchin.progressByte(), 0, 0);
-        int tip = ARGB.color(urchin.alpha(), urchin.progressByte(), OPAQUE, 0);
+        int base = ARGB.color(alpha, progressByte, 0, 0);
+        int tip = ARGB.color(alpha, progressByte, OPAQUE, 0);
         FlatQuadContext quads = new FlatQuadContext(pose, c);
         for (int side = 0; side < SPIKE_SIDES; side++) {
             emitSpikeSide(quads, cone, basis, side, base, tip);
         }
+    }
+
+    /**
+     * One spike's placement and size.
+     *
+     * @param base       the spike's base center, block-local
+     * @param dir        the spike's unit direction
+     * @param length     the spike's length in blocks
+     * @param baseRadius the spike's base radius in blocks
+     */
+    record Spike(Vector3f base, Vector3f dir, float length, float baseRadius) {
     }
 
     /**
