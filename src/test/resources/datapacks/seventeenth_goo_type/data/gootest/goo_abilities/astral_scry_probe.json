@@ -9,7 +9,7 @@
     {
       "type": "scry",
       "goo": "goo:astral",
-      "reach": 48,
+      "reach": 8,
       "where": ["living"],
       "steps": [ { "type": "damage", "amount": 3, "source": "magic" } ]
     }
