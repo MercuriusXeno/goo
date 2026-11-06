@@ -9,6 +9,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests the goo type picker's grid, its hover names and its two clicks, with no Screen
@@ -157,6 +162,36 @@ class GooTypePickerTest {
         assertTrue(targets.click(LEFT + close.column() * GooTypePicker.CELL + 1, TOP + GooTypePicker.CELL + 1));
         assertFalse(picker.isOpen());
         assertEquals(null, picked.get());
+    }
+
+    /**
+     * A disabled cell draws its icon in the disabled role and still names its type on hover, but a click on it answers
+     * no type and leaves the grid open, while its enabled neighbor draws untinted and answers its own
+     * (decision builder-disables-the-type-buttons-the-referent-lacks).
+     */
+    @Test
+    void disabledCellDrawsDimmedAndTakesNoPick() {
+        String disabled = TYPES.get(3);
+        String enabled = TYPES.get(4);
+        GooTypePicker picker = new GooTypePicker(TYPES);
+        picker.open(Set.of(), Set.of(disabled));
+        DrawnFrame frame = new DrawnFrame();
+        AtomicReference<String> picked = new AtomicReference<>();
+        picker.draw(frame.graphics, DrawnFrame.font(), frame.targets, LEFT, TOP, GooTypePicker.ROWS, picked::set,
+                null);
+        verify(frame.graphics).blit(any(), eq(GooTypeIcons.texture(disabled)), anyInt(), anyInt(), anyFloat(),
+                anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), eq(Palette.DISABLED));
+        verify(frame.graphics).blit(any(), eq(GooTypeIcons.texture(enabled)), anyInt(), anyInt(), anyFloat(),
+                anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), eq(Palette.TEXT));
+        GooTypePicker.Cell disabledCell = picker.cells().get(3);
+        assertEquals(GooTypeIcons.hoverKey(disabled),
+                frame.targets.hovered(centerX(disabledCell), centerY(disabledCell)).orElseThrow());
+        frame.targets.click(centerX(disabledCell), centerY(disabledCell));
+        assertEquals(null, picked.get());
+        assertTrue(picker.isOpen());
+        GooTypePicker.Cell enabledCell = picker.cells().get(4);
+        assertTrue(frame.targets.click(centerX(enabledCell), centerY(enabledCell)));
+        assertEquals(enabled, picked.get());
     }
 
     /**

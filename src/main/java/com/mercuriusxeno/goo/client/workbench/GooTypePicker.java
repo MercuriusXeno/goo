@@ -38,6 +38,7 @@ final class GooTypePicker {
 
     private final List<String> types;
     private Set<String> hidden = Set.of();
+    private Set<String> disabled = Set.of();
     private boolean open;
     private int firstRow;
     private int shownRows = ROWS;
@@ -113,7 +114,18 @@ final class GooTypePicker {
      * @param held the goo types the grid leaves out
      */
     void open(Set<String> held) {
+        open(held, Set.of());
+    }
+
+    /**
+     * Opens the grid without the goo types held, and with the goo types disabled drawn greyed and taking no pick.
+     *
+     * @param held     the goo types the grid leaves out
+     * @param disabled the goo types the grid shows greyed, a click on one answering nothing
+     */
+    void open(Set<String> held, Set<String> disabled) {
         hidden = Set.copyOf(held);
+        this.disabled = Set.copyOf(disabled);
         open = true;
         firstRow = 0;
     }
@@ -184,7 +196,12 @@ final class GooTypePicker {
         targets.addShield(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::close);
         targets.addShield(x, y, COLUMNS * CELL, shownRows * CELL, () -> { });
         for (Cell cell : cells()) {
-            addCellTarget(targets, x, y, cell, () -> picked.accept(cell.type()), GooTypeIcons.hoverKey(cell.type()));
+            if (disabled.contains(cell.type())) {
+                addDisabledTarget(targets, x, y, cell);
+            } else {
+                addCellTarget(targets, x, y, cell, () -> picked.accept(cell.type()),
+                        GooTypeIcons.hoverKey(cell.type()));
+            }
         }
         addCellTarget(targets, x, y, closeCell(), () -> { }, BuilderOverlays.hintKey(null));
         if (nothing != null) {
@@ -199,6 +216,14 @@ final class GooTypePicker {
                 open = false;
                 answers.run();
             }, hoverKey);
+        }
+    }
+
+    // A disabled cell still names its type on hover, but its click answers nothing and leaves the grid open
+    // (decision builder-disables-the-type-buttons-the-referent-lacks).
+    private void addDisabledTarget(ClickTargets targets, int x, int y, Cell cell) {
+        if (shows(cell)) {
+            targets.add(cellX(x, cell), cellY(y, cell), CELL, CELL, () -> { }, GooTypeIcons.hoverKey(cell.type()));
         }
     }
 
@@ -245,7 +270,8 @@ final class GooTypePicker {
         for (Cell cell : cells()) {
             if (shows(cell)) {
                 int inset = iconInset(GooTypeIcons.sizeOf(cell.type()));
-                GooTypeIcons.blit(graphics, cell.type(), cellX(x, cell) + inset, cellY(y, cell) + inset);
+                GooTypeIcons.blit(graphics, cell.type(), cellX(x, cell) + inset, cellY(y, cell) + inset,
+                        disabled.contains(cell.type()) ? Palette.DISABLED : Palette.TEXT);
             }
         }
         drawGlyph(graphics, font, CLOSE_GLYPH, closeCell(), x, y);

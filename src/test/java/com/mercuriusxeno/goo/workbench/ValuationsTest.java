@@ -108,6 +108,29 @@ class ValuationsTest {
         assertTrue(beetroot.get("error").isJsonNull(), beetroot.toString());
     }
 
+    /**
+     * An entry reading a goo type its item referent holds no amount of reads no value and an error naming the
+     * referent and the type, before and after the recipes derive
+     * (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line).
+     */
+    @Test
+    void entryReadingATypeItsItemLacksErrorsNamingBoth() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse("""
+                {
+                    "oak_planks": {"nether": 9},
+                    "stick": "oak_planks.leaf * 2"
+                }
+                """);
+        JsonObject unrecipied = entryNamed(JsonParser.parseString(Valuations.resolved(model)).getAsJsonObject()
+                .getAsJsonArray("entries"), "stick");
+        JsonObject derived = entryNamed(JsonParser.parseString(Valuations.resolved(model,
+                InventoryView.parse(plankInventory()))).getAsJsonObject().getAsJsonArray("entries"), "stick");
+        for (JsonObject stick : List.of(unrecipied, derived)) {
+            assertTrue(stick.getAsJsonObject("value").isEmpty(), stick.toString());
+            assertEquals("stick: oak_planks holds no leaf", stick.get("error").getAsString(), stick.toString());
+        }
+    }
+
     private static JsonObject entryNamed(JsonArray entries, String key) {
         return entries.asList().stream().map(entry -> entry.getAsJsonObject())
                 .filter(entry -> key.equals(entry.get("key").getAsString())).findFirst().orElseThrow();

@@ -159,16 +159,21 @@ final class Valuations {
     }
 
     private static String resolved(BaseValuesModel model, GooBaseValuesPreview.Loaded loaded) {
-        return resolvedRoot(model, loaded, new Readings(loaded.baseValues()::get, loaded.unresolved())).toString();
+        return resolvedRoot(model, loaded, new Readings(loaded.baseValues()::get, loaded.unresolved(),
+                loaded.lackedTypes())).toString();
     }
 
     /**
-     * What an entry's row reads: its value, and the item it names that holds no value where it waits on one.
+     * What an entry's row reads: its value, the item it names that holds no value where it waits on one, and the
+     * error naming a referent and a goo type it holds no amount of where the entry reads one.
      *
-     * @param value      an item's value as the entry resolved it, null for none
-     * @param unresolved each entry naming an item nothing values, with that item
+     * @param value       an item's value as the entry resolved it, null for none
+     * @param unresolved  each entry naming an item nothing values, with that item
+     * @param lackedTypes each entry reading a type its referent lacks, with the error naming both
+     *                    (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line)
      */
-    private record Readings(Function<Identifier, @Nullable GooValue> value, Map<Identifier, String> unresolved) {
+    private record Readings(Function<Identifier, @Nullable GooValue> value, Map<Identifier, String> unresolved,
+                            Map<Identifier, String> lackedTypes) {
     }
 
     // Decision diagnose-and-correct-item-reference-unrecognized-token: an entry waiting for an item the recipes
@@ -177,7 +182,7 @@ final class Valuations {
         return new Readings(item -> {
             GooValue keyed = loaded.baseValues().get(item);
             return keyed != null ? keyed : derived.registry().handKeyedValue(item);
-        }, derived.registry().unresolvedReferences());
+        }, derived.registry().unresolvedReferences(), derived.registry().lackedTypes());
     }
 
     private static JsonObject resolvedRoot(BaseValuesModel model, GooBaseValuesPreview.Loaded loaded,
@@ -208,7 +213,8 @@ final class Valuations {
         return root;
     }
 
-    // An entry's validator warnings, then the item it names that nothing values, where it names one.
+    // An entry's validator warnings, then the item it names that nothing values, where it names one, then the
+    // referent and type it reads that the referent lacks, unless the validator already named them.
     private static List<String> warningsOf(String key, @Nullable Identifier valued, GooBaseValuesPreview.Loaded loaded,
                                            Readings readings) {
         List<String> warnings = new ArrayList<>(loaded.warnings().stream()
@@ -216,6 +222,10 @@ final class Valuations {
         String missing = valued == null ? null : readings.unresolved().get(valued);
         if (missing != null) {
             warnings.add(key + CONTEXT_END + NAMES + missing + VALUED_BY_NOTHING);
+        }
+        String lacked = valued == null ? null : readings.lackedTypes().get(valued);
+        if (lacked != null && warnings.stream().noneMatch(warning -> warning.endsWith(CONTEXT_END + SPACE + lacked))) {
+            warnings.add(key + CONTEXT_END + SPACE + lacked);
         }
         return warnings;
     }
