@@ -7,11 +7,13 @@
     "FoodDataLifetapMixin",
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
+    "LivingEntityHeldFallsMixin",
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "PlayerGluttonyEatMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin",
+    "WitchHeldDrinksNoPotionMixin",
     "WorldDimensionsGooStableMixin"
   ],
   "client": [

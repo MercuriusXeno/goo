@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:frozen_witch_falls_and_thaws",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 340,
+  "setup_ticks": 0,
+  "required": true
+}
