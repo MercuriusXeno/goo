@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
+import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.SharedFate;
 import com.mercuriusxeno.goo.ability.quantum.SwapBodyRef;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
@@ -34,7 +35,6 @@ import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
-import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -378,13 +378,13 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The quantum anchor a player last arrived at, held until they step away
-     * from it, so arriving never carries them straight back. Not saved.
-     * quantum-anchors-link-two-points
+     * The Quantum portal a player last came out of, held until they step
+     * clear of its mouth, so arriving never carries them straight back. Not saved.
+     * portals-link-by-looking-through-portal-vision
      */
-    public static final Supplier<AttachmentType<Optional<GlobalPos>>> ANCHOR_ARRIVAL =
-            ATTACHMENT_TYPES.register("anchor_arrival",
-                    () -> AttachmentType.<Optional<GlobalPos>>builder(Optional::empty).build());
+    public static final Supplier<AttachmentType<Optional<Portal>>> PORTAL_ARRIVAL =
+            ATTACHMENT_TYPES.register("portal_arrival",
+                    () -> AttachmentType.<Optional<Portal>>builder(Optional::empty).build());
 
     /**
      * The swap body a player has standing, saved with the player while one stands.
