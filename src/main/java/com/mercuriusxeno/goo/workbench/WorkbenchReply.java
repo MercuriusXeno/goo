@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.workbench;
 import java.nio.charset.StandardCharsets;
 
 /**
- * One workbench operation's answer: an HTTP-shaped status, the body's content type and the body, which the loopback
- * page sends as a response and the in-game manager as a reply payload.
+ * One workbench operation's answer: an HTTP-shaped status, the body's content type and the body, which the in-game
+ * manager receives as a reply payload.
  *
  * @param status      the status, 200 for an answer and 4xx or 5xx for a refusal
  * @param contentType the body's content type

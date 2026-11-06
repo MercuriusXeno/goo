@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Writes the audit and the clique dumps in one headless server boot, the run the values workbench's
- * Audit tab starts (decision workbench-reruns-the-audit-headless).
+ * Writes the audit and the clique dumps in one headless server boot, the audit the value review reads with no
+ * world load (decision audit-dump-from-a-gametest).
  */
 @RegistersGameTests
 public final class GooValuesDumpTests {
