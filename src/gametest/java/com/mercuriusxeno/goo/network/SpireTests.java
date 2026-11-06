@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -21,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.HashMap;
@@ -31,9 +34,12 @@ import java.util.function.Consumer;
 /**
  * Gametest for rock's Spire, submitted the way the second right click
  * submits it: a 3x1 footprint at rise 3 over ground of dirt, stone and
- * deepslate grows a 3x1x3 wall of stone above it, leaves every ground block
- * as it stood, and spends stone's rock goo value per stone block grown.
+ * deepslate raises a 3x1x3 wall of stone as one rising hunk, its cells empty
+ * while it rises, settles the stone into them once the rise time passes,
+ * leaves every ground block as it stood, and spends stone's rock goo value
+ * per stone block grown.
  * decision spire-grows-stone-out-of-the-top
+ * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
  */
 @RegistersGameTests
 public final class SpireTests {
@@ -55,6 +61,10 @@ public final class SpireTests {
     private static final String GROUND_MOVED = "The ground at %s should still hold %s, holds %s";
     private static final String UNPRICED = "Stone should carry a rock goo value for Spire to spend";
     private static final String CHARGED_WRONG = "The growth should spend %d mB of rock goo, spent %d";
+    private static final String CELL_FILLED_EARLY = "The cell at %s should stand empty while the stone rises, holds %s";
+    private static final String NO_HUNK = "One rising hunk should carry the %d stone blocks, found %s";
+    /** The settle lands on the tick the rise ends; one more lets its block updates through. */
+    private static final int SETTLE_SLACK_TICKS = 1;
 
     private SpireTests() {
     }
@@ -86,18 +96,43 @@ public final class SpireTests {
             }
         }
         int spent = submit(helper);
+        assertRising(helper);
+        helper.runAfterDelay(SpireStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
+                for (int height = 1; height <= RISE; height++) {
+                    assertHolds(helper, new BlockPos(x, CORNER.getY() + height, CORNER.getZ()),
+                            Blocks.STONE.defaultBlockState(), STONE_MISSING);
+                }
+            }
+            groundBefore.forEach((ground, before) -> assertHolds(helper, ground, before, GROUND_MOVED));
+            int stoneValue = stoneRockValue(helper);
+            helper.assertTrue(stoneValue > 0, UNPRICED);
+            int expected = stoneValue * GROUND.size() * RISE;
+            helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Right after the submit the wall's cells stand empty and one hunk carries
+     * its stone, rising toward them.
+     *
+     * @param helper the gametest helper
+     */
+    private static void assertRising(GameTestHelper helper) {
         for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
             for (int height = 1; height <= RISE; height++) {
-                assertHolds(helper, new BlockPos(x, CORNER.getY() + height, CORNER.getZ()),
-                        Blocks.STONE.defaultBlockState(), STONE_MISSING);
+                BlockPos cell = new BlockPos(x, CORNER.getY() + height, CORNER.getZ());
+                helper.assertTrue(helper.getBlockState(cell).isAir(),
+                        String.format(CELL_FILLED_EARLY, cell, helper.getBlockState(cell)));
             }
         }
-        groundBefore.forEach((ground, before) -> assertHolds(helper, ground, before, GROUND_MOVED));
-        int stoneValue = stoneRockValue(helper);
-        helper.assertTrue(stoneValue > 0, UNPRICED);
-        int expected = stoneValue * GROUND.size() * RISE;
-        helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
-        helper.succeed();
+        AABB bay = new AABB(helper.absolutePos(CORNER)).inflate(GROUND.size() + RISE);
+        List<BlockHunk> hunks = helper.getLevel().getEntitiesOfClass(BlockHunk.class, bay);
+        int stone = GROUND.size() * RISE;
+        helper.assertTrue(hunks.size() == 1 && hunks.getFirst().blocks().size() == stone
+                && hunks.getFirst().blocks().stream().allMatch(block -> block.state().is(Blocks.STONE)),
+                String.format(NO_HUNK, stone, hunks.stream().map(hunk -> hunk.blocks().size()).toList()));
     }
 
     /**

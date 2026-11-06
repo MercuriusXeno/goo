@@ -49,6 +49,7 @@ import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
+import com.mercuriusxeno.goo.client.entity.BlockHunkRenderer;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.FeedPileRenderer;
@@ -227,6 +228,7 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
+        event.registerEntityRenderer(GooEntities.BLOCK_HUNK.get(), BlockHunkRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
         // swap-body-stands-until-reverted: a client body wears its owner's skin, drawn by the player renderer
