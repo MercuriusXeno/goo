@@ -129,7 +129,7 @@ public final class StepTypes {
         register(AstralGateStep.TYPE);
         register(VoidPocketStep.TYPE);
         register(MeteorStep.TYPE);
-        register(PhaseBlocksStep.TYPE);
+        register(WormholeStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);

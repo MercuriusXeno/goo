@@ -203,7 +203,32 @@ public final class GooThrowHandler {
      */
     private static boolean cleared(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
         return throwable(player, ability) && !refusesStruck(player.level(), payload, ability)
-                && !fizzlesAtTarget(player, payload, ability);
+                && !fizzlesAtTarget(player, payload, ability) && !refusedAtFace(player, payload, ability);
+    }
+
+    /**
+     * Refuses a throw at a block face a step of its ability cannot take,
+     * before anything is paid, the step showing the refusal there; Quantum's
+     * hole refuses a face with no opening ahead within its reach.
+     * hole-closes-the-space-to-an-opening-ahead
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param ability the thrown ability
+     * @return true when the throw was refused
+     */
+    private static boolean refusedAtFace(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
+        Direction face = directionFromOrdinal(payload.targetFace());
+        if (payload.targetEntityId() >= 0 || face == null) {
+            return false;
+        }
+        for (Step step : ability.behaviors()) {
+            if (step instanceof TargetGatedStep gated && !gated.admitsFace(player, payload.targetPos(), face)) {
+                gated.refuseAtFace(player, payload.targetPos(), face);
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
