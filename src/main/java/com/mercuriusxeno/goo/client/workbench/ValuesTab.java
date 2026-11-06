@@ -33,6 +33,8 @@ public final class ValuesTab {
     private static final String OUTPUT = "output";
     private static final String SOLVED_FROM = "solvedFrom";
     private static final String LESS = "less";
+    private static final String ANCHORS = "anchors";
+    private static final String WOULD_BE = "wouldBe";
     private static final Recipe NO_RECIPE = new Recipe(List.of(), 1);
     private static final String ENTRIES = "entries";
     private static final String KEY = "key";
@@ -162,9 +164,12 @@ public final class ValuesTab {
 
     private static Recipe recipeOf(JsonObject recipe) {
         JsonElement solved = recipe.get(SOLVED_FROM);
-        return new Recipe(inputsOf(array(recipe, INPUTS)), recipe.get(OUTPUT).getAsInt(),
+        JsonElement output = recipe.get(OUTPUT);
+        return new Recipe(inputsOf(array(recipe, INPUTS)), output == null ? 1 : output.getAsInt(),
                 solved != null && solved.isJsonObject() ? inputOf(solved.getAsJsonObject()) : null,
-                inputsOf(array(recipe, LESS)));
+                inputsOf(array(recipe, LESS)),
+                array(recipe, ANCHORS).asList().stream().map(JsonElement::getAsString).toList(),
+                recipe.get(WOULD_BE) instanceof JsonObject wouldBe ? recipeOf(wouldBe) : null);
     }
 
     private static List<Input> inputsOf(JsonArray inputs) {
@@ -197,14 +202,28 @@ public final class ValuesTab {
      * @param output     how many the recipe makes, or the slots a solved item fills, each count reading over it
      * @param solvedFrom the solving recipe's output and how many it makes, null where a recipe makes the item
      * @param less       the solving recipe's other inputs, each subtracted
+     * @param anchors    the hand-keyed items every chain of recipes from the item reaches, in id order
+     * @param wouldBe    for an item its own entry values, the equivalency it would derive were the entry unset, null
+     *                   where no recipe would value it (decision explicit-value-row-reads-vs-its-would-be-derivative)
      */
-    public record Recipe(List<Input> inputs, int output, @Nullable Input solvedFrom, List<Input> less) {
+    public record Recipe(List<Input> inputs, int output, @Nullable Input solvedFrom, List<Input> less,
+                         List<String> anchors, @Nullable Recipe wouldBe) {
         /**
          * @param inputs its inputs, grouped by item
          * @param output how many the recipe makes
          */
         public Recipe(List<Input> inputs, int output) {
             this(inputs, output, null, List.of());
+        }
+
+        /**
+         * @param inputs     its inputs, grouped by item, none for an inverted recipe
+         * @param output     how many the recipe makes, or the slots a solved item fills
+         * @param solvedFrom the solving recipe's output and how many it makes, null where a recipe makes the item
+         * @param less       the solving recipe's other inputs, each subtracted
+         */
+        public Recipe(List<Input> inputs, int output, @Nullable Input solvedFrom, List<Input> less) {
+            this(inputs, output, solvedFrom, less, List.of(), null);
         }
     }
 
@@ -214,6 +233,17 @@ public final class ValuesTab {
      */
     public Recipe derivedFrom(String id) {
         return derivedFrom.getOrDefault(id, NO_RECIPE);
+    }
+
+    /**
+     * An item holding an entry traces its value to itself, so it lists no anchors.
+     * decision item-value-view-lists-its-anchors
+     *
+     * @param id an item's namespaced id
+     * @return the hand-keyed items its derived value traces back to through the recipe chain, in id order
+     */
+    public List<String> anchorsOf(String id) {
+        return hasEntry(id) ? List.of() : derivedFrom(id).anchors();
     }
 
     /**
