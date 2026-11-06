@@ -13,9 +13,10 @@ import java.util.function.Consumer;
  * The goo type picker: a grid 7 icons wide and 4 high over every goo type, each cell named on hover, opened by one
  * click and answering its type on the next (decision goo-type-picker-is-a-seven-by-four-icon-grid). The cell past the
  * last type closes it with no pick, the cell after that picks no goo type where the caller allows none, and a click
- * outside the grid or Escape closes it, so an opened picker never holds the screen. Opened near the screen's bottom it
- * shows fewer rows and the wheel scrolls them, since it never flips above its opener
- * (decision popups-anchor-under-the-line-that-opened-them).
+ * outside the grid or Escape closes it, so an opened picker never holds the screen. BuilderOverlays places it by the
+ * one rule every popup stands by: under its opener where the grid fits, above where only above fits it, and otherwise
+ * on the side with more room, showing fewer rows that the wheel scrolls
+ * (decision every-popup-measures-flows-to-fit-and-scrolls).
  */
 final class GooTypePicker {
     /** A cell's side, the icon and its margin. */
