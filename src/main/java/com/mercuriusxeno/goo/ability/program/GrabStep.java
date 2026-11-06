@@ -24,7 +24,8 @@ import java.util.stream.Stream;
  * and every tick after holds it in front of the player along the look, from
  * the far distance with the look level or above, drawn in to the near
  * distance as the look pitches down to {@link #FULL_DRAW_PITCH}. A left click
- * while held throws it at the throw speed (GrabEvents.throwHeld).
+ * while held throws it at the throw speed (GrabEvents.throwHeld), and the
+ * press lifts nothing more until right click lets go.
  * decision grab-holds-and-throws-a-physics-body
  *
  * @param range      how far the look reaches for an entity to lift, in blocks
@@ -63,7 +64,9 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
 
     @Override
     public boolean tick(StepContext context) {
-        if (!(context.hostAs(TargetHost.class).target() instanceof ServerPlayer player)) {
+        if (!(context.hostAs(TargetHost.class).target() instanceof ServerPlayer player)
+                || GrabEvents.extendSpentPress(player)) {
+            // decision diagnose-and-correct-grabs-left-click-throw: a throw spends the press until right click lets go
             return true;
         }
         Entity held = GrabEvents.heldBy(player);
