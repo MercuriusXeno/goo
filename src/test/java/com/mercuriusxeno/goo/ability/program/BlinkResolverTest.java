@@ -18,8 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers where a blink lands over a world of solid unit cubes: free aim a
  * fixed range along the look, through a thin wall into free room, shorted in
- * front of a thick wall, never into the ground, sliding on a pinned face,
- * and refused when nothing fits (decision blink-lands-safely-costed-by-distance).
+ * front of a thick wall, never into the ground, the same whatever face the
+ * look rests on, and refused when nothing fits
+ * (decision blink-lands-safely-costed-by-distance).
  */
 class BlinkResolverTest {
 
@@ -85,7 +86,7 @@ class BlinkResolverTest {
     }
 
     private static Optional<BlinkLanding> freeAim(CubeSpace space, Vec3 look) {
-        return BlinkResolver.resolve(space, FEET, look, RANGE, PLAYER, Optional.empty());
+        return BlinkResolver.resolve(space, FEET, look, RANGE, PLAYER);
     }
 
     /**
@@ -180,54 +181,26 @@ class BlinkResolverTest {
         }
     }
 
+    /**
+     * The cursor for a hold at a look, wherever the look rests.
+     *
+     * @param space the world the look rests in
+     * @param look  the unit look vector
+     * @return the cursor's feet
+     */
+    private static Vec3 cursorForAHold(CubeSpace space, Vec3 look) {
+        return freeAim(space, look).orElseThrow().feet();
+    }
+
+    /** Decision blink-drops-the-face-axis-pin. */
     @Nested
-    class PinnedFace {
+    class LookRestingOnAFace {
 
         @Test
-        void aPinnedTopFaceLandsOnItWhereTheLookCrossesIt() {
-            CubeSpace space = new CubeSpace().fill(5, 64, 0, 5, 66, 0);
-            Vec3 eye = FEET.add(0, PLAYER.eyeHeight(), 0);
-            Vec3 look = new Vec3(5.5, 67, 0.5).subtract(eye).normalize();
+        void aHoldOnAWallFaceLandsWhereAHoldOnAirLands() {
+            CubeSpace wall = new CubeSpace().fill(3, 64, -2, 3, 67, 2);
 
-            BlinkLanding landing = BlinkResolver.resolve(space, FEET, look, RANGE, PLAYER,
-                    Optional.of(new ChannelAim.FacePlane(new BlockPos(5, 66, 0), Direction.UP))).orElseThrow();
-
-            assertEquals(5.5, landing.feet().x(), NEAR);
-            assertEquals(67, landing.feet().y(), NEAR);
-            assertEquals(0.5, landing.feet().z(), NEAR);
-        }
-
-        @Test
-        void aPinnedSideFaceStandsTheBlinkerAgainstIt() {
-            CubeSpace space = new CubeSpace().fill(6, 64, -5, 6, 70, 5);
-
-            BlinkLanding landing = BlinkResolver.resolve(space, FEET, EAST, RANGE, PLAYER,
-                    Optional.of(new ChannelAim.FacePlane(new BlockPos(6, 65, 0), Direction.WEST))).orElseThrow();
-
-            assertEquals(6 - PLAYER.width() / 2, landing.feet().x(), NEAR);
-            assertEquals(FEET.y(), landing.feet().y(), NEAR);
-            assertTrue(space.fits(PLAYER.boxAt(landing.feet())));
-        }
-
-        @Test
-        void aPlaneWalkedAwayFromNeverCarriesTheBlinkPastItsRange() {
-            CubeSpace space = new CubeSpace().fill(30, 60, -5, 30, 70, 5);
-            ChannelAim.FacePlane farWall = new ChannelAim.FacePlane(new BlockPos(30, 65, 0), Direction.WEST);
-
-            BlinkLanding landing = BlinkResolver.resolve(space, FEET, EAST, RANGE, PLAYER,
-                    Optional.of(farWall)).orElseThrow();
-
-            assertTrue(landing.distance() <= RANGE + NEAR, "landed " + landing.distance() + " away");
-        }
-
-        @Test
-        void aPressPinsTheFirstFaceTheLookCrossesInRange() {
-            CubeSpace space = new CubeSpace().fill(4, 60, -2, 4, 70, 2);
-
-            Optional<ChannelAim.FacePlane> pin = BlinkResolver.pinAt(space, FEET.add(0, PLAYER.eyeHeight(), 0),
-                    EAST, RANGE);
-
-            assertEquals(Optional.of(new ChannelAim.FacePlane(new BlockPos(4, 65, 0), Direction.WEST)), pin);
+            assertEquals(cursorForAHold(new CubeSpace(), EAST), cursorForAHold(wall, EAST));
         }
     }
 

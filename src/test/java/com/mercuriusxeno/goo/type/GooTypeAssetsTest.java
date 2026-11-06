@@ -67,11 +67,11 @@ class GooTypeAssetsTest {
 
     @ParameterizedTest
     @MethodSource("bundledKeys")
-    void langNamesTheTypeItsPotionAndItsBrew(ResourceKey<GooTypeDefinition> key) throws IOException {
+    void langNamesTheTypeAndItsPotion(ResourceKey<GooTypeDefinition> key) throws IOException {
         JsonObject lang = readJson(LANG_JSON).getAsJsonObject();
         String id = GooTypes.id(key);
         for (String langKey : List.of(GooTypeNames.translationKey(key),
-                "item.minecraft.potion.effect." + id + "_goo", "effect.goo." + id + "_brew")) {
+                "item.minecraft.potion.effect." + id + "_goo")) {
             assertTrue(lang.has(langKey), "lang lacks " + langKey);
         }
     }
