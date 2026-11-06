@@ -89,6 +89,13 @@ class GroundShakeTest {
         }
     }
 
+    @Test
+    void theShakingBlocksAreLitAsTheWorldLightsThemWithNoEntityShadeOverIt() {
+        // The tesselator bakes the world's face shade in; a pipeline shading by direction again darkens it.
+        assertEquals(Identifier.withDefaultNamespace("core/block"),
+                GroundShake.renderType().pipeline().getVertexShader());
+    }
+
     @Nested
     class Players {
 

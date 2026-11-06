@@ -266,7 +266,7 @@ public final class GroundShake {
      */
     private static void drawShaken(Minecraft mc, PoseStack poseStack, Zone zone, float time) {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        RenderType blocks = GooSubmitter.cutoutOnBlockAtlas();
+        RenderType blocks = renderType();
         VertexConsumer consumer = buffers.getBuffer(blocks);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ModelBlockRenderer tesselator = new ModelBlockRenderer(mc.options.ambientOcclusion().get(), true,
@@ -287,6 +287,15 @@ public final class GroundShake {
             poseStack.popPose();
         }
         buffers.endBatch(blocks);
+    }
+
+    /**
+     * The render type the shaking blocks draw through.
+     *
+     * @return the render type
+     */
+    static RenderType renderType() {
+        return GooSubmitter.movingBlockCutout();
     }
 
     /**
