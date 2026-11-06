@@ -39,6 +39,7 @@ public final class GrabChannelTests {
     private static final String GRAB_PITCH_DRAWS_CLOSER = "grab_pitch_draws_closer";
     private static final String GRAB_THROWS_ALONG_THE_LOOK = "grab_throws_along_the_look";
     private static final String GRAB_THROWS_AN_ITEM = "grab_throws_an_item";
+    private static final String GRAB_THROW_FLIES_WHILE_THE_CHANNEL_HOLDS = "grab_throw_flies_while_the_channel_holds";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -50,6 +51,8 @@ public final class GrabChannelTests {
         GooTestFunctions.registerTest(registrar, GRAB_PITCH_DRAWS_CLOSER, GrabChannelTests::grabPitchDrawsCloser);
         GooTestFunctions.registerTest(registrar, GRAB_THROWS_ALONG_THE_LOOK, GrabChannelTests::grabThrowsAlongTheLook);
         GooTestFunctions.registerTest(registrar, GRAB_THROWS_AN_ITEM, GrabChannelTests::grabThrowsAnItem);
+        GooTestFunctions.registerTest(registrar, GRAB_THROW_FLIES_WHILE_THE_CHANNEL_HOLDS,
+                GrabChannelTests::grabThrowFliesWhileTheChannelHolds);
     }
 
 
@@ -158,6 +161,35 @@ public final class GrabChannelTests {
         helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, holdTick(player)));
         helper.runAfterDelay(2, () -> player.setXRot(LEVEL));
         throwAfterHold(helper, player, item);
+    }
+
+    /**
+     * A left click thrown while right click still holds the channel sends the
+     * zombie along the look, and the channel ticks after the throw lift it no
+     * more, so the throw is not undone by a re-grab
+     * (decision diagnose-and-correct-grabs-left-click-throw).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabThrowFliesWhileTheChannelHolds(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        AtomicReference<Vec3> heldAt = new AtomicReference<>();
+        holdFor(helper, player, HOLD_TICKS);
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            heldAt.set(zombie.position());
+            helper.assertTrue(GrabEvents.throwHeld(player), "The player should hold the zombie to throw it");
+        });
+        for (int held = HOLD_TICKS + 1; held <= HOLD_TICKS + 1 + FLIGHT_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, holdTick(player)));
+        }
+        helper.runAfterDelay(HOLD_TICKS + 2 + FLIGHT_TICKS, () -> {
+            double along = zombie.position().subtract(heldAt.get()).dot(player.getLookAngle());
+            helper.assertTrue(along > THROWN, "A zombie thrown while the channel holds should fly along the look, flew "
+                    + along + (GrabEvents.heldBy(player) == zombie ? ", held again" : ", unheld"));
+            helper.assertTrue(GrabEvents.heldBy(player) == null, "The channel should not lift the thrown zombie again");
+            leave(helper, player);
+        });
     }
 
     /**
