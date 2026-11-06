@@ -156,6 +156,7 @@ public final class StepTypes {
         register(UpdraftStep.TYPE);
         register(LiftStep.TYPE);
         register(GrabStep.TYPE);
+        register(TerrakinesisStep.TYPE);
         register(TelekinesisStep.TYPE);
     }
 
