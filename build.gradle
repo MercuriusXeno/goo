@@ -86,15 +86,6 @@ runs {
         var agentJar = zipTree(wrapperJar).matching { include 'jacocoagent.jar' }.singleFile
         jvmArguments.add("-javaagent:${agentJar}=destfile=${buildDir.get()}/jacoco/gameTest.exec,includes=com.mercuriusxeno.goo.*")
     }
-    // A client that captures each item its image folder's manifest lacks as its inventory slot draws it, then exits;
-    // -PinventoryImages=<folder> names another image folder (decision images-are-slot-captures-taken-on-detection).
-    // It plays into its own copy of the Goo Lab, since an item's components bind only once a world loads.
-    captureInventory {
-        configure 'client'
-        arguments.addAll '--quickPlaySingleplayer', 'Goo Lab'
-        systemProperty 'goo.captureInventory',
-            file(project.findProperty('inventoryImages') ?: 'runs/gameTestServer/config/goo_inventory').absolutePath
-    }
     clientData {
         arguments.addAll '--mod', project.mod_id, '--all',
             '--output', file('src/generated/resources/').absolutePath,
@@ -276,21 +267,6 @@ tasks.register('generateTextures', JavaExec) {
     workingDir = project.projectDir
 }
 
-tasks.register('captureInventory') {
-    description = 'Captures each inventory item the image folder lacks as its slot draws it, in a client that exits'
-    group = 'goo'
-    dependsOn 'runCaptureInventory'
-}
-
-tasks.register('seedCaptureLab', Copy) {
-    description = 'Copies dev/lab/ into runs/captureInventory/saves/Goo Lab when that save is absent'
-    group = 'goo'
-    var labSave = file('runs/captureInventory/saves/Goo Lab')
-    from 'dev/lab'
-    into labSave
-    onlyIf('the capture run\'s Goo Lab save is absent') { !labSave.exists() }
-}
-
 // The Goo Lab template tracked at dev/lab/ (decision lab-built-from-code)
 tasks.register('generateLabTemplate', JavaExec) {
     description = 'Rewrites the Goo Lab level template under dev/lab/'
@@ -362,14 +338,6 @@ afterEvaluate {
     tasks.named('runClient').configure {
         dependsOn 'seedLab', 'seedSoundOptions', 'seedFirstLaunchOptions'
         finalizedBy 'saveSoundOptions'
-    }
-    tasks.named('runCaptureInventory').configure {
-        dependsOn 'seedCaptureLab'
-        // A first launch's accessibility screen holds quick play on the title screen until someone dismisses it.
-        var options = file('runs/captureInventory/options.txt')
-        doFirst {
-            replaceOptionLines(options, [onboardAccessibility: 'false'])
-        }
     }
 }
 

@@ -11,21 +11,16 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 /**
  * Writes the inventory of everything the loadout registers to config/goo_inventory.json on a headless server,
- * reads it back, and finds the image folder untouched (decision inventory-dump-from-a-gametest-and-a-command).
+ * and reads it back (decision inventory-dump-from-a-gametest-and-a-command).
  */
 @RegistersGameTests
 public final class GooInventoryDumpTests {
@@ -42,10 +37,6 @@ public final class GooInventoryDumpTests {
     private static final String UNDER = " under ";
     private static final String MEMBER_MISSING = "minecraft:logs lists no minecraft:oak_log";
     private static final String GRID_MISSING = "minecraft:iron_chain carries no pattern, key or output";
-    // Images are slot captures a client takes; the report writes the json alone
-    // (decision images-are-slot-captures-taken-on-detection).
-    private static final String IMAGE_WRITTEN = "The inventory report wrote or removed a PNG under goo_inventory/";
-    private static final String PNG = ".png";
 
     private GooInventoryDumpTests() {
     }
@@ -60,14 +51,12 @@ public final class GooInventoryDumpTests {
     }
 
     /**
-     * Writes the inventory and reads every section back, with a known entry in each and no image written.
+     * Writes the inventory and reads every section back, with a known entry in each.
      *
      * @param helper the gametest helper
      */
     public static void writesTheInventoryDump(GameTestHelper helper) {
         Path config = FMLPaths.CONFIGDIR.get();
-        Path images = config.resolve(GooInventoryReport.DIR_IMAGES);
-        Map<Path, FileTime> pngsBefore = pngsUnder(images);
         GooInventoryReport.writeInventory(helper.getLevel().getServer());
         JsonObject root;
         try {
@@ -92,30 +81,7 @@ public final class GooInventoryDumpTests {
         helper.assertTrue(chain.has("pattern") && chain.has("key")
                 && "minecraft:iron_chain".equals(chain.has("output") ? chain.get("output").getAsString() : null),
                 GRID_MISSING);
-        helper.assertTrue(pngsBefore.equals(pngsUnder(images)), IMAGE_WRITTEN);
         helper.succeed();
-    }
-
-    /**
-     * Every PNG under the image folder with when it was last written, so a report that writes or deletes any
-     * image changes the answer.
-     *
-     * @param images the image folder
-     * @return each PNG's path and last-modified time, empty where the folder stands absent
-     */
-    private static Map<Path, FileTime> pngsUnder(Path images) {
-        if (!Files.isDirectory(images)) {
-            return Map.of();
-        }
-        Map<Path, FileTime> pngs = new HashMap<>();
-        try (Stream<Path> paths = Files.walk(images)) {
-            for (Path png : paths.filter(path -> path.toString().endsWith(PNG)).toList()) {
-                pngs.put(png, Files.getLastModifiedTime(png));
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return pngs;
     }
 
     private static void assertListed(GameTestHelper helper, JsonObject root, String section, String id) {

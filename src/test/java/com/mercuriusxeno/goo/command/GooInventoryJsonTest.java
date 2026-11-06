@@ -23,8 +23,8 @@ class GooInventoryJsonTest {
             List.of("minecraft:iron_nugget"), null);
 
     private static final GooInventory LISTING = new GooInventory(
-            List.of(new GooInventory.NamedEntry("minecraft:iron_nugget", "Iron Nugget", "minecraft/iron_nugget.png"),
-                    new GooInventory.NamedEntry("othermod:widget", "Widget", null)),
+            List.of(new GooInventory.NamedEntry("minecraft:iron_nugget", "Iron Nugget"),
+                    new GooInventory.NamedEntry("othermod:widget", "Widget")),
             List.of(new GooInventory.TagEntry("minecraft:logs", List.of("minecraft:oak_log", "minecraft:birch_log"))),
             List.of("metal", "othermod:sludge"),
             List.of(new GooInventory.RecipeEntry("minecraft:iron_chain", "minecraft:crafting",
@@ -69,17 +69,17 @@ class GooInventoryJsonTest {
     }
 
     /**
-     * An item carries its name and the image path the page draws it from.
+     * An item carries its id and its display name.
      */
     @Test
-    void itemCarriesNameAndImage() {
+    void itemCarriesIdAndName() {
         JsonObject nugget = written().getAsJsonArray(GooInventoryJson.ITEMS).get(0).getAsJsonObject();
+        assertEquals("minecraft:iron_nugget", nugget.get("id").getAsString());
         assertEquals("Iron Nugget", nugget.get("name").getAsString());
-        assertEquals("minecraft/iron_nugget.png", nugget.get("image").getAsString());
     }
 
     /**
-     * A shaped recipe carries its output, its slots in order and the pattern and key the page draws the grid from.
+     * A shaped recipe carries its output, its slots in order and the pattern and key that lay out its grid.
      */
     @Test
     void shapedRecipeCarriesItsGrid() {

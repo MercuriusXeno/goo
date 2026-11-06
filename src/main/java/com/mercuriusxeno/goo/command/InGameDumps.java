@@ -28,9 +28,6 @@ public final class InGameDumps {
     }
 
     /**
-     * The in-game manager draws its items itself, so the dump captures no slot image.
-     * decision images-are-slot-captures-taken-on-detection
-     *
      * @param server the running server
      * @param paths  the workbench's files, whose inventory folder the dump writes into
      * @return a dump writing the inventory on the server thread
