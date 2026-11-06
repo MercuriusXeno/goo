@@ -45,11 +45,11 @@ public final class MeteorFall {
      *
      * @param start  where it appeared
      * @param target where it strikes
-     * @param age    the ticks it has fallen
+     * @param age    the ticks it has fallen, a fraction between ticks for a frame
      * @param ticks  the ticks its fall lasts
      * @return the point on the straight line from start to target
      */
-    public static Vec3 positionAt(Vec3 start, Vec3 target, int age, int ticks) {
-        return start.lerp(target, Math.min(1.0, (double) age / ticks));
+    public static Vec3 positionAt(Vec3 start, Vec3 target, double age, int ticks) {
+        return start.lerp(target, Math.min(1.0, age / ticks));
     }
 }

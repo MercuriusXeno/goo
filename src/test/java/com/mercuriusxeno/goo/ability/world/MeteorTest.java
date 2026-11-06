@@ -52,6 +52,19 @@ class MeteorTest {
     }
 
     /**
+     * A frame between two ticks draws the rock between the two ticks' points,
+     * so it comes down smoothly rather than stepping a tick's fall at a time
+     * (decision meteo-winds-up-then-drops-in-a-second-trailing-fire).
+     */
+    @Test
+    void aFrameBetweenTicksStandsBetweenTheirPoints() {
+        double tenth = MeteorFall.positionAt(START, TARGET, 10, FALL_TICKS).y;
+        double eleventh = MeteorFall.positionAt(START, TARGET, 11, FALL_TICKS).y;
+
+        assertEquals((tenth + eleventh) / 2, MeteorFall.positionAt(START, TARGET, 10.5, FALL_TICKS).y, 1e-9);
+    }
+
+    /**
      * Past its fall time it stays at the target rather than falling through.
      */
     @Test
