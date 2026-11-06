@@ -114,7 +114,7 @@ public final class GrabEvents {
      * Throws what a player holds along the player's look at the hold's
      * throw speed, freeing it first so it flies, and spends the press so
      * the channel ticks right click still sends lift nothing until it lets
-     * go; a player holding nothing throws nothing.
+     * go; a player holding nothing throws nothing and keeps a spent press spent.
      *
      * @param player the throwing player
      * @return true where the player held an entity and threw it
@@ -123,7 +123,7 @@ public final class GrabEvents {
         Entity held = heldBy(player);
         double speed = player.getData(GooAttachments.GRAB_HOLD).throwSpeed();
         if (held == null) {
-            player.setData(GooAttachments.GRAB_HOLD, GrabHold.NONE);
+            // decision diagnose-and-correct-grabs-left-click-throw: a second click must not clear the spent press
             return false;
         }
         // decision diagnose-and-correct-grabs-left-click-throw: a cleared hold let the next channel tick lift the thrown body again
