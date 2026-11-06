@@ -128,6 +128,18 @@ public final class GooSubmitter {
     }
 
     /**
+     * Returns the render type a moving block draws through, lit by the
+     * lightmap alone over the face shade the world's tesselation bakes in,
+     * so a block drawn again over the world matches it
+     * (decision bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera).
+     *
+     * @return the cutout moving-block type on the block atlas
+     */
+    public static RenderType movingBlockCutout() {
+        return RenderTypes.cutoutMovingBlock();
+    }
+
+    /**
      * Returns the cutout render type on a standalone texture, for a flat card
      * whose texture leaves holes, such as the goo label's paper and symbol.
      *
