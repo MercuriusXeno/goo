@@ -112,6 +112,11 @@ public class GooValueRegistry {
      * Each entry still waiting after the last load or derivation, with the item it names that holds no value.
      */
     private Map<Identifier, String> unresolvedReferences = Map.of();
+    /**
+     * Each entry the last load or derivation found reading a goo type its referent holds no amount of, with the error
+     * naming both (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line).
+     */
+    private Map<Identifier, String> lackedTypes = new LinkedHashMap<>();
 
     private Path effectiveCachePath;
 
@@ -539,6 +544,7 @@ public class GooValueRegistry {
     private void adoptWaiting(GooValueLoader.ParseState state) {
         waitingItems = new LinkedHashMap<>(state.waitingItems);
         unresolvedReferences = new LinkedHashMap<>(state.unresolvedItems);
+        lackedTypes = new LinkedHashMap<>(state.lackedTypes);
     }
 
     /**
@@ -562,6 +568,8 @@ public class GooValueRegistry {
             GooValueLoader.Settled settled = GooValueLoader.resolveWaiting(waiting,
                     new HashMap<>(derived.effectiveValues()), constants, treeConstants);
             unresolvedReferences = new LinkedHashMap<>(settled.unresolved());
+            settled.lacked().forEach((item, message) -> GooValueLoader.lackType(item, message, lackedTypes));
+            waiting.keySet().removeAll(settled.lacked().keySet());
             if (settled.valued().isEmpty()) {
                 break;
             }
@@ -583,6 +591,14 @@ public class GooValueRegistry {
      */
     public Map<Identifier, String> unresolvedReferences() {
         return Collections.unmodifiableMap(unresolvedReferences);
+    }
+
+    /**
+     * @return each entry reading a goo type its referent holds no amount of, with the error naming both; such an
+     *     entry loads no value (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line)
+     */
+    public Map<Identifier, String> lackedTypes() {
+        return Collections.unmodifiableMap(lackedTypes);
     }
 
     /**

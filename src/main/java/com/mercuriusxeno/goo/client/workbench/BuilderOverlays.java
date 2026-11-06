@@ -385,11 +385,24 @@ final class BuilderOverlays {
      * @param held    the goo types the value already holds, which the grid leaves out
      */
     void openPicker(Anchor at, Consumer<String> picks, @Nullable Runnable nothing, Set<String> held) {
+        openPicker(at, picks, nothing, held, Set.of());
+    }
+
+    /**
+     * @param at       where the control was clicked
+     * @param picks    takes the goo type picked
+     * @param nothing  runs where no goo type is picked, null where none is allowed
+     * @param held     the goo types the value already holds, which the grid leaves out
+     * @param disabled the goo types the grid shows greyed and takes no pick of, as a member picker greys the types its
+     *                 referent lacks (decision builder-disables-the-type-buttons-the-referent-lacks)
+     */
+    void openPicker(Anchor at, Consumer<String> picks, @Nullable Runnable nothing, Set<String> held,
+                    Set<String> disabled) {
         closeLists();
         opener = at;
         pickerPicks = picks;
         pickerNothing = nothing;
-        picker.open(held);
+        picker.open(held, disabled);
     }
 
     /**

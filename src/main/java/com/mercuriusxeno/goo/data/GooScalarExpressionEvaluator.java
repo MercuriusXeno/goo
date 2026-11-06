@@ -156,12 +156,13 @@ final class GooScalarExpressionEvaluator {
             if (source == null) {
                 return null;
             }
+            ResourceKey<GooTypeDefinition> type;
             try {
-                ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
-                return source.exact(type);
+                type = GooTypes.parseKnown(typeSuffix);
             } catch (IllegalArgumentException ignored) {
                 return null;
             }
+            return ReferentLacksType.amountHeld(tree, source, type);
         }
     }
 

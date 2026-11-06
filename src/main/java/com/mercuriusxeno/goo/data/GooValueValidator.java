@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.data;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -70,10 +71,10 @@ final class GooValueValidator {
      * @param warnings accumulator for validation warnings
      */
     static void validateJson(JsonObject json, List<String> warnings) {
-        Set<String> knownConstants = validateConstantsSection(json, warnings);
-        Set<String> knownItems = validateBaseSection(json, knownConstants, warnings);
+        GooValueTokenValidator.KnownPrefabs prefabs = validateConstantsSection(json, warnings);
+        Set<String> knownItems = validateBaseSection(json, prefabs, warnings);
         validateGroupsSection(json, knownItems, warnings);
-        GooConversionValidator.validateConversionsSection(json, knownConstants, warnings);
+        GooConversionValidator.validateConversionsSection(json, prefabs.names(), warnings);
     }
 
     /**
@@ -83,34 +84,43 @@ final class GooValueValidator {
      *
      * @param json     the root JSON object
      * @param warnings accumulator for validation warnings
-     * @return the set of known constant names, in definition order
+     * @return the known constant names, in definition order, with each object-form prefab's goo types
      */
-    private static Set<String> validateConstantsSection(JsonObject json, List<String> warnings) {
+    private static GooValueTokenValidator.KnownPrefabs validateConstantsSection(JsonObject json,
+                                                                               List<String> warnings) {
         if (!json.has(CONSTANTS_SUFFIX)) {
-            return new LinkedHashSet<>();
+            return new GooValueTokenValidator.KnownPrefabs(new LinkedHashSet<>(), Map.of());
         }
         JsonObject constants = json.getAsJsonObject(CONSTANTS_SUFFIX);
-        Set<String> knownConstants = new LinkedHashSet<>(constants.keySet());
+        Map<String, Set<String>> heldTypes = new HashMap<>();
+        constants.entrySet().stream().filter(entry -> entry.getValue().isJsonObject())
+                .forEach(entry -> heldTypes.put(entry.getKey(), entry.getValue().getAsJsonObject().keySet()));
+        GooValueTokenValidator.KnownPrefabs prefabs = new GooValueTokenValidator.KnownPrefabs(
+                new LinkedHashSet<>(constants.keySet()), heldTypes);
         for (Map.Entry<String, JsonElement> entry : constants.entrySet()) {
-            validateConstantEntry(entry, knownConstants, warnings);
+            validateConstantEntry(entry, prefabs, warnings);
         }
         // Decision cycled-prefabs-error-and-the-rest-load.
         PrefabDependencyGraph.of(constants).cycles()
                 .forEach(cycle -> warnings.add(CTX_CONSTANTS_BLOCK + PrefabDependencyGraph.cycleError(cycle)));
-        return knownConstants;
+        return prefabs;
     }
 
     /**
-     * Validates expression tokens within a single constant definition.
+     * Validates expression tokens within a single constant definition, a string prefab's expression or each of an
+     * object-form prefab's per-type expressions.
      *
-     * @param entry          the constant entry to validate
-     * @param knownConstants every constant name the block holds
-     * @param warnings       accumulator for validation warnings
+     * @param entry    the constant entry to validate
+     * @param prefabs  every constant name the block holds, with each object-form prefab's goo types
+     * @param warnings accumulator for validation warnings
      */
     private static void validateConstantEntry(Map.Entry<String, JsonElement> entry,
-                                              Set<String> knownConstants, List<String> warnings) {
-        if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isString()) {
-            GooValueTokenValidator.validateExprTokens(entry.getValue().getAsString(), knownConstants,
+                                              GooValueTokenValidator.KnownPrefabs prefabs, List<String> warnings) {
+        if (entry.getValue().isJsonObject()) {
+            validateValueObject(entry.getValue().getAsJsonObject(), prefabs, new LinkedHashSet<>(),
+                    CTX_CONSTANTS + entry.getKey(), warnings);
+        } else if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isString()) {
+            GooValueTokenValidator.validateExprTokens(entry.getValue().getAsString(), prefabs,
                     new LinkedHashSet<>(), CTX_CONSTANTS + entry.getKey(), warnings);
         }
     }
@@ -119,18 +129,18 @@ final class GooValueValidator {
      * Validates individual item entries (non-internal, non-tag keys) for expression correctness.
      *
      * @param json           the root JSON object
-     * @param knownConstants known constant names from the constants section
-     * @param warnings       accumulator for validation warnings
+     * @param prefabs  known constant names from the constants section, with each object-form prefab's goo types
+     * @param warnings accumulator for validation warnings
      * @return the set of known item keys, in definition order
      */
-    private static Set<String> validateBaseSection(JsonObject json, Set<String> knownConstants,
+    private static Set<String> validateBaseSection(JsonObject json, GooValueTokenValidator.KnownPrefabs prefabs,
                                                    List<String> warnings) {
         Set<String> knownItems = new LinkedHashSet<>();
         for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
             if (isInternalOrTag(entry.getKey())) {
                 continue;
             }
-            validateBaseEntry(entry, knownConstants, knownItems, warnings);
+            validateBaseEntry(entry, prefabs, knownItems, warnings);
             knownItems.add(entry.getKey());
         }
         return knownItems;
@@ -149,20 +159,20 @@ final class GooValueValidator {
     /**
      * Validates a single base-section entry for expression correctness.
      *
-     * @param entry          the JSON entry to validate
-     * @param knownConstants known constant names
-     * @param knownItems     known item IDs defined before this entry
-     * @param warnings       accumulator for validation warnings
+     * @param entry      the JSON entry to validate
+     * @param prefabs    known constant names, with each object-form prefab's goo types
+     * @param knownItems known item IDs defined before this entry
+     * @param warnings   accumulator for validation warnings
      */
     private static void validateBaseEntry(Map.Entry<String, JsonElement> entry,
-                                          Set<String> knownConstants, Set<String> knownItems,
+                                          GooValueTokenValidator.KnownPrefabs prefabs, Set<String> knownItems,
                                           List<String> warnings) {
         String itemKey = entry.getKey();
         JsonElement value = entry.getValue();
         if (value.isJsonObject()) {
-            validateValueObject(value.getAsJsonObject(), knownConstants, knownItems, itemKey, warnings);
+            validateValueObject(value.getAsJsonObject(), prefabs, knownItems, itemKey, warnings);
         } else if (isNonDeniedString(value)) {
-            GooValueTokenValidator.validateExprTokens(value.getAsString(), knownConstants, knownItems, itemKey, warnings);
+            GooValueTokenValidator.validateExprTokens(value.getAsString(), prefabs, knownItems, itemKey, warnings);
         }
     }
 
@@ -215,18 +225,18 @@ final class GooValueValidator {
     /**
      * Validates per-type expressions in a value object like { "metal": "$iron * 3" }.
      *
-     * @param obj            the value JSON object to validate
-     * @param knownConstants known constant names
-     * @param knownItems     known item IDs (defined before this entry)
-     * @param context        the item key for error messages
-     * @param warnings       accumulator for validation warnings
+     * @param obj        the value JSON object to validate
+     * @param prefabs    known constant names, with each object-form prefab's goo types
+     * @param knownItems known item IDs (defined before this entry)
+     * @param context    the item key for error messages
+     * @param warnings   accumulator for validation warnings
      */
-    private static void validateValueObject(JsonObject obj, Set<String> knownConstants,
+    private static void validateValueObject(JsonObject obj, GooValueTokenValidator.KnownPrefabs prefabs,
                                             Set<String> knownItems, String context,
                                             List<String> warnings) {
         for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
             if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isString()) {
-                GooValueTokenValidator.validateExprTokens(entry.getValue().getAsString(), knownConstants, knownItems,
+                GooValueTokenValidator.validateExprTokens(entry.getValue().getAsString(), prefabs, knownItems,
                         context + DOT + entry.getKey(), warnings);
             }
         }

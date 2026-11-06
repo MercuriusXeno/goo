@@ -59,13 +59,13 @@ final class ItemOperandResolver {
         if (dotIdx < 0) {
             return null;
         }
-        String typeSuffix = token.substring(dotIdx + 1);
+        ResourceKey<GooTypeDefinition> type;
         try {
-            ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
-            return lookupItemValue(token.substring(0, dotIdx), type, baseValues);
+            type = GooTypes.parseKnown(token.substring(dotIdx + 1));
         } catch (IllegalArgumentException ignored) {
             return null;
         }
+        return lookupItemValue(token.substring(0, dotIdx), type, baseValues);
     }
 
     // The dot separating the item id from its type suffix, NO_DOT at either edge or before the colon.
@@ -84,6 +84,7 @@ final class ItemOperandResolver {
      * @param baseValues item values for lookups
      * @return the item's exact amount for the given type
      * @throws UnresolvedItemReference where the item holds no value, which leaves the whole entry unvalued
+     * @throws ReferentLacksType       where the item's value holds no amount of the type
      */
     private static GooFraction lookupItemValue(String itemId, ResourceKey<GooTypeDefinition> type,
                                                Map<Identifier, GooValue> baseValues) {
@@ -91,6 +92,6 @@ final class ItemOperandResolver {
         if (value == null) {
             throw new UnresolvedItemReference(itemId);
         }
-        return value.exact(type);
+        return ReferentLacksType.amountHeld(itemId, value, type);
     }
 }

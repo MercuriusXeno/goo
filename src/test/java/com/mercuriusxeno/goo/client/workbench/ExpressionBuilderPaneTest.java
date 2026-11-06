@@ -68,10 +68,19 @@ class ExpressionBuilderPaneTest {
         final ManagerActions actions = mock(ManagerActions.class);
 
         Builder(List<BuilderGrammar.Prefab> prefabs) {
+            this(prefabs, ref -> java.util.Map.of());
+        }
+
+        /**
+         * @param prefabs every prefab, in the file's order
+         * @param worth   each referent's resolved goo types, empty where none resolves
+         */
+        Builder(List<BuilderGrammar.Prefab> prefabs,
+                java.util.function.Function<ExpressionBuilder.Ref, java.util.Map<String, String>> worth) {
             when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
             ItemIcons icons = mock(ItemIcons.class);
             when(icons.nameOf(any())).thenAnswer(call -> call.getArgument(0));
-            pane = new ExpressionBuilderPane(actions, icons, List::of, () -> prefabs);
+            pane = new ExpressionBuilderPane(actions, icons, List::of, () -> prefabs, worth);
             pane.init(font);
             pane.show(true);
         }
@@ -2843,6 +2852,100 @@ class ExpressionBuilderPaneTest {
             assertFalse(frame.targets.copying(), "a type row reports a copy");
             frame.targets.release();
             assertEquals("{\"pulse\": \"2\", \"metal\": \"5\"}", builder.written.getLast());
+        }
+    }
+
+    /**
+     * The member picker on a referent term greys every goo type the referent does not hold, a prefab and an item
+     * alike, and a referent holding no resolved value greys none
+     * (decision builder-disables-the-type-buttons-the-referent-lacks).
+     */
+    @Nested
+    class MemberPickerGreysTypesTheReferentLacks {
+        private static final List<BuilderGrammar.Prefab> REFERENTS = List.of(new BuilderGrammar.Prefab("stem", true),
+                new BuilderGrammar.Prefab("ghost", true));
+
+        private static java.util.Map<String, String> worthOf(ExpressionBuilder.Ref ref) {
+            return switch (ref.id()) {
+                case "stem" -> java.util.Map.of("shroom", "2", "nether", "2");
+                case "crimson_planks", "minecraft:crimson_planks" -> java.util.Map.of("nether", "9");
+                default -> java.util.Map.of();
+            };
+        }
+
+        // Opens the builder over the value, clicks the member segment showing the type and answers the frame after.
+        private static DrawnFrame memberPickerOver(Builder builder, String shown, String member) {
+            builder.pane.open(shown, builder.written::add, () -> { });
+            DrawnFrame frame = builder.frame();
+            clickHover(frame, GooTypeIcons.pickHoverKey(member));
+            assertTrue(builder.pane.listOpen(), "the member picker opens");
+            return builder.frame();
+        }
+
+        private static void clickHover(DrawnFrame frame, String key) {
+            for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y++) {
+                for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x++) {
+                    if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                        frame.targets.click(x, y);
+                        return;
+                    }
+                }
+            }
+            throw new AssertionError(key + " not hovered: " + frame.targets.hoverKeys());
+        }
+
+        private static void assertTint(DrawnFrame frame, String type, int tint) {
+            verify(frame.graphics, atLeastOnce()).blit(any(), eq(GooTypeIcons.texture(type)), anyInt(), anyInt(),
+                    ArgumentMatchers.anyFloat(), ArgumentMatchers.anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(),
+                    eq(tint));
+        }
+
+        private static void assertNeverTinted(DrawnFrame frame, String type) {
+            verify(frame.graphics, never()).blit(any(), eq(GooTypeIcons.texture(type)), anyInt(), anyInt(),
+                    ArgumentMatchers.anyFloat(), ArgumentMatchers.anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(),
+                    eq(Palette.DISABLED));
+        }
+
+        /**
+         * On $stem.shroom, stem holding shroom and nether, leaf draws disabled, nether enabled, and a click on leaf
+         * leaves the member as it stood and the grid open.
+         */
+        @Test
+        void prefabReferentGreysTheTypesItLacks() {
+            Builder builder = new Builder(REFERENTS, MemberPickerGreysTypesTheReferentLacks::worthOf);
+            DrawnFrame picker = memberPickerOver(builder, "$stem.shroom", "shroom");
+            assertTint(picker, "leaf", Palette.DISABLED);
+            assertTint(picker, "nether", Palette.TEXT);
+            assertNeverTinted(picker, "nether");
+            assertNeverTinted(picker, "shroom");
+            int writes = builder.written.size();
+            clickHover(picker, GooTypeIcons.hoverKey("leaf"));
+            assertEquals(writes, builder.written.size(), String.valueOf(builder.written));
+            assertTrue(builder.pane.listOpen(), "the grid stays open");
+        }
+
+        /**
+         * On crimson_planks.nether, crimson_planks holding nether alone, leaf draws disabled.
+         */
+        @Test
+        void itemReferentGreysTheTypesItLacks() {
+            Builder builder = new Builder(REFERENTS, MemberPickerGreysTypesTheReferentLacks::worthOf);
+            DrawnFrame picker = memberPickerOver(builder, "minecraft:crimson_planks.nether", "nether");
+            assertTint(picker, "leaf", Palette.DISABLED);
+            assertNeverTinted(picker, "nether");
+        }
+
+        /**
+         * On $ghost.leaf, ghost resolving to no value, no type draws disabled.
+         */
+        @Test
+        void referentWithNoResolvedValueGreysNothing() {
+            Builder builder = new Builder(REFERENTS, MemberPickerGreysTypesTheReferentLacks::worthOf);
+            DrawnFrame picker = memberPickerOver(builder, "$ghost.leaf", "leaf");
+            verify(picker.graphics, never()).blit(any(), any(net.minecraft.resources.Identifier.class), anyInt(),
+                    anyInt(), ArgumentMatchers.anyFloat(), ArgumentMatchers.anyFloat(), anyInt(), anyInt(), anyInt(),
+                    anyInt(), eq(Palette.DISABLED));
+            assertTint(picker, "shroom", Palette.TEXT);
         }
     }
 }

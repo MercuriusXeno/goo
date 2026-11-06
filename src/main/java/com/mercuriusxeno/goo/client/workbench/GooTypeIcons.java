@@ -136,9 +136,21 @@ final class GooTypeIcons {
      * @param y        the icon's top edge
      */
     static void blit(GuiGraphicsExtractor graphics, String type, int x, int y) {
+        blit(graphics, type, x, y, Palette.TEXT);
+    }
+
+    /**
+     * Draws the type's icon alone, one texel per pixel, tinted, as a disabled control greys it.
+     *
+     * @param graphics the frame's graphics
+     * @param type     the goo type's id
+     * @param x        the icon's left edge
+     * @param y        the icon's top edge
+     * @param tint     the color the texture multiplies by, untinted white for none
+     */
+    static void blit(GuiGraphicsExtractor graphics, String type, int x, int y, int tint) {
         int size = sizeOf(type);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, size, size, size, size,
-                Palette.TEXT);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, size, size, size, size, tint);
     }
 
     /**
