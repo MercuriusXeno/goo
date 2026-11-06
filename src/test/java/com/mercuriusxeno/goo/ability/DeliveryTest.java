@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.client.overlay.ArcRenderer;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
@@ -35,6 +36,7 @@ class DeliveryTest {
     private static final double TEN_BLOCKS = 10;
     private static final float LEVITY = 0.7f;
     private static final int BASE_FLIGHT_TIME = 3;
+    private static final String TOP_SPEED = "top_speed";
 
     private static DataResult<AbilityDefinition> decode(String deliveryField) {
         return AbilityDefinition.codecFor(ID)
@@ -252,6 +254,25 @@ class DeliveryTest {
                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(DeliveryKind.class)));
             Set<DeliveryKind> unnamed = EnumSet.complementOf(EnumSet.copyOf(named));
             assertEquals(Set.of(), unnamed, "No bundled ability names delivery kind " + unnamed);
+        }
+
+        /**
+         * A dart thrown at a mob ten blocks off, Metal's levity and base
+         * flight time, stays in the air at least the ticks the top speed
+         * metal_javelin.json names takes to cover the distance, so the eye
+         * follows it (decision dart-flies-at-a-speed-you-can-follow).
+         */
+        @Test
+        void dartFliesNoFasterThanTheSpeedItsJsonNames() {
+            JsonObject delivery = JsonParser.parseString(AbilityJson.read("metal_javelin")).getAsJsonObject()
+                    .getAsJsonObject("delivery");
+            assertTrue(delivery.has(TOP_SPEED), "metal_javelin.json names no " + TOP_SPEED);
+            double topSpeed = delivery.get(TOP_SPEED).getAsDouble();
+            int fewestTicks = (int) Math.ceil(TEN_BLOCKS / topSpeed);
+            int flight = AbilityJson.decode("metal_javelin").delivery().travelTicks(TEN_BLOCKS, LEVITY,
+                    BASE_FLIGHT_TIME);
+            assertTrue(flight >= fewestTicks, "a ten-block dart flew " + flight + " ticks where "
+                    + topSpeed + " blocks a tick takes " + fewestTicks);
         }
 
         @Test
