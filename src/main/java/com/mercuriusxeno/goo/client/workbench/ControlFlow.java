@@ -192,7 +192,7 @@ final class ControlFlow {
      * @return where the next piece stands, for a list opened from it
      */
     BuilderOverlays.Anchor anchor() {
-        return new BuilderOverlays.Anchor(x, y, y + line);
+        return new BuilderOverlays.Anchor(x, y, x, y + line);
     }
 
     /**
@@ -533,8 +533,7 @@ final class ControlFlow {
         int width = ButtonPainter.width(letters, label);
         reserve(width);
         markButton(width);
-        ButtonPainter.Box drawn = ButtonPainter.layout(letters.width(label), x, y, line);
-        BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(drawn.left(), drawn.top(), drawn.bottom());
+        BuilderOverlays.Anchor at = BuilderOverlays.Anchor.around(ButtonPainter.layout(letters.width(label), x, y, line));
         ButtonPainter.Box box = ButtonPainter.drawColored(graphics, letters, label, color,
                 new ButtonPainter.Box(x, y, 0, line), targets, () -> pressed.accept(at), BuilderOverlays.hintKey(hint));
         x = box.right() + GAP;
@@ -693,7 +692,7 @@ final class ControlFlow {
         GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.ICON_PADDING,
                 iconY + GooTypeIcons.centered(line, size));
         targets.add(iconX, iconY, width, line,
-                () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY, iconY + line)),
+                () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY, iconX + width, iconY + line)),
                 GooTypeIcons.pickHoverKey(type));
         x += width + GAP;
     }
@@ -897,7 +896,7 @@ final class ControlFlow {
     // Decision every-popup-measures-flows-to-fit-and-scrolls: a segment's popup stands flush against the container's
     // drawn edges, a term's ring included, so it reads as the segment's own.
     private BuilderOverlays.Anchor segmentAnchor(ButtonPainter.Box box) {
-        return new BuilderOverlays.Anchor(box.left(), segmentsTop, segmentsTop + segmentsHeight);
+        return new BuilderOverlays.Anchor(box.left(), segmentsTop, box.right(), segmentsTop + segmentsHeight);
     }
 
     /**
@@ -994,7 +993,8 @@ final class ControlFlow {
         int boxY = y;
         Frame.draw(graphics, Frame.BUTTON, new ButtonPainter.Box(boxX, boxY, line, line));
         letters.draw(graphics, label, boxX + (line - letters.width(label)) / HALF, wordsTop(), Palette.LINK);
-        targets.add(boxX, boxY, line, line, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY, boxY + line)),
+        targets.add(boxX, boxY, line, line, () -> pressed.accept(new BuilderOverlays.Anchor(boxX, boxY, boxX + line,
+                boxY + line)),
                 BuilderOverlays.hintKey(hint));
         x += line + GAP;
     }
@@ -1087,7 +1087,7 @@ final class ControlFlow {
         int areaHeight = band.filled() ? band.height() : line;
         String hoverKey = BuilderOverlays.hintKey(hint);
         if (pressed != null) {
-            BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(runsX, areaTop, areaTop + areaHeight);
+            BuilderOverlays.Anchor at = new BuilderOverlays.Anchor(runsX, areaTop, runsX + width, areaTop + areaHeight);
             targets.add(runsX, areaTop, width, areaHeight, () -> pressed.accept(at), hoverKey);
         } else if (hoverKey != null) {
             targets.addHover(runsX, areaTop, width, areaHeight, hoverKey);

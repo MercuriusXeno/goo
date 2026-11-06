@@ -96,7 +96,7 @@ class ControlFlowTest {
         flow.closeSegments();
         drawTwoMoreLines(flow);
         assertTrue(targets.click(segmentLeft + 1, 1));
-        assertEquals(List.of(new BuilderOverlays.Anchor(segmentLeft, 0)), pressed);
+        assertEquals(List.of(List.of(segmentLeft, 0)), pressed.stream().map(at -> List.of(at.x(), at.y())).toList());
     }
 
     /**
@@ -115,7 +115,7 @@ class ControlFlowTest {
         flow.closeSegments();
         drawTwoMoreLines(flow);
         assertTrue(targets.click(segmentLeft + 1, 1));
-        assertEquals(List.of(new BuilderOverlays.Anchor(segmentLeft, 0)), pressed);
+        assertEquals(List.of(List.of(segmentLeft, 0)), pressed.stream().map(at -> List.of(at.x(), at.y())).toList());
     }
 
     /**

@@ -2243,6 +2243,30 @@ class ExpressionBuilderPaneTest {
         }
 
         /**
+         * With the cursor still resting on the term whose click opened a popup, the term hovers nothing while its
+         * popup stands open, so no tooltip draws over the popup's box: the prefab dropdown's search box and the number
+         * box alike (the operator's rule: an activated segment's own hover is disabled).
+         */
+        @Test
+        void activatedTermHoversNothingWhileItsPopupStandsOpen() {
+            for (String mode : List.of("prefab", "number")) {
+                Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"3 $base\"}");
+                DrawnFrame closed = builder.frame();
+                DrawnFrame.Text name = closed.findFirst("$base");
+                double restX = name.x() + 1;
+                double restY = name.y() + 1;
+                assertTrue(closed.targets.hoveredArea(restX, restY).isPresent(), "the closed term hovers");
+                clickAt(closed, name);
+                DrawnFrame modes = builder.frame();
+                assertTrue(modes.targets.hoveredArea(restX, restY).isEmpty(), "the term hovers with its modes open");
+                modes.click(mode);
+                DrawnFrame open = builder.frame();
+                assertEquals(Optional.empty(), open.targets.hoveredArea(restX, restY).map(
+                        ClickTargets.HoveredArea::hoverKey), "the term hovers with its " + mode + " popup open");
+            }
+        }
+
+        /**
          * A scalar prefab's number box takes 1 1/3 typed whole, writes the exact fraction 4 / 3 and draws the number
          * as 1 1/3, where it drew 4 alone (decision number-box-takes-a-mixed-number).
          */
