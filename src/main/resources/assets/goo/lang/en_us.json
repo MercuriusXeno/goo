@@ -201,7 +201,7 @@
   "goo.ability.astral.scry": "Scry",
   "goo.ability.astral.scry.description": "Hold to see the spaces around you.",
   "goo.ability.deep.churn": "Churn",
-  "goo.ability.deep.churn.description": "Churns the column under where the blob lands, causing what was beneath to rise up, and what is above to sink down.",
+  "goo.ability.deep.churn.description": "Reaches down under where the blob lands for a vein of ore and pulls it up to the surface, the ground above it sinking into its place.",
   "goo.ability.deep.convoke": "Convoke",
   "goo.ability.deep.convoke.description": "A blob that summons an entity from the depths.",
   "goo.ability.deep.dive": "Dive",

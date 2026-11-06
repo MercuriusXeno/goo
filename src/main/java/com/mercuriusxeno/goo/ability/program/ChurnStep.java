@@ -6,14 +6,12 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Churns the column under the landed block, one turn a tick, until it has
- * turned once per layer: then what stood in the core stands in the strips,
- * upside down, and what stood in the strips stands in the core, so the
- * bottom has come up and the top gone down. Churn is {@code churn depth=4*size},
- * the depth the player's drag picks.
- * decision churn-rotates-a-plus-shaped-column
+ * Pulls the vein under the landed block up a layer a tick, the ground above
+ * it sinking into its place, and ends the tick no vein cell rises. Churn is
+ * {@code churn depth=4*size}, the depth the player's drag picks.
+ * decision churn-pulls-a-vein-up-as-a-fluid-chain
  *
- * @param depth the column's layers, evaluated each tick
+ * @param depth how far down the column the churn reaches for a mineral, evaluated each tick
  */
 public record ChurnStep(Expr depth) implements Step {
 
@@ -39,9 +37,8 @@ public record ChurnStep(Expr depth) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        int layers = Math.max(1, depth.evaluateInt(context));
-        context.hostAs(ChurnHost.class).churnColumn(layers);
-        return context.stepTicks() + 1 >= layers;
+        int reach = Math.max(1, depth.evaluateInt(context));
+        return !context.hostAs(ChurnHost.class).pullVein(reach);
     }
 
     @Override

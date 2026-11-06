@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.program.ChurnVeinState;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ShellWalk;
@@ -27,6 +28,7 @@ public final class MarkerProgramState {
 
     private final FieldEffectState fieldEffect = new FieldEffectState();
     private final PhasedState phased = new PhasedState();
+    private final ChurnVeinState churnVein = new ChurnVeinState();
     private CompressedHoard hoard = new CompressedHoard();
     private double castSize;
     private int takeRadius = NO_TAKE;
@@ -125,6 +127,13 @@ public final class MarkerProgramState {
     }
 
     /**
+     * @return the vein a churn lifts, which its churn step moves a layer a tick
+     */
+    public ChurnVeinState churnVein() {
+        return churnVein;
+    }
+
+    /**
      * @return the live hoard of stacks pulled in and not yet left as a sphere
      */
     public CompressedHoard hoard() {
@@ -139,6 +148,7 @@ public final class MarkerProgramState {
     public void load(ValueInput input) {
         fieldEffect.load(input);
         phased.load(input);
+        churnVein.load(input);
         hoard = input.read(TAG_HOARD, CompressedHoard.CODEC).orElseGet(CompressedHoard::new);
         castSize = input.getDoubleOr(TAG_CAST_SIZE, 0);
         takeRadius = input.getIntOr(TAG_TAKE_RADIUS, NO_TAKE);
@@ -155,6 +165,7 @@ public final class MarkerProgramState {
     public void save(ValueOutput output) {
         fieldEffect.save(output);
         phased.save(output);
+        churnVein.save(output);
         if (!hoard.isEmpty()) {
             output.store(TAG_HOARD, CompressedHoard.CODEC, hoard);
         }
