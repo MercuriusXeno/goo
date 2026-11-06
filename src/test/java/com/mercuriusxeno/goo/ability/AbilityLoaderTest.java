@@ -84,6 +84,8 @@ class AbilityLoaderTest {
     private static final int RARE_CHARMS = 50;
     private static final double ZOMBIE_MAX_HEALTH = 20;
     private static final double TOP_MAX_HEALTH = 1024;
+    /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
+    private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
     private static final String LINGERING = "crystal_cloud";
     /** The ability whose program ends the tick it lands. */
@@ -323,14 +325,17 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Every brew sounds as its effect starts, as every held effect sounds as
-     * it ends (decision held-effects-sound-up-and-down).
+     * Every brew but Rally sounds as its effect starts, as every held effect
+     * sounds as it ends.
+     * held-effects-sound-up-and-down
+     * rally-drops-its-sound-and-gets-its-sprite
      */
     @ParameterizedTest
     @MethodSource("shippedBrews")
-    void everyBrewSoundsAsItStarts(AbilityDefinition brew) {
-        assertTrue(brew.behaviors().stream().flatMap(AbilityLoaderTest::stepTree).anyMatch(SoundStep.class::isInstance),
-                brew.id().toString());
+    void everyBrewButRallySoundsAsItStarts(AbilityDefinition brew) {
+        boolean sounds = brew.behaviors().stream().flatMap(AbilityLoaderTest::stepTree)
+                .anyMatch(SoundStep.class::isInstance);
+        assertEquals(!brew.id().equals(SILENT_BREW), sounds, brew.id().toString());
     }
 
     /** Every shipped self + brew ability (decision tests-read-the-inventory-from-loaded-json). */
