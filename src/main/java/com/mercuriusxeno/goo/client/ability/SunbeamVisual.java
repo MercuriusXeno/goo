@@ -1,15 +1,23 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.ability.program.RayStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -17,9 +25,9 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Sunbeam's ray as every client tracking the caster sees it: glow's beam of
@@ -38,6 +46,7 @@ public final class SunbeamVisual {
     static final float RAY_WIDTH = 0.35f;
     private static final float SCROLL_PER_TICK = 0.2f;
     private static final double SHORTEST_SEGMENT = 1.0e-3;
+    private static final double HALF = 0.5;
 
     private static final Map<Integer, Ray> RAYS = new HashMap<>();
 
@@ -55,7 +64,8 @@ public final class SunbeamVisual {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
                 boolean starting = !RAYS.containsKey(payload.casterId());
-                RAYS.put(payload.casterId(), new Ray(payload.end(), payload.refracted(), mc.level.getGameTime()));
+                RAYS.put(payload.casterId(), new Ray(payload.end(), payload.refracted(), payload.range(),
+                        mc.level.getGameTime()));
                 Entity caster = mc.level.getEntity(payload.casterId());
                 if (starting && caster != null) {
                     mc.getSoundManager().play(new SunbeamHum(caster));
@@ -76,22 +86,20 @@ public final class SunbeamVisual {
             RAYS.clear();
             return;
         }
-        long now = mc.level.getGameTime();
+        ClientLevel level = mc.level;
+        long now = level.getGameTime();
+        RAYS.entrySet().removeIf(entry -> level.getEntity(entry.getKey()) == null
+                || now - entry.getValue().arrivedAt() > LINGER_TICKS);
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         float scroll = Mth.frac(-(now + partialTick) * SCROLL_PER_TICK);
-        Iterator<Map.Entry<Integer, Ray>> rays = RAYS.entrySet().iterator();
-        while (rays.hasNext()) {
-            Map.Entry<Integer, Ray> entry = rays.next();
-            Entity caster = mc.level.getEntity(entry.getKey());
-            if (caster == null || now - entry.getValue().arrivedAt() > LINGER_TICKS) {
-                rays.remove();
-            } else {
-                Vec3 from = GloveHand.of(mc, caster, partialTick);
-                drawRay(event.getPoseStack(), consumer, from.subtract(camera), entry.getValue(), camera, scroll);
-            }
+        for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
+            Entity caster = Objects.requireNonNull(level.getEntity(entry.getKey()));
+            drawRay(event.getPoseStack(), consumer, GloveHand.of(mc, caster, partialTick).subtract(camera),
+                    drawnEnd(mc, caster, entry.getValue(), partialTick).subtract(camera), entry.getValue(),
+                    camera, scroll);
         }
         buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
     }
@@ -109,19 +117,54 @@ public final class SunbeamVisual {
     }
 
     /**
-     * Draws one caster's ray: from the caster to where it struck, and on to
+     * Where a caster's ray ends this frame: the local caster's own ray cast
+     * from its eye along this frame's aim, another caster's where the server struck.
+     * decision diagnose-and-correct-the-sunbeam-jitter
+     *
+     * @param mc          the client
+     * @param caster      the casting entity
+     * @param ray         the caster's latest ray from the server
+     * @param partialTick the frame's partial tick
+     * @return the world point the ray ends at
+     */
+    private static Vec3 drawnEnd(Minecraft mc, Entity caster, Ray ray, float partialTick) {
+        SunbeamRayEnd.OwnAim own = caster == mc.player ? ownAim(mc.player, partialTick) : null;
+        return SunbeamRayEnd.drawnEnd(ray.end(), own, ray.range(), (eye, reach) ->
+                RayStep.castFrom(caster.level(), caster, eye, reach, living -> true).getLocation());
+    }
+
+    /**
+     * The local caster's aim this frame: the mob the aim assist locks, for an
+     * ability that locks on, else along the look, the way its held ticks aim
+     * (decision sunbeam-lands-with-impact-and-aim).
+     *
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
+     * @return the aim
+     */
+    private static SunbeamRayEnd.OwnAim ownAim(Player player, float partialTick) {
+        Vec3 eye = player.getEyePosition(partialTick);
+        Vec3 lockedMob = AimTracker.currentTarget() instanceof TargetResult.EntityTarget locked
+                ? locked.entity().getPosition(partialTick).add(0, locked.entity().getBbHeight() * HALF, 0) : null;
+        boolean locksOn = GloveThrowSender.locksOn(GloveAim.selectedAbilityId(player));
+        return new SunbeamRayEnd.OwnAim(eye,
+                ChannelAim.heldAimPoint(locksOn, lockedMob, eye.add(player.getViewVector(partialTick))));
+    }
+
+    /**
+     * Draws one caster's ray: from the caster to where it ends, and on to
      * each mob a prism refracted it toward.
      *
      * @param poseStack the pose stack
      * @param consumer  the vertex consumer
      * @param from      where the ray leaves the caster, camera-relative
+     * @param end       where the ray ends, camera-relative
      * @param ray       the ray
      * @param camera    the camera's position
      * @param scroll    the texture's scroll offset
      */
-    private static void drawRay(PoseStack poseStack, VertexConsumer consumer, Vec3 from, Ray ray, Vec3 camera,
-                                float scroll) {
-        Vec3 end = ray.end().subtract(camera);
+    private static void drawRay(PoseStack poseStack, VertexConsumer consumer, Vec3 from, Vec3 end, Ray ray,
+                                Vec3 camera, float scroll) {
         drawSegment(poseStack, consumer, from, end, scroll);
         for (Vec3 refracted : ray.refracted()) {
             drawSegment(poseStack, consumer, end, refracted.subtract(camera), scroll);
@@ -158,8 +201,9 @@ public final class SunbeamVisual {
      *
      * @param end       where it struck
      * @param refracted where each refracted beam ends
+     * @param range     how far the ray reaches, in blocks
      * @param arrivedAt the game time it arrived
      */
-    record Ray(Vec3 end, List<Vec3> refracted, long arrivedAt) {
+    record Ray(Vec3 end, List<Vec3> refracted, double range, long arrivedAt) {
     }
 }
