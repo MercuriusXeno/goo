@@ -1,15 +1,15 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.HeldSweepPace;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.network.ScryPayload;
+import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,51 +27,51 @@ import java.util.List;
 import java.util.function.ToIntFunction;
 
 /**
- * The caster's side of Scry: each radius the server sends grows a sphere of
- * light around the player in the casting goo type's color, and every face
- * open to air that the front crosses flashes and then shows through walls
- * while the hold lasts, fading about a second after it lets go, the whole
- * reading as a sonar sweep.
+ * The caster's side of every held sweep, Scry's, Glitter's and Magnet's:
+ * each tick the server sends grows the pulse's sphere around the caster in
+ * the casting goo type's color, and the faces open to air draw through walls
+ * only in the thin shell at the sphere's rim, brightest at the rim, so the
+ * pulse reads as a band sweeping outward; the sweep fades about a second
+ * after the hold lets go.
+ * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
- * decision scry-ships-on-astral
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class ScrySweep {
+public final class HeldSweepVisual {
 
-    /** The most blocks one sweep keeps; past it the front reveals no more. */
+    /** The most blocks one pulse's shell keeps; past it the front reveals no more. */
     static final int MOST_BLOCKS = 12_288;
-    /** The sphere shell's alpha at full strength, low since it adds onto the whole view. */
-    private static final int SPHERE_ALPHA = 28;
-    /** A settled face's alpha at full strength. */
-    private static final int FACE_ALPHA = 46;
-    /** How much brighter a face shows the tick the front crosses it, as a share of its settled alpha. */
-    private static final float FLASH_GAIN = 3f;
-    private static final int OPAQUE = 255;
+    /** The sphere skin's alpha at full strength, low since it adds onto the whole view. */
+    private static final int SPHERE_ALPHA = 24;
+    /** A face's alpha at the rim, at full strength. */
+    private static final int FACE_ALPHA = 150;
     /** How far a face quad stands off its block, so it never sinks into the face it marks. */
     private static final float FACE_LIFT = 0.002f;
-    /** A ping's sphere centers at the caster's body, this far above where the caster stood. */
+    /** A pulse's sphere centers at the caster's body, this far above where the caster stood. */
     private static final double BODY_CENTER = 0.9;
 
     private static final List<RevealedBlock> REVEALED = new ArrayList<>();
+    private static HeldSweepPace pace = new HeldSweepPace(0);
+    private static float previousRadius;
     private static float radius;
+    private static float pulseStrength = 1f;
     private static Vec3 origin = Vec3.ZERO;
-    private static float pingFade = 1f;
     private static long lastRadiusAt = Long.MIN_VALUE;
-    /** The current ping's color, set by every radius before the sweep draws. */
+    /** The current pulse's color, set by every tick before the sweep draws. */
     private static int tintRgb;
 
-    private ScrySweep() {
+    private HeldSweepVisual() {
     }
 
     /**
-     * Handles a ping's radius on the client thread: a new ping, or one after a
-     * let-go, starts over from its own origin, and the front reveals the
-     * faces it crossed within its reach since the last radius.
+     * Handles a tick of a held sweep on the client thread: a new pulse, or
+     * one after a let-go, starts over from its own origin, and the front
+     * gathers the faces it crossed since the last tick.
      *
-     * @param payload the radius payload
+     * @param payload the sweep payload
      * @param context the network context
      */
-    public static void onPayload(ScryPayload payload, IPayloadContext context) {
+    public static void onPayload(HeldSweepPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null && mc.player != null) {
@@ -80,34 +80,42 @@ public final class ScrySweep {
         });
     }
 
-    private static void advance(ClientLevel level, ScryPayload ping, long now) {
-        Vec3 center = ping.origin().add(0, BODY_CENTER, 0);
-        float next = ping.radius();
+    /** Drops the sweep, as a disconnect does. */
+    public static void clear() {
+        REVEALED.clear();
+        lastRadiusAt = Long.MIN_VALUE;
+    }
+
+    private static void advance(ClientLevel level, HeldSweepPayload pulse, long now) {
+        Vec3 center = pulse.origin().add(0, BODY_CENTER, 0);
+        float next = pulse.radius();
         if (startsOver(now, next, center)) {
             REVEALED.clear();
             radius = 0f;
         }
         origin = center;
-        tintRgb = tint(ping.gooType(), ClientGooTypes::color);
-        pingFade =ScryReveal.pingFade(next, ping.reach(), ping.fade());
-        for (BlockPos pos : ScryReveal.shell(center, Math.min(radius, ping.reach()), Math.min(next, ping.reach()))) {
+        pace = new HeldSweepPace(pulse.range());
+        tintRgb = tint(pulse.gooType(), ClientGooTypes::color);
+        pulseStrength = pulse.strength();
+        for (BlockPos pos : ScryReveal.shell(center, radius, next)) {
             List<Direction> sides = ScryReveal.exposedFaces(at -> level.getBlockState(at).isAir(), pos);
             if (!sides.isEmpty() && REVEALED.size() < MOST_BLOCKS) {
                 // the reveal traces the block's own shape, so slabs, stairs and fences show as they stand
                 List<AABB> boxes = level.getBlockState(pos).getShape(level, pos).toAabbs();
-                REVEALED.add(new RevealedBlock(pos, boxes, sides, now));
+                REVEALED.add(new RevealedBlock(pos, boxes, sides, Vec3.atCenterOf(pos).distanceTo(center)));
             }
         }
+        previousRadius = radius;
         radius = next;
         lastRadiusAt = now;
     }
 
     /**
-     * The color the sphere and the revealed faces draw in: the casting goo
-     * type's color, so Astral's Scry reads in the astral type's colors and a
-     * datapack recoloring the type recolors the sweep.
+     * The color the sphere and the shell draw in: the casting goo type's
+     * color, so each sweep reads in its own type's colors and a datapack
+     * recoloring the type recolors the sweep.
      *
-     * @param gooType   the goo type the ping names
+     * @param gooType   the goo type the pulse names
      * @param typeColor answers a goo type's color
      * @return 0xRRGGBB
      */
@@ -116,57 +124,73 @@ public final class ScrySweep {
     }
 
     /**
-     * Whether a radius starts the sweep over: the hold was let go, or a new
-     * ping began, its radius back down or its origin moved.
+     * Whether a tick starts the sweep over: the hold was let go, or a new
+     * pulse began, its radius back down or its origin moved.
      *
      * @param now    the game time
      * @param next   the radius that arrived
-     * @param center the ping's center
-     * @return true when the revealed faces clear for a fresh ping
+     * @param center the pulse's center
+     * @return true when the gathered faces clear for a fresh pulse
      */
     private static boolean startsOver(long now, float next, Vec3 center) {
         return now - lastRadiusAt > ScryReveal.RELEASE_GRACE_TICKS || next < radius || !center.equals(origin);
     }
 
     /**
-     * Draws the sphere and the revealed faces once the world has drawn,
-     * while the sweep still shows.
+     * The radius a frame draws at: last tick's radius carried toward this
+     * tick's by the partial tick, so the shell sweeps smoothly between ticks.
+     *
+     * @param from    last tick's radius
+     * @param to      this tick's radius
+     * @param partial the partial tick, 0 to 1
+     * @return the radius to draw
+     */
+    static float radiusBetween(float from, float to, float partial) {
+        return from + (to - from) * Math.clamp(partial, 0f, 1f);
+    }
+
+    /**
+     * Draws the sphere and the shell once the world has drawn, while the
+     * sweep still shows.
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || lastRadiusAt == Long.MIN_VALUE) {
+        if (mc.player == null || mc.level == null || lastRadiusAt == Long.MIN_VALUE) {
             return;
         }
         long now = mc.level.getGameTime();
-        float strength = ScryReveal.fade(now - lastRadiusAt) * pingFade;
+        float strength = ScryReveal.fade(now - lastRadiusAt) * pulseStrength;
         if (strength <= 0f) {
-            REVEALED.clear();
-            lastRadiusAt = Long.MIN_VALUE;
+            clear();
             return;
         }
+        float drawn = radiusBetween(previousRadius, radius, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+        // a face the shell has passed never draws again this pulse
+        REVEALED.removeIf(block -> block.distance() <= drawn - pace.shellThickness(drawn));
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        ColorSphere.emit(pose, buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE), origin.subtract(camera), radius,
+        ColorSphere.emit(pose, buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE), origin.subtract(camera), drawn,
                 ARGB.color(Math.round(SPHERE_ALPHA * strength), tintRgb));
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
-        drawRevealed(pose, buffers, camera, now, strength);
+        drawShell(pose, buffers, camera, drawn, strength);
     }
 
-    private static void drawRevealed(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-                                     long now, float strength) {
+    private static void drawShell(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+                                  float drawn, float strength) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
         for (RevealedBlock block : REVEALED) {
-            float flash = 1f + FLASH_GAIN * ScryReveal.flash(now - block.revealedAt());
-            int color = ARGB.color(Math.min(OPAQUE, Math.round(FACE_ALPHA * flash * strength)), tintRgb);
-            Vec3 corner = Vec3.atLowerCornerOf(block.pos()).subtract(camera);
-            for (AABB box : block.boxes()) {
-                for (Direction side : block.sides()) {
-                    emitBoxFace(pose, consumer, box.move(corner), side, color);
+            float glow = pace.glowAt(block.distance(), drawn);
+            if (glow > 0f) {
+                int color = ARGB.color(Math.round(FACE_ALPHA * glow * strength), tintRgb);
+                Vec3 corner = Vec3.atLowerCornerOf(block.pos()).subtract(camera);
+                for (AABB box : block.boxes()) {
+                    for (Direction side : block.sides()) {
+                        emitBoxFace(pose, consumer, box.move(corner), side, color);
+                    }
                 }
             }
         }
@@ -201,13 +225,14 @@ public final class ScrySweep {
     }
 
     /**
-     * A block the front revealed: its shape's boxes and the sides of it open to air.
+     * A block the front crossed: its shape's boxes, the sides of it open to
+     * air and its center's distance from the pulse's center.
      *
-     * @param pos        the block
-     * @param boxes      its voxel shape's boxes, block-local
-     * @param sides      the sides open to air
-     * @param revealedAt the game time the front crossed it
+     * @param pos      the block
+     * @param boxes    its voxel shape's boxes, block-local
+     * @param sides    the sides open to air
+     * @param distance its center's distance from the pulse's center
      */
-    record RevealedBlock(BlockPos pos, List<AABB> boxes, List<Direction> sides, long revealedAt) {
+    record RevealedBlock(BlockPos pos, List<AABB> boxes, List<Direction> sides, double distance) {
     }
 }

@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.EntityVisuals;
-import com.mercuriusxeno.goo.network.ScryPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
@@ -11,42 +10,32 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Astral's Scry: while held, it pings. Each ping is a sphere of light growing
- * from where the caster stood as it began, a number of blocks each tick, up
- * to its reach and then on past it while it fades, before the next ping
- * starts from wherever the caster stands then. The child steps run on every
- * living entity the front crosses within the reach, seen or behind walls.
- * The caster's client is sent the ping's origin, radius and goo type each
- * tick, and draws the sphere and the faces it reveals in that type's colors.
- * Scry is {@code scry goo=astral growth=1 reach=96 fade=20} with an astral
- * {@code ailment_overlay} as its child (operator rulings 2026-10-09).
+ * Astral's Scry: while held, it pulses at the held sweeps' shared pace, each
+ * pulse a sphere of light easing out from where the caster stood as it
+ * began to its reach. The child steps run on every living entity the front
+ * crosses, seen or behind walls. The caster's client is sent each tick of
+ * the pulse and draws the sphere and the thin shell of faces at its rim in
+ * the goo type's colors. Scry is {@code scry goo=astral reach=96} with an
+ * astral {@code ailment_overlay} as its child.
+ * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  * decision scry-ships-on-astral
  *
- * @param goo    the goo type whose colors tint the sphere and the revealed faces
- * @param growth blocks the radius grows each tick of the hold
- * @param reach  how far the front reaches before it fades, in blocks
- * @param fade   how far past the reach the front travels while it fades, in blocks
- * @param where  the filters an entity must pass; empty keeps any living entity
- * @param steps  the child steps run once on each entity the front crosses
+ * @param goo   the goo type whose colors tint the sphere and the shell
+ * @param reach how far each pulse reaches, in blocks
+ * @param where the filters an entity must pass; empty keeps any living entity
+ * @param steps the child steps run once on each entity the front crosses
  */
-public record ScryStep(ResourceKey<GooTypeDefinition> goo, double growth, double reach, double fade,
-                       List<EntityFilter> where, List<Step> steps) implements Step {
+public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<EntityFilter> where,
+                       List<Step> steps) implements HeldSweepStep {
 
     private static final String NAME = "scry";
     private static final String FIELD_GOO = "goo";
-    private static final String FIELD_GROWTH = "growth";
     private static final String FIELD_REACH = "reach";
-    private static final String FIELD_FADE = "fade";
-    /** Where each caster's ping began, so a ping's front never moves with its caster. */
-    private static final Map<UUID, Vec3> PING_ORIGINS = new ConcurrentHashMap<>();
     private static final String FIELD_WHERE = "where";
     private static final String FIELD_STEPS = "steps";
 
@@ -56,9 +45,7 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double growth, double
      */
     public static final MapCodec<ScryStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             GooTypes.ID_CODEC.fieldOf(FIELD_GOO).forGetter(ScryStep::goo),
-            Codec.DOUBLE.fieldOf(FIELD_GROWTH).forGetter(ScryStep::growth),
             Codec.DOUBLE.fieldOf(FIELD_REACH).forGetter(ScryStep::reach),
-            Codec.DOUBLE.optionalFieldOf(FIELD_FADE, 0.0).forGetter(ScryStep::fade),
             EntityFilter.CODEC.listOf().optionalFieldOf(FIELD_WHERE, List.of()).forGetter(ScryStep::where),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).fieldOf(FIELD_STEPS).forGetter(ScryStep::steps)
     ).apply(inst, ScryStep::new));
@@ -74,17 +61,20 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double growth, double
     }
 
     @Override
+    public HeldSweepPace pace() {
+        return new HeldSweepPace(reach);
+    }
+
+    @Override
     public boolean tick(StepContext context) {
         int held = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::held)
                 .orElse(ChannelAim.FIRST_TICK);
-        int pingTick = pingTick(held);
+        HeldSweepPace pace = pace();
+        int pulseTick = pace.pulseTick(held);
         LivingEntity caster = context.hostAs(TargetHost.class).target();
-        Vec3 origin = pingTick == 1 ? caster.position() : PING_ORIGINS.getOrDefault(caster.getUUID(),
-                caster.position());
-        PING_ORIGINS.put(caster.getUUID(), origin);
-        double radius = pingTick * growth;
-        double previous = Math.min((pingTick - 1) * growth, reach);
-        double reached = Math.min(radius, reach);
+        Vec3 origin = HeldSweepOrigins.originOf(caster, pulseTick);
+        double previous = pace.radiusAt(pulseTick - 1);
+        double reached = pace.radiusAt(pulseTick);
         double scanned = reached + caster.position().distanceTo(origin);
         context.hostAs(EntityScanHost.class).forEachEntityWithin(SelectionShape.SPHERE, scanned, Set.copyOf(where),
                 selected -> {
@@ -92,20 +82,8 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double growth, double
                         new ProgramBehavior(steps).tick(selected);
                     }
                 });
-        EntityVisuals.sendToSelf(caster, new ScryPayload(origin, (float) radius, (float) reach, (float) fade, goo));
+        EntityVisuals.sendToSelf(caster, sweepAt(origin, pulseTick));
         return true;
-    }
-
-    /**
-     * The tick of the current ping a tick of the hold falls on: pings run one
-     * after another, each growing to its reach and on through its fade.
-     *
-     * @param heldTicks the hold's age, 1 on its first tick
-     * @return the ping's tick, 1 on its first
-     */
-    int pingTick(int heldTicks) {
-        int pingTicks = (int) Math.ceil((reach + fade) / growth);
-        return Math.floorMod(heldTicks - 1, Math.max(1, pingTicks)) + 1;
     }
 
     /**
