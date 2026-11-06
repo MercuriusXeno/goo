@@ -11,7 +11,7 @@ import java.io.IOException;
 public interface InventoryDump {
 
     /**
-     * Writes the inventory file, and on a client the slot captures its image folder lacks.
+     * Writes the inventory file.
      *
      * @throws IOException          where the dump cannot run
      * @throws InterruptedException where the wait for it is interrupted

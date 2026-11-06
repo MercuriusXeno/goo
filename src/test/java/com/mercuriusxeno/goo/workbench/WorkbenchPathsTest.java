@@ -31,8 +31,7 @@ class WorkbenchPathsTest {
     void inventoryAndDumpsStandOutsideTheDatapacks() {
         WorkbenchPaths paths = WorkbenchPaths.inWorld(WORLD);
         Path workbench = WORLD.resolve("goo_workbench");
-        for (Path file : new Path[] {paths.inventoryFile(), paths.imageFolder(), paths.auditDump(), paths.cliqueDump(),
-                paths.auditJson()}) {
+        for (Path file : new Path[] {paths.inventoryFile(), paths.auditDump(), paths.cliqueDump(), paths.auditJson()}) {
             assertEquals(workbench, file.getParent(), file.toString());
         }
         assertTrue(paths.auditJson().endsWith("goo_audit.json"));

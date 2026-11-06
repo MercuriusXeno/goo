@@ -61,8 +61,7 @@ class WorkbenchOperationsTest {
     @BeforeEach
     void standOperations() throws IOException {
         paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
-                temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"),
-                temp.resolve("goo_audit.json"));
+                temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"), temp.resolve("goo_audit.json"));
         Files.write(paths.baseValues(), BaseValuesModelTest.sampleBytes());
         operations = new WorkbenchOperations(paths, () -> "{\n}\n".getBytes(StandardCharsets.UTF_8), () -> {
             dumpsRun.incrementAndGet();

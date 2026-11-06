@@ -37,23 +37,14 @@ import java.util.TreeMap;
  * Writes config/goo_inventory.json, every item, item tag, goo type and recipe the loadout registers; no block,
  * since the mod values a block only through its item (decision workbench-drops-the-blocks-list). The /goo inventory command and the inventory-dump gametest both call it, so a headless run and
  * a modded server each write the inventory the values workbench data-drives from
- * (decision inventory-dump-from-a-gametest-and-a-command). Each item names the image a slot capture draws at
- * goo_inventory/namespace/path.png; the report writes no image, since only a client's renderer draws an item as
- * its slot does.
- * decision images-are-slot-captures-taken-on-detection
+ * (decision inventory-dump-from-a-gametest-and-a-command). It names no item image: the in-game manager draws each
+ * item itself (decision hosted-workbench-and-image-captures-leave-tools).
  */
 public final class GooInventoryReport {
     /**
      * The inventory file, under the config directory.
      */
     public static final String FILE_INVENTORY = "goo_inventory.json";
-    /**
-     * The image folder, under the config directory.
-     */
-    public static final String DIR_IMAGES = "goo_inventory";
-
-    private static final String IMAGE_SUFFIX = ".png";
-    private static final String PATH_SEPARATOR = "/";
     private static final String UNKNOWN_TYPE = "";
     private static final String GRID_SYMBOLS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final char EMPTY_CELL = ' ';
@@ -93,7 +84,7 @@ public final class GooInventoryReport {
      * (decision goo-workbench-command-serves-the-page-from-the-game).
      *
      * @param server the running server
-     * @param target the folder goo_inventory.json lands in, beside the goo_inventory/ image folder
+     * @param target the folder goo_inventory.json lands in
      * @return the inventory written
      */
     public static GooInventory writeInventory(MinecraftServer server, Path target) {
@@ -112,17 +103,9 @@ public final class GooInventoryReport {
         for (Identifier id : sortedKeys(BuiltInRegistries.ITEM)) {
             Item item = BuiltInRegistries.ITEM.getValue(id);
             String name = item.getName(item.getDefaultInstance()).getString();
-            items.add(new GooInventory.NamedEntry(id.toString(), name, imagePath(id)));
+            items.add(new GooInventory.NamedEntry(id.toString(), name));
         }
         return items;
-    }
-
-    /**
-     * @param item the item's id
-     * @return the path under the image folder its slot capture lands at
-     */
-    private static String imagePath(Identifier item) {
-        return item.getNamespace() + PATH_SEPARATOR + item.getPath() + IMAGE_SUFFIX;
     }
 
     private static List<Identifier> sortedKeys(Registry<?> registry) {
