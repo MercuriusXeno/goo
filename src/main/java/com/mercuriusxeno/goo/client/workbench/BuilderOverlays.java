@@ -70,12 +70,38 @@ final class BuilderOverlays {
     private Anchor numberOpener = new Anchor(0, 0);
 
     /**
-     * Where a control was clicked, so what it opens stands below it.
+     * Where a control was clicked, so what it opens stands flush against it, under its bottom edge or over its top.
      *
-     * @param x the control's left edge
-     * @param y the control's line top
+     * @param x      the control's left edge
+     * @param y      the control's top edge
+     * @param right  the control's right edge
+     * @param bottom the control's bottom edge
      */
-    record Anchor(int x, int y) {
+    record Anchor(int x, int y, int right, int bottom) {
+        /**
+         * A point a full-size line tall and no wide, as a slot between pieces stands.
+         *
+         * @param x the point's x
+         * @param y the line's top
+         */
+        Anchor(int x, int y) {
+            this(x, y, x, y + LINE);
+        }
+
+        /**
+         * @param box a control's drawn box
+         * @return the anchor at its edges
+         */
+        static Anchor around(ButtonPainter.Box box) {
+            return new Anchor(box.left(), box.top(), box.right(), box.bottom());
+        }
+
+        /**
+         * @return the control's area
+         */
+        GroupsPane.Bounds bounds() {
+            return new GroupsPane.Bounds(x, y, right, bottom);
+        }
     }
 
     /**
@@ -150,8 +176,8 @@ final class BuilderOverlays {
     }
 
     /**
-     * The one rule every popup stands by, as TooltipAnchor places a tooltip: below the opener's line where the whole
-     * content fits there, above it, its bottom on the line's top, where only above fits it whole, and otherwise on
+     * The one rule every popup stands by, as TooltipAnchor places a tooltip: flush under the opener's drawn bottom
+     * edge where the whole content fits there, flush over its top edge where only above fits it whole, and otherwise on
      * the side with more room at the height that side holds, the popup scrolling what it cannot show. A popup that
      * would run off the right edge shifts left.
      * Decision every-popup-measures-flows-to-fit-and-scrolls.
@@ -165,7 +191,7 @@ final class BuilderOverlays {
      * @return where the popup stands
      */
     static Placement place(Anchor at, int width, int content, int screenWidth, int screenHeight) {
-        int below = at.y() + LINE;
+        int below = at.bottom();
         int left = Math.max(0, Math.min(at.x(), screenWidth - width));
         int roomBelow = Math.max(0, screenHeight - below);
         int roomAbove = Math.max(0, at.y());
@@ -256,8 +282,9 @@ final class BuilderOverlays {
      */
     static int control(GuiGraphicsExtractor graphics, Font font, String label, @Nullable String hint, int x, int y,
                        ClickTargets targets, Consumer<Anchor> pressed) {
-        ButtonPainter.Box box = ButtonPainter.draw(graphics, font, label, x, y, LINE, targets,
-                () -> pressed.accept(new Anchor(x, y)), hintKey(hint));
+        Anchor at = Anchor.around(ButtonPainter.layout(font.width(label), x, y, LINE));
+        ButtonPainter.Box box = ButtonPainter.draw(graphics, font, label, x, y, LINE, targets, () -> pressed.accept(at),
+                hintKey(hint));
         return box.right() + GAP;
     }
 
@@ -535,8 +562,23 @@ final class BuilderOverlays {
             Placement box = placeNumber(numberOpener, lastScreenWidth, lastScreenHeight);
             numberField.setPosition(box.left(), box.top());
         }
+        muteOpenersHover(targets);
         drawOnTop(graphics, searchField);
         drawOnTop(graphics, numberField);
+    }
+
+    // The operator's rule: an activated segment's own hover is disabled while its popup stands open, since the
+    // cursor rests on it after the click and its tooltip would draw over the popup's box; nothing under the number
+    // box hovers through it either.
+    private void muteOpenersHover(ClickTargets targets) {
+        if (listOpen()) {
+            targets.muteHover(opener.bounds());
+        }
+        if (numberField != null && numberField.visible) {
+            targets.muteHover(numberOpener.bounds());
+            targets.muteHover(new GroupsPane.Bounds(numberField.getX(), numberField.getY(),
+                    numberField.getX() + numberField.getWidth(), numberField.getY() + numberField.getHeight()));
+        }
     }
 
     private void drawPicker(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {

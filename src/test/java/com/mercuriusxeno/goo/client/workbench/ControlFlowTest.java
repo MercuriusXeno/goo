@@ -96,7 +96,7 @@ class ControlFlowTest {
         flow.closeSegments();
         drawTwoMoreLines(flow);
         assertTrue(targets.click(segmentLeft + 1, 1));
-        assertEquals(List.of(new BuilderOverlays.Anchor(segmentLeft, 0)), pressed);
+        assertEquals(List.of(List.of(segmentLeft, 0)), pressed.stream().map(at -> List.of(at.x(), at.y())).toList());
     }
 
     /**
@@ -115,7 +115,26 @@ class ControlFlowTest {
         flow.closeSegments();
         drawTwoMoreLines(flow);
         assertTrue(targets.click(segmentLeft + 1, 1));
-        assertEquals(List.of(new BuilderOverlays.Anchor(segmentLeft, 0)), pressed);
+        assertEquals(List.of(List.of(segmentLeft, 0)), pressed.stream().map(at -> List.of(at.x(), at.y())).toList());
+    }
+
+    /**
+     * A term's segment hands its click the top and bottom edges of the term's drawn ring, so a popup stands flush
+     * against the term rather than a full-size line under its line's top (decision
+     * every-popup-measures-flows-to-fit-and-scrolls).
+     */
+    @Test
+    void termSegmentAnchorsAtItsRingsEdges() {
+        DrawnFrame frame = new DrawnFrame();
+        ClickTargets targets = frame.targets;
+        ControlFlow flow = ControlFlow.lettered(frame.graphics, DrawnFrame.font(), targets, null,
+                new ControlFlow.Span(0, 400, 20), null);
+        List<BuilderOverlays.Anchor> pressed = new ArrayList<>();
+        flow.openTerm(ControlFlow.ringedWidth(100), ControlFlow.LINE);
+        flow.runsSegment(REF, "", pressed::add);
+        GroupsPane.Bounds ring = flow.closeSegments();
+        assertTrue(targets.click(ring.left() + 4, ring.top() + 4));
+        assertEquals(List.of(ring.top(), ring.bottom()), List.of(pressed.getFirst().y(), pressed.getFirst().bottom()));
     }
 
     private static void drawTwoMoreLines(ControlFlow flow) {

@@ -287,7 +287,8 @@ final class GroupsPane {
         int tagX = custom.right() + SearchRow.GAP;
         // decision add-tag-picks-a-game-tag-and-writes-its-entry
         ButtonPainter.draw(graphics, font, ADD_TAG, tagX, top, SearchRow.HEIGHT, targets, () -> overlays.openDropdown(
-                new BuilderOverlays.Anchor(tagX, top), groups.addTagChoices(values.entries()),
+                new BuilderOverlays.Anchor(tagX, top, tagX + ButtonPainter.width(font, ADD_TAG), top + SearchRow.HEIGHT),
+                groups.addTagChoices(values.entries()),
                 choice -> createTag(choice.id())), null);
         return laid.listTop();
     }

@@ -1007,7 +1007,8 @@ final class ExpressionBuilderPane {
                 if (at == null) {
                     // The side stands at 1, its segment drawn next frame, which stands the box under it.
                     pendingFactor = new PendingFactor(path, side);
-                    at = new BuilderOverlays.Anchor(dropped.box().left(), dropped.box().top());
+                    at = new BuilderOverlays.Anchor(dropped.box().left(), dropped.box().top(), dropped.box().right(),
+                            dropped.box().bottom());
                 }
                 openSide(shown, side, (op, factor) -> apply(b -> b.setScale(path, op, factor))).accept(at);
             }

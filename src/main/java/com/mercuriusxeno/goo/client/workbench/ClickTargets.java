@@ -226,6 +226,16 @@ final class ClickTargets {
         addTarget(left, top, width, height, Actions.NONE, hoverKey);
     }
 
+    /**
+     * An area that hovers nothing and takes no click, laid over areas that would hover, so no tooltip shows there
+     * while a click still passes to the areas under it.
+     *
+     * @param area the area to quiet
+     */
+    void muteHover(GroupsPane.Bounds area) {
+        addTarget(area.left(), area.top(), area.right() - area.left(), area.bottom() - area.top(), Actions.NONE, null);
+    }
+
     private void addTarget(int left, int top, int width, int height, Actions actions, @Nullable String hoverKey) {
         int clippedLeft = left;
         int clippedTop = top;
