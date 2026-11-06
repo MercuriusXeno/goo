@@ -651,6 +651,49 @@ class ValuationsTest {
     }
 
     /**
+     * A hand-keyed item a recipe makes reads the recipe equivalency the derivation would pick for it from its inputs'
+     * standing values, and a hand-keyed item no recipe makes reads none (decision
+     * explicit-value-row-reads-vs-its-would-be-derivative).
+     */
+    @Test
+    void explicitItemReadsTheEquivalencyItWouldDerive() throws IOException {
+        JsonObject items = derivedFromItems("""
+                {"_constants": {}, "_groups": {}, "_restricted": [], "_conversions": {}, "_post_conversions": {},
+                 "iron_ingot": {"metal": 9}, "iron_block": {"metal": 90}}
+                """, List.of(), List.of(plainRecipe("minecraft:iron_block", "minecraft:crafting",
+                "minecraft:iron_block", 1, "minecraft:iron_ingot", 9)));
+        assertEquals(JsonParser.parseString("""
+                {"inputs": [{"id": "minecraft:iron_ingot", "count": 9}], "output": 1}
+                """), items.getAsJsonObject("minecraft:iron_block").get("wouldBe"), String.valueOf(items));
+        JsonObject ingot = items.getAsJsonObject("minecraft:iron_ingot");
+        assertTrue(ingot == null || !ingot.has("wouldBe"), String.valueOf(items));
+    }
+
+    /**
+     * Where an input takes its standing value from the item's own entry, the would-be equivalency is the one a
+     * derivation with that entry removed picks: the ingot valued from the block makes nine ingots the cheaper pick
+     * while the entry stands, but with it gone the ingot reads nine nuggets and four shards make the block cheaper.
+     */
+    @Test
+    void explicitItemInACycleReadsWhatItsRemovalDerives() throws IOException {
+        JsonObject items = derivedFromItems("""
+                {"_constants": {}, "_groups": {}, "_restricted": [], "_conversions": {}, "_post_conversions": {},
+                 "iron_block": {"metal": 9}, "iron_nugget": {"metal": 1}, "iron_shard": {"metal": 10}}
+                """, List.of(), List.of(
+                plainRecipe("minecraft:iron_block", "minecraft:crafting", "minecraft:iron_block", 1,
+                        "minecraft:iron_ingot", 9),
+                plainRecipe("minecraft:iron_block_from_shards", "minecraft:crafting", "minecraft:iron_block", 1,
+                        "minecraft:iron_shard", 4),
+                plainRecipe("minecraft:iron_ingot_from_block", "minecraft:crafting", "minecraft:iron_ingot", 9,
+                        "minecraft:iron_block", 1),
+                plainRecipe("minecraft:iron_ingot_from_nuggets", "minecraft:crafting", "minecraft:iron_ingot", 1,
+                        "minecraft:iron_nugget", 9)));
+        assertEquals(JsonParser.parseString("""
+                {"inputs": [{"id": "minecraft:iron_shard", "count": 4}], "output": 1}
+                """), items.getAsJsonObject("minecraft:iron_block").get("wouldBe"), String.valueOf(items));
+    }
+
+    /**
      * Derived-from over the shipped file and the gametest inventory answers warm in under 100 ms, the derivation
      * cached and each per-call lookup done once rather than once per derived item
      * (decision derived-from-gets-cheaper).

@@ -1650,6 +1650,60 @@ class ValuesPaneTest {
     }
 
     /**
+     * An explicitly valued row with a would-be equivalency reads "(vs." then that equivalency, its inputs linked, then
+     * ")" on its head line right of the value, the word vs hovering why; one with none leaves that space blank
+     * (decision explicit-value-row-reads-vs-its-would-be-derivative).
+     */
+    @Test
+    void explicitRowReadsVsItsWouldBeEquivalency() {
+        String ingot = "minecraft:iron_ingot";
+        DrawnFrame frame = explicitBlockFrame("""
+                {"items": {"minecraft:iron_block": {"wouldBe": {"inputs": [{"id": "minecraft:iron_ingot",
+                  "count": 9}], "output": 1}}}}
+                """);
+        DrawnFrame.Text opened = frame.find("(vs.");
+        DrawnFrame.Text closed = frame.find(")");
+        DrawnFrame.Text value = frame.find("=");
+        assertEquals(value.y(), opened.y(), opened + " vs " + value);
+        assertEquals(value.y(), closed.y(), closed + " vs " + value);
+        assertTrue(opened.x() > value.x() && closed.x() > opened.x(), opened + " " + closed + " " + value);
+        assertTrue(frame.targets.hoverKeys().contains(ItemIcons.hoverKey(ingot)), frame.targets.hoverKeys().toString());
+        int vsLeft = opened.x() + DrawnFrame.font().width("(");
+        assertEquals(Optional.of(ValuesPane.VS_HOVER_KEY), frame.targets.hovered(vsLeft + 1, opened.y() + 1));
+
+        DrawnFrame blank = explicitBlockFrame("""
+                {"items": {}}
+                """);
+        assertFalse(blank.texts().contains("(vs."), blank.texts().toString());
+        assertFalse(blank.targets.hoverKeys().contains(ValuesPane.VS_HOVER_KEY), blank.targets.hoverKeys().toString());
+    }
+
+    // An iron block row its own entry values, over the derived-from reply given.
+    private static DrawnFrame explicitBlockFrame(String derivedFrom) {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:iron_block", "Iron Block")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "iron_block", "keySeparator": null, "kind": "VALUE", "text": "{\\"metal\\": 90}",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "iron_block", "value": {"metal": "90"}, "denied": false}]}
+                """);
+        values.readDerivedFrom(derivedFrom);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(new Matrix3x2fStack(4));
+        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200),
+                frame.targets);
+        return frame;
+    }
+
+    /**
      * An input's label reads its summed count over the recipe's output as a reduced mixed number, and nothing where
      * that equals 1 (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      */

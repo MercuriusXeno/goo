@@ -662,6 +662,17 @@ class ValuesManagerScreenTest {
     }
 
     /**
+     * Hovering the vs of an explicit row's would-be equivalency reads why the row shows it, on one line (decision
+     * explicit-value-row-reads-vs-its-would-be-derivative).
+     */
+    @Test
+    void vsHoverReadsWhyTheExplicitValueStands() {
+        assertEquals(Optional.of(List.of(new TooltipLine.Text(Component.literal(
+                "Using explicit value instead of derivative recipe shown here")))),
+                ValuesManagerScreen.oneLineTooltip(ValuesPane.VS_HOVER_KEY));
+    }
+
+    /**
      * A run of goo amount lines reaches the tooltip as one grid element between the text lines around it (decision
      * tooltip-goo-lists-fill-ceil-sqrt-columns-aligned-on-the-widest-digits).
      */

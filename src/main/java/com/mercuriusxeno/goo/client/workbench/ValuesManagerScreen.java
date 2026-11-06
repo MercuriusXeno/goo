@@ -580,12 +580,21 @@ public final class ValuesManagerScreen extends Screen {
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
     // then its value.
     private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
-        Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
-                .<TooltipLine>map(TooltipLine.Text::new).or(() -> ButtonPainter.wholeNameTooltip(hoverKey));
-        return line.isPresent() ? Optional.of(List.of(line.get()))
-                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
-                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, processesTab, hoverKey))
-                        .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey));
+        return oneLineTooltip(hoverKey).or(() -> icons.tooltipFor(hoverKey)
+                .or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
+                .or(() -> GroupHovers.tooltipFor(groupsTab, values, processesTab, hoverKey))
+                .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey)));
+    }
+
+    /**
+     * @param hoverKey what the hovered area names
+     * @return the one line a goo type, a control, the vs of an explicit row or a truncated name shows, empty for any
+     *     other key
+     */
+    static Optional<List<TooltipLine>> oneLineTooltip(String hoverKey) {
+        return GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
+                .or(() -> ValuesPane.vsTooltipFor(hoverKey)).<TooltipLine>map(TooltipLine.Text::new).or(() -> ButtonPainter.wholeNameTooltip(hoverKey))
+                .map(List::of);
     }
 
     // Text stays text; a run of goo amounts folds into one grid that reaches GooAmountGrid through the tooltip factory
