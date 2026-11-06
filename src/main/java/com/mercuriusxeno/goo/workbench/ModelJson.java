@@ -72,7 +72,7 @@ final class ModelJson {
     }
 
     /**
-     * Reads a post over the draft. A members array is a whole model, as the gradle dev page posts it, and stands in
+     * Reads a post over the draft. A members array is a whole model and stands in
      * place of the draft's members. A change set, as the in-game manager posts it, names the members changed since
      * its last save, each replacing the draft's member of its key or, where the draft holds none, landing after the
      * key its after field names, and the keys of the members removed; every member it names nowhere stands as the

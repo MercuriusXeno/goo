@@ -4,7 +4,8 @@ import java.io.IOException;
 
 /**
  * Writes the inventory the workbench serves when none stands (decision inventory-dump-from-a-gametest-and-a-command).
- * The gradle run supplies one spawning the gametest server (decision gradle-run-stays-on-the-gametest-dump).
+ * InGameDumps supplies the one dump, from the running server's registries
+ * (decision hosted-workbench-and-image-captures-leave-tools).
  */
 @FunctionalInterface
 public interface InventoryDump {
