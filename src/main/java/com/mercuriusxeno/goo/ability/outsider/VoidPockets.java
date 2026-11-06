@@ -12,7 +12,6 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -138,12 +137,14 @@ public class VoidPockets extends SavedData {
     }
 
     /**
-     * Every room handed out.
+     * Each room handed out with the cells its platform holds.
      *
-     * @return the room numbers
+     * @return the platform's cell count by room number
      */
-    public List<Integer> rooms() {
-        return List.copyOf(rooms.values());
+    public Map<Integer, Integer> platformCellsByRoom() {
+        Map<Integer, Integer> cells = new HashMap<>();
+        rooms.forEach((player, room) -> cells.put(room, platformOf(player).cells()));
+        return cells;
     }
 
     /**
