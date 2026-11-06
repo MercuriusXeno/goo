@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.MeteorStep;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.entity.Meteor;
@@ -23,9 +24,12 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Meteo: under a clear sky its meteor falls and blasts a
+ * Gametests for Meteo: under a clear sky its meteor hangs at its spawn
+ * height through its wind-up, then drops in about a second and blasts a
  * crater at the target; under a roof the throw fizzles before it is paid
- * for, taking no goo and calling no meteor (decision meteo-needs-a-clear-sky).
+ * for, taking no goo and calling no meteor.
+ * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
+ * decision meteo-needs-a-clear-sky
  */
 @RegistersGameTests
 public final class MeteoTests {
@@ -55,6 +59,16 @@ public final class MeteoTests {
     private static final String SKY_REQUIRED = "The test bay's ground should stand under an open sky";
     private static final String SHOULD_FALL = "A meteor should fall toward the ground under a clear sky";
     private static final String SHOULD_CRATER = "The meteor should blast the ground at %s into a crater";
+    /** The longest fall that still reads as dropping in about a second. */
+    private static final int ABOUT_A_SECOND = 20;
+    /** Ticks past the named fall the landing may take, for the tick the meteor is added on and its last. */
+    private static final int LANDING_SLACK = 2;
+    private static final String STEP_REQUIRED = "goo:astral_meteo should name a meteor step";
+    private static final String NAMES_A_WIND_UP = "Meteo should name a wind-up beat, names %d ticks";
+    private static final String FALLS_IN_A_SECOND = "Meteo's fall should take about a second, names %d ticks";
+    private static final String HANGS_THROUGH_WIND_UP = "The meteor should still stand at its spawn height %s"
+            + " as its wind-up ends, stands at %s";
+    private static final String SHOULD_LAND = "The meteor should land within %d ticks of its wind-up";
     private static final String SUPPLY_REQUIRED = "The thrower should hold Meteo's cost, holds %d of %d";
     private static final String SHOULD_NOT_PAY = "A roofed throw should cost nothing, cost %d";
     private static final String SHOULD_NOT_FALL = "A roofed throw should call no meteor";
@@ -77,11 +91,27 @@ public final class MeteoTests {
         openCageRoofOver(level, ground);
         helper.assertTrue(MeteorSky.clearAbove(level, ground.above()), SKY_REQUIRED);
 
+        MeteorStep step = meteo.behaviors().stream().filter(MeteorStep.class::isInstance)
+                .map(MeteorStep.class::cast).findFirst().orElse(null);
+        helper.assertTrue(step != null, STEP_REQUIRED);
+        helper.assertTrue(step.windUpTicks() > 0 && step.windUpTicks() <= ABOUT_A_SECOND,
+                String.format(NAMES_A_WIND_UP, step.windUpTicks()));
+        helper.assertTrue(step.fallTicks() > 0 && step.fallTicks() <= ABOUT_A_SECOND,
+                String.format(FALLS_IN_A_SECOND, step.fallTicks()));
+
         AbilityImpact.land(level, ground, GooTypes.ASTRAL, Direction.UP, meteo);
 
-        helper.assertTrue(!meteorsOver(level, ground).isEmpty(), SHOULD_FALL);
-        helper.succeedWhen(() -> helper.assertTrue(level.getBlockState(ground).isAir(),
-                String.format(SHOULD_CRATER, ground)));
+        java.util.List<Meteor> called = meteorsOver(level, ground);
+        helper.assertTrue(!called.isEmpty(), SHOULD_FALL);
+        Meteor meteor = called.getFirst();
+        double spawnY = meteor.getY();
+        helper.runAfterDelay(step.windUpTicks(), () -> helper.assertTrue(!meteor.isRemoved()
+                && meteor.getY() == spawnY, String.format(HANGS_THROUGH_WIND_UP, spawnY, meteor.getY())));
+        helper.runAfterDelay(step.windUpTicks() + step.fallTicks() + LANDING_SLACK, () -> {
+            helper.assertTrue(meteor.isRemoved(), String.format(SHOULD_LAND, step.fallTicks() + LANDING_SLACK));
+            helper.assertTrue(level.getBlockState(ground).isAir(), String.format(SHOULD_CRATER, ground));
+            helper.succeed();
+        });
     }
 
     /**

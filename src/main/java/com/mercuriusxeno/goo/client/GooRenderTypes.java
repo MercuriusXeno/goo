@@ -158,6 +158,18 @@ public final class GooRenderTypes {
     public static final RenderType SCRY_FACES_TYPE = burnoutType(SCRY_FACES);
 
     /**
+     * Meteo's scorch over its crater (decision
+     * meteo-winds-up-then-drops-in-a-second-trailing-fire): plain colored
+     * quads alpha blended over the faces, depth tested with depth write off,
+     * so the scorch darkens what it lies on and never shows through walls.
+     */
+    public static final RenderPipeline METEOR_SCORCH = colorShellPipeline("meteor_scorch",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
+
+    /** RenderType for Meteo's scorch. */
+    public static final RenderType METEOR_SCORCH_TYPE = burnoutType(METEOR_SCORCH);
+
+    /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
      * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
      * implosion progress from the vertex Color.r channel and animates swirl
