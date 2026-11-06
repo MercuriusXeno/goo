@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.client.overlay.ArcRenderer;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -35,6 +36,7 @@ class DeliveryTest {
     private static final double TEN_BLOCKS = 10;
     private static final float LEVITY = 0.7f;
     private static final int BASE_FLIGHT_TIME = 3;
+    private static final int BULB_FULL_RANGE_TICK_BUDGET = 4;
 
     private static DataResult<AbilityDefinition> decode(String deliveryField) {
         return AbilityDefinition.codecFor(ID)
@@ -252,6 +254,18 @@ class DeliveryTest {
                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(DeliveryKind.class)));
             Set<DeliveryKind> unnamed = EnumSet.complementOf(EnumSet.copyOf(named));
             assertEquals(Set.of(), unnamed, "No bundled ability names delivery kind " + unnamed);
+        }
+
+        /**
+         * A bulb cast at the throw's full range lands within a handful of
+         * ticks, so placing a bulb feels like pointing, not waiting.
+         */
+        // bulb-beam-lands-in-a-few-ticks
+        @Test
+        void bulbBeamLandsAFullRangeCastWithinTheTickBudget() {
+            Delivery bulb = AbilityJson.decode("glow_crystal").delivery();
+            assertTrue(bulb.travelTicks(GooThrowHandler.MAX_RANGE, LEVITY, BASE_FLIGHT_TIME)
+                    <= BULB_FULL_RANGE_TICK_BUDGET);
         }
 
         @Test
