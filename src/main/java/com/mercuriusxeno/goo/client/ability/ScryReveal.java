@@ -8,9 +8,10 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * What Scry's sweep reveals and how long it shows: the blocks its front
+ * What a held sweep reveals and how long it shows: the blocks its front
  * crosses between two radii, the faces of each that open onto air, and the
  * fade once the hold lets go.
+ * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  */
 public final class ScryReveal {
@@ -19,8 +20,6 @@ public final class ScryReveal {
     static final int RELEASE_GRACE_TICKS = 2;
     /** Ticks the revealed faces and the sphere take to fade once let go: about a second. */
     static final int FADE_TICKS = 20;
-    /** Ticks a newly revealed face flashes brighter before it settles. */
-    static final int FLASH_TICKS = 10;
     private static final double HALF = 0.5;
     /** A column's inner span where the inner sphere misses it: below any distance, so the whole column counts. */
     private static final double NO_INNER_SPAN = -1;
@@ -128,32 +127,5 @@ public final class ScryReveal {
             return 1f;
         }
         return Math.max(0f, 1f - (float) faded / FADE_TICKS);
-    }
-
-    /**
-     * How strongly a ping still shows as its front travels: full within its
-     * reach, then fading to nothing over the fade past it.
-     *
-     * @param radius the front's radius
-     * @param reach  how far it reaches before fading
-     * @param fade   how far past the reach it travels while fading
-     * @return the strength, zero to one
-     */
-    public static float pingFade(float radius, float reach, float fade) {
-        if (radius <= reach) {
-            return 1f;
-        }
-        return fade <= 0f ? 0f : Math.max(0f, 1f - (radius - reach) / fade);
-    }
-
-    /**
-     * How much brighter a face shows for being newly revealed: a flash that
-     * settles over half a second, so the front reads as a sonar ping.
-     *
-     * @param ticksSinceRevealed ticks since the front crossed the face
-     * @return the extra brightness, one at the crossing to zero once settled
-     */
-    public static float flash(long ticksSinceRevealed) {
-        return Math.max(0f, 1f - (float) ticksSinceRevealed / FLASH_TICKS);
     }
 }

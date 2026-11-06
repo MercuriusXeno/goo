@@ -102,19 +102,5 @@ class ScryRevealTest {
             assertEquals(0.5f, ScryReveal.fade(ScryReveal.RELEASE_GRACE_TICKS + ScryReveal.FADE_TICKS / 2), 1e-6f);
             assertEquals(0f, ScryReveal.fade(ScryReveal.RELEASE_GRACE_TICKS + ScryReveal.FADE_TICKS), 0f);
         }
-
-        @Test
-        void aPingShowsFullyWithinItsReachThenFadesPastIt() {
-            assertEquals(1f, ScryReveal.pingFade(96, 96, 20), 0f);
-            assertEquals(0.5f, ScryReveal.pingFade(106, 96, 20), 1e-6f);
-            assertEquals(0f, ScryReveal.pingFade(116, 96, 20), 0f);
-        }
-
-        @Test
-        void aNewFaceFlashesThenSettles() {
-            assertEquals(1f, ScryReveal.flash(0), 0f);
-            assertEquals(0.5f, ScryReveal.flash(ScryReveal.FLASH_TICKS / 2), 1e-6f);
-            assertEquals(0f, ScryReveal.flash(ScryReveal.FLASH_TICKS), 0f);
-        }
     }
 }

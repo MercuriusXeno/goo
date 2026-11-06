@@ -2,9 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityMath;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
-import net.minecraft.tags.TagKey;
 import org.junit.jupiter.api.Test;
 import java.util.HashSet;
 import java.util.Set;
@@ -12,22 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Glitter's front grows a little each held tick up to its reach, and the
- * bands its held ticks walk hold every block of the sphere exactly once
- * (decision glitter-sphere-icons-gem-ore-groups).
+ * The bands a sweep's held ticks walk hold every block of the sphere
+ * exactly once (decision glitter-sphere-icons-gem-ore-groups).
  */
 class DetectOreStepTest {
-
-    private static final int REACH = 64;
-    private final DetectOreStep glitter = new DetectOreStep(
-            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "gem_ores")), REACH, 1.5, 100);
-
-    @Test
-    void theFrontGrowsEachHeldTickAndStopsAtItsReach() {
-        assertEquals(0, glitter.frontAt(0), 1e-9);
-        assertEquals(15, glitter.frontAt(10), 1e-9);
-        assertEquals(REACH, glitter.frontAt(1000), 1e-9);
-    }
 
     @Test
     void theBandsOfAHoldHoldEverySphereBlockExactlyOnce() {

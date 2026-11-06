@@ -20,8 +20,8 @@ import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
-import com.mercuriusxeno.goo.client.ability.GlitterShell;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
+import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
@@ -503,10 +503,10 @@ public final class GooClientSetup {
         ViewportRipples.CLIENT.clear();
     }
 
-    /** Clears Crystal's glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
+    /** Clears Crystal's glass knives, ore sightings, held sweeps, arm poses and forming prisms. */
     private static void clearCrystalVisuals() {
         OreSightings.CLIENT.clear();
-        GlitterShell.clear();
+        HeldSweepVisual.clear();
         GlassKnives.clear();
         AbilityPoses.clear();
         PrismFormingSounds.CLIENT.clear();

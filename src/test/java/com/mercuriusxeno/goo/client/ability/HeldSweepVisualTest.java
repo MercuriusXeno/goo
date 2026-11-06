@@ -25,14 +25,14 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * ScrySweep's reveal traces a block's voxel shape: a revealed side is drawn
- * on each of the shape's boxes, at the box's own bounds rather than the
- * cube's; and Scry's sphere, faces and glisten take the casting goo type's
- * color, read from the bundled type JSON.
+ * HeldSweepVisual's shell traces a block's voxel shape: a revealed side is
+ * drawn on each of the shape's boxes, at the box's own bounds rather than
+ * the cube's; and Scry's sphere, faces and glisten take the casting goo
+ * type's color, read from the bundled type JSON.
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  * decision scry-ships-on-astral
  */
-class ScrySweepTest {
+class HeldSweepVisualTest {
 
     private static final AABB BOTTOM_SLAB = new AABB(0, 0, 0, 1, 0.5, 1);
     private static final AABB FENCE_POST = new AABB(0.375, 0, 0.375, 0.625, 1.5, 0.625);
@@ -62,7 +62,7 @@ class ScrySweepTest {
 
     private static List<RecordingVertexConsumer.Vertex> emit(AABB box, Direction side) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        ScrySweep.emitBoxFace(new PoseStack().last(), consumer, box, side, 0xFFFFE628);
+        HeldSweepVisual.emitBoxFace(new PoseStack().last(), consumer, box, side, 0xFFFFE628);
         return consumer.vertices();
     }
 
@@ -76,7 +76,7 @@ class ScrySweepTest {
         void anAstralPingDrawsInTheAstralTypesColorNotGlowYellow() throws IOException {
             ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor = bundledColors();
 
-            int tint = ScrySweep.tint(GooTypes.ASTRAL, typeColor);
+            int tint = HeldSweepVisual.tint(GooTypes.ASTRAL, typeColor);
 
             assertEquals(GooColors.get(bundled(GooTypes.ASTRAL)), tint);
             assertNotEquals(GooColors.get(bundled(GooTypes.GLOW)), tint);
@@ -100,7 +100,7 @@ class ScrySweepTest {
 
         private GooTypeDefinition bundled(ResourceKey<GooTypeDefinition> key) throws IOException {
             String path = BUNDLED_JSON_FORMAT.formatted(key.identifier().getPath());
-            try (InputStream in = ScrySweepTest.class.getResourceAsStream(path)) {
+            try (InputStream in = HeldSweepVisualTest.class.getResourceAsStream(path)) {
                 assertNotNull(in, "Bundled JSON missing on classpath: " + path);
                 return GooTypeDefinition.CODEC.parse(JsonOps.INSTANCE,
                         JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))).getOrThrow();
