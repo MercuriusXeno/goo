@@ -10,6 +10,7 @@
     "LivingEntityHeldFallsMixin",
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
+    "PlayerDiveMixin",
     "PlayerGluttonyEatMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin",
@@ -19,7 +20,9 @@
   "client": [
     "ClientLevelGooValuesMixin",
     "ClientPacketListenerGooMixin",
+    "LevelRendererDiveCullMixin",
     "LivingEntityRendererPhaseMixin",
+    "MinecraftDiveOutlineMixin",
     "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",

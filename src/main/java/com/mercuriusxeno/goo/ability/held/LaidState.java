@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.held;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.BusterStep;
+import com.mercuriusxeno.goo.ability.program.DiveStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
@@ -61,7 +62,9 @@ public enum LaidState {
     /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
     PHASE,
     /** Zoo's Rally over the peaceful mobs around the drinker (decision zoo-rally-holds-for-the-brew). */
-    RALLY;
+    RALLY,
+    /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
+    DIVE;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -103,7 +106,8 @@ public enum LaidState {
             Map.entry(BusterStep.class, BUSTER),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE),
-            Map.entry(RallyStep.class, RALLY));
+            Map.entry(RallyStep.class, RALLY),
+            Map.entry(DiveStep.class, DIVE));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

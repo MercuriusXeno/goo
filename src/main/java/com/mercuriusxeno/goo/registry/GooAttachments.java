@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
+import com.mercuriusxeno.goo.ability.deep.Dive;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
@@ -442,6 +443,19 @@ public final class GooAttachments {
                             .serialize(Airborn.CODEC, airborn -> airborn.expiresAt() > 0L)
                             .sync(GooAttachments::syncsToOwner, Airborn.STREAM_CODEC)
                             .build());
+    /**
+     * The dive a player holds, saved while it stands and synced to the
+     * owning client, which swims it through solid blocks and draws the
+     * deep's vision.
+     * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
+     */
+    public static final Supplier<AttachmentType<Dive>> DIVE =
+            ATTACHMENT_TYPES.register("dive",
+                    () -> AttachmentType.builder(() -> Dive.NONE)
+                            .serialize(Dive.CODEC, dive -> dive.expiresAt() > 0L)
+                            .sync(GooAttachments::syncsToOwner, Dive.STREAM_CODEC)
+                            .build());
+
     private GooAttachments() {
     }
 
