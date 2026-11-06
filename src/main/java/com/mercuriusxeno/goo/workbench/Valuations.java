@@ -8,6 +8,7 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRootRemainders;
+import com.mercuriusxeno.goo.data.GooUndercutChains;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.RecipeInput;
 import com.mercuriusxeno.goo.item.GooFormat;
@@ -43,6 +44,7 @@ final class Valuations {
     private static final String OUTPUT = "output";
     private static final String SOLVED_FROM = "solvedFrom";
     private static final String LESS = "less";
+    private static final String ANCHORS = "anchors";
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final String DENIED = "denied";
@@ -485,6 +487,7 @@ final class Valuations {
         DerivedLookups lookups = DerivedLookups.of(model, inventory, derived);
         Map<Identifier, RecipeInput> solving = DerivedLookups.solvingRecipes(derived);
         Set<Identifier> handKeyed = loaded.baseValues().keySet();
+        GooUndercutChains.ChainWalk anchorWalk = GooUndercutChains.walkOf(derived.registry());
         JsonObject items = new JsonObject();
         for (String id : inventory.itemIds()) {
             Identifier item = Identifier.tryParse(id);
@@ -493,8 +496,13 @@ final class Valuations {
                 continue;
             }
             RecipeInput solvedBy = lookups.making().containsKey(item) ? null : solving.get(item);
-            items.add(id, solvedBy != null ? invertedRecipe(item, solvedBy)
-                    : equivalencyOf(from(item, lookups, handKeyed), lookups.making().get(item)));
+            JsonObject recipe = solvedBy != null ? invertedRecipe(item, solvedBy)
+                    : equivalencyOf(from(item, lookups, handKeyed), lookups.making().get(item));
+            // decision item-value-view-lists-its-anchors
+            JsonArray anchors = new JsonArray();
+            anchorWalk.anchorsOf(item).forEach(anchor -> anchors.add(anchor.toString()));
+            recipe.add(ANCHORS, anchors);
+            items.add(id, recipe);
         }
         JsonObject root = new JsonObject();
         root.add(ITEMS, items);

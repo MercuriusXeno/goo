@@ -571,7 +571,8 @@ class ValuationsTest {
         assertEquals(JsonParser.parseString("""
                 {"inputs": [], "output": 1,
                  "solvedFrom": {"id": "minecraft:suspicious_stew", "count": 1},
-                 "less": [{"id": "minecraft:bowl", "count": 1}, {"id": "minecraft:brown_mushroom", "count": 1}]}
+                 "less": [{"id": "minecraft:bowl", "count": 1}, {"id": "minecraft:brown_mushroom", "count": 1}],
+                 "anchors": ["minecraft:suspicious_stew"]}
                 """), poppy, String.valueOf(poppy));
     }
 
@@ -586,16 +587,29 @@ class ValuationsTest {
                 """, plainRecipe("minecraft:stick", "minecraft:crafting", "minecraft:stick", 4, "minecraft:oak_planks", 2),
                 "minecraft:oak_planks");
         assertEquals(JsonParser.parseString("""
-                {"inputs": [], "output": 2, "solvedFrom": {"id": "minecraft:stick", "count": 4}, "less": []}
+                {"inputs": [], "output": 2, "solvedFrom": {"id": "minecraft:stick", "count": 4}, "less": [],
+                 "anchors": ["minecraft:stick"]}
                 """), planks, String.valueOf(planks));
     }
 
     private static JsonObject solvedFrom(String file, JsonObject recipe, String item) throws IOException {
+        return derivedFromItems(file, List.of(item), List.of(recipe)).getAsJsonObject(item);
+    }
+
+    // The derived-from reply's items over an inventory holding the named items and every item the recipes name.
+    private static JsonObject derivedFromItems(String file, List<String> named, List<JsonObject> recipes)
+            throws IOException {
         JsonObject root = new JsonObject();
         JsonArray items = new JsonArray();
-        List<String> ids = new ArrayList<>(List.of(recipe.get("output").getAsString(), item));
-        recipe.getAsJsonArray("slots").forEach(slot -> ids.add(slot.getAsJsonObject().getAsJsonArray("alternatives")
-                .get(0).getAsString()));
+        List<String> ids = new ArrayList<>();
+        JsonArray recipeArray = new JsonArray();
+        for (JsonObject recipe : recipes) {
+            ids.add(recipe.get("output").getAsString());
+            recipe.getAsJsonArray("slots").forEach(slot -> ids.add(slot.getAsJsonObject()
+                    .getAsJsonArray("alternatives").get(0).getAsString()));
+            recipeArray.add(recipe);
+        }
+        ids.addAll(named);
         ids.stream().distinct().forEach(id -> {
             JsonObject entry = new JsonObject();
             entry.addProperty("id", id);
@@ -605,11 +619,35 @@ class ValuationsTest {
         root.add("items", items);
         root.add("item_tags", new JsonArray());
         root.add("goo_types", new JsonArray());
-        JsonArray recipes = new JsonArray();
-        recipes.add(recipe);
-        root.add("recipes", recipes);
+        root.add("recipes", recipeArray);
         return JsonParser.parseString(Valuations.derivedFrom(BaseValuesModel.parse(file),
-                InventoryView.parse(root.toString()))).getAsJsonObject().getAsJsonObject("items").getAsJsonObject(item);
+                InventoryView.parse(root.toString()))).getAsJsonObject().getAsJsonObject("items");
+    }
+
+    private static List<String> anchorsIn(JsonObject items, String item) {
+        JsonObject reply = items.getAsJsonObject(item);
+        return reply == null || !reply.has("anchors") ? List.of()
+                : reply.getAsJsonArray("anchors").asList().stream().map(JsonElement::getAsString).toList();
+    }
+
+    /**
+     * A derived item's reply names every hand-keyed item its recipe chain reaches, both where the chain forks, and
+     * a hand-keyed item names none (decision item-value-view-lists-its-anchors).
+     */
+    @Test
+    void derivedFromNamesEachAnchorTheChainReaches() throws IOException {
+        JsonObject items = derivedFromItems("""
+                {"_constants": {}, "_groups": {}, "_restricted": [], "_conversions": {}, "_post_conversions": {},
+                 "copper_ingot": {"metal": 3}, "tin_ingot": {"metal": 2}}
+                """, List.of(), List.of(
+                shapedRecipe("minecraft:bronze_ingot", "minecraft:bronze_ingot", 1, List.of("CT"),
+                        Map.of("C", "minecraft:copper_ingot", "T", "minecraft:tin_ingot")),
+                plainRecipe("minecraft:bronze_rod", "minecraft:crafting", "minecraft:bronze_rod", 1,
+                        "minecraft:bronze_ingot", 1)));
+        List<String> both = List.of("minecraft:copper_ingot", "minecraft:tin_ingot");
+        assertEquals(both, anchorsIn(items, "minecraft:bronze_ingot"), String.valueOf(items));
+        assertEquals(both, anchorsIn(items, "minecraft:bronze_rod"), String.valueOf(items));
+        assertEquals(List.of(), anchorsIn(items, "minecraft:copper_ingot"), String.valueOf(items));
     }
 
     /**
