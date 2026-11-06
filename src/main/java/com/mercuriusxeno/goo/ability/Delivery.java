@@ -28,10 +28,34 @@ import java.util.Optional;
  *                       holder's client loops it where it loops
  * @param charge         the charge block: how long a hold charges and what a slinging release throws
  * @param form           the form the goo takes in flight, by the share transformAt names
+ * @param topSpeed       the fastest an arc flies in blocks per tick, slowing a throw its type would fly faster;
+ *                       {@link #NO_TOP_SPEED} for none
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
-                       Optional<StreamSound> sound, Charge charge, TravelForm form) {
+                       Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed) {
+
+    /**
+     * A delivery naming no top speed.
+     *
+     * @param kind           the delivery kind
+     * @param blocksPerTick  a beam's speed in blocks per tick
+     * @param range          a stream's reach in blocks
+     * @param coneDegrees    a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge a stream's ticks of hold one cost pays for
+     * @param grannyAllowed  whether an arc may lob onto a top face
+     * @param particle       the particle a stream sprays along its cone, empty for none
+     * @param transformAt    the share of the flight by which the blob has taken its traveling form
+     * @param sound          the sound a stream makes while held, empty for none
+     * @param charge         the charge block
+     * @param form           the form the goo takes in flight
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
+                    Optional<StreamSound> sound, Charge charge, TravelForm form) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+                charge, form, NO_TOP_SPEED);
+    }
 
     /**
      * A delivery whose charge slings nothing and whose goo stays a blob.
@@ -106,6 +130,8 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * where the JSON names none (decision traveling-form-transforms-in-flight).
      */
     public static final double DEFAULT_TRANSFORM_AT = 0.4;
+    /** The top speed of a delivery that names none: its flight keeps its type's time. */
+    public static final double NO_TOP_SPEED = 0;
 
     /** An arc with every param at its default. */
     public static final Delivery ARC = of(DeliveryKind.ARC);
@@ -131,7 +157,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             // nova-ring-grows-with-the-hold
             Charge.CODEC.optionalFieldOf("charge", Charge.NONE).forGetter(Delivery::charge),
             // traveling-form-transforms-in-flight
-            TravelForm.CODEC.optionalFieldOf("form", TravelForm.BLOB).forGetter(Delivery::form)
+            TravelForm.CODEC.optionalFieldOf("form", TravelForm.BLOB).forGetter(Delivery::form),
+            // dart-flies-at-a-speed-you-can-follow
+            Codec.DOUBLE.optionalFieldOf("top_speed", NO_TOP_SPEED).forGetter(Delivery::topSpeed)
     ).apply(inst, Delivery::new));
 
     /**
@@ -151,6 +179,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.optional(StreamSound.STREAM_CODEC), Delivery::sound,
             Charge.STREAM_CODEC, Delivery::charge,
             TravelForm.STREAM_CODEC, Delivery::form,
+            ByteBufCodecs.DOUBLE, Delivery::topSpeed,
             Delivery::new);
 
     /**
@@ -225,7 +254,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
 
     /**
      * The ticks a flight takes to cover a distance: a beam at its speed, an
-     * arc by the thrown type's flight time.
+     * arc by the thrown type's flight time, or by its top speed where that
+     * flies it slower, so the eye follows a dart across its arc.
+     * dart-flies-at-a-speed-you-can-follow
      *
      * @param distance       world-space distance in blocks
      * @param levity         the thrown type's multiplier on the root of distance
@@ -236,7 +267,8 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
         if (fliesStraight()) {
             return (int) Math.max(1, Math.ceil(distance / blocksPerTick));
         }
-        return (int) ThrowArc.travelTicks(distance, levity, baseFlightTime);
+        int typeTicks = (int) ThrowArc.travelTicks(distance, levity, baseFlightTime);
+        return topSpeed > NO_TOP_SPEED ? Math.max(typeTicks, (int) Math.ceil(distance / topSpeed)) : typeTicks;
     }
 
     /**
@@ -277,6 +309,6 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public Delivery withCone(double newRange, double newConeDegrees) {
         return new Delivery(kind, blocksPerTick, newRange, newConeDegrees, ticksPerCharge, grannyAllowed, particle,
-                transformAt, sound, charge, form);
+                transformAt, sound, charge, form, topSpeed);
     }
 }

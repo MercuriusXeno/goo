@@ -55,7 +55,7 @@ public final class ValuesManagerScreen extends Screen {
     private final VariablesTab variablesTab = new VariablesTab(draft);
     private final ProcessesTab processesTab = new ProcessesTab(draft);
     private final AuditTab auditTab = new AuditTab();
-    private final ItemIcons icons = new ItemIcons(values::worthOf);
+    private final ItemIcons icons = itemIconsOver(values);
     private final ClickTargets targets = new ClickTargets();
     private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
             PointerHand::cursor, CopyPlus::cursor);
@@ -540,6 +540,15 @@ public final class ValuesManagerScreen extends Screen {
         super.removed();
     }
 
+    /**
+     * @param values the Items tab, which answers each item's value and anchors
+     * @return the item stacks every pane draws from, each icon hovering its item's value and anchors
+     */
+    static ItemIcons itemIconsOver(ValuesTab values) {
+        // decision item-hover-lists-its-anchors
+        return new ItemIcons(values::worthOf, values::anchorsOf);
+    }
+
     // Decision tooltips-anchor-below-their-element-and-grow-upward-when-short-of-room.
     static Optional<ClientTooltipPositioner> anchoredTooltip(ClickTargets targets, double mouseX, double mouseY) {
         return targets.hoveredArea(mouseX, mouseY).map(area -> TooltipAnchor.anchoredTo(area.bounds()));
@@ -571,12 +580,21 @@ public final class ValuesManagerScreen extends Screen {
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
     // then its value.
     private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
-        Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
-                .<TooltipLine>map(TooltipLine.Text::new).or(() -> ButtonPainter.wholeNameTooltip(hoverKey));
-        return line.isPresent() ? Optional.of(List.of(line.get()))
-                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
-                        .or(() -> GroupHovers.tooltipFor(groupsTab, values, processesTab, hoverKey))
-                        .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey));
+        return oneLineTooltip(hoverKey).or(() -> icons.tooltipFor(hoverKey)
+                .or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
+                .or(() -> GroupHovers.tooltipFor(groupsTab, values, processesTab, hoverKey))
+                .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey)));
+    }
+
+    /**
+     * @param hoverKey what the hovered area names
+     * @return the one line a goo type, a control, the vs of an explicit row or a truncated name shows, empty for any
+     *     other key
+     */
+    static Optional<List<TooltipLine>> oneLineTooltip(String hoverKey) {
+        return GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
+                .or(() -> ValuesPane.vsTooltipFor(hoverKey)).<TooltipLine>map(TooltipLine.Text::new).or(() -> ButtonPainter.wholeNameTooltip(hoverKey))
+                .map(List::of);
     }
 
     // Text stays text; a run of goo amounts folds into one grid that reaches GooAmountGrid through the tooltip factory
