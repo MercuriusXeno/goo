@@ -1,11 +1,10 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import net.minecraft.util.RandomSource;
-
 /**
- * The window of a block's particle sprite a break particle wears: a random
- * quarter of it across and down, as vanilla's break particles crop theirs.
- * decision unmake-drink-is-a-stream-of-break-particles
+ * The window of a block's particle sprite a chunk of the block wears: its own
+ * cell of the sprite, cut into a grid of equal cells, so the chunks standing
+ * together show the block's texture.
+ * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
  *
  * @param u0 the window's left edge in the atlas
  * @param u1 its right edge
@@ -14,23 +13,20 @@ import net.minecraft.util.RandomSource;
  */
 public record SpriteCrop(float u0, float u1, float v0, float v1) {
 
-    /** The crop's share of the sprite across and down. */
-    private static final float PART = 0.25f;
-
     /**
      * @param u0     the sprite's left edge in the atlas
      * @param u1     its right edge
      * @param v0     its top edge
      * @param v1     its bottom edge
-     * @param random the particle's random
-     * @return a random quarter of the sprite
+     * @param across the cell's column, from the left
+     * @param down   the cell's row, from the top
+     * @param cells  cells along each edge of the sprite
+     * @return the sprite's cell at that column and row
      */
-    public static SpriteCrop within(float u0, float u1, float v0, float v1, RandomSource random) {
-        float across = random.nextFloat() * (1 - PART);
-        float down = random.nextFloat() * (1 - PART);
-        float width = u1 - u0;
-        float height = v1 - v0;
-        return new SpriteCrop(u0 + width * across, u0 + width * (across + PART), v0 + height * down,
-                v0 + height * (down + PART));
+    public static SpriteCrop cellOf(float u0, float u1, float v0, float v1, int across, int down, int cells) {
+        float width = (u1 - u0) / cells;
+        float height = (v1 - v0) / cells;
+        return new SpriteCrop(u0 + width * across, u0 + width * (across + 1), v0 + height * down,
+                v0 + height * (down + 1));
     }
 }

@@ -17,14 +17,15 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Supplier;
 
 /**
- * One break particle of a block Unmake drinks: a random crop of the block's
- * own particle sprite, shaded and tinted as vanilla shades its break
- * particles and lit where it stands, flying straight from the cloud the block
- * burst into to the glove, placed afresh every frame so it follows the hand
- * as it moves, and gone at the glove.
+ * One chunk of a block Unmake drinks: its own cell of the block's particle
+ * sprite, the chunk's size, shaded and tinted as vanilla shades its break
+ * particles and lit where it stands, standing in its place in the block
+ * until its turn, then flying straight to the glove, placed afresh every
+ * frame so it follows the hand as it moves, and gone at the glove.
+ * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
  * decision unmake-drink-is-a-stream-of-break-particles
  */
-public final class DrinkBreakParticle extends SingleQuadParticle {
+public final class DrinkChunkParticle extends SingleQuadParticle {
 
     /** The shade vanilla's break particles wear over the sprite. */
     private static final float SHADE = 0.6f;
@@ -33,36 +34,37 @@ public final class DrinkBreakParticle extends SingleQuadParticle {
     private static final int GREEN_SHIFT = 8;
     private static final int CHANNEL = 0xFF;
     private static final float CHANNEL_MAX = 255f;
-    /** Ticks a particle outlives its drinker's glove going unseen, so a frame missing it does not end the flight. */
+    /** Ticks a chunk outlives its drinker's glove going unseen, so a frame missing it does not end the flight. */
     private static final int ORPHAN_TICKS = 5;
-    /** How many times the longest route's travel a particle may live past its turn before it is let go. */
+    /** How many times the longest route's travel a chunk may live past its turn before it is let go. */
     private static final int TRAVELS = 2;
 
     private final Supplier<@Nullable Vec3> glove;
-    private final DrinkRide.Mote mote;
+    private final DrinkRide.Chunk chunk;
     private final SpriteCrop crop;
     private final Layer layer;
     private int orphaned;
 
     /**
      * @param level  the client level
-     * @param state  the block it broke from
+     * @param state  the block it peels from
      * @param pos    where the block stands
      * @param sprite the block's particle sprite
      * @param glove  the drinker's glove as last placed, or null while the drink is not
-     * @param mote   its part in the block's drain
+     * @param chunk  its part in the block's peel
      */
-    public DrinkBreakParticle(ClientLevel level, BlockState state, BlockPos pos, TextureAtlasSprite sprite,
-                              Supplier<@Nullable Vec3> glove, DrinkRide.Mote mote) {
-        super(level, mote.cloud().x, mote.cloud().y, mote.cloud().z, sprite);
+    public DrinkChunkParticle(ClientLevel level, BlockState state, BlockPos pos, TextureAtlasSprite sprite,
+                              Supplier<@Nullable Vec3> glove, DrinkRide.Chunk chunk) {
+        super(level, chunk.place().x, chunk.place().y, chunk.place().z, sprite);
         this.glove = glove;
-        this.mote = mote;
-        this.crop = SpriteCrop.within(sprite.getU0(), sprite.getU1(), sprite.getV0(), sprite.getV1(), random);
+        this.chunk = chunk;
+        this.crop = SpriteCrop.cellOf(sprite.getU0(), sprite.getU1(), sprite.getV0(), sprite.getV1(),
+                chunk.across(), chunk.down(), DrinkRide.CHUNKS_ACROSS);
         this.layer = Layer.bySprite(sprite);
         this.gravity = 0f;
         this.hasPhysics = false;
-        this.quadSize *= HALF;
-        this.lifetime = (int) Math.ceil(mote.release() - level.getGameTime()) + TRAVELS * DrinkStream.LONGEST_TRAVEL_TICKS;
+        this.quadSize = (float) Math.max(chunk.width(), chunk.height()) * HALF;
+        this.lifetime = (int) Math.ceil(chunk.release() - level.getGameTime()) + TRAVELS * DrinkStream.LONGEST_TRAVEL_TICKS;
         shade(level, state, pos);
     }
 
@@ -80,7 +82,7 @@ public final class DrinkBreakParticle extends SingleQuadParticle {
         setColor(red, green, blue);
     }
 
-    /** Moves the particle to where it flies at the end of this tick, and ends it at the glove. */
+    /** Moves the chunk to where it stands at the end of this tick, and ends it at the glove. */
     @Override
     public void tick() {
         this.xo = this.x;
@@ -95,7 +97,7 @@ public final class DrinkBreakParticle extends SingleQuadParticle {
         if (hand == null) {
             return;
         }
-        Vec3 at = DrinkRide.pointOf(mote, hand, level.getGameTime() + 1);
+        Vec3 at = DrinkRide.pointOf(chunk, hand, level.getGameTime() + 1);
         if (at == null) {
             remove();
             return;
@@ -104,8 +106,8 @@ public final class DrinkBreakParticle extends SingleQuadParticle {
     }
 
     /**
-     * @return the drinker's glove this tick; or null while the drink goes unplaced, the particle let go once it
-     *         has gone unplaced too long
+     * @return the drinker's glove this tick; or null while the drink goes unplaced, the chunk let go once it has
+     *         gone unplaced too long
      */
     private @Nullable Vec3 seenGlove() {
         Vec3 hand = glove.get();
@@ -120,12 +122,12 @@ public final class DrinkBreakParticle extends SingleQuadParticle {
         return hand;
     }
 
-    /** Draws the particle where it flies this very frame, so it keeps to the line between ticks. */
+    /** Draws the chunk where it stands this very frame, so it keeps to the line between ticks. */
     @Override
     protected void extractRotatedQuad(QuadParticleRenderState state, Camera camera, Quaternionf rotation,
                                       float partialTick) {
         Vec3 hand = glove.get();
-        Vec3 at = hand == null ? null : DrinkRide.pointOf(mote, hand, level.getGameTime() + partialTick);
+        Vec3 at = hand == null ? null : DrinkRide.pointOf(chunk, hand, level.getGameTime() + partialTick);
         if (at == null) {
             super.extractRotatedQuad(state, camera, rotation, partialTick);
             return;
