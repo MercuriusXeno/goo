@@ -979,6 +979,44 @@ public final class GooRenderTypes {
     public static RenderType gooPhase(Identifier skin) {
         return GOO_PHASE_FACTORY.apply(skin);
     }
+
+    /**
+     * Portal view pipeline (decision portals-link-by-looking-through-portal-vision):
+     * a linked portal's face drawn through {@code goo_portal_view.vsh / .fsh},
+     * sampling the partner side's render at the fragment's own screen point, so
+     * the view through lies flush with the frame. Depth tested and written, as
+     * the face stands in the world.
+     */
+    public static final RenderPipeline GOO_PORTAL_VIEW = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_view"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
+            .withSampler("Sampler0")
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    /** Per-view memoized render types on the portal view pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GOO_PORTAL_VIEW_FACTORY =
+            net.minecraft.util.Util.memoize(view -> RenderType.create(
+                    "goo_portal_view",
+                    RenderSetup.builder(GOO_PORTAL_VIEW)
+                            .withTexture("Sampler0", view)
+                            .setOutputTarget(OutputTarget.MAIN_TARGET)
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the portal view render type over a portal's view texture.
+     *
+     * @param view the view texture's id
+     * @return memoized RenderType
+     */
+    public static RenderType gooPortalView(Identifier view) {
+        return GOO_PORTAL_VIEW_FACTORY.apply(view);
+    }
     /** The ripple mask shader pair's name, and the stem of each mask pipeline's. */
     private static final String RIPPLE_MASK = "goo_ripple_mask";
 
@@ -1211,6 +1249,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GOO_PHASE);
+        event.registerPipeline(GOO_PORTAL_VIEW);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
