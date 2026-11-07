@@ -23,9 +23,10 @@ import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
-import com.mercuriusxeno.goo.client.ability.GlitterShell;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
+import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LiftWind;
+import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
@@ -55,6 +56,7 @@ import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.FeedPileRenderer;
+import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -257,8 +259,8 @@ public final class GooClientSetup {
         // swap-body-stands-until-reverted: a client body wears its owner's skin, drawn by the player renderer
         ClientSwapBody.install();
         event.registerEntityRenderer(GooEntities.SWAP_BODY.get(), swapBodyRenderer());
-        // meteo-needs-a-clear-sky: the meteor shows as the flame trail the server sends
-        event.registerEntityRenderer(GooEntities.METEOR.get(), NoopRenderer::new);
+        // meteo-winds-up-then-drops-in-a-second-trailing-fire: the meteor shows as a burning rock
+        event.registerEntityRenderer(GooEntities.METEOR.get(), MeteorRenderer::new);
         // monstrosities-harvest-under-quantum
         event.registerEntityRenderer(GooEntities.ELDRITCH_MONSTROSITY.get(), EldritchMonstrosityRenderer::new);
     }
@@ -528,10 +530,11 @@ public final class GooClientSetup {
         ViewportRipples.CLIENT.clear();
     }
 
-    /** Clears Crystal's glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
+    /** Clears Crystal's glass knives, ore sightings, held sweeps, Meteo's scorches, arm poses and forming prisms. */
     private static void clearCrystalVisuals() {
         OreSightings.CLIENT.clear();
-        GlitterShell.clear();
+        HeldSweepVisual.clear();
+        MeteorScorches.clear();
         GlassKnives.clear();
         AbilityPoses.clear();
         PrismFormingSounds.CLIENT.clear();

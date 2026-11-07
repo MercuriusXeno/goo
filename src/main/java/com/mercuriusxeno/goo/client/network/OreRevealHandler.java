@@ -1,14 +1,14 @@
 package com.mercuriusxeno.goo.client.network;
 
-import com.mercuriusxeno.goo.client.ability.GlitterShell;
 import com.mercuriusxeno.goo.client.overlay.OreSightings;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Client-side handler for a held tick of Glitter: its sparkle shell's
- * front moves out, and the veins the front reached show.
+ * Client-side handler for the ore veins a held sweep of Glitter or Magnet
+ * reached: each shows through walls for its life.
+ * decision held-sweeps-share-one-fast-shell-visual
  * decision glitter-sphere-icons-gem-ore-groups
  */
 public final class OreRevealHandler {
@@ -25,9 +25,7 @@ public final class OreRevealHandler {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                long now = mc.level.getGameTime();
-                GlitterShell.follow(payload, now);
-                OreSightings.CLIENT.reveal(now, payload.veins(), payload.life());
+                OreSightings.CLIENT.reveal(mc.level.getGameTime(), payload.veins(), payload.life());
             }
         });
     }
