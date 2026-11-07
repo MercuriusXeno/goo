@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -174,7 +175,7 @@ public record BroilStep(int cookTicks, TagKey<Block> burns, Expr damage, int eve
      * @param amount the fire damage
      */
     static void scald(ServerLevel level, LivingEntity target, float amount) {
-        if (target.fireImmune()) {
+        if (!catchesFire(target)) {
             return;
         }
         if (amount >= target.getHealth() + target.getAbsorptionAmount()) {
@@ -183,6 +184,28 @@ public record BroilStep(int cookTicks, TagKey<Block> burns, Expr damage, int eve
         target.invulnerableTime = 0;
         target.hurtServer(level, target.damageSources().inFire(), amount);
         target.invulnerableTime = 0;
+    }
+
+    /**
+     * Whether fire burns an entity: a living thing that is not fire-immune.
+     *
+     * @param entity the candidate
+     * @return true where fire burns it
+     */
+    static boolean catchesFire(Entity entity) {
+        return entity instanceof LivingEntity && !entity.fireImmune();
+    }
+
+    /**
+     * Broil takes a living thing that is not fire-immune, the one it burns.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return catchesFire(entity);
     }
 
     @Override

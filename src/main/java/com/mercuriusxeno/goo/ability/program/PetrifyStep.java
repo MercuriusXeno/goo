@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import java.util.Set;
@@ -47,7 +48,8 @@ public record PetrifyStep(Expr fill) implements Step {
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
-        if (target instanceof Mob mob && mob.level() instanceof ServerLevel level) {
+        if (takesEntity(target) && target.level() instanceof ServerLevel level) {
+            Mob mob = (Mob) target;
             Petrification after = mob.getData(GooAttachments.PETRIFICATION)
                     .fill((float) fill.evaluate(context), level.getGameTime());
             mob.setData(GooAttachments.PETRIFICATION, after);
@@ -58,6 +60,19 @@ public record PetrifyStep(Expr fill) implements Step {
             }
         }
         return true;
+    }
+
+
+    /**
+     * Petrify takes a mob.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Mob;
     }
 
     @Override
