@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  * @param snowflakes whether snowflakes flit along the lines
  * @param tailwind   the tailwind the lines carry the player on, or empty to blow them from the glove
  */
-public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind) implements Step {
+public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind) implements TakesNoEntity {
 
     private static final String NAME = "wind";
     private static final String FIELD_SNOWFLAKES = "snowflakes";

@@ -27,7 +27,7 @@ import java.util.stream.Stream;
  *
  * @param ticks the ticks of stream a cell takes to coat
  */
-public record CoatStep(int ticks) implements Step {
+public record CoatStep(int ticks) implements TakesNoEntity {
 
     private static final String NAME = "coat";
     private static final String FIELD_TICKS = "ticks";
