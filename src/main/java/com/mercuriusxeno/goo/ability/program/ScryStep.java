@@ -66,6 +66,16 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
         return new HeldSweepPace(reach);
     }
 
+    /**
+     * Scry's fronts outline every mob they cross through walls, as the
+     * glisten its child steps lay on them (operator ruling 2026-11-06).
+     * decision scry-sphere-reveals-faces-and-glistens-mobs
+     */
+    @Override
+    public boolean paintsMobs() {
+        return true;
+    }
+
     @Override
     public boolean tick(StepContext context) {
         int held = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::held)
