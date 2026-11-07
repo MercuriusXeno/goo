@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.PortalStep;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.client.ability.ClientPortals;
@@ -7,8 +8,13 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.PortalChoosePayload;
 import com.mercuriusxeno.goo.network.PortalLinkPayload;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.entity.player.Player;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
@@ -20,7 +26,11 @@ import java.util.Optional;
  * otherwise a right click places a portal.
  * portals-link-by-looking-through-portal-vision
  */
+@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalAim {
+
+    /** The sneak held through a link, which stops counting until let go. */
+    private static final SneakLatch LATCH = new SneakLatch();
 
     private PortalAim() {
     }
@@ -87,10 +97,13 @@ public final class PortalAim {
      * @return true when the press chose, linked or cancelled, so nothing is thrown
      */
     public static boolean press(Player player) {
-        Press press = pressed(ClientPortals.choosing(), player.isShiftKeyDown(), faced(player));
+        Press press = pressed(ClientPortals.choosing(), sneaks(player), faced(player));
         CustomPacketPayload payload = switch (press) {
             case Choose choose -> new PortalChoosePayload(Optional.of(choose.portal()));
-            case Link link -> new PortalLinkPayload(link.target());
+            case Link link -> {
+                LATCH.linked();
+                yield new PortalLinkPayload(link.target());
+            }
             case Cancel cancel -> new PortalChoosePayload(Optional.empty());
             case Place place -> null;
         };
@@ -120,6 +133,28 @@ public final class PortalAim {
      * @return true while it does
      */
     public static boolean working(Player player) {
-        return player.isShiftKeyDown() && selected(GloveAim.selectedAbilityId(player));
+        return sneaks(player) && selected(GloveAim.selectedAbilityId(player));
+    }
+
+    /**
+     * Whether the player's sneak counts for working on portals: not while the
+     * sneak held through a link stays held.
+     *
+     * @param player the local player
+     * @return true where it counts
+     */
+    private static boolean sneaks(Player player) {
+        return LATCH.sneaking(player.isShiftKeyDown());
+    }
+
+    /**
+     * Frees the sneak once the player lets go of it.
+     *
+     * @param event the client's tick
+     */
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        Player player = Minecraft.getInstance().player;
+        LATCH.update(player != null && player.isShiftKeyDown());
     }
 }
