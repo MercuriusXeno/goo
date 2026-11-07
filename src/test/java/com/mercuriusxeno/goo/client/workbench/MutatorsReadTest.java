@@ -70,7 +70,7 @@ class MutatorsReadTest {
 
     private static List<String> builderTexts(String shown) {
         ExpressionBuilderPane pane = new ExpressionBuilderPane(mock(ManagerActions.class),
-                new ItemIcons(id -> Map.of()), List::of, () -> List.of(new BuilderGrammar.Prefab("waxed", true)));
+                new ItemIcons(id -> Map.of(), id -> List.of()), List::of, () -> List.of(new BuilderGrammar.Prefab("waxed", true)));
         pane.open(shown, typed -> { }, () -> { });
         // The builder letters its words under a pose, which DrawnFrame's graphics carry.
         DrawnFrame frame = new DrawnFrame();

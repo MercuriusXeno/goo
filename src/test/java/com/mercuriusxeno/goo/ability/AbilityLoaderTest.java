@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
-import com.mercuriusxeno.goo.ability.program.BouncePadStep;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
@@ -82,6 +82,8 @@ class AbilityLoaderTest {
     private static final int RARE_CHARMS = 50;
     private static final double ZOMBIE_MAX_HEALTH = 20;
     private static final double TOP_MAX_HEALTH = 1024;
+    /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
+    private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
     private static final String LINGERING = "crystal_cloud";
     /** The ability whose program ends the tick it lands. */
@@ -119,15 +121,46 @@ class AbilityLoaderTest {
         }
     }
 
-    // decision airborn-steerable-levitation-and-soft-falls
-    @Test
-    void typhoonAirbornNamesItsGlideSpeedAndSteer() {
-        AirbornStep airborn = AbilityJson.decode("typhoon_airborn").behaviors().stream()
-                .filter(AirbornStep.class::isInstance).map(AirbornStep.class::cast).findFirst().orElseThrow();
+    /**
+     * Typhoon's abilities after the flight merge: Shulk levitates the struck
+     * mob, and Float is typhoon's brew carrying the flight.
+     * decision mob-float-renamed-shulk
+     * decision tailwind-and-airborn-merge-into-float
+     */
+    @Nested
+    class TyphoonFlight {
 
-        assertEquals(Expr.literal(1.2), airborn.glideSpeed());
-        assertEquals(Expr.literal(0.05), airborn.glideSteer());
-        assertEquals(Expr.literal(1.5), airborn.jetBoost());
+        private static final Set<String> TYPHOON_ABILITIES =
+                Set.of("typhoon_shulk", "typhoon_float", "typhoon_gust", "typhoon_updraft", "typhoon_pneuma");
+
+        @Test
+        void typhoonCarriesShulkFloatGustUpdraftAndPneuma() {
+            Set<String> typhoon = scanShipped(AbilityJson.files()).values().stream()
+                    .filter(def -> def.gooType() == GooTypes.TYPHOON)
+                    .map(def -> def.id().getPath()).collect(Collectors.toSet());
+
+            assertEquals(TYPHOON_ABILITIES, typhoon);
+        }
+
+        @Test
+        void shulkLevitatesTheStruckMob() {
+            AbilityDefinition shulk = AbilityJson.decode("typhoon_shulk");
+
+            assertEquals("goo.ability.typhoon.shulk", shulk.displayName());
+            assertEquals(AbilityBadge.MOB, shulk.badge());
+            assertTrue(shulk.behaviors().stream().anyMatch(FloatStep.class::isInstance), "no float step");
+        }
+
+        @Test
+        void floatIsTyphoonsBrewCarryingTheFlight() {
+            AbilityDefinition flight = AbilityJson.decode("typhoon_float");
+
+            assertEquals("goo.ability.typhoon.float", flight.displayName());
+            assertTrue(SelfEatRoute.eats(flight.delivery(), flight.badge()), "typhoon_float is not a self + brew");
+            assertTrue(flight.behaviors().stream().anyMatch(AirbornStep.class::isInstance), "no airborn step");
+            assertTrue(LaidState.laidBy(flight.behaviors()).contains(LaidState.AIRBORN),
+                    "Float lays no flight to end with its held effect");
+        }
     }
 
     // decision splat-runs-the-program-no-fuse
@@ -149,30 +182,6 @@ class AbilityLoaderTest {
         assertTrue(scanned.values().stream().anyMatch(def -> def.gooType() == GooTypes.NETHER), "No nether ability scanned");
         assertTrue(scanned.values().stream().filter(def -> def.gooType() == GooTypes.NETHER)
                 .noneMatch(def -> def.id().getPath().contains("wither")), "a nether wither ability still loads");
-    }
-
-    // decision float-blob-levitates-the-mob
-    @Test
-    void typhoonFloatReplacesLevitateWithAFloatStep() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
-        AbilityDefinition floatAbility = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_float"));
-
-        assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_levitate")),
-                "typhoon_levitate still loads");
-        assertEquals("goo.ability.typhoon.float", floatAbility.displayName());
-        assertTrue(floatAbility.behaviors().stream().anyMatch(FloatStep.class::isInstance), "no float step");
-    }
-
-    // decision jet-pushes-along-the-look-while-held
-    @Test
-    void typhoonTailwindReplacesPropelAsAChannelOnTheSelf() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
-        AbilityDefinition tailwind = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_tailwind"));
-
-        assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_propel")),
-                "typhoon_propel still loads");
-        assertTrue(HeldRoute.channelsOnSelf(tailwind.delivery(), tailwind.badge()),
-                "typhoon_tailwind does not channel on the self");
     }
 
     // decision splat-runs-the-program-no-fuse
@@ -313,14 +322,17 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Every brew sounds as its effect starts, as every held effect sounds as
-     * it ends (decision held-effects-sound-up-and-down).
+     * Every brew but Rally sounds as its effect starts, as every held effect
+     * sounds as it ends.
+     * held-effects-sound-up-and-down
+     * rally-drops-its-sound-and-gets-its-sprite
      */
     @ParameterizedTest
     @MethodSource("shippedBrews")
-    void everyBrewSoundsAsItStarts(AbilityDefinition brew) {
-        assertTrue(brew.behaviors().stream().flatMap(AbilityLoaderTest::stepTree).anyMatch(SoundStep.class::isInstance),
-                brew.id().toString());
+    void everyBrewButRallySoundsAsItStarts(AbilityDefinition brew) {
+        boolean sounds = brew.behaviors().stream().flatMap(AbilityLoaderTest::stepTree)
+                .anyMatch(SoundStep.class::isInstance);
+        assertEquals(!brew.id().equals(SILENT_BREW), sounds, brew.id().toString());
     }
 
     /** Every shipped self + brew ability (decision tests-read-the-inventory-from-loaded-json). */
@@ -642,19 +654,13 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void coatStreamsAPadOnTheFloorItHits() {
+        void coatStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
             AbilityDefinition coat = AbilityJson.decode("weird_coat");
+            List<Step> blockPass = ChannelHost.passSteps(coat.behaviors(), true);
 
             assertEquals(DeliveryKind.STREAM, coat.delivery().kind());
-            assertEquals(List.of(BouncePadStep.class), coat.onBlocks().stream().map(Object::getClass).toList());
-            assertTrue(ProgramBehavior.serves(coat.onBlocks(), HostKind.SURFACE), "the sprayed floor runs the pad");
-        }
-
-        @Test
-        void coatCoolsTheLavaInItsConeInTheBlockPass() {
-            List<Step> blockPass = ChannelHost.passSteps(AbilityJson.decode("weird_coat").behaviors(), true);
-
-            assertEquals(List.of(CoolLavaStep.class), blockPass.stream().map(Object::getClass).toList());
+            // coat-is-a-green-slime-film-over-the-blocks-own-texture
+            assertEquals(List.of(CoolLavaStep.class, CoatStep.class), blockPass.stream().map(Object::getClass).toList());
             assertTrue(ProgramBehavior.serves(blockPass, HostKind.PLAYER), "the channeling player runs the block pass");
         }
 
@@ -672,11 +678,13 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void bounceStandsAsTheArcPad() {
+        void bounceLaysTheSlimeCoatWhereItsArcLands() {
             AbilityDefinition bounce = AbilityJson.decode("weird_bounce");
 
             assertEquals(DeliveryKind.ARC, bounce.delivery().kind());
-            assertEquals(List.of(BouncePadStep.class), bounce.behaviors().stream().map(Object::getClass).toList());
+            // bounce-ramps-jump-height-while-jump-is-held: Bounce's blob lays the coat Coat lays
+            assertEquals(List.of(new PlaceBlockStep(Identifier.fromNamespaceAndPath(Goo.MODID, "slime_coat"), Map.of())),
+                    bounce.behaviors());
         }
     }
 

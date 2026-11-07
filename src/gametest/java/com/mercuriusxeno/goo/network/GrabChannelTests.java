@@ -30,15 +30,19 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * Gametests for Kinetic's Grab, driven through the channel's stream tick
  * and the throw a left click sends: a held zombie loses its target and
  * hangs off the ground in front of the player, looking down draws it
- * closer, a throw sends it along the look, and an item entity is held and
- * thrown the same (decision grab-holds-and-throws-a-physics-body).
+ * closer, a throw sends it along the look (decision
+ * grab-holds-and-throws-a-physics-body), and an item entity flies to the
+ * player and into the inventory instead (decision
+ * grab-pulls-an-item-to-you-and-picks-it-up).
  */
 @RegistersGameTests
 public final class GrabChannelTests {
     private static final String GRAB_SUSPENDS_THE_ZOMBIE = "grab_suspends_the_zombie";
     private static final String GRAB_PITCH_DRAWS_CLOSER = "grab_pitch_draws_closer";
     private static final String GRAB_THROWS_ALONG_THE_LOOK = "grab_throws_along_the_look";
-    private static final String GRAB_THROWS_AN_ITEM = "grab_throws_an_item";
+    private static final String GRAB_PULLS_AN_ITEM_INTO_THE_INVENTORY = "grab_pulls_an_item_into_the_inventory";
+    private static final String GRAB_THROW_FLIES_WHILE_THE_CHANNEL_HOLDS = "grab_throw_flies_while_the_channel_holds";
+    private static final String GRAB_SECOND_CLICK_KEEPS_THE_THROW_FLYING = "grab_second_click_keeps_the_throw_flying";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -49,13 +53,21 @@ public final class GrabChannelTests {
         GooTestFunctions.registerTest(registrar, GRAB_SUSPENDS_THE_ZOMBIE, GrabChannelTests::grabSuspendsTheZombie);
         GooTestFunctions.registerTest(registrar, GRAB_PITCH_DRAWS_CLOSER, GrabChannelTests::grabPitchDrawsCloser);
         GooTestFunctions.registerTest(registrar, GRAB_THROWS_ALONG_THE_LOOK, GrabChannelTests::grabThrowsAlongTheLook);
-        GooTestFunctions.registerTest(registrar, GRAB_THROWS_AN_ITEM, GrabChannelTests::grabThrowsAnItem);
+        GooTestFunctions.registerTest(registrar, GRAB_PULLS_AN_ITEM_INTO_THE_INVENTORY,
+                GrabChannelTests::grabPullsAnItemIntoTheInventory);
+        GooTestFunctions.registerTest(registrar, GRAB_THROW_FLIES_WHILE_THE_CHANNEL_HOLDS,
+                GrabChannelTests::grabThrowFliesWhileTheChannelHolds);
+        GooTestFunctions.registerTest(registrar, GRAB_SECOND_CLICK_KEEPS_THE_THROW_FLYING,
+                GrabChannelTests::grabSecondClickKeepsTheThrowFlying);
     }
 
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     private static final BlockPos ZOMBIE_POS = new BlockPos(3, 1, 2);
-    private static final Vec3 ITEM_POS = new Vec3(3.5, 1.2, 2.5);
+    /** Several blocks east of the player, on the floor, so the pull takes ticks to arrive. */
+    private static final Vec3 ITEM_POS = new Vec3(5.5, 1.2, 2.5);
+    /** Channel ticks enough for a pull from ITEM_POS to arrive at the pull speed. */
+    private static final int PULL_TICKS = 12;
     /** Yaw looking east, along +x. */
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
@@ -143,11 +155,14 @@ public final class GrabChannelTests {
     }
 
     /**
-     * An item entity is held and thrown along the look the same as a mob.
+     * An item entity the channel strikes flies to the player each channel
+     * tick, held by no hold, and the player's own tick picks it up on arrival.
+     * The player ticks through doTick, the way the connection would.
+     * decision grab-pulls-an-item-to-you-and-picks-it-up
      *
      * @param helper the gametest helper
      */
-    public static void grabThrowsAnItem(GameTestHelper helper) {
+    public static void grabPullsAnItemIntoTheInventory(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
         Vec3 itemAt = helper.absoluteVec(ITEM_POS);
         ItemEntity item = new ItemEntity(helper.getLevel(), itemAt.x, itemAt.y, itemAt.z,
@@ -155,9 +170,86 @@ public final class GrabChannelTests {
         item.setDeltaMovement(Vec3.ZERO);
         helper.getLevel().addFreshEntity(item);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, item.position());
-        helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, holdTick(player)));
-        helper.runAfterDelay(2, () -> player.setXRot(LEVEL));
-        throwAfterHold(helper, player, item);
+        AtomicReference<Double> lastDistance = new AtomicReference<>(player.getEyePosition().distanceTo(item.position()));
+        for (int pulled = 1; pulled <= PULL_TICKS; pulled++) {
+            int tick = pulled;
+            helper.runAfterDelay(tick, () -> {
+                // The item moves on its own entity tick, after this one, so the last channel tick's pull reads here.
+                if (tick > 1 && item.isAlive()) {
+                    double distance = player.getEyePosition().distanceTo(item.position());
+                    helper.assertTrue(distance < lastDistance.get(), "A pulled item should close on the player each tick, was "
+                            + lastDistance.get() + ", is " + distance);
+                    lastDistance.set(distance);
+                }
+                GooStreamHandler.streamTick(player, holdTick(player));
+                player.doTick();
+                helper.assertTrue(GrabEvents.heldBy(player) == null, "A pulled item should stand unheld");
+                if (tick == 1) {
+                    helper.assertTrue(player.getInventory().countItem(Items.SLIME_BALL) == 0,
+                            "The item should still be flying after the first tick");
+                }
+            });
+        }
+        helper.runAfterDelay(PULL_TICKS + 1, () -> {
+            helper.assertTrue(player.getInventory().countItem(Items.SLIME_BALL) == 1,
+                    "The pulled item should land in the inventory, item " + (item.isAlive() ? "still stands "
+                            + player.getEyePosition().distanceTo(item.position()) + " from the eye" : "gone"));
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A left click thrown while right click still holds the channel sends the
+     * zombie along the look, and the channel ticks after the throw lift it no
+     * more, so the throw is not undone by a re-grab
+     * (decision diagnose-and-correct-grabs-left-click-throw).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabThrowFliesWhileTheChannelHolds(GameTestHelper helper) {
+        throwWhileTheChannelHolds(helper, false);
+    }
+
+    /**
+     * A second left click after the throw, still within the same right-click
+     * press, throws nothing and leaves the press spent, so the channel ticks
+     * after it lift the flying zombie no more
+     * (decision diagnose-and-correct-grabs-left-click-throw).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabSecondClickKeepsTheThrowFlying(GameTestHelper helper) {
+        throwWhileTheChannelHolds(helper, true);
+    }
+
+    /**
+     * Holds a zombie, throws it on the tick after the hold, optionally clicks
+     * again the tick after that, keeps the channel ticking throughout, and
+     * checks the zombie flew along the look and stands unheld.
+     */
+    private static void throwWhileTheChannelHolds(GameTestHelper helper, boolean clicksAgain) {
+        ServerPlayer player = grabber(helper);
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        AtomicReference<Vec3> heldAt = new AtomicReference<>();
+        holdFor(helper, player, HOLD_TICKS);
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            heldAt.set(zombie.position());
+            helper.assertTrue(GrabEvents.throwHeld(player), "The player should hold the zombie to throw it");
+        });
+        if (clicksAgain) {
+            helper.runAfterDelay(HOLD_TICKS + 2, () -> helper.assertTrue(!GrabEvents.throwHeld(player),
+                    "A second click after the throw should hold nothing to throw"));
+        }
+        for (int held = HOLD_TICKS + 1; held <= HOLD_TICKS + 1 + FLIGHT_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, holdTick(player)));
+        }
+        helper.runAfterDelay(HOLD_TICKS + 2 + FLIGHT_TICKS, () -> {
+            double along = zombie.position().subtract(heldAt.get()).dot(player.getLookAngle());
+            helper.assertTrue(along > THROWN, "A zombie thrown while the channel holds should fly along the look, flew "
+                    + along + (GrabEvents.heldBy(player) == zombie ? ", held again" : ", unheld"));
+            helper.assertTrue(GrabEvents.heldBy(player) == null, "The channel should not lift the thrown zombie again");
+            leave(helper, player);
+        });
     }
 
     /**
