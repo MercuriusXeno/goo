@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -100,8 +101,8 @@ public final class OculusTests {
             after = player.position();
         }
         double distance = start.distanceTo(after);
-        int whole = blink.distancePrice().priceOf(blink.cost(), Optional.of(new BlinkLanding(after, distance, true)));
-        int clearWhole = blink.distancePrice().priceOf(blink.cost(),
+        int whole = blink.distancePrice().priceOf(blink.cost().in(GooValueTable.EMPTY), Optional.of(new BlinkLanding(after, distance, true)));
+        int clearWhole = blink.distancePrice().priceOf(blink.cost().in(GooValueTable.EMPTY),
                 Optional.of(new BlinkLanding(after, distance, false)));
         int tenth = tenthOf(whole);
         int clearTenth = tenthOf(clearWhole);
@@ -174,7 +175,7 @@ public final class OculusTests {
         player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atCenterOf(prismAt));
         Vec3 start = player.position();
         AbilityDefinition blink = ability(helper, ENDER_BLINK);
-        int price = blink.distancePrice().priceOf(blink.cost(),
+        int price = blink.distancePrice().priceOf(blink.cost().in(GooValueTable.EMPTY),
                 Optional.of(BlinkLanding.converting(start, start.distanceTo(Vec3.atCenterOf(prismAt)), prismAt)));
         int heldBefore = held(player);
 

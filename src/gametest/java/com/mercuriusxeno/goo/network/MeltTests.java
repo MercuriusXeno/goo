@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -61,7 +62,7 @@ public final class MeltTests {
     public static void meltStoneToLava(GameTestHelper helper) {
         AbilityDefinition melt = melt(helper);
         int spent = throwAt(helper, Blocks.STONE, melt);
-        helper.assertTrue(spent == melt.cost(), String.format(SHOULD_CHARGE, melt.cost(), spent));
+        helper.assertTrue(spent == melt.cost().in(GooValueTable.EMPTY), String.format(SHOULD_CHARGE, melt.cost().in(GooValueTable.EMPTY), spent));
         helper.succeedWhen(() -> helper.assertTrue(helper.getBlockState(STRUCK).is(Blocks.LAVA)
                 && helper.getBlockState(STRUCK).getFluidState().isSource(),
                 String.format(SHOULD_MELT, helper.getBlockState(STRUCK))));

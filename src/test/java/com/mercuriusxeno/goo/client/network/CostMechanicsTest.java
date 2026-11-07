@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import net.minecraft.resources.Identifier;
@@ -61,7 +62,7 @@ class CostMechanicsTest {
 
     static Stream<AbilityDefinition> brews() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(definition -> definition.upkeep() > AbilityDefinition.NO_UPKEEP);
+                .filter(definition -> definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP);
     }
 
     @ParameterizedTest
@@ -69,7 +70,7 @@ class CostMechanicsTest {
     void brewTextNamesItsUpkeepASecond(AbilityDefinition definition) {
         String text = clientOf(definition).costMechanics(LOOKUP).orElseThrow();
 
-        assertTrue(text.contains(GooFormat.formatAmount(definition.upkeep() * 20L) + " a second"),
+        assertTrue(text.contains(GooFormat.formatAmount(definition.upkeep().in(GooValueTable.EMPTY) * 20L) + " a second"),
                 definition.id() + ": " + text);
     }
 
@@ -95,7 +96,7 @@ class CostMechanicsTest {
 
     static Stream<AbilityDefinition> abilitiesWithAPlainCost() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(definition -> definition.cost() > 0 && definition.distancePrice().equals(DistancePrice.NONE));
+                .filter(definition -> definition.cost().in(GooValueTable.EMPTY) > 0 && definition.distancePrice().equals(DistancePrice.NONE));
     }
 
     @ParameterizedTest

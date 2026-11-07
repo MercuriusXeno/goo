@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -210,7 +211,7 @@ public final class HexSelfTests {
         ItemEnchantments stored = EnchantmentHelper.getEnchantmentsForCrafting(books.getFirst());
         helper.assertTrue(stored.size() == 1 && stored.getLevel(sharpness) == SHARPNESS_TWO,
                 String.format(SHOULD_RAISE_SHARPNESS, stored));
-        helper.assertTrue(drained == fuse.cost(), String.format(SHOULD_DRAIN_COST, fuse.cost(), drained));
+        helper.assertTrue(drained == fuse.cost().in(GooValueTable.EMPTY), String.format(SHOULD_DRAIN_COST, fuse.cost().in(GooValueTable.EMPTY), drained));
         helper.succeed();
     }
 

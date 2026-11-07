@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
@@ -31,17 +31,17 @@ public final class GooTouchHandler {
         /**
          * Whether the toucher holds the cost.
          *
-         * @param cost the cost in mB
+         * @param cost the exact cost in mB
          * @return true when the toucher can pay it
          */
-        boolean canAfford(int cost);
+        boolean canAfford(GooFraction cost);
 
         /**
          * Drains the cost from the toucher's inventory.
          *
-         * @param cost the cost in mB
+         * @param cost the exact cost in mB, the toucher's remainder paying first
          */
-        void deplete(int cost);
+        void deplete(GooFraction cost);
 
         /**
          * Runs the ability on the touched entity; the toucher's client poses
@@ -122,7 +122,7 @@ public final class GooTouchHandler {
      * @param landing what the touch does to the world
      * @return true when the touch landed
      */
-    static boolean landIfAffordable(int cost, TouchLanding landing) {
+    static boolean landIfAffordable(GooFraction cost, TouchLanding landing) {
         if (!landing.canAfford(cost)) {
             return false;
         }
@@ -156,13 +156,13 @@ public final class GooTouchHandler {
                                       ResourceKey<GooTypeDefinition> gooType) implements TouchLanding {
 
         @Override
-        public boolean canAfford(int cost) {
-            return GooSourceScanner.hasEnough(player, gooType, cost);
+        public boolean canAfford(GooFraction cost) {
+            return AbilityCharges.affords(player, gooType, cost);
         }
 
         @Override
-        public void deplete(int cost) {
-            GooSourceScanner.deplete(player, gooType, cost);
+        public void deplete(GooFraction cost) {
+            AbilityCharges.charge(player, gooType, cost);
             GooThrowHandler.consumeReagents(player, payload.abilityId(), gooType);
         }
 

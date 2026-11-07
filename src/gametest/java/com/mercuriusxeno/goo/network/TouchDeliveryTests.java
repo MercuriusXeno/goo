@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -93,8 +94,8 @@ public final class TouchDeliveryTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(Math.abs(lost - JAVELIN_DAMAGE) < DAMAGE_TOLERANCE,
                     String.format(SHOULD_TAKE_DAMAGE, JAVELIN_DAMAGE, lost));
-            helper.assertTrue(drained == javelin.cost(),
-                    String.format(SHOULD_DRAIN_COST, javelin.cost(), drained));
+            helper.assertTrue(drained == javelin.cost().in(GooValueTable.EMPTY),
+                    String.format(SHOULD_DRAIN_COST, javelin.cost().in(GooValueTable.EMPTY), drained));
             helper.assertTrue(scheduled == 0, SHOULD_SCHEDULE_NOTHING);
             helper.succeed();
         });

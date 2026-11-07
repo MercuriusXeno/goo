@@ -188,6 +188,19 @@ final class ExpressionBuilderPane {
         openUnder(BuilderGrammar.forPrefab(prefabs.get(), prefab), shown, change, finish);
     }
 
+    /**
+     * Opens the builder over an ability's cost, a by-type value of the ability's own goo type alone, reading numbers,
+     * items and every prefab (decision ability-cost-builds-as-a-one-type-by-type-value).
+     *
+     * @param type   the ability's goo type id
+     * @param shown  the cost as a by-type value, one row of the type
+     * @param change takes the string each change writes
+     * @param finish runs when done closes the builder
+     */
+    void openOneType(String type, String shown, Consumer<String> change, Runnable finish) {
+        openUnder(BuilderGrammar.forOneType(prefabs.get(), type), shown, change, finish);
+    }
+
     private void openUnder(BuilderGrammar read, String shown, Consumer<String> change, Runnable finish) {
         overlays.close();
         grammar = read;
@@ -690,7 +703,7 @@ final class ExpressionBuilderPane {
     // Decision add-type-is-a-big-square-plus-question-button-below-the-list.
     // Decision parenthetical-handle-drags-onto-a-term: the () handle stands beside it.
     private void drawAddType(ControlFlow flow, ExpressionBuilder edited) {
-        Set<String> held = BuilderGrammar.heldTypes(edited);
+        Set<String> held = grammar.hiddenTypes(edited);
         flow.indent();
         rowSlots.add(new RowSlot(edited.rows().size(), flow.anchor()));
         if (held.size() < GooTypes.order().size()) {
@@ -732,7 +745,7 @@ final class ExpressionBuilderPane {
     // Decision type-row-rail-sits-on-the-goo-type-button-with-no-box: the rail moves the row's terms with it.
     private void drawRows(ControlFlow flow, ExpressionBuilder edited) {
         List<ExpressionBuilder.Row> rows = edited.rows();
-        Set<String> held = BuilderGrammar.heldTypes(edited);
+        Set<String> held = grammar.hiddenTypes(edited);
         for (int index = 0; index < rows.size(); index++) {
             ExpressionBuilder.Row row = rows.get(index);
             int at = index;
@@ -1448,7 +1461,8 @@ final class ExpressionBuilderPane {
             return;
         }
         flow.typeSegment(member, at -> overlays.openPicker(at, type -> apply(b -> b.setMember(path, type)),
-                place.inRow() ? null : () -> apply(b -> b.setMember(path, null)), Set.of(), typesLackedBy(ref)));
+                place.inRow() ? null : () -> apply(b -> b.setMember(path, null)), grammar.memberHidden(),
+                typesLackedBy(ref)));
     }
 
     // Decision builder-disables-the-type-buttons-the-referent-lacks: every goo type the referent's resolved value

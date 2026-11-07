@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -98,9 +99,22 @@ public final class StreamHolds {
      * @return the mB this tick drains
      */
     public static int shareAt(int cost, int ticksPerCharge, int held) {
-        long total = (long) cost * held / ticksPerCharge;
-        long before = (long) cost * (held - 1) / ticksPerCharge;
-        return (int) (total - before);
+        return shareAt(GooFraction.of(cost), ticksPerCharge, held);
+    }
+
+    /**
+     * The whole mB one tick of a hold drains of an exact cost, so every run of ticks drains the cost's whole part of
+     * the ticks held so far: 12 1/2 over twenty ticks drains 12 across the first charge and 13 across the second.
+     * decision goo-is-an-int-and-only-the-remainder-is-a-fraction
+     *
+     * @param cost           the ability's exact cost, in mB
+     * @param ticksPerCharge the ticks of hold one cost pays for
+     * @param held           the hold's tick count, 1 on its first tick
+     * @return the mB this tick drains
+     */
+    public static int shareAt(GooFraction cost, int ticksPerCharge, int held) {
+        GooFraction perTick = cost.dividedBy(ticksPerCharge);
+        return perTick.times(held).floor() - perTick.times(held - 1L).floor();
     }
 
     private record Hold(int tick, int held, HoldMarks marks) {
