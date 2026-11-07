@@ -69,16 +69,27 @@ public final class PortalView {
     private static final float MINUS_ONE_TO_ONE_DEPTH = 2F;
     private static final Vector3fc UP = new Vector3f(0, 1, 0);
 
-    /** The most views one frame draws: a portal pair's two and a hole's two. */
-    private static final int MOST_VIEWS = 4;
+    /** The most views one frame draws, the views within views among them. */
+    private static final int MOST_VIEWS = 12;
+    /** How many views deep a view within a view draws: the tunnel a facing pair makes shows this many turns. */
+    private static final int DEEPEST_VIEW = 4;
+    /** The main frame's pass. */
+    private static final int MAIN_PASS = 0;
     private static final String VIEW_PATH = "portal_view/";
 
     private static final List<RenderTarget> TARGETS = new ArrayList<>();
     private static final List<PortalViewTexture> TEXTURES = new ArrayList<>();
-    private static final Map<Gate, Identifier> FRESH = new HashMap<>();
-    private static final PortalCamera CAMERA = new PortalCamera();
+    private static final Map<ViewKey, Identifier> VIEWS = new HashMap<>();
+    /** A camera for each depth of view, so a view's camera stands while the views within it draw. */
+    private static final List<PortalCamera> CAMERAS = new ArrayList<>();
     private static ProjectionMatrixBuffer projection;
     private static boolean drawing;
+    /** The views drawn so far this frame. */
+    private static int passes;
+    /** The pass drawing now, zero for the main frame. */
+    private static int currentPass = MAIN_PASS;
+    /** The camera of the pass drawing now. */
+    private static Camera currentCamera;
     /** Where the view being drawn draws its partner's side from. */
     private static PartnerView.Source source = PartnerView.Source.NONE;
 
@@ -102,52 +113,80 @@ public final class PortalView {
      * @return the view texture's id, empty where the gate drew no view
      */
     public static Optional<Identifier> viewOf(Gate gate) {
-        return Optional.ofNullable(FRESH.get(gate));
+        return Optional.ofNullable(VIEWS.get(new ViewKey(currentPass, gate)));
+    }
+
+    /**
+     * A view drawn for a gate seen from a pass: the main frame's, or a view's
+     * own, so a gate seen through a view draws the view from that view's camera.
+     *
+     * @param pass the pass the gate is seen from, zero for the main frame
+     * @param gate the gate
+     */
+    private record ViewKey(int pass, Gate gate) {
+    }
+
+    /**
+     * Where a pass looks from.
+     *
+     * @param position the eye
+     * @param forward  its unit forward
+     * @param up       its unit up
+     */
+    private record Eye(Vec3 position, Vec3 forward, Vec3 up) {
     }
 
     /**
      * Draws the view through each gate the main camera faces, a linked
-     * portal's or an open hole's mouth, before the frame's own extraction.
+     * portal's or an open hole's mouth, before the frame's own extraction,
+     * and within each view the views through the gates that view sees, so a
+     * pair facing each other draws the tunnel between them.
      *
      * @param delta   the frame's delta tracker
      * @param advance whether the frame draws the level
      */
     public static void drawBeforeExtract(DeltaTracker delta, boolean advance) {
-        FRESH.clear();
+        VIEWS.clear();
+        passes = 0;
         Minecraft mc = Minecraft.getInstance();
         if (!advance || !inWorld(mc) || !mc.gameRenderer.getMainCamera().isInitialized()) {
             return;
         }
         Camera main = mc.gameRenderer.getMainCamera();
-        for (Gate[] pair : pairs()) {
-            drawPair(mc, main, delta, pair);
-        }
-    }
-
-    private static void drawPair(Minecraft mc, Camera main, DeltaTracker delta, Gate[] pair) {
-        for (int end = 0; end < pair.length && FRESH.size() < MOST_VIEWS; end++) {
-            drawEnd(mc, main, delta, pair[end], pair[pair.length - 1 - end]);
+        Eye eye = new Eye(main.position(), vec(main.forwardVector()), vec(main.upVector()));
+        for (Gate[] way : ways()) {
+            drawThrough(mc, delta, new Seen(MAIN_PASS, eye, main), way[0], way[1], 1);
         }
     }
 
     /**
-     * Every pair of gates a view can be drawn through: the local player's
-     * linked portals and each open hole's two mouths.
+     * A pass a gate is seen from: its id, its eye and its camera.
      *
-     * @return the pairs, each its two gates
+     * @param pass   the pass, zero for the main frame
+     * @param eye    where it looks from
+     * @param camera its camera, whose frustum says what it sees
      */
-    private static List<Gate[]> pairs() {
-        List<Gate[]> pairs = new ArrayList<>();
-        ClientPortals.links().forEach(link -> pairs.add(new Gate[] {link.entry().gate(), link.exit().gate()}));
-        ClientHoles.holes().forEach(hole -> pairs.add(new Gate[] {hole.entry(), hole.exit()}));
-        return pairs;
+    private record Seen(int pass, Eye eye, Camera camera) {
     }
 
-    private static void drawEnd(Minecraft mc, Camera main, DeltaTracker delta, Gate near, Gate far) {
-        int slot = FRESH.size();
-        if (shows(mc, main, near) && holds(mc, main, far) && drawThrough(mc, main, delta, slot, near, far)) {
-            FRESH.put(near, Identifier.fromNamespaceAndPath(Goo.MODID, VIEW_PATH + slot));
-        }
+    /**
+     * Every way through a pair a view can be drawn, each gate looked into
+     * then its partner: the linked portals' and each open hole's two mouths,
+     * each pair both ways.
+     *
+     * @return the ways
+     */
+    private static List<Gate[]> ways() {
+        List<Gate[]> ways = new ArrayList<>();
+        ClientPortals.links().forEach(link -> {
+            ways.add(new Gate[] {link.entry().gate(), link.exit().gate()});
+            ways.add(new Gate[] {link.exit().gate(), link.entry().gate()});
+        });
+        ClientHoles.holes().forEach(hole -> {
+            ways.add(new Gate[] {hole.entry(), hole.exit()});
+            ways.add(new Gate[] {hole.exit(), hole.entry()});
+        });
+        return ways;
     }
 
     private static boolean inWorld(Minecraft mc) {
@@ -155,40 +194,38 @@ public final class PortalView {
     }
 
     /**
-     * Whether the main camera faces a portal, near enough and in its frustum, in its own level.
+     * Whether a pass faces a portal, near enough and in its frustum, in its own level.
      *
      * @param mc   the client
-     * @param main the main camera
+     * @param seen the pass looking
      * @param near the portal looked into
      * @return true where the portal's view is worth drawing
      */
-    private static boolean shows(Minecraft mc, Camera main, Gate near) {
-        Vec3 toEye = main.position().subtract(near.center());
+    private static boolean shows(Minecraft mc, Seen seen, Gate near) {
+        Vec3 toEye = seen.eye().position().subtract(near.center());
         return near.dimension().equals(mc.level.dimension())
                 && toEye.dot(near.face().getUnitVec3()) > 0
                 && toEye.length() < mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK
-                && main.getCullFrustum().isVisible(near.blocks().inflate(TOUCH));
+                && seen.camera().getCullFrustum().isVisible(near.blocks().inflate(TOUCH));
     }
 
     /**
-     * Whether the client holds the partner's surroundings to draw, and from
-     * where: the ClientLevel where its chunk stands within the view area
-     * around the main camera, else the streamed view where the server
-     * streamed it; the view through draws from whichever holds it.
+     * Where the client draws a partner's surroundings from: the ClientLevel
+     * where its chunk stands within the view area around the main camera,
+     * else the streamed view where the server streamed it, else nowhere.
      * linked-partner-chunks-stream-to-any-viewer
      *
-     * @param mc   the client
-     * @param main the main camera
-     * @param far  the partner portal
-     * @return true where the partner's side can be drawn
+     * @param mc  the client
+     * @param far the partner portal
+     * @return the source, NONE where the partner's side cannot be drawn
      */
-    private static boolean holds(Minecraft mc, Camera main, Gate far) {
+    private static PartnerView.Source sourceOf(Minecraft mc, Gate far) {
         ChunkPos chunk = ChunkPos.containing(BlockPos.containing(far.center()));
         boolean clientLevelHolds = mc.level.hasChunk(chunk.x(), chunk.z())
-                && far.center().distanceTo(main.position())
+                && far.center().distanceTo(mc.gameRenderer.getMainCamera().position())
                 < (mc.options.getEffectiveRenderDistance() - 1) * BLOCKS_PER_CHUNK;
-        source = PartnerView.sourceFor(clientLevelHolds, PartnerView.CLIENT.holds(chunk));
-        return far.dimension().equals(mc.level.dimension()) && source != PartnerView.Source.NONE;
+        return far.dimension().equals(mc.level.dimension())
+                ? PartnerView.sourceFor(clientLevelHolds, PartnerView.CLIENT.holds(chunk)) : PartnerView.Source.NONE;
     }
 
     /**
@@ -199,31 +236,59 @@ public final class PortalView {
     }
 
     /**
-     * Draws the partner's side into a portal's target from the camera
-     * mirrored through the pair.
+     * Draws the partner's side into a gate's target from the seeing pass's
+     * camera mirrored through the pair, having first drawn, from that mirrored
+     * camera, the views through every gate it sees but the one it looks out of,
+     * so the view shows them as the main frame shows it.
      *
      * @param mc    the client
-     * @param main  the main camera
      * @param delta the frame's delta tracker
-     * @param slot  the portal's view slot
-     * @param near  the portal looked into
+     * @param seen  the pass the gate is seen from
+     * @param near  the gate looked into
      * @param far   its partner
-     * @return true when the view drew
+     * @param depth how many views deep this one stands
      */
-    private static boolean drawThrough(Minecraft mc, Camera main, DeltaTracker delta, int slot, Gate near,
-            Gate far) {
-        PortalTransform through = PortalTransform.between(near, far);
-        Vec3 eye = through.point(main.position());
-        if (eye.subtract(far.center()).dot(far.face().getUnitVec3()) > -NEAREST_PLANE) {
-            return false;
+    private static void drawThrough(Minecraft mc, DeltaTracker delta, Seen seen, Gate near, Gate far, int depth) {
+        PartnerView.Source from = sourceOf(mc, far);
+        if (passes >= MOST_VIEWS || from == PartnerView.Source.NONE || !shows(mc, seen, near)) {
+            return;
         }
-        CAMERA.place(mc.level, mc.player, delta, main.getFov(), eye,
-                turnOf(through.direction(vec(main.forwardVector())), through.direction(vec(main.upVector()))));
-        CameraRenderState camera = extractThrough(mc, delta);
-        bobAsTheFrameDoes(mc, camera);
-        clipAt(camera.projectionMatrix, camera.viewRotationMatrix, eye, far);
-        renderInto(mc, delta, targetFor(mc, slot), camera);
-        return true;
+        PortalTransform through = PortalTransform.between(near, far);
+        Eye eye = new Eye(through.point(seen.eye().position()), through.direction(seen.eye().forward()),
+                through.direction(seen.eye().up()));
+        if (eye.position().subtract(far.center()).dot(far.face().getUnitVec3()) > -NEAREST_PLANE) {
+            return;
+        }
+        int pass = ++passes;
+        PortalCamera camera = cameraAt(depth);
+        camera.place(mc.level, mc.player, delta, mc.gameRenderer.getMainCamera().getFov(), eye.position(),
+                turnOf(eye.forward(), eye.up()));
+        if (depth < DEEPEST_VIEW) {
+            for (Gate[] way : ways()) {
+                if (!way[0].equals(far)) {
+                    drawThrough(mc, delta, new Seen(pass, eye, camera), way[0], way[1], depth + 1);
+                }
+            }
+        }
+        currentPass = pass;
+        currentCamera = camera;
+        source = from;
+        try {
+            CameraRenderState state = extractThrough(mc, delta, camera);
+            bobAsTheFrameDoes(mc, state);
+            clipAt(state.projectionMatrix, state.viewRotationMatrix, eye.position(), far);
+            renderInto(mc, delta, targetFor(mc, pass - 1), state);
+        } finally {
+            currentPass = MAIN_PASS;
+        }
+        VIEWS.put(new ViewKey(seen.pass(), near), Identifier.fromNamespaceAndPath(Goo.MODID, VIEW_PATH + (pass - 1)));
+    }
+
+    private static PortalCamera cameraAt(int depth) {
+        while (CAMERAS.size() < depth) {
+            CAMERAS.add(new PortalCamera());
+        }
+        return CAMERAS.get(depth - 1);
     }
 
     /**
@@ -250,27 +315,28 @@ public final class PortalView {
      * @return the portal camera's position
      */
     public static Vec3 cameraPosition() {
-        return CAMERA.position();
+        return currentCamera.position();
     }
 
     /**
      * Extracts the level for the portal camera over the sections it sees,
      * putting the frame's own visible sections back after.
      *
-     * @param mc    the client
-     * @param delta the frame's delta tracker
+     * @param mc     the client
+     * @param delta  the frame's delta tracker
+     * @param portal the view's camera
      * @return the camera state the view renders with
      */
-    private static CameraRenderState extractThrough(Minecraft mc, DeltaTracker delta) {
+    private static CameraRenderState extractThrough(Minecraft mc, DeltaTracker delta, PortalCamera portal) {
         LevelRenderer levels = mc.levelRenderer;
         CameraRenderState camera = mc.gameRenderer.gameRenderState.levelRenderState.cameraRenderState;
         List<SectionRenderDispatcher.RenderSection> mainSections = new ArrayList<>(levels.visibleSections);
         try {
-            seenSections(levels.visibleSections, levels, CAMERA);
-            levels.extractLevel(delta, CAMERA, delta.getGameTimeDeltaPartialTick(false));
-            CAMERA.extractRenderState(camera, CAMERA.getCameraEntityPartialTicks(delta));
-            camera.fogType = CAMERA.getFluidInCamera();
-            camera.fogData = mc.gameRenderer.fogRenderer.setupFog(CAMERA, mc.options.getEffectiveRenderDistance(),
+            seenSections(levels.visibleSections, levels, portal);
+            levels.extractLevel(delta, portal, delta.getGameTimeDeltaPartialTick(false));
+            portal.extractRenderState(camera, portal.getCameraEntityPartialTicks(delta));
+            camera.fogType = portal.getFluidInCamera();
+            camera.fogData = mc.gameRenderer.fogRenderer.setupFog(portal, mc.options.getEffectiveRenderDistance(),
                     delta, 0F, mc.level);
         } finally {
             levels.visibleSections.clear();

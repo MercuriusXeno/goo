@@ -119,6 +119,7 @@ public final class PortalFaces {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         List<Drawn> gates = gatesIn(mc.level.dimension());
         if (PortalView.drawing()) {
+            drawViews(pose, buffers, camera, gates);
             drawIdle(pose, buffers, camera, gates);
             return;
         }
