@@ -11,7 +11,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 
 /**
- * {@code /goodebug flames}: pins a looping Flames jet at the glove, down the
+ * {@code /goodebug flames}: pins a looping Flames spout at the glove, down the
  * look, so the operator can walk around it and judge it from any side, the
  * side view among them; {@code /goodebug flames off} takes it away. The
  * operator's ask: a debug function to show the animation from the side.
@@ -22,9 +22,9 @@ public final class FireDebugCommand {
     private static final String ROOT = "goodebug";
     private static final String FLAMES = "flames";
     private static final String OFF = "off";
-    private static final String PINNED = "Pinned a Flames jet at the glove; /goodebug flames off removes it.";
-    private static final String NO_PLAYER = "No player to pin a Flames jet at.";
-    private static final String REMOVED = "Removed the pinned Flames jet.";
+    private static final String PINNED = "Pinned a Flames spout at the glove; /goodebug flames off removes it.";
+    private static final String NO_PLAYER = "No player to pin a Flames spout at.";
+    private static final String REMOVED = "Removed the pinned Flames spout.";
 
     private FireDebugCommand() {
     }
