@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.world.entity.Entity;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -33,5 +34,10 @@ public record LeafStep<P>(LeafStepType<P> leaf, P params) implements Step {
     @Override
     public Set<HostCapability> requires() {
         return leaf.requires();
+    }
+
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return leaf.takes(entity);
     }
 }

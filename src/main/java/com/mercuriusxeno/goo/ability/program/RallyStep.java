@@ -54,7 +54,8 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
         Entity caster = host.thrower();
-        if (caster != null && host.target() instanceof Mob mob) {
+        if (caster != null && takesEntity(host.target())) {
+            Mob mob = (Mob) host.target();
             boolean alreadyRallied = ralliedBy(mob, caster);
             long expiresAt = mob.level().getGameTime() + duration.evaluateInt(context);
             mob.setData(GooAttachments.RALLIED, new Rallied(caster.getUUID(), expiresAt, damage.evaluateFloat(context)));
@@ -64,6 +65,19 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
             }
         }
         return true;
+    }
+
+
+    /**
+     * Rally takes a mob.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Mob;
     }
 
     private static boolean ralliedBy(Mob mob, Entity caster) {

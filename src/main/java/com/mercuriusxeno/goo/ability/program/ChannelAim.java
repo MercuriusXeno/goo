@@ -21,9 +21,14 @@ import java.util.List;
  * @param held        the hold's tick count, 1 on its first tick; zero where the hold is uncounted
  * @param reaching    whether the swarm reaches new blocks this tick; false while a mob-first stream bites a mob,
  *                    when blocks already reached keep working but none is reached anew
+ * @param targetEntityId the id of the entity the glove outlines, or NO_ENTITY; a grab takes it
+ *                    (decision outlined-target-is-the-one-pick)
  */
 public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held,
-                         boolean reaching) {
+                         boolean reaching, int targetEntityId) {
+
+    /** The target a channel outlining no entity carries. */
+    public static final int NO_ENTITY = -1;
 
     /**
      * The aim of a counted hold through a cone, reaching the blocks in it.
@@ -34,7 +39,20 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param held        the hold's tick count, 1 on its first tick
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held) {
-        this(aimPoint, plane, coneDegrees, held, true);
+        this(aimPoint, plane, coneDegrees, held, true, NO_ENTITY);
+    }
+
+    /**
+     * The aim of a counted hold through a cone, its reach this tick named.
+     *
+     * @param aimPoint    the stream's reach along the look
+     * @param plane       the face the hold began on, or null
+     * @param coneDegrees the cone, apex to rim, in degrees
+     * @param held        the hold's tick count, 1 on its first tick
+     * @param reaching    whether the swarm reaches new blocks this tick
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held, boolean reaching) {
+        this(aimPoint, plane, coneDegrees, held, reaching, NO_ENTITY);
     }
 
     /** The age a hold reads on its first counted tick. */
@@ -95,7 +113,7 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param plane    the face the hold began on, or null where it began on none
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane) {
-        this(aimPoint, plane, 0, 0, true);
+        this(aimPoint, plane, 0, 0, true, NO_ENTITY);
     }
 
     /**
@@ -106,7 +124,7 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param coneDegrees the cone, apex to rim, in degrees
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
-        this(aimPoint, plane, coneDegrees, 0, true);
+        this(aimPoint, plane, coneDegrees, 0, true, NO_ENTITY);
     }
 
     /**

@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  * age 0.
  * mycosis-grows-and-reaps-nether-wart
  */
-public record TendFungiStep() implements Step {
+public record TendFungiStep() implements TakesNoEntity {
 
     private static final String NAME = "tend_fungi";
     /**
