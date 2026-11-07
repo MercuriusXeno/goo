@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.client.particle;
+package com.mercuriusxeno.goo.client.ability;
 
 /**
  * The window of a block's particle sprite a chunk of the block wears: its own
