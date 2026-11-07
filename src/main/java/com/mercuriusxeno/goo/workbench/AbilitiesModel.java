@@ -154,9 +154,8 @@ public final class AbilitiesModel {
 
     private static void walk(Identifier id, JsonObject file, JsonElement at, List<String> path, List<Leaf> leaves) {
         if (at.isJsonObject()) {
-            for (Map.Entry<String, JsonElement> field : at.getAsJsonObject().entrySet()) {
-                walk(id, file, field.getValue(), appended(path, field.getKey()), leaves);
-            }
+            at.getAsJsonObject().entrySet().stream().filter(field -> takesABox(path, field.getKey()))
+                    .forEach(field -> walk(id, file, field.getValue(), appended(path, field.getKey()), leaves));
         } else if (at.isJsonArray()) {
             JsonArray array = at.getAsJsonArray();
             for (int index = 0; index < array.size(); index++) {
@@ -165,6 +164,11 @@ public final class AbilitiesModel {
         } else if (at.isJsonPrimitive()) {
             leafOf(id, file, path, at.getAsJsonPrimitive()).ifPresent(leaves::add);
         }
+    }
+
+    // abilities-reorder-by-a-drag-rail-and-the-order-field-hides: the root order reorders by the rail and takes no box.
+    private static boolean takesABox(List<String> path, String key) {
+        return !path.isEmpty() || !ORDER.equals(key);
     }
 
     private static List<String> appended(List<String> path, String segment) {

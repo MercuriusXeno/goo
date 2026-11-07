@@ -54,6 +54,57 @@ class AbilitiesTabTest {
                 tab().sections(key -> key, "mob").stream().map(AbilitiesTab.Section::type).toList());
     }
 
+    /**
+     * A rail drop reorders an ability inside its badge tier and rewrites the tier's orders as 10, 20, 30, each an
+     * edit the next Save posts; a drop across tiers changes nothing
+     * (decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides).
+     */
+    @org.junit.jupiter.api.Nested
+    class Reorder {
+        private static final String TIERS = """
+                {"typeOrder": ["rock"], "abilities": [
+                  %s, %s, %s, %s, %s]}
+                """.formatted(ability("c1", "channeled", 10), ability("c2", "channeled", 20),
+                ability("c3", "channeled", 30), ability("m1", "mob", 10), ability("m2", "mob", 20));
+
+        private static String ability(String name, String badge, int order) {
+            return "{\"id\": \"goo:" + name + "\", \"gooType\": \"rock\", \"displayName\": \"" + name + "\","
+                    + " \"draft\": false, \"badge\": \"" + badge + "\", \"order\": " + order + ", \"leaves\": []}";
+        }
+
+        private AbilitiesTab tiers() {
+            AbilitiesTab tab = new AbilitiesTab();
+            tab.readModel(TIERS);
+            return tab;
+        }
+
+        private static List<String> ids(AbilitiesTab tab) {
+            return tab.sections(key -> key, "").getFirst().abilities().stream().map(AbilitiesTab.Ability::id)
+                    .toList();
+        }
+
+        @Test
+        void movingTheThirdOfATierFirstRewritesItsOrdersAndLeavesTheOtherTier() {
+            AbilitiesTab tab = tiers();
+            tab.move("rock", 2, 0);
+            assertEquals(List.of("goo:c3", "goo:c1", "goo:c2", "goo:m1", "goo:m2"), ids(tab));
+            com.google.gson.JsonObject posted = com.google.gson.JsonParser.parseString(tab.postedText())
+                    .getAsJsonObject().getAsJsonObject("abilities");
+            assertEquals(10, posted.getAsJsonObject("goo:c3").get("order").getAsInt());
+            assertEquals(20, posted.getAsJsonObject("goo:c1").get("order").getAsInt());
+            assertEquals(30, posted.getAsJsonObject("goo:c2").get("order").getAsInt());
+            assertFalse(posted.has("goo:m1") || posted.has("goo:m2"), posted.toString());
+        }
+
+        @Test
+        void aDropAcrossTiersChangesNothing() {
+            AbilitiesTab tab = tiers();
+            tab.move("rock", 0, 3);
+            assertEquals(List.of("goo:c1", "goo:c2", "goo:c3", "goo:m1", "goo:m2"), ids(tab));
+            assertFalse(tab.edited(), tab.postedText());
+        }
+    }
+
     @Test
     void everySectionStartsOpenAndToggles() {
         AbilitiesTab tab = tab();

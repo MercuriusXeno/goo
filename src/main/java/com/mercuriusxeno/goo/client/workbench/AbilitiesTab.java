@@ -43,6 +43,8 @@ public final class AbilitiesTab {
     private static final String MECHANISM = "mechanism";
     private static final String FIELD = "field";
     private static final String PATH_SEPARATOR = "/";
+    // Decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides: a tier's orders read 10, 20, 30.
+    private static final int ORDER_STEP = 10;
     private static final String DESCRIPTION = "description";
     private static final String NOT_A_NUMBER = "This box takes a number alone.";
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(\\.\\d+)?");
@@ -162,11 +164,79 @@ public final class AbilitiesTab {
         for (Ability ability : matching(translate, typed)) {
             byType.computeIfAbsent(ability.gooType(), type -> new ArrayList<>()).add(ability);
         }
-        Comparator<Ability> fan = AbilityBadge.fanOrder(Ability::badge, Ability::order);
+        Comparator<Ability> fan = AbilityBadge.fanOrder(Ability::badge, this::orderOf);
         return byType.entrySet().stream()
                 .sorted(Comparator.comparingInt(entry -> typeRank(entry.getKey())))
                 .map(entry -> new Section(entry.getKey(), entry.getValue().stream().sorted(fan).toList()))
                 .toList();
+    }
+
+    /**
+     * @param ability an ability
+     * @return its order field as a rail drop rewrote it, or as the model read it
+     */
+    public int orderOf(Ability ability) {
+        String edited = edits.getOrDefault(ability.id(), Map.of()).get(ORDER);
+        return edited == null ? ability.order() : Integer.parseInt(edited);
+    }
+
+    /**
+     * Moves an ability from one place to another in its type's section, as a rail dropped on a slot does; see
+     * {@link #moveTo}.
+     *
+     * @param type the section's goo type
+     * @param from the ability's index in the section
+     * @param to   the index of the ability whose slot it drops on
+     */
+    public void move(String type, int from, int to) {
+        sections(key -> key, NO_TEXT).stream().filter(section -> section.type().equals(type)).findFirst()
+                .ifPresent(section -> moveTo(section.abilities().get(from).id(), section.abilities().get(to).id()));
+    }
+
+    /**
+     * Moves an ability onto another's slot inside its badge tier and rewrites every order in that tier as 10, 20,
+     * 30 in the new sequence, each an edit the next Save posts; a drop on another type, another tier or its own slot
+     * changes nothing (decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides).
+     *
+     * @param movedId  the dragged ability's id
+     * @param targetId the id of the ability whose slot it drops on
+     */
+    public void moveTo(String movedId, String targetId) {
+        Optional<Ability> moved = byId(movedId);
+        Optional<Ability> target = byId(targetId);
+        if (moved.isEmpty() || target.isEmpty() || !sameTier(moved.get(), target.get())) {
+            return;
+        }
+        List<Ability> tier = new ArrayList<>(abilities.stream().filter(each -> sameTier(each, moved.get()))
+                .sorted(Comparator.comparingInt(this::orderOf)).toList());
+        int slot = tier.indexOf(target.get());
+        tier.remove(moved.get());
+        tier.add(slot, moved.get());
+        for (int index = 0; index < tier.size(); index++) {
+            editOrder(tier.get(index), (index + 1) * ORDER_STEP);
+        }
+    }
+
+    // Two abilities share a badge tier where they share a goo type and a badge.
+    private static boolean sameTier(Ability one, Ability other) {
+        return one.gooType().equals(other.gooType()) && one.badge() == other.badge();
+    }
+
+    private Optional<Ability> byId(String id) {
+        return abilities.stream().filter(ability -> ability.id().equals(id)).findFirst();
+    }
+
+    // An order back at the one the model read leaves no edit.
+    private void editOrder(Ability ability, int order) {
+        Map<String, String> changes = edits.computeIfAbsent(ability.id(), id -> new LinkedHashMap<>());
+        if (order == ability.order()) {
+            changes.remove(ORDER);
+        } else {
+            changes.put(ORDER, Integer.toString(order));
+        }
+        if (changes.isEmpty()) {
+            edits.remove(ability.id());
+        }
     }
 
     // A type the model's order names ranks by its place there, any other after every named one.

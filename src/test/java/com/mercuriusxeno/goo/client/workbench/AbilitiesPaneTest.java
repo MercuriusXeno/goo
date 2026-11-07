@@ -280,6 +280,19 @@ class AbilitiesPaneTest {
             assertTrue(frame.bold(NAME));
         }
 
+        /**
+         * A drag rail stands at the heading's left edge, and no Order box draws
+         * (decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides).
+         */
+        @Test
+        void aRailStandsAtTheHeadingsLeftAndNoOrderBoxDraws() {
+            DrawnFrame frame = drawn();
+            int rowTop = frame.find(NAME).y() - RowLayout.nameTop(DrawnFrame.font(), 0);
+            assertTrue(frame.fillsOf(Palette.RAIL).stream().anyMatch(fill -> fill[0] == VIEW.left()
+                    && fill[1] == rowTop && fill[2] == VIEW.left() + ControlFlow.RAIL_WIDTH), "no rail at the heading");
+            assertFalse(frame.texts().contains("Order"), frame.texts().toString());
+        }
+
         @Test
         void aDraftReadsTheGoldBadgeRightOfTheName() {
             DrawnFrame frame = drawn();

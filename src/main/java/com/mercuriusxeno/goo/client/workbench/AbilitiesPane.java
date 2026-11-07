@@ -61,6 +61,9 @@ final class AbilitiesPane {
     private @Nullable EditBox search;
     private @Nullable EditBox editor;
     private @Nullable Font font;
+    // The slots each section laid this frame, by its goo type, and the rail held in a drag.
+    private final Map<String, List<Slot>> slots = new LinkedHashMap<>();
+    private @Nullable Held held;
     // The leaf the text box or the builder stands over, as the ability's id and the leaf's path.
     private @Nullable Editing editing;
     private boolean shown;
@@ -169,17 +172,25 @@ final class AbilitiesPane {
      * @return whether the pane took the key
      */
     boolean keyPressed(int key) {
-        if (editing != null && !builder.isOpen()) {
-            if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
-                stopEditing(false);
-                return true;
-            }
-            if (key == GLFW.GLFW_KEY_ESCAPE) {
-                stopEditing(true);
-                return true;
-            }
+        // Escape over a held rail puts its ability back.
+        if (key == GLFW.GLFW_KEY_ESCAPE && held != null) {
+            held = null;
+            return true;
         }
-        return builder.keyPressed(key);
+        return editorKey(key) || builder.keyPressed(key);
+    }
+
+    // Enter closes the open text box keeping its value, Escape restoring the one it opened on.
+    private boolean editorKey(int key) {
+        if (editing == null || builder.isOpen()) {
+            return false;
+        }
+        boolean enter = key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
+        if (enter || key == GLFW.GLFW_KEY_ESCAPE) {
+            stopEditing(!enter);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -206,6 +217,7 @@ final class AbilitiesPane {
         }
         targets.unclip();
         graphics.disableScissor();
+        drawHeld(graphics, area);
         bar.measureAndDraw(graphics, targets, y, area.right(), area.top(), area.bottom());
     }
 
@@ -237,12 +249,80 @@ final class AbilitiesPane {
             return y;
         }
         List<AbilitiesTab.Ability> abilities = section.abilities();
+        List<Slot> laid = new ArrayList<>();
         for (int index = 0; index < abilities.size(); index++) {
             RowLayout.drawSeparatorAbove(graphics, index, y, from.left(), from.right());
+            int top = y;
             y = drawAbility(graphics, font, abilities.get(index), new GroupsPane.Bounds(from.left(), y, from.right(),
                     from.bottom()), targets);
+            laid.add(new Slot(abilities.get(index).id(), top, y, from.left(), from.right()));
         }
+        slots.put(section.type(), List.copyOf(laid));
         return y;
+    }
+
+    /**
+     * Where an ability laid this frame, the slot a dropped rail lands on.
+     *
+     * @param id     the ability's id
+     * @param top    its heading's top
+     * @param bottom the bottom of its last param
+     * @param left   its left edge
+     * @param right  its right edge
+     */
+    private record Slot(String id, int top, int bottom, int left, int right) {
+    }
+
+    /**
+     * A rail held in a drag.
+     *
+     * @param id   the dragged ability's id
+     * @param type its section's goo type
+     * @param y    the pointer's y
+     */
+    private record Held(String id, String type, double y) {
+    }
+
+    // The slot of the held ability's section under the pointer, the first or last past either end.
+    private Optional<Slot> heldSlot() {
+        Held dragged = held;
+        if (dragged == null) {
+            return Optional.empty();
+        }
+        List<Slot> laid = slots.getOrDefault(dragged.type(), List.of());
+        return laid.stream().filter(slot -> dragged.y() < slot.bottom()).findFirst()
+                .or(() -> laid.isEmpty() ? Optional.empty() : Optional.of(laid.getLast()));
+    }
+
+    // The ability's rail grabs it; the drag follows the pointer and the drop moves it onto the slot it lands on.
+    // Decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides.
+    private ClickTargets.PointerGrab railGrab(AbilitiesTab.Ability ability) {
+        return new ClickTargets.PointerGrab() {
+            @Override
+            public void moved(double x, double y) {
+                held = new Held(ability.id(), ability.gooType(), y);
+            }
+
+            @Override
+            public void released() {
+                Optional<Slot> landed = heldSlot();
+                held = null;
+                if (landed.isPresent() && !landed.get().id().equals(ability.id())) {
+                    tab.moveTo(ability.id(), landed.get().id());
+                    actions.markUnsaved();
+                }
+            }
+        };
+    }
+
+    // While a rail is held, masks the screen but the slot it would drop on, as a group member's rail does.
+    private void drawHeld(GuiGraphicsExtractor graphics, GroupsPane.Bounds area) {
+        heldSlot().ifPresent(slot -> {
+            DragMask.Rect lit = new DragMask.Rect(slot.left(), slot.top(), slot.right(), slot.bottom())
+                    .within(new DragMask.Rect(area.left(), area.top(), area.right(), area.bottom()));
+            DragMask.draw(graphics, new DragMask.Rect(0, 0, graphics.guiWidth(), graphics.guiHeight()),
+                    lit.isEmpty() ? List.of() : List.of(lit));
+        });
     }
 
     // The chevron button, the type's icon at its texture's size hovering its name, then its name bold; the chevron
@@ -324,6 +404,9 @@ final class AbilitiesPane {
     // Decision ability-heading-is-rail-icon-name-draft-badge-and-hovers-its-description.
     private void drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
                              int top, ClickTargets targets) {
+        int bottom = top + RowLayout.SPRITE_ROW_HEIGHT;
+        Rails.draw(graphics, left, top, bottom);
+        targets.addGrab(left, top, ControlFlow.RAIL_WIDTH, bottom - top, railGrab(ability), ability.id());
         int x = left + ControlFlow.RAIL_ADVANCE;
         graphics.blit(RenderPipelines.GUI_TEXTURED, iconOf(ability), x, top + ICON_INSET, 0.0f, 0.0f,
                 RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE,
