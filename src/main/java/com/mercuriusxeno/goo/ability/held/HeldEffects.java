@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
 /**
@@ -249,6 +250,24 @@ public record HeldEffects(List<Held> held) {
         }
         kept.add(started);
         return new Changed(new HeldEffects(kept), ended);
+    }
+
+    /**
+     * Ends every effect whose ability is no longer known, as a save from
+     * before an ability's rename or removal carries: such an effect lays
+     * nothing and grants nothing, so it ends rather than standing on.
+     * dive-is-renamed-sculker
+     *
+     * @param known whether an ability is still known
+     * @return the effects after, and those ended
+     */
+    public Changed endUnknown(Predicate<Identifier> known) {
+        List<Held> kept = new ArrayList<>();
+        List<Held> ended = new ArrayList<>();
+        for (Held standing : held) {
+            (known.test(standing.ability()) ? kept : ended).add(standing);
+        }
+        return ended.isEmpty() ? new Changed(this, List.of()) : new Changed(new HeldEffects(kept), ended);
     }
 
     /**
