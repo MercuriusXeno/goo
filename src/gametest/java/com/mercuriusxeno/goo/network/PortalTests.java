@@ -53,6 +53,8 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, PLACE_CHOOSE_LINK_AND_CARRY, PortalTests::placeChooseLinkAndCarry);
         GooTestFunctions.registerTest(registrar, HIT_BREAKS_THE_PORTAL, PortalTests::hitBreaksThePortal);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_EVERY_CLIENT, PortalTests::linkReachesEveryClient);
+        GooTestFunctions.registerTest(registrar, PLACING_LINKS_TO_THE_LAST_PLACED,
+                PortalTests::placingLinksToTheLastPlaced);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
         GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
                 PortalTests::unlinkedPortalHoldsABodyUp);
@@ -60,6 +62,37 @@ public final class PortalTests {
                 PortalTests::floorPairCarriesAFallingBodyOutClear);
         GooTestFunctions.registerTest(registrar, PLAYER_DROPS_THROUGH_A_FLOOR_PAIR,
                 PortalTests::floorPairCarriesADroppingPlayer);
+    }
+
+    private static final String PLACING_LINKS_TO_THE_LAST_PLACED = "portal_placing_links_to_the_last_placed";
+
+    /**
+     * A portal placed alone stands inert; the next placed links to it on its
+     * own, the older the blue entry and the newer the orange exit; a third
+     * links to the second the same way, and the first goes inert
+     * (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void placingLinksToTheLastPlaced(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+        QuantumPortals portals = QuantumPortals.get(level);
+        Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
+        helper.assertTrue(portals.partnerOf(first).isEmpty(), "A portal placed alone should stand inert");
+        Portal second = castAt(helper, player, SECOND, Direction.NORTH);
+        helper.assertTrue(portals.linkOf(player.getUUID()).equals(Optional.of(new QuantumPortals.Link(first, second))),
+                "The next portal placed should link to the last, the older blue and the newer orange, holds "
+                        + portals.linkOf(player.getUUID()));
+        Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
+        helper.assertTrue(portals.linkOf(player.getUUID()).equals(Optional.of(new QuantumPortals.Link(second, third))),
+                "A third portal placed should link to the second, holds " + portals.linkOf(player.getUUID()));
+        helper.assertTrue(portals.partnerOf(first).isEmpty(), "The first portal should go inert once the third links");
+        assertTethered(helper, player, third);
+        level.getServer().getPlayerList().remove(player);
+        helper.succeed();
     }
 
     private static final String LINK_REACHES_EVERY_CLIENT = "portal_link_reaches_every_client";

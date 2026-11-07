@@ -2,11 +2,9 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.program.PortalStep;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.ClientPortals;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.network.PortalChoosePayload;
 import com.mercuriusxeno.goo.network.PortalLinkPayload;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -15,10 +13,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * A right click with Portal in hand on the player's own portals: on one of
- * them it enters choosing its partner instead of throwing; while choosing,
- * on a distant one, seen through walls, it links the two, and on none it
- * ends choosing.
+ * A right click with Portal in the glove among the player's own portals:
+ * sneaking on one starts choosing its partner, and sneaking on another while
+ * choosing links the two; while choosing, a right click anywhere else, or on
+ * the chosen portal again, cancels, the portal keeping any link it held;
+ * otherwise a right click places a portal.
  * portals-link-by-looking-through-portal-vision
  */
 public final class PortalAim {
@@ -37,33 +36,90 @@ public final class PortalAim {
         return ability != null && PortalStep.placesPortals(ability.behaviors());
     }
 
+    /** What a right click with Portal in the glove does. */
+    public sealed interface Press permits Choose, Link, Cancel, Place {
+    }
+
+    /**
+     * Starts choosing a portal's partner.
+     *
+     * @param portal the portal chosen from
+     */
+    public record Choose(Portal portal) implements Press {
+    }
+
+    /**
+     * Links the portal being chosen from to another.
+     *
+     * @param target the partner
+     */
+    public record Link(Portal target) implements Press {
+    }
+
+    /** Cancels choosing; a portal linked already keeps its link. */
+    public record Cancel() implements Press {
+    }
+
+    /** Throws Portal, placing a portal. */
+    public record Place() implements Press {
+    }
+
+    /**
+     * What a right click with Portal in the glove does.
+     *
+     * @param choosing the portal being chosen from, empty while none is
+     * @param sneaking whether the player sneaks
+     * @param faced    the player's portal its look faces, at any distance, empty for none
+     * @return the press
+     */
+    public static Press pressed(Optional<Portal> choosing, boolean sneaking, Optional<Portal> faced) {
+        if (choosing.isPresent()) {
+            boolean another = sneaking && faced.isPresent() && !faced.get().equals(choosing.get());
+            return another ? new Link(faced.get()) : new Cancel();
+        }
+        return sneaking && faced.isPresent() ? new Choose(faced.get()) : new Place();
+    }
+
     /**
      * Sends what a press with Portal in hand does among the player's portals.
      *
      * @param player the local player
-     * @return true when the press chose or linked, so nothing is thrown
+     * @return true when the press chose, linked or cancelled, so nothing is thrown
      */
     public static boolean press(Player player) {
-        Optional<Portal> choosing = ClientPortals.choosing();
-        if (choosing.isPresent()) {
-            Optional<Portal> picked = ClientPortals.pickedOnLook(ClientPortals.portals(), choosing.get(),
-                    player.getEyePosition(), player.getLookAngle());
-            GloveThrowSender.sendPayload(picked.<CustomPacketPayload>map(PortalLinkPayload::new)
-                    .orElseGet(() -> new PortalChoosePayload(Optional.empty())));
-            return true;
+        Press press = pressed(ClientPortals.choosing(), player.isShiftKeyDown(), faced(player));
+        CustomPacketPayload payload = switch (press) {
+            case Choose choose -> new PortalChoosePayload(Optional.of(choose.portal()));
+            case Link link -> new PortalLinkPayload(link.target());
+            case Cancel cancel -> new PortalChoosePayload(Optional.empty());
+            case Place place -> null;
+        };
+        if (payload == null) {
+            return false;
         }
-        Optional<Portal> aimed = aimedPortal(player);
-        aimed.ifPresent(portal -> GloveThrowSender.sendPayload(new PortalChoosePayload(Optional.of(portal))));
-        return aimed.isPresent();
+        GloveThrowSender.sendPayload(payload);
+        return true;
     }
 
-    private static Optional<Portal> aimedPortal(Player player) {
-        if (!(AimTracker.currentTarget() instanceof TargetResult.BlockTarget block)) {
-            return Optional.empty();
-        }
-        return ClientPortals.portals().stream()
-                .filter(portal -> portal.block().dimension().equals(player.level().dimension())
-                        && portal.face() == block.face() && portal.covers(block.pos()))
-                .findFirst();
+    /**
+     * The player's portal its look faces, at any distance.
+     *
+     * @param player the local player
+     * @return the portal, empty for none
+     */
+    public static Optional<Portal> faced(Player player) {
+        return ClientPortals.facedOnLook(ClientPortals.portals(), player.level().dimension(),
+                player.getEyePosition(), player.getLookAngle());
+    }
+
+    /**
+     * Whether the player holds Portal in its glove and sneaks, when its
+     * portals light up to show what a right click works on.
+     *
+     * @param player the local player
+     * @return true while it does
+     */
+    public static boolean working(Player player) {
+        return player.isShiftKeyDown() && selected(GloveAim.selectedAbilityId(player));
     }
 }

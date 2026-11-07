@@ -201,7 +201,7 @@
   "goo.ability.quantum.hole": "Hole",
   "goo.ability.quantum.hole.description": "A wormhole: opens a mouth on the wall it strikes and one on the far side, as large as the space allows, from 3x3 down to 1x1; go through either to come out of the other for ten seconds. It fails at the wall where no opening lies within thirty-two blocks.",
   "goo.ability.quantum.portal": "Portal",
-  "goo.ability.quantum.portal.description": "Opens a portal on the face it strikes. With Portal in hand, right click one of your portals, then one of your distant portals, to link the two; stepping into either carries you out of the other.",
+  "goo.ability.quantum.portal.description": "Opens a portal on the face it strikes, linked to the one you placed before it, blue to orange. Sneak and right click a portal, then another, to link those two instead; going through either carries you out of the other.",
   "goo.ability.quantum.swap": "Swap",
   "goo.ability.quantum.swap.description": "Blinks you to the spot you aim at and leaves a swap body where you stood; casting again trades places with it.",
   "goo.ability.quantum.link": "Shared Fate",
