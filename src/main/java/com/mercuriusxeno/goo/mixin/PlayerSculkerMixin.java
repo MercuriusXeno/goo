@@ -9,11 +9,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Lets a diver through solid blocks: right after vanilla sets the player's
- * no-clip from spectator mode each tick, a diver inside solid blocks or
- * pressing into them takes it too, on the client that moves the
- * player and the server that checks the move alike, and no-clip keeps the
- * stone from suffocating it.
+ * no-clip from spectator mode each tick, a player in Sculker's dive takes it
+ * too, on the client that moves the player and the server that checks the
+ * move alike.
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
+ * sculker-swims-solid-blocks-and-surfaces-at-will
  */
 @Mixin(Player.class)
 public abstract class PlayerSculkerMixin {

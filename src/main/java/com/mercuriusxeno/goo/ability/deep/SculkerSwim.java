@@ -1,31 +1,24 @@
 package com.mercuriusxeno.goo.ability.deep;
 
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Function;
 
 /**
- * How a diving player moves: while the dive stands it passes through solid
- * blocks wherever its body is already inside one, and wherever it presses
- * into one, forward into a wall, up into a ceiling with jump or down into
- * the ground with sneak, so it walks open ground as ever, enters stone at
- * will from any side and can always get back in from below. Once its body
- * stands clear in the open, the blocks hold it again. While it passes it
- * swims weightless, the way it swims in water: the movement input drives it
- * along the look, jump lifts it and sneak sinks it, and nothing in the stone
- * suffocates it. Bedrock and every block nothing can break hold a diver as
- * they hold anyone, and so does the bottom and the top of the world, so no
- * dive leaves the world.
- * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
+ * How a Sculker moves. Pressing sneak and jump together enters the dive,
+ * and from then on every solid block is swimmable, bedrock included: the
+ * body passes through stone with no key pressed into a block, weightless,
+ * the movement input driving it along the look, jump lifting it and sneak
+ * sinking it. The diver leaves the dive by rising out through a block's top
+ * face and jumping clear, which stands it on that block. The world's floor
+ * and ceiling hold a diver from leaving the world and never from coming
+ * back into it, so a diver below the floor rises back in on jump and no
+ * diver is trapped under the ground, creative included.
+ * decision sculker-swims-solid-blocks-and-surfaces-at-will
  */
 public final class SculkerSwim {
 
@@ -33,38 +26,22 @@ public final class SculkerSwim {
     static final double SWIM_SPEED = 0.3;
     /** The share of the way the swim turns toward the driven speed each tick. */
     static final double SWIM_STEER = 0.25;
-    /** How far the box shrinks before asking whether it is inside a solid block, so a body brushing a wall is not. */
-    private static final double INSIDE_INSET = 0.05;
-    /** How far a pressed direction probes past the body for stone to enter. */
-    private static final double PRESS_REACH = 0.1;
-    /** How far a box's far faces pull in before naming its cells, so a face lying on a cell's edge does not reach into it. */
-    private static final double EDGE_INSET = 1.0E-7;
-    private static final Vec3 UP = new Vec3(0, 1, 0);
-    private static final Vec3 DOWN = new Vec3(0, -1, 0);
-
-    /**
-     * The keys the local client holds, which the client sets at its setup; a
-     * server reads each player's keys off its last input packet instead.
-     */
-    private static Function<Player, Input> localKeys = player -> Input.EMPTY;
+    /** How far the box shrinks before asking whether it is inside a solid block, so a body resting on a face is not. */
+    private static final double INSIDE_INSET = 1.0E-7;
+    /** How far below the feet a diver looks for the top face it has just risen out of. */
+    private static final double SURFACE_REACH = 0.5;
+    private static final double SINK = -1;
+    private static final double LIFT = 1;
+    private static final double HOLD = 0;
 
     private SculkerSwim() {
-    }
-
-    /**
-     * Hands the swim the local client's held keys.
-     *
-     * @param keys the keys a client player holds
-     */
-    public static void readLocalKeysFrom(Function<Player, Input> keys) {
-        localKeys = keys;
     }
 
     /**
      * Whether a player's Sculker stands now.
      *
      * @param player the player
-     * @return true while the dive stands
+     * @return true while the brew stands
      */
     public static boolean dives(Player player) {
         return player.getData(GooAttachments.SCULKER).standsAt(player.level().getGameTime());
@@ -74,14 +51,53 @@ public final class SculkerSwim {
      * Whether a player passes through solid blocks this tick.
      *
      * @param player the player
-     * @return true while its Sculker stands and it is inside solid blocks or presses into them
+     * @return true while its Sculker stands and it is in the dive
      */
     public static boolean passesThrough(Player player) {
-        return dives(player) && (insideSolid(player) || pressesIntoStone(player, keysOf(player)));
+        return dives(player) && player.getData(GooAttachments.SCULKER).diving();
     }
 
-    private static Input keysOf(Player player) {
-        return player instanceof ServerPlayer server ? server.getLastClientInput() : localKeys.apply(player);
+    /**
+     * Moves a server player into or out of the dive by its last input: sneak
+     * and jump together take it in while the brew stands, and rising out of
+     * a top face with jump held takes it out. The state syncs to its client.
+     *
+     * @param player the player
+     */
+    public static void updateDive(ServerPlayer player) {
+        Sculker sculker = player.getData(GooAttachments.SCULKER);
+        if (!sculker.diving() && !dives(player)) {
+            return;
+        }
+        boolean diving = nextDiving(sculker.diving() && dives(player), dives(player), player.getLastClientInput(),
+                insideSolid(player), overATopFace(player));
+        if (diving != sculker.diving()) {
+            player.setData(GooAttachments.SCULKER, sculker.withDiving(diving));
+        }
+    }
+
+    /**
+     * Whether a player is in the dive next tick.
+     *
+     * @param diving      whether it is in the dive now
+     * @param stands      whether its brew stands
+     * @param keys        its held keys
+     * @param inside      whether its body is inside a solid block
+     * @param overATopFace whether a block's top face lies just under its feet
+     * @return true where it stays in or enters the dive
+     */
+    static boolean nextDiving(boolean diving, boolean stands, Input keys, boolean inside, boolean overATopFace) {
+        if (!stands) {
+            return false;
+        }
+        if (!diving) {
+            return keys.shift() && keys.jump();
+        }
+        return !jumpsClear(keys, inside, overATopFace);
+    }
+
+    private static boolean jumpsClear(Input keys, boolean inside, boolean overATopFace) {
+        return keys.jump() && !keys.shift() && !inside && overATopFace;
     }
 
     /**
@@ -95,93 +111,30 @@ public final class SculkerSwim {
         return player.level().getBlockCollisions(null, body).iterator().hasNext();
     }
 
-    private static boolean pressesIntoStone(Player player, Input keys) {
-        for (Vec3 pressed : pressedDirections(keys, player.getLookAngle())) {
-            if (meetsEnterableStone(player.level(), player.getBoundingBox().move(pressed.scale(PRESS_REACH)))) {
-                return true;
-            }
-        }
-        return false;
+    private static boolean overATopFace(Player player) {
+        AABB under = player.getBoundingBox().deflate(INSIDE_INSET).move(0, -SURFACE_REACH, 0);
+        return player.level().getBlockCollisions(null, under).iterator().hasNext();
     }
 
     /**
-     * The directions a diver's held keys press it: forward and back along
-     * the look's heading, left and right across it, up with jump and down
-     * with sneak.
+     * The rise a diver's held keys give its swim: sneak sinks it, winning
+     * over jump, so holding both sinks a player into the ground; jump alone
+     * lifts it.
      *
      * @param keys the held keys
-     * @param look the look direction
-     * @return a unit direction for each key held
+     * @return -1 to sink, 1 to rise, 0 to hold its depth
      */
-    static List<Vec3> pressedDirections(Input keys, Vec3 look) {
-        Vec3 heading = new Vec3(look.x, 0, look.z);
-        Vec3 ahead = heading.lengthSqr() == 0 ? Vec3.ZERO : heading.normalize();
-        Vec3 left = new Vec3(ahead.z, 0, -ahead.x);
-        List<Vec3> pressed = new ArrayList<>();
-        addWhen(pressed, keys.forward(), ahead);
-        addWhen(pressed, keys.backward(), ahead.reverse());
-        addWhen(pressed, keys.left(), left);
-        addWhen(pressed, keys.right(), left.reverse());
-        addWhen(pressed, keys.jump(), UP);
-        addWhen(pressed, keys.shift(), DOWN);
-        return pressed;
-    }
-
-    private static void addWhen(List<Vec3> pressed, boolean held, Vec3 direction) {
-        if (held && direction.lengthSqr() > 0) {
-            pressed.add(direction);
+    public static double riseOf(Input keys) {
+        if (keys.shift()) {
+            return SINK;
         }
+        return keys.jump() ? LIFT : HOLD;
     }
 
     /**
-     * Whether a box meets a solid block a diver may enter, one whose
-     * collision shape it overlaps and that is no world barrier.
-     *
-     * @param level the level
-     * @param box   the box
-     * @return true where the box meets enterable stone
-     */
-    private static boolean meetsEnterableStone(Level level, AABB box) {
-        boolean meets = false;
-        for (BlockPos cell : cellsOf(box)) {
-            if (holdsADiver(level, cell)) {
-                return false;
-            }
-            meets |= overlapsShape(level, cell, box);
-        }
-        return meets;
-    }
-
-    /**
-     * Whether a cell holds a diver as it holds anyone: outside the world, or
-     * a solid block nothing can break, as bedrock is.
-     *
-     * @param level the level
-     * @param cell  the cell
-     * @return true where a diver may not pass
-     */
-    static boolean holdsADiver(Level level, BlockPos cell) {
-        if (level.isOutsideBuildHeight(cell)) {
-            return true;
-        }
-        BlockState state = level.getBlockState(cell);
-        return state.getDestroySpeed(level, cell) < 0 && !state.getCollisionShape(level, cell).isEmpty();
-    }
-
-    private static Iterable<BlockPos> cellsOf(AABB box) {
-        return BlockPos.betweenClosed(BlockPos.containing(box.minX, box.minY, box.minZ),
-                BlockPos.containing(box.maxX - EDGE_INSET, box.maxY - EDGE_INSET, box.maxZ - EDGE_INSET));
-    }
-
-    private static boolean overlapsShape(Level level, BlockPos cell, AABB box) {
-        return level.getBlockState(cell).getCollisionShape(level, cell).toAabbs().stream()
-                .anyMatch(part -> part.move(cell).intersects(box));
-    }
-
-    /**
-     * One tick of a diver's swim: the velocity it moves at next, with each
-     * axis of it that would carry its body into bedrock or out of the world
-     * stopped.
+     * One tick of a diver's swim: the velocity it moves at next, with its
+     * rise or fall stopped where it would carry the body out past the world's
+     * floor or ceiling, never where it brings the body back in.
      *
      * @param player  the diver
      * @param forward the forward input, -1 to 1
@@ -192,25 +145,34 @@ public final class SculkerSwim {
     public static Vec3 swimStroke(Player player, double forward, double strafe, double rise) {
         Vec3 swim = swum(player.getDeltaMovement(), forward, strafe, rise, player.getLookAngle());
         AABB body = player.getBoundingBox();
-        double y = heldAt(player.level(), body.move(0, swim.y, 0)) ? 0 : swim.y;
-        double x = heldAt(player.level(), body.move(swim.x, y, 0)) ? 0 : swim.x;
-        double z = heldAt(player.level(), body.move(x, y, swim.z)) ? 0 : swim.z;
-        return new Vec3(x, y, z);
-    }
-
-    private static boolean heldAt(Level level, AABB box) {
-        for (BlockPos cell : cellsOf(box)) {
-            if (holdsADiver(level, cell)) {
-                return true;
-            }
-        }
-        return false;
+        Level level = player.level();
+        return new Vec3(swim.x, heldInTheWorld(swim.y, body.minY, body.maxY, level.getMinY(), level.getMaxY() + 1),
+                swim.z);
     }
 
     /**
-     * The velocity a swim inside stone carries into the next tick: the
-     * input, turned to the look, pitch included, with jump lifting and sneak
-     * sinking, steered toward from the velocity before.
+     * A vertical move kept from carrying a body out of the world: a fall
+     * stops at the floor and a rise at the ceiling, and a body already past
+     * either moves back in freely and no further out.
+     *
+     * @param move    the vertical move
+     * @param bottom  the body's bottom
+     * @param top     the body's top
+     * @param floor   the world's floor
+     * @param ceiling the world's ceiling
+     * @return the move the world allows
+     */
+    static double heldInTheWorld(double move, double bottom, double top, double floor, double ceiling) {
+        if (move < 0) {
+            return bottom + move >= floor ? move : Math.min(0, floor - bottom);
+        }
+        return top + move <= ceiling ? move : Math.max(0, ceiling - top);
+    }
+
+    /**
+     * The velocity a swim carries into the next tick: the input, turned to
+     * the look, pitch included, with jump lifting and sneak sinking, steered
+     * toward from the velocity before.
      *
      * @param velocity the velocity before
      * @param forward  the forward input, -1 to 1
