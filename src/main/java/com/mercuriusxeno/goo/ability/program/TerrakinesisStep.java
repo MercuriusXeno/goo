@@ -15,6 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -29,6 +30,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.OptionalInt;
@@ -47,6 +49,10 @@ import java.util.stream.Stream;
  * (GrabEvents.throwHeld), and the hunk crushes what it strikes.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  *
+ * The hunk tears free with a low stone-break at the hunk and a burst of its
+ * own dust off each seam, the faces where it parted from the ground it left.
+ * decision terrakinesis-tears-free-with-a-stone-tear-and-seam-dust
+ *
  * @param range      how far the look reaches for a block to lift, in blocks
  * @param radius     how far from the struck block's center the hunk reaches, in blocks
  * @param near       how far from the eye the hunk's middle hangs with the look pitched fully down
@@ -64,9 +70,29 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     private static final String FIELD_THROW_SPEED = "throw_speed";
     /** The most blocks one hunk carries, whatever the radius. */
     static final int MOST_BLOCKS = 64;
-    private static final int DUST_PER_BLOCK = 4;
-    private static final double DUST_SPREAD = 0.4;
-    private static final double DUST_SPEED = 0.1;
+    /** Chips each seam face throws as the hunk tears free, dense enough to read as torn earth. */
+    static final int CHIPS_PER_SEAM = 10;
+    /** How far across a seam face its chips scatter from the face's middle, in blocks. */
+    private static final double CHIP_SCATTER = 0.45;
+    /** How far out from a seam face its chips start, so none starts inside a block. */
+    private static final double CHIP_LIFT = 0.55;
+    /** How fast a chip leaves its seam face, in blocks a tick. */
+    private static final double CHIP_SPEED = 0.18;
+    private static final double HALF = 0.5;
+    /** A scatter reaches both ways from the face's middle. */
+    private static final double BOTH_WAYS = 2;
+    /** The tear: a deepslate break pitched an octave down, at full volume. */
+    public static final SoundCue TEAR = new SoundCue(Identifier.withDefaultNamespace("block.deepslate.break"),
+            SoundKind.BLOCKS, 1f, 0.5f);
+
+    /**
+     * One face where a lifted cell parted from a block still standing in the world.
+     *
+     * @param cell the lifted cell
+     * @param face the side of it the standing block met
+     */
+    record Seam(BlockPos cell, Direction face) {
+    }
 
     /** Codec for the step's params. */
     public static final MapCodec<TerrakinesisStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
@@ -136,14 +162,67 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         }
         List<BlockHunk.HunkBlock> blocks = new ArrayList<>(cells.size());
         for (BlockPos cell : cells) {
-            BlockState state = level.getBlockState(cell);
-            blocks.add(new BlockHunk.HunkBlock(cell.subtract(struck), state));
-            Vec3 center = Vec3.atCenterOf(cell);
-            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), center.x, center.y, center.z,
-                    DUST_PER_BLOCK, DUST_SPREAD, DUST_SPREAD, DUST_SPREAD, DUST_SPEED);
+            blocks.add(new BlockHunk.HunkBlock(cell.subtract(struck), level.getBlockState(cell)));
+        }
+        for (Seam seam : seamFaces(cells, cell -> !level.getBlockState(cell).isAir())) {
+            throwSeamChips(level, seam, level.getBlockState(seam.cell()));
         }
         cells.forEach(cell -> level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL));
-        return BlockHunk.lift(level, struck, blocks);
+        BlockHunk hunk = BlockHunk.lift(level, struck, blocks);
+        SoundPlays.play(level, hunk.getBoundingBox().getCenter(), TEAR);
+        return hunk;
+    }
+
+    /**
+     * The seams a hunk tears along: each face of a lifted cell whose neighbor
+     * is no lifted cell and still holds a block; a face between two lifted
+     * cells, or one open to air, is no seam.
+     *
+     * @param cells    the lifted cells
+     * @param standing whether a cell outside the hunk holds a block
+     * @return the seams
+     */
+    static List<Seam> seamFaces(List<BlockPos> cells, Predicate<BlockPos> standing) {
+        Set<BlockPos> lifted = new HashSet<>(cells);
+        List<Seam> seams = new ArrayList<>();
+        for (BlockPos cell : cells) {
+            for (Direction face : Direction.values()) {
+                BlockPos neighbor = cell.relative(face);
+                if (!lifted.contains(neighbor) && standing.test(neighbor)) {
+                    seams.add(new Seam(cell, face));
+                }
+            }
+        }
+        return seams;
+    }
+
+    /**
+     * Throws chips of a lifted block off one seam face, scattered across the
+     * face and flying out from it.
+     *
+     * @param level the server level
+     * @param seam  the seam
+     * @param state the lifted block
+     */
+    private static void throwSeamChips(ServerLevel level, Seam seam, BlockState state) {
+        BlockParticleOption chip = new BlockParticleOption(ParticleTypes.BLOCK, state);
+        Vec3 out = Vec3.atLowerCornerOf(seam.face().getUnitVec3i());
+        Vec3 faceMiddle = Vec3.atCenterOf(seam.cell()).add(out.scale(CHIP_LIFT));
+        for (int index = 0; index < CHIPS_PER_SEAM; index++) {
+            Vec3 at = faceMiddle.add(acrossFace(level, seam.face()));
+            // With a count of zero the offsets are the chip's direction and the speed its scale.
+            level.sendParticles(chip, at.x, at.y, at.z, 0, out.x, out.y, out.z, CHIP_SPEED);
+        }
+    }
+
+    private static Vec3 acrossFace(ServerLevel level, Direction face) {
+        double first = (level.getRandom().nextDouble() - HALF) * BOTH_WAYS * CHIP_SCATTER;
+        double second = (level.getRandom().nextDouble() - HALF) * BOTH_WAYS * CHIP_SCATTER;
+        return switch (face.getAxis()) {
+            case X -> new Vec3(0, first, second);
+            case Y -> new Vec3(first, 0, second);
+            case Z -> new Vec3(first, second, 0);
+        };
     }
 
     /**

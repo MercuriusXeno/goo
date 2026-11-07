@@ -1,17 +1,22 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Terrakinesis gathers its hunk from the struck block through joined
  * liftable blocks within the radius, and a left click hucks it
- * (decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity).
+ * (decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity); it tears
+ * free along its seams alone with a low stone-break
+ * (decision terrakinesis-tears-free-with-a-stone-tear-and-seam-dust).
  */
 class TerrakinesisStepTest {
 
@@ -42,6 +47,41 @@ class TerrakinesisStepTest {
         @Test
         void aWideRadiusStopsAtTheMostBlocks() {
             assertEquals(TerrakinesisStep.MOST_BLOCKS, TerrakinesisStep.hunkCells(STRUCK, 10, pos -> true).size());
+        }
+    }
+
+    @Nested
+    class Tear {
+
+        /** Ground of stone up to y 64, air above. */
+        private static boolean stoneGround(BlockPos pos) {
+            return pos.getY() <= STRUCK.getY();
+        }
+
+        @Test
+        void dustRisesFromTheSeamFacesAloneNeverBetweenLiftedCellsNorIntoTheAir() {
+            BlockPos east = STRUCK.east();
+            BlockPos below = STRUCK.below();
+            List<BlockPos> hunk = List.of(STRUCK, east, below);
+            Set<String> seams = TerrakinesisStep.seamFaces(hunk, TerrakinesisStepTest.Tear::stoneGround).stream()
+                    .map(seam -> seam.cell().toShortString() + " " + seam.face()).collect(Collectors.toSet());
+            Set<String> expected = Set.of(
+                    face(STRUCK, Direction.WEST), face(STRUCK, Direction.NORTH), face(STRUCK, Direction.SOUTH),
+                    face(east, Direction.DOWN), face(east, Direction.EAST), face(east, Direction.NORTH),
+                    face(east, Direction.SOUTH),
+                    face(below, Direction.DOWN), face(below, Direction.EAST), face(below, Direction.WEST),
+                    face(below, Direction.NORTH), face(below, Direction.SOUTH));
+            assertEquals(expected, seams);
+        }
+
+        private static String face(BlockPos cell, Direction face) {
+            return cell.toShortString() + " " + face;
+        }
+
+        @Test
+        void theTearIsADeepslateBreakPitchedLow() {
+            assertEquals(Identifier.withDefaultNamespace("block.deepslate.break"), TerrakinesisStep.TEAR.sound());
+            assertTrue(TerrakinesisStep.TEAR.pitch() < 1f, "pitch " + TerrakinesisStep.TEAR.pitch());
         }
     }
 
