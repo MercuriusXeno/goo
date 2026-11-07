@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.client.fade.Afterglow;
+import com.mercuriusxeno.goo.client.fade.Afterglows;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -25,6 +26,7 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -40,7 +42,8 @@ import java.util.Optional;
  * that row (decision reserve-hearts-sit-behind-the-bar). The layer wraps vanilla's health
  * layer and lays its sprites on the slots vanilla drew, mirroring vanilla's
  * slot layout, low-health jiggle and regeneration bounce. Once the heart
- * effect ends, the overlay last drawn lingers and fades over a second
+ * effect ends, or another heart effect replaces it, the overlay last drawn
+ * lingers and fades over a second
  * (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -75,8 +78,8 @@ public final class HeartOverlayHud {
     private static final ReserveTravels TRAVELS = new ReserveTravels();
     /** The burns playing, read from the overlay's bark between frames. */
     private static final BarkBurns BURNS = new BarkBurns();
-    /** The overlay's trace, read between frames so an ended effect's hearts fade rather than vanishing. */
-    private static final Afterglow<HeartOverlay> OVERLAY_GLOW = new Afterglow<>();
+    /** Each heart kind's trace, read between frames so an ended or replaced effect's hearts fade rather than vanishing. */
+    private static final Afterglows<HeartKind, HeartOverlay> OVERLAY_GLOWS = new Afterglows<>();
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int OPAQUE_ALPHA = 0xFF;
     private static final int WHITE_RGB = 0xFFFFFF;
@@ -192,27 +195,29 @@ public final class HeartOverlayHud {
                                   float partialTick) {
         HeartOverlay live = player.getData(GooAttachments.HEART_OVERLAY);
         List<BarkBurns.Burn> burns = BURNS.update(live, player.isOnFire(), gui.getGuiTicks() + partialTick);
-        PaintedOverlay painted = painted(OVERLAY_GLOW, live, player.level().getGameTime() + partialTick);
-        if (painted.alpha() > 0f) {
-            paint(graphics, gui, player, painted, new BarFrame(leftHeightBefore, partialTick, burns));
+        for (PaintedOverlay painted : painted(OVERLAY_GLOWS, live, player.level().getGameTime() + partialTick)) {
+            List<BarkBurns.Burn> itsBurns = painted.overlay().kind() == HeartKind.BARKSKIN ? burns : List.of();
+            paint(graphics, gui, player, painted, new BarFrame(leftHeightBefore, partialTick, itsBurns));
         }
     }
 
     /**
-     * The overlay a frame paints and the strength it paints at: the standing
-     * overlay whole, or once the effect ends, the overlay last drawn fading
-     * over the second after.
+     * The overlays a frame paints, bottom first, and the strength each paints
+     * at: the standing overlay whole, and each overlay whose effect ended,
+     * by its own end or by another heart effect replacing it, fading over
+     * the second after, under the overlay that replaced it.
      * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
      *
-     * @param glow the overlay's trace, kept between frames
-     * @param live the overlay the player holds now
-     * @param now  the game time, partial tick included
-     * @return the overlay to paint, or nothing once no overlay stands and the fade is spent
+     * @param glows each heart kind's trace, kept between frames
+     * @param live  the overlay the player holds now
+     * @param now   the game time, partial tick included
+     * @return the overlays to paint, empty once none stands and every fade is spent
      */
-    static PaintedOverlay painted(Afterglow<HeartOverlay> glow, HeartOverlay live, float now) {
-        return glow.read(live.stands() ? live : null, now)
+    static List<PaintedOverlay> painted(Afterglows<HeartKind, HeartOverlay> glows, HeartOverlay live, float now) {
+        Map<HeartKind, HeartOverlay> standing = live.stands() ? Map.of(live.kind(), live) : Map.of();
+        return glows.read(standing, now).stream()
                 .map(read -> new PaintedOverlay(read.state(), read.strength()))
-                .orElse(PaintedOverlay.NOTHING);
+                .toList();
     }
 
     /**
@@ -222,8 +227,6 @@ public final class HeartOverlayHud {
      * @param alpha   the strength every sprite, spark and burn of it draws at
      */
     record PaintedOverlay(HeartOverlay overlay, float alpha) {
-
-        static final PaintedOverlay NOTHING = new PaintedOverlay(HeartOverlay.NONE, 0f);
 
         /**
          * The heart slots this overlay paints over a bar of real health.

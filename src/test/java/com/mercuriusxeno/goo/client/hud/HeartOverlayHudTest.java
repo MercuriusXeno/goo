@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.client.fade.Afterglow;
+import com.mercuriusxeno.goo.client.fade.Afterglows;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -130,33 +131,66 @@ class HeartOverlayHudTest {
         private static final float DELTA = 1e-6f;
         private static final float ENDED_AT = 100f;
         private final HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 10f, 0L);
-        private final Afterglow<HeartOverlay> glow = new Afterglow<>();
+        private final Afterglows<HeartKind, HeartOverlay> glows = new Afterglows<>();
 
         @BeforeEach
         void endTheBarkAtTheEndTick() {
-            HeartOverlayHud.painted(glow, barked, ENDED_AT - 0.05f);
-            HeartOverlayHud.painted(glow, HeartOverlay.NONE, ENDED_AT);
+            HeartOverlayHud.painted(glows, barked, ENDED_AT - 0.05f);
+            HeartOverlayHud.painted(glows, HeartOverlay.NONE, ENDED_AT);
         }
 
         @Test
         void halfASecondAfterTheRememberedOverlayPaintsItsSlotsAtHalfAlpha() {
-            HeartOverlayHud.PaintedOverlay painted = HeartOverlayHud.painted(glow, HeartOverlay.NONE,
-                    ENDED_AT + Afterglow.FADE_TICKS / 2f);
+            HeartOverlayHud.PaintedOverlay painted = HeartOverlayHud.painted(glows, HeartOverlay.NONE,
+                    ENDED_AT + Afterglow.FADE_TICKS / 2f).getFirst();
             assertEquals(5, painted.slots(10));
             assertEquals(0.5f, painted.alpha(), DELTA);
         }
 
         @Test
         void aSecondAfterNoSlotPaints() {
-            assertEquals(0, HeartOverlayHud.painted(glow, HeartOverlay.NONE, ENDED_AT + Afterglow.FADE_TICKS)
-                    .slots(10));
+            assertTrue(HeartOverlayHud.painted(glows, HeartOverlay.NONE, ENDED_AT + Afterglow.FADE_TICKS).isEmpty());
         }
 
         @Test
         void aStandingOverlayPaintsWhole() {
-            HeartOverlayHud.PaintedOverlay painted = HeartOverlayHud.painted(glow, barked, ENDED_AT + 1f);
+            HeartOverlayHud.PaintedOverlay painted = HeartOverlayHud.painted(glows, barked, ENDED_AT + 1f).getFirst();
             assertEquals(5, painted.slots(10));
             assertEquals(1f, painted.alpha(), DELTA);
+        }
+    }
+
+    /** A heart effect replaced by another fades out under the new one over a second (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends). */
+    @Nested
+    class WhenAnotherHeartEffectReplacesIt {
+
+        private static final float DELTA = 1e-6f;
+        private static final float REPLACED_AT = 100f;
+        private final HeartOverlay kindled = HeartOverlay.NONE.apply(HeartKind.KINDLE, 1_200, 10f, 0L);
+        private final HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 10f, 0L);
+        private final Afterglows<HeartKind, HeartOverlay> glows = new Afterglows<>();
+
+        @BeforeEach
+        void replaceKindleWithBarkskin() {
+            HeartOverlayHud.painted(glows, kindled, REPLACED_AT - 0.05f);
+            HeartOverlayHud.painted(glows, barked, REPLACED_AT);
+        }
+
+        @Test
+        void halfASecondAfterTheReplacedOverlayPaintsAtHalfAlphaUnderTheNewOneWhole() {
+            List<HeartOverlayHud.PaintedOverlay> painted = HeartOverlayHud.painted(glows, barked,
+                    REPLACED_AT + Afterglow.FADE_TICKS / 2f);
+            assertEquals(List.of(HeartKind.KINDLE, HeartKind.BARKSKIN),
+                    painted.stream().map(layer -> layer.overlay().kind()).toList());
+            assertEquals(0.5f, painted.get(0).alpha(), DELTA);
+            assertEquals(1f, painted.get(1).alpha(), DELTA);
+        }
+
+        @Test
+        void aSecondAfterTheNewOverlayPaintsAlone() {
+            List<HeartOverlayHud.PaintedOverlay> painted = HeartOverlayHud.painted(glows, barked,
+                    REPLACED_AT + Afterglow.FADE_TICKS);
+            assertEquals(List.of(new HeartOverlayHud.PaintedOverlay(barked, 1f)), painted);
         }
     }
 
