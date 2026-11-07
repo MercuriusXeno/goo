@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -97,6 +98,10 @@ public final class GooTargetHighlighter {
      */
     @SubscribeEvent
     public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+        // portals-link-by-looking-through-portal-vision: the aim draws in the frame alone, never in a view through a gate
+        if (PortalView.drawing()) {
+            return;
+        }
         clearCachedArc();
         reticuleDrawn = false;
         Minecraft mc = Minecraft.getInstance();
@@ -322,6 +327,9 @@ public final class GooTargetHighlighter {
      */
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        if (PortalView.drawing()) {
+            return;
+        }
         TargetResult target = cachedArcTarget;
         ResourceKey<GooTypeDefinition> type = cachedArcType;
         Delivery delivery = cachedArcDelivery;
