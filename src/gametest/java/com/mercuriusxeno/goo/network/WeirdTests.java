@@ -78,6 +78,14 @@ public final class WeirdTests {
     private static final String NOT_LAUNCHED = "A pig falling onto the slime coat should leave it moving upward";
     private static final String HURT = "A pig falling onto the slime coat should keep its full health, has ";
     private static final String SLIME = "goo:weird_slime";
+    private static final String HELD_JUMPS_RAMP = "coat_held_jumps_ramp_to_the_ceiling";
+    /** A floor cell in the bay's roof, open sky above it. */
+    private static final BlockPos OPEN_SKY_FLOOR = new BlockPos(2, 6, 2);
+    /** Ticks a jumping pig bounces on the coat, room for a dozen bounces at the ceiling. */
+    private static final int RAMP_TICKS = 600;
+    /** The height a ramp at the ceiling peaks above the coat: about fourteen blocks. */
+    private static final double CEILING_PEAK = 14;
+    private static final String RAMP_STALLED = "A pig holding jump on the coat should peak %.0f blocks up, peaks were %s";
     private static final String SLIME_BLOB_MAKES_A_SLIME = "slime_blob_makes_a_slime";
     /** SpawnSlimeStep's morph: the ticks the blob takes to become the slime. */
     private static final int SLIME_MORPH_TICKS = 16;
@@ -101,6 +109,7 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, COAT_PAST_NINE_TENTHS_FINISHES,
                 WeirdTests::coatPastNineTenthsFinishesAfterRelease);
         GooTestFunctions.registerTest(registrar, PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
+        GooTestFunctions.registerTest(registrar, HELD_JUMPS_RAMP, WeirdTests::heldJumpsRampToTheCeiling);
         GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::coatSoftensTheMobItHits);
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
     }
@@ -175,6 +184,40 @@ public final class WeirdTests {
                     helper.assertTrue(pig.getHealth() == pig.getMaxHealth(), HURT + pig.getHealth());
                 })
                 .thenSucceed();
+    }
+
+    /**
+     * A pig holding jump on a slime coat bounces higher each landing until it
+     * peaks near the ceiling, about fifteen blocks over the coat.
+     * bounce-ramps-jump-height-while-jump-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void heldJumpsRampToTheCeiling(GameTestHelper helper) {
+        // on the bay's roof, open sky over it, so nothing caps the climb but the ramp
+        helper.setBlock(OPEN_SKY_FLOOR, Blocks.STONE);
+        helper.setBlock(OPEN_SKY_FLOOR.above(), GooBlocks.SLIME_COAT.get());
+        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, OPEN_SKY_FLOOR.above());
+        double coatTop = helper.absolutePos(OPEN_SKY_FLOOR.above()).getY();
+        List<Double> peaks = new java.util.ArrayList<>();
+        double[] rising = {Double.NEGATIVE_INFINITY};
+        for (int tick = 1; tick <= RAMP_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> {
+                pig.getJumpControl().jump();
+                double above = pig.getY() - coatTop;
+                if (pig.getDeltaMovement().y > 0) {
+                    rising[0] = Math.max(rising[0], above);
+                } else if (rising[0] > Double.NEGATIVE_INFINITY) {
+                    peaks.add(Math.max(rising[0], above));
+                    rising[0] = Double.NEGATIVE_INFINITY;
+                }
+            });
+        }
+        helper.runAfterDelay(RAMP_TICKS + 1, () -> {
+            double highest = peaks.stream().mapToDouble(Double::doubleValue).max().orElse(0);
+            helper.assertTrue(highest >= CEILING_PEAK, String.format(RAMP_STALLED, CEILING_PEAK, peaks));
+            helper.succeed();
+        });
     }
 
     /**
