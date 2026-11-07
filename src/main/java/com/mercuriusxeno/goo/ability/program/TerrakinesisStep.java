@@ -23,6 +23,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -81,6 +82,12 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     private static final float RUMBLE_LOW = 0.5f;
     private static final float RUMBLE_RISE = 0.15f;
     private static final Identifier RUMBLE = Identifier.withDefaultNamespace("block.gravel.break");
+    /** How far the held hunk keeps from its holder's body, in blocks. */
+    private static final double HOLDER_CLEARANCE = 0.25;
+    /** Each step the hold pushes the hunk out along the look while it overlaps its holder. */
+    private static final double PUSH_STEP = 0.25;
+    /** The furthest the hold pushes the hunk out past its hold distance. */
+    private static final double MOST_PUSH = 4;
     /** The most blocks one hunk carries, whatever the radius. */
     static final int MOST_BLOCKS = 64;
     /** Chips each seam face throws as the hunk tears free, dense enough to read as torn earth. */
@@ -205,7 +212,7 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      */
     private Vec3 holdPoint(ServerPlayer player, BlockHunk hunk) {
         return holdPosition(player.getEyePosition(), player.getLookAngle(), player.getXRot(),
-                hunk.getBoundingBox().getCenter().subtract(hunk.position()));
+                hunk.getBoundingBox().move(hunk.position().reverse()), player.getBoundingBox());
     }
 
     /**
@@ -214,14 +221,26 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      * there each tick, and the holder's client draws it there each frame from
      * its own look, so the hunk glides with the look.
      *
-     * @param eye      the holder's eye
-     * @param look     the holder's unit look vector
-     * @param pitch    the look's pitch in degrees, positive looking down
-     * @param toMiddle from the hunk's position to its bounding box's center
+     * @param eye       the holder's eye
+     * @param look      the holder's unit look vector
+     * @param pitch     the look's pitch in degrees, positive looking down
+     * pushed out along the look until the hunk's box clears the holder's own,
+     * so looking down never draws the hunk through the holder.
+     *
+     * @param hunkBox   the hunk's bounding box, relative to its position
+     * @param holderBox the holder's bounding box
      * @return the hunk's position
      */
-    public Vec3 holdPosition(Vec3 eye, Vec3 look, float pitch, Vec3 toMiddle) {
-        return eye.add(look.scale(GrabStep.holdDistance(pitch, near, far))).subtract(toMiddle);
+    public Vec3 holdPosition(Vec3 eye, Vec3 look, float pitch, AABB hunkBox, AABB holderBox) {
+        Vec3 toMiddle = hunkBox.getCenter();
+        AABB clearOf = holderBox.inflate(HOLDER_CLEARANCE);
+        double distance = GrabStep.holdDistance(pitch, near, far);
+        Vec3 position = eye.add(look.scale(distance)).subtract(toMiddle);
+        for (double pushed = 0; hunkBox.move(position).intersects(clearOf) && pushed < MOST_PUSH;
+             pushed += PUSH_STEP) {
+            position = position.add(look.scale(PUSH_STEP));
+        }
+        return position;
     }
 
     /**

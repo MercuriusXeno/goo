@@ -153,7 +153,7 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
         Vec3 lerped = hunk.getPosition(partialTick);
         Vec3 onTheLook = terrakinesis.holdPosition(player.getEyePosition(partialTick),
                 player.getViewVector(partialTick), player.getViewXRot(partialTick),
-                hunk.getBoundingBox().getCenter().subtract(hunk.position()));
+                hunk.getBoundingBox().move(hunk.position().reverse()), player.getBoundingBox());
         if (onTheLook.distanceTo(lerped) > AT_THE_HOLD) {
             return null;
         }

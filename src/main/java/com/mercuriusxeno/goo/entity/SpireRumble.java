@@ -23,8 +23,8 @@ final class SpireRumble {
     /** How fast a chip leaves the pillar's side, in blocks a tick. */
     private static final double CHIP_SPEED = 0.06;
     /** Ticks between the rumble's beats. */
-    private static final int RUMBLE_EVERY = 4;
-    private static final float RUMBLE_VOLUME = 0.9f;
+    private static final int RUMBLE_EVERY = 2;
+    private static final float RUMBLE_VOLUME = 1f;
     private static final float RUMBLE_PITCH = 0.5f;
     /** A hair out from the side, so a chip starts in the air. */
     private static final double OFF_THE_SIDE = 0.05;
@@ -57,10 +57,17 @@ final class SpireRumble {
             level.addParticle(chip, at.x, at.y, at.z, out.x, 0, out.z);
         }
         if (elapsed % RUMBLE_EVERY == 0) {
-            Vec3 middle = box.getCenter();
-            level.playLocalSound(middle.x, ground, middle.z, SoundEvents.GRAVEL_BREAK, SoundSource.BLOCKS,
-                    RUMBLE_VOLUME, RUMBLE_PITCH + random.nextFloat() * RUMBLE_PITCH * HALF_F, false);
+            rumble(level, box.getCenter(), ground, random);
         }
+    }
+
+    private static void rumble(Level level, Vec3 middle, double ground, RandomSource random) {
+        float pitch = RUMBLE_PITCH + random.nextFloat() * RUMBLE_PITCH * HALF_F;
+        level.playLocalSound(middle.x, ground, middle.z, SoundEvents.GRAVEL_BREAK, SoundSource.BLOCKS,
+                RUMBLE_VOLUME, pitch, false);
+        // Deepslate's heavier break under the gravel, so the rumble carries.
+        level.playLocalSound(middle.x, ground, middle.z, SoundEvents.DEEPSLATE_BREAK, SoundSource.BLOCKS,
+                RUMBLE_VOLUME, pitch, false);
     }
 
     /**
