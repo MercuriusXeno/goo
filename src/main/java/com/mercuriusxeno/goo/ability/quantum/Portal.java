@@ -127,6 +127,13 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
     }
 
     /**
+     * @return the frame as a gate the world can be seen through
+     */
+    public Gate gate() {
+        return new Gate(block.dimension(), blocks(), face, up());
+    }
+
+    /**
      * The frame's up: along its length, so a wall frame's up is world up and
      * a floor frame's up runs the way the caster faced.
      *

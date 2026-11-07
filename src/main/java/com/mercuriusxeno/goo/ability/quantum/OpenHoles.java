@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.network.HolesSyncPayload;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -13,6 +15,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -29,9 +32,6 @@ import java.util.UUID;
 @EventBusSubscriber(modid = Goo.MODID)
 public final class OpenHoles {
 
-    /** Ticks between one swirl of a standing mouth and the next. */
-    private static final int SWIRL_TICKS = 10;
-
     private static final List<Hole> OPEN = new ArrayList<>();
 
     private OpenHoles() {
@@ -42,9 +42,10 @@ public final class OpenHoles {
      *
      * @param touch   the slab flush on its face a body steps into
      * @param arrival where feet come out of this mouth
-     * @param middle  the mouth's middle, where it draws
+     * @param middle  the mouth's middle, where it sounds
+     * @param gate    the mouth as a gate the far side is seen through
      */
-    public record Mouth(AABB touch, Vec3 arrival, Vec3 middle) {
+    public record Mouth(AABB touch, Vec3 arrival, Vec3 middle, Gate gate) {
     }
 
     /**
@@ -76,24 +77,46 @@ public final class OpenHoles {
     }
 
     /**
-     * Stands a hole open.
+     * Stands a hole open and tells the clients.
      *
-     * @param hole the hole
+     * @param server the server
+     * @param hole   the hole
      */
-    static void open(Hole hole) {
+    static void open(MinecraftServer server, Hole hole) {
         OPEN.add(hole);
+        sync(server);
     }
 
     /**
      * Carries whoever stepped into a mouth out of the other, and closes the
-     * holes whose time is up.
+     * holes whose time is up, telling the clients when one closes.
      *
      * @param event the post-tick event
      */
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
-        OPEN.removeIf(hole -> tick(server, hole));
+        if (OPEN.removeIf(hole -> tick(server, hole))) {
+            sync(server);
+        }
+    }
+
+    /**
+     * Tells every player the holes standing open in their level, so their
+     * client draws the view through each mouth.
+     *
+     * @param server the server
+     */
+    static void sync(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            HolesSyncPayload payload = new HolesSyncPayload(OPEN.stream()
+                    .filter(hole -> hole.dimension().equals(player.level().dimension()))
+                    .map(hole -> new HolesSyncPayload.Pair(hole.entry().gate(), hole.exit().gate())).toList());
+            // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
+            if (player.connection.hasChannel(payload)) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
     }
 
     /**
@@ -120,10 +143,6 @@ public final class OpenHoles {
         }
         carryThrough(level, hole.entry(), hole.heldAtEntry(), hole.exit(), hole.heldAtExit());
         carryThrough(level, hole.exit(), hole.heldAtExit(), hole.entry(), hole.heldAtEntry());
-        if (level.getGameTime() % SWIRL_TICKS == 0) {
-            Wormhole.swirl(level, hole.entry().middle(), hole.axis());
-            Wormhole.swirl(level, hole.exit().middle(), hole.axis());
-        }
         return false;
     }
 

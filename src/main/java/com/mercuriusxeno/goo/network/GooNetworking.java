@@ -47,6 +47,7 @@ public final class GooNetworking {
         r.playToClient(OpenValuesManagerPayload.TYPE, OpenValuesManagerPayload.STREAM_CODEC);
         r.playToClient(WorkbenchReplyPayload.TYPE, WorkbenchReplyPayload.STREAM_CODEC);
         r.playToClient(PortalsSyncPayload.TYPE, PortalsSyncPayload.STREAM_CODEC);
+        r.playToClient(HolesSyncPayload.TYPE, HolesSyncPayload.STREAM_CODEC);
         registerAbilityVisualPayloads(r);
     }
 

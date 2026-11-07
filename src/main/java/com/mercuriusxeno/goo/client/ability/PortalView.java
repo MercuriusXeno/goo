@@ -1,9 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
-import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
@@ -22,6 +21,7 @@ import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
@@ -68,12 +68,13 @@ public final class PortalView {
     private static final float MINUS_ONE_TO_ONE_DEPTH = 2F;
     private static final Vector3fc UP = new Vector3f(0, 1, 0);
 
-    private static final List<Identifier> VIEW_IDS = List.of(
-            Identifier.fromNamespaceAndPath(Goo.MODID, "portal_view/entry"),
-            Identifier.fromNamespaceAndPath(Goo.MODID, "portal_view/exit"));
+    /** The most views one frame draws: a portal pair's two and a hole's two. */
+    private static final int MOST_VIEWS = 4;
+    private static final String VIEW_PATH = "portal_view/";
+
     private static final List<RenderTarget> TARGETS = new ArrayList<>();
     private static final List<PortalViewTexture> TEXTURES = new ArrayList<>();
-    private static final Map<Portal, Identifier> FRESH = new HashMap<>();
+    private static final Map<Gate, Identifier> FRESH = new HashMap<>();
     private static final PortalCamera CAMERA = new PortalCamera();
     private static ProjectionMatrixBuffer projection;
     private static boolean drawing;
@@ -92,18 +93,18 @@ public final class PortalView {
     }
 
     /**
-     * The view through a portal drawn this frame.
+     * The view through a gate drawn this frame.
      *
-     * @param portal a portal
-     * @return the view texture's id, empty where the portal drew no view
+     * @param gate a gate: a portal's frame or a hole's mouth
+     * @return the view texture's id, empty where the gate drew no view
      */
-    public static Optional<Identifier> viewOf(Portal portal) {
-        return Optional.ofNullable(FRESH.get(portal));
+    public static Optional<Identifier> viewOf(Gate gate) {
+        return Optional.ofNullable(FRESH.get(gate));
     }
 
     /**
-     * Draws the view through each linked portal the main camera faces, before
-     * the frame's own extraction.
+     * Draws the view through each gate the main camera faces, a linked
+     * portal's or an open hole's mouth, before the frame's own extraction.
      *
      * @param delta   the frame's delta tracker
      * @param advance whether the frame draws the level
@@ -111,20 +112,38 @@ public final class PortalView {
     public static void drawBeforeExtract(DeltaTracker delta, boolean advance) {
         FRESH.clear();
         Minecraft mc = Minecraft.getInstance();
-        Optional<QuantumPortals.Link> link = ClientPortals.link();
-        if (!advance || link.isEmpty() || !inWorld(mc)) {
+        if (!advance || !inWorld(mc) || !mc.gameRenderer.getMainCamera().isInitialized()) {
             return;
         }
         Camera main = mc.gameRenderer.getMainCamera();
-        List<Portal> ends = List.of(link.get().entry(), link.get().exit());
-        for (int slot = 0; slot < ends.size() && main.isInitialized(); slot++) {
-            drawEnd(mc, main, delta, slot, ends.get(slot), ends.get(ends.size() - 1 - slot));
+        for (Gate[] pair : pairs()) {
+            drawPair(mc, main, delta, pair);
         }
     }
 
-    private static void drawEnd(Minecraft mc, Camera main, DeltaTracker delta, int slot, Portal near, Portal far) {
+    private static void drawPair(Minecraft mc, Camera main, DeltaTracker delta, Gate[] pair) {
+        for (int end = 0; end < pair.length && FRESH.size() < MOST_VIEWS; end++) {
+            drawEnd(mc, main, delta, pair[end], pair[pair.length - 1 - end]);
+        }
+    }
+
+    /**
+     * Every pair of gates a view can be drawn through: the local player's
+     * linked portals and each open hole's two mouths.
+     *
+     * @return the pairs, each its two gates
+     */
+    private static List<Gate[]> pairs() {
+        List<Gate[]> pairs = new ArrayList<>();
+        ClientPortals.link().ifPresent(link -> pairs.add(new Gate[] {link.entry().gate(), link.exit().gate()}));
+        ClientHoles.holes().forEach(hole -> pairs.add(new Gate[] {hole.entry(), hole.exit()}));
+        return pairs;
+    }
+
+    private static void drawEnd(Minecraft mc, Camera main, DeltaTracker delta, Gate near, Gate far) {
+        int slot = FRESH.size();
         if (shows(mc, main, near) && holds(mc, main, far) && drawThrough(mc, main, delta, slot, near, far)) {
-            FRESH.put(near, VIEW_IDS.get(slot));
+            FRESH.put(near, Identifier.fromNamespaceAndPath(Goo.MODID, VIEW_PATH + slot));
         }
     }
 
@@ -140,9 +159,9 @@ public final class PortalView {
      * @param near the portal looked into
      * @return true where the portal's view is worth drawing
      */
-    private static boolean shows(Minecraft mc, Camera main, Portal near) {
-        Vec3 toEye = main.position().subtract(near.faceCenter());
-        return near.block().dimension().equals(mc.level.dimension())
+    private static boolean shows(Minecraft mc, Camera main, Gate near) {
+        Vec3 toEye = main.position().subtract(near.center());
+        return near.dimension().equals(mc.level.dimension())
                 && toEye.dot(near.face().getUnitVec3()) > 0
                 && toEye.length() < mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK
                 && main.getCullFrustum().isVisible(near.blocks().inflate(TOUCH));
@@ -157,11 +176,11 @@ public final class PortalView {
      * @param far  the partner portal
      * @return true where the partner's side can be drawn
      */
-    private static boolean holds(Minecraft mc, Camera main, Portal far) {
-        ChunkPos chunk = ChunkPos.containing(far.block().pos());
-        return far.block().dimension().equals(mc.level.dimension())
+    private static boolean holds(Minecraft mc, Camera main, Gate far) {
+        ChunkPos chunk = ChunkPos.containing(BlockPos.containing(far.center()));
+        return far.dimension().equals(mc.level.dimension())
                 && mc.level.hasChunk(chunk.x(), chunk.z())
-                && far.faceCenter().distanceTo(main.position())
+                && far.center().distanceTo(main.position())
                 < (mc.options.getEffectiveRenderDistance() - 1) * BLOCKS_PER_CHUNK;
     }
 
@@ -177,11 +196,11 @@ public final class PortalView {
      * @param far   its partner
      * @return true when the view drew
      */
-    private static boolean drawThrough(Minecraft mc, Camera main, DeltaTracker delta, int slot, Portal near,
-            Portal far) {
+    private static boolean drawThrough(Minecraft mc, Camera main, DeltaTracker delta, int slot, Gate near,
+            Gate far) {
         PortalTransform through = PortalTransform.between(near, far);
         Vec3 eye = through.point(main.position());
-        if (eye.subtract(far.faceCenter()).dot(far.face().getUnitVec3()) > -NEAREST_PLANE) {
+        if (eye.subtract(far.center()).dot(far.face().getUnitVec3()) > -NEAREST_PLANE) {
             return false;
         }
         CAMERA.place(mc.level, mc.player, delta, main.getFov(), eye,
@@ -335,11 +354,11 @@ public final class PortalView {
      * @param eye        the mirrored eye
      * @param far        the partner portal
      */
-    static void clipAt(Matrix4f projection, Matrix4f viewRotation, Vec3 eye, Portal far) {
+    static void clipAt(Matrix4f projection, Matrix4f viewRotation, Vec3 eye, Gate far) {
         Vec3 normal = far.face().getUnitVec3();
         Vector3f inView = viewRotation.transformDirection(new Vector3f((float) normal.x(), (float) normal.y(),
                 (float) normal.z()));
-        float distance = (float) normal.dot(eye.subtract(far.faceCenter())) - CLIP_OFFSET;
+        float distance = (float) normal.dot(eye.subtract(far.center())) - CLIP_OFFSET;
         Vector4f plane = new Vector4f(inView.x(), inView.y(), inView.z(), distance);
         Vector4f corner = projection.invert(new Matrix4f())
                 .transform(new Vector4f(Math.signum(plane.x()), Math.signum(plane.y()), 1F, 1F));
@@ -360,7 +379,8 @@ public final class PortalView {
             PortalViewTexture texture = new PortalViewTexture();
             TARGETS.add(target);
             TEXTURES.add(texture);
-            mc.getTextureManager().register(VIEW_IDS.get(TARGETS.size() - 1), texture);
+            mc.getTextureManager().register(Identifier.fromNamespaceAndPath(Goo.MODID, VIEW_PATH + (TARGETS.size() - 1)),
+                    texture);
         }
         RenderTarget target = TARGETS.get(slot);
         if (target.width != width || target.height != height) {
