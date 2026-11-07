@@ -393,6 +393,25 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
+     * The share of the rise run at a moment, eased as the hunk climbs.
+     *
+     * @param time the game time
+     * @return the share, 0 at the start to 1 at the target
+     */
+    public double risenShareAt(double time) {
+        return risenShare(time - riseStartTime, riseTicks);
+    }
+
+    /**
+     * How high the ground the rise began on stands: the hunk's top as the rise began.
+     *
+     * @return the height
+     */
+    public double groundTop() {
+        return topAt(riseStartTime);
+    }
+
+    /**
      * Whether a settled hunk still lingers over its stone at a moment, drawing
      * it while the clients' chunks redraw it.
      *
@@ -409,6 +428,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @param time the game time
      * @return true while the stone climbs
      */
+    public boolean climbing(double time) {
+        return climbsAt(time);
+    }
+
     boolean climbsAt(double time) {
         return rising && !settledBy(time);
     }
@@ -429,6 +452,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         // The rise reads the clock, so any server position update the client took is dropped.
         interpolation.cancel();
         setPos(positionAt(now));
+        if (level().isClientSide() && climbsAt(now)) {
+            SpireRumble.play(this, now - riseStartTime);
+        }
         if (climbsAt(now)) {
             HunkRiders.rises(this);
         }
@@ -703,7 +729,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         writePoint(buffer, start);
         writePoint(buffer, target);
         buffer.writeVarInt(riseTicks);
-        buffer.writeLong(riseStartTime);
+        // How far into the rise, not when it began: the client counts on from its own clock, which may not match.
+        buffer.writeVarInt((int) Math.max(0, level().getGameTime() - riseStartTime));
         buffer.writeBlockPos(home);
     }
 
@@ -721,7 +748,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         start = readPoint(buffer);
         target = readPoint(buffer);
         riseTicks = buffer.readVarInt();
-        riseStartTime = buffer.readLong();
+        riseStartTime = level().getGameTime() - buffer.readVarInt();
         home = buffer.readBlockPos();
         if (rising) {
             setPos(positionAt(level().getGameTime()));
