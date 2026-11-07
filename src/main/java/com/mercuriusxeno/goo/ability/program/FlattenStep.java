@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  *
  * @param breaks the block tag naming the blocks flatten may break
  */
-public record FlattenStep(TagKey<Block> breaks) implements Step {
+public record FlattenStep(TagKey<Block> breaks) implements TakesNoEntity {
 
     private static final String NAME = "flatten";
     private static final String FIELD_BREAKS = "breaks";

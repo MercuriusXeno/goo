@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  * @param radius how far past half a block the cone reaches from its axis at mid range, 0 for one block wide
  * @param speed  how much faster than the crucible the drink goes, 1 at its pace
  */
-public record SiphonStep(Expr radius, Expr speed) implements Step {
+public record SiphonStep(Expr radius, Expr speed) implements TakesNoEntity {
 
     private static final String NAME = "siphon";
     private static final String FIELD_RADIUS = "radius";

@@ -1,6 +1,10 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.held.Telekinesis;
+import com.mercuriusxeno.goo.ability.program.GrabStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -12,6 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * What the held glove says about aiming: the goo type it throws, the
@@ -39,6 +44,40 @@ public final class GloveAim {
             return TargetingHint.NONE;
         }
         return hintFromAbility(type, sel);
+    }
+
+    /**
+     * How far the glove aims for its selected ability: a grab's reach, so it
+     * marks no mob it cannot lift, and the throw range for every other ability.
+     *
+     * @param player     the local player
+     * @param throwRange the range every ability without a reach of its own aims to
+     * @return the aim range, in blocks
+     */
+    public static double aimRange(Player player, double throwRange) {
+        ClientAbility ability = selectedAbility(player);
+        return ability == null ? throwRange
+                : GrabStep.reachOf(ability.behaviors(), Telekinesis.entityReachLaid(player)).orElse(throwRange);
+    }
+
+    /**
+     * The selected ability's steps that act on what the glove aims at, which
+     * name the entities it may outline: of a channel delivered to the caster,
+     * the steps reaching past the caster; of any other ability, every step
+     * (decision steps-declare-the-entities-they-take).
+     *
+     * @param player the local player
+     * @return the steps, empty when the glove holds no synced ability
+     */
+    public static List<Step> selectedBehaviors(Player player) {
+        ClientAbility ability = selectedAbility(player);
+        return ability == null ? List.of()
+                : Step.reachingTheAim(ability.behaviors(), ability.delivery().kind() == DeliveryKind.SELF);
+    }
+
+    private static @Nullable ClientAbility selectedAbility(Player player) {
+        String abilityId = selectedAbilityId(player);
+        return abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
     }
 
     /**

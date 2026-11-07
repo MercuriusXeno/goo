@@ -27,6 +27,7 @@ import java.util.Map;
  * starts and burning away once the ticks stop, and its fire roar looping at
  * the prism while it flames (idea heater-prism-rulings: Flames' fire roar).
  * heater-prism-flames-nearby-creatures
+ * flames-draws-as-particle-style-fire
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeaterFlames {
@@ -126,5 +127,21 @@ public final class HeaterFlames {
         double released = Double.isNaN(heater.releasedAt()) ? Double.NaN : now - heater.releasedAt();
         FireStream.JetSpan span = FireStream.jetSpan(now - heater.since(), released, range);
         return span.tail() >= span.front() ? null : span;
+    }
+
+    /**
+     * The field a heater burns: Flames' own licks and embers, from the
+     * prism's tip at its target, at Flames' reach and cone, cut off at the
+     * face its line meets.
+     *
+     * @param heater the heater
+     * @param span   the stretch it burns now
+     * @param wall   where its line meets a block, in world coordinates, or null
+     * @param camera the camera's world position
+     * @return the field, camera relative
+     */
+    static FireField fieldOf(Heater heater, FireStream.JetSpan span, FireField.@Nullable Wall wall, Vec3 camera) {
+        return FireStream.fieldFrom(heater.tip(), heater.axis(), FireStream.FLAMES_RANGE,
+                FireStream.FLAMES_CONE_DEGREES, span, wall, camera);
     }
 }
