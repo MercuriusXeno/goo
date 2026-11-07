@@ -208,16 +208,16 @@ class AffordedCountTest {
             assertEquals("200 + 100/block", blink.petalLabel(THOUSAND, NO_REAGENTS));
         }
 
-        // terrakinesis-tears-free-with-a-stone-tear-and-seam-dust: the petal reads the tear's tunable fixed price
+        // The petal reads the tunable fixed price to grab a chunk, the number alone
         @Test
-        void terrakinesisReadsItsFixedPriceATear() {
+        void terrakinesisReadsItsFixedPriceToGrabAChunk() {
             ClientAbility terrakinesis = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "terrakinesis"),
                     "ability.goo.terrakinesis", "", 0, List.of(),
                     List.of(new TerrakinesisStep(12, 1.5, 2.5, 3.5, 2.5, 1000)), 0, Delivery.of(DeliveryKind.SELF),
                     AbilityBadge.CHANNELED, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0,
                     DistancePrice.NONE, List.of(), ArmPose.HELD_OUT, "ability.goo.terrakinesis.description",
-                    Optional.of("ability.goo.terrakinesis.cost_mechanics"), Optional.of("%s/tear"));
-            assertEquals("1K/tear", terrakinesis.petalLabel(THOUSAND, NO_REAGENTS));
+                    Optional.of("ability.goo.terrakinesis.cost_mechanics"), Optional.of("%s"));
+            assertEquals("1K", terrakinesis.petalLabel(THOUSAND, NO_REAGENTS));
         }
 
         @Test
