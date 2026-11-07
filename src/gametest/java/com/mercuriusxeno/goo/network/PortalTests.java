@@ -27,6 +27,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -322,6 +323,8 @@ public final class PortalTests {
         PortalChoice.link(owner, second);
         helper.assertTrue(QuantumPortals.get(level).partnerOf(leftUnlinked).isEmpty()
                 && QuantumPortals.get(level).partnerOf(neverLinked).isEmpty(), "Both test frames should stand unlinked");
+        fenceIn(helper, NEVER_LINKED);
+        fenceIn(helper, LEFT_UNLINKED);
         Pig onNever = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(NEVER_LINKED.above()));
         Pig onLeft = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(LEFT_UNLINKED.above()));
         helper.runAfterDelay(STOOD, () -> {
@@ -453,6 +456,24 @@ public final class PortalTests {
 
     /** How far a body's box shrinks before it is tested for blocks, so resting on a floor is clear. */
     private static final double EPSILON = 0.01;
+
+    /**
+     * Walls a floor frame's top in with glass two blocks high, so a pig set
+     * on it stays on the frame rather than wandering off its edge, and falls
+     * only if the frame opens under it.
+     */
+    private static void fenceIn(GameTestHelper helper, BlockPos first) {
+        BlockPos second = first.south();
+        for (int up = 1; up <= FENCE_HEIGHT; up++) {
+            for (BlockPos cell : List.of(first.west(), first.east(), second.west(), second.east(), first.north(),
+                    second.south())) {
+                helper.setBlock(cell.above(up), Blocks.GLASS);
+            }
+        }
+    }
+
+    /** How high the glass around a fenced-in frame stands, past a pig's jump. */
+    private static final int FENCE_HEIGHT = 2;
 
     /** Lays a floor frame on two stone blocks running south from a cell, placed for an owner. */
     private static Portal floorAt(GameTestHelper helper, ServerPlayer owner, BlockPos first) {
