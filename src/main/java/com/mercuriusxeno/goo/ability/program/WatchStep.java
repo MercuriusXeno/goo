@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  * @param until  the distance at which the watch ends, in blocks, evaluated each tick
  * @param where  the filters an entity must pass; empty keeps any entity
  */
-public record WatchStep(Expr radius, Expr until, List<EntityFilter> where) implements Step {
+public record WatchStep(Expr radius, Expr until, List<EntityFilter> where) implements TakesNoEntity {
 
     private static final String NAME = "watch";
     private static final String FIELD_RADIUS = "radius";

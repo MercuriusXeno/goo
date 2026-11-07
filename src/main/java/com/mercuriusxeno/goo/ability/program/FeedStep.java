@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.entity.FeedPile;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
@@ -57,14 +59,29 @@ public record FeedStep(Expr radius, Expr fightTicks) implements Step {
         return true;
     }
 
-    private static void feedStruck(TargetHost struck) {
-        if (struck.target() instanceof Slime slime) {
+    private void feedStruck(TargetHost struck) {
+        LivingEntity target = struck.target();
+        if (!takesEntity(target)) {
+            return;
+        }
+        if (target instanceof Slime slime) {
             Feeding.feed(slime);
             Feeding.crumbsAndHearts((ServerLevel) slime.level(), slime);
-        } else if (struck.target() instanceof Animal animal
-                && Feeding.feed(animal, struck.thrower() instanceof Player player ? player : null)) {
-            Feeding.crumbsAndHearts((ServerLevel) animal.level(), animal);
+        } else if (Feeding.feed((Animal) target, struck.thrower() instanceof Player player ? player : null)) {
+            Feeding.crumbsAndHearts((ServerLevel) target.level(), target);
         }
+    }
+
+    /**
+     * Feed takes a slime, which it grows, and an animal, which it feeds.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where a struck blob feeds it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Slime || entity instanceof Animal;
     }
 
     @Override
