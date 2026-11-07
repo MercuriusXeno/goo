@@ -11,9 +11,9 @@ package com.mercuriusxeno.goo.client.ability;
 public final class SculkerGlass {
 
     /** How far from the player the field reaches, in blocks. */
-    public static final double FIELD_RADIUS = 5;
+    public static final double FIELD_RADIUS = 3;
     /** The share of the radius the field holds full strength over before it eases to nothing at its edge. */
-    private static final double FULL_SHARE = 0.7;
+    private static final double FULL_SHARE = 2.0 / 3.0;
     /** The smoothstep's cubic terms, 3s² - 2s³, easing the fall in and out. */
     private static final double SMOOTH_SQUARE = 3;
     private static final double SMOOTH_CUBE = 2;

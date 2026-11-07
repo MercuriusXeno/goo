@@ -5,10 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The glass field draws one face where two different block types meet and
- * none where the same block carries on: the face of the block farther from
- * the diver, so from inside stone the diver sees the stone's face against a
- * cave and an ore's face against the stone it sits in
+ * The glass field shows the stone around the diver faintly and where two
+ * different blocks meet a little brighter, one face to each place: a block
+ * carrying on into the same block shows only its faces toward the diver;
+ * against air a block shows its own face, seen from either side; where two
+ * blocks meet, the farther block's face
  * (decision sculker-shows-blocks-translucent-close-up).
  */
 class SculkerGlassRendererTest {
@@ -17,18 +18,25 @@ class SculkerGlassRendererTest {
     private static final double FAR = 3;
 
     @Test
-    void drawsStonesFaceAgainstACaveFromInsideTheStone() {
-        assertTrue(SculkerGlassRenderer.drawsFace(true, false, NEAR, FAR));
+    void theSameBlockCarryingOnShowsOnlyItsFacesTowardTheDiver() {
+        assertTrue(SculkerGlassRenderer.faceShows(false, true, true, FAR, NEAR));
+        assertFalse(SculkerGlassRenderer.faceShows(false, true, false, FAR, NEAR));
     }
 
     @Test
-    void drawsTheFartherBlocksFaceWhereTwoBlocksMeet() {
-        assertTrue(SculkerGlassRenderer.drawsFace(false, false, FAR, NEAR));
-        assertFalse(SculkerGlassRenderer.drawsFace(false, false, NEAR, FAR));
+    void aBlockShowsItsFaceAgainstAirFromEitherSide() {
+        assertTrue(SculkerGlassRenderer.faceShows(true, false, false, NEAR, FAR));
+        assertTrue(SculkerGlassRenderer.faceShows(true, false, true, NEAR, FAR));
     }
 
     @Test
-    void drawsNothingWhereTheSameBlockCarriesOn() {
-        assertFalse(SculkerGlassRenderer.drawsFace(false, true, FAR, NEAR));
+    void whereTwoBlocksMeetTheFartherBlocksFaceShows() {
+        assertTrue(SculkerGlassRenderer.faceShows(false, false, false, FAR, NEAR));
+        assertFalse(SculkerGlassRenderer.faceShows(false, false, true, NEAR, FAR));
+    }
+
+    @Test
+    void aMeetingShowsBrighterThanTheStoneCarryingOn() {
+        assertTrue(SculkerGlassRenderer.faceOpacity(false) > SculkerGlassRenderer.faceOpacity(true));
     }
 }
