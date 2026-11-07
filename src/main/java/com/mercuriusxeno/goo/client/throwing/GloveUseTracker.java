@@ -321,6 +321,17 @@ public final class GloveUseTracker {
     }
 
     /**
+     * The ticks the live press has run a held channel or stream, the first
+     * counted 1, which Terrakinesis's wind-up shake reads
+     * (decision terrakinesis-shakes-the-blocks-before-the-tear).
+     *
+     * @return the ticks, 0 while no channel runs
+     */
+    public static int channelTicks() {
+        return PRESS.channelTicks();
+    }
+
+    /**
      * Periodically re-checks whether the selected goo type is in inventory.
      * @param player the local player whose inventory is checked for goo availability
      */

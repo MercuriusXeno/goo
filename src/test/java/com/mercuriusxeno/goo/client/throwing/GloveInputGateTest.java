@@ -89,6 +89,24 @@ class GloveInputGateTest {
     }
 
     @Nested
+    class AChannel {
+
+        // terrakinesis-shakes-the-blocks-before-the-tear: the wind-up's shake reads how long the channel has run
+        @Test
+        void aHeldChannelCountsEachTickItRunsAndForgetsThemOnRelease() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = new RecordingActions(true, true);
+            gate.arm();
+            for (int tick = 1; tick <= LONG_HOLD_TICKS; tick++) {
+                gate.tick(true, actions);
+                assertEquals(tick, gate.channelTicks(), "channel ticks on held tick " + tick);
+            }
+            gate.tick(false, actions);
+            assertEquals(0, gate.channelTicks());
+        }
+    }
+
+    @Nested
     class AThrow {
 
         // nova-ring-grows-with-the-hold
