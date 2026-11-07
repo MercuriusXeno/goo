@@ -88,11 +88,21 @@ public final class SculkCall {
      */
     static void call(Mob mob, BlockPos blobCell) {
         mob.goalSelector.removeAllGoals(goal -> goal instanceof SculkCallGoal walk && !walk.blobStands());
-        boolean walking = mob.goalSelector.getAvailableGoals().stream().map(WrappedGoal::getGoal)
-                .anyMatch(goal -> goal instanceof SculkCallGoal walk && walk.leadsTo(blobCell));
-        if (!walking) {
+        if (!isCalledTo(mob, blobCell)) {
             mob.goalSelector.addGoal(WALK_PRIORITY, new SculkCallGoal(mob, blobCell));
         }
+    }
+
+    /**
+     * Whether a mob holds a walk to a blob, the walk the ring gives the mobs it calls.
+     *
+     * @param mob      the mob
+     * @param blobCell the blob's cell
+     * @return true where the mob is called to that blob
+     */
+    public static boolean isCalledTo(Mob mob, BlockPos blobCell) {
+        return mob.goalSelector.getAvailableGoals().stream().map(WrappedGoal::getGoal)
+                .anyMatch(goal -> goal instanceof SculkCallGoal walk && walk.leadsTo(blobCell));
     }
 
     /**

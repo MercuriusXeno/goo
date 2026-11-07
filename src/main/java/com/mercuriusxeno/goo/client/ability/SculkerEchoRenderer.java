@@ -42,7 +42,7 @@ import java.util.Set;
 public final class SculkerEchoRenderer {
 
     /** The opacity a lit block draws at beside the player, as its echo is fresh. */
-    private static final float MOST_OPACITY = 0.6f;
+    private static final float MOST_OPACITY = 0.9f;
     /** A lit block this faint is not drawn at all. */
     private static final float FAINTEST = 0.02f;
     private static final int OPAQUE = 255;

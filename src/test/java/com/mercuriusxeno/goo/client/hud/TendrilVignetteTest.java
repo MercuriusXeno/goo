@@ -76,6 +76,18 @@ class TendrilVignetteTest {
     }
 
     @Test
+    void everyTendrilHeadsMostlyInwardFromItsEdge() {
+        for (TendrilVignette.Tendril tendril : advancedTo(SAMPLES_UNTIL).live()) {
+            float[] path = tendril.path();
+            for (int step = 0; step < path.length; step++) {
+                float inward = (float) step / (path.length - 1);
+                assertTrue(Math.abs(path[step]) <= TendrilVignette.MOST_SLANT * inward + 1e-6f,
+                        "a tendril strayed " + path[step] + " sideways " + inward + " of the way in");
+            }
+        }
+    }
+
+    @Test
     void someForkSomeRootThickAndTheRestDoNot() {
         List<TendrilVignette.Tendril> live = advancedTo(SAMPLES_UNTIL).live();
         assertTrue(live.stream().anyMatch(TendrilVignette.Tendril::forks)

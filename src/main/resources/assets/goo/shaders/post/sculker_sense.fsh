@@ -47,7 +47,9 @@ const float ECHO_SPEED = 12.0;
 const float ECHO_SPACING = 24.0;
 const float ECHO_WIDTH = 2.5;
 // an echo draws sculk teal: green and blue well above red, which the dark lets through bright
-const float TEAL_CHROMA = 0.22;
+const float TEAL_CHROMA = 0.12;
+// a faint echo, its teal laid over the dark, still counts as an echo from here
+const float TEAL_FLOOR = 0.02;
 const float ECHO_GAIN = 1.1;
 
 float brightnessAt(float distance) {
@@ -96,7 +98,7 @@ void main() {
     vec3 color = dark + heard;
 
     float tealness = min(scene.g, scene.b) - scene.r;
-    float echoed = smoothstep(TEAL_CHROMA * 0.5, TEAL_CHROMA, tealness);
+    float echoed = smoothstep(TEAL_FLOOR, TEAL_CHROMA, tealness);
     vec3 sensed = mix(color, scene * ECHO_GAIN, echoed);
 
     fragColor = vec4(mix(scene, sensed, presence), 1.0);

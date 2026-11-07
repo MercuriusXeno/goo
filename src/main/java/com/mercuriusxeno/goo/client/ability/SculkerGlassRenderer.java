@@ -33,9 +33,11 @@ import java.util.List;
  * field's strength for its distance, farthest first so the nearer glass
  * lies over it, depth tested so the diver's own body and every entity in
  * front of the glass shows over it. A block draws only its sides where two
- * different block types meet, air among them, and of the two faces where
- * they meet only the one facing the diver, so the diver sees the places
- * where different blocks meet and nothing of the same block carrying on.
+ * different block types meet, air among them, one face to each meeting: a
+ * block's own face against air, and the farther block's face where two
+ * blocks meet, so the diver sees the places where different blocks meet,
+ * from inside the stone as from the open, and nothing of the same block
+ * carrying on.
  * decision sculker-shows-blocks-translucent-close-up
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -76,7 +78,7 @@ public final class SculkerGlassRenderer {
         for (BlockPos pos : field) {
             float strength = SculkerGlass.strengthAt(Vec3.atCenterOf(pos).distanceTo(eyes)) * SculkerVision.presence();
             QuadInstance look = FungusXray.instance(ARGB.color(Math.round(MOST_OPACITY * strength * OPAQUE), WHITE_RGB));
-            drawBorderingFaces(mc, poseStack, consumer, camera, pos, look);
+            drawBorderingFaces(mc, poseStack, consumer, camera, eyes, pos, look);
         }
         buffers.endBatch(glass);
     }
@@ -89,11 +91,12 @@ public final class SculkerGlassRenderer {
      * @param poseStack the pose stack
      * @param consumer  the vertex consumer
      * @param camera    the camera's position
+     * @param eyes      the diver's eyes
      * @param pos       the block
      * @param look      the color, light and overlay the quads take
      */
     private static void drawBorderingFaces(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
-                                           BlockPos pos, QuadInstance look) {
+                                           Vec3 eyes, BlockPos pos, QuadInstance look) {
         BlockState state = mc.level.getBlockState(pos);
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
         List<BlockStateModelPart> parts = new ArrayList<>();
@@ -103,7 +106,9 @@ public final class SculkerGlassRenderer {
         for (BlockStateModelPart part : parts) {
             for (Direction side : Direction.values()) {
                 BlockPos beside = pos.relative(side);
-                if (whereTypesMeet(state, mc.level.getBlockState(beside))) {
+                BlockState besideState = mc.level.getBlockState(beside);
+                if (drawsFace(besideState.isAir(), besideState.equals(state),
+                        Vec3.atCenterOf(pos).distanceToSqr(eyes), Vec3.atCenterOf(beside).distanceToSqr(eyes))) {
                     part.getQuads(side).forEach(quad -> consumer.putBakedQuad(poseStack.last(), quad, look));
                 }
             }
@@ -114,14 +119,22 @@ public final class SculkerGlassRenderer {
 
     /**
      * Whether a block's side draws: only where two different block types
-     * meet, air among them, never where the same block carries on.
+     * meet, never where the same block carries on, and of the two faces where
+     * they meet only one, so no seam shows: against air the block's own face,
+     * and against another block the face of whichever stands farther from the
+     * diver, the one the diver looks at.
      *
-     * @param state       the block
-     * @param besideState the block beside that side
-     * @return true where a different block stands beside
+     * @param besideIsAir    whether air stands beside that side
+     * @param besideIsSame   whether the same block stands beside
+     * @param blockDistance  how far the block stands from the diver's eyes
+     * @param besideDistance how far the block beside stands from them
+     * @return true where the side draws
      */
-    static boolean whereTypesMeet(BlockState state, BlockState besideState) {
-        return !besideState.equals(state);
+    static boolean drawsFace(boolean besideIsAir, boolean besideIsSame, double blockDistance, double besideDistance) {
+        if (besideIsSame) {
+            return false;
+        }
+        return besideIsAir || blockDistance > besideDistance;
     }
 
     /**
