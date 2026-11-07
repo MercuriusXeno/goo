@@ -6,17 +6,21 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.goal.WrappedGoal;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
  * One tick of a convoke blob's sculk call in a level: the ring stands as a
  * circle of sculk charge on the ground at its radius, clicking as it leaves
- * the blob, and every living mob in the band it swept this tick, within a
- * few layers of the blob, takes a walk to the blob ahead of every other
- * move it would make, which holds while the blob stands.
+ * the blob, and every living hostile mob in the band it swept this tick,
+ * within a few layers of the blob, takes a walk to the blob ahead of every
+ * other move it would make, which holds while the blob stands; every other
+ * mob the ring crosses is passed over untouched.
  * decision convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches
+ * decision convoke-ring-pulls-hostiles-only
  */
 public final class SculkCall {
 
@@ -54,12 +58,25 @@ public final class SculkCall {
         }
         drawRing(level, blob, outer);
         AABB band = new AABB(blob, blob).inflate(outer, VERTICAL_REACH, outer);
-        for (Mob mob : level.getEntitiesOfClass(Mob.class, band, Mob::isAlive)) {
-            double across = horizontalDistance(mob.position(), blob);
-            if (across >= inner && across < outer && mob.position().distanceTo(blob) > ARRIVED_WITHIN) {
+        for (Mob mob : level.getEntitiesOfClass(Mob.class, band, mob -> mob.isAlive() && calls(mob))) {
+            if (crossedThisTick(mob.position(), blob, inner, outer)) {
                 call(mob, blobCell);
             }
         }
+    }
+
+    /**
+     * Whether the ring's front crossed a point this tick, short of a point already at the blob.
+     *
+     * @param at    a mob's position
+     * @param blob  the blob
+     * @param inner the ring's radius at the start of this tick
+     * @param outer the ring's radius at the end of this tick
+     * @return true where the point lies in the band swept and has not arrived
+     */
+    private static boolean crossedThisTick(Vec3 at, Vec3 blob, double inner, double outer) {
+        double across = horizontalDistance(at, blob);
+        return across >= inner && across < outer && at.distanceTo(blob) > ARRIVED_WITHIN;
     }
 
     /**
@@ -76,6 +93,29 @@ public final class SculkCall {
         if (!walking) {
             mob.goalSelector.addGoal(WALK_PRIORITY, new SculkCallGoal(mob, blobCell));
         }
+    }
+
+    /**
+     * Whether the ring calls a mob: a hostile one, and no other.
+     *
+     * @param mob a mob the ring crosses
+     * @return true for a mob in the monster category or an enemy
+     */
+    static boolean calls(Mob mob) {
+        return calls(mob.getType().getCategory(), mob instanceof Enemy);
+    }
+
+    /**
+     * Whether the ring calls a mob of a category: a monster or an enemy is
+     * called, and every other mob is passed over.
+     * decision convoke-ring-pulls-hostiles-only
+     *
+     * @param category the mob's category
+     * @param enemy    whether the mob counts as an enemy
+     * @return true for a hostile mob
+     */
+    static boolean calls(MobCategory category, boolean enemy) {
+        return enemy || category == MobCategory.MONSTER;
     }
 
     /**
