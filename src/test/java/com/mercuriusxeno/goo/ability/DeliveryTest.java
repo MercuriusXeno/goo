@@ -96,10 +96,11 @@ class DeliveryTest {
         }
 
         // shards-sling-then-morph-to-flechettes
+        // knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
         @Test
         void crystalKnivesChargesARainOfKnives() {
             Delivery knives = AbilityJson.decode("crystal_knives").delivery();
-            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 24, 50, 8), knives.charge());
+            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 27, 45, 8, 3, 5), knives.charge());
             assertTrue(knives.charge().slings());
         }
 
