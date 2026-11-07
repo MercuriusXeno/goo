@@ -43,6 +43,8 @@ public final class GatePassage {
     private static final double DEEPEST = 1.5;
     private static final double HALF = 0.5;
     private static final double UNIT = 1.0;
+    /** A crawling body's height. */
+    private static final double CRAWL_HEIGHT = 0.6;
     /** How far from where the server last held a player its client may say it crossed a gate, in blocks. */
     private static final double TRUSTED_STEP = 4.0;
     private static final float DEGREES = (float) (180.0 / Math.PI);
@@ -325,7 +327,9 @@ public final class GatePassage {
 
     /**
      * Feet set clear of a floor or ceiling gate's face: on a floor no lower
-     * than the face, under a ceiling with the head no higher than it.
+     * than the face, under a ceiling low enough that a crawling body's head
+     * stands below it, so a body dropping through a 1x1 hole into a cell one
+     * block tall comes out crawling in it rather than pressed into its floor.
      *
      * @param gate   the gate come out of
      * @param feet   where the feet would stand
@@ -336,7 +340,7 @@ public final class GatePassage {
         double plane = gate.center().y();
         return switch (gate.face()) {
             case UP -> new Vec3(feet.x(), Math.max(feet.y(), plane), feet.z());
-            case DOWN -> new Vec3(feet.x(), Math.min(feet.y(), plane - height), feet.z());
+            case DOWN -> new Vec3(feet.x(), Math.min(feet.y(), plane - Math.min(height, CRAWL_HEIGHT)), feet.z());
             default -> feet;
         };
     }
