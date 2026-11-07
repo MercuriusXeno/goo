@@ -88,7 +88,7 @@ class AbilityPoseTableTest {
             Map.entry("shroom_fungal_shift", ArmPose.HELD_OUT),
             Map.entry("shroom_mycosis", ArmPose.HELD_OUT),
             Map.entry("shroom_sight", ArmPose.HELD_UP),
-            Map.entry("typhoon_float", ArmPose.HELD_OUT),
+            Map.entry("typhoon_float", ArmPose.HELD_UP),
             Map.entry("typhoon_gust", ArmPose.HELD_OUT),
             Map.entry("typhoon_pneuma", ArmPose.HELD_UP),
             Map.entry("typhoon_shulk", ArmPose.SWUNG),

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -51,6 +52,11 @@ public final class BrewEffectTests {
     private static final String BREW_BLAZE_HOLDS_PREPAID = "brew_blaze_holds_kindle_prepaid";
     private static final String BREW_REPLACED_ENDS_EFFECT = "brew_replaced_ends_its_effect";
     private static final String BREW_SHROOM_SIGHTS = "brew_shroom_sights_for_an_hour";
+    private static final String BREW_TYPHOON_FLOATS = "brew_typhoon_floats_for_an_hour";
+    /** typhoon_float.json's climb speed. */
+    private static final float FLOAT_CLIMB_SPEED = 0.4f;
+    private static final String SHOULD_FLOAT =
+            "The typhoon brew should grant Float at climb speed %.1f until %d, granted %.1f until %d";
     private static final String BREW_GLOW_LUX = "brew_glow_lux_for_an_hour";
     private static final String BREW_ENDER_SHIFTER = "brew_ender_shifter_for_an_hour";
     private static final String SHIFTER_BLINKS = "shifter_blinks_instead_of_damage";
@@ -76,6 +82,7 @@ public final class BrewEffectTests {
         GooTestFunctions.registerTest(registrar, BREW_BLAZE_HOLDS_PREPAID, BrewEffectTests::blazeBrewHoldsKindlePrepaid);
         GooTestFunctions.registerTest(registrar, BREW_REPLACED_ENDS_EFFECT, BrewEffectTests::replacedBrewEndsItsEffect);
         GooTestFunctions.registerTest(registrar, BREW_SHROOM_SIGHTS, BrewEffectTests::shroomBrewSightForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_TYPHOON_FLOATS, BrewEffectTests::typhoonBrewFloatsForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_GLOW_LUX, BrewEffectTests::glowBrewLuxForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_ENDER_SHIFTER, BrewEffectTests::enderBrewShifterForAnHour);
         GooTestFunctions.registerTest(registrar, SHIFTER_BLINKS, BrewEffectTests::shifterBlinksInsteadOfDamage);
@@ -294,6 +301,29 @@ public final class BrewEffectTests {
         long expected = now + GooPotions.BREW_DURATION;
         helper.assertTrue(sight.factor() == SIGHT_FACTOR && sight.expiresAt() == expected,
                 String.format(SHOULD_SEE, SIGHT_FACTOR, expected, sight.factor(), sight.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the typhoon brew grants Float's flight for an hour, draining no goo
+     * (decision tailwind-and-airborn-merge-into-float).
+     *
+     * @param helper the gametest helper
+     */
+    public static void typhoonBrewFloatsForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
+        int heldBefore = held(player, GooTypes.TYPHOON);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.TYPHOON);
+
+        Airborn flight = player.getData(GooAttachments.AIRBORN);
+        int drained = heldBefore - held(player, GooTypes.TYPHOON);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(flight.expiresAt() == expected && flight.climbSpeed() == FLOAT_CLIMB_SPEED,
+                String.format(SHOULD_FLOAT, FLOAT_CLIMB_SPEED, expected, flight.climbSpeed(), flight.expiresAt()));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }

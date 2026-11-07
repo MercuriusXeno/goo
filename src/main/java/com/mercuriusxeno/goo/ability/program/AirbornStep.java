@@ -5,37 +5,35 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.LivingEntity;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Grants the host's target Airborn for this held tick of Float and a short
- * grace after it, then finishes: steering in midair and while levitating, a
- * capped fall without fall damage, higher jumps and a faster elytra glide.
- * Run every held tick of the channel, it stands while Float is held and ends
- * the grace after the hold lets go. Float's Airborn is {@code airborn
- * air_speed=0.35 air_steer=0.15 fall_cap=0.4 jump_boost=0.5 glide_speed=1.2 glide_steer=0.05}.
+ * Grants the host's target Float's flight and finishes: in midair jump climbs,
+ * sneak descends, forward and backward fly along the look, left and right
+ * strafe, falls are slowed without fall damage, jumps go higher and an elytra
+ * glide is drawn faster. Eaten from the glove it stands as a held effect,
+ * paying its upkeep until ended; drunk as typhoon's brew it stands for the
+ * brew's hour. Float is {@code airborn air_speed=0.6 climb_speed=0.4 air_steer=0.2
+ * fall_cap=0.4 jump_boost=0.5 glide_speed=1.2 glide_steer=0.05}.
  * tailwind-and-airborn-merge-into-float
  *
- * @param airSpeed  the horizontal speed midair input drives toward, in blocks per tick
- * @param airSteer  the share of the way midair steering turns each tick
- * @param fallCap   the fastest the target falls, in blocks per tick
- * @param jumpBoost the share the target's jump strength grows by
+ * @param airSpeed   the speed forward, backward and strafing drive toward, in blocks per tick
+ * @param climbSpeed the speed jump climbs and sneak descends at, in blocks per tick
+ * @param airSteer   the share of the way the velocity turns toward the input each tick
+ * @param fallCap    the fastest the target falls, in blocks per tick
+ * @param jumpBoost  the share the target's jump strength grows by
  * @param glideSpeed the speed an elytra glide is drawn toward along the look, in blocks per tick
  * @param glideSteer the share of the way a slower glide is drawn toward it each tick
  */
-public record AirbornStep(Expr airSpeed, Expr airSteer, Expr fallCap, Expr jumpBoost,
+public record AirbornStep(Expr airSpeed, Expr climbSpeed, Expr airSteer, Expr fallCap, Expr jumpBoost,
                           Expr glideSpeed, Expr glideSteer)
         implements Step {
 
-    /**
-     * The ticks Airborn outlasts the held tick that granted it, so a held
-     * tick reaching the server a tick late leaves no gap in the air control.
-     */
-    public static final int HELD_TICK_GRACE = 5;
-
     private static final String NAME = "airborn";
     private static final String FIELD_AIR_SPEED = "air_speed";
+    private static final String FIELD_CLIMB_SPEED = "climb_speed";
     private static final String FIELD_AIR_STEER = "air_steer";
     private static final String FIELD_FALL_CAP = "fall_cap";
     private static final String FIELD_JUMP_BOOST = "jump_boost";
@@ -47,6 +45,7 @@ public record AirbornStep(Expr airSpeed, Expr airSteer, Expr fallCap, Expr jumpB
      */
     public static final MapCodec<AirbornStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Expr.CODEC.fieldOf(FIELD_AIR_SPEED).forGetter(AirbornStep::airSpeed),
+            Expr.CODEC.fieldOf(FIELD_CLIMB_SPEED).forGetter(AirbornStep::climbSpeed),
             Expr.CODEC.fieldOf(FIELD_AIR_STEER).forGetter(AirbornStep::airSteer),
             Expr.CODEC.fieldOf(FIELD_FALL_CAP).forGetter(AirbornStep::fallCap),
             Expr.CODEC.fieldOf(FIELD_JUMP_BOOST).forGetter(AirbornStep::jumpBoost),
@@ -66,17 +65,22 @@ public record AirbornStep(Expr airSpeed, Expr airSteer, Expr fallCap, Expr jumpB
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.hostAs(TargetHost.class).target();
+        TargetHost host = context.hostAs(TargetHost.class);
+        LivingEntity target = host.target();
+        long now = target.level().getGameTime();
+        OptionalInt brew = host.brewDuration();
+        long standing = target.getData(GooAttachments.AIRBORN).expiresAt();
+        long endsAt = brew.isPresent() ? Math.max(standing, now + brew.getAsInt()) : Airborn.NEVER_EXPIRES;
         target.setData(GooAttachments.AIRBORN, new Airborn(airSpeed.evaluateFloat(context),
-                airSteer.evaluateFloat(context), fallCap.evaluateFloat(context), jumpBoost.evaluateFloat(context),
-                glideSpeed.evaluateFloat(context), glideSteer.evaluateFloat(context),
-                target.level().getGameTime() + HELD_TICK_GRACE));
+                climbSpeed.evaluateFloat(context), airSteer.evaluateFloat(context), fallCap.evaluateFloat(context),
+                jumpBoost.evaluateFloat(context), glideSpeed.evaluateFloat(context), glideSteer.evaluateFloat(context),
+                endsAt));
         return true;
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(airSpeed, airSteer, fallCap, jumpBoost, glideSpeed, glideSteer);
+        return Stream.of(airSpeed, climbSpeed, airSteer, fallCap, jumpBoost, glideSpeed, glideSteer);
     }
 
     @Override

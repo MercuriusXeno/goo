@@ -130,7 +130,7 @@ class PlayerHostTest {
     class Push {
 
         private static final double STRENGTH = 1.5;
-        /** typhoon_float.json's push: its speed and the shares it steers by, without and with an elytra. */
+        /** A held self push: its speed and the shares it steers by, without and with an elytra. */
         private static final double JET_STRENGTH = 1.2;
         private static final double JET_STEER = 0.2;
         private static final double JET_ELYTRA_STEER = 0.5;

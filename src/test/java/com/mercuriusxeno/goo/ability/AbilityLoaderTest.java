@@ -20,7 +20,6 @@ import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
-import com.mercuriusxeno.goo.ability.program.PushStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -30,7 +29,6 @@ import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
-import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.ability.program.WobbleStep;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -125,8 +123,7 @@ class AbilityLoaderTest {
 
     /**
      * Typhoon's abilities after the flight merge: Shulk levitates the struck
-     * mob, and Float carries Tailwind's push and wind lines with Airborn's air
-     * control as one channel on the self.
+     * mob, and Float is typhoon's brew carrying the flight.
      * decision mob-float-renamed-shulk
      * decision tailwind-and-airborn-merge-into-float
      */
@@ -155,14 +152,14 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void floatChannelsThePushTheWindAndTheAirControlOnTheSelf() {
+        void floatIsTyphoonsBrewCarryingTheFlight() {
             AbilityDefinition flight = AbilityJson.decode("typhoon_float");
 
             assertEquals("goo.ability.typhoon.float", flight.displayName());
-            assertTrue(HeldRoute.channelsOnSelf(flight.delivery(), flight.badge()),
-                    "typhoon_float does not channel on the self");
-            assertEquals(Set.of(AirbornStep.class, PushStep.class, WindStep.class),
-                    flight.behaviors().stream().map(Object::getClass).collect(Collectors.toSet()));
+            assertTrue(SelfEatRoute.eats(flight.delivery(), flight.badge()), "typhoon_float is not a self + brew");
+            assertTrue(flight.behaviors().stream().anyMatch(AirbornStep.class::isInstance), "no airborn step");
+            assertTrue(LaidState.laidBy(flight.behaviors()).contains(LaidState.AIRBORN),
+                    "Float lays no flight to end with its held effect");
         }
     }
 

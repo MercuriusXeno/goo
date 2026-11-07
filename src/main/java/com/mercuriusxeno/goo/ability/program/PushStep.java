@@ -17,9 +17,8 @@ import java.util.stream.Stream;
  * velocity a share of the way toward the look at the push's speed: a share of
  * one sets it outright, and a smaller share, run every held tick, steers it
  * round gradually, the elytra share taking over while the target wears an
- * elytra. Typhoon Float pushes at {@code push strength=1.2 steer=0.2 elytra_steer=0.5}.
+ * elytra. A held self push is {@code push strength=1.2 steer=0.2 elytra_steer=0.5}.
  * jet-pushes-along-the-look-while-held
- * tailwind-and-airborn-merge-into-float
  *
  * @param strength    the speed the push drives toward, in blocks per tick, evaluated when the step runs
  * @param steer       the share of the way the velocity turns toward the push each run, 0 to 1
