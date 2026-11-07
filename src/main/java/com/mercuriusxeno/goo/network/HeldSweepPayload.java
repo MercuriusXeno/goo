@@ -12,20 +12,20 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-caster payload: one tick of a held sweep, Scry's, Glitter's or
- * Magnet's, sent to the caster alone, whose client draws the pulse's sphere
- * from its origin and the thin shell of air-exposed faces at its rim, in the
- * colors of the goo type it names.
+ * Server-to-caster payload: one live pulse of a held sweep, Scry's,
+ * Glitter's or Magnet's, on one tick, sent to the caster alone, whose client
+ * draws that pulse's front from its origin and lights the walls it hits, in
+ * the colors of the goo type it names; a tick with two fronts out sends two.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  *
- * @param origin   where the pulse began
- * @param radius   the pulse's radius in blocks
- * @param range    the radius the pulse reaches
- * @param strength how strongly the pulse shows, fading over its rest
- * @param gooType  the goo type whose colors tint the sphere and the shell
+ * @param pulse   names the pulse, so the client keeps each pulse's walls apart
+ * @param origin  where the pulse began
+ * @param radius  the front's radius in blocks
+ * @param range   the radius the front reaches
+ * @param gooType the goo type whose colors tint the front and the walls
  */
-public record HeldSweepPayload(Vec3 origin, float radius, float range, float strength,
+public record HeldSweepPayload(int pulse, Vec3 origin, float radius, float range,
                                ResourceKey<GooTypeDefinition> gooType) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -42,18 +42,19 @@ public record HeldSweepPayload(Vec3 origin, float radius, float range, float str
     }
 
     private static void encode(FriendlyByteBuf buf, HeldSweepPayload payload) {
+        buf.writeVarInt(payload.pulse);
         buf.writeDouble(payload.origin.x);
         buf.writeDouble(payload.origin.y);
         buf.writeDouble(payload.origin.z);
         buf.writeFloat(payload.radius);
         buf.writeFloat(payload.range);
-        buf.writeFloat(payload.strength);
         GooTypes.KEY_STREAM_CODEC.encode(buf, payload.gooType);
     }
 
     private static HeldSweepPayload decode(FriendlyByteBuf buf) {
+        int pulse = buf.readVarInt();
         Vec3 origin = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
-        return new HeldSweepPayload(origin, buf.readFloat(), buf.readFloat(), buf.readFloat(),
+        return new HeldSweepPayload(pulse, origin, buf.readFloat(), buf.readFloat(),
                 GooTypes.KEY_STREAM_CODEC.decode(buf));
     }
 }

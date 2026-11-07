@@ -18,17 +18,19 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Glitter's and Magnet's ore sense: while the channel is held it pulses at
- * the held sweeps' shared pace, each pulse's front easing out from where the
- * caster stood as it began to its reach. Each tick it walks only the band
- * of blocks the front crossed, finds the ore veins first reached there, and
- * sends the caster the pulse to draw through the held-sweep visual and the
- * veins to show through walls:
+ * Glitter's and Magnet's ore sense: a press sends a pulse at once and a
+ * hold another every half second, each front leaving where the caster
+ * stood at the held sweeps' steady pace, fronts overlapping. Each tick it
+ * sends the caster every live pulse to draw through the held-sweep visual,
+ * and walks only the band of blocks a front crossed, once for each spot a
+ * pulse left from, to send the ore veins first reached there to show
+ * through walls:
  * {@code detect_ore tag=goo:gem_ores goo=crystal radius=64 life=100}.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision glitter-sphere-icons-gem-ore-groups
@@ -71,13 +73,20 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
         if (held < ChannelAim.FIRST_TICK) {
             return true;
         }
-        int pulseTick = pace().pulseTick(held);
         LivingEntity caster = context.hostAs(TargetHost.class).target();
-        Vec3 origin = HeldSweepOrigins.originOf(caster, pulseTick);
-        EntityVisuals.sendToSelf(caster, sweepAt(origin, pulseTick));
-        OreRevealPayload reveal = revealAt(caster.level(), origin, pulseTick);
-        if (!reveal.veins().isEmpty()) {
-            EntityVisuals.sendToSelf(caster, reveal);
+        long now = caster.level().getGameTime();
+        List<HeldSweepPulses.Pulse> pulses = HeldSweepPulses.SERVER.advance(caster.getUUID(), caster.position(),
+                held, now, pace());
+        Set<Vec3> walked = new HashSet<>();
+        for (HeldSweepPulses.Pulse pulse : pulses) {
+            EntityVisuals.sendToSelf(caster, sweepOf(pulse, now));
+            // a later front from the spot an earlier one left walks blocks that front already walked
+            if (walked.add(pulse.origin())) {
+                OreRevealPayload reveal = revealAt(caster.level(), pulse.origin(), pulse.ageAt(now));
+                if (!reveal.veins().isEmpty()) {
+                    EntityVisuals.sendToSelf(caster, reveal);
+                }
+            }
         }
         return true;
     }

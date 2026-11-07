@@ -14,18 +14,19 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Astral's Scry: while held, it pulses at the held sweeps' shared pace, each
- * pulse a sphere of light easing out from where the caster stood as it
- * began to its reach. The child steps run on every living entity the front
- * crosses, seen or behind walls. The caster's client is sent each tick of
- * the pulse and draws the sphere and the thin shell of faces at its rim in
- * the goo type's colors. Scry is {@code scry goo=astral reach=96} with an
- * astral {@code ailment_overlay} as its child.
+ * Astral's Scry: a press sends a pulse at once and a hold another every
+ * half second, each front leaving where the caster stood at the held
+ * sweeps' steady pace, fronts overlapping. The child steps run on every
+ * living entity a front crosses, seen or behind walls, once for each
+ * front. The caster's client is sent each live pulse each tick and lights
+ * the walls each front hits in the goo type's colors. Scry is
+ * {@code scry goo=astral reach=96} with an astral {@code ailment_overlay}
+ * as its child.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  * decision scry-ships-on-astral
  *
- * @param goo   the goo type whose colors tint the sphere and the shell
+ * @param goo   the goo type whose colors tint the fronts and the walls they light
  * @param reach how far each pulse reaches, in blocks
  * @param where the filters an entity must pass; empty keeps any living entity
  * @param steps the child steps run once on each entity the front crosses
@@ -70,11 +71,32 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
         int held = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::held)
                 .orElse(ChannelAim.FIRST_TICK);
         HeldSweepPace pace = pace();
-        int pulseTick = pace.pulseTick(held);
         LivingEntity caster = context.hostAs(TargetHost.class).target();
-        Vec3 origin = HeldSweepOrigins.originOf(caster, pulseTick);
-        double previous = pace.radiusAt(pulseTick - 1);
-        double reached = pace.radiusAt(pulseTick);
+        long now = caster.level().getGameTime();
+        for (HeldSweepPulses.Pulse pulse : HeldSweepPulses.SERVER.advance(caster.getUUID(), caster.position(), held,
+                now, pace)) {
+            int age = pulse.ageAt(now);
+            strikeCrossed(context, caster, pulse.origin(), pace.radiusAt(age - 1), pace.radiusAt(age));
+            EntityVisuals.sendToSelf(caster, sweepOf(pulse, now));
+        }
+        return true;
+    }
+
+    /**
+     * Runs the child steps on every entity one front crossed this tick, so
+     * an entity between two fronts is crossed by each once.
+     *
+     * @param context  the step context
+     * @param caster   the caster
+     * @param origin   where the front's pulse began
+     * @param previous the front's radius last tick
+     * @param reached  its radius this tick
+     */
+    private void strikeCrossed(StepContext context, LivingEntity caster, Vec3 origin, double previous,
+                               double reached) {
+        if (reached <= previous) {
+            return;
+        }
         double scanned = reached + caster.position().distanceTo(origin);
         context.hostAs(EntityScanHost.class).forEachEntityWithin(SelectionShape.SPHERE, scanned, Set.copyOf(where),
                 selected -> {
@@ -82,8 +104,6 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
                         new ProgramBehavior(steps).tick(selected);
                     }
                 });
-        EntityVisuals.sendToSelf(caster, sweepAt(origin, pulseTick));
-        return true;
     }
 
     /**

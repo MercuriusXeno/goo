@@ -3,18 +3,17 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.phys.Vec3;
 
 /**
- * A held step that sweeps: Scry, Glitter and Magnet each pulse at the one
- * shared pace and send the caster one payload a tick, which the caster's
- * client draws through the one held-sweep visual.
+ * A held step that sweeps: Scry, Glitter and Magnet each send overlapping
+ * pulses at the one shared pace, one payload for each live pulse each tick,
+ * which the caster's client draws through the one held-sweep visual.
  * decision held-sweeps-share-one-fast-shell-visual
  */
 public interface HeldSweepStep extends Step {
 
     /**
-     * The sweep's pace and shell.
+     * The sweep's pace.
      *
      * @return the pace
      */
@@ -28,15 +27,15 @@ public interface HeldSweepStep extends Step {
     ResourceKey<GooTypeDefinition> goo();
 
     /**
-     * The payload drawing one tick of the sweep.
+     * The payload drawing one live pulse on one tick.
      *
-     * @param origin    where the pulse began
-     * @param pulseTick the pulse's tick, 1 on its first
+     * @param pulse    the pulse
+     * @param gameTime the game time
      * @return the payload for the caster's client
      */
-    default HeldSweepPayload sweepAt(Vec3 origin, int pulseTick) {
+    default HeldSweepPayload sweepOf(HeldSweepPulses.Pulse pulse, long gameTime) {
         HeldSweepPace pace = pace();
-        return new HeldSweepPayload(origin, (float) pace.radiusAt(pulseTick), (float) pace.range(),
-                pace.strengthAt(pulseTick), goo());
+        return new HeldSweepPayload(pulse.id(), pulse.origin(), (float) pace.radiusAt(pulse.ageAt(gameTime)),
+                (float) pace.range(), goo());
     }
 }

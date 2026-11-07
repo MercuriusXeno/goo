@@ -88,19 +88,4 @@ class ScryRevealTest {
             return kept;
         }
     }
-
-    @Nested
-    class Timing {
-
-        @Test
-        void showsInFullWhileHeld() {
-            assertEquals(1f, ScryReveal.fade(ScryReveal.RELEASE_GRACE_TICKS), 0f);
-        }
-
-        @Test
-        void fadesOverASecondOnceLetGo() {
-            assertEquals(0.5f, ScryReveal.fade(ScryReveal.RELEASE_GRACE_TICKS + ScryReveal.FADE_TICKS / 2), 1e-6f);
-            assertEquals(0f, ScryReveal.fade(ScryReveal.RELEASE_GRACE_TICKS + ScryReveal.FADE_TICKS), 0f);
-        }
-    }
 }

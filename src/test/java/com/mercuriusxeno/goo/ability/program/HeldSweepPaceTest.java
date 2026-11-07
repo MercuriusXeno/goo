@@ -6,65 +6,45 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The held sweep's reveal is a thin shell at the sphere's rim: its
- * thickness a named share of the radius, the cells inside it undrawn; and
- * the hold keeps it pulsing, one pulse after another.
+ * A held sweep's front leaves the caster at one steady pace, 48 blocks a
+ * second, with no ease and no rest, landing Scry's 96 blocks on tick 40 and
+ * Glitter's and Magnet's 64 on tick 27; and a press starts a pulse at once
+ * and a hold another every tenth tick.
  * decision held-sweeps-share-one-fast-shell-visual
  */
 class HeldSweepPaceTest {
 
-    private static final HeldSweepPace SWEEP = new HeldSweepPace(64);
-    private static final double[] RADII = {2, 8, 16, 32, 64};
-    private static final double JUST = 0.01;
+    private static final HeldSweepPace SCRY = new HeldSweepPace(96);
+    private static final HeldSweepPace GLITTER = new HeldSweepPace(64);
+    /** 48 blocks a second, twenty ticks to the second. */
+    private static final double BLOCKS_A_TICK = 2.4;
+    private static final double EXACT = 1e-9;
 
     @Test
-    void pulsesRunOneAfterAnotherWhileHeld() {
-        int pulse = SWEEP.pulseTicks();
-
-        assertEquals(1, SWEEP.pulseTick(1));
-        assertEquals(pulse, SWEEP.pulseTick(pulse));
-        assertEquals(1, SWEEP.pulseTick(pulse + 1));
-    }
-
-    @Test
-    void aPulseReachesItsRangeAndFadesOverItsRest() {
-        assertEquals(0, SWEEP.radiusAt(0), 0);
-        assertEquals(SWEEP.range(), SWEEP.radiusAt(HeldSweepPace.EXPAND_TICKS), 0);
-        assertEquals(1f, SWEEP.strengthAt(HeldSweepPace.EXPAND_TICKS), 0f);
-        assertEquals(0f, SWEEP.strengthAt(SWEEP.pulseTicks()), 0f);
-    }
-
-    @Test
-    void theShellGlowsWholeAtTheRimAndNothingAtItsInnerEdge() {
-        double radius = 32;
-        assertEquals(1f, SWEEP.glowAt(radius, radius), 1e-6f);
-        assertEquals(0f, SWEEP.glowAt(radius - SWEEP.shellThickness(radius), radius), 0f);
-    }
-
-    @Test
-    void theShellIsNoThickerThanItsShareOfTheRadius() {
-        for (double radius : RADII) {
-            double thickness = SWEEP.shellThickness(radius);
-            assertTrue(thickness > 0 && thickness <= HeldSweepPace.SHELL_FRACTION * radius,
-                    "at " + radius + " the shell stood " + thickness + " thick");
+    void aFrontAdvancesTheSameBlocksEveryTickUntilItsRange() {
+        for (int tick = 1; tick <= SCRY.ticksToRange(); tick++) {
+            assertEquals(BLOCKS_A_TICK, SCRY.radiusAt(tick) - SCRY.radiusAt(tick - 1), EXACT, "tick " + tick);
         }
+        assertEquals(SCRY.range(), SCRY.radiusAt(SCRY.ticksToRange() + 1), EXACT);
     }
 
     @Test
-    void aCellInsideTheRimDrawsNothing() {
-        for (double radius : RADII) {
-            double inner = radius - SWEEP.shellThickness(radius);
-            assertFalse(SWEEP.drawsAt(inner - JUST, radius), "inside the rim at " + radius);
-            assertFalse(SWEEP.drawsAt(0, radius), "the center at " + radius);
-        }
+    void scrysFrontLandsOnTickFortyAndGlittersOnTickTwentySeven() {
+        assertEquals(40, SCRY.ticksToRange());
+        assertEquals(27, GLITTER.ticksToRange());
+        assertEquals(SCRY.range(), SCRY.radiusAt(40), EXACT);
+        assertTrue(SCRY.radiusAt(39) < SCRY.range());
+        assertEquals(GLITTER.range(), GLITTER.radiusAt(27), EXACT);
+        assertTrue(GLITTER.radiusAt(26) < GLITTER.range());
     }
 
     @Test
-    void aCellWithinTheShellDraws() {
-        for (double radius : RADII) {
-            assertTrue(SWEEP.drawsAt(radius - SWEEP.shellThickness(radius) / 2, radius), "within the shell at " + radius);
-            assertTrue(SWEEP.drawsAt(radius, radius), "on the rim at " + radius);
-            assertFalse(SWEEP.drawsAt(radius + JUST, radius), "past the rim at " + radius);
+    void aPressStartsAPulseAtOnceAndAHoldAnotherEveryTenthTick() {
+        assertTrue(SCRY.startsPulse(1), "the press");
+        for (int held = 2; held <= 10; held++) {
+            assertFalse(SCRY.startsPulse(held), "held " + held);
         }
+        assertTrue(SCRY.startsPulse(11), "half a second into the hold");
+        assertTrue(SCRY.startsPulse(21), "a second into the hold");
     }
 }
