@@ -392,7 +392,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @param eye  the holder's eye
      * @param look the holder's unit look
      * @param hold  where the hold distance puts the hunk
-     * @param reach how far the look reaches to set the hunk on a surface, the grab's own range
+     * @param reach how far the look reaches to set the hunk on a surface, out to the hold
      * @return the hunk's position
      */
     public Vec3 restOnTheLook(Vec3 eye, Vec3 look, Vec3 hold, double reach) {
