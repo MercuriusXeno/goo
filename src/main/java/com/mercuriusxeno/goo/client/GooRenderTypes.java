@@ -1275,6 +1275,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(BLOCK_MINGLE);
+        event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
         event.registerPipeline(BORE_VORTEX);
