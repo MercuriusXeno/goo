@@ -28,7 +28,7 @@ class GrabStepTest {
     private static final double NEAR = 2;
     private static final double FAR = 4;
     private static final double EPSILON = 1e-6;
-    private static final GrabStep GRAB = new GrabStep(8, NEAR, FAR, 1.5);
+    private static final GrabStep GRAB = new GrabStep(8, NEAR, FAR, 1.5, 1);
 
     @Nested
     class HoldDistance {

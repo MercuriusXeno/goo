@@ -23,20 +23,24 @@ import java.util.stream.Stream;
 
 /**
  * Kinetic's Grab, run each tick of a held channel on the channeling player:
- * the first tick lifts the mob or item entity the look strikes within range,
- * and every tick after holds it in front of the player along the look, from
- * the far distance with the look level or above, drawn in to the near
- * distance as the look pitches down to {@link #FULL_DRAW_PITCH}. A left click
- * while held throws it at the throw speed (GrabEvents.throwHeld), and the
- * press lifts nothing more until right click lets go.
+ * the first tick lifts the mob the look strikes within range, and every tick
+ * after holds it in front of the player along the look, from the far
+ * distance with the look level or above, drawn in to the near distance as
+ * the look pitches down to {@link #FULL_DRAW_PITCH}. A left click while held
+ * throws it at the throw speed (GrabEvents.throwHeld), and the press lifts
+ * nothing more until right click lets go. An item entity the look strikes is
+ * pulled to the player at the pull speed each tick instead, unheld, and
+ * picked up on arrival.
  * decision grab-holds-and-throws-a-physics-body
+ * decision grab-pulls-an-item-to-you-and-picks-it-up
  *
  * @param range      how far the look reaches for an entity to lift, in blocks, before Telekinesis adds its reach
  * @param near       how far from the eye the held entity hangs with the look pitched fully down
  * @param far        how far from the eye the held entity hangs with the look level or above
  * @param throwSpeed the speed a throw launches the held entity at, in blocks per tick
+ * @param pullSpeed  the speed a pulled item entity flies to the player at, in blocks per tick
  */
-public record GrabStep(double range, double near, double far, double throwSpeed) implements Step {
+public record GrabStep(double range, double near, double far, double throwSpeed, double pullSpeed) implements Step {
 
     /** The downward pitch, in degrees, at which the held entity is drawn fully in to the near distance. */
     public static final float FULL_DRAW_PITCH = 60f;
@@ -45,6 +49,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
     private static final String FIELD_NEAR = "near";
     private static final String FIELD_FAR = "far";
     private static final String FIELD_THROW_SPEED = "throw_speed";
+    private static final String FIELD_PULL_SPEED = "pull_speed";
     private static final double HALF = 0.5;
     /** How much wider than the look line an entity may stand and still be struck, in blocks. */
     private static final double PICK_SLACK = 1;
@@ -54,7 +59,8 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
             Codec.DOUBLE.fieldOf(FIELD_RANGE).forGetter(GrabStep::range),
             Codec.DOUBLE.fieldOf(FIELD_NEAR).forGetter(GrabStep::near),
             Codec.DOUBLE.fieldOf(FIELD_FAR).forGetter(GrabStep::far),
-            Codec.DOUBLE.fieldOf(FIELD_THROW_SPEED).forGetter(GrabStep::throwSpeed)
+            Codec.DOUBLE.fieldOf(FIELD_THROW_SPEED).forGetter(GrabStep::throwSpeed),
+            Codec.DOUBLE.fieldOf(FIELD_PULL_SPEED).forGetter(GrabStep::pullSpeed)
     ).apply(inst, GrabStep::new));
 
     /** The registered type. */
@@ -76,7 +82,9 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
         if (held == null) {
             held = struckByLook(player);
         }
-        if (held != null) {
+        if (held instanceof ItemEntity item) {
+            GrabEvents.pull(player, item, pullSpeed);
+        } else if (held != null) {
             GrabEvents.hold(player, held, holdPoint(player, held), throwSpeed);
         }
         return true;
@@ -154,11 +162,11 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
     }
 
     /**
-     * Whether Grab can lift an entity: a living mob that is no boss, or an
-     * item entity.
+     * Whether Grab can take an entity: a living mob that is no boss, which
+     * it lifts, or an item entity, which it pulls.
      *
      * @param candidate the entity
-     * @return true where Grab lifts it
+     * @return true where Grab takes it
      */
     static boolean liftable(Entity candidate) {
         if (candidate instanceof ItemEntity) {
