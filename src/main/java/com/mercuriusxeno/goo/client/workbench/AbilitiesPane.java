@@ -52,6 +52,8 @@ final class AbilitiesPane {
     // price fields four equal columns right of it.
     private static final int NAME_SHARE = 3;
     private static final int COLUMNS = 4;
+    // A pointer no row stands under.
+    private static final double NO_POINTER = -1;
     // The least room an open text box takes, so a short value's box still reads what is typed.
     private static final int EDITOR_WIDTH = 60;
 
@@ -69,6 +71,8 @@ final class AbilitiesPane {
     // The slots each section laid this frame, by its goo type, and the rail held in a drag.
     private final Map<String, List<Slot>> slots = new LinkedHashMap<>();
     private @Nullable Held held;
+    // The row the pointer hovered, as the last frame laid it.
+    private @Nullable Slot hovered;
     // The leaf the text box or the builder stands over, as the ability's id and the leaf's path.
     private @Nullable Editing editing;
     private boolean shown;
@@ -206,6 +210,12 @@ final class AbilitiesPane {
     }
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
+        extract(graphics, font, bounds, targets, NO_POINTER, NO_POINTER);
+    }
+
+    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets,
+                 double pointerX, double pointerY) {
+        hovered = hoveredRow(pointerX, pointerY, bounds);
         List<AbilitiesTab.Section> sections = tab.sections(translate, search == null ? NO_TEXT : search.getValue());
         SearchRow.Laid row = drawSearchRow(graphics, font, bounds, sections, targets);
         GroupsPane.Bounds area = new GroupsPane.Bounds(bounds.left(), row.listTop(), bounds.right(), bounds.bottom());
@@ -258,6 +268,8 @@ final class AbilitiesPane {
         for (int index = 0; index < abilities.size(); index++) {
             RowLayout.drawSeparatorAbove(graphics, index, y, from.left(), from.right());
             int top = y;
+            drawHover(graphics, abilities.get(index).id(), new GroupsPane.Bounds(from.left(), y, from.right(),
+                    from.bottom()));
             y = drawAbility(graphics, font, abilities.get(index), new GroupsPane.Bounds(from.left(), y, from.right(),
                     from.bottom()), targets);
             laid.add(new Slot(abilities.get(index).id(), top, y, from.left(), from.right()));
@@ -276,6 +288,9 @@ final class AbilitiesPane {
      * @param right  its right edge
      */
     private record Slot(String id, int top, int bottom, int left, int right) {
+        boolean holds(double x, double y) {
+            return x >= left && x < right && y >= top && y < bottom;
+        }
     }
 
     /**
@@ -286,6 +301,25 @@ final class AbilitiesPane {
      * @param y    the pointer's y
      */
     private record Held(String id, String type, double y) {
+    }
+
+    // The row the last frame laid under the pointer, none while a rail is held or the pointer stands off the list.
+    private @Nullable Slot hoveredRow(double pointerX, double pointerY, GroupsPane.Bounds bounds) {
+        if (held != null || pointerY < bounds.top() || pointerY >= bounds.bottom()) {
+            return null;
+        }
+        return slots.values().stream().flatMap(List::stream).filter(slot -> slot.holds(pointerX, pointerY))
+                .findFirst().orElse(null);
+    }
+
+    // The hovered ability's row fills with the selected fill under its name and prices, as tall as it last laid
+    // (the operator's ruling of 2026-11-07: style hovered rows, with the selected fill).
+    private void drawHover(GuiGraphicsExtractor graphics, String id, GroupsPane.Bounds row) {
+        Slot under = hovered;
+        if (under != null && under.id().equals(id)) {
+            graphics.fill(row.left(), row.top(), row.right(), row.top() + under.bottom() - under.top(),
+                    Palette.SELECTED_FILL);
+        }
     }
 
     // The slot of the held ability's section under the pointer, the first or last past either end.

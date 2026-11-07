@@ -523,7 +523,7 @@ public final class ValuesManagerScreen extends Screen {
             case VARIABLES -> variablesPane.extract(graphics, font, content, targets, mouseX, mouseY);
             case PROCESSES -> processesPane.extract(graphics, font, content, targets);
             case AUDIT -> auditPane.extract(graphics, font, content, targets);
-            case ABILITIES -> abilitiesPane.extract(graphics, font, content, targets);
+            case ABILITIES -> abilitiesPane.extract(graphics, font, content, targets, mouseX, mouseY);
         }
     }
 
