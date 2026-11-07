@@ -8,14 +8,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -37,18 +39,24 @@ import java.util.List;
  *
  * A rising hunk climbs from its start to its target over its rise time,
  * eased so it starts and stops gently, and settles its blocks into the cells
- * it reached when the rise ends. Both sides run the rise from the spawn data,
- * so the client draws it without waiting on the server's position updates.
+ * it reached when the rise ends. Its height is a function of the level's
+ * game time from the tick it began, so both sides, and every rider, read
+ * the same stone at the same tick; the client ignores the server's position
+ * updates while it rises. Settled, it keeps drawing over its stone for
+ * {@link #SETTLE_LINGER_TICKS} while the clients' chunks redraw the stone,
+ * so nothing blinks out.
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
  *
- * A rising hunk is solid: it carries whatever stands on its top up with it
- * each tick, on both sides so a player's own client lifts them too, and
- * leaves them standing on the settled stone.
+ * A rising hunk is solid and carries whatever stands on its top up with it,
+ * inside each rider's own tick (HunkRiders), so the rider's drawn position
+ * glides with the stone, and leaves them standing on the settled stone.
  * decision spire-carries-its-riders-up-with-the-rising-stone
  *
  * A lifted hunk hangs where a grab's hold puts it; let go or thrown, it flies
  * under gravity, and whatever it strikes, block or mob, it crushes on impact
  * before it breaks apart, dropping each of its blocks as the block itself.
+ * The client interpolates its moves, and the player holding it draws it where
+ * their own look puts it, so it glides with the look.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  */
 public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
@@ -82,10 +90,17 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private static final float MOST_DAMAGE = 20f;
     /** The longest a let-go hunk flies before it breaks apart where it is, in ticks. */
     private static final int MOST_FLIGHT_TICKS = 200;
+    /** Ticks a settled hunk keeps drawing over its stone while the clients' chunks redraw it. */
+    public static final int SETTLE_LINGER_TICKS = 5;
     /** How far a rider's feet may stand from the hunk's top and still ride it, in blocks. */
     static final double RIDER_FOOTING = 0.1;
     /** Shrinks the crush box off the faces the hunk only touches. */
     private static final double TOUCH_SLACK = 1e-3;
+    /** The id a hunk no player holds names as its holder. */
+    public static final int NO_HOLDER = -1;
+    /** The player holding a lifted hunk, so their own client draws it on their look. */
+    private static final EntityDataAccessor<Integer> HOLDER =
+            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.INT);
 
     /**
      * One block of a hunk.
@@ -107,7 +122,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private Vec3 start = Vec3.ZERO;
     private Vec3 target = Vec3.ZERO;
     private int riseTicks = 1;
-    private int age;
+    /** The game time the rise began on. */
+    private long riseStartTime;
+    private boolean settled;
+    private final InterpolationHandler interpolation = new InterpolationHandler(this);
     /** Ticks the hunk has flown free since a hold last stood on it. */
     private int flightTicks;
 
@@ -140,6 +158,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         hunk.target = Vec3.atBottomCenterOf(origin);
         hunk.start = hunk.target.subtract(0, rise, 0);
         hunk.riseTicks = Math.max(1, riseTicks);
+        hunk.riseStartTime = level.getGameTime();
         hunk.setPos(hunk.start);
         level.addFreshEntity(hunk);
         return hunk;
@@ -203,81 +222,166 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
-        // the spawn data carries the hunk whole; a rise runs from it and a flight follows the server's moves
+        entityData.define(HOLDER, NO_HOLDER);
+    }
+
+    /**
+     * Marks the player holding the hunk this tick, so their client draws it on their look.
+     *
+     * @param holder the holding player
+     */
+    public void holdBy(Entity holder) {
+        entityData.set(HOLDER, holder.getId());
+    }
+
+    /**
+     * The id of the player holding the hunk.
+     *
+     * @return the holder's entity id, or {@link #NO_HOLDER}
+     */
+    public int holderId() {
+        return entityData.get(HOLDER);
+    }
+
+    /**
+     * Where a rising hunk stands at a moment of the level's clock.
+     *
+     * @param time the game time, a fraction of a tick past it allowed
+     * @return the hunk's position
+     */
+    public Vec3 positionAt(double time) {
+        return start.lerp(target, risenShare(time - riseStartTime, riseTicks));
+    }
+
+    /**
+     * How high a rising hunk's top stands at a moment of the level's clock.
+     *
+     * @param time the game time
+     * @return the top face's height
+     */
+    double topAt(double time) {
+        return makeBoundingBox(positionAt(time)).maxY;
+    }
+
+    /**
+     * Whether a rising hunk has reached its cells and settled its stone by a moment.
+     *
+     * @param time the game time
+     * @return true from the tick the rise ends
+     */
+    public boolean settledBy(double time) {
+        return time - riseStartTime >= riseTicks;
+    }
+
+    /**
+     * Whether a settled hunk still lingers over its stone at a moment, drawing
+     * it while the clients' chunks redraw it.
+     *
+     * @param time the game time
+     * @return true from the settle until the hunk ends
+     */
+    public boolean lingers(double time) {
+        return rising && settledBy(time);
+    }
+
+    /**
+     * Whether the hunk still rises, unsettled, at a moment: the span it carries riders and blocks movement.
+     *
+     * @param time the game time
+     * @return true while the stone climbs
+     */
+    boolean climbsAt(double time) {
+        return rising && !settledBy(time);
     }
 
     @Override
     public void tick() {
         super.tick();
-        age++;
         if (rising) {
-            rise();
-            if (age >= riseTicks && level() instanceof ServerLevel server) {
-                settle(server);
-            }
+            riseTick(level().getGameTime());
         } else if (level() instanceof ServerLevel server) {
-            if (hasData(GooAttachments.GRABBED)) {
-                flightTicks = 0;
-            } else {
-                flightTicks++;
-                fly(server);
-            }
+            liftedTick(server);
+        } else if (interpolation.hasActiveInterpolation()) {
+            interpolation.interpolate();
         }
     }
 
-    /**
-     * One tick of the rise: the riders on the hunk's top move up by as far as
-     * the top climbs, before the hunk does, so they never stand inside it.
-     */
-    private void rise() {
-        Vec3 next = start.lerp(target, risenShare(age, riseTicks));
-        double climb = next.y - position().y;
-        if (climb > 0) {
-            carryRiders(climb);
+    private void riseTick(long now) {
+        // The rise reads the clock, so any server position update the client took is dropped.
+        interpolation.cancel();
+        setPos(positionAt(now));
+        if (climbsAt(now)) {
+            HunkRiders.rises(this);
         }
-        setPos(next);
+        if (level() instanceof ServerLevel server) {
+            settleWhenDue(server, now);
+        }
+    }
+
+    private void liftedTick(ServerLevel server) {
+        if (hasData(GooAttachments.GRABBED)) {
+            flightTicks = 0;
+            return;
+        }
+        entityData.set(HOLDER, NO_HOLDER);
+        flightTicks++;
+        fly(server);
+    }
+
+    private void settleWhenDue(ServerLevel server, long now) {
+        if (!settled && settledBy(now)) {
+            settle(server);
+        }
+        if (now - riseStartTime >= riseTicks + SETTLE_LINGER_TICKS) {
+            discard();
+        }
+    }
+
+    @Override
+    public InterpolationHandler getInterpolation() {
+        return interpolation;
+    }
+
+    @Override
+    public void onRemoval(RemovalReason reason) {
+        super.onRemoval(reason);
+        HunkRiders.forget(this);
     }
 
     /**
-     * Moves everything standing on the hunk's top up by a climb, feet kept on
-     * the stone. A shulker's push, unlike a piston's, is not capped per tick,
-     * so a tall spire's fastest climb carries its riders whole.
+     * Lifts a rider standing on the climbing top onto where the top climbs
+     * this tick, inside the rider's own tick so its drawn position glides; the
+     * stone's collision box stands there too, whichever of them ticks first.
      *
-     * @param climb how far the top climbs this tick, in blocks
+     * @param rider the entity
+     * @return true where the entity rode the stone
      */
-    private void carryRiders(double climb) {
-        AABB box = getBoundingBox();
-        AABB footing = new AABB(box.minX, box.maxY - RIDER_FOOTING, box.minZ, box.maxX, box.maxY + RIDER_FOOTING,
-                box.maxZ);
-        for (Entity rider : level().getEntities(this, footing, this::standsOnTop)) {
-            rider.move(MoverType.SHULKER, new Vec3(0, climb, 0));
-            rider.resetFallDistance();
-            if (!(rider instanceof Player)) {
-                // A player's own client lifts them; a velocity packet would only fight it.
-                rider.hurtMarked = true;
-            }
-        }
-    }
-
-    /**
-     * Whether an entity stands on the hunk's top: its feet at the top face,
-     * over one of the blocks that make the top.
-     *
-     * @param entity the entity
-     * @return true for a rider
-     */
-    private boolean standsOnTop(Entity entity) {
-        if (entity.isSpectator() || entity instanceof BlockHunk) {
+    boolean liftRider(Entity rider) {
+        long now = level().getGameTime();
+        if (!climbsAt(now)) {
             return false;
         }
-        AABB feet = entity.getBoundingBox();
-        double top = getBoundingBox().maxY;
-        return Math.abs(feet.minY - top) <= RIDER_FOOTING && overATopBlock(feet, top);
+        Vec3 position = positionAt(now);
+        double top = topAt(now);
+        AABB feet = rider.getBoundingBox();
+        boolean onTheStone = feet.minY >= topAt(now - 1) - RIDER_FOOTING && feet.minY <= top + RIDER_FOOTING;
+        if (!onTheStone || !overATopBlock(feet, position, top)) {
+            return false;
+        }
+        setBoundingBox(makeBoundingBox(position));
+        if (top > feet.minY) {
+            rider.setPos(rider.getX(), rider.getY() + top - feet.minY, rider.getZ());
+        }
+        Vec3 motion = rider.getDeltaMovement();
+        rider.setDeltaMovement(motion.x, Math.max(0, motion.y), motion.z);
+        rider.resetFallDistance();
+        rider.setOnGround(true);
+        return true;
     }
 
-    private boolean overATopBlock(AABB feet, double top) {
+    private boolean overATopBlock(AABB feet, Vec3 position, double top) {
         for (HunkBlock block : blocks) {
-            Vec3 corner = cornerOf(position(), block);
+            Vec3 corner = cornerOf(position, block);
             if (Math.abs(corner.y + 1 - top) <= RIDER_FOOTING && overCell(feet, corner)) {
                 return true;
             }
@@ -303,29 +407,29 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     @Override
     public boolean canBeCollidedWith(@Nullable Entity entity) {
-        return blocksMovement(rising);
+        return blocksMovement(climbsAt(level().getGameTime()));
     }
 
     /**
      * Settles each block into the cell it reached, where that cell can still
-     * be replaced, throwing dust off it, sets anything the stone would fill
-     * standing on it, and ends the hunk.
+     * be replaced, throwing dust off it, and sets anything the stone would fill
+     * standing on it; the hunk lingers over the stone until its chunks redraw.
      *
      * @param level the server level
      */
     private void settle(ServerLevel level) {
-        List<BlockPos> settled = new ArrayList<>();
+        List<BlockPos> placed = new ArrayList<>();
         for (HunkBlock block : blocks) {
             BlockPos cell = cellOf(block);
             if (level.getBlockState(cell).canBeReplaced()) {
                 level.setBlockAndUpdate(cell, block.state());
                 throwDust(level, cell, block.state());
-                settled.add(cell);
+                placed.add(cell);
             }
         }
-        settled.forEach(cell -> level.getEntities(this, new AABB(cell), entity -> !entity.isSpectator())
+        placed.forEach(cell -> level.getEntities(this, new AABB(cell), entity -> !entity.isSpectator())
                 .forEach(entity -> standOnStone(level, entity)));
-        discard();
+        this.settled = true;
     }
 
     /**
@@ -455,7 +559,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         writePoint(buffer, start);
         writePoint(buffer, target);
         buffer.writeVarInt(riseTicks);
-        buffer.writeVarInt(age);
+        buffer.writeLong(riseStartTime);
     }
 
     @Override
@@ -472,8 +576,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         start = readPoint(buffer);
         target = readPoint(buffer);
         riseTicks = buffer.readVarInt();
-        age = buffer.readVarInt();
-        setPos(rising ? start.lerp(target, risenShare(age, riseTicks)) : position());
+        riseStartTime = buffer.readLong();
+        if (rising) {
+            setPos(positionAt(level().getGameTime()));
+        }
     }
 
     private static void writePoint(RegistryFriendlyByteBuf buffer, Vec3 point) {
@@ -495,7 +601,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         start = input.read(TAG_START, Vec3.CODEC).orElse(position());
         target = input.read(TAG_TARGET, Vec3.CODEC).orElse(position());
         riseTicks = Math.max(1, input.getIntOr(TAG_RISE_TICKS, 1));
-        age = input.getIntOr(TAG_AGE, 0);
+        riseStartTime = level().getGameTime() - input.getIntOr(TAG_AGE, 0);
         setPos(position());
     }
 
@@ -506,6 +612,6 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         output.store(TAG_START, Vec3.CODEC, start);
         output.store(TAG_TARGET, Vec3.CODEC, target);
         output.putInt(TAG_RISE_TICKS, riseTicks);
-        output.putInt(TAG_AGE, age);
+        output.putInt(TAG_AGE, (int) (level().getGameTime() - riseStartTime));
     }
 }

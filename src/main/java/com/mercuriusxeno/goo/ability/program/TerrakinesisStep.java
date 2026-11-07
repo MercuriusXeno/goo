@@ -141,6 +141,7 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         }
         if (hunk != null) {
             GrabEvents.hold(player, hunk, holdPoint(player, hunk), throwSpeed);
+            hunk.holdBy(player);
         }
         return true;
     }
@@ -203,9 +204,24 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      * @return the hunk's position
      */
     private Vec3 holdPoint(ServerPlayer player, BlockHunk hunk) {
-        double distance = GrabStep.holdDistance(player.getXRot(), near, far);
-        Vec3 middle = player.getEyePosition().add(player.getLookAngle().scale(distance));
-        return middle.subtract(hunk.getBoundingBox().getCenter().subtract(hunk.position()));
+        return holdPosition(player.getEyePosition(), player.getLookAngle(), player.getXRot(),
+                hunk.getBoundingBox().getCenter().subtract(hunk.position()));
+    }
+
+    /**
+     * Where a held hunk's position goes for a look: its middle on the look at
+     * Grab's hold distance for the look's pitch. The server holds the hunk
+     * there each tick, and the holder's client draws it there each frame from
+     * its own look, so the hunk glides with the look.
+     *
+     * @param eye      the holder's eye
+     * @param look     the holder's unit look vector
+     * @param pitch    the look's pitch in degrees, positive looking down
+     * @param toMiddle from the hunk's position to its bounding box's center
+     * @return the hunk's position
+     */
+    public Vec3 holdPosition(Vec3 eye, Vec3 look, float pitch, Vec3 toMiddle) {
+        return eye.add(look.scale(GrabStep.holdDistance(pitch, near, far))).subtract(toMiddle);
     }
 
     /**
