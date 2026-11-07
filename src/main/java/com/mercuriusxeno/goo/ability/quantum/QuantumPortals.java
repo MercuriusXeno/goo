@@ -42,6 +42,8 @@ public class QuantumPortals extends SavedData {
     private final Map<UUID, List<Portal>> placed = new HashMap<>();
     private final Map<UUID, Link> links = new HashMap<>();
     private final Map<UUID, Portal> choosing = new HashMap<>();
+    /** The portal each player placed last, kept after it breaks so no older portal stands in for it. */
+    private final Map<UUID, Portal> lastPlaced = new HashMap<>();
 
     /** Creates a server's portals with none placed. */
     public QuantumPortals() {
@@ -55,7 +57,10 @@ public class QuantumPortals extends SavedData {
      * @param linked each player's linked pair
      */
     public QuantumPortals(List<Placed> placed, List<Linked> linked) {
-        placed.forEach(entry -> this.placed.put(entry.owner(), new ArrayList<>(entry.portals())));
+        placed.forEach(entry -> {
+            this.placed.put(entry.owner(), new ArrayList<>(entry.portals()));
+            entry.last().ifPresent(last -> lastPlaced.put(entry.owner(), last));
+        });
         linked.forEach(entry -> links.put(entry.owner(), entry.link()));
     }
 
@@ -96,12 +101,14 @@ public class QuantumPortals extends SavedData {
      *
      * @param owner   the player
      * @param portals their portals
+     * @param last    the portal they placed last, empty for none
      */
-    public record Placed(UUID owner, List<Portal> portals) {
+    public record Placed(UUID owner, List<Portal> portals, Optional<Portal> last) {
 
         static final Codec<Placed> CODEC = RecordCodecBuilder.create(inst -> inst.group(
                 UUIDUtil.CODEC.fieldOf("owner").forGetter(Placed::owner),
-                Portal.CODEC.listOf().fieldOf("portals").forGetter(Placed::portals)
+                Portal.CODEC.listOf().fieldOf("portals").forGetter(Placed::portals),
+                Portal.CODEC.optionalFieldOf("last").forGetter(Placed::last)
         ).apply(inst, Placed::new));
     }
 
@@ -139,8 +146,19 @@ public class QuantumPortals extends SavedData {
         List<Portal> owned = placed.computeIfAbsent(owner, key -> new ArrayList<>());
         if (!owned.contains(portal)) {
             owned.add(portal);
+            lastPlaced.put(owner, portal);
             setDirty();
         }
+    }
+
+    /**
+     * The portal a player placed last, while it still stands.
+     *
+     * @param owner the player
+     * @return the portal, empty where they placed none or it broke
+     */
+    public Optional<Portal> lastPlaced(UUID owner) {
+        return Optional.ofNullable(lastPlaced.get(owner)).filter(portalsOf(owner)::contains);
     }
 
     /**
@@ -275,7 +293,8 @@ public class QuantumPortals extends SavedData {
     }
 
     private List<Placed> placedList() {
-        return placed.entrySet().stream().map(entry -> new Placed(entry.getKey(), entry.getValue())).toList();
+        return placed.entrySet().stream().map(entry -> new Placed(entry.getKey(), entry.getValue(),
+                Optional.ofNullable(lastPlaced.get(entry.getKey())))).toList();
     }
 
     private List<Linked> linkedList() {
