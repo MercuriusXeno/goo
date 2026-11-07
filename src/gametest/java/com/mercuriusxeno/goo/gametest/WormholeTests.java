@@ -98,8 +98,8 @@ public final class WormholeTests {
     private static final int LANDED = 30;
     /** Ticks a step into a mouth is given to carry the traveller. */
     private static final int STEP = 3;
-    /** quantum_hole.json's lifetime: the mouths close after ten seconds. */
-    private static final int LIFETIME = 200;
+    /** quantum_hole.json's lifetime: the mouths close after thirty seconds. */
+    private static final int LIFETIME = 600;
 
     private WormholeTests() {
     }

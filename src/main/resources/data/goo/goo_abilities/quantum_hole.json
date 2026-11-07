@@ -7,6 +7,6 @@
   "delivery": { "kind": "arc" },
   "area": { "shape": "line", "size": 3.0 },
   "behaviors": [
-    { "type": "wormhole", "reach": 32, "lifetime": 200 }
+    { "type": "wormhole", "reach": 32, "lifetime": 600 }
   ]
 }
