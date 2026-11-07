@@ -8,18 +8,13 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * What a held sweep reveals and how long it shows: the blocks its front
- * crosses between two radii, the faces of each that open onto air, and the
- * fade once the hold lets go.
+ * What a held sweep reveals: the blocks its front crosses between two
+ * radii, and the faces of each that open onto air.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  */
 public final class ScryReveal {
 
-    /** Ticks without a new radius before the sweep reads as let go. */
-    static final int RELEASE_GRACE_TICKS = 2;
-    /** Ticks the revealed faces and the sphere take to fade once let go: about a second. */
-    static final int FADE_TICKS = 20;
     private static final double HALF = 0.5;
     /** A column's inner span where the inner sphere misses it: below any distance, so the whole column counts. */
     private static final double NO_INNER_SPAN = -1;
@@ -112,20 +107,5 @@ public final class ScryReveal {
                 crossed.add(new BlockPos(x, y, z));
             }
         }
-    }
-
-    /**
-     * How strongly the sweep still shows: full while held, then fading to
-     * nothing over about a second once no new radius arrives.
-     *
-     * @param ticksSinceRadius ticks since the last radius arrived
-     * @return the strength, zero to one
-     */
-    public static float fade(long ticksSinceRadius) {
-        long faded = ticksSinceRadius - RELEASE_GRACE_TICKS;
-        if (faded <= 0) {
-            return 1f;
-        }
-        return Math.max(0f, 1f - (float) faded / FADE_TICKS);
     }
 }

@@ -14,15 +14,20 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * HeldSweepVisual's shell traces a block's voxel shape: a revealed side is
@@ -39,27 +44,83 @@ class HeldSweepVisualTest {
     private static final float TOLERANCE = 0.01f;
 
     /**
-     * Once the hold lets go no radius arrives, so every frame after the last
-     * radius's tick draws the shell where it stopped, never swinging back
-     * toward last tick's radius as the partial tick wraps (the flicker the
-     * operator saw on an early release).
+     * The sonar return: every wall a front hits lights at the hit and fades
+     * behind the front, fronts overlap, and a let-go front runs on to its
+     * range without flicker or snapping back.
+     * decision held-sweeps-share-one-fast-shell-visual
      */
-    @Test
-    void aLetGoShellStandsStillWhileItFades() {
-        long lastRadiusAt = 100;
-        float previous = 20f;
-        float stopped = 30f;
-        for (long now = lastRadiusAt + 1; now <= lastRadiusAt + ScryReveal.FADE_TICKS; now++) {
-            for (float partial : new float[] {0f, 0.5f, 0.99f}) {
-                assertEquals(stopped, HeldSweepVisual.drawnRadius(previous, stopped, lastRadiusAt, now, partial), 0f,
-                        "tick " + now + " at partial " + partial);
-            }
-        }
-    }
+    @Nested
+    class Echoes {
 
-    @Test
-    void aHeldShellSweepsBetweenTicksOnTheTickItsRadiusArrived() {
-        assertEquals(25f, HeldSweepVisual.drawnRadius(20f, 30f, 100, 100, 0.5f), 1e-6f);
+        /** A world of air over one floor of solid blocks just under the caster's feet. */
+        private static final Predicate<BlockPos> OVER_A_FLOOR = pos -> pos.getY() != -1;
+        private static final Function<BlockPos, List<AABB>> CUBES = pos -> List.of(new AABB(0, 0, 0, 1, 1, 1));
+        private static final Vec3 CENTER = new Vec3(0.5, 0.9, 0.5);
+        private static final double SCRY_RANGE = 96;
+        private static final int TINT = 0x8866FF;
+        private static final int ROOM = 100_000;
+        private static final double BLOCKS_A_TICK = 2.4;
+        private static final long HEARD_AT = 100;
+
+        @Test
+        void aHitWallGlowsWholeOnItsHitTickHalfAtTwentyAndGoneAtForty() {
+            assertEquals(1f, HeldSweepVisual.glowAt(0), 1e-6f);
+            assertEquals(0.5f, HeldSweepVisual.glowAt(20), 1e-6f);
+            assertEquals(0f, HeldSweepVisual.glowAt(40), 0f);
+        }
+
+        @Test
+        void aWallWhoseGlowReachedNothingLeavesTheRevealSet() {
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, TINT);
+            pulse.heard(12, HEARD_AT);
+            pulse.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
+            assertTrue(!pulse.lit().isEmpty(), "the floor the front crossed lights");
+
+            pulse.fadeOut(HEARD_AT + 1 + 40);
+
+            assertTrue(pulse.lit().isEmpty(), "every lit wall has faded and left");
+        }
+
+        @Test
+        void aLetGoFrontRunsOnToItsRangeAndNeverSnapsBack() {
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, TINT);
+            pulse.heard(24, HEARD_AT);
+
+            assertEquals(24, pulse.drawnRadius(HEARD_AT + 1), 1e-9, "the last radius the server sent");
+            assertEquals(24 + BLOCKS_A_TICK, pulse.drawnRadius(HEARD_AT + 2), 1e-9, "a tick on, unheard");
+            double drawn = 0;
+            for (double now = HEARD_AT; now <= HEARD_AT + 60; now += 0.25) {
+                double next = pulse.drawnRadius(now);
+                assertTrue(next >= drawn, "never back at " + now);
+                drawn = next;
+            }
+            assertEquals(SCRY_RANGE, drawn, 1e-9, "on to its range");
+        }
+
+        @Test
+        void twoPulsesWallsDrawInOneFrameEachAtItsOwnFront() {
+            EchoField field = new EchoField(CENTER);
+            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            first.heard(11 * BLOCKS_A_TICK, HEARD_AT);
+            second.heard(BLOCKS_A_TICK, HEARD_AT);
+            double frame = HEARD_AT + 1;
+
+            first.advance(frame, OVER_A_FLOOR, CUBES, ROOM);
+            second.advance(frame, OVER_A_FLOOR, CUBES, ROOM);
+
+            assertFront(first, frame);
+            assertFront(second, frame);
+        }
+
+        /** The pulse holds lit walls, the farthest within one tick's travel inside its front. */
+        private void assertFront(HeldSweepPulse pulse, double frame) {
+            double front = pulse.drawnRadius(frame);
+            assertTrue(!pulse.lit().isEmpty(), "the pulse lights the floor it crossed");
+            double farthest = pulse.lit().stream().mapToDouble(lit -> lit.face().distance()).max().orElse(-1);
+            assertTrue(farthest <= front && farthest > front - BLOCKS_A_TICK,
+                    "the farthest lit wall " + farthest + " stands at the front " + front);
+        }
     }
 
     @Test

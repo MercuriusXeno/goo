@@ -1,104 +1,53 @@
 package com.mercuriusxeno.goo.ability.program;
 
 /**
- * The pace and the shell every held sweep shares: while the hold lasts the
- * sweep pulses, each pulse's sphere easing out from its center to its range
- * fast enough to feel inside the first half second, then resting a beat as
- * it fades before the next pulse starts; and what the sweep reveals draws
- * only in a thin shell at the sphere's rim, brightest at the rim itself.
+ * The pace every held sweep shares: a press starts a pulse at once and a
+ * hold starts another every half second, even while earlier fronts still
+ * travel; each front leaves the caster at one steady pace, 48 blocks a
+ * second, so Scry's 96 blocks take about two seconds; and every wall a
+ * front hits lights at the hit and fades over about two seconds behind it.
  * decision held-sweeps-share-one-fast-shell-visual
  *
- * @param range the radius each pulse reaches, in blocks
+ * @param range the radius each front reaches, in blocks
  */
 public record HeldSweepPace(double range) {
 
-    /** Ticks a pulse's sphere takes to ease out to its range: a second. */
-    public static final int EXPAND_TICKS = 20;
-    /** Ticks a pulse rests at its range, fading, before the next pulse starts. */
-    public static final int REST_TICKS = 6;
-    /** The shell's thickness as a share of the radius, so it reads thin near and far. */
-    public static final double SHELL_FRACTION = 0.08;
-    private static final double WHOLE = 1.0;
+    /** Blocks a front travels each second. */
+    public static final double BLOCKS_A_SECOND = 48;
+    /** Held ticks between one pulse and the next: half a second. */
+    public static final int PULSE_EVERY_TICKS = 10;
+    /** Ticks a wall a front hit stays lit, fading, behind the front: two seconds. */
+    public static final int LINGER_TICKS = 40;
+    private static final double TICKS_A_SECOND = 20;
 
     /**
-     * The ticks one pulse runs, its expansion and its rest.
+     * The tick of its pulse a front lands on its range.
      *
-     * @return the pulse's length in ticks
+     * @return the ticks from the pulse's first to its front reaching its range
      */
-    public int pulseTicks() {
-        return EXPAND_TICKS + REST_TICKS;
+    public int ticksToRange() {
+        return (int) Math.ceil(range * TICKS_A_SECOND / BLOCKS_A_SECOND);
     }
 
     /**
-     * The tick of the current pulse a tick of the hold falls on: pulses run
-     * one after another while the hold lasts.
+     * Whether a tick of the hold starts a pulse: the press itself, then
+     * every tenth tick after it.
      *
-     * @param heldTicks the hold's age, 1 on its first tick
-     * @return the pulse's tick, 1 on its first
+     * @param held the hold's age, 1 on the press
+     * @return true when the tick sends a new front
      */
-    public int pulseTick(int heldTicks) {
-        return Math.floorMod(heldTicks - 1, pulseTicks()) + 1;
+    public boolean startsPulse(int held) {
+        return held >= ChannelAim.FIRST_TICK && (held - ChannelAim.FIRST_TICK) % PULSE_EVERY_TICKS == 0;
     }
 
     /**
-     * The sphere's radius on a tick of its pulse: easing out, so the front
-     * leaps away from the caster and slows as it nears its range.
+     * A front's radius on a tick of its pulse: the same blocks further each
+     * tick, held at the range once reached.
      *
-     * @param pulseTick the pulse's tick, 0 before it starts
-     * @return the radius, held at the range once reached
+     * @param pulseAge the pulse's tick, 1 on its first and 0 before it
+     * @return the radius in blocks
      */
-    public double radiusAt(int pulseTick) {
-        double travelled = Math.clamp((double) pulseTick / EXPAND_TICKS, 0, WHOLE);
-        double left = WHOLE - travelled;
-        return range * (WHOLE - left * left);
-    }
-
-    /**
-     * How strongly the pulse shows on a tick: whole while it expands, then
-     * fading to nothing over its rest.
-     *
-     * @param pulseTick the pulse's tick, 1 on its first
-     * @return the strength in [0, 1]
-     */
-    public float strengthAt(int pulseTick) {
-        int resting = pulseTick - EXPAND_TICKS;
-        return resting <= 0 ? 1f : (float) Math.clamp(WHOLE - (double) resting / REST_TICKS, 0, WHOLE);
-    }
-
-    /**
-     * The shell's thickness at a radius.
-     *
-     * @param radius the sphere's radius
-     * @return the thickness in blocks, the shell's share of the radius
-     */
-    public double shellThickness(double radius) {
-        return SHELL_FRACTION * radius;
-    }
-
-    /**
-     * Whether a cell at a distance from the center draws: only within the
-     * shell, past its inner edge and no farther than the rim.
-     *
-     * @param distance the cell's distance from the center
-     * @param radius   the sphere's radius
-     * @return true when the cell lies in the shell
-     */
-    public boolean drawsAt(double distance, double radius) {
-        return distance > radius - shellThickness(radius) && distance <= radius;
-    }
-
-    /**
-     * How brightly a cell in the shell draws: whole at the rim, falling to
-     * nothing at the shell's inner edge, so the shell reads as a sweeping band.
-     *
-     * @param distance the cell's distance from the center
-     * @param radius   the sphere's radius
-     * @return the brightness in [0, 1], 0 outside the shell
-     */
-    public float glowAt(double distance, double radius) {
-        if (!drawsAt(distance, radius)) {
-            return 0f;
-        }
-        return (float) (WHOLE - (radius - distance) / shellThickness(radius));
+    public double radiusAt(int pulseAge) {
+        return Math.clamp(pulseAge * BLOCKS_A_SECOND / TICKS_A_SECOND, 0, range);
     }
 }
