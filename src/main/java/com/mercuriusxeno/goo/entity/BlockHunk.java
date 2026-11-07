@@ -574,15 +574,40 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * How far a let-go hunk's linger over its placed stone has run, as it
-     * fades out over the blocks the world now draws there.
+     * How far a hunk's linger over the stone it set has run, as it fades out
+     * over the blocks the world now draws there: a let-go hunk from its
+     * placement, a risen pillar from its settle, so neither draws its moving
+     * blocks over the world's own and shades them twice.
      *
      * @param time the game time
-     * @return the share run, 0 to 1, or -1 for a hunk not placed
+     * @return the share run, 0 to 1, or -1 for a hunk that has set no stone
      */
     public double placedShare(double time) {
+        if (rising) {
+            return lingerShare(time, riseStartTime + riseTicks);
+        }
         long placedAt = entityData.get(PLACED_AT);
-        return placedAt == WHOLE ? NOT_PLACED : Math.clamp((time - placedAt) / SETTLE_LINGER_TICKS, 0, 1);
+        return placedAt == WHOLE ? NOT_PLACED : lingerShare(time, placedAt);
+    }
+
+    /**
+     * Whether the hunk is a Spire pillar, rising from the ground, rather than a lifted chunk.
+     *
+     * @return true for a rising pillar
+     */
+    public boolean risesFromTheGround() {
+        return rising;
+    }
+
+    /**
+     * How far a linger over set stone has run at a moment.
+     *
+     * @param time  the game time
+     * @param setAt the game time the stone was set
+     * @return the share run, 0 to 1, or -1 before the stone was set
+     */
+    public static double lingerShare(double time, double setAt) {
+        return time < setAt ? NOT_PLACED : Math.clamp((time - setAt) / SETTLE_LINGER_TICKS, 0, 1);
     }
 
     /**
