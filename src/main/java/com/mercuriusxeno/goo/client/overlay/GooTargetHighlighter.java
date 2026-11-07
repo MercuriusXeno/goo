@@ -36,8 +36,8 @@ import java.util.OptionalDouble;
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
  * goo-colored outline and face ripple on the targeted block or ability block
- * at the opaque stage, with no fill over the block, and the throw arc, or the
- * spread fan of a delivery slinging one, after translucent blocks. The entity outline
+ * at the opaque stage, with no fill over the block, and the throw arc, or a
+ * line per knife for a delivery slinging a fan, after translucent blocks. The entity outline
  * rides the render state modifier AimTracker registers (decision
  * render-context-is-the-one-emitter).
  */
@@ -331,11 +331,10 @@ public final class GooTargetHighlighter {
         if (target == null || type == null || delivery == null) {
             return;
         }
-        if (SpreadFanRenderer.showsFan(delivery, GloveUseTracker.showsArea())) {
+        if (KnifeAimLineRenderer.showsLines(delivery, GloveUseTracker.showsArea())) {
             Minecraft mc = Minecraft.getInstance();
-            SpreadFanRenderer.render(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                    mc.gameRenderer.getMainCamera(), delivery, aimLineEnd(target), ClientGooTypes.highlight(type),
-                    partialTick);
+            KnifeAimLineRenderer.render(event.getPoseStack(), mc.renderBuffers().bufferSource(),
+                    mc.gameRenderer.getMainCamera(), delivery, ClientGooTypes.highlight(type), partialTick);
             return;
         }
         renderLineAim(event, target, type, delivery, partialTick, touchesAtReach);

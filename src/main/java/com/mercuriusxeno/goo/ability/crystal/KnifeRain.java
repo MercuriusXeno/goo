@@ -64,7 +64,8 @@ public final class KnifeRain {
             double yawOffset = -spreadDegrees * HALF + slice * (index + random.nextDouble());
             double pitchOffset = scatter(random) * PITCH_SCATTER_DEGREES;
             double speed = SPEED * (1 + scatter(random) * SPEED_SCATTER);
-            velocities.add(velocityOf(yaw, pitch, yawOffset, pitchOffset, speed));
+            velocities.add(Vec3.directionFromRotation((float) (pitch - LIFT_DEGREES + pitchOffset),
+                    (float) (yaw + yawOffset)).scale(speed));
         }
         return velocities;
     }
@@ -104,34 +105,6 @@ public final class KnifeRain {
         Vec3 right = Vec3.directionFromRotation(0f, yaw + RIGHT_OF_LOOK);
         return eye.add(look.scale(HAND_REACH)).add(right.scale(gloveRight ? HAND_SIDE : -HAND_SIDE))
                 .subtract(0, HAND_DROP, 0);
-    }
-
-    /**
-     * A knife's velocity leaving the hand at a yaw offset from the look,
-     * with no scatter: the line a knife at that offset flies on average.
-     *
-     * @param yaw       the thrower's yaw, in degrees
-     * @param pitch     the thrower's pitch, in degrees, negative looking up
-     * @param yawOffset degrees from the look, positive to the right
-     * @return the velocity, in blocks a tick
-     */
-    public static Vec3 aimedVelocity(float yaw, float pitch, double yawOffset) {
-        return velocityOf(yaw, pitch, yawOffset, 0, SPEED);
-    }
-
-    /**
-     * A knife's velocity leaving the hand, lobbed above the look.
-     *
-     * @param yaw         the thrower's yaw, in degrees
-     * @param pitch       the thrower's pitch, in degrees
-     * @param yawOffset   degrees from the look's yaw
-     * @param pitchOffset degrees from the lobbed pitch
-     * @param speed       blocks a tick
-     * @return the velocity
-     */
-    private static Vec3 velocityOf(float yaw, float pitch, double yawOffset, double pitchOffset, double speed) {
-        return Vec3.directionFromRotation((float) (pitch - LIFT_DEGREES + pitchOffset), (float) (yaw + yawOffset))
-                .scale(speed);
     }
 
     /**
