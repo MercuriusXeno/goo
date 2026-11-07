@@ -10,8 +10,12 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class MeteorFall {
 
-    /** Blocks above the target a meteor appears at, capped at the world's top. */
-    public static final int FALL_HEIGHT = 48;
+    /**
+     * Blocks above the target a meteor appears at: high, high up, over the
+     * world's top where need be, so it is seen coming from far off rather
+     * than popping in just over the target (operator ruling 2026-11-06).
+     */
+    public static final int FALL_HEIGHT = 200;
 
     private MeteorFall() {
     }
@@ -20,11 +24,10 @@ public final class MeteorFall {
      * Where a meteor appears over its target.
      *
      * @param target the point it strikes
-     * @param worldTop the highest y the world holds
-     * @return the point the fall height above the target, no higher than the world's top
+     * @return the point the fall height above the target
      */
-    public static Vec3 startAbove(Vec3 target, int worldTop) {
-        return new Vec3(target.x, Math.min(worldTop, target.y + FALL_HEIGHT), target.z);
+    public static Vec3 startAbove(Vec3 target) {
+        return target.add(0, FALL_HEIGHT, 0);
     }
 
     /**

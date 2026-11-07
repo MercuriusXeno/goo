@@ -5,8 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Tests that a meteor appears its fall height above its target, no higher
- * than the world's top, and falls in a straight line to the target over its
+ * Tests that a meteor appears its fall height above its target and falls in a straight line to the target over its
  * fall time, staying there past it; it reads MeteorFall alone, never the
  * entity class, which needs a mod loader (decision meteo-needs-a-clear-sky).
  */
@@ -14,17 +13,18 @@ class MeteorTest {
 
     private static final Vec3 TARGET = new Vec3(4.5, 65.5, -2.5);
     private static final Vec3 START = TARGET.add(0, MeteorFall.FALL_HEIGHT, 0);
-    private static final int WORLD_TOP = 319;
-    private static final int LOW_WORLD_TOP = 80;
     private static final int FALL_TICKS = 60;
+    /** How far above its target the meteor must appear: far beyond the 48 blocks it popped in at. */
+    private static final int HIGH_HIGH_UP = 200;
 
     /**
-     * It appears the fall height above its target, capped at the world's top.
+     * It appears high, high above its target, over the world's top where
+     * the world is low, so it is seen coming from far off rather than popping
+     * in just over the target (operator ruling 2026-11-06).
      */
     @Test
-    void appearsTheFallHeightAboveItsTargetUnderTheWorldTop() {
-        assertEquals(START, MeteorFall.startAbove(TARGET, WORLD_TOP));
-        assertEquals(new Vec3(TARGET.x, LOW_WORLD_TOP, TARGET.z), MeteorFall.startAbove(TARGET, LOW_WORLD_TOP));
+    void appearsHighHighAboveItsTarget() {
+        assertEquals(TARGET.add(0, HIGH_HIGH_UP, 0), MeteorFall.startAbove(TARGET));
     }
 
     /**

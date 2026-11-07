@@ -41,6 +41,8 @@ public class Meteor extends Entity {
     private static final String TAG_AGE = "Age";
     /** How far past the explosion's power the scorch reaches, in blocks. */
     private static final float SCORCH_PAST_POWER = 1.5f;
+    /** How far off a client still draws the meteor, in blocks. */
+    private static final double SEEN_FROM = 512;
     private static final EntityDataAccessor<Vector3fc> DATA_START =
             SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.VECTOR3);
     private static final EntityDataAccessor<Vector3fc> DATA_TARGET =
@@ -84,7 +86,7 @@ public class Meteor extends Entity {
     public static void call(ServerLevel level, Vec3 at, float power, int windUpTicks, int fallTicks) {
         Meteor meteor = new Meteor(GooEntities.METEOR.get(), level);
         meteor.target = at;
-        meteor.start = MeteorFall.startAbove(at, level.getMaxY());
+        meteor.start = MeteorFall.startAbove(at);
         meteor.power = power;
         meteor.windUpTicks = Math.max(0, windUpTicks);
         meteor.fallTicks = Math.max(1, fallTicks);
@@ -164,6 +166,16 @@ public class Meteor extends Entity {
         GooExplosion.detonate(server, target, power, ExplosionMode.TNT, GooExplosion.Look.vanilla());
         MeteorMarks.impact(server, target);
         EntityVisuals.sendToWatchersOf(server, target, new MeteorScorchPayload(target, power + SCORCH_PAST_POWER));
+    }
+
+    /**
+     * Draws the meteor from far off: vanilla draws an entity only within 64
+     * blocks for each block of its size, which hid this one until it was
+     * nearly down.
+     */
+    @Override
+    public boolean shouldRenderAtSqrDistance(double distanceSq) {
+        return distanceSq < SEEN_FROM * SEEN_FROM;
     }
 
     @Override

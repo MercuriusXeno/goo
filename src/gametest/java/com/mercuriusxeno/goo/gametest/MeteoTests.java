@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.MeteorStep;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.ability.world.MeteorFall;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -53,7 +54,7 @@ public final class MeteoTests {
     /** How far over the ground the roof stands. */
     private static final int ROOF_HEIGHT = 4;
     /** How far above the ground a falling meteor is looked for. */
-    private static final double FALL_SEARCH = 64.0;
+    private static final double FALL_SEARCH = MeteorFall.FALL_HEIGHT + 16.0;
     private static final int NO_TARGET_ENTITY = -1;
     private static final String ABILITY_REQUIRED = "goo:astral_meteo must be loaded";
     private static final String SKY_REQUIRED = "The test bay's ground should stand under an open sky";
