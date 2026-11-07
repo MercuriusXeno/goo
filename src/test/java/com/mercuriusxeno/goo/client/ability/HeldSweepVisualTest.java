@@ -136,6 +136,28 @@ class HeldSweepVisualTest {
             assertTrue(!newer.lit().isEmpty(), "the newer front still lights the floor beside the caster");
         }
 
+        /**
+         * A wall two fronts lit draws once, at the brighter of its two glows,
+         * so a later pulse re-lights it rather than stacking brighter (the
+         * operator saw walls brighten with each pulse past the first).
+         */
+        @Test
+        void aWallTwoFrontsLitDrawsOnceAtItsBrighterGlow() {
+            EchoField field = new EchoField(CENTER);
+            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            first.heard(4 * BLOCKS_A_TICK, HEARD_AT);
+            first.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
+            second.heard(4 * BLOCKS_A_TICK, HEARD_AT + 10);
+            second.advance(HEARD_AT + 11, OVER_A_FLOOR, CUBES, ROOM);
+
+            List<HeldSweepVisual.WallGlow> walls = HeldSweepVisual.wallsToDraw(List.of(first, second), HEARD_AT + 11);
+
+            assertEquals(walls.stream().map(wall -> wall.face().pos()).distinct().count(), walls.size(),
+                    "each wall draws once");
+            assertTrue(walls.stream().allMatch(wall -> wall.glow() == 1f), "at the fresh hit's glow, not dimmer");
+        }
+
         /** The pulse holds lit walls, the farthest within one tick's travel inside its front. */
         private void assertFront(HeldSweepPulse pulse, double frame) {
             double front = pulse.drawnRadius(frame);

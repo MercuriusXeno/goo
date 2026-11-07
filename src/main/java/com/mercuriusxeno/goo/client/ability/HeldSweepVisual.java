@@ -22,6 +22,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -181,18 +183,47 @@ public final class HeldSweepVisual {
     private static void drawWalls(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
                                   double now) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
-        for (HeldSweepPulse pulse : PULSES.values()) {
-            for (HeldSweepPulse.LitFace lit : pulse.lit()) {
-                int color = ARGB.color(Math.round(FACE_ALPHA * glowAt(now - lit.hitAt())), pulse.tintRgb());
-                Vec3 corner = Vec3.atLowerCornerOf(lit.face().pos()).subtract(camera);
-                for (AABB box : lit.face().boxes()) {
-                    for (Direction side : lit.face().sides()) {
-                        emitBoxFace(pose, consumer, box.move(corner), side, color);
-                    }
+        for (WallGlow wall : wallsToDraw(PULSES.values(), now)) {
+            int color = ARGB.color(Math.round(FACE_ALPHA * wall.glow()), wall.tintRgb());
+            Vec3 corner = Vec3.atLowerCornerOf(wall.face().pos()).subtract(camera);
+            for (AABB box : wall.face().boxes()) {
+                for (Direction side : wall.face().sides()) {
+                    emitBoxFace(pose, consumer, box.move(corner), side, color);
                 }
             }
         }
         buffers.endBatch(GooRenderTypes.SCRY_FACES_TYPE);
+    }
+
+    /**
+     * The walls a frame draws and how brightly: each wall once, at the
+     * brightest glow any live front left on it, so a wall a later front hits
+     * again lights afresh rather than stacking brighter with every pulse,
+     * since the walls draw added onto the world.
+     *
+     * @param pulses the live pulses
+     * @param now    the game time with its partial tick
+     * @return each wall to draw with its glow and color
+     */
+    static List<WallGlow> wallsToDraw(Collection<HeldSweepPulse> pulses, double now) {
+        Map<BlockPos, WallGlow> walls = new LinkedHashMap<>();
+        for (HeldSweepPulse pulse : pulses) {
+            for (HeldSweepPulse.LitFace lit : pulse.lit()) {
+                walls.merge(lit.face().pos(), new WallGlow(lit.face(), glowAt(now - lit.hitAt()), pulse.tintRgb()),
+                        (held, next) -> next.glow() > held.glow() ? next : held);
+            }
+        }
+        return new ArrayList<>(walls.values());
+    }
+
+    /**
+     * A wall a frame draws.
+     *
+     * @param face    the wall
+     * @param glow    how brightly, 0 to 1
+     * @param tintRgb its color, 0xRRGGBB
+     */
+    record WallGlow(EchoField.EchoFace face, float glow, int tintRgb) {
     }
 
     /**
