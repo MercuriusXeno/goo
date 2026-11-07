@@ -38,6 +38,20 @@ class ClientPortalsTest {
         assertEquals(Optional.empty(), ClientPortals.pickedOnLook(List.of(FROM, ELSEWHERE), FROM, EYE, LOOK));
     }
 
+    /** A wall portal two blocks tall, its face the plane z 1 looking north at the eye. */
+    private static final Portal CLOSE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, 1)), Direction.NORTH,
+            Direction.UP);
+    /** An eye half a block before it, level with its lower block. */
+    private static final Vec3 CLOSE_EYE = new Vec3(0.5, 64.5, 0.5);
+
+    @Test
+    void aLookAnywhereOnAPortalsFaceFacesIt() {
+        Vec3 atTheUpperBlock = new Vec3(0, 1.3, 0.5).normalize();
+        assertEquals(Optional.of(CLOSE), ClientPortals.facedOnLook(List.of(CLOSE), OVERWORLD, CLOSE_EYE,
+                atTheUpperBlock), "A look at the portal's upper block should face the portal, however far off "
+                + "its middle the look runs");
+    }
+
     @Test
     void theLookPicksThePortalInTheChoosersDimension() {
         assertEquals(Optional.of(BESIDE), ClientPortals.pickedOnLook(List.of(FROM, ELSEWHERE, BESIDE), FROM, EYE, LOOK));
