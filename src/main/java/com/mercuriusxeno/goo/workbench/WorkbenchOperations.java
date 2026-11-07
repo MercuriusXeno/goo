@@ -1,14 +1,18 @@
 package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -59,6 +63,10 @@ public final class WorkbenchOperations {
     public static final String PROMOTE = "promote";
     /** Copies the live file back over the draft. */
     public static final String DISCARD = "discard";
+    /** Lists every ability's numeric leaves, each ability's draft over its live file. */
+    public static final String ABILITY_MODEL = "abilities/model";
+    /** Writes a draft for each posted ability's changed leaves and applies the abilities live. */
+    public static final String SAVE_ABILITIES = "abilities/save";
 
     private static final int BAD_REQUEST = 400;
     private static final int NOT_FOUND = 404;
@@ -75,6 +83,8 @@ public final class WorkbenchOperations {
     private static final String NO_INVENTORY_WRITTEN = "The inventory dump wrote no ";
     private static final String NO_CONSTANT_NAMED = "No constant is named $";
     private static final String NO_OPERATION_NAMED = "No workbench operation is named ";
+    private static final String NO_ABILITY_NAMED = "No ability is named ";
+    private static final String ABILITIES = "abilities";
     private static final String EXCEPTION_MESSAGE_SEPARATOR = ": ";
 
     private final WorkbenchPaths paths;
@@ -82,6 +92,7 @@ public final class WorkbenchOperations {
     private final InventoryDump dump;
     private final DumpRunner dumps;
     private final LiveApplier applier;
+    private final AbilityFiles abilityFiles;
     private final Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes;
     // Guards the draft file alone: a dump run holds this object's own monitor for minutes, and a seed, Promote or
     // Discard must not wait on it.
@@ -110,7 +121,9 @@ public final class WorkbenchOperations {
                     ValuesJson.inventory(dumpedInventory()), ValuesJson.idFrom(posted)))),
             Map.entry(PROCESSES, posted -> json(ProcessesJson.described(postedModel(posted)))),
             Map.entry(PROMOTE, posted -> promote()),
-            Map.entry(DISCARD, posted -> discard()));
+            Map.entry(DISCARD, posted -> discard()),
+            Map.entry(ABILITY_MODEL, posted -> abilityModel()),
+            Map.entry(SAVE_ABILITIES, this::saveAbilities));
 
     /**
      * @param paths      the files the workbench reads and writes
@@ -135,11 +148,27 @@ public final class WorkbenchOperations {
     public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps,
                                LiveApplier applier,
                                Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes) {
+        this(paths, seed, dump, dumps, applier, AbilityFiles.NONE, knownTypes);
+    }
+
+    /**
+     * @param paths        the files the workbench reads and writes
+     * @param seed         the text a draft starts from where no live file stands
+     * @param dump         writes the inventory when none stands
+     * @param dumps        runs the audit and clique dumps
+     * @param applier      applies the text a Save, a Promote or a Discard leaves standing to the running server
+     * @param abilityFiles the server's ability files, and the hand applying ability drafts to it
+     * @param knownTypes   the goo types the game holds, read on every draft load
+     */
+    public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps,
+                               LiveApplier applier, AbilityFiles abilityFiles,
+                               Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes) {
         this.paths = paths;
         this.seed = seed;
         this.dump = dump;
         this.dumps = dumps;
         this.applier = applier;
+        this.abilityFiles = abilityFiles;
         this.knownTypes = knownTypes;
     }
 
@@ -425,6 +454,49 @@ public final class WorkbenchOperations {
         }
         applier.apply(new String(restored, java.nio.charset.StandardCharsets.UTF_8));
         return modelReply(datafixedDraft());
+    }
+
+    /**
+     * Lists every ability's numeric leaves, each ability's draft standing over its live file
+     * (decision abilities-tab-lists-every-numeric-param-as-expression-boxes).
+     *
+     * @return the abilities' model
+     */
+    private WorkbenchReply abilityModel() throws IOException {
+        return json(AbilitiesModel.model(abilityFiles.live(), AbilityDrafts.read(paths.abilityDrafts())).toString());
+    }
+
+    /**
+     * Writes one draft per posted ability, its changed leaves over its draft or its live file, refusing the whole
+     * save where any edited ability would not load, then applies the abilities live
+     * (decision ability-drafts-promote-per-file-like-base-values).
+     *
+     * @param posted each edited ability's changed leaves by path, under "abilities" by the ability's id
+     * @return the abilities' model after the save
+     */
+    private WorkbenchReply saveAbilities(String posted) throws IOException {
+        JsonObject edits = JsonParser.parseString(posted).getAsJsonObject().getAsJsonObject(ABILITIES);
+        Map<Identifier, JsonObject> live = abilityFiles.live();
+        Map<Identifier, JsonObject> drafts = AbilityDrafts.read(paths.abilityDrafts());
+        Map<Identifier, JsonObject> written = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> edit : edits.entrySet()) {
+            Identifier id = Identifier.parse(edit.getKey());
+            JsonObject standing = drafts.getOrDefault(id, live.get(id));
+            if (standing == null) {
+                throw new IllegalArgumentException(NO_ABILITY_NAMED + id);
+            }
+            JsonObject edited = AbilitiesModel.edited(standing, edit.getValue().getAsJsonObject());
+            AbilitiesModel.refusal(id, edited).ifPresent(refusal -> {
+                throw new IllegalArgumentException(id + EXCEPTION_MESSAGE_SEPARATOR + refusal);
+            });
+            written.put(id, edited);
+        }
+        for (Map.Entry<Identifier, JsonObject> draft : written.entrySet()) {
+            AbilityDrafts.write(paths.abilityDrafts(), draft.getKey(), draft.getValue());
+        }
+        drafts.putAll(written);
+        abilityFiles.apply(drafts);
+        return json(AbilitiesModel.model(live, drafts).toString());
     }
 
     private WorkbenchReply inventory() throws IOException, InterruptedException {

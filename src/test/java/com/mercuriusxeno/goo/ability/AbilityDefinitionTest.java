@@ -5,9 +5,11 @@ import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.PrefabValues;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
@@ -110,6 +112,16 @@ class AbilityDefinitionTest {
 
             assertEquals(500, priced.cost().in(values));
             assertEquals(4, priced.upkeep().in(values));
+        }
+
+        @Test
+        void aCostNamingPrefabsReadsAScalarWholeAndATreeAtTheAbilitysType() {
+            AbilityDefinition priced = costing("\"2 * $base + $stone\"", "0");
+            IGooValueLookup values = mock(IGooValueLookup.class);
+            when(values.prefabs()).thenReturn(new PrefabValues(Map.of("base", GooFraction.of(300, 1)),
+                    Map.of("stone", new GooValue(Map.of(GooTypes.ROCK, 250, GooTypes.LEAF, 9)))));
+
+            assertEquals(850, priced.cost().in(values));
         }
     }
 
