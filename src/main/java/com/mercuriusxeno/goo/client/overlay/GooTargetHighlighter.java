@@ -156,7 +156,7 @@ public final class GooTargetHighlighter {
         Optional<SpireFootprint> footprint = SpireCast.footprint();
         if (footprint.isPresent()) {
             SpirePreviewRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
-                    SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()));
+                    SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
             return true;
         }
         if (GloveThrowSender.selectedDragSized(abilityId)) {
