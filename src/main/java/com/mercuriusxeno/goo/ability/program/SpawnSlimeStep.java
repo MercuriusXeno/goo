@@ -73,11 +73,26 @@ public record SpawnSlimeStep(ResourceKey<GooTypeDefinition> goo, int size) imple
         slime.snapTo(feet.x, feet.y, feet.z, 0f, 0f);
         // slime-blob-morphs-into-the-slime-it-becomes: the client morphs into a stand-in under the slime's id,
         // and the slime's own spawn replaces it once the morph ends
-        BlockVisuals.sendToWatchers(level, cell, TransformationPayload.intoHeldEntity(goo, host.morphFrom(), feet,
-                slime.getId(), BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.SLIME), TRANSFORMATION_TICKS));
+        BlockVisuals.sendToWatchers(level, cell, morphOf(goo, host.morphFrom(), slime.getId()));
         GooServerState.of(level.getServer()).morphBirths().holdUntil(level, slime,
                 level.getServer().getTickCount() + TRANSFORMATION_TICKS);
         return true;
+    }
+
+    /**
+     * The transformation of the landed blob into the slime it births, in
+     * place where the blob splatted: a morph whose ends sit apart hops the
+     * blob up and down first, which the operator ruled out.
+     * slime-blob-morphs-into-the-slime-it-becomes
+     *
+     * @param goo     the blob's goo type
+     * @param splat   where the blob landed
+     * @param slimeId the id the held slime holds
+     * @return the transformation the watchers play
+     */
+    static TransformationPayload morphOf(ResourceKey<GooTypeDefinition> goo, Vec3 splat, int slimeId) {
+        return TransformationPayload.intoHeldEntity(goo, splat, splat, slimeId,
+                BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.SLIME), TRANSFORMATION_TICKS);
     }
 
     @Override

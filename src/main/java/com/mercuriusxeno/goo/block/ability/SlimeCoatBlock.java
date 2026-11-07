@@ -87,6 +87,24 @@ public class SlimeCoatBlock extends Block {
     }
 
     /**
+     * Whether the coat hides its face toward a neighbour: toward another
+     * coat, so neighbouring coats read as one film with no seam between, as
+     * slime blocks do.
+     *
+     * @param neighbour the state of the cell beside the face
+     * @return true where the face is not drawn
+     */
+    static boolean hidesFaceToward(BlockState neighbour) {
+        return neighbour.getBlock() instanceof SlimeCoatBlock;
+    }
+
+    @Override
+    protected boolean skipRendering(@NonNull BlockState state, @NonNull BlockState neighbour,
+                                    @NonNull Direction direction) {
+        return hidesFaceToward(neighbour) || super.skipRendering(state, neighbour, direction);
+    }
+
+    /**
      * Whether a cell can hold a coat: the block under it has a sturdy top.
      *
      * @param level the level
