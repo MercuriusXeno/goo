@@ -19,7 +19,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -34,6 +33,7 @@ import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * A hunk of blocks lifted out of the world and carried as one entity: each
@@ -115,8 +115,12 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     /** The face a shattering hunk struck with, which orders its crumble. */
     private static final EntityDataAccessor<Direction> SHATTER_FACE =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.DIRECTION);
+    /** The placed share a hunk not placed answers. */
+    public static final double NOT_PLACED = -1;
     /** The shatter time a whole hunk names. */
     public static final long WHOLE = -1;
+    /** How near its seat an easing hunk drops exactly onto the grid, in blocks. */
+    static final double SNAP_TO_SEAT = 0.08;
     /** How far a hold pushed into the ground leans toward a seat its shape fits, 1 all the way; tuned in playtesting. */
     static final double SEAT_PULL = 1.0;
     /** How fast a torn hunk rises out of its hole, in blocks a tick. */
@@ -222,7 +226,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     private void becomeLifted() {
         rising = false;
-        noPhysics = false;
+        // It collides by its own blocks (HunkCollision), never by vanilla's one box around them.
+        noPhysics = true;
     }
 
     /**
@@ -312,11 +317,62 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         if (!clearOfHole()) {
             double rimHeight = home.getY() + heightInBlocks();
             if (getY() < rimHeight) {
-                return position().add(0, Math.min(RISE_OUT_SPEED, rimHeight - getY()), 0);
+                return allowedTo(position().add(0, Math.min(RISE_OUT_SPEED, rimHeight - getY()), 0));
             }
         }
         entityData.set(CLEAR_OF_HOLE, true);
-        return HoldEase.toward(position(), seatedHold(hold), HoldEase.TICK_SECONDS);
+        return allowedTo(easedToward(position(), hold, HoldEase.TICK_SECONDS));
+    }
+
+    /**
+     * Where an easing hunk stands after some time toward its hold, seated: it
+     * eases toward the seat the hold finds, and once within {@link #SNAP_TO_SEAT}
+     * of it drops exactly onto the grid, so a peg a block wide fits a slot a block wide.
+     *
+     * @param from    where it stands
+     * @param hold    where the aim puts it
+     * @param seconds the time passed
+     * @return where it eases to, before the world's collisions
+     */
+    public Vec3 easedToward(Vec3 from, Vec3 hold, double seconds) {
+        Vec3 target = seatedHold(hold);
+        Vec3 eased = HoldEase.toward(from, target, seconds);
+        Optional<Vec3> seat = seatFor(hold);
+        return seat.isPresent() && eased.distanceTo(seat.get()) < SNAP_TO_SEAT ? seat.get() : eased;
+    }
+
+    /**
+     * How far toward a point the hunk can move from where it stands, its own blocks against the world.
+     *
+     * @param to where it would move
+     * @return where the world lets it reach
+     */
+    private Vec3 allowedTo(Vec3 to) {
+        return position().add(allowedMove(position(), to.subtract(position())));
+    }
+
+    /**
+     * The part of a move the world allows the hunk from a position, by its own blocks.
+     *
+     * @param from where it stands
+     * @param move the move wanted
+     * @return the move allowed
+     */
+    public Vec3 allowedMove(Vec3 from, Vec3 move) {
+        return HunkCollision.allowed(level(), cellsAt(from), move);
+    }
+
+    /**
+     * The hunk's block cells standing at a position.
+     *
+     * @param position the hunk's position
+     * @return each block's cell
+     */
+    public List<AABB> cellsAt(Vec3 position) {
+        return blocks.stream().map(block -> {
+            Vec3 corner = cornerOf(position, block);
+            return new AABB(corner, corner.add(1, 1, 1));
+        }).toList();
     }
 
     /**
@@ -369,13 +425,34 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @return where the hunk eases toward
      */
     public Vec3 seatedHold(Vec3 hold) {
-        if (!level().getBlockCollisions(null, makeBoundingBox(hold)).iterator().hasNext()) {
-            return hold;
+        return seatFor(hold).map(seat -> hold.lerp(seat, SEAT_PULL)).orElse(hold);
+    }
+
+    /**
+     * The seat a hold pushed into the ground finds, if any.
+     *
+     * @param hold where the aim puts the hunk
+     * @return the seat's position, or empty where the hold is clear of the ground or no seat fits
+     */
+    private Optional<Vec3> seatFor(Vec3 hold) {
+        boolean pushedIn = cellsAt(hold).stream()
+                .anyMatch(cell -> level().getBlockCollisions(null, cell).iterator().hasNext());
+        if (!pushedIn) {
+            return Optional.empty();
         }
-        List<BlockPos> shape = blocks.stream().map(HunkBlock::offset).toList();
-        return HoleFit.fitNear(BlockPos.containing(hold.x, hold.y + HALF, hold.z), shape,
-                        cell -> level().getBlockState(cell).canBeReplaced())
-                .map(seat -> hold.lerp(Vec3.atBottomCenterOf(seat), SEAT_PULL)).orElse(hold);
+        return HoleFit.fitNear(originCellOf(hold), shape(), this::open).map(Vec3::atBottomCenterOf);
+    }
+
+    private List<BlockPos> shape() {
+        return blocks.stream().map(HunkBlock::offset).toList();
+    }
+
+    private boolean open(BlockPos cell) {
+        return level().getBlockState(cell).canBeReplaced();
+    }
+
+    private static BlockPos originCellOf(Vec3 position) {
+        return BlockPos.containing(position.x, position.y + HALF, position.z);
     }
 
     /**
@@ -483,6 +560,18 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
+     * How far a let-go hunk's linger over its placed stone has run, as it
+     * fades out over the blocks the world now draws there.
+     *
+     * @param time the game time
+     * @return the share run, 0 to 1, or -1 for a hunk not placed
+     */
+    public double placedShare(double time) {
+        long placedAt = entityData.get(PLACED_AT);
+        return placedAt == WHOLE ? NOT_PLACED : Math.clamp((time - placedAt) / SETTLE_LINGER_TICKS, 0, 1);
+    }
+
+    /**
      * Whether a settled hunk still lingers over its stone at a moment, drawing
      * it while the clients' chunks redraw it.
      *
@@ -547,12 +636,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             return;
         }
         if (hasData(GooAttachments.GRABBED)) {
-            // Held, it is an entity on the look and nothing in the world nudges it onto the block grid.
-            noPhysics = true;
             flightTicks = 0;
             return;
         }
-        noPhysics = false;
         entityData.set(HOLDER, NO_HOLDER);
         flightTicks++;
         fly(server);
@@ -653,7 +739,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @param level the server level
      */
     private void settle(ServerLevel level) {
-        placeBlocks(level, false);
+        placeBlocks(level);
         this.settled = true;
     }
 
@@ -667,26 +753,30 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      */
     private void placeOnTheGrid(ServerLevel level) {
         setDeltaMovement(Vec3.ZERO);
-        setPos(Vec3.atBottomCenterOf(BlockPos.containing(getX(), getY() + HALF, getZ())));
-        placeBlocks(level, true);
+        Optional<BlockPos> seat = HoleFit.fitNear(originCellOf(position()), shape(), this::open,
+                HoleFit.SETTLE_RADIUS);
+        if (seat.isEmpty()) {
+            // Nowhere it fits without overwriting a block: it breaks apart as a thrown one would.
+            impact(level, Vec3.ZERO, List.of());
+            return;
+        }
+        setPos(Vec3.atBottomCenterOf(seat.get()));
+        placeBlocks(level);
         entityData.set(PLACED_AT, level.getGameTime());
     }
 
     /**
-     * Sets each block into the cell it stands in, throwing dust off it, and
-     * stands anything the stone fills on top of it.
+     * Sets each block into the cell it stands in where that cell can be
+     * replaced, never overwriting a block, throwing dust off it, and stands
+     * anything the stone fills on top of it.
      *
-     * @param level      the server level
-     * @param replaceAny whether a block replaces whatever breakable block stands
-     *                   in its cell, or only a cell that can be replaced
+     * @param level the server level
      */
-    private void placeBlocks(ServerLevel level, boolean replaceAny) {
+    private void placeBlocks(ServerLevel level) {
         List<BlockPos> placed = new ArrayList<>();
         for (HunkBlock block : blocks) {
             BlockPos cell = cellOf(block);
-            BlockState there = level.getBlockState(cell);
-            boolean takes = replaceAny ? there.getDestroySpeed(level, cell) >= 0 : there.canBeReplaced();
-            if (takes) {
+            if (level.getBlockState(cell).canBeReplaced()) {
                 level.setBlockAndUpdate(cell, block.state());
                 throwDust(level, cell, block.state());
                 placed.add(cell);
@@ -722,7 +812,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             setDeltaMovement(getDeltaMovement().add(0, -GRAVITY, 0));
         }
         Vec3 motion = getDeltaMovement();
-        move(MoverType.SELF, motion);
+        moveByItsBlocks(motion);
         boolean thrown = entityData.get(THROWN);
         List<LivingEntity> struck = thrown ? level.getEntitiesOfClass(LivingEntity.class, getBoundingBox(),
                 LivingEntity::isAlive) : List.of();
@@ -731,6 +821,19 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             case PLACE -> placeOnTheGrid(level);
             default -> setDeltaMovement(getDeltaMovement().scale(DRAG));
         }
+    }
+
+    /**
+     * Moves the hunk as far as its own blocks let it, marking which ways it struck.
+     *
+     * @param motion the move wanted
+     */
+    private void moveByItsBlocks(Vec3 motion) {
+        Vec3 moved = allowedMove(position(), motion);
+        setPos(position().add(moved));
+        horizontalCollision = moved.x != motion.x || moved.z != motion.z;
+        verticalCollision = moved.y != motion.y;
+        setOnGround(verticalCollision && motion.y < 0);
     }
 
     private boolean ranInto(Vec3 motion, List<LivingEntity> struck) {

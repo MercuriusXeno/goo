@@ -140,6 +140,18 @@ public final class GooSubmitter {
     }
 
     /**
+     * Returns the render type a fading moving block draws through: the
+     * moving-block shader, lit by the lightmap alone, blended, so a block
+     * drawn over the world's own fades out without a second face shade.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @return the translucent moving-block type on the block atlas
+     */
+    public static RenderType movingBlockTranslucent() {
+        return RenderTypes.translucentMovingBlock();
+    }
+
+    /**
      * Returns the cutout render type on a standalone texture, for a flat card
      * whose texture leaves holes, such as the goo label's paper and symbol.
      *
