@@ -67,9 +67,10 @@ public final class PortalTests {
     private static final String PLACING_LINKS_TO_THE_LAST_PLACED = "portal_placing_links_to_the_last_placed";
 
     /**
-     * A portal placed alone stands inert; the next placed links to it on its
-     * own, the older the blue entry and the newer the orange exit; a third
-     * links to the second the same way, and the first goes inert
+     * Placing pairs unpaired portals: a portal placed alone stands inert; the
+     * next pairs with it, the older the blue entry and the newer the orange
+     * exit; a third, every other portal already paired, stands inert and the
+     * pair stands; a fourth pairs with the unpaired third
      * (decision portals-link-by-looking-through-portal-vision).
      *
      * @param helper the gametest helper
@@ -84,16 +85,22 @@ public final class PortalTests {
         helper.assertTrue(portals.partnerOf(first).isEmpty(), "A portal placed alone should stand inert");
         Portal second = castAt(helper, player, SECOND, Direction.NORTH);
         helper.assertTrue(portals.linkOf(player.getUUID()).equals(Optional.of(new QuantumPortals.Link(first, second))),
-                "The next portal placed should link to the last, the older blue and the newer orange, holds "
-                        + portals.linkOf(player.getUUID()));
+                "The next portal placed should pair with the unpaired first, the older blue and the newer orange, "
+                        + "holds " + portals.linkOf(player.getUUID()));
         Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
-        helper.assertTrue(portals.linkOf(player.getUUID()).equals(Optional.of(new QuantumPortals.Link(second, third))),
-                "A third portal placed should link to the second, holds " + portals.linkOf(player.getUUID()));
-        helper.assertTrue(portals.partnerOf(first).isEmpty(), "The first portal should go inert once the third links");
-        assertTethered(helper, player, third);
+        helper.assertTrue(portals.partnerOf(third).isEmpty() && portals.partnerOf(first).equals(Optional.of(second)),
+                "A portal placed with every other portal paired should stand inert, the pair standing; holds "
+                        + portals.linkOf(player.getUUID()));
+        Portal fourth = castAt(helper, player, FOURTH, Direction.SOUTH);
+        helper.assertTrue(portals.linkOf(player.getUUID()).equals(Optional.of(new QuantumPortals.Link(third, fourth))),
+                "A fourth portal should pair with the unpaired third, holds " + portals.linkOf(player.getUUID()));
+        assertTethered(helper, player, fourth);
         level.getServer().getPlayerList().remove(player);
         helper.succeed();
     }
+
+    /** A fourth wall frame's lower block. */
+    private static final BlockPos FOURTH = new BlockPos(1, 1, 14);
 
     private static final String LINK_REACHES_EVERY_CLIENT = "portal_link_reaches_every_client";
     private static final String FAR_SIDE_STREAMS_TO_A_LOOK = "portal_far_side_streams_to_a_look";

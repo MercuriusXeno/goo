@@ -40,9 +40,9 @@ public final class PortalChoice {
     }
 
     /**
-     * Places a portal for its caster: a first portal stands inert, and each
-     * after links to the one placed before it, the older the blue entry and
-     * the newer the orange exit, the pair they held before unlinked.
+     * Places a portal for its caster, inert; where the last portal the caster
+     * placed is not paired, the new one pairs with it, the older the blue
+     * entry and the newer the orange exit.
      *
      * @param level  the level the portal stands in
      * @param owner  the caster
@@ -52,7 +52,7 @@ public final class PortalChoice {
         QuantumPortals portals = QuantumPortals.get(level);
         List<Portal> before = portals.portalsOf(owner);
         portals.place(owner, portal);
-        if (!before.isEmpty() && !before.contains(portal)) {
+        if (!before.isEmpty() && !before.contains(portal) && portals.partnerOf(before.getLast()).isEmpty()) {
             linkPair(level, owner, before.getLast(), portal);
         }
         syncEveryone(level.getServer());
