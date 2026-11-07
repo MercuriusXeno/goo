@@ -3,9 +3,9 @@ package com.mercuriusxeno.goo.client.model;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
+import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedHands;
-import com.mercuriusxeno.goo.client.ability.ShardsCharge;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -271,7 +271,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
             type = null;
         }
         return new GloveData(stack.getItem(), type, channelGlowOf(type, stack),
-                ShardsCharge.palmScaleAt(ShardsCharge.localPalmShare(stack)));
+                KnivesCharge.palmScaleAt(KnivesCharge.localPalmShare(stack)));
     }
 
     /**

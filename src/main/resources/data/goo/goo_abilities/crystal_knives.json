@@ -1,0 +1,18 @@
+{
+  "gooType": "crystal",
+  "displayName": "goo.ability.crystal.knives",
+  "badge": "channeled",
+  "order": 10,
+  "cost": 1000,
+  "requires": ["minecraft:amethyst_shard"],
+  "delivery": {
+    "kind": "arc",
+    "charge": { "max_ticks": 30, "flecks": 27, "spread_degrees": 45, "sweep_ticks": 8, "fewest_flecks": 3, "narrowest_degrees": 5 }
+  },
+  "behaviors": [
+    { "type": "damage", "amount": 2, "source": "magic", "knockback": false },
+    { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 2, "spread": 0.3, "speed": 0.1 }
+  ],
+  "tags": ["entity"],
+  "pose": "shoulder_cast"
+}

@@ -36,8 +36,8 @@ import java.util.OptionalDouble;
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
  * goo-colored outline and face ripple on the targeted block or ability block
- * at the opaque stage, with no fill over the block, and the throw arc after
- * translucent blocks. The entity outline
+ * at the opaque stage, with no fill over the block, and the throw arc, or a
+ * line per knife for a delivery slinging a fan, after translucent blocks. The entity outline
  * rides the render state modifier AimTracker registers (decision
  * render-context-is-the-one-emitter).
  */
@@ -328,7 +328,33 @@ public final class GooTargetHighlighter {
         float partialTick = cachedArcPartialTick;
         boolean touchesAtReach = cachedArcTouchesAtReach;
         clearCachedArc();
-        if (target == null || type == null || delivery == null || !delivery.aimsALine()) {
+        if (target == null || type == null || delivery == null) {
+            return;
+        }
+        if (KnifeAimLineRenderer.showsLines(delivery, GloveUseTracker.showsArea())) {
+            Minecraft mc = Minecraft.getInstance();
+            KnifeAimLineRenderer.render(event.getPoseStack(), mc.renderBuffers().bufferSource(),
+                    mc.gameRenderer.getMainCamera(), delivery, ClientGooTypes.highlight(type), partialTick);
+            return;
+        }
+        renderLineAim(event, target, type, delivery, partialTick, touchesAtReach);
+    }
+
+    /**
+     * Draws a line aim: the touch ring where the ability touches at reach,
+     * and the aim line for a delivery aiming one.
+     *
+     * @param event          the render stage event
+     * @param target         the target this frame aims at
+     * @param type           the selected goo type
+     * @param delivery       the selected delivery
+     * @param partialTick    the partial tick captured at the opaque stage
+     * @param touchesAtReach whether the selected ability touches an entity within reach
+     */
+    private static void renderLineAim(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
+                                      ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick,
+                                      boolean touchesAtReach) {
+        if (!delivery.aimsALine()) {
             return;
         }
         if (touchesAtReach) {
@@ -338,10 +364,10 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the aim line to the exact point aimed at, the same frame the tile
+     * Draws the aim line to its end for the target, the same frame the tile
      * highlight draws, with nothing carried from the last frame.
      * aim-line-snaps-with-the-tile-highlight
-     * aim-point-follows-the-cursor
+     * aim-line-roots-to-the-aimed-mob-or-block
      *
      * @param event       the render stage event
      * @param target      the target this frame aims at
@@ -351,7 +377,7 @@ public final class GooTargetHighlighter {
      */
     private static void renderAimLine(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
                                       ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick) {
-        Vec3 end = target.point();
+        Vec3 end = aimLineEnd(target);
         if (end == null) {
             return;
         }
@@ -359,6 +385,23 @@ public final class GooTargetHighlighter {
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
                 partialTick, grannyWeight(target, delivery), delivery.aimsStraight());
+    }
+
+    /**
+     * Where the aim line ends for a target: the bullseye's anchor on an aimed
+     * mob or block, so hand sway leaves the line rooted, and the cursor for
+     * free aim, which favors nothing to root to.
+     * aim-line-roots-to-the-aimed-mob-or-block
+     *
+     * @param target the target this frame aims at
+     * @return the line's end, or null when nothing is aimed at
+     */
+    static @Nullable Vec3 aimLineEnd(TargetResult target) {
+        return switch (target) {
+            case TargetResult.PointTarget free -> free.point();
+            case TargetResult.None none -> null;
+            default -> target.resolveEndpoint();
+        };
     }
 
     /**

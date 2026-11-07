@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,6 +35,8 @@ class AbilityDefinitionTest {
     private static final float LURKER_POWER = 2.5f;
     /** The widest radius Razor's field step writes. */
     private static final double RAZOR_RADIUS = 4.5;
+    /** The damage each knife Knives slings deals. */
+    private static final double KNIFE_DAMAGE = 2;
     private static final Pattern RADIUS_BEARING = Pattern.compile("\"radius\"|\"type\"\s*:\s*\"explode\"");
 
     // decision one-proving-ability-per-kind
@@ -53,6 +57,14 @@ class AbilityDefinitionTest {
         AbilityArea written = new AbilityArea(AbilityArea.Shape.CONE, JSON_SIZE, CONE_ANGLE);
         List<Step> explodes = List.of(new ExplodeStep(Expr.literal(EXPLOSION_POWER), ExplosionMode.TNT));
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
+    }
+
+    // decision knives-deal-two-each
+    @Test
+    void knivesDealsTwoAKnife() {
+        DamageStep damage = AbilityJson.decode("crystal_knives").behaviors().stream()
+                .filter(DamageStep.class::isInstance).map(DamageStep.class::cast).findFirst().orElseThrow();
+        assertEquals(KNIFE_DAMAGE, damage.amount().evaluate(Variables.NONE), TOLERANCE);
     }
 
     @Test
@@ -103,11 +115,19 @@ class AbilityDefinitionTest {
         }
 
         @Test
-        void shardsCastsFromTheShoulder() {
-            AbilityDefinition shards = AbilityJson.decode("crystal_shards");
-            assertEquals(ArmPose.SHOULDER_CAST, shards.pose());
-            assertEquals(ArmPoseKind.WIND_UP, shards.pose().holdFrame());
-            assertEquals(ArmPoseKind.FLING, shards.pose().releaseFrame());
+        void knivesCastsFromTheShoulder() {
+            AbilityDefinition knives = AbilityJson.decode("crystal_knives");
+            assertEquals(ArmPose.SHOULDER_CAST, knives.pose());
+            assertEquals(ArmPoseKind.WIND_UP, knives.pose().holdFrame());
+            assertEquals(ArmPoseKind.FLING, knives.pose().releaseFrame());
+        }
+
+        // crystal-shards-becomes-crystal-knives-everywhere
+        @Test
+        void knivesDecodesAsTheChanneledCrystalAbilityNamedKnives() {
+            AbilityDefinition knives = AbilityJson.decode("crystal_knives");
+            assertEquals("goo.ability.crystal.knives", knives.displayName());
+            assertEquals(AbilityBadge.CHANNELED, knives.badge());
         }
     }
 
@@ -161,7 +181,7 @@ class AbilityDefinitionTest {
 
         /** One proving example per kind: a thrown channel, a self, a brew and a stream. */
         @ParameterizedTest
-        @CsvSource({"crystal_shards, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
+        @CsvSource({"crystal_knives, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
                 "blaze_kindle, NONE, 0.0, 0.0", "blaze_flames, CONE, 6.0, 20.0"})
         void mobSelfBrewAndChanneledKeepTheirArea(String name, AbilityArea.Shape shape, double size, double angle) {
             assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());

@@ -12,10 +12,11 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 
 /**
- * Renders a glowing dashed arc polyline from the glove hand to the target,
- * previewing the throw trajectory with multi-pass bloom.
+ * Renders a dashed arc polyline from the glove hand to the target, previewing
+ * the throw trajectory, and the touch reach ring, each with its own bloom.
  */
 public final class ArcRenderer {
     /** Dash segment length in world units. */
@@ -26,16 +27,28 @@ public final class ArcRenderer {
     private static final float DASH_CYCLE = DASH_ON + DASH_OFF;
     /** Scroll speed in world units per second - dashes flow toward the target. */
     private static final float SCROLL_SPEED = 1.5f;
-    /** Core alpha for the arc dashes. */
-    private static final int ARC_ALPHA = 80;
     /** Distance between polyline sample points on the arc. */
     private static final float SAMPLE_SPACING = 0.05f;
-    /** Number of bloom passes for the glow effect (core + outer halos). */
-    private static final int ARC_GLOW_PASSES = 3;
-    /** Width multiplier step per bloom pass. */
-    private static final float ARC_GLOW_WIDTH_STEP = 1.5f;
-    /** Alpha decay per bloom pass (exponential). */
-    private static final float ARC_GLOW_ALPHA_DECAY = 0.55f;
+
+    /**
+     * The aim line's bloom: a faint core and one narrow dashed halo, a quiet
+     * guide a thrown dart reads over, the halo kept since its dashes carry the
+     * line's scroll.
+     * aim-line-draws-quieter-so-the-dart-reads
+     */
+    static final GlowPalette AIM_LINE_GLOW = new GlowPalette(2, 36, 0.75f, 0.6f);
+    /**
+     * The touch reach ring's bloom, which shows the reach around the player's
+     * feet with no dart flying over it.
+     * mob-ability-touches-at-reach
+     */
+    static final GlowPalette REACH_RING_GLOW = new GlowPalette(3, 80, 1.5f, 0.55f);
+    /**
+     * Knives' aim lines' bloom: fainter than the aim line, since a press
+     * draws one per knife and they overlay near the hand.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     */
+    static final GlowPalette KNIFE_LINE_GLOW = new GlowPalette(2, 20, 0.75f, 0.6f);
 
     /** Minimum arc segment count. */
     private static final int MIN_ARC_SEGMENTS = 8;
@@ -59,6 +72,18 @@ public final class ArcRenderer {
     private ArcRenderer() {}
 
     /**
+     * One line's bloom: an undashed core pass and the dashed halo passes
+     * around it, each wider and dimmer than the last.
+     *
+     * @param passes     the pass count, the core plus its halos
+     * @param coreAlpha  the core pass's alpha of 255
+     * @param widthStep  the width added per halo pass, as a multiple of the base width
+     * @param alphaDecay the alpha kept per halo pass
+     */
+    record GlowPalette(int passes, int coreAlpha, float widthStep, float alphaDecay) {
+    }
+
+    /**
      * Renders a glowing animated dashed arc from the glove hand to the target,
      * previewing the throw trajectory.
      *
@@ -79,9 +104,8 @@ public final class ArcRenderer {
         Vec3[] points = sampleArcPoints(start, end, grannyWeight, straightLine);
         float dashOffset = computeDashOffset(partialTick);
         Minecraft mc = Minecraft.getInstance();
-        emitDashedGlow(poseStack, bufferSource, camera, points,
-                points.length - 1, rgb, dashOffset,
-                mc.getWindow().getAppropriateLineWidth());
+        emitDashedGlow(poseStack, bufferSource, camera, points, rgb, dashOffset,
+                mc.getWindow().getAppropriateLineWidth(), AIM_LINE_GLOW);
     }
 
     /**
@@ -101,8 +125,30 @@ public final class ArcRenderer {
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
             Camera camera, Vec3 center, double radius, int rgb, float partialTick) {
         Vec3[] points = ringPoints(center, radius, RING_SEGMENTS);
-        emitDashedGlow(poseStack, bufferSource, camera, points, points.length - 1, rgb,
-                computeDashOffset(partialTick), Minecraft.getInstance().getWindow().getAppropriateLineWidth());
+        emitDashedGlow(poseStack, bufferSource, camera, points, rgb,
+                computeDashOffset(partialTick), Minecraft.getInstance().getWindow().getAppropriateLineWidth(),
+                REACH_RING_GLOW);
+    }
+
+    /**
+     * Renders Knives' aim: a faint dashed line along each knife's flight.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @param poseStack    the current pose stack
+     * @param bufferSource the buffer source for render output
+     * @param camera       the active camera
+     * @param lines        each knife's flight, from the hand
+     * @param rgb          the RGB color for tinting
+     * @param partialTick  the partial tick for animation
+     */
+    static void renderKnifeLines(
+            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+            Camera camera, List<Vec3[]> lines, int rgb, float partialTick) {
+        float dashOffset = computeDashOffset(partialTick);
+        float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
+        for (Vec3[] line : lines) {
+            emitDashedGlow(poseStack, bufferSource, camera, line, rgb, dashOffset, width, KNIFE_LINE_GLOW);
+        }
     }
 
     /**
@@ -162,7 +208,18 @@ public final class ArcRenderer {
      * @return dash offset in world units
      */
     private static float computeDashOffset(float partialTick) {
-        return (float) frameSeconds(partialTick) * SCROLL_SPEED;
+        return dashOffsetAt(frameSeconds(partialTick));
+    }
+
+    /**
+     * The dash scroll offset at a frame clock, growing so the dashes flow
+     * toward the target.
+     *
+     * @param seconds the frame clock in seconds
+     * @return dash offset in world units
+     */
+    static float dashOffsetAt(double seconds) {
+        return (float) seconds * SCROLL_SPEED;
     }
 
     /**
@@ -183,20 +240,21 @@ public final class ArcRenderer {
      * @param bufferSource the buffer source for rendering
      * @param camera the render camera
      * @param points the sampled arc polyline points
-     * @param segments the number of arc segments
      * @param rgb the RGB color value
      * @param dashOffset the dash scroll offset
      * @param baseWidth the base line width
+     * @param palette the line's bloom
      */
     private static void emitDashedGlow(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, Vec3[] points, int segments,
-            int rgb, float dashOffset, float baseWidth) {
+            Camera camera, Vec3[] points,
+            int rgb, float dashOffset, float baseWidth, GlowPalette palette) {
+        int segments = points.length - 1;
         Vec3 cam = camera.position();
         LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(GooRenderTypes.LINES_GLOW));
-        for (int pass = ARC_GLOW_PASSES - 1; pass >= 0; pass--) {
-            float width = baseWidth * (1.0f + pass * ARC_GLOW_WIDTH_STEP);
-            int color = computeGlowPassColor(rgb, pass);
+        for (int pass = palette.passes() - 1; pass >= 0; pass--) {
+            float width = baseWidth * (1.0f + pass * palette.widthStep());
+            int color = computeGlowPassColor(rgb, pass, palette);
             if (pass == 0) {
                 ctx.emitPolyline(cam, points, color, width);
             } else {
@@ -212,11 +270,12 @@ public final class ArcRenderer {
      *
      * @param rgb  the base RGB color
      * @param pass the bloom pass index (0 = core, higher = dimmer)
+     * @param palette the line's bloom
      * @return the ARGB color with decayed alpha
      */
-    private static int computeGlowPassColor(int rgb, int pass) {
-        float alphaScale = (float) Math.pow(ARC_GLOW_ALPHA_DECAY, pass);
-        int alpha = Mth.clamp((int) (ARC_ALPHA * alphaScale), 0, MAX_ALPHA);
+    static int computeGlowPassColor(int rgb, int pass, GlowPalette palette) {
+        float alphaScale = (float) Math.pow(palette.alphaDecay(), pass);
+        int alpha = Mth.clamp((int) (palette.coreAlpha() * alphaScale), 0, MAX_ALPHA);
         return ARGB.color(alpha, ARGB.red(rgb), ARGB.green(rgb), ARGB.blue(rgb));
     }
 

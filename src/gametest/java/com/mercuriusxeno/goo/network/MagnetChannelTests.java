@@ -44,7 +44,7 @@ public final class MagnetChannelTests {
     /** One ancient debris buried in the floor across the bay. */
     private static final BlockPos DEBRIS = new BlockPos(4, 0, 5);
     private static final int HOLD_TICKS = 3;
-    /** Held ticks whose front, a block a tick, reaches past every buried ore. */
+    /** Pulse ticks whose front reaches past every buried ore. */
     private static final int REACHING_HOLD = 5;
     private static final double TOLERANCE = 1e-6;
     private static final String ABILITY_REQUIRED = "Ability registry must hold metal_magnet";

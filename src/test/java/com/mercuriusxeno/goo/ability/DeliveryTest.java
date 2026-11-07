@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.client.overlay.ArcRenderer;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -36,6 +37,7 @@ class DeliveryTest {
     private static final double TEN_BLOCKS = 10;
     private static final float LEVITY = 0.7f;
     private static final int BASE_FLIGHT_TIME = 3;
+    private static final int BULB_FULL_RANGE_TICK_BUDGET = 4;
     private static final String TOP_SPEED = "top_speed";
 
     private static DataResult<AbilityDefinition> decode(String deliveryField) {
@@ -94,11 +96,22 @@ class DeliveryTest {
         }
 
         // shards-sling-then-morph-to-flechettes
+        // knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
         @Test
-        void crystalShardsChargesARainOfKnives() {
-            Delivery shards = AbilityJson.decode("crystal_shards").delivery();
-            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 24, 50, 8), shards.charge());
-            assertTrue(shards.charge().slings());
+        void crystalKnivesChargesARainOfKnives() {
+            Delivery knives = AbilityJson.decode("crystal_knives").delivery();
+            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 27, 45, 8, 3, 5), knives.charge());
+            assertTrue(knives.charge().slings());
+        }
+
+        // knives-aims-a-spread-fan-not-a-blob-line
+        @Test
+        void knivesSlingsAFanAndAimsNoLineWhileABlobArcAndABeamAimALine() {
+            Delivery knives = AbilityJson.decode("crystal_knives").delivery();
+            assertTrue(knives.slingsAFan());
+            assertFalse(knives.aimsALine());
+            assertTrue(AbilityJson.decode("frost_orb").delivery().aimsALine());
+            assertTrue(AbilityJson.decode("glow_crystal").delivery().aimsALine());
         }
 
         // traveling-form-transforms-in-flight
@@ -254,6 +267,18 @@ class DeliveryTest {
                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(DeliveryKind.class)));
             Set<DeliveryKind> unnamed = EnumSet.complementOf(EnumSet.copyOf(named));
             assertEquals(Set.of(), unnamed, "No bundled ability names delivery kind " + unnamed);
+        }
+
+        /**
+         * A bulb cast at the throw's full range lands within a handful of
+         * ticks, so placing a bulb feels like pointing, not waiting.
+         */
+        // bulb-beam-lands-in-a-few-ticks
+        @Test
+        void bulbBeamLandsAFullRangeCastWithinTheTickBudget() {
+            Delivery bulb = AbilityJson.decode("glow_crystal").delivery();
+            assertTrue(bulb.travelTicks(GooThrowHandler.MAX_RANGE, LEVITY, BASE_FLIGHT_TIME)
+                    <= BULB_FULL_RANGE_TICK_BUDGET);
         }
 
         /**

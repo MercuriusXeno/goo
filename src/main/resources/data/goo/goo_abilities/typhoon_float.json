@@ -1,13 +1,15 @@
 {
   "gooType": "typhoon",
   "displayName": "goo.ability.typhoon.float",
-  "badge": "mob",
-  "order": 0,
-  "cost": 1000,
-  "requires": ["minecraft:shulker_shell"],
-  "delivery": { "kind": "arc" },
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
+  "badge": "brew",
+  "order": 10,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "float", "duration": 100, "amplifier": 1 }
+    { "type": "airborn", "air_speed": 0.6, "climb_speed": 0.4, "air_steer": 0.2, "fall_cap": 0.4, "jump_boost": 0.5,
+      "glide_speed": 1.2, "glide_steer": 0.05 },
+    { "type": "sound", "id": "minecraft:entity.breeze.inhale", "at": "target", "source": "players", "volume": 0.8, "pitch": 1 }
   ],
-  "tags": ["entity"]
+  "tags": ["self"]
 }

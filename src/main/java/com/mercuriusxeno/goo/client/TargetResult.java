@@ -124,8 +124,8 @@ public sealed interface TargetResult {
 
     /**
      * The exact point aimed at: where the ray met the face or the entity, or
-     * the ray's end at range for free aim. The aim line ends here and the
-     * throw flies here, while the favored block or entity keeps its outline.
+     * the ray's end at range for free aim. The throw flies here, while the
+     * favored block or entity keeps its outline.
      * aim-point-follows-the-cursor
      *
      * @return the aimed point, or null for {@link None}

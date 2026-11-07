@@ -19,7 +19,7 @@ public enum ArmPose {
     HELD_OUT(ArmPoseKind.HOLD_OUT, ArmPoseKind.NONE, false),
     /** The glove hand raised to face height for the whole hold, eased down on release. */
     HELD_UP(ArmPoseKind.HOLD_UP, ArmPoseKind.NONE, false),
-    /** Eased across the chest while charging, backhanded outward on release: Shards' pose. */
+    /** Eased across the chest while charging, backhanded outward on release: Knives' pose. */
     SHOULDER_CAST(ArmPoseKind.WIND_UP, ArmPoseKind.FLING, false),
     /** The arm left where vanilla draws it while held, and vanilla's swing on release: a blob thrown. */
     SWUNG(ArmPoseKind.NONE, ArmPoseKind.NONE, true);
