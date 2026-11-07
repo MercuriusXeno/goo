@@ -26,6 +26,8 @@ public final class SculkerVignetteLayer {
     /** The mist's deep sculk teal. */
     private static final int MIST_RGB = 0x0A3A40;
     private static final TendrilVignette.Look LOOK = new TendrilVignette.Look(MIST_RGB, SculkerSenses.SCULK_RGB);
+    /** This sight's own tendrils, sprouting from a seed of their own. */
+    private static final TendrilVignette VIGNETTE = new TendrilVignette(0x5C01_C3E5L);
 
     private SculkerVignetteLayer() {
     }
@@ -46,6 +48,6 @@ public final class SculkerVignetteLayer {
             return;
         }
         float time = mc.level.getGameTime() + deltaTracker.getGameTimeDeltaPartialTick(false);
-        TendrilVignette.draw(graphics, time, SculkerVision.presence(), LOOK);
+        VIGNETTE.draw(graphics, time, SculkerVision.presence(), LOOK);
     }
 }

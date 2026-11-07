@@ -1,58 +1,79 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import org.junit.jupiter.api.Test;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Each tendril of the vignette rolls its own shape, so no two along the
- * screen's edges look alike, and keeps it from frame to frame
+ * The vignette's tendrils are a live population, not a fixed set: they
+ * sprout at random places along the edges at random times, each with its own
+ * length, thickness and wandering path that may fork, and each withers and
+ * goes in its time, so the count on screen drifts and no layout repeats
  * (decisions sight-lengthens-shift-and-outlines-fungus and
  * sculker-sight-persists-where-echoes-have-touched).
  */
 class TendrilVignetteTest {
 
-    private static final int EDGES = 4;
-    private static final int PER_EDGE = 5;
+    private static final long SEED = 7L;
+    private static final int SETTLED = 400;
+    private static final int SAMPLES_UNTIL = 2000;
+    private static final int SAMPLE_EVERY = 50;
+    private static final int DISTINCT_COUNTS = 3;
 
-    private static List<TendrilVignette.Shape> everyShape() {
-        List<TendrilVignette.Shape> shapes = new ArrayList<>();
-        for (int edge = 0; edge < EDGES; edge++) {
-            for (int index = 0; index < PER_EDGE; index++) {
-                shapes.add(TendrilVignette.shapeOf(edge, index));
+    private static TendrilVignette advancedTo(int ticks) {
+        TendrilVignette vignette = new TendrilVignette(SEED);
+        for (int tick = 0; tick <= ticks; tick++) {
+            vignette.advance(tick);
+        }
+        return vignette;
+    }
+
+    @Test
+    void aPopulationSproutsAndTheCountDrifts() {
+        TendrilVignette vignette = new TendrilVignette(SEED);
+        Set<Integer> counts = new HashSet<>();
+        for (int tick = 0; tick <= SAMPLES_UNTIL; tick++) {
+            vignette.advance(tick);
+            if (tick >= SETTLED && tick % SAMPLE_EVERY == 0) {
+                counts.add(vignette.live().size());
             }
         }
-        return shapes;
+        assertFalse(counts.contains(0), "tendrils should stand once the population has settled: " + counts);
+        assertTrue(counts.size() >= DISTINCT_COUNTS, "the count on screen should drift: " + counts);
     }
 
     @Test
-    void noTwoTendrilsShareALengthOrASway() {
-        List<TendrilVignette.Shape> shapes = everyShape();
+    void noTwoTendrilsRootAtOnePlaceOrReachOneLength() {
+        List<TendrilVignette.Tendril> live = advancedTo(SETTLED).live();
+        Set<Float> roots = new HashSet<>();
         Set<Float> lengths = new HashSet<>();
-        Set<Float> sways = new HashSet<>();
-        shapes.forEach(shape -> {
-            lengths.add(shape.length());
-            sways.add(shape.sway());
+        live.forEach(tendril -> {
+            roots.add(tendril.along());
+            lengths.add(tendril.length());
         });
-        assertEquals(shapes.size(), lengths.size(), "every tendril should reach its own length");
-        assertEquals(shapes.size(), sways.size(), "every tendril should sway its own amount");
+        assertTrue(live.size() > 1 && roots.size() == live.size() && lengths.size() == live.size(),
+                "every tendril should root and reach on its own");
     }
 
     @Test
-    void someTendrilsCurlOrBranchAndOthersDoNot() {
-        List<TendrilVignette.Shape> shapes = everyShape();
-        assertTrue(shapes.stream().anyMatch(shape -> shape.branchAt() >= 0)
-                && shapes.stream().anyMatch(shape -> shape.branchAt() < 0), "some tendrils should branch, not all");
-        assertTrue(shapes.stream().anyMatch(shape -> shape.curl() > 0)
-                && shapes.stream().anyMatch(shape -> shape.curl() < 0), "tendrils should curl both ways");
+    void someForkSomeRootThickAndTheRestDoNot() {
+        List<TendrilVignette.Tendril> live = advancedTo(SAMPLES_UNTIL).live();
+        assertTrue(live.stream().anyMatch(TendrilVignette.Tendril::forks)
+                && live.stream().anyMatch(tendril -> !tendril.forks()), "some tendrils should fork, not all");
+        assertTrue(live.stream().anyMatch(TendrilVignette.Tendril::thick)
+                && live.stream().anyMatch(tendril -> !tendril.thick()), "some tendrils should root thick, not all");
     }
 
     @Test
-    void aTendrilKeepsItsShapeFromFrameToFrame() {
-        assertEquals(TendrilVignette.shapeOf(2, 3), TendrilVignette.shapeOf(2, 3));
+    void everyTendrilWithersAndGoesInItsTime() {
+        TendrilVignette vignette = advancedTo(SETTLED);
+        Set<TendrilVignette.Tendril> standing = new HashSet<>(vignette.live());
+        for (int tick = SETTLED + 1; tick <= SETTLED + TendrilVignette.LONGEST_LIFE_TICKS + 1; tick++) {
+            vignette.advance(tick);
+        }
+        assertTrue(vignette.live().stream().noneMatch(standing::contains), "every tendril should be gone by its life's end");
     }
 }

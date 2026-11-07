@@ -45,8 +45,8 @@ import java.util.Set;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerGlassRenderer {
 
-    /** The opacity a block at the player draws at, short of opaque so the glass stays glass. */
-    private static final float MOST_OPACITY = 0.7f;
+    /** The opacity the near blocks draw at: mostly solid, the caves behind them showing only faintly. */
+    private static final float MOST_OPACITY = 0.85f;
     /** A block this faint is not drawn at all. */
     private static final float FAINTEST = 0.03f;
     private static final int OPAQUE = 255;
