@@ -58,8 +58,9 @@ public final class TerrakinesisTests {
     private static final int FAR_STRIP_X = 5;
     /** Pitches, looking down, the holder sweeps through: steep, near straight down, and straight down. */
     private static final float[] DOWN_PITCHES = {60f, 80f, 89f, 90f};
-    /** Where the caster carries the chunk aside to, on the planks floor east of its hole. */
-    private static final int ASIDE_X = 4;
+    /** Where the caster carries the chunk aside to, on the planks floor beside its hole, within the hold's reach. */
+    private static final int ASIDE_X = 1;
+    private static final int ASIDE_Z = 4;
     /** Ticks spent carrying the chunk aside, then aiming it back. */
     private static final int CARRY_TICKS = 20;
     /** The floor's strip of stone the caster looks down at: three cells along z, set in planks. */
@@ -100,7 +101,7 @@ public final class TerrakinesisTests {
     /** How far the hunk may stray across its hole while it rises out of it. */
     private static final double OVER_THE_HOLE = 0.01;
     /** The ability's far hold distance, eye to the hunk's middle. */
-    private static final double FAR = 3.5;
+    private static final double FAR = 2.5;
     private static final double SETTLED = 0.3;
     /** Every block of a hucked hunk has crumbled by then. */
     private static final int SHATTER_TICKS = BlockHunk.BLOCK_STAGGER_TICKS * 6 + BlockHunk.CRUMBLE_TICKS + 2;
@@ -182,17 +183,10 @@ public final class TerrakinesisTests {
             helper.assertTrue(hunks.size() == 1 && hunks.getFirst().blocks().size() == slab.size()
                     && hunks.getFirst().blocks().stream().allMatch(block -> block.state().is(Blocks.STONE)),
                     String.format(NO_HUNK, slab.size(), hunks.stream().map(hunk -> hunk.blocks().size()).toList()));
-            // Out of its hole, it rests on what the look strikes within the grab's range, in none of its own cells.
-            AABB box = hunks.getFirst().getBoundingBox();
-            AABB hole = AABB.encapsulatingFullBlocks(helper.absolutePos(slab.getFirst()),
-                    helper.absolutePos(slab.getLast())).deflate(RIM_SLACK);
-            double out = box.getCenter().distanceTo(player.getEyePosition());
-            double range = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_TERRAKINESIS).behaviors().stream()
-                    .filter(TerrakinesisStep.class::isInstance).map(TerrakinesisStep.class::cast).findFirst()
-                    .orElseThrow().range();
-            helper.assertTrue(!box.intersects(hole) && out <= range, "Clear of its hole, the hunk should stand out"
-                    + " of it within " + range + " of the eye; it stands at " + box + ", " + out + " out, its hole"
-                    + " at " + hole);
+            // Out of the ground, it is held close in front, on the look or resting on what the look strikes.
+            double out = hunks.getFirst().getBoundingBox().getCenter().distanceTo(player.getEyePosition());
+            helper.assertTrue(clearedOnce[0] && out <= FAR + SETTLED, "Clear of its hole, the hunk should be held"
+                    + " within " + FAR + " of the eye, stands " + out + " out");
             helper.assertTrue(BuiltInRegistries.SOUND_EVENT.containsKey(TerrakinesisStep.TEAR.sound()),
                     "The tear's sound " + TerrakinesisStep.TEAR.sound() + " should stand in the sound registry");
             // The tear costs its fixed price, whatever the hunk holds.
@@ -390,7 +384,7 @@ public final class TerrakinesisTests {
         layFloorWithAStrip(helper);
         ServerPlayer player = caster(helper);
         Vec3 hole = helper.absoluteVec(new Vec3(FLOOR_STRIP_X + 0.5, FLOOR_TOP, STAND_POS.getZ() + 0.5));
-        Vec3 aside = helper.absoluteVec(new Vec3(ASIDE_X + 0.5, FLOOR_TOP, STAND_POS.getZ() + 0.5));
+        Vec3 aside = helper.absoluteVec(new Vec3(ASIDE_X + 0.5, FLOOR_TOP, ASIDE_Z + 0.5));
         player.lookAt(EntityAnchorArgument.Anchor.EYES, hole);
         int lifted = HOLD_TICKS;
         int carried = lifted + CARRY_TICKS;
@@ -537,6 +531,10 @@ public final class TerrakinesisTests {
                 if (holdTick == lifted) {
                     player.lookAt(EntityAnchorArgument.Anchor.EYES, aside);
                 } else if (holdTick == carried) {
+                    // The caster steps up beside the hole, within the hold's reach, and aims back into it.
+                    Vec3 beside = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(FAR_STRIP_X - 2,
+                            FLOOR_TOP, STAND_POS.getZ())));
+                    player.setPos(beside.x, beside.y, beside.z);
                     player.lookAt(EntityAnchorArgument.Anchor.EYES, hole);
                 }
                 GooStreamHandler.streamTick(player, holdTick(player));

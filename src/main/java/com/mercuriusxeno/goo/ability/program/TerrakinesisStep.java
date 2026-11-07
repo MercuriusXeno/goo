@@ -242,9 +242,10 @@ public record TerrakinesisStep(double range, double radius, double near, double 
 
     /**
      * Where a held hunk goes for a look, on the server and on the holder's
-     * client alike: resting on the surface the look strikes within the grab's
-     * range (BlockHunk.restOnTheLook), or with none struck at Grab's hold
-     * distance on the look, then
+     * client alike: at Grab's hold distance on the look, close in front, or,
+     * where the look strikes a surface short of that, resting on it
+     * (BlockHunk.restOnTheLook), so it follows the look down a wall's face and
+     * into a hole; then
      * pushed out the way the holder faces until it clears the holder, so it
      * never sits in the holder's own body, even looking straight down.
      *
@@ -258,7 +259,8 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      */
     public Vec3 heldAt(BlockHunk hunk, Vec3 eye, Vec3 look, float pitch, float yaw, AABB holderBox) {
         AABB shape = hunk.getBoundingBox().move(hunk.position().reverse());
-        Vec3 rest = hunk.restOnTheLook(eye, look, holdPosition(eye, look, pitch, shape, holderBox), range);
+        Vec3 hold = holdPosition(eye, look, pitch, shape, holderBox);
+        Vec3 rest = hunk.restOnTheLook(eye, look, hold, eye.distanceTo(hold.add(shape.getCenter())));
         Vec3 away = Vec3.directionFromRotation(0, yaw);
         AABB clearOf = holderBox.inflate(HOLDER_CLEARANCE);
         for (double pushed = 0; shape.move(rest).intersects(clearOf) && pushed < MOST_PUSH; pushed += PUSH_STEP) {
