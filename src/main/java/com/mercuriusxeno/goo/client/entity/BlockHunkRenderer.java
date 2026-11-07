@@ -263,9 +263,8 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
 
     private static Vec3 onTheLook(BlockHunk hunk, LocalPlayer player, TerrakinesisStep terrakinesis,
                                   float partialTick) {
-        return terrakinesis.holdPosition(player.getEyePosition(partialTick), player.getViewVector(partialTick),
-                player.getViewXRot(partialTick), hunk.getBoundingBox().move(hunk.position().reverse()),
-                player.getBoundingBox());
+        return terrakinesis.heldAt(hunk, player.getEyePosition(partialTick), player.getViewVector(partialTick),
+                player.getViewXRot(partialTick), player.getBoundingBox());
     }
 
     /**

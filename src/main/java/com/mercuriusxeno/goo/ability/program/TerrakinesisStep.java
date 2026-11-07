@@ -228,15 +228,40 @@ public record TerrakinesisStep(double range, double radius, double near, double 
 
     /**
      * Where the hunk's position goes this tick: its middle on the look at
-     * Grab's hold distance for the look's pitch.
+     * Grab's hold distance for the look's pitch, or resting on the surface
+     * the look strikes short of it (BlockHunk.restOnTheLook).
      *
      * @param player the holding player
      * @param hunk   the held hunk
      * @return the hunk's position
      */
     private Vec3 holdPoint(ServerPlayer player, BlockHunk hunk) {
-        return holdPosition(player.getEyePosition(), player.getLookAngle(), player.getXRot(),
-                hunk.getBoundingBox().move(hunk.position().reverse()), player.getBoundingBox());
+        return heldAt(hunk, player.getEyePosition(), player.getLookAngle(), player.getXRot(), player.getBoundingBox());
+    }
+
+    /**
+     * Where a held hunk goes for a look, on the server and on the holder's
+     * client alike: at Grab's hold distance on the look, or resting on the
+     * surface the look strikes short of it (BlockHunk.restOnTheLook), then
+     * pushed out across the look until it clears the holder, so it never sits
+     * in the holder's own body.
+     *
+     * @param hunk      the held hunk
+     * @param eye       the holder's eye
+     * @param look      the holder's unit look
+     * @param pitch     the look's pitch in degrees, positive looking down
+     * @param holderBox the holder's bounding box
+     * @return the hunk's position
+     */
+    public Vec3 heldAt(BlockHunk hunk, Vec3 eye, Vec3 look, float pitch, AABB holderBox) {
+        AABB shape = hunk.getBoundingBox().move(hunk.position().reverse());
+        Vec3 rest = hunk.restOnTheLook(eye, look, holdPosition(eye, look, pitch, shape, holderBox));
+        Vec3 away = new Vec3(look.x, 0, look.z).normalize();
+        AABB clearOf = holderBox.inflate(HOLDER_CLEARANCE);
+        for (double pushed = 0; shape.move(rest).intersects(clearOf) && pushed < MOST_PUSH; pushed += PUSH_STEP) {
+            rest = rest.add(away.scale(PUSH_STEP));
+        }
+        return rest;
     }
 
     /**
