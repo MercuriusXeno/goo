@@ -115,6 +115,17 @@ class AbilitiesModelTest {
         }
 
         /**
+         * The order field reorders by the heading's rail and takes no box
+         * (decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides).
+         */
+        @Test
+        void theOrderFieldTakesNoLeaf() {
+            JsonObject ordered = sample();
+            ordered.addProperty("order", 30);
+            assertTrue(AbilitiesModel.leaves(SAMPLE, ordered).stream().noneMatch(leaf -> leaf.path().equals("order")));
+        }
+
+        /**
          * The model carries the file's icon and description key, the description reading its displayName key plus
          * .description where the file names none (decision ability-json-carries-a-description).
          */
