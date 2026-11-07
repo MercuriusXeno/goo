@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
@@ -13,13 +14,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The mod ships its own dull earthquake rumble, named in sounds.json as
- * effects.earth_rumble and resolving to the generated ogg
+ * effects.earth_rumble and resolving to the generated oggs, three takes
+ * played at random as variations
  * (decision spire-rumbles-like-a-dull-earthquake).
  */
 class EarthRumbleSoundsTest {
 
     private static final String SOUNDS_JSON = "/assets/goo/sounds.json";
     private static final String RUMBLE_OGG = "/assets/goo/sounds/effects/earth_rumble.ogg";
+    /** The takes the operator kept, D, E and F, each played at random as the rumble starts. */
+    private static final int VARIATIONS = 3;
     /** An Ogg stream opens with its capture pattern. */
     private static final byte[] OGG_CAPTURE = {'O', 'g', 'g', 'S'};
 
@@ -36,9 +40,27 @@ class EarthRumbleSoundsTest {
     }
 
     @Test
+    void theRumbleShipsThreeVariationsEachAnOggOnTheClasspath() throws IOException {
+        try (InputStream in = EarthRumbleSoundsTest.class.getResourceAsStream(SOUNDS_JSON)) {
+            assertNotNull(in, SOUNDS_JSON + " is not on the classpath");
+            JsonArray variations = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
+                    .getAsJsonObject().getAsJsonObject("effects.earth_rumble").getAsJsonArray("sounds");
+            assertEquals(VARIATIONS, variations.size(), "the rumble ships every take the operator kept");
+            for (int index = 0; index < variations.size(); index++) {
+                String name = variations.get(index).getAsJsonObject().get("name").getAsString();
+                assertOgg("/assets/goo/sounds/" + name.substring("goo:".length()) + ".ogg");
+            }
+        }
+    }
+
+    @Test
     void theRumbleResolvesToAnOggOnTheClasspath() throws IOException {
-        try (InputStream in = EarthRumbleSoundsTest.class.getResourceAsStream(RUMBLE_OGG)) {
-            assertNotNull(in, RUMBLE_OGG + " is not on the classpath");
+        assertOgg(RUMBLE_OGG);
+    }
+
+    private static void assertOgg(String resource) throws IOException {
+        try (InputStream in = EarthRumbleSoundsTest.class.getResourceAsStream(resource)) {
+            assertNotNull(in, resource + " is not on the classpath");
             byte[] head = in.readNBytes(OGG_CAPTURE.length);
             assertEquals(new String(OGG_CAPTURE, StandardCharsets.US_ASCII),
                     new String(head, StandardCharsets.US_ASCII), "the rumble is no Ogg stream");
