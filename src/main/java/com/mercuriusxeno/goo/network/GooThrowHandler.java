@@ -27,6 +27,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -116,7 +117,7 @@ public final class GooThrowHandler {
         }
         AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
         if (ability != null && holdsReagents(player, ability)) {
-            fireCharge(player, gooType, ability, payload.heldTicks());
+            fireCharge(player, gooType, ability, payload);
         }
     }
 
@@ -127,14 +128,15 @@ public final class GooThrowHandler {
      * @param player    the releasing player
      * @param gooType   the ability's goo type
      * @param ability   the charged ability
-     * @param heldTicks the ticks the use key was held
+     * @param payload   the charge payload, its hold and its scatter seed
      */
     private static void fireCharge(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-                                   AbilityDefinition ability, int heldTicks) {
+                                   AbilityDefinition ability, GooChargePayload payload) {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
-            GooSelfHandler.release(player, gooType, ability, heldTicks);
+            GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
         } else if (ability.delivery().charge().slings()) {
-            KnifeRainSling.sling(player, gooType, ability, heldTicks);
+            KnifeRainSling.sling(player, gooType, ability, payload.heldTicks(),
+                    RandomSource.create(payload.scatterSeed()));
         }
     }
 
