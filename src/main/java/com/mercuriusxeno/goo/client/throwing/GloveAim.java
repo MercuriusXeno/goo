@@ -62,8 +62,9 @@ public final class GloveAim {
 
     /**
      * The selected ability's steps that act on what the glove aims at, which
-     * name the entities it may outline: a self ability's that reach past the
-     * caster, every step of any other (decision steps-declare-the-entities-they-take).
+     * name the entities it may outline: of a channel delivered to the caster,
+     * the steps reaching past the caster; of any other ability, every step
+     * (decision steps-declare-the-entities-they-take).
      *
      * @param player the local player
      * @return the steps, empty when the glove holds no synced ability
