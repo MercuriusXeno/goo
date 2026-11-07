@@ -103,6 +103,16 @@ class DeliveryTest {
             assertTrue(knives.charge().slings());
         }
 
+        // knives-aims-a-spread-fan-not-a-blob-line
+        @Test
+        void knivesSlingsAFanAndAimsNoLineWhileABlobArcAndABeamAimALine() {
+            Delivery knives = AbilityJson.decode("crystal_knives").delivery();
+            assertTrue(knives.slingsAFan());
+            assertFalse(knives.aimsALine());
+            assertTrue(AbilityJson.decode("frost_orb").delivery().aimsALine());
+            assertTrue(AbilityJson.decode("glow_crystal").delivery().aimsALine());
+        }
+
         // traveling-form-transforms-in-flight
         @Test
         void javelinMorphsToADartAndAPlainArcStaysABlob() {

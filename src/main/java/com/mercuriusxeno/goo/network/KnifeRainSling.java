@@ -39,16 +39,8 @@ import java.util.List;
  */
 public final class KnifeRainSling {
 
-    /** Blocks below the eye the knives leave from, the glove hand's height. */
-    private static final double HAND_DROP = 0.3;
-    /** Blocks toward the glove side the knives leave from. */
-    private static final double HAND_SIDE = 0.35;
-    /** Blocks ahead of the eye the knives leave from. */
-    private static final double HAND_REACH = 0.4;
     /** Blocks a mob's box is widened by when a knife's path is swept against it. */
     private static final double KNIFE_REACH = 0.25;
-    /** Degrees from the look to the player's right, around the vertical. */
-    private static final float RIGHT_OF_LOOK = 90f;
     private static final float FLING_VOLUME = 0.9f;
     private static final float FLING_PITCH = 1.5f;
     private static final float CHIME_VOLUME = 1f;
@@ -176,16 +168,16 @@ public final class KnifeRainSling {
     }
 
     /**
-     * The glove hand's point, where the knives leave from.
+     * The glove hand's point, where the knives leave from, the point the
+     * client's spread fan roots at.
+     * knives-aims-a-spread-fan-not-a-blob-line
      *
      * @param player     the player
      * @param gloveRight whether the glove is in the right hand
      * @return the point
      */
     private static Vec3 handOf(ServerPlayer player, boolean gloveRight) {
-        Vec3 right = Vec3.directionFromRotation(0f, player.getYRot() + RIGHT_OF_LOOK);
-        return player.getEyePosition().add(player.getViewVector(1f).scale(HAND_REACH))
-                .add(right.scale(gloveRight ? HAND_SIDE : -HAND_SIDE)).subtract(0, HAND_DROP, 0);
+        return KnifeRain.handPoint(player.getEyePosition(), player.getYRot(), player.getViewVector(1f), gloveRight);
     }
 
     /**
