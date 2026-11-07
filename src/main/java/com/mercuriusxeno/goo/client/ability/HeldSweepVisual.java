@@ -43,7 +43,7 @@ import java.util.function.ToIntFunction;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeldSweepVisual {
 
-    /** The most walls lit at once across every live pulse; past it a front lights no more. */
+    /** The most walls one pulse holds lit at once; past it that front lights no more. */
     static final int MOST_BLOCKS = 12_288;
     /** The front's skin alpha, low since it adds onto the whole view. */
     private static final int SPHERE_ALPHA = 20;
@@ -138,8 +138,9 @@ public final class HeldSweepVisual {
             return;
         }
         double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        advanceAll(now, at -> level.getBlockState(at).isAir(),
+        advanceAll(PULSES, now, at -> level.getBlockState(at).isAir(),
                 at -> level.getBlockState(at).getShape(level, at).toAabbs());
+        FIELDS.values().removeIf(field -> PULSES.values().stream().noneMatch(pulse -> pulse.field() == field));
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
@@ -147,16 +148,22 @@ public final class HeldSweepVisual {
         drawWalls(pose, buffers, camera, now);
     }
 
-    private static void advanceAll(double now, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf) {
-        for (HeldSweepPulse pulse : PULSES.values()) {
-            pulse.advance(now, isAir, shapeOf, MOST_BLOCKS - litWalls());
+    /**
+     * Moves every live pulse's front on to a moment and drops the pulses
+     * that have finished.
+     *
+     * @param pulses  the live pulses by id
+     * @param now     the game time with its partial tick
+     * @param isAir   whether a position holds air
+     * @param shapeOf a block's voxel shape boxes, block-local
+     */
+    static void advanceAll(Map<Integer, HeldSweepPulse> pulses, double now, Predicate<BlockPos> isAir,
+                           Function<BlockPos, List<AABB>> shapeOf) {
+        for (HeldSweepPulse pulse : pulses.values()) {
+            // each front gets its own room, so an old front lit far out never starves a new one near the caster
+            pulse.advance(now, isAir, shapeOf, MOST_BLOCKS - pulse.lit().size());
         }
-        PULSES.values().removeIf(pulse -> pulse.finished(now));
-        FIELDS.values().removeIf(field -> PULSES.values().stream().noneMatch(pulse -> pulse.field() == field));
-    }
-
-    private static int litWalls() {
-        return PULSES.values().stream().mapToInt(pulse -> pulse.lit().size()).sum();
+        pulses.values().removeIf(pulse -> pulse.finished(now));
     }
 
     private static void drawFronts(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,

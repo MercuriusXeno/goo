@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -111,6 +112,28 @@ class HeldSweepVisualTest {
 
             assertFront(first, frame);
             assertFront(second, frame);
+        }
+
+        /**
+         * A new pulse lights the walls near the caster even while an older
+         * front has lit as many walls as the sweep allows far out (the
+         * operator saw Scry stop lighting near walls mid-hold).
+         */
+        @Test
+        void aNewPulseLightsNearWallsWhileAnOlderOneHasLitItsMost() {
+            EchoField field = new EchoField(CENTER);
+            HeldSweepPulse older = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            HeldSweepPulse newer = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            older.heard(SCRY_RANGE, HEARD_AT);
+            newer.heard(BLOCKS_A_TICK, HEARD_AT);
+            Map<Integer, HeldSweepPulse> live = new LinkedHashMap<>();
+            live.put(1, older);
+            live.put(2, newer);
+
+            HeldSweepVisual.advanceAll(live, HEARD_AT + 1, OVER_A_FLOOR, CUBES);
+
+            assertEquals(HeldSweepVisual.MOST_BLOCKS, older.lit().size(), "the older front lit its most, far out");
+            assertTrue(!newer.lit().isEmpty(), "the newer front still lights the floor beside the caster");
         }
 
         /** The pulse holds lit walls, the farthest within one tick's travel inside its front. */
