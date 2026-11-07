@@ -127,10 +127,11 @@ public final class OutsiderRooms {
      * cell after. A cell a player built into already counts as grown.
      *
      * @param player   the player in their room
-     * @param feed     the void fed (mB)
-     * @param costStep the void each cell costs more than the one before (mB)
+     * @param feed        the void fed (mB)
+     * @param base        the void a cell costs at the center (mB)
+     * @param perDistance the void each block of Manhattan distance from the center adds (mB)
      */
-    public static void feedPlatform(ServerPlayer player, int feed, int costStep) {
+    public static void feedPlatform(ServerPlayer player, int feed, int base, int perDistance) {
         ServerLevel pocket = player.level();
         VoidPockets pockets = VoidPockets.get(pocket);
         Integer room = pockets.roomOf(player.getUUID());
@@ -140,7 +141,7 @@ public final class OutsiderRooms {
         VoidPockets.Platform platform = pockets.platformOf(player.getUUID());
         int cells = platform.cells();
         long fed = platform.fed() + feed;
-        long cost = PlatformSpiral.costOf(cells, costStep);
+        long cost = PlatformSpiral.costOf(cells, base, perDistance);
         if (fed >= cost) {
             BlockPos at = platformCellOf(room, cells);
             if (pocket.getBlockState(at).isAir()) {

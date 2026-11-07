@@ -82,12 +82,13 @@ public final class OutsiderTests {
 
     private static final String OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD = "outsider_platform_spirals_while_held_inside";
     /** Ticks the caster keeps holding once inside. */
-    private static final int HELD_INSIDE = 20;
+    private static final int HELD_INSIDE = 40;
     /**
-     * Cells twenty fed ticks grow: at 50 mB fed a tick and each cell costing 50 mB more than the last,
-     * cells cost 1, 2, 3, 4 and 5 ticks of feed, 15 in all, and the sixth's 6 more would pass 20.
+     * Cells forty fed ticks grow: at 2 mB fed a tick, 80 mB, and each cell costing 10 plus its
+     * Manhattan distance from the center, the spiral's next cells at (2,-1), (2,0), (2,1), (2,2),
+     * (1,2) and (0,2) cost 13, 12, 13, 14, 13 and 12, 77 in all, and (-1,2)'s 13 more would pass 80.
      */
-    private static final int CELLS_GROWN = 5;
+    private static final int CELLS_GROWN = 6;
     private static final int VOID_FOR_GROWTH = 20 * GooStacks.THOUSAND;
     private static final String SHOULD_GROW = "Cell %d at %s should be grown voidstone, %s stands there";
     private static final String SHOULD_WAIT = "Cell %d at %s should not be grown yet, %s stands there";

@@ -343,10 +343,10 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     /** Grows the player's Outsider platform (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
     @Override
-    public void feedPlatform(int feed, int costStep) {
+    public void feedPlatform(int feed, int base, int perDistance) {
         if (GooSourceScanner.hasEnough(player, GooTypes.VOID, feed)) {
             GooSourceScanner.deplete(player, GooTypes.VOID, feed);
-            OutsiderRooms.feedPlatform(player, feed, costStep);
+            OutsiderRooms.feedPlatform(player, feed, base, perDistance);
         }
     }
 

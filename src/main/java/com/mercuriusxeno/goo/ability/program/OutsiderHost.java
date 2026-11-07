@@ -24,8 +24,9 @@ public interface OutsiderHost extends ChannelHost {
     /**
      * Feeds void the player carries into their room's platform, when they carry it.
      *
-     * @param feed     the void fed (mB)
-     * @param costStep the void each cell costs more than the one before (mB)
+     * @param feed        the void fed (mB)
+     * @param base        the void a cell costs at the center (mB)
+     * @param perDistance the void each block of Manhattan distance from the center adds (mB)
      */
-    void feedPlatform(int feed, int costStep);
+    void feedPlatform(int feed, int base, int perDistance);
 }
