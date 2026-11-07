@@ -17,8 +17,9 @@ import java.util.stream.Stream;
  * Flames' held pass, run each held tick of the stream: every {@code every}
  * held ticks it casts a spray of {@link FlameRays} from the eye down the look
  * and burns each living thing a ray's line crosses, keeping it alight for the
- * JSON's seconds and dealing the JSON's fire damage through its damage
- * immunity. A fire-immune thing is left alone, and no fire block is placed.
+ * JSON's seconds and dealing the JSON's fire damage, which waits out its
+ * invulnerability window. A fire-immune thing is left alone, and no fire
+ * block is placed.
  * flames-burns-by-a-spray-of-rays
  *
  * @param damage      the fire damage each burn deals, evaluated when it runs
@@ -105,9 +106,11 @@ public record FlamesStep(Expr damage, int every, int burnSeconds) implements Ste
     }
 
     /**
-     * Sets one living thing alight and burns it through its damage immunity,
-     * alight before the hit lands so a killing burn drops cooked loot. A
-     * fire-immune thing is left alone.
+     * Sets one living thing alight and burns it, alight before the hit lands
+     * so a killing burn drops cooked loot. The hit waits out the thing's
+     * invulnerability window, so a burn lands at most once per half second;
+     * Broil's scald alone clears that window. A fire-immune thing is left alone.
+     * flames-and-heater-respect-i-frames
      *
      * @param level       the server level
      * @param target      the living thing in the cone
@@ -119,7 +122,7 @@ public record FlamesStep(Expr damage, int every, int burnSeconds) implements Ste
             return;
         }
         target.igniteForSeconds(burnSeconds);
-        BroilStep.scald(level, target, amount);
+        target.hurtServer(level, target.damageSources().inFire(), amount);
     }
 
     @Override
