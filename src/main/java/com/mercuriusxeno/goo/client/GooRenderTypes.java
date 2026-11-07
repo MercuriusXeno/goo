@@ -111,13 +111,15 @@ public final class GooRenderTypes {
      * Sculker's glass field (decision sculker-shows-blocks-translucent-close-up):
      * the x-ray's translucent block quads, depth tested so the diver's own
      * body and every entity in front of the glass stands over it, writing
-     * depth so the vision dims each block by its true distance, and drawing
-     * both sides of a face, so a face is seen from inside the stone as from the open.
+     * depth so the vision dims each block by its true distance and, drawn
+     * nearest first, only the nearest face shows at each point with no layers
+     * stacking behind it; both sides of a face draw, so a face is seen from
+     * inside the stone as from the open, and every face draws at one shade,
+     * floors and ceilings as bright as walls.
      */
     public static final RenderPipeline SCULKER_GLASS = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sculker_glass"))
             .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
-            .withShaderDefine("PER_FACE_LIGHTING")
             .withSampler("Sampler1")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
