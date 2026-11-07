@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.pocket;
 
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import java.util.List;
 
 /**
  * The void goo Pocket holds back for the items stored in it, on the scale
@@ -39,6 +40,16 @@ public final class PocketReserve {
             reserved++;
         }
         return reserved;
+    }
+
+    /**
+     * The void a shelf holds back, which Pocket's screen shows.
+     *
+     * @param shelf the pocket's entries
+     * @return the void reserved (mB)
+     */
+    public static long voidHeldBy(List<PocketEntry> shelf) {
+        return voidFor(shelf.stream().mapToLong(PocketEntry::count).sum());
     }
 
     /**
