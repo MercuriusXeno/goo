@@ -23,6 +23,16 @@ class BlockHunkTest {
         assertFalse(BlockHunk.blocksMovement(false));
     }
 
+    // terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid: a let-go hunk lands whole, a thrown one breaks
+    @Test
+    void aReleasedHunkAtRestIsPlacedAndAThrownOneStrikes() {
+        assertEquals(BlockHunk.Landing.PLACE, BlockHunk.landingOf(false, false, true));
+        assertEquals(BlockHunk.Landing.STRIKE, BlockHunk.landingOf(true, false, true));
+        assertEquals(BlockHunk.Landing.STRIKE, BlockHunk.landingOf(true, true, false));
+        assertEquals(BlockHunk.Landing.FLY, BlockHunk.landingOf(false, true, false));
+        assertEquals(BlockHunk.Landing.FLY, BlockHunk.landingOf(true, false, false));
+    }
+
     @Test
     void aBlocksTextureVariantSeedsFromItsHomeCellWhereverTheHunkCarriesIt() {
         BlockPos home = new BlockPos(10, 64, -3);
