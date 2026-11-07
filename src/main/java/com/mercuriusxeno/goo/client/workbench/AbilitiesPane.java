@@ -21,12 +21,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Draws the Abilities tab: the search line every list stands at its top, then each ability its search matches, its
- * display name heading its numeric leaves, each leaf a row of the one builder frame labeled by its path. A cost or an
- * upkeep reads as its by-type value, its items drawn as their icons, and opens the expression builder restricted to
- * the ability's own goo type; every other leaf reads its number or expression and opens a text box over it. A value
- * that would not load, or a cost reading an item holding none of the ability's type, reads one red line under its
- * row (decisions abilities-tab-lists-every-numeric-param-as-expression-boxes,
+ * Draws the Abilities tab: the search line every list stands at its top, then each goo type's section, each ability
+ * its search matches indented under it, its heading followed on its line by its price fields alone, each a small
+ * label and a box. A cost or an upkeep reads as its by-type value, its items drawn as their icons, and opens the
+ * expression builder restricted to the ability's own goo type; every other price field reads its number and opens a
+ * text box over it. A value that would not load, or a cost reading an item holding none of the ability's type, reads
+ * one red line under its field (decisions abilities-tab-lists-every-numeric-param-as-expression-boxes,
  * ability-cost-builds-as-a-one-type-by-type-value, one-builder-frame-on-every-pane, one-red-error-line-under-every-value).
  * The state lives in {@link AbilitiesTab}.
  */
@@ -47,8 +47,11 @@ final class AbilitiesPane {
     private static final String DESCRIPTION_HOVER = "goo-ability-description:";
     // The icon sits in its sprite row as an item sprite does.
     private static final int ICON_INSET = (RowLayout.SPRITE_ROW_HEIGHT - RowLayout.SPRITE_SIZE) / 2;
-    // Decision ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
-    private static final int COLUMNS = 4;
+    // A price field's box centers on the heading's sprite row, and fields stand this far apart.
+    private static final int BOX_INSET = Math.max(0, (RowLayout.SPRITE_ROW_HEIGHT - ButtonPainter.HEIGHT) / 2);
+    private static final int FIELD_GAP = GAP * 3;
+    // The least room an open text box takes, so a short value's box still reads what is typed.
+    private static final int EDITOR_WIDTH = 60;
 
     private final AbilitiesTab tab;
     private final ManagerActions actions;
@@ -341,69 +344,80 @@ final class AbilitiesPane {
         targets.add(x, from.top(), from.right() - x, HEADING_HEIGHT, fold);
     }
 
-    // The ability's heading, then each leaf's row; answers the y below its last row.
+    // The ability indented under its type's heading: its heading, then its price fields on the name's line right of
+    // the name, a field past the width wrapping under the name and a cost's open builder taking a line of its own;
+    // answers the y below its last line.
+    // Decisions abilities-tab-lists-every-numeric-param-as-expression-boxes,
+    // ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
     private int drawAbility(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
                             GroupsPane.Bounds from, ClickTargets targets) {
-        drawHeading(graphics, font, ability, from.left(), from.top(), targets);
-        int y = from.top() + RowLayout.SPRITE_ROW_HEIGHT + GAP;
-        Map<String, List<AbilitiesTab.Leaf>> byMechanism = new LinkedHashMap<>();
-        ability.leaves().forEach(leaf -> byMechanism.computeIfAbsent(leaf.mechanism(), key -> new ArrayList<>())
-                .add(leaf));
-        for (Map.Entry<String, List<AbilitiesTab.Leaf>> mechanism : byMechanism.entrySet()) {
-            y = drawMechanism(graphics, font, ability, mechanism.getValue(), new GroupsPane.Bounds(from.left(), y,
-                    from.right(), from.bottom()), targets);
+        HeadingLaid heading = drawHeading(graphics, font, ability, from.left() + ControlFlow.INDENT, from.top(),
+                targets);
+        FieldFlow flow = new FieldFlow(heading.nameLeft(), from.right(), from.top(), heading.right());
+        for (AbilitiesTab.Leaf leaf : ability.prices()) {
+            boolean building = isBuilding(ability, leaf);
+            int width = building ? from.right() - heading.nameLeft() : fieldWidth(font, ability, leaf);
+            GroupsPane.Bounds field = flow.place(width, building, from.bottom());
+            int bottom = drawField(graphics, font, new Priced(ability, leaf), field, from.right(), targets);
+            flow.took(bottom, field.right(), building);
         }
-        return y;
+        return flow.bottom() + GAP;
     }
 
-    // The mechanism's sub-heading, then its params in four equal columns across the ability's width, a param needing
-    // more than one cell taking whole cells and a line wrapping once its four are spent; answers the y below it.
-    // Decisions ability-params-read-named-under-their-mechanism-and-hover-a-description,
-    // ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
-    private int drawMechanism(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
-                              List<AbilitiesTab.Leaf> leaves, GroupsPane.Bounds from, ClickTargets targets) {
-        graphics.text(font, AbilityWording.mechanismName(leaves.getFirst().mechanism(), translate), from.left(),
-                from.top(), Palette.FILE_HEADING);
-        int y = from.top() + ExpressionLines.TEXT_LINE_HEIGHT + GAP;
-        int cell = (from.right() - from.left()) / COLUMNS;
-        int column = 0;
-        int lineHeight = 0;
-        for (AbilitiesTab.Leaf leaf : leaves) {
-            int cells = cellsFor(font, ability, leaf, cell);
-            if (column + cells > COLUMNS) {
-                y += lineHeight + GAP;
-                column = 0;
-                lineHeight = 0;
+    /**
+     * Where an ability's price fields stand: one after another from the end of its heading, a line wrapping under the
+     * name where the next field overruns the width, and a field taking a whole line standing alone on it.
+     */
+    private static final class FieldFlow {
+        private final int wrapLeft;
+        private final int right;
+        private int x;
+        private int top;
+        private int bottom;
+        private boolean lineFull;
+
+        FieldFlow(int wrapLeft, int right, int top, int headingRight) {
+            this.wrapLeft = wrapLeft;
+            this.right = right;
+            this.top = top;
+            this.bottom = top + RowLayout.SPRITE_ROW_HEIGHT;
+            this.x = headingRight + FIELD_GAP;
+        }
+
+        // The next field's bounds, a new line begun where it fits the line no longer.
+        GroupsPane.Bounds place(int width, boolean wholeLine, int floor) {
+            if (x > wrapLeft && (lineFull || wholeLine || x + width > right)) {
+                top = bottom + GAP;
+                x = wrapLeft;
             }
-            int left = from.left() + column * cell;
-            GroupsPane.Bounds cellBounds = new GroupsPane.Bounds(left, y, left + cells * cell, from.bottom());
-            lineHeight = Math.max(lineHeight, drawLeaf(graphics, font, ability, leaf, cellBounds, targets));
-            column += cells;
+            return new GroupsPane.Bounds(x, top, x + width, floor);
         }
-        return y + lineHeight + GAP;
-    }
 
-    // The whole cells a param takes: one where its label and box fit one, the next whole cells where they need more,
-    // the whole line while the builder stands open over it.
-    private int cellsFor(Font font, AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf, int cell) {
-        boolean editingLeaf = editing != null && editing.holds(ability, leaf);
-        if (editingLeaf && leaf.kind() == AbilitiesTab.Kind.COST && builder.isOpen()) {
-            return COLUMNS;
+        // Moves past the field placed last, which reached the bottom and the right given.
+        void took(int fieldBottom, int fieldRight, boolean wholeLine) {
+            bottom = Math.max(bottom, fieldBottom);
+            x = fieldRight + FIELD_GAP;
+            lineFull = wholeLine;
         }
-        int needed = ControlFlow.INDENT + font.width(AbilityWording.label(leaf, translate)) + BuilderFrame.LABEL_GAP
-                + ExpressionLines.width(font, runsOf(ability, leaf, tab.valueOf(ability, leaf)))
-                + ButtonPainter.PADDING + ButtonPainter.PADDING + ButtonPainter.width(font, ReadValueButton.PENCIL);
-        if (editingLeaf) {
-            needed += GAP + ButtonPainter.width(font, CANCEL) + GAP + ButtonPainter.width(font, DONE);
+
+        int bottom() {
+            return bottom;
         }
-        return Math.clamp((needed + cell - 1) / Math.max(1, cell), 1, COLUMNS);
+    }
+    /**
+     * Where a drawn heading stands.
+     *
+     * @param nameLeft the name's left edge, which a wrapped line of price fields starts at
+     * @param right    the right edge of the name or the draft badge after it
+     */
+    private record HeadingLaid(int nameLeft, int right) {
     }
 
     // The rail's room at the left edge, the ability's 16px icon as an item sprite sits in its row, its name bold
     // hovering its description, and the gold draft badge after it while a draft stands over its live file.
     // Decision ability-heading-is-rail-icon-name-draft-badge-and-hovers-its-description.
-    private void drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
-                             int top, ClickTargets targets) {
+    private HeadingLaid drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
+                                    int top, ClickTargets targets) {
         int bottom = top + RowLayout.SPRITE_ROW_HEIGHT;
         Rails.draw(graphics, left, top, bottom);
         targets.addGrab(left, top, ControlFlow.RAIL_WIDTH, bottom - top, railGrab(ability), ability.id());
@@ -411,15 +425,35 @@ final class AbilitiesPane {
         graphics.blit(RenderPipelines.GUI_TEXTURED, iconOf(ability), x, top + ICON_INSET, 0.0f, 0.0f,
                 RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE,
                 Palette.TEXT);
-        x += RowLayout.SPRITE_SIZE + GAP;
+        int nameLeft = x + RowLayout.SPRITE_SIZE + GAP;
         Component name = Component.literal(translate.apply(ability.displayName())).withStyle(ChatFormatting.BOLD);
         int textTop = RowLayout.nameTop(font, top);
-        graphics.text(font, name, x, textTop, Palette.TEXT);
-        targets.addHover(x, top, font.width(name), RowLayout.SPRITE_ROW_HEIGHT,
+        graphics.text(font, name, nameLeft, textTop, Palette.TEXT);
+        targets.addHover(nameLeft, top, font.width(name), RowLayout.SPRITE_ROW_HEIGHT,
                 DESCRIPTION_HOVER + ability.description());
+        int right = nameLeft + font.width(name);
         if (ability.draft()) {
-            graphics.text(font, DRAFT_BADGE, x + font.width(name) + GAP, textTop, Palette.GOLD);
+            graphics.text(font, DRAFT_BADGE, right + GAP, textTop, Palette.GOLD);
+            right += GAP + font.width(DRAFT_BADGE);
         }
+        return new HeadingLaid(nameLeft, right);
+    }
+
+    private boolean isBuilding(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
+        return editing != null && editing.holds(ability, leaf) && leaf.kind() == AbilitiesTab.Kind.COST
+                && builder.isOpen();
+    }
+
+    // The room a price field takes: its small label, then its box as wide as its value and pencil, and while its text
+    // box stands open the room the box and its ✗ Cancel and ✓ Done take.
+    private int fieldWidth(Font font, AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
+        int box = ExpressionLines.width(font, runsOf(ability, leaf, tab.valueOf(ability, leaf)))
+                + ButtonPainter.PADDING + ButtonPainter.PADDING + ButtonPainter.width(font, ReadValueButton.PENCIL);
+        if (editing != null && editing.holds(ability, leaf)) {
+            box = Math.max(box, EDITOR_WIDTH) + GAP + ButtonPainter.width(font, CANCEL) + GAP
+                    + ButtonPainter.width(font, DONE);
+        }
+        return Lettering.builder(font).width(AbilityWording.label(leaf, translate)) + BuilderFrame.LABEL_GAP + box;
     }
 
     // The ability's icon texture, as the radial reads it: the file's override, else the convention path.
@@ -438,30 +472,60 @@ final class AbilitiesPane {
                 ? Optional.of(translate.apply(hoverKey.substring(DESCRIPTION_HOVER.length()))) : Optional.empty();
     }
 
-    // Answers the height the leaf's row took.
-    private int drawLeaf(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
-                         AbilitiesTab.Leaf leaf, GroupsPane.Bounds row, ClickTargets targets) {
-        boolean editingLeaf = editing != null && editing.holds(ability, leaf);
-        boolean building = editingLeaf && leaf.kind() == AbilitiesTab.Kind.COST && builder.isOpen();
-        String value = tab.valueOf(ability, leaf);
-        List<ExpressionLines.Run> runs = runsOf(ability, leaf, value);
+    // The field's label in the builder's smaller lettering hovering its description, then its box past it centered
+    // on the heading's sprite row, then its red line; answers the y below it.
+    // Decision ability-params-read-named-under-their-mechanism-and-hover-a-description.
+    private int drawField(GuiGraphicsExtractor graphics, Font font, Priced priced, GroupsPane.Bounds field,
+                          int lineRight, ClickTargets targets) {
+        AbilitiesTab.Ability ability = priced.ability();
+        AbilitiesTab.Leaf leaf = priced.leaf();
+        boolean building = isBuilding(ability, leaf);
+        List<ExpressionLines.Run> runs = runsOf(ability, leaf, tab.valueOf(ability, leaf));
         String label = AbilityWording.label(leaf, translate);
-        BuilderFrame.Row framed = new BuilderFrame.Row(row, label, GooAmountGrid.NONE, false);
-        // ability-params-read-named-under-their-mechanism-and-hover-a-description
-        targets.addHover(BuilderFrame.lay(font, framed).labelX(), row.top(), font.width(label), ButtonPainter.HEIGHT,
+        Lettering small = Lettering.builder(font);
+        int boxTop = field.top() + BOX_INSET;
+        int besideBox = building ? boxTop + ExpressionBuilderPane.PANEL_ABOVE : boxTop;
+        small.draw(graphics, label, field.left(), small.centeredTop(besideBox, ButtonPainter.HEIGHT), Palette.MUTED);
+        targets.addHover(field.left(), besideBox, small.width(label), ButtonPainter.HEIGHT,
                 DESCRIPTION_HOVER + AbilityWording.descriptionKey(leaf.mechanism(), leaf.field()));
-        BuilderFrame.Box box;
-        if (building) {
-            box = area -> builder.extract(graphics, font, area, area.top(), targets);
-        } else if (editingLeaf && leaf.kind() != AbilitiesTab.Kind.COST) {
-            box = area -> standEditor(graphics, font, area, targets);
-        } else {
-            box = area -> ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(area.left(),
-                    area.top(), area.right(), () -> startEditing(ability, leaf, area)),
-                    ExpressionLines.Painter.linked(graphics, icons, targets, Palette.TEXT, actions), targets);
+        int valueLeft = field.left() + small.width(label) + BuilderFrame.LABEL_GAP;
+        // The frame stands its box at its row's indent, so the row starts that indent short of the value.
+        BuilderFrame.Row framed = new BuilderFrame.Row(new GroupsPane.Bounds(valueLeft - ControlFlow.INDENT, boxTop,
+                field.right(), field.bottom()), null, GooAmountGrid.NONE, false);
+        int y = boxTop + BuilderFrame.draw(graphics, font, framed, new BuilderFrame.Value(building, runs, NO_TEXT,
+                boxOf(graphics, font, priced, runs, targets)));
+        // one-red-error-line-under-every-value: the line runs under the field to the ability's right edge, so it
+        // reads whole however narrow the field
+        for (String line : BuilderFrame.errorLines(font, tab.errorOf(ability, leaf, worth), lineRight - valueLeft)) {
+            graphics.text(font, line, valueLeft, y, Palette.DANGER);
+            y += ExpressionLines.TEXT_LINE_HEIGHT;
         }
-        return BuilderFrame.draw(graphics, font, framed, new BuilderFrame.Value(building, runs,
-                tab.errorOf(ability, leaf, worth), box));
+        return y;
+    }
+
+    // The builder while it stands open over the cost, the text box while it stands open over a number, else the
+    // field's value read in its button.
+    private BuilderFrame.Box boxOf(GuiGraphicsExtractor graphics, Font font, Priced priced,
+                                   List<ExpressionLines.Run> runs, ClickTargets targets) {
+        AbilitiesTab.Ability ability = priced.ability();
+        AbilitiesTab.Leaf leaf = priced.leaf();
+        if (isBuilding(ability, leaf)) {
+            return area -> builder.extract(graphics, font, area, area.top(), targets);
+        }
+        if (editing != null && editing.holds(ability, leaf) && leaf.kind() != AbilitiesTab.Kind.COST) {
+            return area -> standEditor(graphics, font, area, targets);
+        }
+        return area -> ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(area.left(), area.top(),
+                area.right(), () -> startEditing(ability, leaf, area)),
+                ExpressionLines.Painter.linked(graphics, icons, targets, Palette.TEXT, actions), targets);
+    }
+    /**
+     * A price field of an ability.
+     *
+     * @param ability the ability
+     * @param leaf    its price field
+     */
+    private record Priced(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
     }
 
     // The leaf's text box over its row's box, then ✗ Cancel from the moment it opens and ✓ Done once its value

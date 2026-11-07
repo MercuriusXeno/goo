@@ -74,10 +74,23 @@ public final class AbilitiesTab {
      * @param path      its path in the ability's JSON
      * @param value     its value as the JSON writes it, a number's text or an expression
      * @param kind      what it takes
-     * @param mechanism what it tunes, which its sub-heading names
-     * @param field     its own name, which its label reads through
+     * @param mechanism what it tunes, which its label's lang key reads through
+     * @param field     its own name, which its label's lang key reads through
      */
     public record Leaf(String path, String value, Kind kind, String mechanism, String field) {
+        // Each price field as its mechanism and field read: the cost and upkeep, a blink's trip prices, Outsider's
+        // way in and platform prices and Pocket's slot price.
+        private static final Set<String> PRICES = Set.of("cost.cost", "upkeep.upkeep",
+                "cost_per_block.cost_per_block", "wall_cost.wall_cost", "node_percent.node_percent", "outsider.enter",
+                "outsider.cell_cost", "outsider.distance_cost", "pocket_open.slot_cost");
+
+        /**
+         * @return whether the leaf prices the ability, which the tab shows; it shows no other param
+         *     (decision abilities-tab-lists-every-numeric-param-as-expression-boxes)
+         */
+        public boolean prices() {
+            return PRICES.contains(mechanism + '.' + field);
+        }
     }
 
     /**
@@ -95,6 +108,12 @@ public final class AbilitiesTab {
      */
     public record Ability(String id, String gooType, String displayName, boolean draft, List<Leaf> leaves,
                           AbilityBadge badge, int order, String icon, String description) {
+        /**
+         * @return its price fields in the file's order, the leaves the tab shows
+         */
+        public List<Leaf> prices() {
+            return leaves.stream().filter(Leaf::prices).toList();
+        }
     }
 
     /**

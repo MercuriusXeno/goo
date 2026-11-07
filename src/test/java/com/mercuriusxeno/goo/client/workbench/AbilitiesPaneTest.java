@@ -22,9 +22,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests the Abilities tab's pane through drawn frames of a recorded model, with no Screen: each ability's display name
- * heads its numeric leaves, each leaf a row of the one builder frame, and a cost naming an item holding none of the
- * ability's goo type reads a red line under its row (decisions
+ * Tests the Abilities tab's pane through drawn frames of a recorded model, with no Screen: each ability's name line
+ * reads its price fields alone, and a cost naming an item holding none of the ability's goo type reads a red line
+ * under its field (decisions
  * abilities-tab-lists-every-numeric-param-as-expression-boxes, ability-cost-builds-as-a-one-type-by-type-value).
  */
 class AbilitiesPaneTest {
@@ -36,7 +36,8 @@ class AbilitiesPaneTest {
               "leaves": [
                 {"path": "cost", "value": "3 * minecraft:cobblestone", "kind": "COST"},
                 {"path": "behaviors/0/amount", "value": "health / 2", "kind": "EXPRESSION"},
-                {"path": "behaviors/1/range", "value": 16, "kind": "NUMBER"}
+                {"path": "behaviors/1/range", "value": 16, "kind": "NUMBER"},
+                {"path": "cost_per_block", "value": 100, "kind": "NUMBER"}
               ]}]}
             """.formatted(NAME_KEY);
 
@@ -58,14 +59,15 @@ class AbilitiesPaneTest {
     }
 
     @Test
-    void theDisplayNameHeadsEachLeafsRow() {
+    void theNameLineReadsThePriceFieldsAndNoOtherParam() {
         DrawnFrame frame = draw(pane(Map.of("minecraft:cobblestone", Map.of("unstable", "250"))));
-        int heading = frame.find(NAME).y();
-        for (String label : List.of("cost", "behaviors/0/amount", "behaviors/1/range")) {
-            assertTrue(frame.find(label).y() > heading, label + " stands above the heading");
+        DrawnFrame.Text name = frame.find(NAME);
+        for (String label : List.of("cost", "cost_per_block")) {
+            assertTrue(frame.find(label).x() > name.x(), label + " stands left of the name");
         }
-        assertTrue(frame.texts().contains("health / 2"), frame.texts().toString());
-        assertTrue(frame.texts().contains("16"), frame.texts().toString());
+        for (String absent : List.of("health / 2", "16", "amount", "range")) {
+            assertFalse(frame.texts().contains(absent), absent + " draws: " + frame.texts());
+        }
     }
 
     @Test
@@ -83,7 +85,7 @@ class AbilitiesPaneTest {
      */
     @Nested
     class EditBoxes {
-        private static final String RANGE = "16";
+        private static final String RANGE = "100";
         private static final String CANCEL = "✗ Cancel";
         private static final String DONE = "✓ Done";
 
@@ -111,7 +113,7 @@ class AbilitiesPaneTest {
         }
 
         private AbilitiesTab.Leaf range() {
-            return tab.abilities().getFirst().leaves().get(2);
+            return tab.abilities().getFirst().leaves().get(3);
         }
 
         @Test
@@ -271,7 +273,7 @@ class AbilitiesPaneTest {
         @Test
         void theIconBlitsAtSixteenPastTheRailAndTheNameStandsPastIt() {
             DrawnFrame frame = drawn();
-            int iconLeft = VIEW.left() + ControlFlow.RAIL_ADVANCE;
+            int iconLeft = VIEW.left() + ControlFlow.INDENT + ControlFlow.RAIL_ADVANCE;
             verify(frame.graphics).blit(any(), eq(AbilityIconTexture.of(
                     net.minecraft.resources.Identifier.parse("goo:unstable_lurker"), "")), eq(iconLeft), anyInt(),
                     anyFloat(), anyFloat(), eq(RowLayout.SPRITE_SIZE), eq(RowLayout.SPRITE_SIZE),
@@ -284,12 +286,17 @@ class AbilitiesPaneTest {
          * A drag rail stands at the heading's left edge, and no Order box draws
          * (decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides).
          */
+        /**
+         * The heading's rail stands at the ability's indent under its type's heading
+         * (decision abilities-tab-lists-every-numeric-param-as-expression-boxes).
+         */
         @Test
-        void aRailStandsAtTheHeadingsLeftAndNoOrderBoxDraws() {
+        void aRailStandsAtTheIndentedHeadingsLeftAndNoOrderBoxDraws() {
             DrawnFrame frame = drawn();
             int rowTop = frame.find(NAME).y() - RowLayout.nameTop(DrawnFrame.font(), 0);
-            assertTrue(frame.fillsOf(Palette.RAIL).stream().anyMatch(fill -> fill[0] == VIEW.left()
-                    && fill[1] == rowTop && fill[2] == VIEW.left() + ControlFlow.RAIL_WIDTH), "no rail at the heading");
+            int left = VIEW.left() + ControlFlow.INDENT;
+            assertTrue(frame.fillsOf(Palette.RAIL).stream().anyMatch(fill -> fill[0] == left
+                    && fill[1] == rowTop && fill[2] == left + ControlFlow.RAIL_WIDTH), "no rail at the heading");
             assertFalse(frame.texts().contains("Order"), frame.texts().toString());
         }
 
@@ -313,107 +320,114 @@ class AbilitiesPaneTest {
     }
 
     /**
-     * Params read plain labels under a sub-heading naming their mechanism, each label hovering its description, and
-     * lay in four equal columns across the ability's width, a field needing more taking whole cells, a line wrapping
-     * when its four are spent (decisions ability-params-read-named-under-their-mechanism-and-hover-a-description,
+     * The tab is for costs: an ability's price fields alone draw, on its name's line right of the name, each label at
+     * the builder's smaller lettering hovering its description and no mechanism heading drawn, the fields past the
+     * width wrapping under the name (decisions abilities-tab-lists-every-numeric-param-as-expression-boxes,
+     * ability-params-read-named-under-their-mechanism-and-hover-a-description,
      * ability-params-lay-in-a-four-column-grid-spanning-whole-cells).
      */
     @Nested
-    class Grid {
-        private static final String RADIUS_DESCRIPTION = "Blocks the nova reaches from the player.";
+    class Prices {
+        private static final String PER_BLOCK_DESCRIPTION = "Goo each block of the trip adds.";
         private static final Map<String, String> LANG = Map.ofEntries(
-                Map.entry("goo.ability.mechanism.nova", "Nova"), Map.entry("goo.ability.mechanism.grab", "Grab"),
-                Map.entry("goo.ability.mechanism.cost", "Cost"),
-                Map.entry("goo.ability.param.cost.cost", "Price"),
-                Map.entry("goo.ability.param.nova.radius", "Radius"),
-                Map.entry("goo.ability.param.nova.radius.description", RADIUS_DESCRIPTION),
-                Map.entry("goo.ability.param.nova.amount", "Amount"), Map.entry("goo.ability.param.nova.damage", "Hurt"),
-                Map.entry("goo.ability.param.nova.push", "Push"), Map.entry("goo.ability.param.nova.hold", "Hold"),
-                Map.entry("goo.ability.param.grab.range", "Range"), Map.entry("goo.ability.param.grab.near", "Near"),
-                Map.entry("goo.ability.param.grab.far", "Far"),
-                Map.entry("goo.ability.param.grab.throw_speed", "Throw speed"));
-        private static final String GRID_MODEL = """
-                {"typeOrder": ["frost", "kinetic"], "abilities": [
-                  {"id": "goo:frost_nova", "gooType": "frost", "displayName": "frost_nova", "draft": false,
-                   "badge": "world", "order": 10, "leaves": [
-                    {"path": "cost", "value": "3 * minecraft:cobblestone", "kind": "COST", "mechanism": "cost",
-                     "field": "cost"},
-                    %s, %s, %s, %s, %s]},
-                  {"id": "goo:kinetic_grab", "gooType": "kinetic", "displayName": "kinetic_grab", "draft": false,
+                Map.entry("goo.ability.mechanism.cost_per_block", "Price per block"),
+                Map.entry("goo.ability.mechanism.particles", "Particles"),
+                Map.entry("goo.ability.mechanism.outsider", "Outsider"),
+                Map.entry("goo.ability.param.cost.cost", "Cost"),
+                Map.entry("goo.ability.param.cost_per_block.cost_per_block", "Cost per block"),
+                Map.entry("goo.ability.param.cost_per_block.cost_per_block.description", PER_BLOCK_DESCRIPTION),
+                Map.entry("goo.ability.param.wall_cost.wall_cost", "Wall surcharge"),
+                Map.entry("goo.ability.param.node_percent.node_percent", "Oculus percent"),
+                Map.entry("goo.ability.param.particles.count", "Count"),
+                Map.entry("goo.ability.param.outsider.charge", "Charge"),
+                Map.entry("goo.ability.param.outsider.enter", "Entry cost"),
+                Map.entry("goo.ability.param.outsider.cell_cost", "Cell cost"),
+                Map.entry("goo.ability.param.outsider.distance_cost", "Distance cost"));
+        private static final String BLINK = "ender_blink";
+        private static final String PRICES_MODEL = """
+                {"typeOrder": ["ender", "void"], "abilities": [
+                  {"id": "goo:ender_blink", "gooType": "ender", "displayName": "ender_blink", "draft": false,
+                   "badge": "self", "order": 10, "leaves": [
+                    {"path": "cost", "value": "200", "kind": "COST", "mechanism": "cost", "field": "cost"},
+                    %s, %s, %s, %s]},
+                  {"id": "goo:void_outsider", "gooType": "void", "displayName": "void_outsider", "draft": false,
                    "badge": "channeled", "order": 10, "leaves": [%s, %s, %s, %s]}]}
-                """.formatted(leaf("nova", "radius", 2), leaf("nova", "amount", 4), leaf("nova", "damage", 2),
-                leaf("nova", "push", 3), leaf("nova", "hold", 300), leaf("grab", "range", 16), leaf("grab", "near", 2),
-                leaf("grab", "far", 4), leaf("grab", "throw_speed", 1));
-        private static final int WIDTH = VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP - VIEW.left();
-        private static final int CELL = WIDTH / 4;
+                """.formatted(leaf("cost_per_block", "cost_per_block", "cost_per_block", 100),
+                leaf("wall_cost", "wall_cost", "wall_cost", 400), leaf("node_percent", "node_percent", "node_percent",
+                        10), leaf("behaviors/0/count", "particles", "count", 32),
+                leaf("behaviors/0/charge", "outsider", "charge", 20), leaf("behaviors/0/enter", "outsider", "enter", 6),
+                leaf("behaviors/0/cell_cost", "outsider", "cell_cost", 10),
+                leaf("behaviors/0/distance_cost", "outsider", "distance_cost", 1));
 
-        private static String leaf(String mechanism, String field, int value) {
-            return "{\"path\": \"behaviors/0/" + field + "\", \"value\": " + value + ", \"kind\": \"NUMBER\","
+        private static String leaf(String path, String mechanism, String field, int value) {
+            return "{\"path\": \"" + path + "\", \"value\": " + value + ", \"kind\": \"NUMBER\","
                     + " \"mechanism\": \"" + mechanism + "\", \"field\": \"" + field + "\"}";
         }
 
-        private static DrawnFrame drawn() {
+        private static DrawnFrame drawn(GroupsPane.Bounds view) {
             AbilitiesTab tab = new AbilitiesTab();
-            tab.readModel(GRID_MODEL);
+            tab.readModel(PRICES_MODEL);
             ManagerActions actions = mock(ManagerActions.class);
             ItemIcons icons = mock(ItemIcons.class);
             when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
-            return draw(new AbilitiesPane(tab, actions, icons, new ExpressionBuilderPane(actions, icons, List::of,
-                    List::of), key -> LANG.getOrDefault(key, key), ref -> Map.of(), java.util.Set::of));
+            AbilitiesPane pane = new AbilitiesPane(tab, actions, icons, new ExpressionBuilderPane(actions, icons,
+                    List::of, List::of), key -> LANG.getOrDefault(key, key), ref -> Map.of(), java.util.Set::of);
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), view, frame.targets);
+            return frame;
         }
 
-        private static int cellLeft(int column) {
-            return VIEW.left() + column * CELL + ControlFlow.INDENT;
+        // The name's sprite row, as its heading centers the name in it.
+        private static int rowTopOf(DrawnFrame.Text name) {
+            return name.y() - RowLayout.nameTop(DrawnFrame.font(), 0);
         }
 
         @Test
-        void paramsReadPlainLabelsUnderTheirMechanismAndNoPath() {
-            DrawnFrame frame = drawn();
-            assertTrue(frame.find("Radius").y() > frame.find("Nova").y(), "the heading stands below its params");
-            assertTrue(frame.texts().contains("Range"), frame.texts().toString());
+        void onlyThePriceFieldsDrawAndNoMechanismHeading() {
+            DrawnFrame frame = drawn(VIEW);
+            assertTrue(frame.texts().containsAll(List.of("Cost", "Cost per block", "Wall surcharge", "Oculus percent",
+                    "Entry cost", "Cell cost", "Distance cost")), frame.texts().toString());
+            for (String absent : List.of("Count", "Charge", "Price per block", "Particles", "Outsider", "32", "20")) {
+                assertFalse(frame.texts().contains(absent), absent + " draws: " + frame.texts());
+            }
             assertTrue(frame.texts().stream().noneMatch(text -> text.contains("behaviors/")), frame.texts().toString());
         }
 
         @Test
-        void fourParamsLineUpAtTheFourCellLeftsAndTheFifthWraps() {
-            DrawnFrame frame = drawn();
-            List<String> four = List.of("Radius", "Amount", "Hurt", "Push");
-            for (int column = 0; column < four.size(); column++) {
-                assertEquals(cellLeft(column), frame.find(four.get(column)).x(), four.get(column));
-                assertEquals(frame.find("Radius").y(), frame.find(four.get(column)).y(), four.get(column));
-            }
-            assertEquals(cellLeft(0), frame.find("Hold").x());
-            assertTrue(frame.find("Hold").y() > frame.find("Radius").y(), "the fifth param stands on the first line");
-        }
-
-        @Test
-        void aSecondSectionsCellsStandAtTheSameLefts() {
-            DrawnFrame frame = drawn();
-            List<String> four = List.of("Range", "Near", "Far", "Throw speed");
-            for (int column = 0; column < four.size(); column++) {
-                assertEquals(cellLeft(column), frame.find(four.get(column)).x(), four.get(column));
+        void priceLabelsDrawAtTheBuildersSmallerLettering() {
+            DrawnFrame frame = drawn(VIEW);
+            for (String label : List.of("Cost", "Cost per block", "Entry cost")) {
+                assertEquals(ControlFlow.BUILDER_SCALE, frame.placed(label).scale(), label);
             }
         }
 
         @Test
-        void aCostWiderThanACellSpansWholeCells() {
-            DrawnFrame frame = drawn();
-            DrawnFrame.Text price = frame.find("Price");
-            DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")
-                    && Math.abs(text.y() - price.y()) <= ButtonPainter.HEIGHT).findFirst()
-                    .orElseThrow(() -> new AssertionError("no pencil on the cost's row"));
-            int right = frame.buttonAround(pencil)[2];
-            assertEquals(0, (right - VIEW.left()) % CELL, "the cost's box ends at " + right + ", off a cell boundary");
-            assertTrue((right - VIEW.left()) / CELL > 1, "the cost's box spans " + (right - VIEW.left()) / CELL);
+        void theFirstPriceStandsOnTheNamesLineRightOfTheName() {
+            DrawnFrame frame = drawn(VIEW);
+            DrawnFrame.Text name = frame.find(BLINK);
+            DrawnFrame.Text cost = frame.find("Cost");
+            int rowTop = rowTopOf(name);
+            assertTrue(cost.x() > name.x() + DrawnFrame.font().width(BLINK), cost + " stands left of the name's end");
+            assertTrue(cost.y() >= rowTop && cost.y() < rowTop + RowLayout.SPRITE_ROW_HEIGHT,
+                    cost + " stands off the name's line at " + rowTop);
+        }
+
+        @Test
+        void pricesPastTheWidthWrapUnderTheName() {
+            DrawnFrame frame = drawn(new GroupsPane.Bounds(0, 0, 260, 400));
+            DrawnFrame.Text name = frame.find(BLINK);
+            DrawnFrame.Text last = frame.find("Oculus percent");
+            assertEquals(name.x(), last.x(), last + " wrapped off the name's left");
+            assertTrue(last.y() >= rowTopOf(name) + RowLayout.SPRITE_ROW_HEIGHT, last + " stands on the name's line");
         }
 
         @Test
         void aLabelHoversItsDescription() {
-            DrawnFrame frame = drawn();
-            DrawnFrame.Text radius = frame.find("Radius");
-            String hoverKey = frame.targets.hoveredArea(radius.x() + 1, radius.y() + 1)
+            DrawnFrame frame = drawn(VIEW);
+            DrawnFrame.Text perBlock = frame.find("Cost per block");
+            String hoverKey = frame.targets.hoveredArea(perBlock.x() + 1, perBlock.y() + 1)
                     .map(ClickTargets.HoveredArea::hoverKey).orElseThrow(() -> new AssertionError("no hover"));
-            assertEquals(java.util.Optional.of(RADIUS_DESCRIPTION),
+            assertEquals(java.util.Optional.of(PER_BLOCK_DESCRIPTION),
                     AbilitiesPane.descriptionFor(hoverKey, key -> LANG.getOrDefault(key, key)));
         }
 
@@ -423,7 +437,7 @@ class AbilitiesPaneTest {
          */
         @Test
         void everyHoverIsAPencilANameOrADescription() {
-            DrawnFrame frame = drawn();
+            DrawnFrame frame = drawn(VIEW);
             List<String> unexplained = frame.targets.hoverKeys().stream()
                     .filter(key -> BuilderOverlays.tooltipFor(key).isEmpty() && GooTypeIcons.tooltipFor(key).isEmpty()
                             && !key.equals(ItemIcons.hoverKey(key.substring(key.indexOf(':') + 1)))
@@ -432,10 +446,9 @@ class AbilitiesPaneTest {
             assertEquals(List.of(), unexplained);
             assertTrue(frame.targets.hoverKeys().stream().map(key -> AbilitiesPane.descriptionFor(key,
                     k -> LANG.getOrDefault(k, k))).flatMap(java.util.Optional::stream).toList()
-                    .contains(RADIUS_DESCRIPTION));
+                    .contains(PER_BLOCK_DESCRIPTION));
         }
     }
-
     @Test
     void aCostItemHoldingTheTypeReadsNoLine() {
         DrawnFrame frame = draw(pane(Map.of("minecraft:cobblestone", Map.of("unstable", "250"))));
