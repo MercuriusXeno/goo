@@ -37,7 +37,8 @@ import java.util.stream.Stream;
  * @param throwSpeed the speed a throw launches the held entity at, in blocks per tick
  * @param pullSpeed  the speed a pulled item entity flies to the player at, in blocks per tick
  */
-public record GrabStep(double range, double near, double far, double throwSpeed, double pullSpeed) implements Step {
+public record GrabStep(double range, double near, double far, double throwSpeed, double pullSpeed)
+        implements ReachesTheAim {
 
     /** The downward pitch, in degrees, at which the held entity is drawn fully in to the near distance. */
     public static final float FULL_DRAW_PITCH = 60f;

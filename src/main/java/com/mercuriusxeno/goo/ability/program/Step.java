@@ -171,6 +171,21 @@ public interface Step {
     }
 
     /**
+     * The steps of a program that act on the entity the glove aims at. A
+     * self ability runs on its caster, so its steps act on the caster and
+     * only a step reaching past it to the aimed entity counts; any other
+     * program acts where it lands, so every step counts.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param program         the ability's steps
+     * @param runsOnTheCaster whether the ability is delivered to its caster
+     * @return the steps whose answer the aim reads
+     */
+    static List<Step> reachingTheAim(List<Step> program, boolean runsOnTheCaster) {
+        return runsOnTheCaster ? program.stream().filter(ReachesTheAim.class::isInstance).toList() : program;
+    }
+
+    /**
      * Whether a container filtering its selection takes an entity: one
      * every filter keeps and a child step takes.
      * decision steps-declare-the-entities-they-take
