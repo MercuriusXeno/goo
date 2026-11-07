@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.SoundStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepContext;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
@@ -71,7 +72,7 @@ public final class GooSelfHandler {
             HeldEffectsEvents.end(player, ability.id());
         } else if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
-        } else if (invoke(new PlayerHost(player.level(), player), gooType, ability)) {
+        } else if (invoke(new PlayerHost(player.level(), player), gooType, ability) && !playsItsOwnSound(ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
     }
@@ -92,9 +93,20 @@ public final class GooSelfHandler {
             return;
         }
         PlayerHost host = PlayerHost.charged(player.level(), player, ability.delivery().chargeShare(heldTicks));
-        if (invoke(host, gooType, ability)) {
+        if (invoke(host, gooType, ability) && !playsItsOwnSound(ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
+    }
+
+    /**
+     * Whether a self ability's program plays its own sound, which stands in
+     * for the snowball throw a thrown goo makes: nothing leaves the hand.
+     *
+     * @param ability the self ability
+     * @return true when a sound step runs in its program
+     */
+    private static boolean playsItsOwnSound(AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(SoundStep.class::isInstance);
     }
 
     /**

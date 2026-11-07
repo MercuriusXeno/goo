@@ -8,7 +8,8 @@
   "cost_formula": "6/slot",
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "pocket_open", "slot_cost": 6 }
+    { "type": "pocket_open", "slot_cost": 6 },
+    { "type": "sound", "id": "minecraft:block.ender_chest.open", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
   ],
   "tags": ["self"]
 }
