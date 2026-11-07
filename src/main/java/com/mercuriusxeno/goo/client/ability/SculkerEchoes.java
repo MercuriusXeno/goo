@@ -11,14 +11,14 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 /**
- * What a Sculker remembers hearing echoes off of. Every sound heard starts
- * a ripple at its source whose front grows outward a block and a half a
- * tick, the way Scry's sweep grows, and every block face open to air that
- * the front crosses is lit and remembered with the tick it was lit. A lit
- * face stays remembered while the brew stands, long after its ripple dies,
- * drawn weaker the farther the player stands from it and not at all past
- * the sight's reach; the brew's end forgets every face. The oldest faces
- * give way once the memory holds its most, so a long dive never outgrows it.
+ * What a Sculker hears echoes off of. Every sound heard starts a ripple at
+ * its source whose front grows outward a block and a half a tick, the way
+ * Scry's sweep grows, and every block face open to air that the front
+ * crosses is lit with the tick it was lit. A lit face fades out over about
+ * five seconds unless a new echo lights it again, drawn weaker the farther
+ * the player stands from it and not at all past the sight's reach; the
+ * brew's end forgets every face. The oldest faces give way once the memory
+ * holds its most, so a loud dive never outgrows it.
  * decision sculker-sight-persists-where-echoes-have-touched
  */
 public final class SculkerEchoes {
@@ -29,6 +29,8 @@ public final class SculkerEchoes {
     static final double RIPPLE_REACH = 12;
     /** How far from the player a remembered face still shows, in blocks; it fades to nothing there. */
     static final double SIGHT_REACH = 32;
+    /** Ticks a lit face takes to fade out with no new echo, about five seconds. */
+    static final int FADE_TICKS = 100;
     /** The most faces the memory holds before the oldest give way. */
     static final int MOST_FACES = 32_768;
     /** The most ripples growing at once; a sound past them starts none. */
@@ -92,15 +94,28 @@ public final class SculkerEchoes {
         for (Ripple ripple : ripples) {
             for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.radiusAt(now - 1), ripple.radiusAt(now))) {
                 for (Direction side : ScryReveal.exposedFaces(isAir, cell)) {
-                    remembered.putIfAbsent(new Face(cell.immutable(), side), now);
+                    light(new Face(cell.immutable(), side), now);
                 }
             }
         }
         ripples.removeIf(ripple -> ripple.radiusAt(now) >= RIPPLE_REACH);
+        remembered.values().removeIf(litAt -> now - litAt >= FADE_TICKS);
     }
 
     /**
-     * @return each remembered face and the game time an echo first lit it
+     * Lights a face at a game time, a face already lit taking the new time
+     * and its place as the newest.
+     *
+     * @param face the face an echo's front crossed
+     * @param now  the game time
+     */
+    private void light(Face face, long now) {
+        remembered.remove(face);
+        remembered.put(face, now);
+    }
+
+    /**
+     * @return each lit face and the game time an echo last lit it
      */
     public Map<Face, Long> remembered() {
         return Collections.unmodifiableMap(remembered);
@@ -128,6 +143,20 @@ public final class SculkerEchoes {
      */
     public static float strength(Face face, Vec3 player) {
         return strengthAt(Vec3.atCenterOf(face.pos()).distanceTo(player));
+    }
+
+    /**
+     * How strongly a face lit at a game time draws now, for a player standing at a point.
+     *
+     * @param face   the face
+     * @param litAt  the game time an echo last lit it
+     * @param player the player's position
+     * @param now    the game time
+     * @return the distance strength, times what is left of its fade
+     */
+    public static float strength(Face face, long litAt, Vec3 player, long now) {
+        float left = (float) Math.max(0, 1 - (double) (now - litAt) / FADE_TICKS);
+        return strength(face, player) * left;
     }
 
     /**

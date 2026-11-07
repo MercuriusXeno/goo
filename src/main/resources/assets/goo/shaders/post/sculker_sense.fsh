@@ -38,7 +38,7 @@ const float ECHO_SPACING = 24.0;
 const float ECHO_WIDTH = 2.5;
 // an echo draws sculk teal: green and blue well above red, which the dark lets through bright
 const float TEAL_CHROMA = 0.22;
-const float ECHO_GAIN = 1.5;
+const float ECHO_GAIN = 1.1;
 
 float linearDepth(vec2 uv, float near, float far) {
     float z = texture(InDepthSampler, uv).r * 2.0 - 1.0;

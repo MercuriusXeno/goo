@@ -12,9 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A heard sound starts a ripple whose growing front lights each block face
- * open to air that it crosses, tick by tick; a lit face stays remembered
- * after the ripple dies, draws weaker the farther the player stands from it
- * and not at all past the sight's reach, and the brew's end forgets it
+ * open to air that it crosses, tick by tick; a lit face fades out over
+ * about five seconds unless a new echo lights it again, draws weaker the
+ * farther the player stands from it and not at all past the sight's reach,
+ * and the brew's end forgets it
  * (decision sculker-sight-persists-where-echoes-have-touched).
  */
 class SculkerEchoesTest {
@@ -55,10 +56,21 @@ class SculkerEchoesTest {
         }
 
         @Test
-        void aLitFaceStaysRememberedLongAfterTheRippleDies() {
-            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 400);
+        void aLitFaceIsGoneFiveSecondsAfterItsLastEcho() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 1 + SculkerEchoes.FADE_TICKS + 1);
+            assertFalse(echoes.remembered().containsKey(UNDER_THE_SOUND));
+        }
+
+        @Test
+        void aNewEchoRelightsAFadingFace() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + SculkerEchoes.FADE_TICKS / 2);
+            long again = HEARD_AT + SculkerEchoes.FADE_TICKS / 2 + 1;
+            echoes.hear(SOUND, again);
+            for (long tick = again; tick <= again + SculkerEchoes.FADE_TICKS / 2 + 2; tick++) {
+                echoes.advance(tick, FLAT_GROUND);
+            }
             assertTrue(echoes.remembered().containsKey(UNDER_THE_SOUND));
-            assertTrue(echoes.remembered().containsKey(TEN_AWAY));
+            assertEquals(again + 1, echoes.remembered().get(UNDER_THE_SOUND));
         }
 
         @Test
@@ -73,17 +85,28 @@ class SculkerEchoesTest {
     @Nested
     class Strength {
 
+        private static final Vec3 NEAR = new Vec3(0.5, 1, 0.5);
+
         @Test
         void fallsAsThePlayerStandsFarther() {
-            Vec3 near = new Vec3(0.5, 1, 0.5);
             Vec3 far = new Vec3(20.5, 1, 0.5);
-            assertTrue(SculkerEchoes.strength(UNDER_THE_SOUND, near) > SculkerEchoes.strength(UNDER_THE_SOUND, far));
+            assertTrue(SculkerEchoes.strength(UNDER_THE_SOUND, HEARD_AT, NEAR, HEARD_AT)
+                    > SculkerEchoes.strength(UNDER_THE_SOUND, HEARD_AT, far, HEARD_AT));
         }
 
         @Test
         void isZeroPastTheSightsReach() {
             Vec3 pastReach = new Vec3(0.5 + SculkerEchoes.SIGHT_REACH + 1, 0.5, 0.5);
-            assertEquals(0f, SculkerEchoes.strength(UNDER_THE_SOUND, pastReach), CLOSE);
+            assertEquals(0f, SculkerEchoes.strength(UNDER_THE_SOUND, HEARD_AT, pastReach, HEARD_AT), CLOSE);
+        }
+
+        @Test
+        void fallsAsTheFaceAgesAndIsZeroOnceFaded() {
+            float fresh = SculkerEchoes.strength(UNDER_THE_SOUND, HEARD_AT, NEAR, HEARD_AT);
+            float halfway = SculkerEchoes.strength(UNDER_THE_SOUND, HEARD_AT, NEAR, HEARD_AT + SculkerEchoes.FADE_TICKS / 2);
+            float faded = SculkerEchoes.strength(UNDER_THE_SOUND, HEARD_AT, NEAR, HEARD_AT + SculkerEchoes.FADE_TICKS);
+            assertTrue(fresh > halfway && halfway > 0, "strength should fall from " + fresh + " to " + halfway);
+            assertEquals(0f, faded, CLOSE);
         }
     }
 }
