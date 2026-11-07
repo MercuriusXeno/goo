@@ -126,7 +126,8 @@ public final class StepTypes {
         register(DiveStep.TYPE);
         register(ChurnStep.TYPE);
         register(EndStep.TYPE);
-        register(VoidPocketStep.TYPE);
+        register(PocketOpenStep.TYPE);
+        register(OutsiderStep.TYPE);
         register(MeteorStep.TYPE);
         register(PhaseBlocksStep.TYPE);
         register(RootStep.TYPE);

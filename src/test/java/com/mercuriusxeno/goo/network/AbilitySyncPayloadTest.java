@@ -95,10 +95,10 @@ class AbilitySyncPayloadTest {
         assertEquals("goo.ability.rock.spire.lifted", client.description());
     }
 
-    /** Shards' shoulder cast reaches the client from its shipped JSON. */
+    /** Knives' shoulder cast reaches the client from its shipped JSON. */
     @Test
-    void shardsPoseRoundTripsFromItsJson() {
-        assertEquals(ArmPose.SHOULDER_CAST, roundTrip(AbilityJson.decode("crystal_shards")).pose());
+    void knivesPoseRoundTripsFromItsJson() {
+        assertEquals(ArmPose.SHOULDER_CAST, roundTrip(AbilityJson.decode("crystal_knives")).pose());
     }
 
     /** The sync codec carries the items an ability requires to the client (decision ability-hidden-until-recipes-known). */

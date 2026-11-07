@@ -55,7 +55,7 @@
       "generator": {
         "type": "minecraft:flat",
         "settings": {
-          "biome": "minecraft:the_void",
+          "biome": "goo:pocket_void",
           "features": false,
           "lakes": false,
           "layers": [],

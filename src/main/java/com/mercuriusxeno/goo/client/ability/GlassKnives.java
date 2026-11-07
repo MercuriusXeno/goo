@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shards' glass knives in flight on this client: each leaves the hand as a
+ * Knives' glass knives in flight on this client: each leaves the hand as a
  * little fleck of goo, with no drips, and turns into a glass kunai a few
  * ticks into its flight, then flies its server's arc point first, rolling
  * as it goes, and ends as the server
