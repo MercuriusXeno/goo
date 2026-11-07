@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
+import com.mercuriusxeno.goo.ability.Charge;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -7,7 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * The flight of Shards' glass knives, shared by the server that strikes
+ * The flight of Knives' glass knives, shared by the server that strikes
  * with them and the client that draws them: each knife leaves the hand at
  * its own tick, aimed into its own slice of the cone with a scatter of
  * yaw, pitch and speed, and arcs under gravity, so the cloud rains into an
@@ -30,6 +31,14 @@ public final class KnifeRain {
     static final float LIFT_DEGREES = 8f;
     /** Degrees a knife's pitch scatters by, either way. */
     static final float PITCH_SCATTER_DEGREES = 7f;
+    /** Blocks below the eye the knives leave from, the glove hand's height. */
+    private static final double HAND_DROP = 0.3;
+    /** Blocks toward the glove side the knives leave from. */
+    private static final double HAND_SIDE = 0.35;
+    /** Blocks ahead of the eye the knives leave from. */
+    private static final double HAND_REACH = 0.4;
+    /** Degrees from the look to the thrower's right, around the vertical. */
+    private static final float RIGHT_OF_LOOK = 90f;
     private static final double HALF = 0.5;
     private static final double BOTH_WAYS = 2;
 
@@ -63,6 +72,23 @@ public final class KnifeRain {
     }
 
     /**
+     * Each knife's velocity leaving the hand for a release at a share of the
+     * charge: the one scatter the server slings and the client's aim lines draw.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @param yaw    the thrower's yaw, in degrees
+     * @param pitch  the thrower's pitch, in degrees
+     * @param charge the delivery's charge
+     * @param share  the share of a full charge the hold reached, 0 to 1
+     * @param random the scatter's source
+     * @return a velocity per knife, in blocks a tick
+     */
+    public static List<Vec3> releaseVelocities(float yaw, float pitch, Charge charge, float share,
+                                               RandomSource random) {
+        return scatteredVelocities(yaw, pitch, charge.fleckCount(share), charge.spreadDegrees(share), random);
+    }
+
+    /**
      * The tick after the release each knife leaves the hand: spread across
      * the sweep with a little scatter, so the knives stream out rather than
      * leave together.
@@ -80,6 +106,23 @@ public final class KnifeRain {
         }
         Arrays.sort(ticks);
         return ticks;
+    }
+
+    /**
+     * The glove hand's point, where the knives leave from: the one point the
+     * server launches each knife from and the client roots the fan at.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @param eye        the thrower's eye
+     * @param yaw        the thrower's yaw, in degrees
+     * @param look       the thrower's look, a unit vector
+     * @param gloveRight whether the glove is in the right hand
+     * @return the point
+     */
+    public static Vec3 handPoint(Vec3 eye, float yaw, Vec3 look, boolean gloveRight) {
+        Vec3 right = Vec3.directionFromRotation(0f, yaw + RIGHT_OF_LOOK);
+        return eye.add(look.scale(HAND_REACH)).add(right.scale(gloveRight ? HAND_SIDE : -HAND_SIDE))
+                .subtract(0, HAND_DROP, 0);
     }
 
     /**

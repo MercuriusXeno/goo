@@ -28,7 +28,7 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Shards' charge, seen and heard while right click holds it: the glove
+ * Knives' charge, seen and heard while right click holds it: the glove
  * hand eases left across the chest with the goo in its palm swelling as
  * the charge grows, a chime climbing in pitch at each step of the charge and a
  * ring of resonance once it is full. The glove press poses the arm, so the
@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  * decision shards-sling-then-morph-to-flechettes
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class ShardsCharge {
+public final class KnivesCharge {
 
     /** The steps a charge chimes at, however many flecks the release throws. */
     static final int MOST_SHOWN = 9;
@@ -68,7 +68,7 @@ public final class ShardsCharge {
     /** The charge steps the local hold has chimed, so a new one chimes. */
     private static int shownLocally;
 
-    private ShardsCharge() {
+    private KnivesCharge() {
     }
 
     /**

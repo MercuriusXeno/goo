@@ -16,7 +16,8 @@ import org.jspecify.annotations.Nullable;
  * Client-to-server payload: one tick of a held ability, sent every tick the
  * glove's use stays down (decision stream-delivery-held-cone). A channel
  * reads the aim point and the face its hold began on
- * (decision flatten-disc-cursor-breaks-above-the-plane).
+ * (decision flatten-disc-cursor-breaks-above-the-plane), and the entity
+ * the glove outlines, the one a grab takes (decision outlined-target-is-the-one-pick).
  *
  * @param gooTypeId the goo type string identifier
  * @param abilityId the selected ability id string
@@ -24,12 +25,15 @@ import org.jspecify.annotations.Nullable;
  * @param aimPoint  the world point under the client's cursor
  * @param planeBlock the block the cursor rested on when the hold began
  * @param planeFace  the side of it the cursor rested on, by its 3D data value, or NO_FACE where it rested on none
+ * @param targetEntityId the id of the entity the glove outlines, or NO_ENTITY where it outlines none
  */
 public record GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin, Vec3 aimPoint, BlockPos planeBlock,
-                               int planeFace) implements CustomPacketPayload {
+                               int planeFace, int targetEntityId) implements CustomPacketPayload {
 
     /** The face a hold that began on no block carries. */
     public static final int NO_FACE = -1;
+    /** The target a tick outlining no entity carries. */
+    public static final int NO_ENTITY = ChannelAim.NO_ENTITY;
 
     /** Payload type ID for registration. */
     public static final Type<GooStreamPayload> TYPE =
@@ -38,6 +42,21 @@ public record GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin, 
     /** Stream codec for encoding/decoding. */
     public static final StreamCodec<FriendlyByteBuf, GooStreamPayload> STREAM_CODEC =
             StreamCodec.of(GooStreamPayload::encode, GooStreamPayload::decode);
+
+    /**
+     * One tick of a held ability outlining no entity.
+     *
+     * @param gooTypeId  the goo type string identifier
+     * @param abilityId  the selected ability id string
+     * @param origin     the glove hand
+     * @param aimPoint   the world point under the cursor
+     * @param planeBlock the block the cursor rested on when the hold began
+     * @param planeFace  the side of it the cursor rested on, or NO_FACE
+     */
+    public GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin, Vec3 aimPoint, BlockPos planeBlock,
+                            int planeFace) {
+        this(gooTypeId, abilityId, origin, aimPoint, planeBlock, planeFace, NO_ENTITY);
+    }
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {
@@ -51,11 +70,12 @@ public record GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin, 
         writePoint(buf, payload.aimPoint);
         buf.writeBlockPos(payload.planeBlock);
         buf.writeVarInt(payload.planeFace);
+        buf.writeVarInt(payload.targetEntityId);
     }
 
     private static GooStreamPayload decode(FriendlyByteBuf buf) {
         return new GooStreamPayload(buf.readUtf(), buf.readUtf(), readPoint(buf), readPoint(buf), buf.readBlockPos(),
-                buf.readVarInt());
+                buf.readVarInt(), buf.readVarInt());
     }
 
     /**
@@ -78,6 +98,16 @@ public record GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin, 
      */
     public ChannelAim.@Nullable FacePlane plane() {
         return planeFace == NO_FACE ? null : new ChannelAim.FacePlane(planeBlock, Direction.from3DDataValue(planeFace));
+    }
+
+    /**
+     * This tick carrying the entity the glove outlines.
+     *
+     * @param entityId the outlined entity's id, or NO_ENTITY
+     * @return the tick naming that target
+     */
+    public GooStreamPayload targeting(int entityId) {
+        return new GooStreamPayload(gooTypeId, abilityId, origin, aimPoint, planeBlock, planeFace, entityId);
     }
 
     private static void writePoint(FriendlyByteBuf buf, Vec3 point) {

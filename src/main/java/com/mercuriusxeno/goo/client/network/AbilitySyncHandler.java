@@ -13,8 +13,10 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.PocketOpenStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -517,6 +519,10 @@ public final class AbilitySyncHandler {
             if (upkeep() > 0) {
                 return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
             }
+            // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
+            if (costPrice.isFree() && costFormula.isPresent()) {
+                return costFormula.get();
+            }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
             if (!pricedDynamically() && paysWhileHeld()) {
                 return GooFormat.formatAmount((long) cost() * TICKS_PER_SECOND / delivery.ticksPerCharge())
@@ -666,7 +672,7 @@ public final class AbilitySyncHandler {
         /**
          * The numbers a cost-mechanics format fills from, in the order its kind reads them:
          * a brew its upkeep a second; a blink its per-block price, its wall price and its
-         * oculus percent; a Spire stone's goo value per block; any other none.
+         * oculus percent; a Spire stone's goo value per block; Pocket its void per slot; any other none.
          *
          * @param lookup the goo values the numbers read from
          * @return the arguments, formatted
@@ -682,6 +688,12 @@ public final class AbilitySyncHandler {
             }
             if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
                 return List.of(GooFormat.formatMixed(lookup.valueOf(SPIRE_BLOCK)));
+            }
+            // pocket-is-a-void-reserving-container-with-scroll-and-search: Pocket reads its void per slot
+            Optional<PocketOpenStep> pocket = behaviors.stream().filter(PocketOpenStep.class::isInstance)
+                    .map(PocketOpenStep.class::cast).findFirst();
+            if (pocket.isPresent()) {
+                return List.of(GooFormat.formatAmount(pocket.get().slotCost().evaluateInt(Variables.NONE)));
             }
             return List.of();
         }

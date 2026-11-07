@@ -164,11 +164,19 @@ class AbilityDefinitionTest {
         }
 
         @Test
-        void shardsCastsFromTheShoulder() {
-            AbilityDefinition shards = AbilityJson.decode("crystal_shards");
-            assertEquals(ArmPose.SHOULDER_CAST, shards.pose());
-            assertEquals(ArmPoseKind.WIND_UP, shards.pose().holdFrame());
-            assertEquals(ArmPoseKind.FLING, shards.pose().releaseFrame());
+        void knivesCastsFromTheShoulder() {
+            AbilityDefinition knives = AbilityJson.decode("crystal_knives");
+            assertEquals(ArmPose.SHOULDER_CAST, knives.pose());
+            assertEquals(ArmPoseKind.WIND_UP, knives.pose().holdFrame());
+            assertEquals(ArmPoseKind.FLING, knives.pose().releaseFrame());
+        }
+
+        // crystal-shards-becomes-crystal-knives-everywhere
+        @Test
+        void knivesDecodesAsTheChanneledCrystalAbilityNamedKnives() {
+            AbilityDefinition knives = AbilityJson.decode("crystal_knives");
+            assertEquals("goo.ability.crystal.knives", knives.displayName());
+            assertEquals(AbilityBadge.CHANNELED, knives.badge());
         }
     }
 
@@ -222,7 +230,7 @@ class AbilityDefinitionTest {
 
         /** One proving example per kind: a thrown channel, a self, a brew and a stream. */
         @ParameterizedTest
-        @CsvSource({"crystal_shards, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
+        @CsvSource({"crystal_knives, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
                 "blaze_kindle, NONE, 0.0, 0.0", "blaze_flames, CONE, 6.0, 20.0"})
         void mobSelfBrewAndChanneledKeepTheirArea(String name, AbilityArea.Shape shape, double size, double angle) {
             assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());

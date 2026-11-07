@@ -79,8 +79,9 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
 
     @Override
     public boolean tick(StepContext context) {
-        if (context.hostAs(TargetHost.class).target() instanceof Slime slime
-                && slime.level() instanceof ServerLevel level) {
+        LivingEntity target = context.hostAs(TargetHost.class).target();
+        if (takesEntity(target) && target.level() instanceof ServerLevel level) {
+            Slime slime = (Slime) target;
             BlockPos cell = slime.blockPosition();
             Vec3 morphFrom = slime.getBoundingBox().getCenter();
             NaturalSpawns.drawAt(level, cell, level.getRandom(), categoryFilter(hostile), type -> type != EntityType.SLIME)
@@ -90,6 +91,19 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
                     });
         }
         return true;
+    }
+
+
+    /**
+     * Transmute takes a slime.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Slime;
     }
 
     /**

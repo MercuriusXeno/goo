@@ -21,14 +21,14 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for Crystal's Shards: a full charge let go rains glass knives
+ * Gametests for Crystal's Knives: a full charge let go rains glass knives
  * over an area ahead, striking mobs spread across it, and no knife strikes
  * before it has left the hand and flown.
  * decision shards-sling-then-morph-to-flechettes
  */
 @RegistersGameTests
-public final class ShardsSlingTests {
-    private static final String SHARDS_RAIN_LAYS_INTO_AN_AREA = "shards_rain_lays_into_an_area";
+public final class KnivesSlingTests {
+    private static final String KNIVES_RAIN_LAYS_INTO_AN_AREA = "knives_rain_lays_into_an_area";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -36,11 +36,11 @@ public final class ShardsSlingTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, SHARDS_RAIN_LAYS_INTO_AN_AREA, ShardsSlingTests::shardsRainLaysIntoAnArea);
+        GooTestFunctions.registerTest(registrar, KNIVES_RAIN_LAYS_INTO_AN_AREA, KnivesSlingTests::knivesRainLaysIntoAnArea);
     }
 
 
-    private static final Identifier CRYSTAL_SHARDS = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_shards");
+    private static final Identifier CRYSTAL_KNIVES = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_knives");
     /** The light bay is sixteen blocks across and holds no floor of its own. */
     private static final int BAY_SIDE = 16;
     private static final BlockPos CASTER_POS = new BlockPos(8, 1, 1);
@@ -52,21 +52,21 @@ public final class ShardsSlingTests {
     private static final int FULL_CHARGE_TICKS = 30;
     /** A fixed scatter, so the rain falls the same each run. */
     private static final long SCATTER_SEED = 11L;
-    private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_shards";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_knives";
     private static final String STRUCK_AT_ONCE = "No husk should take a knife the tick the charge is let go";
     private static final String SHOULD_RAIN = "The rain should strike every husk across the area, struck %s of %s";
 
-    private ShardsSlingTests() {
+    private KnivesSlingTests() {
     }
 
     /**
-     * A mock player holds crystal_shards to a full charge and lets go facing
+     * A mock player holds crystal_knives to a full charge and lets go facing
      * three husks spread across the area ahead: none is struck the tick it
      * lets go, and the rain strikes all three.
      *
      * @param helper the gametest helper
      */
-    public static void shardsRainLaysIntoAnArea(GameTestHelper helper) {
+    public static void knivesRainLaysIntoAnArea(GameTestHelper helper) {
         for (int x = 0; x < BAY_SIDE; x++) {
             for (int z = 0; z < BAY_SIDE; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
@@ -76,11 +76,11 @@ public final class ShardsSlingTests {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
         caster.snapTo(stand.x, stand.y, stand.z, FACING_SOUTH, 0f);
-        AbilityDefinition shards = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_SHARDS);
-        helper.assertTrue(shards != null, ABILITY_REQUIRED);
-        KnownRecipes.teachRequires(caster, shards);
+        AbilityDefinition knives = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_KNIVES);
+        helper.assertTrue(knives != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(caster, knives);
 
-        KnifeRainSling.sling(caster, GooTypes.CRYSTAL, shards, FULL_CHARGE_TICKS, RandomSource.create(SCATTER_SEED));
+        KnifeRainSling.sling(caster, GooTypes.CRYSTAL, knives, FULL_CHARGE_TICKS, RandomSource.create(SCATTER_SEED));
 
         helper.assertTrue(husks.stream().allMatch(husk -> husk.getHealth() == husk.getMaxHealth()), STRUCK_AT_ONCE);
         helper.succeedWhen(() -> {

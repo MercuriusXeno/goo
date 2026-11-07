@@ -85,6 +85,24 @@ class GloveThrowSenderTest {
         assertTrue(GloveThrowSender.affordsThrow(blink, trip, amount -> priced >= amount, item -> true));
     }
 
+    /**
+     * A channel priced by its formula costs nothing up front, so the crosshair
+     * panel reads the formula the petal reads, never its zero cost (decision
+     * dynamic-costs-keep-the-mb-quantity).
+     */
+    @Test
+    void dynamicallyPricedChannelReadsItsFormulaOnThePanel() {
+        AbilityDefinition definition = AbilityJson.decode("void_outsider");
+        ClientAbility outsider = new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
+                definition.order(), definition.tags(), definition.behaviors(), definition.cost(),
+                definition.delivery(), definition.badge(), definition.requires(), definition.area(),
+                definition.indicator(), definition.consumes(), definition.upkeep(), definition.distancePrice(),
+                definition.onPrism(), definition.pose(), definition.description(), definition.costMechanics(),
+                definition.costFormula());
+
+        assertEquals(definition.costFormula().orElseThrow(), outsider.costLabel(Optional.empty()));
+    }
+
     @Test
     void unsyncedAbilityPricesAtTheServerFallback() {
         assertFalse(GloveThrowSender.affordsThrow(null, amount -> GooThrowHandler.THROW_COST - 1 >= amount, item -> true));

@@ -6,6 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -196,6 +197,11 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
     @Override
     public Stream<Step> children() {
         return strike.stream();
+    }
+
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return Step.takenThrough(where, strike, entity);
     }
 
     @Override
