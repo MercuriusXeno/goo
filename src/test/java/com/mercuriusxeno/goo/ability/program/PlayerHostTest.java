@@ -120,7 +120,7 @@ class PlayerHostTest {
 
             run(List.of(new TeleportStep(TeleportMode.THROWER_LOOK, Expr.literal(BLINK))), player);
 
-            Vec3 cursor = TeleportStep.landingAlongLook(player, new Vec3(X, Y, Z), look, BLINK, Optional.empty())
+            Vec3 cursor = TeleportStep.landingAlongLook(player, new Vec3(X, Y, Z), look, BLINK)
                     .orElseThrow().feet();
             verify(player).teleportTo(cursor.x(), cursor.y(), cursor.z());
         }
