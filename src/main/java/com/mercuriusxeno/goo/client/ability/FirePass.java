@@ -143,13 +143,16 @@ final class FirePass {
             Vec3[] box = field.box();
             for (int[] face : INWARD_FACES) {
                 for (int corner : face) {
-                    builder.addVertex((float) ((corner & X_BIT) == 0 ? box[0].x : box[1].x),
-                            (float) ((corner & Y_BIT) == 0 ? box[0].y : box[1].y),
-                            (float) ((corner & Z_BIT) == 0 ? box[0].z : box[1].z))
-                            .setColor(GooRenderUtil.OPAQUE_WHITE);
+                    Vec3 at = cornerOf(box, corner);
+                    builder.addVertex((float) at.x, (float) at.y, (float) at.z).setColor(GooRenderUtil.OPAQUE_WHITE);
                 }
             }
         }
         return builder.buildOrThrow();
+    }
+
+    private static Vec3 cornerOf(Vec3[] box, int corner) {
+        return new Vec3((corner & X_BIT) == 0 ? box[0].x : box[1].x, (corner & Y_BIT) == 0 ? box[0].y : box[1].y,
+                (corner & Z_BIT) == 0 ? box[0].z : box[1].z);
     }
 }
