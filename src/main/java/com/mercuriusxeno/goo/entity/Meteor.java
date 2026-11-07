@@ -120,6 +120,16 @@ public class Meteor extends Entity {
     }
 
     /**
+     * The point the meteor strikes, read from the path the server synced,
+     * where the blob that called it waits glowing until it lands.
+     *
+     * @return the point, or the meteor's own position before its path arrives
+     */
+    public Vec3 syncedTarget() {
+        return entityData.get(DATA_FALL_TICKS) <= 0 ? position() : new Vec3(entityData.get(DATA_TARGET));
+    }
+
+    /**
      * Where the meteor's path stands at a moment, read from the path the
      * server synced: at its start through the wind-up, then on the straight
      * line down to its target. A meteor whose path has not arrived stands
