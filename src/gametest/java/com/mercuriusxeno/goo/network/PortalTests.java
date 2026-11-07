@@ -59,6 +59,7 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, OTHER_ENTITIES_GO_THROUGH, PortalTests::otherEntitiesGoThrough);
         GooTestFunctions.registerTest(registrar, BROKEN_LAST_LINKS_NOTHING,
                 PortalTests::placedAfterTheLastBrokeStandsInert);
+        GooTestFunctions.registerTest(registrar, LINKING_BY_HAND_COSTS_GOO, PortalTests::linkingByHandCostsGoo);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
         GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
                 PortalTests::unlinkedPortalHoldsABodyUp);
@@ -153,6 +154,39 @@ public final class PortalTests {
         helper.assertTrue(portals.partnerOf(third).isEmpty() && portals.partnerOf(first).isEmpty(),
                 "A portal placed after the last placed broke should stand inert, holds "
                         + portals.linkOf(player.getUUID()));
+        level.getServer().getPlayerList().remove(player);
+        helper.succeed();
+    }
+
+    private static final String LINKING_BY_HAND_COSTS_GOO = "portal_linking_by_hand_costs_goo";
+
+    /**
+     * Linking two portals by hand costs the goo a Portal throw costs: a
+     * player holding it pays and the link lands; a player holding none is
+     * refused, the pair standing as it was
+     * (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void linkingByHandCostsGoo(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+        QuantumPortals portals = QuantumPortals.get(level);
+        Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
+        castAt(helper, player, SECOND, Direction.NORTH);
+        Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
+        int held = com.mercuriusxeno.goo.item.GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.QUANTUM, 0);
+        PortalChoice.choose(player, Optional.of(first));
+        helper.assertTrue(PortalLinkPayload.linkPaid(player, third), "A player holding the goo should link by hand");
+        int after = com.mercuriusxeno.goo.item.GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.QUANTUM, 0);
+        helper.assertTrue(after < held, "Linking by hand should cost goo, held " + held + " then " + after);
+        helper.assertTrue(portals.partnerOf(first).equals(Optional.of(third)), "The paid link should land");
+        player.getInventory().clearContent();
+        PortalChoice.choose(player, Optional.of(third));
+        helper.assertFalse(PortalLinkPayload.linkPaid(player, first), "A player holding no goo should be refused");
+        helper.assertTrue(portals.partnerOf(first).equals(Optional.of(third)), "A refused link should leave the pair");
         level.getServer().getPlayerList().remove(player);
         helper.succeed();
     }
