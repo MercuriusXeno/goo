@@ -14,32 +14,45 @@ import java.util.function.Predicate;
  * What a Sculker hears echoes off of. Every sound heard starts a ripple at
  * its source whose front grows outward a block and a half a tick, the way
  * Scry's sweep grows, and every block face open to air that the front
- * crosses is lit with the tick it was lit. A lit face fades out over about
- * five seconds unless a new echo lights it again, drawn weaker the farther
- * the player stands from it and not at all past the sight's reach; the
- * brew's end forgets every face. The oldest faces give way once the memory
- * holds its most, so a loud dive never outgrows it.
+ * crosses is lit. A louder sound's ripple reaches farther and the faces it
+ * lights last longer before they fade; a mob's sound lights only the faces
+ * just near the mob, briefly. A lit face fades out unless a new echo lights
+ * it again, drawn weaker the farther the player stands from it and not at
+ * all past the sight's reach; the brew's end forgets every face. The oldest
+ * faces give way once the memory holds its most, so a loud dive never
+ * outgrows it.
  * decision sculker-sight-persists-where-echoes-have-touched
  */
 public final class SculkerEchoes {
 
     /** How fast a ripple's front grows, in blocks per tick. */
     static final double RIPPLE_SPEED = 1.5;
-    /** How far a ripple's front reaches before it dies, in blocks. */
+    /** How far a sound of ordinary loudness ripples before it dies, in blocks. */
     static final double RIPPLE_REACH = 12;
-    /** How far from the player a remembered face still shows, in blocks; it fades to nothing there. */
+    /** How far a mob's sound of ordinary loudness ripples: the mob and the area just near it. */
+    static final double MOB_REACH = 2.5;
+    /** How far any ripple reaches at the most, however loud its sound. */
+    static final double LOUDEST_REACH = 32;
+    /** How far from the player a lit face still shows, in blocks; it fades to nothing there. */
     static final double SIGHT_REACH = 32;
-    /** Ticks a lit face takes to fade out with no new echo, about five seconds. */
+    /** Ticks a face lit by a sound of ordinary loudness takes to fade out with no new echo, about five seconds. */
     static final int FADE_TICKS = 100;
+    /** Ticks a face lit by a mob's sound of ordinary loudness takes to fade, briefly. */
+    static final int MOB_FADE_TICKS = 30;
+    /** The longest any lit face lasts, however loud the sound that lit it. */
+    static final int LONGEST_FADE_TICKS = 400;
+    /** The quietest and loudest a sound reads, as a share of ordinary loudness. */
+    static final float QUIETEST = 0.25f;
+    static final float LOUDEST = 4f;
     /** The most faces the memory holds before the oldest give way. */
     static final int MOST_FACES = 32_768;
     /** The most ripples growing at once; a sound past them starts none. */
     static final int MOST_RIPPLES = 64;
 
     private final List<Ripple> ripples = new ArrayList<>();
-    private final Map<Face, Long> remembered = new LinkedHashMap<>() {
+    private final Map<Face, Lit> remembered = new LinkedHashMap<>() {
         @Override
-        protected boolean removeEldestEntry(Map.Entry<Face, Long> eldest) {
+        protected boolean removeEldestEntry(Map.Entry<Face, Lit> eldest) {
             return size() > MOST_FACES;
         }
     };
@@ -54,70 +67,132 @@ public final class SculkerEchoes {
     }
 
     /**
+     * When an echo last lit a face and how long that lighting lasts.
+     *
+     * @param litAt     the game time it was lit
+     * @param fadeTicks the ticks it takes to fade out
+     */
+    public record Lit(long litAt, int fadeTicks) {
+
+        /**
+         * @param now the game time
+         * @return what is left of the lighting, 1 as it is lit, 0 once faded
+         */
+        float leftAt(long now) {
+            return (float) Math.max(0, 1 - (double) (now - litAt) / fadeTicks);
+        }
+
+        /**
+         * @return the game time the lighting has faded out by
+         */
+        long fadedAt() {
+            return litAt + fadeTicks;
+        }
+    }
+
+    /**
      * A ripple growing out of a sound's source.
      *
      * @param source    where the sound played
      * @param startTick the game time it played
+     * @param reach     how far the front grows before it dies
+     * @param fadeTicks the ticks each face it lights takes to fade
      */
-    record Ripple(Vec3 source, long startTick) {
+    record Ripple(Vec3 source, long startTick, double reach, int fadeTicks) {
 
         /**
          * @param now the game time
          * @return how far the front stands from the source then
          */
         double radiusAt(long now) {
-            return Math.min(RIPPLE_REACH, Math.max(0, now - startTick) * RIPPLE_SPEED);
+            return Math.min(reach, Math.max(0, now - startTick) * RIPPLE_SPEED);
         }
     }
 
     /**
-     * Starts a ripple at a sound's source.
+     * Starts a ripple at the source of a sound of ordinary loudness that no mob made.
      *
      * @param at   where the sound played
      * @param tick the game time it played
      */
     public void hear(Vec3 at, long tick) {
-        if (ripples.size() < MOST_RIPPLES) {
-            ripples.add(new Ripple(at, tick));
-        }
+        hear(at, tick, 1f, false);
     }
 
     /**
-     * Grows every ripple to the game time given, remembers each face its
-     * front crossed since the tick before, and lets the ripples that have
-     * reached their reach die.
+     * Starts a ripple at a sound's source, reaching farther and lighting
+     * faces for longer the louder the sound, and reaching only the area just
+     * near a mob that made it, briefly.
+     *
+     * @param at        where the sound played
+     * @param tick      the game time it played
+     * @param loudness  the sound's loudness, 1 for an ordinary sound
+     * @param fromAMob  whether a mob made the sound
+     */
+    public void hear(Vec3 at, long tick, float loudness, boolean fromAMob) {
+        if (ripples.size() >= MOST_RIPPLES) {
+            return;
+        }
+        double reach = Math.min(LOUDEST_REACH, (fromAMob ? MOB_REACH : RIPPLE_REACH) * share(loudness));
+        ripples.add(new Ripple(at, tick, reach, fadeTicksFor(loudness, fromAMob)));
+    }
+
+    /**
+     * How long what a sound reveals lasts before it fades: longer the louder
+     * the sound, and brief for a mob's.
+     *
+     * @param loudness the sound's loudness, 1 for an ordinary sound
+     * @param fromAMob whether a mob made the sound
+     * @return the ticks its reveal takes to fade
+     */
+    public static int fadeTicksFor(float loudness, boolean fromAMob) {
+        return Math.min(LONGEST_FADE_TICKS, Math.round((fromAMob ? MOB_FADE_TICKS : FADE_TICKS) * share(loudness)));
+    }
+
+    private static float share(float loudness) {
+        return Math.clamp(loudness, QUIETEST, LOUDEST);
+    }
+
+    /**
+     * Grows every ripple to the game time given, lights each face its front
+     * crossed since the tick before, lets the ripples that have reached their
+     * reach die, and forgets the faces that have faded.
      *
      * @param now   the game time
      * @param isAir whether a cell holds air
      */
     public void advance(long now, Predicate<BlockPos> isAir) {
         for (Ripple ripple : ripples) {
+            Lit lit = new Lit(now, ripple.fadeTicks());
             for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.radiusAt(now - 1), ripple.radiusAt(now))) {
                 for (Direction side : ScryReveal.exposedFaces(isAir, cell)) {
-                    light(new Face(cell.immutable(), side), now);
+                    light(new Face(cell.immutable(), side), lit);
                 }
             }
         }
-        ripples.removeIf(ripple -> ripple.radiusAt(now) >= RIPPLE_REACH);
-        remembered.values().removeIf(litAt -> now - litAt >= FADE_TICKS);
+        ripples.removeIf(ripple -> ripple.radiusAt(now) >= ripple.reach());
+        remembered.values().removeIf(lit -> now >= lit.fadedAt());
     }
 
     /**
-     * Lights a face at a game time, a face already lit taking the new time
-     * and its place as the newest.
+     * Lights a face, unless it already stands lit for longer; a face lit
+     * again takes its place as the newest.
      *
      * @param face the face an echo's front crossed
-     * @param now  the game time
+     * @param lit  the lighting
      */
-    private void light(Face face, long now) {
-        remembered.remove(face);
-        remembered.put(face, now);
+    private void light(Face face, Lit lit) {
+        Lit standing = remembered.get(face);
+        if (standing == null || lit.fadedAt() >= standing.fadedAt()) {
+            remembered.remove(face);
+            remembered.put(face, lit);
+        }
     }
 
     /**
-     * @return each lit face and the game time an echo last lit it
+     * @return each lit face and its lighting
      */
-    public Map<Face, Long> remembered() {
+    public Map<Face, Lit> remembered() {
         return Collections.unmodifiableMap(remembered);
     }
 
@@ -135,32 +210,20 @@ public final class SculkerEchoes {
     }
 
     /**
-     * How strongly a remembered face draws for a player standing at a point.
+     * How strongly a lit face draws now, for a player standing at a point.
      *
      * @param face   the face
-     * @param player the player's position
-     * @return 1 at the player, falling to 0 at the sight's reach and past it
-     */
-    public static float strength(Face face, Vec3 player) {
-        return strengthAt(Vec3.atCenterOf(face.pos()).distanceTo(player));
-    }
-
-    /**
-     * How strongly a face lit at a game time draws now, for a player standing at a point.
-     *
-     * @param face   the face
-     * @param litAt  the game time an echo last lit it
+     * @param lit    its lighting
      * @param player the player's position
      * @param now    the game time
      * @return the distance strength, times what is left of its fade
      */
-    public static float strength(Face face, long litAt, Vec3 player, long now) {
-        float left = (float) Math.max(0, 1 - (double) (now - litAt) / FADE_TICKS);
-        return strength(face, player) * left;
+    public static float strength(Face face, Lit lit, Vec3 player, long now) {
+        return strengthAt(Vec3.atCenterOf(face.pos()).distanceTo(player)) * lit.leftAt(now);
     }
 
     /**
-     * How strongly something remembered draws at a distance from the player.
+     * How strongly something heard draws at a distance from the player.
      *
      * @param distance how far from the player it stands, in blocks
      * @return 1 at the player, falling to 0 at the sight's reach and past it
