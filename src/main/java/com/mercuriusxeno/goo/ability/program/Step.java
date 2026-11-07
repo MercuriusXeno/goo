@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -136,5 +139,48 @@ public interface Step {
      */
     default OptionalInt prismTint() {
         return OptionalInt.empty();
+    }
+
+    /**
+     * Whether the step acts on an entity, read alike by the server and by
+     * the glove's aim, which outlines only what the selected ability takes.
+     * A container takes what any of its children take; any other step takes
+     * a living entity unless it names a narrower rule, or none where it acts
+     * on no entity.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    default boolean takesEntity(Entity entity) {
+        List<Step> children = children().toList();
+        return children.isEmpty() ? entity instanceof LivingEntity : takenByAny(children, entity);
+    }
+
+    /**
+     * Whether any step of a program takes an entity: an ability's answer is
+     * the union of its steps.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param program the steps
+     * @param entity  the candidate
+     * @return true where a step acts on it
+     */
+    static boolean takenByAny(List<Step> program, Entity entity) {
+        return program.stream().anyMatch(step -> step.takesEntity(entity));
+    }
+
+    /**
+     * Whether a container filtering its selection takes an entity: one
+     * every filter keeps and a child step takes.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param where  the container's filters
+     * @param steps  the children run on what the filters keep
+     * @param entity the candidate
+     * @return true where the container acts on it
+     */
+    static boolean takenThrough(List<EntityFilter> where, List<Step> steps, Entity entity) {
+        return EntityScan.passes(entity, Set.copyOf(where), null) && takenByAny(steps, entity);
     }
 }

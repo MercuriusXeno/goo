@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import java.util.List;
 import java.util.Set;
@@ -70,5 +71,10 @@ public record TargetStep(List<EntityFilter> where, List<Step> steps) implements 
     @Override
     public Stream<Step> children() {
         return steps.stream();
+    }
+
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return Step.takenThrough(where, steps, entity);
     }
 }
