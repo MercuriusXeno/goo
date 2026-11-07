@@ -6,7 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.client.fade.Afterglow;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /** The overlay's slot layout mirrors vanilla's health bar, and each slot picks its ember or ash sprite (decision overlay-hearts-are-an-elemental-overshield). */
@@ -118,6 +121,43 @@ class HeartOverlayHudTest {
         assertEquals(List.of("goo:hud/heart/crystal_full"), sprites(HeartKind.SCALES, 2, 2));
         assertEquals(List.of("goo:hud/heart/crystal_half"), sprites(HeartKind.SCALES, 2, 1));
         assertEquals("goo:hud/heart/crystal_full", HeartOverlayHud.crawlSprite(HeartKind.SCALES).toString());
+    }
+
+    /** After the heart effect ends, the overlay it last drew lingers and fades over a second (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends). */
+    @Nested
+    class AfterTheEffectEnds {
+
+        private static final float DELTA = 1e-6f;
+        private static final float ENDED_AT = 100f;
+        private final HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 10f, 0L);
+        private final Afterglow<HeartOverlay> glow = new Afterglow<>();
+
+        @BeforeEach
+        void endTheBarkAtTheEndTick() {
+            HeartOverlayHud.painted(glow, barked, ENDED_AT - 0.05f);
+            HeartOverlayHud.painted(glow, HeartOverlay.NONE, ENDED_AT);
+        }
+
+        @Test
+        void halfASecondAfterTheRememberedOverlayPaintsItsSlotsAtHalfAlpha() {
+            HeartOverlayHud.PaintedOverlay painted = HeartOverlayHud.painted(glow, HeartOverlay.NONE,
+                    ENDED_AT + Afterglow.FADE_TICKS / 2f);
+            assertEquals(5, painted.slots(10));
+            assertEquals(0.5f, painted.alpha(), DELTA);
+        }
+
+        @Test
+        void aSecondAfterNoSlotPaints() {
+            assertEquals(0, HeartOverlayHud.painted(glow, HeartOverlay.NONE, ENDED_AT + Afterglow.FADE_TICKS)
+                    .slots(10));
+        }
+
+        @Test
+        void aStandingOverlayPaintsWhole() {
+            HeartOverlayHud.PaintedOverlay painted = HeartOverlayHud.painted(glow, barked, ENDED_AT + 1f);
+            assertEquals(5, painted.slots(10));
+            assertEquals(1f, painted.alpha(), DELTA);
+        }
     }
 
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {

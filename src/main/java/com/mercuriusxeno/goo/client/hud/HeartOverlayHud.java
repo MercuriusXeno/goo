@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
+import com.mercuriusxeno.goo.client.fade.Afterglow;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -38,7 +39,9 @@ import java.util.Optional;
  * vanilla draws, and each half heart the drain takes travels from the bar to
  * that row (decision reserve-hearts-sit-behind-the-bar). The layer wraps vanilla's health
  * layer and lays its sprites on the slots vanilla drew, mirroring vanilla's
- * slot layout, low-health jiggle and regeneration bounce.
+ * slot layout, low-health jiggle and regeneration bounce. Once the heart
+ * effect ends, the overlay last drawn lingers and fades over a second
+ * (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeartOverlayHud {
@@ -72,6 +75,8 @@ public final class HeartOverlayHud {
     private static final ReserveTravels TRAVELS = new ReserveTravels();
     /** The burns playing, read from the overlay's bark between frames. */
     private static final BarkBurns BURNS = new BarkBurns();
+    /** The overlay's trace, read between frames so an ended effect's hearts fade rather than vanishing. */
+    private static final Afterglow<HeartOverlay> OVERLAY_GLOW = new Afterglow<>();
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int OPAQUE_ALPHA = 0xFF;
     private static final int WHITE_RGB = 0xFFFFFF;
@@ -185,10 +190,49 @@ public final class HeartOverlayHud {
 
     private static void paintOver(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore,
                                   float partialTick) {
-        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        List<BarkBurns.Burn> burns = BURNS.update(overlay, player.isOnFire(), gui.getGuiTicks() + partialTick);
-        if (overlay.stands() || !burns.isEmpty()) {
-            paint(graphics, gui, player, overlay, new BarFrame(leftHeightBefore, partialTick, burns));
+        HeartOverlay live = player.getData(GooAttachments.HEART_OVERLAY);
+        List<BarkBurns.Burn> burns = BURNS.update(live, player.isOnFire(), gui.getGuiTicks() + partialTick);
+        PaintedOverlay painted = painted(OVERLAY_GLOW, live, player.level().getGameTime() + partialTick);
+        if (painted.alpha() > 0f) {
+            paint(graphics, gui, player, painted, new BarFrame(leftHeightBefore, partialTick, burns));
+        }
+    }
+
+    /**
+     * The overlay a frame paints and the strength it paints at: the standing
+     * overlay whole, or once the effect ends, the overlay last drawn fading
+     * over the second after.
+     * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
+     *
+     * @param glow the overlay's trace, kept between frames
+     * @param live the overlay the player holds now
+     * @param now  the game time, partial tick included
+     * @return the overlay to paint, or nothing once no overlay stands and the fade is spent
+     */
+    static PaintedOverlay painted(Afterglow<HeartOverlay> glow, HeartOverlay live, float now) {
+        return glow.read(live.stands() ? live : null, now)
+                .map(read -> new PaintedOverlay(read.state(), read.strength()))
+                .orElse(PaintedOverlay.NOTHING);
+    }
+
+    /**
+     * An overlay as one frame paints it.
+     *
+     * @param overlay the overlay, standing or remembered
+     * @param alpha   the strength every sprite, spark and burn of it draws at
+     */
+    record PaintedOverlay(HeartOverlay overlay, float alpha) {
+
+        static final PaintedOverlay NOTHING = new PaintedOverlay(HeartOverlay.NONE, 0f);
+
+        /**
+         * The heart slots this overlay paints over a bar of real health.
+         *
+         * @param health the player's real health, rounded up
+         * @return the slot count
+         */
+        int slots(int health) {
+            return paintedSlots(overlay, health);
         }
     }
 
@@ -372,21 +416,22 @@ public final class HeartOverlayHud {
     private record BarFrame(int leftHeightBefore, float partialTick, List<BarkBurns.Burn> burns) {
     }
 
-    private static void paint(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, HeartOverlay overlay,
+    private static void paint(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, PaintedOverlay painted,
                               BarFrame frame) {
         int health = Mth.ceil(player.getHealth());
+        HeartOverlay overlay = painted.overlay();
         BarLayout layout = layout(graphics, gui, player, frame.leftHeightBefore());
         SlotPainter painter = new SlotPainter(graphics, overlay, gui.getGuiTicks(), frame.partialTick(),
                 RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()),
-                warningAlpha(player, gui.getGuiTicks() + frame.partialTick()));
-        int slots = paintedSlots(overlay, health);
+                warningAlpha(player, gui.getGuiTicks() + frame.partialTick()) * painted.alpha(), painted.alpha());
+        int slots = painted.slots(health);
         for (int slot = 0; slot < slots; slot++) {
             painter.paint(slot, layout.x(slot), layout.y(slot),
                     Math.clamp(health - slot * HALF, 0, HeartOverlay.FULL_SHIELD));
         }
         float now = gui.getGuiTicks() + frame.partialTick();
         for (BarkBurns.Burn burn : frame.burns()) {
-            paintBurn(graphics, burn, now, layout.x(burn.slot()), layout.y(burn.slot()));
+            paintBurn(graphics, burn, now, layout.x(burn.slot()), layout.y(burn.slot()), painted.alpha());
         }
     }
 
@@ -432,18 +477,21 @@ public final class HeartOverlayHud {
      * @param now      the GUI time
      * @param x        the slot's left edge
      * @param y        the slot's top edge
+     * @param fade     the overlay's strength
      */
-    private static void paintBurn(GuiGraphicsExtractor graphics, BarkBurns.Burn burn, float now, int x, int y) {
+    private static void paintBurn(GuiGraphicsExtractor graphics, BarkBurns.Burn burn, float now, int x, int y,
+                                  float fade) {
         int left = x + burn.half() * (HEART_SIZE - RegrowCrawl.HALF_WIDTH);
         int right = left + RegrowCrawl.HALF_WIDTH;
         int front = right - burn.burnedFromRight(now);
         float progress = burn.progress(now);
-        blitColumns(graphics, BARK_FULL, x, y, left, front, OPAQUE_WHITE);
+        int faded = Afterglow.fadeArgb(OPAQUE_WHITE, fade);
+        blitColumns(graphics, BARK_FULL, x, y, left, front, faded);
         // bark-hearts-burn-away-right-to-left: the bark catches and chars behind the front
-        int charAlpha = Math.round((1f - progress) * OPAQUE_ALPHA);
+        int charAlpha = Math.round((1f - progress) * fade * OPAQUE_ALPHA);
         blitColumns(graphics, BARK_FULL, x, y, front, right, charAlpha << ALPHA_SHIFT | CHAR_RGB);
         if (progress > 0f && progress < 1f) {
-            blitColumns(graphics, EMBER_FULL, x, y, Math.max(left, front - 1), front + 1, OPAQUE_WHITE);
+            blitColumns(graphics, EMBER_FULL, x, y, Math.max(left, front - 1), front + 1, faded);
         }
     }
 
@@ -498,9 +546,10 @@ public final class HeartOverlayHud {
      * @param partialTick the fraction of the tick elapsed
      * @param crawl       the half regrowing now, if any
      * @param alpha       the opacity the sprites draw at, pulsing as a prepaid brew nears its end
+     * @param fade        the overlay's strength, whole while it stands and falling once its effect ends
      */
     private record SlotPainter(GuiGraphicsExtractor graphics, HeartOverlay overlay, int guiTicks, float partialTick,
-                               Optional<RegrowCrawl.Crawl> crawl, float alpha) {
+                               Optional<RegrowCrawl.Crawl> crawl, float alpha, float fade) {
 
         void paint(int slot, int x, int y, int realHalves) {
             if (stoneBesideHalfHeart(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
@@ -516,10 +565,10 @@ public final class HeartOverlayHud {
             // heart-effects-crawl-while-held: stone crawls into a missing heart, where no real half stands
             crawl.filter(regrowing -> regrowing.slot() == slot
                             && (overlay.kind().fillsMissing() || regrowing.fromHalf() < realHalves))
-                    .ifPresent(regrowing -> paintCrawl(graphics, overlay.kind(), regrowing, guiTicks, x, y));
+                    .ifPresent(regrowing -> paintCrawl(graphics, overlay.kind(), regrowing, guiTicks, x, y, fade));
             if (overlay.kind() == HeartKind.KINDLE) {
                 paintSparks(graphics, EmberSparks.sparks(slot, Math.min(overlay.shieldAt(slot), realHalves),
-                        guiTicks, partialTick), x, y);
+                        guiTicks, partialTick), x, y, fade);
             }
         }
     }
@@ -536,12 +585,13 @@ public final class HeartOverlayHud {
      * @param guiTicks the gui tick
      * @param x        the slot's left edge
      * @param y        the slot's top edge
+     * @param fade     the overlay's strength
      */
     private static void paintCrawl(GuiGraphicsExtractor graphics, HeartKind kind, RegrowCrawl.Crawl crawl, int guiTicks,
-                                   int x, int y) {
+                                   int x, int y, float fade) {
         boolean smolder = kind == HeartKind.KINDLE;
         Identifier sprite = smolder ? EMBER_FULL : crawlSprite(kind);
-        float alpha = smolder ? SMOLDER_ALPHA + SMOLDER_PULSE * Mth.sin(guiTicks * SMOLDER_PULSE_RATE) : 1f;
+        float alpha = fade * (smolder ? SMOLDER_ALPHA + SMOLDER_PULSE * Mth.sin(guiTicks * SMOLDER_PULSE_RATE) : 1f);
         int left = x + halfStart(crawl.fromHalf());
         int right = x + halfEnd(crawl.fromHalf());
         for (int row = 0; row < HEART_SIZE; row++) {
@@ -592,11 +642,12 @@ public final class HeartOverlayHud {
         return half == 0 ? RegrowCrawl.HALF_WIDTH : HEART_SIZE;
     }
 
-    private static void paintSparks(GuiGraphicsExtractor graphics, List<EmberSparks.Spark> sparks, int x, int y) {
+    private static void paintSparks(GuiGraphicsExtractor graphics, List<EmberSparks.Spark> sparks, int x, int y,
+                                    float fade) {
         for (EmberSparks.Spark spark : sparks) {
             int left = x + Math.round(spark.x());
             int top = y + Math.round(spark.y());
-            graphics.fill(left, top, left + 1, top + 1, spark.argb());
+            graphics.fill(left, top, left + 1, top + 1, Afterglow.fadeArgb(spark.argb(), fade));
         }
     }
 
