@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
+import com.mercuriusxeno.goo.ability.zone.ShifterEvents;
 import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
@@ -341,6 +342,7 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.SHIFTER)) {
             // shifter-blinks-along-the-cursor-on-hit: the shifter ends with its held effect
             player.setData(GooAttachments.SHIFTER, Shifter.NONE);
+            ShifterEvents.clearShimmer(player);
         }
         if (lays.contains(LaidState.LUX)) {
             // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect

@@ -33,9 +33,9 @@ public final class GrabEvents {
      * Ticks a held entity stays held past the last channel tick that reached
      * it, so the hold stands across a channel tick that arrives late.
      */
-    static final int HOLD_GRACE_TICKS = 3;
+    public static final int HOLD_GRACE_TICKS = 3;
     /** Ticks each channel tick's flail overlay lasts, past the grace so it never gaps. */
-    private static final int FLAIL_OVERLAY_TICKS = HOLD_GRACE_TICKS + 2;
+    public static final int FLAIL_OVERLAY_TICKS = HOLD_GRACE_TICKS + 2;
 
     private GrabEvents() {
     }
