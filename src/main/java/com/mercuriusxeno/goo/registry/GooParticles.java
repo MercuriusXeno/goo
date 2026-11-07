@@ -126,20 +126,6 @@ public class GooParticles {
         PARTICLE_TYPES.register("vital_star", () -> new SimpleParticleType(false));
 
     /**
-     * A lick of flame Flames pours down its cone, out to the stream's reach.
-     * flames-draws-as-particle-style-fire
-     */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> FIRE_LICK =
-        PARTICLE_TYPES.register("fire_lick", () -> new SimpleParticleType(false));
-
-    /**
-     * A glowing ember drifting up out of Flames' fire.
-     * flames-draws-as-particle-style-fire
-     */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> FIRE_EMBER =
-        PARTICLE_TYPES.register("fire_ember", () -> new SimpleParticleType(false));
-
-    /**
      * Creates a non-syncing ParticleType that carries RGB color data.
      *
      * @return the configured color particle type

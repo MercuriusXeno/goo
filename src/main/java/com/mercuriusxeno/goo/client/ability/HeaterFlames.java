@@ -14,15 +14,18 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
- * The heater prisms flaming near this client: while its server's ticks keep
- * arriving, each one pours Flames' own particle fire from the prism's tip at
- * its target through {@link FireSpray}, and its fire roar loops at the prism
- * (idea heater-prism-rulings: Flames' fire roar).
+ * The heater prisms flaming near this client: each one's fire, as its
+ * server's ticks report it, drawn by {@link FireStream} as Flames' own fire
+ * from the prism's tip, growing out over Flames' quarter second when it
+ * starts and burning away once the ticks stop, and its fire roar looping at
+ * the prism while it flames (idea heater-prism-rulings: Flames' fire roar).
  * heater-prism-flames-nearby-creatures
  * flames-draws-as-particle-style-fire
  */
@@ -43,11 +46,13 @@ public final class HeaterFlames {
     /**
      * One heater's fire on this client.
      *
-     * @param tip   where its fire pours from
-     * @param axis  the unit vector it points along, at its target
-     * @param heard the game time its last tick arrived
+     * @param tip        where its fire pours from
+     * @param axis       the way it points
+     * @param since      the game time it began flaming
+     * @param heard      the game time its last tick arrived
+     * @param releasedAt the game time it stopped, or NaN while it flames
      */
-    record Heater(Vec3 tip, Vec3 axis, long heard) {
+    record Heater(Vec3 tip, Vec3 axis, double since, double heard, double releasedAt) {
     }
 
     /**
@@ -60,14 +65,21 @@ public final class HeaterFlames {
         context.enqueueWork(() -> {
             ClientLevel level = Minecraft.getInstance().level;
             if (level != null) {
-                HEATERS.put(payload.prism(), new Heater(payload.tip(), payload.axis(), level.getGameTime()));
+                heard(payload, level.getGameTime());
             }
         });
     }
 
+    static void heard(HeaterFlamePayload payload, double now) {
+        Heater was = HEATERS.get(payload.prism());
+        boolean starts = was == null || !Double.isNaN(was.releasedAt());
+        double since = starts ? now : was.since();
+        HEATERS.put(payload.prism(), new Heater(payload.tip(), payload.axis(), since, now, Double.NaN));
+    }
+
     /**
-     * Each client tick: a heater whose ticks stopped goes out, and a flaming
-     * one pours its fire and keeps its roar going.
+     * Each client tick: a heater whose ticks stopped burns away, and a
+     * flaming one keeps its roar going.
      *
      * @param event the client tick event
      */
@@ -79,26 +91,57 @@ public final class HeaterFlames {
             return;
         }
         long now = level.getGameTime();
-        Iterator<Map.Entry<BlockPos, Heater>> heaters = HEATERS.entrySet().iterator();
-        while (heaters.hasNext()) {
-            Map.Entry<BlockPos, Heater> entry = heaters.next();
+        for (Map.Entry<BlockPos, Heater> entry : new ArrayList<>(HEATERS.entrySet())) {
             Heater heater = entry.getValue();
-            if (now - heater.heard() > HEARD_GRACE_TICKS) {
-                heaters.remove();
-                continue;
+            if (Double.isNaN(heater.releasedAt())) {
+                if (now - heater.heard() > HEARD_GRACE_TICKS) {
+                    entry.setValue(new Heater(heater.tip(), heater.axis(), heater.since(), heater.heard(), now));
+                } else {
+                    FadingLoops.keepAlive(entry.getKey(), ROAR, SoundSource.BLOCKS, ROAR_VOLUME, ROAR_PITCH,
+                            heater.tip());
+                }
+            } else if (now - heater.releasedAt() > FireStream.TRAVEL_TICKS) {
+                HEATERS.remove(entry.getKey());
             }
-            FireSpray.pour(level, spoutOf(heater));
-            FadingLoops.keepAlive(entry.getKey(), ROAR, SoundSource.BLOCKS, ROAR_VOLUME, ROAR_PITCH, heater.tip());
         }
     }
 
     /**
-     * The spout a heater pours from: its tip, at its target, at Flames' own reach and cone.
+     * The heaters to draw this frame.
+     *
+     * @return each heater's fire, flaming or burning away
+     */
+    static List<Heater> burning() {
+        return List.copyOf(HEATERS.values());
+    }
+
+    /**
+     * The fire's stretch a heater burns now, as Flames' own grows and burns away.
      *
      * @param heater the heater
-     * @return the spout
+     * @param now    the game time with the partial tick
+     * @param range  its reach
+     * @return the stretch, or null once it has burned away
      */
-    static FireSpray.Spout spoutOf(Heater heater) {
-        return new FireSpray.Spout(heater.tip(), heater.axis(), FireSpray.FLAMES_RANGE, FireSpray.FLAMES_CONE_DEGREES);
+    static FireStream.@Nullable JetSpan spanOf(Heater heater, double now, double range) {
+        double released = Double.isNaN(heater.releasedAt()) ? Double.NaN : now - heater.releasedAt();
+        FireStream.JetSpan span = FireStream.jetSpan(now - heater.since(), released, range);
+        return span.tail() >= span.front() ? null : span;
+    }
+
+    /**
+     * The field a heater burns: Flames' own licks and embers, from the
+     * prism's tip at its target, at Flames' reach and cone, cut off at the
+     * face its line meets.
+     *
+     * @param heater the heater
+     * @param span   the stretch it burns now
+     * @param wall   where its line meets a block, in world coordinates, or null
+     * @param camera the camera's world position
+     * @return the field, camera relative
+     */
+    static FireField fieldOf(Heater heater, FireStream.JetSpan span, FireField.@Nullable Wall wall, Vec3 camera) {
+        return FireStream.fieldFrom(heater.tip(), heater.axis(), FireStream.FLAMES_RANGE,
+                FireStream.FLAMES_CONE_DEGREES, span, wall, camera);
     }
 }
