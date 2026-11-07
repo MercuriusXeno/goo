@@ -29,6 +29,9 @@ final class AbilitiesPane {
     private static final int HEADING_HEIGHT = ButtonPainter.HEIGHT;
     private static final String DRAFT_BADGE = "draft";
     private static final String NO_TEXT = "";
+    // Decision value-expression-boxes-take-a-cancel-button: the box's pair, as the builder draws it.
+    private static final String CANCEL = "✗ Cancel";
+    private static final String DONE = "✓ Done";
 
     private final AbilitiesTab tab;
     private final ManagerActions actions;
@@ -40,6 +43,7 @@ final class AbilitiesPane {
     private final ScrollBar bar = new ScrollBar(ScrollBar.WHEEL_STEP);
     private @Nullable EditBox search;
     private @Nullable EditBox editor;
+    private @Nullable Font font;
     // The leaf the text box or the builder stands over, as the ability's id and the leaf's path.
     private @Nullable Editing editing;
     private boolean shown;
@@ -84,6 +88,7 @@ final class AbilitiesPane {
      * @param font the screen's font
      */
     void init(Font font) {
+        this.font = font;
         builder.init(font);
         String typed = search == null ? NO_TEXT : search.getValue();
         search = actions.addWidget(new EditBox(font, 0, 0, 1, SearchRow.HEIGHT, Component.literal(NO_TEXT)));
@@ -222,24 +227,46 @@ final class AbilitiesPane {
         if (building) {
             box = area -> builder.extract(graphics, font, area, area.top(), targets);
         } else if (editingLeaf && leaf.kind() != AbilitiesTab.Kind.COST) {
-            box = this::standEditor;
+            box = area -> standEditor(graphics, font, area, targets);
         } else {
             box = area -> ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(area.left(),
-                    area.top(), area.right(), () -> startEditing(ability, leaf)),
+                    area.top(), area.right(), () -> startEditing(ability, leaf, area)),
                     ExpressionLines.Painter.linked(graphics, icons, targets, Palette.TEXT, actions), targets);
         }
         return BuilderFrame.draw(graphics, font, framed, new BuilderFrame.Value(building, runs,
                 tab.errorOf(ability, leaf, worth), box));
     }
 
-    // The leaf's text box stands over its row's box; answers the height it takes.
-    private int standEditor(GroupsPane.Bounds area) {
+    // The leaf's text box over its row's box, then ✗ Cancel from the moment it opens and ✓ Done once its value
+    // changed, as the builder's pair stands; answers the height it takes.
+    // Decision value-expression-boxes-take-a-cancel-button.
+    private int standEditor(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds area, ClickTargets targets) {
+        Editing edited = editing;
+        if (editor == null || edited == null) {
+            return ButtonPainter.HEIGHT;
+        }
+        boolean changed = !editor.getValue().equals(edited.before());
+        int x = placeEditor(font, area, changed) + GAP;
+        x = ButtonPainter.drawColored(graphics, font, CANCEL, Palette.DANGER, x, area.top(), ButtonPainter.HEIGHT,
+                targets, () -> stopEditing(true), null).right() + GAP;
+        if (changed) {
+            ButtonPainter.drawColored(graphics, font, DONE, Palette.GOOD, x, area.top(), ButtonPainter.HEIGHT,
+                    targets, () -> stopEditing(false), null);
+        }
+        editor.visible = shown;
+        return ButtonPainter.HEIGHT;
+    }
+
+    // Stands the text box at the row's box, short of the room its buttons take; answers its right edge.
+    private int placeEditor(Font font, GroupsPane.Bounds area, boolean changed) {
+        int buttons = ButtonPainter.width(font, CANCEL) + GAP
+                + (changed ? ButtonPainter.width(font, DONE) + GAP : 0);
+        int width = Math.max(1, area.right() - area.left() - buttons);
         if (editor != null) {
             editor.setPosition(area.left(), area.top());
-            editor.setWidth(area.right() - area.left());
-            editor.visible = shown;
+            editor.setWidth(width);
         }
-        return ButtonPainter.HEIGHT;
+        return area.left() + width;
     }
 
     // A cost reads as its by-type value, its items drawn as their icons; any other leaf reads as it is written.
@@ -252,7 +279,7 @@ final class AbilitiesPane {
                 .orElseGet(() -> List.of(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, value, null)));
     }
 
-    private void startEditing(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
+    private void startEditing(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf, GroupsPane.Bounds area) {
         stopEditing(false);
         String value = tab.valueOf(ability, leaf);
         editing = new Editing(ability.id(), leaf.path(), value);
@@ -265,10 +292,15 @@ final class AbilitiesPane {
                     }), () -> editing = null);
             return;
         }
-        if (editor != null) {
+        if (editor != null && font != null) {
+            // The box stands at its full width before it takes the value, so the value reads whole from its start.
+            placeEditor(font, area, false);
             editor.setValue(value);
             editor.visible = shown;
             actions.focus(editor);
+            // Decision every-number-box-opens-with-its-text-selected.
+            editor.moveCursorToEnd(false);
+            editor.setHighlightPos(0);
         }
     }
 

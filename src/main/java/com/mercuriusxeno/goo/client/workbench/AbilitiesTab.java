@@ -124,12 +124,23 @@ public final class AbilitiesTab {
     }
 
     /**
+     * Holds the leaf's new value, or drops its edit where the value is the one the model read, so a cancelled edit
+     * leaves nothing to save.
+     *
      * @param ability an ability
      * @param leaf    one of its leaves
      * @param value   the leaf's new value
      */
     public void edit(Ability ability, Leaf leaf, String value) {
-        edits.computeIfAbsent(ability.id(), id -> new LinkedHashMap<>()).put(leaf.path(), value);
+        Map<String, String> changes = edits.computeIfAbsent(ability.id(), id -> new LinkedHashMap<>());
+        if (value.equals(leaf.value())) {
+            changes.remove(leaf.path());
+        } else {
+            changes.put(leaf.path(), value);
+        }
+        if (changes.isEmpty()) {
+            edits.remove(ability.id());
+        }
     }
 
     /**
