@@ -44,8 +44,8 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
 
     /**
      * The frame a cast lays on a struck face, where two solid blocks lie with
-     * open cells in front: on a wall, the struck block and the one above it,
-     * else the one below; on a floor or ceiling, the struck block and the next
+     * open cells in front: on a wall, the struck block and the one below it,
+     * else the one above; on a floor or ceiling, the struck block and the next
      * along the caster's facing, else the one behind.
      *
      * @param solid  whether a block stands solid to hold a frame
@@ -59,7 +59,11 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
             Direction face, Direction facing) {
         Direction along = face.getAxis().isHorizontal() ? Direction.UP : facing;
         BlockPos pos = struck.pos();
-        return Stream.of(pos, pos.relative(along.getOpposite()))
+        // A wall frame opens down from the struck block, so one thrown level with the eye opens before the
+        // caster, and up from it only where there is no room below.
+        Stream<BlockPos> firsts = face.getAxis().isHorizontal() ? Stream.of(pos.below(), pos)
+                : Stream.of(pos, pos.relative(along.getOpposite()));
+        return firsts
                 .map(first -> new Portal(GlobalPos.of(struck.dimension(), first), face, along))
                 .filter(frame -> Stream.of(frame.block().pos(), frame.second())
                         .allMatch(cell -> solid.test(cell) && open.test(cell.relative(face))))
