@@ -23,6 +23,7 @@
   "client": [
     "ClientLevelGooValuesMixin",
     "ClientPacketListenerGooMixin",
+    "EntitySculkerOutlineColorMixin",
     "LevelRendererSculkerCullMixin",
     "LivingEntityRendererPhaseMixin",
     "MinecraftSculkerOutlineMixin",

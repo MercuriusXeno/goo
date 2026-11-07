@@ -1,12 +1,14 @@
 #version 330
 
-// Sculker's warden senses: the world goes dark and is heard rather than seen.
+// Sculker's warden senses: the world dims to a cave and is heard rather than seen.
 // Where depth breaks, at the edges of open space, a sculk-teal contour
 // draws, brightened by echo rings sweeping out from the diver. Near the
 // diver the scene's own colors show faintly, the blocks still told apart;
-// past that solid space is a dark sea. What the diver sensed, drawn white
-// by the outlines, burns teal at full strength wherever it stands.
+// past that solid space is a dim sea. What the diver's echoes lit, the faces
+// and outlines drawn sculk teal, shows bright wherever it stands, as faint
+// as its fade with distance drew it.
 // decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
+// decision sculker-sight-persists-where-echoes-have-touched
 
 uniform sampler2D InSampler;
 uniform sampler2D InDepthSampler;
@@ -26,13 +28,17 @@ layout(std140) uniform SculkerConfig {
 out vec4 fragColor;
 
 const vec3 SCULK = vec3(0.06, 0.78, 0.82);
-const vec3 DEEP_SEA = vec3(0.0, 0.025, 0.04);
-const float NEAR_SHARE = 0.35;
+const vec3 DEEP_SEA = vec3(0.03, 0.07, 0.09);
+// the scene's own colors kept everywhere, so the world reads as a dim cave rather than black
+const float DIM_SHARE = 0.22;
+const float NEAR_SHARE = 0.6;
 const float EDGE_GAIN = 14.0;
 const float ECHO_SPEED = 12.0;
 const float ECHO_SPACING = 24.0;
 const float ECHO_WIDTH = 2.5;
-const float SENSED_FLOOR = 0.92;
+// an echo draws sculk teal: green and blue well above red, which the dark lets through bright
+const float TEAL_CHROMA = 0.22;
+const float ECHO_GAIN = 1.5;
 
 float linearDepth(vec2 uv, float near, float far) {
     float z = texture(InDepthSampler, uv).r * 2.0 - 1.0;
@@ -61,10 +67,11 @@ void main() {
     float fade = 1.0 - smoothstep(far * 0.25, far * 0.6, center);
 
     float nearness = 1.0 - smoothstep(nearReach * 0.4, nearReach, center);
-    vec3 dark = mix(DEEP_SEA, scene * NEAR_SHARE, nearness);
+    vec3 dark = mix(DEEP_SEA + scene * DIM_SHARE, scene * NEAR_SHARE, nearness);
     vec3 heard = SCULK * contour * (0.45 + 0.55 * echo) * fade * (1.0 - sky);
     vec3 color = dark + heard;
 
-    float sensed = step(SENSED_FLOOR, min(scene.r, min(scene.g, scene.b)));
-    fragColor = vec4(mix(color, SCULK * 1.4, sensed), 1.0);
+    float tealness = min(scene.g, scene.b) - scene.r;
+    float echoed = smoothstep(TEAL_CHROMA * 0.5, TEAL_CHROMA, tealness);
+    fragColor = vec4(mix(color, scene * ECHO_GAIN, echoed), 1.0);
 }
