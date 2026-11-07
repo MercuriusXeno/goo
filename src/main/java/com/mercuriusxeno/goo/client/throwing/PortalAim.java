@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.network.PortalChoosePayload;
 import com.mercuriusxeno.goo.network.PortalLinkPayload;
-import net.minecraft.core.GlobalPos;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
@@ -62,7 +61,9 @@ public final class PortalAim {
         if (!(AimTracker.currentTarget() instanceof TargetResult.BlockTarget block)) {
             return Optional.empty();
         }
-        Portal aimed = new Portal(GlobalPos.of(player.level().dimension(), block.pos()), block.face());
-        return ClientPortals.portals().contains(aimed) ? Optional.of(aimed) : Optional.empty();
+        return ClientPortals.portals().stream()
+                .filter(portal -> portal.block().dimension().equals(player.level().dimension())
+                        && portal.face() == block.face() && portal.covers(block.pos()))
+                .findFirst();
     }
 }

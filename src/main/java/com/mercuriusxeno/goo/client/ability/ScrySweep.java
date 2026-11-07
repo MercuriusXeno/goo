@@ -183,9 +183,24 @@ public final class ScrySweep {
      * @param color    the packed ARGB color
      */
     static void emitBoxFace(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int color) {
+        emitBoxFace(pose, consumer, box, side, FACE_LIFT, color);
+    }
+
+    /**
+     * Emits one side of a box as a quad standing a lift off it.
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param box      the box, camera-relative
+     * @param side     the side to draw
+     * @param lift     how far off the side the quad stands
+     * @param color    the packed ARGB color
+     */
+    static void emitBoxFace(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, double lift,
+            int color) {
         Direction.Axis axis = side.getAxis();
         double plane = side.getAxisDirection() == Direction.AxisDirection.POSITIVE
-                ? box.max(axis) + FACE_LIFT : box.min(axis) - FACE_LIFT;
+                ? box.max(axis) + lift : box.min(axis) - lift;
         Direction.Axis first = axis == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
         Direction.Axis second = axis == Direction.Axis.Z ? Direction.Axis.Y : Direction.Axis.Z;
         double[][] corners = {{box.min(first), box.min(second)}, {box.max(first), box.min(second)},

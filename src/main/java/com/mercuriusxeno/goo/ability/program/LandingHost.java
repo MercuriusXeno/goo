@@ -138,17 +138,23 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Places a portal on the struck face, the block behind the cell, for the caster.
+     * Places a portal frame on the struck face, the block behind the cell, for
+     * the caster: two tall on a wall, flat along the caster's facing on a
+     * floor or ceiling. A face with no room for the frame places none.
      * portals-link-by-looking-through-portal-vision
      */
     @Override
     public boolean placePortal() {
-        if (caster == null) {
+        ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
+        if (player == null) {
             return false;
         }
-        PortalChoice.place(level, caster, new Portal(GlobalPos.of(level.dimension(), cell.relative(face.getOpposite())),
-                face));
-        return true;
+        Optional<Portal> frame = Portal.frameAt(
+                pos -> !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
+                pos -> level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
+                GlobalPos.of(level.dimension(), cell.relative(face.getOpposite())), face, player.getDirection());
+        frame.ifPresent(portal -> PortalChoice.place(level, caster, portal));
+        return frame.isPresent();
     }
 
     /**

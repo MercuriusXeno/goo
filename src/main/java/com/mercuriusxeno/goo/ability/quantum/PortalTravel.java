@@ -153,7 +153,7 @@ public final class PortalTravel {
     static boolean fallen(MinecraftServer server, Portal portal) {
         ServerLevel level = server.getLevel(portal.block().dimension());
         return level == null || level.isLoaded(portal.block().pos())
-                && level.getBlockState(portal.block().pos()).isAir();
+                && (level.getBlockState(portal.block().pos()).isAir() || level.getBlockState(portal.second()).isAir());
     }
 
     private static void syncOwner(MinecraftServer server, UUID owner) {

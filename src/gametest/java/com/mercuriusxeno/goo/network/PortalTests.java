@@ -26,11 +26,12 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Gametest for Quantum's portals: three casts place three portals; right
- * clicking one with Portal in hand enters choosing, and right clicking a
- * distant one links the two, the first the blue entry portal, both chunks
- * tethered; a player stepping into the entry comes out of the other; a later
- * link unlinks the earlier pair (decision portals-link-by-looking-through-portal-vision).
+ * Gametest for Quantum's portals: three casts at walls place three frames two
+ * blocks tall; right clicking one with Portal in hand enters choosing, and
+ * right clicking a distant one links the two, the first the blue entry
+ * portal, both chunks tethered; standing a block off the entry carries no
+ * one, pressing against its face carries the player out of its partner; a
+ * later link unlinks the earlier pair (decision portals-link-by-looking-through-portal-vision).
  */
 @RegistersGameTests
 public final class PortalTests {
@@ -47,22 +48,26 @@ public final class PortalTests {
 
     private static final String PORTAL = "goo:quantum_portal";
     private static final int NO_ENTITY = -1;
-    /** The blocks the three portals are cast onto, on their top faces, at the bay's corners. */
+    /** The lower blocks of the three wall frames, each cast on its south or north face. */
     private static final BlockPos FIRST = new BlockPos(1, 1, 1);
     private static final BlockPos SECOND = new BlockPos(14, 1, 14);
     private static final BlockPos THIRD = new BlockPos(14, 1, 1);
     /** Where the player waits, clear of every portal. */
     private static final BlockPos AWAY = new BlockPos(8, 1, 8);
-    /** How near a portal's mouth a traveller stands once carried out of it. */
-    private static final double OUT_OF = 1.6;
-    private static final int WALK_IN = 2;
-    private static final int CHECK_OUT = 4;
+    /** Feet a block off the first frame's face, in the cell before it: the body does not touch the face. */
+    private static final Vec3 A_BLOCK_OFF = new Vec3(1.5, 1, 2.5);
+    /** Feet pressed against the first frame's face, the body touching it. */
+    private static final Vec3 AGAINST_THE_FACE = new Vec3(1.5, 1, 2.35);
+    /** How near a frame's mouth a traveller stands once carried out of it. */
+    private static final double OUT_OF = 0.6;
+    private static final int STEP = 3;
 
     private PortalTests() {
     }
 
     /**
-     * Places three portals, links two by choosing, walks through, and relinks.
+     * Places three wall frames, links two by choosing, shows a step a block
+     * off carries no one and a step against the face carries, and relinks.
      *
      * @param helper the gametest helper
      */
@@ -70,13 +75,13 @@ public final class PortalTests {
         ServerLevel level = helper.getLevel();
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
-        standAt(helper, player, AWAY);
-        Portal first = castAt(helper, player, FIRST);
-        Portal second = castAt(helper, player, SECOND);
-        Portal third = castAt(helper, player, THIRD);
+        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+        Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
+        Portal second = castAt(helper, player, SECOND, Direction.NORTH);
+        Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
         QuantumPortals portals = QuantumPortals.get(level);
         helper.assertTrue(Set.copyOf(portals.portalsOf(player.getUUID())).equals(Set.of(first, second, third)),
-                "Three casts should place three portals, holds " + portals.portalsOf(player.getUUID()));
+                "Three casts should place three frames two tall, holds " + portals.portalsOf(player.getUUID()));
 
         PortalChoice.choose(player, Optional.of(first));
         helper.assertTrue(portals.choosing(player.getUUID()).equals(Optional.of(first)),
@@ -90,8 +95,13 @@ public final class PortalTests {
         assertTethered(helper, player, first);
         assertTethered(helper, player, second);
 
-        helper.runAfterDelay(WALK_IN, () -> standAt(helper, player, FIRST.above()));
-        helper.runAfterDelay(CHECK_OUT, () -> {
+        helper.runAfterDelay(STEP, () -> standAt(helper, player, A_BLOCK_OFF));
+        helper.runAfterDelay(STEP + STEP, () -> {
+            helper.assertTrue(player.position().distanceTo(helper.absoluteVec(A_BLOCK_OFF)) < OUT_OF,
+                    "Standing a block off the portal's face should carry no one, stands at " + player.position());
+            standAt(helper, player, AGAINST_THE_FACE);
+        });
+        helper.runAfterDelay(STEP * 3, () -> {
             assertOutOf(helper, player, second);
             PortalChoice.choose(player, Optional.of(second));
             PortalChoice.link(player, third);
@@ -110,11 +120,13 @@ public final class PortalTests {
         });
     }
 
-    private static Portal castAt(GameTestHelper helper, ServerPlayer caster, BlockPos block) {
-        helper.setBlock(block, Blocks.STONE);
+    /** Builds a two-tall stone wall at a cell and casts a portal on its face, answering the frame expected. */
+    private static Portal castAt(GameTestHelper helper, ServerPlayer caster, BlockPos lower, Direction face) {
+        helper.setBlock(lower, Blocks.STONE);
+        helper.setBlock(lower.above(), Blocks.STONE);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), caster, GooTypes.QUANTUM,
-                NO_ENTITY, helper.absolutePos(block), Direction.UP, PORTAL));
-        return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(block)), Direction.UP);
+                NO_ENTITY, helper.absolutePos(lower), face, PORTAL));
+        return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(lower)), face, Direction.UP);
     }
 
     /** A tether stands where forcing the chunk again changes nothing. */
@@ -124,14 +136,14 @@ public final class PortalTests {
                 true, true), "A linked portal's chunk should be tethered, " + chunk + " was not");
     }
 
-    private static void standAt(GameTestHelper helper, ServerPlayer player, BlockPos cell) {
-        Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(cell));
-        player.teleportTo(feet.x, feet.y, feet.z);
+    private static void standAt(GameTestHelper helper, ServerPlayer player, Vec3 feet) {
+        Vec3 at = helper.absoluteVec(feet);
+        player.teleportTo(at.x, at.y, at.z);
     }
 
     private static void assertOutOf(GameTestHelper helper, ServerPlayer player, Portal portal) {
         double distance = player.position().distanceTo(Vec3.atBottomCenterOf(portal.mouth()));
-        helper.assertTrue(distance < OUT_OF, "Stepping into the entry should carry the player out of its partner, "
-                + "stands " + distance + " away at " + player.position());
+        helper.assertTrue(distance < OUT_OF, "Pressing against the entry's face should carry the player out of its "
+                + "partner, stands " + distance + " away at " + player.position());
     }
 }

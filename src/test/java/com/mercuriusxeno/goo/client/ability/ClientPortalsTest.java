@@ -25,11 +25,11 @@ class ClientPortalsTest {
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("overworld"));
     private static final ResourceKey<Level> NETHER =
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("the_nether"));
-    private static final Portal FROM = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, -5)), Direction.SOUTH);
+    private static final Portal FROM = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, -5)), Direction.SOUTH, Direction.UP);
     /** A portal straight down the look, in another dimension. */
-    private static final Portal ELSEWHERE = new Portal(GlobalPos.of(NETHER, new BlockPos(0, 64, 20)), Direction.NORTH);
+    private static final Portal ELSEWHERE = new Portal(GlobalPos.of(NETHER, new BlockPos(0, 64, 20)), Direction.NORTH, Direction.UP);
     /** A portal just off the look, in the chooser's dimension. */
-    private static final Portal BESIDE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(1, 64, 20)), Direction.NORTH);
+    private static final Portal BESIDE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(1, 64, 20)), Direction.NORTH, Direction.UP);
     private static final Vec3 EYE = new Vec3(0.5, 64.5, 0.5);
     private static final Vec3 LOOK = new Vec3(0, 0, 1);
 
