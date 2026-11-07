@@ -44,6 +44,8 @@ public final class PocketTests {
     /** The inventory slot each stored stack is laid in before it is shift-clicked into the pocket. */
     private static final int LAID_SLOT = 20;
     private static final int STACK = 64;
+    /** The void each slot reserves, as void_pocket.json's slot_cost names. */
+    private static final int SLOT_COST = 6;
     /** More entries than a double chest's 54 slots. */
     private static final int MANY_ENTRIES = 60;
     /** Void enough for every stack the test stores. */
@@ -79,7 +81,7 @@ public final class PocketTests {
         player.getInventory().setItem(LAID_SLOT, new ItemStack(Items.COBBLESTONE, STACK));
         pocket.quickMoveStack(player, menuSlot(pocket, player.getInventory(), LAID_SLOT));
         int reserved = voidBefore - voidHeld(player);
-        long expected = PocketReserve.reserveToStore(0, STACK);
+        long expected = PocketReserve.reserveToStore(0, STACK, STACK, SLOT_COST);
         List<PocketEntry> entries = pocket.entries();
         helper.assertTrue(entries.size() == 1 && entries.getFirst().kind().is(Items.COBBLESTONE)
                 && entries.getFirst().count() == STACK, String.format(SHOULD_STORE, STACK, entries));

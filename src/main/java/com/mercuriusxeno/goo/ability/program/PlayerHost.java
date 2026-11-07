@@ -322,8 +322,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
 
     /** Opens the player's Pocket (decision pocket-is-a-void-reserving-container-with-scroll-and-search). */
     @Override
-    public void openPocket() {
-        PocketOpening.open(player);
+    public void openPocket(int slotCost) {
+        PocketOpening.open(player, slotCost);
     }
 
     @Override

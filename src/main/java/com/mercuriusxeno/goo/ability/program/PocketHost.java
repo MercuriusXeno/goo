@@ -8,6 +8,8 @@ public interface PocketHost extends StepHost {
 
     /**
      * Opens the player's pocket as a container.
+     *
+     * @param slotCost the void each slot the stored items fill reserves
      */
-    void openPocket();
+    void openPocket(int slotCost);
 }

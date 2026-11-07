@@ -35,6 +35,7 @@ public class PocketMenu extends AbstractContainerMenu {
 
     private final @Nullable PocketVault vault;
     private List<PocketEntry> shown = List.of();
+    private int shownSlotCost;
     private boolean entriesChanged = true;
 
     /**
@@ -83,10 +84,21 @@ public class PocketMenu extends AbstractContainerMenu {
     /**
      * Shows the entries the server sent.
      *
-     * @param entries the entries, in shelf order
+     * @param slotCost the void each slot reserves
+     * @param entries  the entries, in shelf order
      */
-    public void showEntries(List<PocketEntry> entries) {
+    public void showEntries(int slotCost, List<PocketEntry> entries) {
+        shownSlotCost = slotCost;
         shown = List.copyOf(entries);
+    }
+
+    /**
+     * The void each slot the stored items fill reserves.
+     *
+     * @return the slot cost: the vault's on the server, the last sent on the client
+     */
+    public int slotCost() {
+        return vault == null ? shownSlotCost : vault.slotCost();
     }
 
     @Override
@@ -161,7 +173,8 @@ public class PocketMenu extends AbstractContainerMenu {
         if (vault != null && entriesChanged) {
             entriesChanged = false;
             ServerPlayer owner = vault.player();
-            PocketContentsPayload contents = new PocketContentsPayload(containerId, vault.entries());
+            PocketContentsPayload contents = new PocketContentsPayload(containerId, vault.slotCost(),
+                    vault.entries());
             if (owner.connection.hasChannel(contents)) {
                 PacketDistributor.sendToPlayer(owner, contents);
             }

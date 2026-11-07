@@ -141,7 +141,7 @@ public class PocketScreen extends AbstractContainerScreen<PocketMenu> {
      */
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        long held = PocketReserve.voidHeldBy(menu.entries());
+        long held = PocketReserve.voidHeldBy(menu.entries(), menu.slotCost());
         graphics.text(font, Component.translatable(VOID_HELD, GooFormat.formatAmount(held)), titleLabelX,
                 titleLabelY, LABEL, false);
         graphics.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, LABEL, false);

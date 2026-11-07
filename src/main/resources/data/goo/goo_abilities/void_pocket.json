@@ -5,10 +5,10 @@
   "badge": "instant",
   "order": 10,
   "cost": 0,
-  "cost_formula": "void/item",
+  "cost_formula": "6/slot",
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "pocket_open" }
+    { "type": "pocket_open", "slot_cost": 6 }
   ],
   "tags": ["self"]
 }
