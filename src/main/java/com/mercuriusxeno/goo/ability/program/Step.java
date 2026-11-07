@@ -172,9 +172,10 @@ public interface Step {
 
     /**
      * The steps of a program that act on the entity the glove aims at. A
-     * self ability runs on its caster, so its steps act on the caster and
-     * only a step reaching past it to the aimed entity counts; any other
-     * program acts where it lands, so every step counts.
+     * channel delivered to its caster, as Grab, Pneuma and Nova are, runs
+     * its steps on the caster, so only a step reaching past the caster to
+     * the aimed entity counts; a program thrown or streamed acts where it
+     * lands, so every step counts.
      * decision steps-declare-the-entities-they-take
      *
      * @param program         the ability's steps
