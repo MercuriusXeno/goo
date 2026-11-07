@@ -74,6 +74,8 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     private static final String FIELD_COST = "cost";
     /** The rock goo a tear costs where the ability names none: as much as a charge of Bore. */
     private static final int DEFAULT_COST = 1000;
+    /** The ticks after a throw before another chunk can be grabbed, so none comes up while the throw flies. */
+    public static final int THROW_COOLDOWN_TICKS = 20;
     /** The ticks a hold strains the ground before the hunk tears free: half a second. */
     public static final int WINDUP_TICKS = 10;
     /** Ticks between the wind-up's rumbles. */
@@ -141,18 +143,35 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         Entity held = GrabEvents.heldBy(player);
         BlockHunk hunk = held instanceof BlockHunk lifted ? lifted : null;
         if (held == null) {
-            int holdTicks = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::held).orElse(WINDUP_TICKS);
-            if (windsUp(holdTicks)) {
-                rumble(player, holdTicks);
-                return true;
-            }
-            hunk = lift(player);
+            hunk = windUpOrGrab(player);
         }
         if (hunk != null) {
             GrabEvents.hold(player, hunk, hunk.holdStep(holdPoint(player, hunk)), throwSpeed);
             hunk.holdBy(player);
         }
         return true;
+    }
+
+    /**
+     * A tick of a hold with nothing held: nothing inside a throw's cooldown,
+     * a rumble while the wind-up runs, and the grab on the tick it completes.
+     * Every grab winds up afresh, even one in a hold that already grabbed and threw.
+     *
+     * @param player the channeling player
+     * @return the chunk grabbed this tick, or null
+     */
+    private @Nullable BlockHunk windUpOrGrab(ServerPlayer player) {
+        long now = player.level().getGameTime();
+        if (TerrakinesisHolds.coolingDown(player.getUUID(), now)) {
+            return null;
+        }
+        int windUp = TerrakinesisHolds.windUpTick(player.getUUID(), now);
+        if (windsUp(windUp)) {
+            rumble(player, windUp);
+            return null;
+        }
+        TerrakinesisHolds.grabbed(player.getUUID());
+        return lift(player);
     }
 
     /**
