@@ -409,6 +409,22 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Sunbeam's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
+     * a quad flush on each block face the ray burnt, through
+     * {@code sunbeam_scorch.vsh / .fsh}, cooling white-hot through orange to a
+     * dark burn mark. Alpha blended so the char darkens the face, depth tested
+     * with depth write off and biased toward the camera as a decal is, so it
+     * wins the face's own depth without standing off it.
+     */
+    public static final RenderPipeline SUNBEAM_SCORCH = shaderPairPipeline("sunbeam_scorch", "sunbeam_scorch",
+            BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT));
+
+    /** RenderType that draws Sunbeam's scorch. */
+    public static final RenderType SUNBEAM_SCORCH_TYPE = burnoutType(SUNBEAM_SCORCH);
+
+    /**
      * Nether black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
@@ -1201,7 +1217,7 @@ public final class GooRenderTypes {
 
     /**
      * Registers the overlay pipelines: the goo ripple masks and edge, the
-     * ghost, Bulb's glow beam, the glow shell, and Scry's faces.
+     * ghost, Bulb's glow beam, Sunbeam's scorch, the glow shell, and Scry's faces.
      *
      * @param event the event instance
      */
@@ -1211,6 +1227,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GLOW_BEAM);
+        event.registerPipeline(SUNBEAM_SCORCH);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
     }
