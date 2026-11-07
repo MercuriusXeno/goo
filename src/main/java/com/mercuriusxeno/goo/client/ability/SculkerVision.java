@@ -100,8 +100,7 @@ public final class SculkerVision {
         float far = Math.max(mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK * FAR_PER_RENDER_BLOCK,
                 mc.options.cloudRange().get() * BLOCKS_PER_CHUNK);
         SCULKER_PARAMS.set(seconds, NEAR_REACH, far, Camera.PROJECTION_Z_NEAR);
-        float aspect = (float) mc.getWindow().getWidth() / Math.max(1, mc.getWindow().getHeight());
-        SCULKER_LOOK.set(presence, aspect, DIM_REACH, 0f);
+        SCULKER_LOOK.set(presence, 0f, DIM_REACH, 0f);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             Std140Builder builder = Std140Builder.onStack(stack, SCULKER_CONFIG_SIZE);
             builder.putVec4(SCULKER_PARAMS);
