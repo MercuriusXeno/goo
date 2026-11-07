@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.pocket;
 
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import net.minecraft.world.item.ItemStack;
+import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -8,6 +10,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /** Covers the void Pocket reserves for what it holds, on the scale void grows a vat or canister. */
 class PocketReserveTest {
@@ -50,6 +53,14 @@ class PocketReserveTest {
 
             assertTrue(reserved > 0, "storing a stack should reserve void");
             assertEquals(reserved, PocketReserve.releaseOnTake(held + STACK, STACK));
+        }
+
+        @Test
+        void theShelfHoldsBackTheReserveOfEveryItemOnIt() {
+            List<PocketEntry> shelf = List.of(new PocketEntry(mock(ItemStack.class), STACK),
+                    new PocketEntry(mock(ItemStack.class), 3));
+
+            assertEquals(PocketReserve.voidFor(STACK + 3), PocketReserve.voidHeldBy(shelf));
         }
 
         @Test

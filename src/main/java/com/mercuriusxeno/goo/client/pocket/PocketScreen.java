@@ -2,29 +2,35 @@ package com.mercuriusxeno.goo.client.pocket;
 
 import com.mercuriusxeno.goo.ability.pocket.PocketEntry;
 import com.mercuriusxeno.goo.ability.pocket.PocketMenu;
+import com.mercuriusxeno.goo.ability.pocket.PocketReserve;
 import com.mercuriusxeno.goo.ability.pocket.PocketSearch;
+import com.mercuriusxeno.goo.item.GooFormat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Pocket's screen: a search bar over a shelf of six rows, each cell one
- * entry with its count, a scroll bar beside the rows reaching every entry
- * however many the pocket holds, and the player's inventory beneath. The
- * carried stack dropped on the shelf is stored; an entry clicked comes back
- * to the cursor, with shift into the inventory.
+ * Pocket's screen, drawn as vanilla draws a chest: the void the pocket holds
+ * back where a title would stand, a search bar beside it, a shelf of six rows
+ * of slots, each cell one entry with its count, the creative inventory's
+ * scroller beside the rows reaching every entry however many the pocket
+ * holds, and the player's inventory beneath. The carried stack dropped on the
+ * shelf is stored; an entry clicked comes back to the cursor, with shift into
+ * the inventory.
  * decision pocket-is-a-void-reserving-container-with-scroll-and-search
  */
 public class PocketScreen extends AbstractContainerScreen<PocketMenu> {
 
-    private static final int IMAGE_WIDTH = 184;
+    private static final int IMAGE_WIDTH = 196;
     private static final int IMAGE_HEIGHT = 222;
     private static final int COLUMNS = 9;
     private static final int ROWS = 6;
@@ -32,25 +38,31 @@ public class PocketScreen extends AbstractContainerScreen<PocketMenu> {
     private static final int SHELF_LEFT = 8;
     private static final int SHELF_TOP = 18;
     private static final int SHELF_RIGHT = SHELF_LEFT + COLUMNS * CELL;
-    private static final int SHELF_BOTTOM = SHELF_TOP + ROWS * CELL;
-    private static final int BAR_LEFT = SHELF_RIGHT + 2;
-    private static final int BAR_WIDTH = 4;
-    private static final int MIN_THUMB = 8;
-    private static final int SEARCH_LEFT = 80;
+    private static final int BAR_LEFT = SHELF_RIGHT + 4;
+    private static final int BAR_WIDTH = 14;
+    private static final int SCROLLER_WIDTH = 12;
+    private static final int SCROLLER_HEIGHT = 15;
+    /** The track's inset edge above and below the scroller. */
+    private static final int TRACK_EDGES = 2;
+    private static final int SEARCH_LEFT = 100;
     private static final int SEARCH_TOP = 4;
-    private static final int SEARCH_WIDTH = 96;
+    private static final int SEARCH_WIDTH = 88;
     private static final int SEARCH_HEIGHT = 12;
     private static final int INVENTORY_LABEL_TOP = PocketMenu.INVENTORY_TOP - 11;
     private static final int ITEM_INSET = 1;
     private static final int THOUSAND = 1000;
     private static final int MILLION = 1_000_000;
-    private static final int PANEL = 0xFFC6C6C6;
-    private static final int PANEL_EDGE = 0xFF555555;
-    private static final int CELL_SHADE = 0xFF8B8B8B;
     private static final int CELL_HOVER = 0x80FFFFFF;
-    private static final int TRACK = 0xFF555555;
-    private static final int THUMB = 0xFFEEEEEE;
+    /** Vanilla's label grey. */
+    private static final int LABEL = 0xFF404040;
+    private static final Identifier PANEL = Identifier.fromNamespaceAndPath("goo", "pocket/background");
+    private static final Identifier TRACK = Identifier.fromNamespaceAndPath("goo", "pocket/scroll_track");
+    private static final Identifier SLOT = Identifier.withDefaultNamespace("container/slot");
+    private static final Identifier SCROLLER = Identifier.withDefaultNamespace("container/creative_inventory/scroller");
+    private static final Identifier SCROLLER_IDLE =
+            Identifier.withDefaultNamespace("container/creative_inventory/scroller_disabled");
     private static final String SEARCH_HINT = "goo.pocket.search";
+    private static final String VOID_HELD = "goo.pocket.void_held";
     private static final String NO_SEARCH = "";
     private static final String THOUSANDS = "%.1fk";
     private static final String MILLIONS = "%.1fM";
@@ -99,20 +111,40 @@ public class PocketScreen extends AbstractContainerScreen<PocketMenu> {
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(leftPos - 1, topPos - 1, leftPos + imageWidth + 1, topPos + imageHeight + 1, PANEL_EDGE);
-        graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, PANEL);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, PANEL, leftPos, topPos, imageWidth, imageHeight);
         for (int row = 0; row < ROWS; row++) {
             for (int column = 0; column < COLUMNS; column++) {
-                shadeCell(graphics, leftPos + SHELF_LEFT + column * CELL, topPos + SHELF_TOP + row * CELL);
+                drawSlot(graphics, leftPos + SHELF_LEFT + column * CELL, topPos + SHELF_TOP + row * CELL);
             }
         }
         for (Slot slot : menu.slots) {
-            shadeCell(graphics, leftPos + slot.x - ITEM_INSET, topPos + slot.y - ITEM_INSET);
+            drawSlot(graphics, leftPos + slot.x, topPos + slot.y);
         }
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, TRACK, leftPos + BAR_LEFT, topPos + SHELF_TOP - ITEM_INSET,
+                BAR_WIDTH, ROWS * CELL);
     }
 
-    private static void shadeCell(GuiGraphicsExtractor graphics, int left, int top) {
-        graphics.fill(left, top, left + CELL - ITEM_INSET, top + CELL - ITEM_INSET, CELL_SHADE);
+    /**
+     * Draws vanilla's slot around an item cell.
+     *
+     * @param graphics the frame's graphics
+     * @param itemLeft the cell's item's left
+     * @param itemTop  the cell's item's top
+     */
+    private static void drawSlot(GuiGraphicsExtractor graphics, int itemLeft, int itemTop) {
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT, itemLeft - ITEM_INSET, itemTop - ITEM_INSET, CELL,
+                CELL);
+    }
+
+    /**
+     * The void the pocket holds back in place of a title, and the inventory's label.
+     */
+    @Override
+    protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        long held = PocketReserve.voidHeldBy(menu.entries());
+        graphics.text(font, Component.translatable(VOID_HELD, GooFormat.formatAmount(held)), titleLabelX,
+                titleLabelY, LABEL, false);
+        graphics.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, LABEL, false);
     }
 
     @Override
@@ -141,15 +173,13 @@ public class PocketScreen extends AbstractContainerScreen<PocketMenu> {
     }
 
     private void drawBar(GuiGraphicsExtractor graphics, int shownCount) {
-        int left = leftPos + BAR_LEFT;
+        int left = leftPos + BAR_LEFT + ITEM_INSET;
         int top = topPos + SHELF_TOP;
-        int height = ROWS * CELL;
-        graphics.fill(left, top, left + BAR_WIDTH, top + height, TRACK);
+        int travel = ROWS * CELL - SCROLLER_HEIGHT - TRACK_EDGES;
         int last = lastFirstRow(shownCount);
-        int rows = Math.max(ROWS, (shownCount + COLUMNS - 1) / COLUMNS);
-        int thumbHeight = Math.max(MIN_THUMB, height * ROWS / rows);
-        int thumbTop = last == 0 ? top : top + (height - thumbHeight) * firstRow / last;
-        graphics.fill(left, thumbTop, left + BAR_WIDTH, thumbTop + thumbHeight, THUMB);
+        int scrollerTop = last == 0 ? top : top + travel * firstRow / last;
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, last == 0 ? SCROLLER_IDLE : SCROLLER, left, scrollerTop,
+                SCROLLER_WIDTH, SCROLLER_HEIGHT);
     }
 
     /**
