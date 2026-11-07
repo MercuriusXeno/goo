@@ -25,7 +25,13 @@ import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -48,6 +54,7 @@ import java.util.Optional;
  * the client holds draws no view, and the portal keeps its idle face.
  * portals-link-by-looking-through-portal-vision
  */
+@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalView {
 
     /** How far in front of the partner's face the clip plane stands, so the partner's own block never shows. */
@@ -83,6 +90,11 @@ public final class PortalView {
     /** A camera for each depth of view, so a view's camera stands while the views within it draw. */
     private static final List<PortalCamera> CAMERAS = new ArrayList<>();
     private static ProjectionMatrixBuffer projection;
+    /** The projection a view's sky draws with, unclipped. */
+    private static ProjectionMatrixBuffer skyProjection;
+    private static final String SKY_VIEW_LABEL = "goo_portal_view_sky";
+    /** The clipped projection a view takes once its sky is drawn, null outside a view's sky. */
+    private static Matrix4f clippedAfterSky;
     private static boolean drawing;
     /** The views drawn so far this frame. */
     private static int passes;
@@ -287,8 +299,9 @@ public final class PortalView {
         try {
             CameraRenderState state = extractThrough(mc, delta, camera);
             bobAsTheFrameDoes(mc, state);
+            Matrix4f unclipped = new Matrix4f(state.projectionMatrix);
             clipAt(state.projectionMatrix, state.viewRotationMatrix, eye.position(), far);
-            renderInto(mc, delta, targetFor(mc, pass - 1), state);
+            renderInto(mc, delta, targetFor(mc, pass - 1), state, unclipped);
         } finally {
             currentPass = MAIN_PASS;
         }
@@ -358,14 +371,19 @@ public final class PortalView {
 
     /**
      * Renders the extracted level into a portal's target, swapped in for the
-     * frame's own while it draws.
+     * frame's own while it draws. The sky draws first with the projection
+     * unclipped, since the plane on the partner's face would cut a shifting
+     * piece out of the sky dome around the camera; the clipped projection
+     * takes over the moment the sky is done, for everything after it.
      *
-     * @param mc     the client
-     * @param delta  the frame's delta tracker
-     * @param target the portal's target
-     * @param camera the portal camera's state
+     * @param mc        the client
+     * @param delta     the frame's delta tracker
+     * @param target    the portal's target
+     * @param camera    the portal camera's state, its projection clipped at the partner's face
+     * @param unclipped the same projection with no clip plane, for the sky
      */
-    private static void renderInto(Minecraft mc, DeltaTracker delta, RenderTarget target, CameraRenderState camera) {
+    private static void renderInto(Minecraft mc, DeltaTracker delta, RenderTarget target, CameraRenderState camera,
+            Matrix4f unclipped) {
         GameRenderer game = mc.gameRenderer;
         LevelRenderState state = game.gameRenderState.levelRenderState;
         RenderTarget frame = mc.mainRenderTarget;
@@ -373,8 +391,14 @@ public final class PortalView {
         try {
             mc.mainRenderTarget = target;
             placeGlobalCamera(mc, delta, camera.pos);
-            RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(camera.projectionMatrix),
-                    ProjectionType.PERSPECTIVE);
+            if (skyDraws(state, camera)) {
+                clippedAfterSky = camera.projectionMatrix;
+                RenderSystem.setProjectionMatrix(skyProjectionBuffer().getBuffer(unclipped),
+                        ProjectionType.PERSPECTIVE);
+            } else {
+                RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(camera.projectionMatrix),
+                        ProjectionType.PERSPECTIVE);
+            }
             game.fogRenderer.updateBuffer(camera.fogData);
             mc.levelRenderer.renderLevel(game.resourcePool, delta, false, camera, camera.viewRotationMatrix,
                     game.fogRenderer.getBuffer(FogRenderer.FogMode.WORLD), camera.fogData.color, true,
@@ -382,7 +406,42 @@ public final class PortalView {
         } finally {
             mc.mainRenderTarget = frame;
             drawing = false;
+            clippedAfterSky = null;
         }
+    }
+
+    /**
+     * Whether the level renderer draws a sky for this view, as its sky pass
+     * decides: a skybox stands and nothing the camera is in or under hides it.
+     *
+     * @param state  the level render state
+     * @param camera the view's camera state
+     * @return true where the sky pass runs
+     */
+    private static boolean skyDraws(LevelRenderState state, CameraRenderState camera) {
+        return state.skyRenderState.skybox != DimensionType.Skybox.NONE && camera.fogType != FogType.POWDER_SNOW
+                && camera.fogType != FogType.LAVA && !camera.entityRenderState.doesMobEffectBlockSky;
+    }
+
+    /**
+     * Puts the clipped projection in place once a view's sky is drawn, so
+     * everything after the sky stops at the partner's face.
+     *
+     * @param event the stage the sky pass ends on
+     */
+    @SubscribeEvent
+    public static void onAfterSky(RenderLevelStageEvent.AfterSky event) {
+        if (drawing && clippedAfterSky != null) {
+            RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(clippedAfterSky), ProjectionType.PERSPECTIVE);
+            clippedAfterSky = null;
+        }
+    }
+
+    private static ProjectionMatrixBuffer skyProjectionBuffer() {
+        if (skyProjection == null) {
+            skyProjection = new ProjectionMatrixBuffer(SKY_VIEW_LABEL);
+        }
+        return skyProjection;
     }
 
     /**
