@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import net.minecraft.resources.ResourceKey;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.ToIntFunction;
 
 /**
@@ -37,10 +38,11 @@ public enum AilmentKind {
     ASTRAL(AilmentKind.UNRESOLVED_TINT, AilmentPattern.GLINT, 0.4f),
     /** Weird's wobble: a magenta gel shell that jiggles and stretches (decision weird-bounces-and-softens-harm). */
     WOBBLE(0xFF33CC, AilmentPattern.WOBBLE, 0.6f),
-    /** Grab's hold: a faint kinetic orange shimmer, and the flail its pose stamp reads (decision grab-holds-and-throws-a-physics-body). */
-    GRABBED(0xFF7A1A, AilmentPattern.SHIMMER, 0.35f),
-    /** Telekinesis: the kinetic shimmer, fainter, on the player and the arm (decision telekinesis-enacts-at-extended-reach). */
-    TELEKINESIS(0xFF7A1A, AilmentPattern.SHIMMER, 0.2f),
+    /**
+     * Grab's hold: the flail its pose stamp reads, drawing no overlay
+     * (decisions grab-holds-and-throws-a-physics-body, kinetic-is-electric-blue-and-white).
+     */
+    GRABBED(0xFFFFFF, AilmentPattern.SHIMMER, 0f),
     /** Ancient: aged stone veined with gold (decision ancient-makes-the-player-immortal). */
     ANCIENT(0xC9A85C, AilmentPattern.STONE, 0.75f),
     /** Zoo's rally: a tawny glisten over the armed mob (decision zoo-rally-arms-the-peaceful). */
@@ -61,6 +63,8 @@ public enum AilmentKind {
      */
     private static final Map<AilmentKind, ResourceKey<GooTypeDefinition>> TINT_TYPES =
             Map.of(ASTRAL, GooTypes.ASTRAL);
+    /** The kinds that ride the render state and draw no overlay, held statically as TINT_TYPES is. */
+    private static final Set<AilmentKind> UNDRAWN = Set.of(GRABBED);
 
     private final int rgb;
     private final AilmentPattern pattern;
@@ -101,5 +105,15 @@ public enum AilmentKind {
     /** @return how opaque the overlay draws at full strength, 0 to 1 */
     public float opacity() {
         return opacity;
+    }
+
+    /**
+     * Answers whether the ailment draws an overlay on the model, rather than
+     * only riding the render state as Grab's flail does.
+     *
+     * @return true for an ailment the overlay draws
+     */
+    public boolean drawsOverlay() {
+        return !UNDRAWN.contains(this);
     }
 }
