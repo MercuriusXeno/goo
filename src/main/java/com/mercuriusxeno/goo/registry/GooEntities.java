@@ -53,7 +53,7 @@ public final class GooEntities {
     private static final float METEOR_SIZE = 1.0f;
     private static final float HUNK_CELL_SIZE = 1.0f;
     private static final int HUNK_TRACKING_CHUNKS = 10;
-    private static final int METEOR_TRACKING_CHUNKS = 10;
+    private static final int METEOR_TRACKING_CHUNKS = 32;
     private static final float MONSTROSITY_WIDTH = 0.8f;
     private static final float MONSTROSITY_HEIGHT = 2.4f;
     private static final int MONSTROSITY_TRACKING_CHUNKS = 8;

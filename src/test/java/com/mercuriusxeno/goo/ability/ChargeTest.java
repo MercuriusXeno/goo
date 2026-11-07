@@ -6,30 +6,31 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A slinging charge's knife count and cone follow the share of the charge
- * a hold reached (decision shards-sling-then-morph-to-flechettes).
+ * Knives' shipped charge ramps its knife count and cone linearly from its
+ * no-charge floors to its full charge (decisions shards-sling-then-morph-to-flechettes,
+ * knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives).
  */
 class ChargeTest {
 
     private static final double TOLERANCE = 1e-9;
-    private final Charge knives = new Charge(30, 24, 60, 8);
+    private final Charge knives = AbilityJson.decode("crystal_knives").delivery().charge();
 
     @Test
-    void aFullChargeThrowsEveryKnifeAcrossTheWholeCone() {
-        assertEquals(24, knives.fleckCount(1f));
-        assertEquals(60, knives.spreadDegrees(1f), TOLERANCE);
+    void aFullChargeThrowsTwentySevenKnivesAcrossFortyFiveDegrees() {
+        assertEquals(27, knives.fleckCount(1f));
+        assertEquals(45, knives.spreadDegrees(1f), TOLERANCE);
     }
 
     @Test
-    void aHalfChargeThrowsHalfTheKnivesAcrossThreeQuartersOfTheCone() {
-        assertEquals(12, knives.fleckCount(0.5f));
-        assertEquals(45, knives.spreadDegrees(0.5f), TOLERANCE);
+    void aHalfChargeThrowsFifteenKnivesAcrossTwentyFiveDegrees() {
+        assertEquals(15, knives.fleckCount(0.5f));
+        assertEquals(25, knives.spreadDegrees(0.5f), TOLERANCE);
     }
 
     @Test
-    void anUnchargedReleaseStillThrowsOneKnifeAcrossHalfTheCone() {
-        assertEquals(1, knives.fleckCount(0f));
-        assertEquals(30, knives.spreadDegrees(0f), TOLERANCE);
+    void anUnchargedReleaseThrowsThreeKnivesAcrossFiveDegrees() {
+        assertEquals(3, knives.fleckCount(0f));
+        assertEquals(5, knives.spreadDegrees(0f), TOLERANCE);
     }
 
     @Test

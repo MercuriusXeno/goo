@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -50,9 +51,12 @@ public final class KnivesSlingTests {
     /** Facing south, down the bay toward the husks. */
     private static final float FACING_SOUTH = 0f;
     private static final int FULL_CHARGE_TICKS = 30;
+    /** decision knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives */
+    private static final int FULL_CHARGE_KNIVES = 27;
     /** A fixed scatter, so the rain falls the same each run. */
     private static final long SCATTER_SEED = 11L;
     private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_knives";
+    private static final String SHOULD_SLING = "A full charge should sling %s knives, slung %s";
     private static final String STRUCK_AT_ONCE = "No husk should take a knife the tick the charge is let go";
     private static final String SHOULD_RAIN = "The rain should strike every husk across the area, struck %s of %s";
 
@@ -80,8 +84,13 @@ public final class KnivesSlingTests {
         helper.assertTrue(knives != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(caster, knives);
 
+        FleckLaunches launches = GooServerState.of(helper.getLevel().getServer()).fleckLaunches();
+        int queuedBefore = launches.pendingCount();
+
         KnifeRainSling.sling(caster, GooTypes.CRYSTAL, knives, FULL_CHARGE_TICKS, RandomSource.create(SCATTER_SEED));
 
+        int slung = launches.pendingCount() - queuedBefore;
+        helper.assertTrue(slung == FULL_CHARGE_KNIVES, String.format(SHOULD_SLING, FULL_CHARGE_KNIVES, slung));
         helper.assertTrue(husks.stream().allMatch(husk -> husk.getHealth() == husk.getMaxHealth()), STRUCK_AT_ONCE);
         helper.succeedWhen(() -> {
             long struck = husks.stream().filter(husk -> husk.getHealth() < husk.getMaxHealth()).count();

@@ -89,7 +89,7 @@ public final class GooNetworking {
      * @param r the payload registrar
      */
     private static void registerAbilityOwnVisualPayloads(PayloadRegistrar r) {
-        r.playToClient(ScryPayload.TYPE, ScryPayload.STREAM_CODEC);
+        r.playToClient(HeldSweepPayload.TYPE, HeldSweepPayload.STREAM_CODEC);
         r.playToClient(SunbeamPayload.TYPE, SunbeamPayload.STREAM_CODEC);
         r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
@@ -98,6 +98,7 @@ public final class GooNetworking {
         r.playToClient(MeltAbsorbPayload.TYPE, MeltAbsorbPayload.STREAM_CODEC);
         r.playToClient(ReapSwellPayload.TYPE, ReapSwellPayload.STREAM_CODEC);
         r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
+        r.playToClient(MeteorScorchPayload.TYPE, MeteorScorchPayload.STREAM_CODEC);
         r.playToClient(GlassKnifePayload.TYPE, GlassKnifePayload.STREAM_CODEC);
         r.playToClient(ArmPosePayload.TYPE, ArmPosePayload.STREAM_CODEC);
     }
