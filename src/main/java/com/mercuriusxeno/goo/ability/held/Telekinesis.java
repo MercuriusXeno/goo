@@ -16,6 +16,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -35,12 +36,14 @@ public final class Telekinesis {
     /** How long each refresh lasts: past the next refresh and its fade, so the shimmer never dips. */
     static final int SHIMMER_TICKS = SHIMMER_REFRESH_TICKS * 3;
     private static final int SHIMMER_CLEARED = 0;
+    /** The entity interaction range Telekinesis raises, with its modifier's id. */
+    private static final Reach ENTITY_REACH = new Reach(Attributes.ENTITY_INTERACTION_RANGE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_entity_reach"));
     /** The ranges Telekinesis raises, each with its modifier's id. */
     private static final List<Reach> REACHES = List.of(
             new Reach(Attributes.BLOCK_INTERACTION_RANGE,
                     Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_block_reach")),
-            new Reach(Attributes.ENTITY_INTERACTION_RANGE,
-                    Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_entity_reach")));
+            ENTITY_REACH);
 
     private Telekinesis() {
     }
@@ -64,6 +67,18 @@ public final class Telekinesis {
             }
         }
         sendShimmer(target, SHIMMER_TICKS);
+    }
+
+    /**
+     * The modifier Telekinesis lays on a player's entity interaction range,
+     * which Grab adds to its own range (decision grab-reaches-telekinesis-range).
+     *
+     * @param target the player
+     * @return the modifier, or null while Telekinesis lays none
+     */
+    public static @Nullable AttributeModifier entityReachLaid(LivingEntity target) {
+        AttributeInstance instance = target.getAttribute(ENTITY_REACH.attribute());
+        return instance == null ? null : instance.getModifier(ENTITY_REACH.modifierId());
     }
 
     /**
