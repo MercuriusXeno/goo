@@ -20,8 +20,10 @@ import java.util.function.Predicate;
  * Quantum's hole, a wormhole: it closes the space between the struck face and
  * the first opening ahead. A 3x3 cross-section runs from the struck block into
  * the face until a cross-section holds an opening a player fits in, the whole
- * 3x3 or a 2x3 within it, and the caster is carried out there. With no opening
- * within reach the hole cannot be made, and the face shows it collapse.
+ * 3x3 or a 2x3 within it, and a mouth opens flush on the struck face and one
+ * flush on the wall's far face; whoever steps into either comes out of the
+ * other until the hole closes. With no opening within reach the hole cannot
+ * be made, and the face shows it collapse.
  * hole-closes-the-space-to-an-opening-ahead
  */
 public final class Wormhole {
@@ -39,6 +41,8 @@ public final class Wormhole {
     /** How far off the struck face the ring draws, so it shows over the block. */
     private static final double FACE_LIFT = 0.55;
     private static final double HALF = 0.5;
+    /** How far out of its face a mouth's slab reaches: a body touches it only by pressing against the face. */
+    private static final double FLUSH = 0.1;
     private static final float SOUND_VOLUME = 1.0f;
     private static final float MOUTH_PITCH = 1.3f;
     private static final float COLLAPSE_PITCH = 0.6f;
@@ -72,9 +76,19 @@ public final class Wormhole {
     }
 
     /**
-     * Where a wormhole from a struck face carries a body out: the feet of the
-     * first opening ahead it fits in, the whole cross-section preferred to a
-     * 2x3 within it at each step.
+     * The first opening ahead of a struck face a body fits in.
+     *
+     * @param feet       where a body stands in it
+     * @param firstOpen  the scan's centre cell where the opening's cross-section first opens, past the wall
+     */
+    public record Opening(Vec3 feet, BlockPos firstOpen) {
+    }
+
+    /**
+     * Where a wormhole from a struck face comes out: the feet of the first
+     * opening ahead a body fits in, the whole cross-section preferred to a
+     * 2x3 within it at each step, and the step where that opening first
+     * opens past the wall.
      *
      * @param space  the world as the scan reads it
      * @param struck the struck block, the scan's first centre
@@ -82,19 +96,18 @@ public final class Wormhole {
      * @param reach  how many cells past the struck block the scan runs
      * @param width  the body's width
      * @param height the body's height
-     * @return the feet, empty where no opening lies within reach
+     * @return the opening, empty where none lies within reach
      */
-    public static Optional<Vec3> openingAhead(Space space, BlockPos struck, Direction inward, int reach,
+    public static Optional<Opening> openingAhead(Space space, BlockPos struck, Direction inward, int reach,
             double width, double height) {
         Direction[] across = acrossOf(inward);
         for (int step = 1; step <= reach; step++) {
-            BlockPos centre = struck.relative(inward, step);
-            for (List<BlockPos> opening : openingsAt(centre, across)) {
-                if (opening.stream().allMatch(space.open())) {
-                    Vec3 feet = feetIn(opening);
-                    if (space.fits().test(boxAt(feet, width, height))) {
-                        return Optional.of(feet);
-                    }
+            List<List<BlockPos>> openings = openingsAt(struck.relative(inward, step), across);
+            for (int shape = 0; shape < openings.size(); shape++) {
+                List<BlockPos> opening = openings.get(shape);
+                if (opening.stream().allMatch(space.open())
+                        && space.fits().test(boxAt(feetIn(opening), width, height))) {
+                    return Optional.of(new Opening(feetIn(opening), firstOpen(space, struck, inward, step, shape)));
                 }
             }
         }
@@ -102,30 +115,104 @@ public final class Wormhole {
     }
 
     /**
-     * Carries a player through a wormhole from a struck face to the opening
-     * ahead, with a mouth at both ends; where none lies within reach the face
-     * shows the hole collapse instead.
+     * Walks back from the step an opening was found at while its shape's cells stay open.
      *
-     * @param level  the level
-     * @param player the player passing through
+     * @param space  the world as the scan reads it
      * @param struck the struck block
-     * @param face   the struck face
-     * @param reach  how many cells past the struck block the scan runs
-     * @return true when the player was carried through
+     * @param inward the direction the scan runs
+     * @param step   the step the opening was found at
+     * @param shape  the opening's place among a cross-section's openings
+     * @return the centre cell where the opening first opens past the wall
      */
-    public static boolean carry(ServerLevel level, ServerPlayer player, BlockPos struck, Direction face, int reach) {
-        Optional<Vec3> exit = openingAhead(Space.of(level, player), struck, face.getOpposite(), reach,
-                player.getBbWidth(), player.getBbHeight());
-        if (exit.isEmpty()) {
+    private static BlockPos firstOpen(Space space, BlockPos struck, Direction inward, int step, int shape) {
+        Direction[] across = acrossOf(inward);
+        int first = step;
+        while (first > 1 && openingsAt(struck.relative(inward, first - 1), across).get(shape).stream()
+                .allMatch(space.open())) {
+            first--;
+        }
+        return struck.relative(inward, first);
+    }
+
+    /**
+     * Opens a wormhole from a struck face to the opening ahead: a mouth
+     * flush on the struck face and one flush on the wall's far face, each
+     * carrying whoever steps into it out of the other until the hole closes.
+     * Where no opening lies within reach the face shows the hole collapse.
+     *
+     * @param level    the level
+     * @param caster   the player whose hole it is, whose body the opening must fit
+     * @param struck   the struck block
+     * @param face     the struck face
+     * @param reach    how many cells past the struck block the scan runs
+     * @param lifetime the ticks the mouths stand
+     * @return true when the hole opened
+     */
+    public static boolean open(ServerLevel level, ServerPlayer caster, BlockPos struck, Direction face, int reach,
+            int lifetime) {
+        Space space = Space.of(level, caster);
+        Direction inward = face.getOpposite();
+        Optional<Opening> found = openingAhead(space, struck, inward, reach, caster.getBbWidth(),
+                caster.getBbHeight());
+        if (found.isEmpty()) {
             collapse(level, struck, face);
             return false;
         }
-        Vec3 to = exit.get();
-        mouth(level, onFace(struck, face), face.getAxis());
-        player.teleportTo(to.x(), to.y(), to.z());
-        player.resetFallDistance();
-        mouth(level, to.add(0, player.getBbHeight() * HALF, 0), face.getAxis());
+        BlockPos firstOpen = found.get().firstOpen();
+        OpenHoles.Mouth entry = new OpenHoles.Mouth(flushOn(struck, face), arrivalBefore(space, struck, face,
+                caster), onFace(struck, face));
+        OpenHoles.Mouth exit = new OpenHoles.Mouth(flushOn(firstOpen.relative(face), inward), found.get().feet(),
+                Vec3.atCenterOf(firstOpen));
+        OpenHoles.open(new OpenHoles.Hole(level.dimension(), entry, exit, face.getAxis(),
+                level.getGameTime() + lifetime));
+        mouth(level, entry.middle(), face.getAxis());
+        mouth(level, exit.middle(), face.getAxis());
         return true;
+    }
+
+    /**
+     * The thin slab lying flush on a face across the 3x3 around a block, which
+     * a body touches only by pressing against the face.
+     *
+     * @param block the block whose face it lies on, the cross-section's centre
+     * @param face  the face
+     * @return the slab
+     */
+    static AABB flushOn(BlockPos block, Direction face) {
+        Direction.Axis axis = face.getAxis();
+        boolean positive = face.getAxisDirection() == Direction.AxisDirection.POSITIVE;
+        double plane = block.get(axis) + (positive ? 1 : 0);
+        double outer = plane + (positive ? FLUSH : -FLUSH);
+        AABB span = new AABB(block).inflate(HALF_SPAN);
+        return switch (axis) {
+            case X -> new AABB(Math.min(plane, outer), span.minY, span.minZ, Math.max(plane, outer), span.maxY,
+                    span.maxZ);
+            case Y -> new AABB(span.minX, Math.min(plane, outer), span.minZ, span.maxX, Math.max(plane, outer),
+                    span.maxZ);
+            case Z -> new AABB(span.minX, span.minY, Math.min(plane, outer), span.maxX, span.maxY,
+                    Math.max(plane, outer));
+        };
+    }
+
+    /**
+     * Where a traveller comes back out before the struck face: the cell in
+     * front of it, or the one below that where the body fits only there.
+     *
+     * @param space  the world as the scan reads it
+     * @param struck the struck block
+     * @param face   the struck face
+     * @param caster the body that must fit
+     * @return the feet
+     */
+    private static Vec3 arrivalBefore(Space space, BlockPos struck, Direction face, ServerPlayer caster) {
+        BlockPos front = struck.relative(face);
+        for (BlockPos cell : List.of(front.below(), front)) {
+            Vec3 feet = Vec3.atBottomCenterOf(cell);
+            if (space.fits().test(boxAt(feet, caster.getBbWidth(), caster.getBbHeight()))) {
+                return feet;
+            }
+        }
+        return Vec3.atBottomCenterOf(front);
     }
 
     /**
@@ -164,13 +251,31 @@ public final class Wormhole {
                 SoundSource.BLOCKS, SOUND_VOLUME, COLLAPSE_PITCH);
     }
 
-    private static void mouth(ServerLevel level, Vec3 middle, Direction.Axis axis) {
+    /**
+     * Draws a mouth's swirling ring and its hum.
+     *
+     * @param level  the level
+     * @param middle the mouth's middle
+     * @param axis   the axis the mouth stands across
+     */
+    static void mouth(ServerLevel level, Vec3 middle, Direction.Axis axis) {
+        swirl(level, middle, axis);
+        level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
+                SoundSource.PLAYERS, SOUND_VOLUME, MOUTH_PITCH);
+    }
+
+    /**
+     * Draws a mouth's swirling ring alone, as it stands open.
+     *
+     * @param level  the level
+     * @param middle the mouth's middle
+     * @param axis   the axis the mouth stands across
+     */
+    static void swirl(ServerLevel level, Vec3 middle, Direction.Axis axis) {
         for (Vec3 offset : ring(axis)) {
             Vec3 at = middle.add(offset);
             level.sendParticles(ParticleTypes.PORTAL, at.x(), at.y(), at.z(), 1, 0, 0, 0, MOUTH_SPEED);
         }
-        level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
-                SoundSource.PLAYERS, SOUND_VOLUME, MOUTH_PITCH);
     }
 
     /**

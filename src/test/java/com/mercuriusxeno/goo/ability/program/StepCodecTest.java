@@ -193,7 +193,7 @@ class StepCodecTest {
             Map.entry("quantum_portal", new PortalStep()),
             Map.entry("quantum_swap", new QuantumSwapStep(Expr.literal(32))),
             Map.entry("quantum_link", new QuantumLinkStep(Expr.literal(1200))),
-            Map.entry("wormhole", new WormholeStep(Expr.literal(16))),
+            Map.entry("wormhole", new WormholeStep(Expr.literal(16), Expr.literal(200))),
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
                     Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),

@@ -10,24 +10,29 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Carries the caster through a wormhole from the struck face to the first
- * opening ahead and finishes. A throw at a face with no opening within reach
- * is refused before it is paid, the face showing the hole collapse.
- * Quantum's hole is {@code wormhole reach=16}.
+ * Opens a wormhole from the struck face to the first opening ahead and
+ * finishes: a mouth on the face and one at the opening, each carrying whoever
+ * steps in out of the other until the lifetime runs out. A throw at a face
+ * with no opening within reach is refused before it is paid, the face
+ * showing the hole collapse. Quantum's hole is
+ * {@code wormhole reach=16 lifetime=200}.
  * hole-closes-the-space-to-an-opening-ahead
  *
- * @param reach how many cells past the struck block the scan runs; a literal, read before the throw is paid
+ * @param reach    how many cells past the struck block the scan runs; a literal, read before the throw is paid
+ * @param lifetime the ticks the mouths stand, evaluated when the step runs
  */
-public record WormholeStep(Expr reach) implements TargetGatedStep {
+public record WormholeStep(Expr reach, Expr lifetime) implements TargetGatedStep {
 
     private static final String NAME = "wormhole";
     private static final String FIELD_REACH = "reach";
+    private static final String FIELD_LIFETIME = "lifetime";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<WormholeStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_REACH).forGetter(WormholeStep::reach)
+            Expr.CODEC.fieldOf(FIELD_REACH).forGetter(WormholeStep::reach),
+            Expr.CODEC.fieldOf(FIELD_LIFETIME).forGetter(WormholeStep::lifetime)
     ).apply(inst, WormholeStep::new));
 
     /**
@@ -42,7 +47,7 @@ public record WormholeStep(Expr reach) implements TargetGatedStep {
 
     @Override
     public boolean tick(StepContext context) {
-        context.hostAs(WormholeHost.class).carryThrough(reach.evaluateInt(context));
+        context.hostAs(WormholeHost.class).openHole(reach.evaluateInt(context), lifetime.evaluateInt(context));
         return true;
     }
 
@@ -58,7 +63,7 @@ public record WormholeStep(Expr reach) implements TargetGatedStep {
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(reach);
+        return Stream.of(reach, lifetime);
     }
 
     @Override

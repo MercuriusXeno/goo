@@ -121,20 +121,20 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Carries the caster from the struck face, the block behind the cell,
-     * through to the first opening ahead; with no caster about, or no opening,
-     * the face shows the hole collapse.
+     * Opens a wormhole from the struck face, the block behind the cell, to the
+     * first opening ahead; with no caster about, or no opening, the face shows
+     * the hole collapse.
      * hole-closes-the-space-to-an-opening-ahead
      */
     @Override
-    public boolean carryThrough(int reach) {
+    public boolean openHole(int reach, int lifetime) {
         BlockPos struck = cell.relative(face.getOpposite());
         ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
         if (player == null || player.level() != level) {
             Wormhole.collapse(level, struck, face);
             return false;
         }
-        return Wormhole.carry(level, player, struck, face, reach);
+        return Wormhole.open(level, player, struck, face, reach, lifetime);
     }
 
     /**
