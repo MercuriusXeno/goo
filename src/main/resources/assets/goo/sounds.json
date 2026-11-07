@@ -92,6 +92,14 @@
       {
         "name": "goo:effects/earth_rumble",
         "stream": false
+      },
+      {
+        "name": "goo:effects/earth_rumble2",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/earth_rumble3",
+        "stream": false
       }
     ]
   }
