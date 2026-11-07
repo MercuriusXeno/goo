@@ -182,7 +182,7 @@
   "goo.ability.astral.scry": "Scry",
   "goo.ability.astral.scry.description": "Hold to see the spaces around you.",
   "goo.ability.deep.convoke": "Convoke",
-  "goo.ability.deep.convoke.description": "A blob that sends a sculk ring out through the ground; every mob the ring reaches turns and walks to the blob while it lasts.",
+  "goo.ability.deep.convoke.description": "A blob that sends a sculk ring out through the ground; every hostile mob the ring reaches turns and walks to the blob while it lasts, and other mobs pay it no mind.",
   "goo.ability.deep.dive": "Dive",
   "goo.ability.deep.dive.description": "Sense the world the way the deep does, open space as contours and stone as a dark sea you swim through; press into stone to enter it, sneaking down, jumping up or walking into a wall; bedrock still holds you.",
   "goo.ability.ender.zone": "Zone",
