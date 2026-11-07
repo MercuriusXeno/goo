@@ -149,8 +149,9 @@ public final class GrabEvents {
         player.setData(GooAttachments.GRAB_HOLD,
                 GrabHold.spentUntil(player.level().getGameTime() + HOLD_GRACE_TICKS));
         release(held);
-        if (held instanceof BlockHunk) {
-            // A thrown Terrakinesis chunk holds off the next grab while it flies.
+        if (held instanceof BlockHunk hunk) {
+            // A thrown Terrakinesis chunk breaks where it strikes, and holds off the next grab while it flies.
+            hunk.markThrown();
             TerrakinesisHolds.threw(player.getUUID(), player.level().getGameTime());
         }
         held.setDeltaMovement(player.getLookAngle().scale(speed));

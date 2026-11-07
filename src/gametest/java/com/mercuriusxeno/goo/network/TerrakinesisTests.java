@@ -47,6 +47,9 @@ public final class TerrakinesisTests {
     private static final String RELEASE_CANCELS = "terrakinesis_release_before_the_tear_lifts_nothing";
     private static final String GRABS_FROM_AFAR = "terrakinesis_grabs_from_eleven_blocks_away";
     private static final String WAITS_AFTER_A_THROW = "terrakinesis_waits_after_a_throw";
+    private static final String RELEASE_PLACES = "terrakinesis_release_places_the_chunk_on_the_grid";
+    /** Long enough after letting go for the chunk to fall, land, place and finish lingering. */
+    private static final int LANDING_TICKS = 40;
     /** Where the caster stands for the long grab: 11 blocks west of the slab's face, inside the 12 it reaches. */
     private static final BlockPos FAR_STAND_POS = new BlockPos(-9, 1, 2);
     /** The bay's barrier wall where the far caster's level look crosses it. */
@@ -113,6 +116,7 @@ public final class TerrakinesisTests {
         GooTestFunctions.registerTest(registrar, RELEASE_CANCELS, TerrakinesisTests::releaseBeforeTheTearLiftsNothing);
         GooTestFunctions.registerTest(registrar, GRABS_FROM_AFAR, TerrakinesisTests::grabsFromElevenBlocksAway);
         GooTestFunctions.registerTest(registrar, WAITS_AFTER_A_THROW, TerrakinesisTests::waitsAfterAThrow);
+        GooTestFunctions.registerTest(registrar, RELEASE_PLACES, TerrakinesisTests::releasePlacesTheChunkOnTheGrid);
     }
 
     /**
@@ -272,6 +276,33 @@ public final class TerrakinesisTests {
             });
         }
         helper.runAfterDelay(thrownOn + TerrakinesisStep.THROW_COOLDOWN_TICKS + 1, () -> leave(helper, player));
+    }
+
+    /**
+     * A chunk let go without a throw falls, lands and becomes its own stone on
+     * the grid, dropping no item, and the chunk entity ends.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @param helper the gametest helper
+     */
+    public static void releasePlacesTheChunkOnTheGrid(GameTestHelper helper) {
+        List<BlockPos> slab = placeSlab(helper);
+        ServerPlayer player = caster(helper);
+        holdFor(helper, player, HOLD_TICKS);
+        helper.runAfterDelay(HOLD_TICKS + LANDING_TICKS, () -> {
+            helper.assertTrue(hunksIn(helper).isEmpty(), "The released chunk should have become blocks");
+            int stone = 0;
+            // The bay's own floor is the test platform under it, so the chunk lands in the bay's lowest row.
+            for (BlockPos cell : BlockPos.betweenClosed(new BlockPos(0, 0, 0),
+                    new BlockPos(WALL_X, WALL_HIGH_Y + 1, SLAB_HIGH_Z + 1))) {
+                stone += helper.getBlockState(cell).is(Blocks.STONE) ? 1 : 0;
+            }
+            helper.assertTrue(stone == slab.size(), "The released chunk should stand as its " + slab.size()
+                    + " stone blocks on the grid, found " + stone);
+            int items = helper.getLevel().getEntitiesOfClass(ItemEntity.class, bay(helper)).size();
+            helper.assertTrue(items == 0, "A released chunk should drop nothing, dropped " + items);
+            leave(helper, player);
+        });
     }
 
     private static int droppedStone(GameTestHelper helper) {

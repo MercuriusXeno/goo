@@ -119,6 +119,12 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     public static final long WHOLE = -1;
     /** How fast a torn hunk rises out of its hole, in blocks a tick. */
     static final double RISE_OUT_SPEED = 0.3;
+    /** Whether the hunk was thrown, so it breaks on impact; a hunk let go is placed where it lands. */
+    private static final EntityDataAccessor<Boolean> THROWN =
+            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
+    /** The game time a let-go hunk was placed on the grid, or {@link #WHOLE} before. */
+    private static final EntityDataAccessor<Long> PLACED_AT =
+            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.LONG);
     /** Whether a held hunk has risen clear of its hole, so the holder's client glides it to the look. */
     private static final EntityDataAccessor<Boolean> CLEAR_OF_HOLE =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
@@ -279,6 +285,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         entityData.define(SHATTER_START, WHOLE);
         entityData.define(SHATTER_FACE, Direction.DOWN);
         entityData.define(CLEAR_OF_HOLE, false);
+        entityData.define(THROWN, false);
+        entityData.define(PLACED_AT, WHOLE);
     }
 
     /**
@@ -307,6 +315,44 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         }
         entityData.set(CLEAR_OF_HOLE, true);
         return HoldEase.toward(position(), hold, HoldEase.TICK_SECONDS);
+    }
+
+    /**
+     * Marks the hunk thrown, as a throw launches it, so it breaks on impact
+     * rather than being placed where it lands.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     */
+    public void markThrown() {
+        entityData.set(THROWN, true);
+    }
+
+    /**
+     * How a free hunk's flight goes this tick.
+     */
+    public enum Landing {
+        /** It flies on. */
+        FLY,
+        /** A let-go hunk come to rest: it becomes its blocks on the grid. */
+        PLACE,
+        /** A thrown hunk that struck something: it crushes and crumbles. */
+        STRIKE
+    }
+
+    /**
+     * How a free hunk's flight goes: a thrown one strikes whatever stops it,
+     * a let-go one is placed once it comes to rest and slides on past anything else.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @param thrown  whether it was thrown
+     * @param struck  whether it ran into a wall, a ceiling or a mob this tick
+     * @param resting whether it came to rest on the ground this tick
+     * @return what the flight does
+     */
+    public static Landing landingOf(boolean thrown, boolean struck, boolean resting) {
+        if (thrown) {
+            return struck || resting ? Landing.STRIKE : Landing.FLY;
+        }
+        return resting ? Landing.PLACE : Landing.FLY;
     }
 
     /**
@@ -421,7 +467,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @return true from the settle until the hunk ends
      */
     public boolean lingers(double time) {
-        return rising && settledBy(time);
+        return rising && settledBy(time) || entityData.get(PLACED_AT) != WHOLE;
     }
 
     /**
@@ -466,6 +512,13 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     private void liftedTick(ServerLevel server) {
+        long placedAt = entityData.get(PLACED_AT);
+        if (placedAt != WHOLE) {
+            if (server.getGameTime() - placedAt >= SETTLE_LINGER_TICKS) {
+                discard();
+            }
+            return;
+        }
         if (shattering()) {
             crumbleTick(server);
             return;
@@ -577,10 +630,40 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @param level the server level
      */
     private void settle(ServerLevel level) {
+        placeBlocks(level, false);
+        this.settled = true;
+    }
+
+    /**
+     * Places a let-go hunk that came to rest: aligned to the grid, each block
+     * in the cell it rounds to, replacing what stood there, no item dropped;
+     * it then lingers over its stone while the clients' chunks redraw it.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @param level the server level
+     */
+    private void placeOnTheGrid(ServerLevel level) {
+        setDeltaMovement(Vec3.ZERO);
+        setPos(Vec3.atBottomCenterOf(BlockPos.containing(getX(), getY() + HALF, getZ())));
+        placeBlocks(level, true);
+        entityData.set(PLACED_AT, level.getGameTime());
+    }
+
+    /**
+     * Sets each block into the cell it stands in, throwing dust off it, and
+     * stands anything the stone fills on top of it.
+     *
+     * @param level      the server level
+     * @param replaceAny whether a block replaces whatever breakable block stands
+     *                   in its cell, or only a cell that can be replaced
+     */
+    private void placeBlocks(ServerLevel level, boolean replaceAny) {
         List<BlockPos> placed = new ArrayList<>();
         for (HunkBlock block : blocks) {
             BlockPos cell = cellOf(block);
-            if (level.getBlockState(cell).canBeReplaced()) {
+            BlockState there = level.getBlockState(cell);
+            boolean takes = replaceAny ? there.getDestroySpeed(level, cell) >= 0 : there.canBeReplaced();
+            if (takes) {
                 level.setBlockAndUpdate(cell, block.state());
                 throwDust(level, cell, block.state());
                 placed.add(cell);
@@ -588,7 +671,6 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         }
         placed.forEach(cell -> level.getEntities(this, new AABB(cell), entity -> !entity.isSpectator())
                 .forEach(entity -> standOnStone(level, entity)));
-        this.settled = true;
     }
 
     /**
@@ -606,8 +688,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * One tick of a let-go or thrown hunk's flight: it falls, moves as far as
-     * the world lets it, and strikes whatever stopped it or stands in its way.
+     * One tick of a let-go or thrown hunk's flight: it falls and moves as far
+     * as the world lets it; a thrown one strikes whatever stopped it or stands
+     * in its way, and a let-go one is placed on the grid where it comes to rest.
      *
      * @param level the server level
      */
@@ -617,13 +700,24 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         }
         Vec3 motion = getDeltaMovement();
         move(MoverType.SELF, motion);
-        List<LivingEntity> struck = level.getEntitiesOfClass(LivingEntity.class, getBoundingBox(),
-                LivingEntity::isAlive);
-        if (horizontalCollision || verticalCollision || !struck.isEmpty() || flightTicks > MOST_FLIGHT_TICKS) {
-            impact(level, motion, struck);
-            return;
+        boolean thrown = entityData.get(THROWN);
+        List<LivingEntity> struck = thrown ? level.getEntitiesOfClass(LivingEntity.class, getBoundingBox(),
+                LivingEntity::isAlive) : List.of();
+        switch (landingOf(thrown, ranInto(motion, struck), cameToRest(motion))) {
+            case STRIKE -> impact(level, motion, struck);
+            case PLACE -> placeOnTheGrid(level);
+            default -> setDeltaMovement(getDeltaMovement().scale(DRAG));
         }
-        setDeltaMovement(getDeltaMovement().scale(DRAG));
+    }
+
+    private boolean ranInto(Vec3 motion, List<LivingEntity> struck) {
+        boolean hitAbove = verticalCollision && motion.y > 0;
+        return horizontalCollision || hitAbove || !struck.isEmpty();
+    }
+
+    private boolean cameToRest(Vec3 motion) {
+        boolean landed = verticalCollision && motion.y <= 0;
+        return landed || flightTicks > MOST_FLIGHT_TICKS;
     }
 
     /**
