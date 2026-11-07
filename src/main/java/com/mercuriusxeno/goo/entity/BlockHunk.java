@@ -592,6 +592,15 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         return climbsAt(time);
     }
 
+    /**
+     * The ticks the rise takes.
+     *
+     * @return the rise's length in ticks
+     */
+    int riseTicks() {
+        return riseTicks;
+    }
+
     boolean climbsAt(double time) {
         return rising && !settledBy(time);
     }

@@ -5,11 +5,15 @@ import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.client.ability.HunkCrumbles;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -31,6 +35,11 @@ public final class ClientProxy implements ISidedProxy {
     @Override
     public void hunkShattered(BlockHunk hunk) {
         HunkCrumbles.begin(hunk);
+    }
+
+    @Override
+    public void keepLoopAlive(Object key, Identifier sound, SoundSource source, float volume, Vec3 at) {
+        FadingLoops.keepAlive(key, sound, source, volume, 1f, at);
     }
 
     @Override

@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.entity;
 
+import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
@@ -13,8 +14,10 @@ import net.minecraft.world.phys.Vec3;
 /**
  * What a rising Spire hunk sheds on the client each tick it climbs: chips of
  * its own stone spilling off its sides above the ground it breaks out of, and
- * a low rumble every few ticks, so the stone grinds its way up the whole rise.
+ * the earth rumble looping at the stone, fed each tick it climbs and fading
+ * out once the rise ends or the hunk is gone.
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
+ * decision spire-rumbles-like-a-dull-earthquake
  */
 final class SpireRumble {
 
@@ -22,19 +25,28 @@ final class SpireRumble {
     private static final int CHIPS_PER_TICK = 4;
     /** How fast a chip leaves the pillar's side, in blocks a tick. */
     private static final double CHIP_SPEED = 0.06;
-    /** Ticks between the rumble's beats. */
-    private static final int RUMBLE_EVERY = 2;
     private static final float RUMBLE_VOLUME = 1f;
-    private static final float RUMBLE_PITCH = 0.5f;
     /** A hair out from the side, so a chip starts in the air. */
     private static final double OFF_THE_SIDE = 0.05;
-    private static final float HALF_F = 0.5f;
 
     private SpireRumble() {
     }
 
     /**
-     * Spills this tick's chips and, on a beat, plays the rumble.
+     * Whether the rise's rumble loop plays on a tick: from the first climbing
+     * tick until the rise ends, and never for a hunk removed.
+     *
+     * @param elapsed   ticks since the rise began
+     * @param riseTicks the ticks the rise takes
+     * @param alive     whether the hunk is still in the world
+     * @return true while the loop plays
+     */
+    static boolean loopPlays(long elapsed, int riseTicks, boolean alive) {
+        return alive && elapsed >= 0 && elapsed < riseTicks;
+    }
+
+    /**
+     * Spills this tick's chips and keeps the rumble loop sounding.
      *
      * @param hunk    the climbing hunk, on the client
      * @param elapsed ticks since the rise began
@@ -46,6 +58,10 @@ final class SpireRumble {
         }
         RandomSource random = level.getRandom();
         AABB box = hunk.getBoundingBox();
+        if (loopPlays(elapsed, hunk.riseTicks(), hunk.isAlive())) {
+            ISidedProxy.get().keepLoopAlive(hunk, GooSoundIds.EARTH_RUMBLE, SoundSource.BLOCKS, RUMBLE_VOLUME,
+                    box.getCenter());
+        }
         double ground = hunk.groundTop();
         if (box.maxY <= ground) {
             return;
@@ -56,18 +72,6 @@ final class SpireRumble {
             Vec3 out = at.subtract(box.getCenter()).multiply(1, 0, 1).normalize().scale(CHIP_SPEED);
             level.addParticle(chip, at.x, at.y, at.z, out.x, 0, out.z);
         }
-        if (elapsed % RUMBLE_EVERY == 0) {
-            rumble(level, box.getCenter(), ground, random);
-        }
-    }
-
-    private static void rumble(Level level, Vec3 middle, double ground, RandomSource random) {
-        float pitch = RUMBLE_PITCH + random.nextFloat() * RUMBLE_PITCH * HALF_F;
-        level.playLocalSound(middle.x, ground, middle.z, SoundEvents.GRAVEL_BREAK, SoundSource.BLOCKS,
-                RUMBLE_VOLUME, pitch, false);
-        // Deepslate's heavier break under the gravel, so the rumble carries.
-        level.playLocalSound(middle.x, ground, middle.z, SoundEvents.DEEPSLATE_BREAK, SoundSource.BLOCKS,
-                RUMBLE_VOLUME, pitch, false);
     }
 
     /**

@@ -36,6 +36,13 @@ public final class GooSoundIds {
      */
     public static final Identifier BOING = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.boing");
 
+    /**
+     * Spire's rise: the mod's own synthesized dull earthquake rumble, looped
+     * at the rising stone for the whole climb
+     * (decision spire-rumbles-like-a-dull-earthquake).
+     */
+    public static final Identifier EARTH_RUMBLE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.earth_rumble");
+
     private GooSoundIds() {
     }
 }
