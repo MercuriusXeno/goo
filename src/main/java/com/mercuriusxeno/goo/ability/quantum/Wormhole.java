@@ -36,8 +36,6 @@ public final class Wormhole {
     private static final double RING_RADIUS = 1.2;
     /** How hard a collapsing ring's particles fall in toward its middle. */
     private static final double COLLAPSE_SPEED = 0.12;
-    /** How hard a mouth's particles swirl along the ring. */
-    private static final double MOUTH_SPEED = 0.05;
     /** How far off the struck face the ring draws, so it shows over the block. */
     private static final double FACE_LIFT = 0.55;
     private static final double HALF = 0.5;
@@ -159,15 +157,34 @@ public final class Wormhole {
             return false;
         }
         BlockPos firstOpen = found.get().firstOpen();
+        BlockPos farWall = firstOpen.relative(face);
+        Vec3 up = face.getAxis().isHorizontal() ? Direction.UP.getUnitVec3() : Direction.NORTH.getUnitVec3();
         OpenHoles.Mouth entry = new OpenHoles.Mouth(flushOn(struck, face), arrivalBefore(space, struck, face,
-                caster), onFace(struck, face));
-        OpenHoles.Mouth exit = new OpenHoles.Mouth(flushOn(firstOpen.relative(face), inward), found.get().feet(),
-                Vec3.atCenterOf(firstOpen));
-        OpenHoles.open(new OpenHoles.Hole(level.dimension(), entry, exit, face.getAxis(),
+                caster), onFace(struck, face), new Gate(level.dimension(), layerAround(struck, face), face, up));
+        OpenHoles.Mouth exit = new OpenHoles.Mouth(flushOn(farWall, inward), found.get().feet(),
+                Vec3.atCenterOf(firstOpen), new Gate(level.dimension(), layerAround(farWall, inward), inward, up));
+        OpenHoles.open(level.getServer(), new OpenHoles.Hole(level.dimension(), entry, exit, face.getAxis(),
                 level.getGameTime() + lifetime));
-        mouth(level, entry.middle(), face.getAxis());
-        mouth(level, exit.middle(), face.getAxis());
+        mouth(level, entry.middle());
+        mouth(level, exit.middle());
         return true;
+    }
+
+    /**
+     * The 3x3 layer of blocks around a block across a face, one block deep:
+     * the blocks a mouth on that face covers.
+     *
+     * @param block the layer's centre
+     * @param face  the face the mouth covers
+     * @return the layer
+     */
+    static AABB layerAround(BlockPos block, Direction face) {
+        AABB cell = new AABB(block);
+        return switch (face.getAxis()) {
+            case X -> cell.inflate(0, HALF_SPAN, HALF_SPAN);
+            case Y -> cell.inflate(HALF_SPAN, 0, HALF_SPAN);
+            case Z -> cell.inflate(HALF_SPAN, HALF_SPAN, 0);
+        };
     }
 
     /**
@@ -252,30 +269,15 @@ public final class Wormhole {
     }
 
     /**
-     * Draws a mouth's swirling ring and its hum.
+     * Sounds a mouth opening; the client draws the mouth itself as a view
+     * through to its partner.
      *
      * @param level  the level
      * @param middle the mouth's middle
-     * @param axis   the axis the mouth stands across
      */
-    static void mouth(ServerLevel level, Vec3 middle, Direction.Axis axis) {
-        swirl(level, middle, axis);
+    static void mouth(ServerLevel level, Vec3 middle) {
         level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
                 SoundSource.PLAYERS, SOUND_VOLUME, MOUTH_PITCH);
-    }
-
-    /**
-     * Draws a mouth's swirling ring alone, as it stands open.
-     *
-     * @param level  the level
-     * @param middle the mouth's middle
-     * @param axis   the axis the mouth stands across
-     */
-    static void swirl(ServerLevel level, Vec3 middle, Direction.Axis axis) {
-        for (Vec3 offset : ring(axis)) {
-            Vec3 at = middle.add(offset);
-            level.sendParticles(ParticleTypes.PORTAL, at.x(), at.y(), at.z(), 1, 0, 0, 0, MOUTH_SPEED);
-        }
     }
 
     /**

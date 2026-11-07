@@ -31,12 +31,21 @@ public record PortalTransform(Vec3 fromCenter, Vec3 fromRight, Vec3 fromUp, Vec3
      * @return the transform
      */
     public static PortalTransform between(Portal from, Portal to) {
+        return between(from.gate(), to.gate());
+    }
+
+    /**
+     * The transform from looking into one gate to looking out of its partner.
+     *
+     * @param from the gate looked into
+     * @param to   its partner
+     * @return the transform
+     */
+    public static PortalTransform between(Gate from, Gate to) {
         Vec3 fromNormal = from.face().getUnitVec3();
-        Vec3 fromUp = from.up();
         Vec3 toNormal = to.face().getUnitVec3();
-        Vec3 toUp = to.up();
-        return new PortalTransform(from.faceCenter(), fromUp.cross(fromNormal), fromUp, fromNormal,
-                to.faceCenter(), toUp.cross(toNormal), toUp, toNormal);
+        return new PortalTransform(from.center(), from.up().cross(fromNormal), from.up(), fromNormal,
+                to.center(), to.up().cross(toNormal), to.up(), toNormal);
     }
 
     /**

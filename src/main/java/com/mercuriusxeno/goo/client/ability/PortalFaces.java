@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -95,8 +96,9 @@ public final class PortalFaces {
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         if (choosing.isEmpty()) {
-            drawViews(pose, buffers, camera);
-            drawIdle(pose, buffers, camera, mc.level.dimension());
+            List<Drawn> gates = gatesIn(mc.level.dimension());
+            drawViews(pose, buffers, camera, gates);
+            drawIdle(pose, buffers, camera, gates);
         }
         RenderType type = choosing.isPresent() ? GooRenderTypes.SPORE_SHELL_THROUGH_BLOCKS_TYPE
                 : GooRenderTypes.SPORE_SHELL_TYPE;
@@ -105,20 +107,48 @@ public final class PortalFaces {
     }
 
     /**
-     * Draws each portal with no view to show as its idle swirl.
+     * A gate the frame draws and the color it wears.
      *
-     * @param pose      the pose
-     * @param buffers   the frame's buffers
-     * @param camera    the main camera's position
+     * @param gate a portal's frame or a hole's mouth
+     * @param rgb  its color, 0xRRGGBB
+     */
+    record Drawn(Gate gate, int rgb) {
+    }
+
+    /**
+     * Every gate in a level the frame draws: the local player's portals, each
+     * in its color, and each open hole's two mouths in Quantum's violet.
+     *
      * @param dimension the level drawn
+     * @return the gates
+     */
+    private static List<Drawn> gatesIn(ResourceKey<Level> dimension) {
+        List<Drawn> gates = new ArrayList<>();
+        ClientPortals.portals().forEach(portal -> gates.add(new Drawn(portal.gate(),
+                colorOf(portal, ClientPortals.link()))));
+        ClientHoles.holes().forEach(hole -> {
+            gates.add(new Drawn(hole.entry(), IDLE_RGB));
+            gates.add(new Drawn(hole.exit(), IDLE_RGB));
+        });
+        gates.removeIf(drawn -> !drawn.gate().dimension().equals(dimension));
+        return gates;
+    }
+
+    /**
+     * Draws each gate with no view to show as its idle swirl.
+     *
+     * @param pose    the pose
+     * @param buffers the frame's buffers
+     * @param camera  the main camera's position
+     * @param gates   the gates the frame draws
      */
     private static void drawIdle(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-            ResourceKey<Level> dimension) {
+            List<Drawn> gates) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
-        for (Portal portal : ClientPortals.portals()) {
-            if (portal.block().dimension().equals(dimension) && PortalView.viewOf(portal).isEmpty()) {
-                emitSwirl(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
-                        ARGB.color(SWIRL_ALPHA, colorOf(portal, ClientPortals.link())));
+        for (Drawn drawn : gates) {
+            if (PortalView.viewOf(drawn.gate()).isEmpty()) {
+                emitSwirl(pose, consumer, drawn.gate().blocks().move(camera.reverse()), drawn.gate().face(),
+                        ARGB.color(SWIRL_ALPHA, drawn.rgb()));
             }
         }
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
@@ -174,23 +204,27 @@ public final class PortalFaces {
      * @return true where nothing draws
      */
     private static boolean nothingToDraw(Minecraft mc) {
-        return mc.level == null || ClientPortals.portals().isEmpty() || PortalView.drawing();
+        return mc.level == null || ClientPortals.portals().isEmpty() && ClientHoles.holes().isEmpty()
+                || PortalView.drawing();
     }
 
     /**
-     * Draws the view through each portal that drew one this frame on its face.
+     * Draws the view through each gate that drew one this frame on its face.
      * portals-link-by-looking-through-portal-vision
+     * hole-closes-the-space-to-an-opening-ahead
      *
      * @param pose    the pose
      * @param buffers the frame's buffers
      * @param camera  the main camera's position
+     * @param gates   the gates the frame draws
      */
-    private static void drawViews(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera) {
-        for (Portal portal : ClientPortals.portals()) {
-            PortalView.viewOf(portal).ifPresent(view -> {
+    private static void drawViews(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            List<Drawn> gates) {
+        for (Drawn drawn : gates) {
+            PortalView.viewOf(drawn.gate()).ifPresent(view -> {
                 RenderType type = GooRenderTypes.gooPortalView(view);
-                emitFace(pose, buffers.getBuffer(type), portal.blocks().move(camera.reverse()), portal.face(),
-                        FACE_LIFT, ARGB.color(OPAQUE, colorOf(portal, ClientPortals.link())));
+                emitFace(pose, buffers.getBuffer(type), drawn.gate().blocks().move(camera.reverse()),
+                        drawn.gate().face(), FACE_LIFT, ARGB.color(OPAQUE, drawn.rgb()));
                 buffers.endBatch(type);
             });
         }
@@ -204,7 +238,7 @@ public final class PortalFaces {
                 int color = ARGB.color(alphaOf(portal, choosing, picked), colorOf(portal, ClientPortals.link()));
                 if (choosing.isPresent()) {
                     emitFace(pose, consumer, frame, portal.face(), FACE_LIFT, color);
-                } else if (PortalView.viewOf(portal).isPresent()) {
+                } else if (PortalView.viewOf(portal.gate()).isPresent()) {
                     rimOf(frame, portal.face().getAxis()).forEach(strip -> emitFace(pose, consumer, strip,
                             portal.face(), RIM_LIFT, color));
                 }
