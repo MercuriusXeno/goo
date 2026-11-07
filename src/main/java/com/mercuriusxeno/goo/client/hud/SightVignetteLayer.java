@@ -35,6 +35,8 @@ public final class SightVignetteLayer {
     /** Ticks before the sight ends that the vignette starts fading out. */
     static final float FADE_OUT_TICKS = 60f;
     private static final TendrilVignette.Look LOOK = new TendrilVignette.Look(MIST_RGB, TENDRIL_RGB);
+    /** This sight's own tendrils, sprouting from a seed of their own. */
+    private static final TendrilVignette VIGNETTE = new TendrilVignette(0x5167_A7E5L);
 
     /** Marks that no standing sight has been seen. */
     private static final long UNSEEN = Long.MIN_VALUE;
@@ -76,7 +78,7 @@ public final class SightVignetteLayer {
         Sight sight = player.getData(GooAttachments.SIGHT);
         float time = now + deltaTracker.getGameTimeDeltaPartialTick(false);
         float strength = strengthAt(sight, now, time);
-        TendrilVignette.draw(graphics, time, strength, LOOK);
+        VIGNETTE.draw(graphics, time, strength, LOOK);
     }
 
     /**
