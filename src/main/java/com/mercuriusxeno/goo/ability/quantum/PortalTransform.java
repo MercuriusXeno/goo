@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
-import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -8,8 +7,8 @@ import net.minecraft.world.phys.Vec3;
  * point in front of the portal looked into maps to the matching point behind
  * its partner, turned half about the portals' up, so a camera looking into
  * one sees out of the other as though its side stood right there. Each
- * portal's frame is its face's normal, an up (world up on a wall, north on a
- * floor or ceiling) and the right between them.
+ * portal's frame is its face's normal, its up along its length (world up on
+ * a wall, the caster's facing on a floor or ceiling) and the right between them.
  * portals-link-by-looking-through-portal-vision
  *
  * @param fromCenter the middle of the face looked into
@@ -33,21 +32,11 @@ public record PortalTransform(Vec3 fromCenter, Vec3 fromRight, Vec3 fromUp, Vec3
      */
     public static PortalTransform between(Portal from, Portal to) {
         Vec3 fromNormal = from.face().getUnitVec3();
-        Vec3 fromUp = upOf(from.face());
+        Vec3 fromUp = from.up();
         Vec3 toNormal = to.face().getUnitVec3();
-        Vec3 toUp = upOf(to.face());
+        Vec3 toUp = to.up();
         return new PortalTransform(from.faceCenter(), fromUp.cross(fromNormal), fromUp, fromNormal,
                 to.faceCenter(), toUp.cross(toNormal), toUp, toNormal);
-    }
-
-    /**
-     * The up of a portal on a face: world up on a wall, north on a floor or ceiling.
-     *
-     * @param face the face
-     * @return the unit up
-     */
-    static Vec3 upOf(Direction face) {
-        return face.getAxis().isHorizontal() ? Direction.UP.getUnitVec3() : Direction.NORTH.getUnitVec3();
     }
 
     /**

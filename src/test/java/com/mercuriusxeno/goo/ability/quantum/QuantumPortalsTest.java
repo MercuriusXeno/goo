@@ -25,9 +25,9 @@ class QuantumPortalsTest {
     private static final ResourceKey<Level> NETHER =
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("the_nether"));
     private static final UUID OWNER = new UUID(1L, 2L);
-    private static final Portal HERE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, 0)), Direction.SOUTH);
-    private static final Portal THERE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(9, 64, 0)), Direction.SOUTH);
-    private static final Portal ELSEWHERE = new Portal(GlobalPos.of(NETHER, new BlockPos(0, 64, 9)), Direction.SOUTH);
+    private static final Portal HERE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, 0)), Direction.SOUTH, Direction.UP);
+    private static final Portal THERE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(9, 64, 0)), Direction.SOUTH, Direction.UP);
+    private static final Portal ELSEWHERE = new Portal(GlobalPos.of(NETHER, new BlockPos(0, 64, 9)), Direction.SOUTH, Direction.UP);
 
     private static QuantumPortals choosingFromHere() {
         QuantumPortals portals = new QuantumPortals();

@@ -48,6 +48,10 @@ public final class PortalFaces {
     private static final int OPAQUE = 255;
     /** The width of the colored rim around a portal's view, in blocks. */
     private static final double RIM = 0.06;
+    /** How far off its blocks a portal's face, or its view, stands. */
+    private static final double FACE_LIFT = 0.01;
+    /** How far off its blocks the rim around a view stands, clear of the view beneath it. */
+    private static final double RIM_LIFT = 0.02;
 
     private PortalFaces() {
     }
@@ -120,9 +124,8 @@ public final class PortalFaces {
         for (Portal portal : ClientPortals.portals()) {
             PortalView.viewOf(portal).ifPresent(view -> {
                 RenderType type = GooRenderTypes.gooPortalView(view);
-                ScrySweep.emitBoxFace(pose, buffers.getBuffer(type), new AABB(portal.block().pos())
-                        .move(camera.reverse()), portal.face(), ARGB.color(OPAQUE, colorOf(portal,
-                        ClientPortals.link())));
+                emitFace(pose, buffers.getBuffer(type), portal.blocks().move(camera.reverse()), portal.face(),
+                        FACE_LIFT, ARGB.color(OPAQUE, colorOf(portal, ClientPortals.link())));
                 buffers.endBatch(type);
             });
         }
@@ -132,13 +135,32 @@ public final class PortalFaces {
             ResourceKey<Level> dimension, Optional<Portal> choosing, Optional<Portal> picked) {
         for (Portal portal : ClientPortals.portals()) {
             if (portal.block().dimension().equals(dimension)) {
-                AABB block = new AABB(portal.block().pos()).move(camera.reverse());
+                AABB frame = portal.blocks().move(camera.reverse());
                 int color = ARGB.color(alphaOf(portal, choosing, picked), colorOf(portal, ClientPortals.link()));
-                List<AABB> parts = choosing.isEmpty() && PortalView.viewOf(portal).isPresent()
-                        ? rimOf(block, portal.face().getAxis()) : List.of(block);
-                parts.forEach(part -> ScrySweep.emitBoxFace(pose, consumer, part, portal.face(), color));
+                if (choosing.isEmpty() && PortalView.viewOf(portal).isPresent()) {
+                    rimOf(frame, portal.face().getAxis()).forEach(strip -> emitFace(pose, consumer, strip,
+                            portal.face(), RIM_LIFT, color));
+                } else {
+                    emitFace(pose, consumer, frame, portal.face(), FACE_LIFT, color);
+                }
             }
         }
+    }
+
+    /**
+     * Emits one side of a box as a quad standing a lift off it, far enough
+     * off the block that the two never fight for depth.
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param box      the box, camera-relative
+     * @param side     the side to draw
+     * @param lift     how far off the side the quad stands
+     * @param color    the packed ARGB color
+     */
+    static void emitFace(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, double lift,
+            int color) {
+        ScrySweep.emitBoxFace(pose, consumer, box, side, lift, color);
     }
 
     /**

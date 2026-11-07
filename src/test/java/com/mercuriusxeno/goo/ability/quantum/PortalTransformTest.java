@@ -23,15 +23,15 @@ class PortalTransformTest {
     private static final double TOLERANCE = 1e-9;
     private static final ResourceKey<Level> OVERWORLD =
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("overworld"));
-    /** A on the south face of a block at the origin: its face's middle is (0.5, 64.5, 1). */
-    private static final Portal SOUTH_WALL = portal(new BlockPos(0, 64, 0), Direction.SOUTH);
-    /** B on the east face of a block ten east: its face's middle is (11, 64.5, 0.5). */
-    private static final Portal EAST_WALL = portal(new BlockPos(10, 64, 0), Direction.EAST);
-    /** C on the top face of a block: its face's middle is (20.5, 65, 0.5). */
-    private static final Portal FLOOR = portal(new BlockPos(20, 64, 0), Direction.UP);
+    /** A, two tall on the south faces of a block at the origin and the one above: its face's middle is (0.5, 65, 1). */
+    private static final Portal SOUTH_WALL = portal(new BlockPos(0, 64, 0), Direction.SOUTH, Direction.UP);
+    /** B, two tall on the east faces of a block ten east and the one above: its middle is (11, 65, 0.5). */
+    private static final Portal EAST_WALL = portal(new BlockPos(10, 64, 0), Direction.EAST, Direction.UP);
+    /** C, flat on the top faces of a block and the one north of it: its face's middle is (20.5, 65, 0). */
+    private static final Portal FLOOR = portal(new BlockPos(20, 64, 0), Direction.UP, Direction.NORTH);
 
-    private static Portal portal(BlockPos block, Direction face) {
-        return new Portal(GlobalPos.of(OVERWORLD, block), face);
+    private static Portal portal(BlockPos block, Direction face, Direction along) {
+        return new Portal(GlobalPos.of(OVERWORLD, block), face, along);
     }
 
     private static void assertVec(Vec3 expected, Vec3 actual) {

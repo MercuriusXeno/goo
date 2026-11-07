@@ -11,16 +11,19 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.TextureFilteringMethod;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
+import net.minecraft.client.renderer.chunk.CompiledSectionMesh;
+import net.minecraft.client.renderer.chunk.RenderRegionCache;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.fog.FogRenderer;
+import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -142,7 +145,7 @@ public final class PortalView {
         return near.block().dimension().equals(mc.level.dimension())
                 && toEye.dot(near.face().getUnitVec3()) > 0
                 && toEye.length() < mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK
-                && main.getCullFrustum().isVisible(new AABB(near.block().pos()).inflate(TOUCH));
+                && main.getCullFrustum().isVisible(near.blocks().inflate(TOUCH));
     }
 
     /**
@@ -231,6 +234,7 @@ public final class PortalView {
         drawing = true;
         try {
             mc.mainRenderTarget = target;
+            placeGlobalCamera(mc, delta, camera.pos);
             RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(camera.projectionMatrix),
                     ProjectionType.PERSPECTIVE);
             game.fogRenderer.updateBuffer(camera.fogData);
@@ -244,7 +248,27 @@ public final class PortalView {
     }
 
     /**
-     * Fills the visible sections with every section in the view area the portal camera's frustum holds.
+     * Sets the frame's global camera, which the terrain and entity shaders
+     * lay geometry out from, to the portal camera's position. The frame's own
+     * render sets it back to the main camera's before it draws.
+     *
+     * @param mc     the client
+     * @param delta  the frame's delta tracker
+     * @param eye    the portal camera's position
+     */
+    private static void placeGlobalCamera(Minecraft mc, DeltaTracker delta, Vec3 eye) {
+        GameRenderState frame = mc.gameRenderer.gameRenderState;
+        mc.gameRenderer.globalSettingsUniform.update(frame.windowRenderState.width, frame.windowRenderState.height,
+                frame.optionsRenderState.glintStrength, mc.level.getGameTime(), delta,
+                frame.optionsRenderState.menuBackgroundBlurriness, eye,
+                frame.optionsRenderState.textureFiltering == TextureFilteringMethod.RGSS);
+    }
+
+    /**
+     * Fills the visible sections with every section in the view area the
+     * portal camera's frustum holds, and queues a build for each one that
+     * waits for one: the frame builds only the sections the main camera sees,
+     * so a section seen through the portal alone would stand unbuilt.
      *
      * @param visible the level renderer's visible sections, refilled
      * @param levels  the level renderer
@@ -256,10 +280,27 @@ public final class PortalView {
         if (levels.viewArea == null) {
             return;
         }
+        RenderRegionCache cache = new RenderRegionCache();
         for (SectionRenderDispatcher.RenderSection section : levels.viewArea.sections) {
             if (camera.getCullFrustum().isVisible(section.getBoundingBox())) {
                 visible.add(section);
+                buildWhenWaiting(section, cache);
             }
+        }
+    }
+
+    /**
+     * Queues a section's build where it waits for one, as the frame's own
+     * compile does for the sections the main camera sees.
+     *
+     * @param section the section
+     * @param cache   the frame's region cache
+     */
+    private static void buildWhenWaiting(SectionRenderDispatcher.RenderSection section, RenderRegionCache cache) {
+        if (section.isDirty()
+                && (section.getSectionMesh() != CompiledSectionMesh.UNCOMPILED || section.hasAllNeighbors())) {
+            section.rebuildSectionAsync(cache);
+            section.setNotDirty();
         }
     }
 
