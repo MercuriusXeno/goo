@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.BlockHunk;
@@ -36,8 +37,9 @@ import java.util.function.Consumer;
  * the struck block and its stone neighbors out of the ground as one hunk,
  * charging their rock goo value, and a throw hucks the hunk into a
  * cobblestone wall, which it crushes before it breaks apart into its own
- * stone as items.
+ * stone as items. The tear names a sound the registry holds.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
+ * decision terrakinesis-tears-free-with-a-stone-tear-and-seam-dust
  */
 @RegistersGameTests
 public final class TerrakinesisTests {
@@ -106,6 +108,8 @@ public final class TerrakinesisTests {
             helper.assertTrue(hunks.size() == 1 && hunks.getFirst().blocks().size() == slab.size()
                     && hunks.getFirst().blocks().stream().allMatch(block -> block.state().is(Blocks.STONE)),
                     String.format(NO_HUNK, slab.size(), hunks.stream().map(hunk -> hunk.blocks().size()).toList()));
+            helper.assertTrue(BuiltInRegistries.SOUND_EVENT.containsKey(TerrakinesisStep.TEAR.sound()),
+                    "The tear's sound " + TerrakinesisStep.TEAR.sound() + " should stand in the sound registry");
             int expected = stoneRockValue(helper).exact(GooTypes.ROCK).times(slab.size()).ceiling();
             int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.ROCK, 0);
             helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
