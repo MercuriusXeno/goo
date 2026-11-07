@@ -119,6 +119,12 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     public static final double NOT_PLACED = -1;
     /** The shatter time a whole hunk names. */
     public static final long WHOLE = -1;
+    /** The fastest a let-go hunk falls into its seat, in blocks a tick. */
+    private static final double MOST_SEAT_FALL = 0.5;
+    /** How near its seat, squared, a moving hunk counts as seated. */
+    private static final double SEATED_SQR = 1e-8;
+    /** The ticks a hunk moving to its seat may stand held fast before it looks for its seat again. */
+    private static final int MOST_STUCK_TICKS = 5;
     /** How near its seat an easing hunk drops exactly onto the grid, in blocks. */
     static final double SNAP_TO_SEAT = 0.08;
     /** How far a hold pushed into the ground leans toward a seat its shape fits, 1 all the way; tuned in playtesting. */
@@ -166,6 +172,12 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private final InterpolationHandler interpolation = new InterpolationHandler(this);
     /** Ticks the hunk has flown free since a hold last stood on it. */
     private int flightTicks;
+    /** The grid seat a let-go hunk come to rest moves on to, or null while it flies or is held. */
+    private @Nullable BlockPos seat;
+    /** How fast a hunk moving to its seat falls, in blocks a tick. */
+    private double seatFall;
+    /** The ticks a hunk moving to its seat has stood held fast. */
+    private int stuckTicks;
     /** By block index, whether a shattering hunk has dropped that block. */
     private boolean[] dropped = new boolean[0];
 
@@ -646,9 +658,14 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         }
         if (hasData(GooAttachments.GRABBED)) {
             flightTicks = 0;
+            seat = null;
             return;
         }
         entityData.set(HOLDER, NO_HOLDER);
+        if (seat != null) {
+            seatTick(server);
+            return;
+        }
         flightTicks++;
         fly(server);
     }
@@ -753,25 +770,43 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Places a let-go hunk that came to rest: aligned to the grid, each block
-     * in the cell it rounds to, replacing what stood there, no item dropped;
-     * it then lingers over its stone while the clients' chunks redraw it.
+     * Picks the grid seat a let-go hunk that came to rest moves on to
+     * (HoleFit.settleNear), every cell of it open so the hunk overlaps no
+     * block; where nothing in reach is open it stays an entity, resting, and
+     * looks again next tick.
      * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     */
+    private void findItsSeat() {
+        setDeltaMovement(Vec3.ZERO);
+        seat = HoleFit.settleNear(originCellOf(position()), shape(), this::open).orElse(null);
+        seatFall = 0;
+        stuckTicks = 0;
+    }
+
+    /**
+     * One tick of a let-go hunk moving on to its seat (SeatSlide), by its own
+     * blocks against the world, becoming its blocks once there; held fast
+     * short of it, it looks for its seat again from where it stands.
      *
      * @param level the server level
      */
-    private void placeOnTheGrid(ServerLevel level) {
-        setDeltaMovement(Vec3.ZERO);
-        Optional<BlockPos> seat = HoleFit.fitNear(originCellOf(position()), shape(), this::open,
-                HoleFit.SETTLE_RADIUS);
-        if (seat.isEmpty()) {
-            // Nowhere it fits without overwriting a block: it breaks apart as a thrown one would.
-            impact(level, Vec3.ZERO, List.of());
+    private void seatTick(ServerLevel level) {
+        Vec3 there = Vec3.atBottomCenterOf(seat);
+        seatFall = Math.min(seatFall + GRAVITY, MOST_SEAT_FALL);
+        Vec3 wanted = SeatSlide.step(position(), there, seatFall).subtract(position());
+        Vec3 moved = allowedMove(position(), wanted);
+        setPos(position().add(moved));
+        if (position().distanceToSqr(there) < SEATED_SQR) {
+            setPos(there);
+            seat = null;
+            placeBlocks(level);
+            entityData.set(PLACED_AT, level.getGameTime());
             return;
         }
-        setPos(Vec3.atBottomCenterOf(seat.get()));
-        placeBlocks(level);
-        entityData.set(PLACED_AT, level.getGameTime());
+        stuckTicks = moved.lengthSqr() < SEATED_SQR ? stuckTicks + 1 : 0;
+        if (stuckTicks > MOST_STUCK_TICKS) {
+            findItsSeat();
+        }
     }
 
     /**
@@ -827,7 +862,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
                 LivingEntity::isAlive) : List.of();
         switch (landingOf(thrown, ranInto(motion, struck), cameToRest(motion))) {
             case STRIKE -> impact(level, motion, struck);
-            case PLACE -> placeOnTheGrid(level);
+            case PLACE -> findItsSeat();
             default -> setDeltaMovement(getDeltaMovement().scale(DRAG));
         }
     }
