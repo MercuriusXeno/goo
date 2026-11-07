@@ -64,6 +64,7 @@ public final class HostVariables {
      * counter read rather than a host variable.
      */
     private static final char COUNTER_SEPARATOR = ':';
+    private static final char PREFAB_MARK = '$';
 
     private HostVariables() {
     }
@@ -77,7 +78,38 @@ public final class HostVariables {
      * @return true for a counter id
      */
     public static boolean isCounter(String name) {
+        return isNamespacedId(name);
+    }
+
+    /**
+     * Tells whether an expression's name is a namespaced id, which a step reads as a counter and an ability's cost
+     * reads as an item, spelled as base_values spells it
+     * (decision ability-cost-builds-as-a-one-type-by-type-value).
+     *
+     * @param name the name
+     * @return true for a namespaced id
+     */
+    public static boolean isNamespacedId(String name) {
         return name.indexOf(COUNTER_SEPARATOR) >= 0;
+    }
+
+    /**
+     * Tells whether an expression's name is a prefab, spelled $name as base_values spells it, which an ability's
+     * cost reads (decision ability-cost-builds-as-a-one-type-by-type-value).
+     *
+     * @param name the name
+     * @return true for a $name
+     */
+    public static boolean isPrefab(String name) {
+        return name.length() > 1 && name.charAt(0) == PREFAB_MARK;
+    }
+
+    /**
+     * @param name a $name
+     * @return the prefab's name without its $
+     */
+    public static String prefabName(String name) {
+        return name.substring(1);
     }
 
     /**

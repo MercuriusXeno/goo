@@ -15,6 +15,7 @@ final class ManagerReads {
     private final GroupsPane groups;
     private final VariablesPane variables;
     private final ProcessesPane processes;
+    private final AbilitiesPane abilities;
 
     /**
      * @param actions   the line the requests go out on
@@ -22,14 +23,16 @@ final class ManagerReads {
      * @param groups    the Groups pane, which describes the draft's groups
      * @param variables the Variables pane, which evaluates the draft's constants
      * @param processes the Processes pane, which describes the draft's processes
+     * @param abilities the Abilities pane, which saves each edited ability's draft
      */
     ManagerReads(ManagerActions actions, ValuesTab values, GroupsPane groups, VariablesPane variables,
-                 ProcessesPane processes) {
+                 ProcessesPane processes, AbilitiesPane abilities) {
         this.actions = actions;
         this.values = values;
         this.groups = groups;
         this.variables = variables;
         this.processes = processes;
+        this.abilities = abilities;
     }
 
     /**
@@ -64,7 +67,8 @@ final class ManagerReads {
             actions.request(WorkbenchOperations.SAVE_MODEL, values.postedText(), reply -> {
                 values.readModel(reply);
                 readAfresh();
-                saved.run();
+                // ability-drafts-promote-per-file-like-base-values: Save writes each edited ability's draft too
+                abilities.save(saved);
             });
         });
     }

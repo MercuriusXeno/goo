@@ -240,7 +240,9 @@ public class GooValueRegistry {
      * @param built the complete effective values
      */
     private void publishEffectiveValues(Map<Identifier, GooValue> built) {
-        table = new GooValueTable(built, baseValues.keySet(), deniedItems, restrictedItems);
+        // ability-cost-builds-as-a-one-type-by-type-value: a cost reads a prefab through the table
+        table = new GooValueTable(built, baseValues.keySet(), deniedItems, restrictedItems,
+                new PrefabValues(constants, treeConstants));
     }
 
     /**

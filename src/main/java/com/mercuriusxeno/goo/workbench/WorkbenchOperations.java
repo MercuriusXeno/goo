@@ -1,14 +1,20 @@
 package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -59,6 +65,10 @@ public final class WorkbenchOperations {
     public static final String PROMOTE = "promote";
     /** Copies the live file back over the draft. */
     public static final String DISCARD = "discard";
+    /** Lists every ability's numeric leaves, each ability's draft over its live file. */
+    public static final String ABILITY_MODEL = "abilities/model";
+    /** Writes a draft for each posted ability's changed leaves and applies the abilities live. */
+    public static final String SAVE_ABILITIES = "abilities/save";
 
     private static final int BAD_REQUEST = 400;
     private static final int NOT_FOUND = 404;
@@ -72,9 +82,12 @@ public final class WorkbenchOperations {
     // The exit code a run reports when it was interrupted or could not start, since the runner gave none.
     private static final int RUN_FAILED_EXIT = -1;
     private static final String NO_DRAFT_AT = "No draft stands to promote at ";
+    private static final String NOR_AT = " nor in ";
     private static final String NO_INVENTORY_WRITTEN = "The inventory dump wrote no ";
     private static final String NO_CONSTANT_NAMED = "No constant is named $";
     private static final String NO_OPERATION_NAMED = "No workbench operation is named ";
+    private static final String NO_ABILITY_NAMED = "No ability is named ";
+    private static final String ABILITIES = "abilities";
     private static final String EXCEPTION_MESSAGE_SEPARATOR = ": ";
 
     private final WorkbenchPaths paths;
@@ -82,6 +95,7 @@ public final class WorkbenchOperations {
     private final InventoryDump dump;
     private final DumpRunner dumps;
     private final LiveApplier applier;
+    private final AbilityFiles abilityFiles;
     private final Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes;
     // Guards the draft file alone: a dump run holds this object's own monitor for minutes, and a seed, Promote or
     // Discard must not wait on it.
@@ -110,7 +124,9 @@ public final class WorkbenchOperations {
                     ValuesJson.inventory(dumpedInventory()), ValuesJson.idFrom(posted)))),
             Map.entry(PROCESSES, posted -> json(ProcessesJson.described(postedModel(posted)))),
             Map.entry(PROMOTE, posted -> promote()),
-            Map.entry(DISCARD, posted -> discard()));
+            Map.entry(DISCARD, posted -> discard()),
+            Map.entry(ABILITY_MODEL, posted -> abilityModel()),
+            Map.entry(SAVE_ABILITIES, this::saveAbilities));
 
     /**
      * @param paths      the files the workbench reads and writes
@@ -135,11 +151,27 @@ public final class WorkbenchOperations {
     public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps,
                                LiveApplier applier,
                                Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes) {
+        this(paths, seed, dump, dumps, applier, AbilityFiles.NONE, knownTypes);
+    }
+
+    /**
+     * @param paths        the files the workbench reads and writes
+     * @param seed         the text a draft starts from where no live file stands
+     * @param dump         writes the inventory when none stands
+     * @param dumps        runs the audit and clique dumps
+     * @param applier      applies the text a Save, a Promote or a Discard leaves standing to the running server
+     * @param abilityFiles the server's ability files, and the hand applying ability drafts to it
+     * @param knownTypes   the goo types the game holds, read on every draft load
+     */
+    public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps,
+                               LiveApplier applier, AbilityFiles abilityFiles,
+                               Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes) {
         this.paths = paths;
         this.seed = seed;
         this.dump = dump;
         this.dumps = dumps;
         this.applier = applier;
+        this.abilityFiles = abilityFiles;
         this.knownTypes = knownTypes;
     }
 
@@ -397,17 +429,56 @@ public final class WorkbenchOperations {
      * @return the live model, or a conflict where no draft stands
      */
     private WorkbenchReply promote() throws IOException {
+        boolean values;
+        List<Identifier> abilities;
         synchronized (draftLock) {
-            if (!Files.isRegularFile(paths.draft())) {
-                return WorkbenchReply.of(CONFLICT, WorkbenchReply.TEXT, NO_DRAFT_AT + paths.draft());
+            if (!Files.isRegularFile(paths.draft()) && AbilityDrafts.read(paths.abilityDrafts()).isEmpty()) {
+                return WorkbenchReply.of(CONFLICT, WorkbenchReply.TEXT, NO_DRAFT_AT + paths.draft() + NOR_AT
+                        + paths.abilityDrafts());
             }
-            datafixedDraft();
-            Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE);
+            values = promoteValuesDraft();
+            // ability-drafts-promote-per-file-like-base-values: each ability draft lands over its live file
+            abilities = AbilityDrafts.promote(paths.abilityDrafts(), paths.abilities());
         }
-        String live = Files.readString(paths.baseValues());
-        applier.apply(live);
+        if (!abilities.isEmpty()) {
+            abilityFiles.apply(livePackAbilities());
+        }
+        String live = liveValuesText();
+        if (values) {
+            applier.apply(live);
+        }
         return modelReply(BaseValuesModel.parse(live));
+    }
+
+    // Renames the values draft over the live file where one stands; answers whether one stood.
+    private boolean promoteValuesDraft() throws IOException {
+        if (!Files.isRegularFile(paths.draft())) {
+            return false;
+        }
+        datafixedDraft();
+        Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+        return true;
+    }
+
+    // What the game reads for base values, read without seeding a draft, so a promote of ability drafts alone
+    // leaves no values draft for a second promote to find.
+    private String liveValuesText() throws IOException {
+        return Files.isRegularFile(paths.baseValues()) ? Files.readString(paths.baseValues())
+                : new String(seed.read(), java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    // The ability files the live folder holds, which stand over the server's packs, since a pack a promote wrote
+    // into reads afresh at the next reload alone.
+    private Map<Identifier, JsonObject> livePackAbilities() throws IOException {
+        return AbilityDrafts.readLive(paths.abilities());
+    }
+
+    // Every live ability file: the server's packs', the live folder's standing over them.
+    private Map<Identifier, JsonObject> liveAbilities() throws IOException {
+        Map<Identifier, JsonObject> live = new HashMap<>(abilityFiles.live());
+        live.putAll(livePackAbilities());
+        return live;
     }
 
     /**
@@ -422,9 +493,65 @@ public final class WorkbenchOperations {
             restored = Files.isRegularFile(paths.baseValues()) ? Files.readAllBytes(paths.baseValues()) : seed.read();
             Files.createDirectories(paths.draft().getParent());
             Files.write(paths.draft(), restored);
+            // ability-drafts-promote-per-file-like-base-values: each ability reads its live file again
+            AbilityDrafts.discard(paths.abilityDrafts());
         }
         applier.apply(new String(restored, java.nio.charset.StandardCharsets.UTF_8));
+        abilityFiles.apply(livePackAbilities());
         return modelReply(datafixedDraft());
+    }
+
+    /**
+     * Lists every ability's numeric leaves, each ability's draft standing over its live file
+     * (decision abilities-tab-lists-every-numeric-param-as-expression-boxes).
+     *
+     * @return the abilities' model
+     */
+    private WorkbenchReply abilityModel() throws IOException {
+        return json(AbilitiesModel.model(liveAbilities(), AbilityDrafts.read(paths.abilityDrafts())).toString());
+    }
+
+    /**
+     * Writes one draft per posted ability, its changed leaves over its draft or its live file, refusing the whole
+     * save where any edited ability would not load, then applies the abilities live
+     * (decision ability-drafts-promote-per-file-like-base-values).
+     *
+     * @param posted each edited ability's changed leaves by path, under "abilities" by the ability's id
+     * @return the abilities' model after the save
+     */
+    private WorkbenchReply saveAbilities(String posted) throws IOException {
+        JsonObject edits = JsonParser.parseString(posted).getAsJsonObject().getAsJsonObject(ABILITIES);
+        Map<Identifier, JsonObject> live = liveAbilities();
+        Map<Identifier, JsonObject> drafts = AbilityDrafts.read(paths.abilityDrafts());
+        Map<Identifier, JsonObject> written = editedAbilities(edits, live, drafts);
+        for (Map.Entry<Identifier, JsonObject> draft : written.entrySet()) {
+            AbilityDrafts.write(paths.abilityDrafts(), draft.getKey(), draft.getValue());
+        }
+        drafts.putAll(written);
+        Map<Identifier, JsonObject> standing = new HashMap<>(livePackAbilities());
+        standing.putAll(drafts);
+        abilityFiles.apply(standing);
+        return json(AbilitiesModel.model(live, drafts).toString());
+    }
+
+    // Each posted ability's changed leaves over its draft or its live file, refused whole where any edited ability
+    // would not load or names no ability.
+    private static Map<Identifier, JsonObject> editedAbilities(JsonObject edits, Map<Identifier, JsonObject> live,
+                                                               Map<Identifier, JsonObject> drafts) {
+        Map<Identifier, JsonObject> written = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> edit : edits.entrySet()) {
+            Identifier id = Identifier.parse(edit.getKey());
+            JsonObject standing = drafts.getOrDefault(id, live.get(id));
+            if (standing == null) {
+                throw new IllegalArgumentException(NO_ABILITY_NAMED + id);
+            }
+            JsonObject edited = AbilitiesModel.edited(standing, edit.getValue().getAsJsonObject());
+            AbilitiesModel.refusal(id, edited).ifPresent(refusal -> {
+                throw new IllegalArgumentException(id + EXCEPTION_MESSAGE_SEPARATOR + refusal);
+            });
+            written.put(id, edited);
+        }
+        return written;
     }
 
     private WorkbenchReply inventory() throws IOException, InterruptedException {

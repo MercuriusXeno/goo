@@ -112,7 +112,7 @@ public final class ValuesManagers {
         });
         Standing stood = new Standing(new WorkbenchOperations(paths, ValuesManagers::jarValues,
                 InGameDumps.inventory(server, paths), InGameDumps.dumps(server, paths),
-                text -> applyLive(server, text, packId),
+                text -> applyLive(server, text, packId), new InGameAbilityFiles(server),
                 // A datapack type counts as known (decision draft-load-drops-entries-naming-an-unknown-type).
                 () -> GooTypes.all(server.registryAccess())), new WorkbenchRequests(worker), worker);
         STANDING.put(server, stood);

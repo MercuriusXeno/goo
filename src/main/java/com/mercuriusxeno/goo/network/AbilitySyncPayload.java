@@ -4,11 +4,13 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -107,14 +109,15 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             buf.writeVarInt(e.order);
             encodeTags(buf, e.tags);
             STEPS_CODEC.encode(buf, e.behaviors);
-            buf.writeVarInt(e.cost);
+            // ability-cost-builds-as-a-one-type-by-type-value: the client prices the items itself
+            buf.writeUtf(e.cost.source());
             Delivery.STREAM_CODEC.encode(buf, e.delivery);
             AbilityBadge.STREAM_CODEC.encode(buf, e.badge);
             ITEMS_CODEC.encode(buf, e.requires);
             AbilityArea.STREAM_CODEC.encode(buf, e.area);
             IndicatorShowing.STREAM_CODEC.encode(buf, e.indicator);
             ITEMS_CODEC.encode(buf, e.consumes);
-            buf.writeVarInt(e.upkeep);
+            buf.writeUtf(e.upkeep.source());
             DistancePrice.STREAM_CODEC.encode(buf, e.distancePrice);
             encodeTail(buf, e);
         }
@@ -139,16 +142,38 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
         int count = buf.readVarInt();
         List<Entry> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            entries.add(new Entry(buf.readUtf(), buf.readUtf(), buf.readUtf(),
-                    buf.readUtf(), buf.readVarInt(), decodeTags(buf),
-                    STEPS_CODEC.decode(buf), buf.readVarInt(), Delivery.STREAM_CODEC.decode(buf),
-                    AbilityBadge.STREAM_CODEC.decode(buf), ITEMS_CODEC.decode(buf),
-                    AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf),
-                    ITEMS_CODEC.decode(buf), buf.readVarInt(), DistancePrice.STREAM_CODEC.decode(buf),
-                    STEPS_CODEC.decode(buf), ArmPose.STREAM_CODEC.decode(buf), buf.readUtf(),
-                    buf.readOptional(FriendlyByteBuf::readUtf), buf.readOptional(FriendlyByteBuf::readUtf)));
+            entries.add(decodeEntry(buf));
         }
         return new AbilitySyncPayload(entries);
+    }
+
+    private static Entry decodeEntry(FriendlyByteBuf buf) {
+        String abilityId = buf.readUtf();
+        String gooTypeId = buf.readUtf();
+        return new Entry(abilityId, gooTypeId, buf.readUtf(),
+                buf.readUtf(), buf.readVarInt(), decodeTags(buf),
+                STEPS_CODEC.decode(buf), priceOf(buf.readUtf(), gooTypeId), Delivery.STREAM_CODEC.decode(buf),
+                AbilityBadge.STREAM_CODEC.decode(buf), ITEMS_CODEC.decode(buf),
+                AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf),
+                ITEMS_CODEC.decode(buf), priceOf(buf.readUtf(), gooTypeId), DistancePrice.STREAM_CODEC.decode(buf),
+                STEPS_CODEC.decode(buf), ArmPose.STREAM_CODEC.decode(buf), buf.readUtf(),
+                buf.readOptional(FriendlyByteBuf::readUtf), buf.readOptional(FriendlyByteBuf::readUtf));
+    }
+
+    /**
+     * Reads a synced price back from its text, its items pricing in the ability's type; a text that fails to parse
+     * or names items under a type this side holds not reads as free.
+     *
+     * @param source    the price's text
+     * @param gooTypeId the ability's goo type id
+     * @return the price
+     */
+    private static AbilityPrice priceOf(String source, String gooTypeId) {
+        ResourceKey<GooTypeDefinition> type = GooTypes.byId(gooTypeId);
+        return Expr.parse(source).result()
+                .filter(amount -> type != null || amount.variables().isEmpty())
+                .map(amount -> type == null ? new AbilityPrice(amount, null) : AbilityPrice.of(amount, type))
+                .orElse(AbilityPrice.FREE);
     }
 
     private static List<String> decodeTags(FriendlyByteBuf buf) {
@@ -175,14 +200,14 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param order       the sort order within the type
      * @param tags        categorical tags for targeting and display
      * @param behaviors   the ability's step program
-     * @param cost        the mB a throw costs, the same at every stack count
+     * @param cost        what a throw costs, the same at every stack count, its items priced on the client
      * @param delivery    how the ability leaves the glove
      * @param badge       the target kind the radial marks on the icon
      * @param requires    the items a player must know before the radial offers it
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each, beside its goo cost
-     * @param upkeep      the mB a held self + brew effect pays each tick it stands
+     * @param upkeep      what a held self + brew effect pays each tick it stands
      * @param distancePrice what a blink adds to the cost for its trip
      * @param onPrism     the steps a landing on a prism runs, empty for none, which the wheel
      *                    marks with the prism badge (decision on-prism-reaction-wears-the-prism-badge)
@@ -196,9 +221,9 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags,
-                        List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                        List<Step> behaviors, AbilityPrice cost, Delivery delivery, AbilityBadge badge,
                         List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                        List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
+                        List<Identifier> consumes, AbilityPrice upkeep, DistancePrice distancePrice,
                         List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
                         Optional<String> costFormula) {
 
@@ -231,9 +256,9 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                      List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                      List<Identifier> consumes, int upkeep, DistancePrice distancePrice, List<Step> onPrism,
                      ArmPose pose, String description, Optional<String> costMechanics) {
-            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
-                    area, indicator, consumes, upkeep, distancePrice, onPrism, pose, description, costMechanics,
-                    Optional.empty());
+            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, AbilityPrice.flat(cost), delivery,
+                    badge, requires, area, indicator, consumes, AbilityPrice.flat(upkeep), distancePrice, onPrism,
+                    pose, description, costMechanics, Optional.empty());
         }
 
         /**

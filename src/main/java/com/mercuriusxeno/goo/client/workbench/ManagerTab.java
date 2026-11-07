@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 /**
- * The values manager's tabs, in the page's order, labeled Items, #Groups, $Prefabs, Conversions, Audit: the page's
+ * The values manager's tabs, in the page's order, labeled Items, #Groups, $Prefabs, Conversions, Audit, Abilities: the page's
  * Values, Variables and Processes renamed, the constants keeping their names, groups marked # and prefabs $ as
  * every name of theirs is (decisions goo-workbench-opens-the-in-game-manager-screen,
  * values-checks-go-with-the-checks-tab, conversions-is-the-one-section-and-the-pane-name,
@@ -17,7 +17,9 @@ public enum ManagerTab {
     /** The _conversions section: its formulas, additives, stacks and parallel copies. */
     PROCESSES("Conversions"),
     /** The audit's sections. */
-    AUDIT("Audit");
+    AUDIT("Audit"),
+    /** Every ability's numeric params (decision abilities-tab-lists-every-numeric-param-as-expression-boxes). */
+    ABILITIES("Abilities");
 
     private final String label;
 
