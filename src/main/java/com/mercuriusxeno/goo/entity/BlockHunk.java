@@ -126,6 +126,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     public static final double NOT_PLACED = -1;
     /** The shatter time a whole hunk names. */
     public static final long WHOLE = -1;
+    /** The ticks the client interpolates the hunk's moves over. */
+    static final int INTERPOLATION_TICKS = 1;
     /** The most placement sounds a placed hunk clicks with. */
     static final int MOST_PLACE_CLICKS = 3;
     /** Each click sound's pitch off its type's own, in order: level, a tenth under, a tenth over. */
@@ -183,7 +185,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     /** The origin cell the hunk's blocks are at home in: where they were lifted from, or where they settle. */
     private BlockPos home = BlockPos.ZERO;
     private boolean settled;
-    private final InterpolationHandler interpolation = new InterpolationHandler(this);
+    /** Interpolated over one tick, so a held hunk drawn where the server holds it trails it by no more. */
+    private final InterpolationHandler interpolation = new InterpolationHandler(this, INTERPOLATION_TICKS);
     /** Ticks the hunk has flown free since a hold last stood on it. */
     private int flightTicks;
     /** The grid seat a let-go hunk come to rest moves on to, or null while it flies or is held. */
@@ -986,7 +989,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         if (position().distanceToSqr(there) < SEATED_SQR) {
             setPos(there);
             // The client draws the hunk interpolation's ticks behind, so it holds still until the client draws it seated.
-            if (++atSeatTicks < InterpolationHandler.DEFAULT_INTERPOLATION_STEPS) {
+            if (++atSeatTicks < INTERPOLATION_TICKS) {
                 return;
             }
             seat = null;

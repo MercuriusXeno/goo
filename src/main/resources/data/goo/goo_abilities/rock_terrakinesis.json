@@ -9,7 +9,7 @@
   "requires": ["minecraft:cobblestone", "minecraft:gravel"],
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "terrakinesis", "range": 12, "radius": 1.5, "near": 2.0, "far": 2.5, "throw_speed": 2.5, "cost": 1000 }
+    { "type": "terrakinesis", "range": 12, "radius": 1.5, "near": 2.5, "far": 3.5, "throw_speed": 2.5, "cost": 1000 }
   ],
   "tags": ["self"],
   "pose": "held_out"
