@@ -64,16 +64,14 @@ public final class WormholeTests {
     private static final int WALL_FAR_Z = 3;
     /** The z, relative, of the opening past the wall. */
     private static final int OPENING_Z = 4;
-    /** Where feet come out in the full 3x3 opening: its bottom centre. */
-    private static final Vec3 FULL_EXIT = new Vec3(2.5, 1, 4.5);
-    /** Where feet come out in the 2x3 opening left of a stone column at x 3. */
-    private static final Vec3 NARROW_EXIT = new Vec3(2.0, 1, 4.5);
-    /** Where feet come back out in front of the struck face: the cell before it, on the floor. */
-    private static final Vec3 ENTRY_RETURN = new Vec3(2.5, 1, 1.5);
-    /** Feet pressed against the struck face, the body touching it. */
-    private static final Vec3 AGAINST_THE_FACE = new Vec3(2.5, 1, 1.75);
-    /** Feet pressed against the wall's far face from the opening, the body touching it. */
-    private static final Vec3 AGAINST_THE_FAR_FACE = new Vec3(2.5, 1, 4.25);
+    /** Feet just through the struck face, the body's middle a tenth behind it. */
+    private static final Vec3 THROUGH_THE_FACE = new Vec3(2.5, 1, 2.1);
+    /** Where feet come out of the far mouth, matching the step through the struck face: a tenth past the wall. */
+    private static final Vec3 OUT_PAST_THE_WALL = new Vec3(2.5, 1, 4.1);
+    /** Feet just back through the far mouth from the opening, the middle a tenth behind it. */
+    private static final Vec3 BACK_THROUGH_THE_FAR_FACE = new Vec3(2.5, 1, 3.9);
+    /** Where feet come back out before the struck face: a tenth before it. */
+    private static final Vec3 BACK_BEFORE_THE_FACE = new Vec3(2.5, 1, 1.9);
     /** The column, relative, the downward throw strikes the top of. */
     private static final BlockPos COLUMN_TOP = new BlockPos(2, 0, 2);
     /** How near a spot a traveller stands to count as there. */
@@ -90,9 +88,9 @@ public final class WormholeTests {
 
     /**
      * Thrown at a two-thick wall with open air past it, the hole leaves the
-     * caster where they stood; stepping into the face's mouth carries them
-     * out into the 3x3 opening, and stepping back into the far mouth carries
-     * them back out in front of the face.
+     * caster where they stood; going through the struck face carries them on
+     * out of the far mouth into the opening, and going back through the far
+     * mouth carries them out before the struck face.
      *
      * @param helper the gametest helper
      */
@@ -104,22 +102,23 @@ public final class WormholeTests {
             assertAt(helper, caster, START, "The hole should carry no one the moment it lands");
             helper.assertTrue(helper.getLevel().getBlockState(helper.absolutePos(STRUCK)).is(Blocks.STONE),
                     "The struck wall should stand as it was");
-            standAt(helper, caster, AGAINST_THE_FACE);
+            standAt(helper, caster, THROUGH_THE_FACE);
         });
         helper.runAfterDelay(LANDED + STEP, () -> {
-            assertAt(helper, caster, FULL_EXIT, "Stepping into the face's mouth should come out in the opening");
-            standAt(helper, caster, AGAINST_THE_FAR_FACE);
+            assertAt(helper, caster, OUT_PAST_THE_WALL, "Going through the struck face should come out past the wall");
+            standAt(helper, caster, BACK_THROUGH_THE_FAR_FACE);
         });
         helper.runAfterDelay(LANDED + STEP + STEP, () -> {
-            assertAt(helper, caster, ENTRY_RETURN, "Stepping into the far mouth should come back before the face");
+            assertAt(helper, caster, BACK_BEFORE_THE_FACE, "Going back through the far mouth should come out before "
+                    + "the struck face");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
     }
 
     /**
-     * With a stone column narrowing the opening past the wall to 2x3,
-     * stepping into the face's mouth still comes out, into the 2x3 left open.
+     * With a stone column narrowing the opening past the wall to 2x3, going
+     * through the struck face still comes out past the wall.
      *
      * @param helper the gametest helper
      */
@@ -130,9 +129,10 @@ public final class WormholeTests {
         }
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
-        helper.runAfterDelay(LANDED, () -> standAt(helper, caster, AGAINST_THE_FACE));
+        helper.runAfterDelay(LANDED, () -> standAt(helper, caster, THROUGH_THE_FACE));
         helper.runAfterDelay(LANDED + STEP, () -> {
-            assertAt(helper, caster, NARROW_EXIT, "Stepping into the face's mouth should come out in the 2x3 opening");
+            assertAt(helper, caster, OUT_PAST_THE_WALL, "Going through the struck face should come out into the 2x3 "
+                    + "opening");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -148,9 +148,9 @@ public final class WormholeTests {
         buildWall(helper);
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
-        helper.runAfterDelay(LANDED + LIFETIME, () -> standAt(helper, caster, AGAINST_THE_FACE));
+        helper.runAfterDelay(LANDED + LIFETIME, () -> standAt(helper, caster, THROUGH_THE_FACE));
         helper.runAfterDelay(LANDED + LIFETIME + STEP, () -> {
-            assertAt(helper, caster, AGAINST_THE_FACE, "A closed hole should carry no one");
+            assertAt(helper, caster, THROUGH_THE_FACE, "A closed hole should carry no one");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });

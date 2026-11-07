@@ -23,7 +23,10 @@ public final class ClientHoles {
      * @param context the network context
      */
     public static void handle(HolesSyncPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> holes = List.copyOf(payload.holes()));
+        context.enqueueWork(() -> {
+            holes = List.copyOf(payload.holes());
+            ClientGates.refresh();
+        });
     }
 
     /**

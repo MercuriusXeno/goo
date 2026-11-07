@@ -40,8 +40,6 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
             Direction.STREAM_CODEC, Portal::along,
             Portal::new);
 
-    /** How far out of its face the frame's touch reaches: a body touches it only by pressing against the face. */
-    static final double FLUSH = 0.1;
     private static final double HALF = 0.5;
 
     /**
@@ -95,28 +93,6 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
      */
     public BlockPos mouth() {
         return block.pos().relative(face);
-    }
-
-    /**
-     * The thin slab lying flush on the frame's face that a body steps into:
-     * pressing against the face touches it, standing a block off does not.
-     *
-     * @return the slab
-     */
-    public AABB mouthBox() {
-        AABB frame = blocks();
-        Direction.Axis axis = face.getAxis();
-        boolean positive = face.getAxisDirection() == Direction.AxisDirection.POSITIVE;
-        double plane = positive ? frame.max(axis) : frame.min(axis);
-        double outer = plane + (positive ? FLUSH : -FLUSH);
-        return switch (axis) {
-            case X -> new AABB(Math.min(plane, outer), frame.minY, frame.minZ, Math.max(plane, outer), frame.maxY,
-                    frame.maxZ);
-            case Y -> new AABB(frame.minX, Math.min(plane, outer), frame.minZ, frame.maxX, Math.max(plane, outer),
-                    frame.maxZ);
-            case Z -> new AABB(frame.minX, frame.minY, Math.min(plane, outer), frame.maxX, frame.maxY,
-                    Math.max(plane, outer));
-        };
     }
 
     /**

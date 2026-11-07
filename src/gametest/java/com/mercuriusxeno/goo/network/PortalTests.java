@@ -32,7 +32,8 @@ import java.util.function.Consumer;
  * blocks tall; right clicking one with Portal in hand enters choosing, and
  * right clicking a distant one links the two, the first the blue entry
  * portal, both chunks tethered; standing a block off the entry carries no
- * one, pressing against its face carries the player out of its partner; a
+ * one, going through its face carries the player on out of its partner at
+ * the matching point; a
  * later link unlinks the earlier pair (decision portals-link-by-looking-through-portal-vision).
  */
 @RegistersGameTests
@@ -84,10 +85,12 @@ public final class PortalTests {
     private static final BlockPos AWAY = new BlockPos(8, 1, 8);
     /** Feet a block off the first frame's face, in the cell before it: the body does not touch the face. */
     private static final Vec3 A_BLOCK_OFF = new Vec3(1.5, 1, 2.5);
-    /** Feet pressed against the first frame's face, the body touching it. */
-    private static final Vec3 AGAINST_THE_FACE = new Vec3(1.5, 1, 2.35);
-    /** How near a frame's mouth a traveller stands once carried out of it. */
-    private static final double OUT_OF = 0.6;
+    /** Feet just through the first frame's face, the body's middle a tenth behind it. */
+    private static final Vec3 THROUGH_THE_FACE = new Vec3(1.5, 1, 1.9);
+    /** Where feet come out of the second frame, matching the step through the first: a tenth before its face. */
+    private static final Vec3 OUT_OF_THE_SECOND = new Vec3(14.5, 1, 13.9);
+    /** How near a spot a traveller stands to count as there. */
+    private static final double OUT_OF = 0.3;
     private static final int STEP = 3;
 
     private PortalTests() {
@@ -127,10 +130,10 @@ public final class PortalTests {
         helper.runAfterDelay(STEP + STEP, () -> {
             helper.assertTrue(player.position().distanceTo(helper.absoluteVec(A_BLOCK_OFF)) < OUT_OF,
                     "Standing a block off the portal's face should carry no one, stands at " + player.position());
-            standAt(helper, player, AGAINST_THE_FACE);
+            standAt(helper, player, THROUGH_THE_FACE);
         });
         helper.runAfterDelay(STEP * 3, () -> {
-            assertOutOf(helper, player, second);
+            assertOutOf(helper, player, OUT_OF_THE_SECOND);
             PortalChoice.choose(player, Optional.of(second));
             PortalChoice.link(player, third);
             helper.assertTrue(portals.partnerOf(first).isEmpty(), "A later link should unlink the earlier pair");
@@ -169,9 +172,9 @@ public final class PortalTests {
         player.teleportTo(at.x, at.y, at.z);
     }
 
-    private static void assertOutOf(GameTestHelper helper, ServerPlayer player, Portal portal) {
-        double distance = player.position().distanceTo(Vec3.atBottomCenterOf(portal.mouth()));
-        helper.assertTrue(distance < OUT_OF, "Pressing against the entry's face should carry the player out of its "
-                + "partner, stands " + distance + " away at " + player.position());
+    private static void assertOutOf(GameTestHelper helper, ServerPlayer player, Vec3 feet) {
+        Vec3 at = helper.absoluteVec(feet);
+        helper.assertTrue(player.position().distanceTo(at) < OUT_OF, "Going through the entry's face should carry "
+                + "the player on out of its partner at " + at + ", stands at " + player.position());
     }
 }

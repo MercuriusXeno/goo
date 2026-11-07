@@ -38,6 +38,7 @@ public final class ClientPortals {
             portals = List.copyOf(payload.portals());
             link = payload.link();
             choosing = payload.choosing();
+            ClientGates.refresh();
         });
     }
 
