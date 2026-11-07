@@ -64,7 +64,8 @@ public final class ClientPortals {
 
     /**
      * The distant portal a look picks while choosing: the one nearest the
-     * look's line, within the pick cone, however far or walled off it stands.
+     * look's line, within the pick cone, however far or walled off it stands,
+     * among the portals in the chosen-from portal's own dimension.
      *
      * @param among  the portals to pick from
      * @param except the portal being chosen for, never picked
@@ -75,7 +76,8 @@ public final class ClientPortals {
     public static Optional<Portal> pickedOnLook(List<Portal> among, Portal except, Vec3 eye, Vec3 look) {
         double cosine = Math.cos(Math.toRadians(PICK_CONE_DEGREES));
         return among.stream()
-                .filter(portal -> !portal.equals(except))
+                .filter(portal -> !portal.equals(except)
+                        && portal.block().dimension().equals(except.block().dimension()))
                 .filter(portal -> alignment(portal, eye, look) >= cosine)
                 .max(Comparator.comparingDouble(portal -> alignment(portal, eye, look)));
     }
