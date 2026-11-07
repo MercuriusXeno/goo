@@ -48,6 +48,9 @@ public final class SpireTests {
     private static final String SPIRE_GROWS_STONE = "spire_grows_stone_above_the_footprint";
     private static final String SPIRE_CARRIES_A_RIDER = "spire_carries_a_rider_up_with_the_stone";
     private static final String SPIRE_LETS_A_PLAYER_RIDE = "spire_accepts_a_riding_players_moves";
+    private static final String SPIRE_LIFTS_AN_OVERTAKEN_RIDER = "spire_lifts_a_rider_the_stone_overtook";
+    /** A few ticks into the rise, the top already half a block over the ground, as a client first sees it. */
+    private static final int OVERTAKEN_TICKS = 5;
 
     private static final String ROCK_SPIRE = "goo:rock_spire";
     /** The footprint's ground row, three cells along X at the bay's middle depth, one above the floor. */
@@ -92,6 +95,7 @@ public final class SpireTests {
         GooTestFunctions.registerTest(registrar, SPIRE_GROWS_STONE, SpireTests::spireGrowsStoneAboveTheFootprint);
         GooTestFunctions.registerTest(registrar, SPIRE_CARRIES_A_RIDER, SpireTests::spireCarriesARiderUp);
         GooTestFunctions.registerTest(registrar, SPIRE_LETS_A_PLAYER_RIDE, SpireTests::spireAcceptsARidingPlayersMoves);
+        GooTestFunctions.registerTest(registrar, SPIRE_LIFTS_AN_OVERTAKEN_RIDER, SpireTests::spireLiftsARiderTheStoneOvertook);
     }
 
     /**
@@ -159,6 +163,32 @@ public final class SpireTests {
             helper.assertTrue(helper.getLevel().noCollision(rider, rider.getBoundingBox()),
                     "The server should take the move of a player whose client lifts them a hair behind its stone");
             helper.getLevel().getServer().getPlayerList().remove(rider);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A player's client first sees the rising stone a tick or two late, its top
+     * already past the player's feet; the stone still lifts whoever stands on
+     * its footprint below its top onto it, rather than rising through them.
+     * decision spire-carries-its-riders-up-with-the-rising-stone
+     *
+     * @param helper the gametest helper
+     */
+    public static void spireLiftsARiderTheStoneOvertook(GameTestHelper helper) {
+        for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
+            helper.setBlock(new BlockPos(x, CORNER.getY(), CORNER.getZ()), GROUND.get(x - CORNER.getX()));
+        }
+        submit(helper);
+        Zombie[] rider = new Zombie[1];
+        helper.runAfterDelay(OVERTAKEN_TICKS, () -> {
+            rider[0] = helper.spawn(EntityType.ZOMBIE, RIDER_POS);
+            rider[0].setNoAi(true);
+        });
+        helper.runAfterDelay(OVERTAKEN_TICKS + 2, () -> {
+            double top = hunksIn(helper).getFirst().getBoundingBox().maxY;
+            helper.assertTrue(Math.abs(rider[0].getY() - top) <= FEET_ON_THE_STONE, "A rider the stone overtook"
+                    + " should be lifted onto its top at " + top + ", stands at " + rider[0].getY());
             helper.succeed();
         });
     }

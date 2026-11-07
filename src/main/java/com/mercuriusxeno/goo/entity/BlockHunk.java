@@ -487,7 +487,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         Vec3 position = positionAt(now);
         double top = topAt(now);
         AABB feet = rider.getBoundingBox();
-        boolean onTheStone = feet.minY >= topAt(now - 1) - RIDER_FOOTING && feet.minY <= top + RIDER_FOOTING;
+        // From the ground the rise began on up to the top: a client that first sees the stone a tick or two late
+        // finds it already past the rider's feet, and must still lift them rather than rise through them.
+        boolean onTheStone = feet.minY >= topAt(riseStartTime) - RIDER_FOOTING && feet.minY <= top + RIDER_FOOTING;
         if (!onTheStone || !overATopBlock(feet, position, top)) {
             return false;
         }
