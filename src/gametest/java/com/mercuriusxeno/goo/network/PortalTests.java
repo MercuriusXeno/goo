@@ -20,6 +20,8 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -52,10 +54,147 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, HIT_BREAKS_THE_PORTAL, PortalTests::hitBreaksThePortal);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_EVERY_CLIENT, PortalTests::linkReachesEveryClient);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
+        GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
+                PortalTests::unlinkedPortalHoldsABodyUp);
+        GooTestFunctions.registerTest(registrar, FALLS_THROUGH_A_FLOOR_PAIR,
+                PortalTests::floorPairCarriesAFallingBodyOutClear);
+        GooTestFunctions.registerTest(registrar, PLAYER_DROPS_THROUGH_A_FLOOR_PAIR,
+                PortalTests::floorPairCarriesADroppingPlayer);
     }
 
     private static final String LINK_REACHES_EVERY_CLIENT = "portal_link_reaches_every_client";
     private static final String FAR_SIDE_STREAMS_TO_A_LOOK = "portal_far_side_streams_to_a_look";
+    private static final String UNLINKED_PORTAL_HOLDS_A_BODY_UP = "portal_unlinked_holds_a_body_up";
+    /** Floor frames laid on stone a block over the floor, each running south. */
+    private static final BlockPos NEVER_LINKED = new BlockPos(3, 1, 3);
+    private static final BlockPos LEFT_UNLINKED = new BlockPos(7, 1, 3);
+    private static final BlockPos FIRST_PARTNER = new BlockPos(11, 1, 3);
+    private static final BlockPos SECOND_PARTNER = new BlockPos(11, 1, 9);
+    /** Ticks a body stands on a frame, long enough to fall through were it open. */
+    private static final int STOOD = 20;
+    /** How far below a frame's top a body's feet may sink before it counts as fallen in. */
+    private static final double SINK = 0.5;
+
+    /**
+     * A portal with no partner is a floor like any other: a body standing on
+     * a floor portal never linked, or one whose link a later link undid,
+     * stays standing on it (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void unlinkedPortalHoldsABodyUp(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        Portal neverLinked = floorAt(helper, owner, NEVER_LINKED);
+        Portal leftUnlinked = floorAt(helper, owner, LEFT_UNLINKED);
+        Portal first = floorAt(helper, owner, FIRST_PARTNER);
+        Portal second = floorAt(helper, owner, SECOND_PARTNER);
+        PortalChoice.choose(owner, Optional.of(leftUnlinked));
+        PortalChoice.link(owner, first);
+        PortalChoice.choose(owner, Optional.of(first));
+        PortalChoice.link(owner, second);
+        helper.assertTrue(QuantumPortals.get(level).partnerOf(leftUnlinked).isEmpty()
+                && QuantumPortals.get(level).partnerOf(neverLinked).isEmpty(), "Both test frames should stand unlinked");
+        Pig onNever = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(NEVER_LINKED.above()));
+        Pig onLeft = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(LEFT_UNLINKED.above()));
+        helper.runAfterDelay(STOOD, () -> {
+            assertStandsOn(helper, onNever, NEVER_LINKED, "never linked");
+            assertStandsOn(helper, onLeft, LEFT_UNLINKED, "whose link a later link undid");
+            level.getServer().getPlayerList().remove(owner);
+            helper.succeed();
+        });
+    }
+
+    private static final String FALLS_THROUGH_A_FLOOR_PAIR = "portal_floor_pair_carries_a_falling_body_out_clear";
+    /** Two floor frames linked, each on two stone blocks with stone beneath, so nothing falls past a frame. */
+    private static final BlockPos FLOOR_IN = new BlockPos(3, 1, 3);
+    private static final BlockPos FLOOR_OUT = new BlockPos(11, 1, 3);
+    /** Ticks a body is given to drop in and come out. */
+    private static final int THROUGH = 40;
+
+    /**
+     * A body dropped onto a floor portal linked to another floor portal falls
+     * in and comes out of the partner standing clear of every block, never
+     * left wedged inside a frame (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void floorPairCarriesAFallingBodyOutClear(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        Portal in = floorAt(helper, owner, FLOOR_IN);
+        Portal out = floorAt(helper, owner, FLOOR_OUT);
+        PortalChoice.choose(owner, Optional.of(in));
+        PortalChoice.link(owner, out);
+        Pig pig = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(FLOOR_IN.above(2)));
+        helper.runAfterDelay(THROUGH, () -> {
+            double top = helper.absolutePos(FLOOR_OUT).getY() + 1;
+            helper.assertTrue(level.noCollision(pig, pig.getBoundingBox().deflate(EPSILON)),
+                    "A body carried out of a floor portal should stand clear of every block, stands at "
+                            + pig.position());
+            helper.assertTrue(Math.abs(pig.getX() - helper.absoluteVec(Vec3.atCenterOf(FLOOR_OUT)).x()) < 2
+                    && pig.getY() > top - SINK, "A body dropped into the floor portal should come out above its "
+                    + "partner at y " + top + ", stands at " + pig.position());
+            level.getServer().getPlayerList().remove(owner);
+            helper.succeed();
+        });
+    }
+
+    private static final String PLAYER_DROPS_THROUGH_A_FLOOR_PAIR = "portal_floor_pair_carries_a_dropping_player";
+    /** Feet sunk a block into the floor frame, as deep as its one open block lets a falling body go. */
+    private static final Vec3 SUNK_IN_THE_FRAME = new Vec3(3.5, 1.0, 4.0);
+
+    /**
+     * A player dropping into a floor portal sinks a block into its frame,
+     * its middle past the face while its eye still stands above it; the
+     * crossing its client tells the server of then carries it out of the
+     * partner, clear of every block, rather than leaving it wedged in the frame
+     * (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void floorPairCarriesADroppingPlayer(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        Portal in = floorAt(helper, player, FLOOR_IN);
+        Portal out = floorAt(helper, player, FLOOR_OUT);
+        PortalChoice.choose(player, Optional.of(in));
+        PortalChoice.link(player, out);
+        helper.runAfterDelay(STEP, () -> {
+            standAt(helper, player, SUNK_IN_THE_FRAME);
+            crossAsTheClientSays(player, in);
+        });
+        helper.runAfterDelay(STEP + STEP, () -> {
+            double top = helper.absolutePos(FLOOR_OUT).getY() + 1;
+            helper.assertTrue(Math.abs(player.getX() - helper.absoluteVec(Vec3.atCenterOf(FLOOR_OUT)).x()) < 2
+                    && player.getY() > top - SINK, "A player sunk into the floor portal should come out above its "
+                    + "partner at y " + top + ", stands at " + player.position());
+            helper.assertTrue(level.noCollision(player, player.getBoundingBox().deflate(EPSILON)),
+                    "A player carried out of a floor portal should stand clear of every block, stands at "
+                            + player.position());
+            level.getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    /** How far a body's box shrinks before it is tested for blocks, so resting on a floor is clear. */
+    private static final double EPSILON = 0.01;
+
+    /** Lays a floor frame on two stone blocks running south from a cell, placed for an owner. */
+    private static Portal floorAt(GameTestHelper helper, ServerPlayer owner, BlockPos first) {
+        helper.setBlock(first, Blocks.STONE);
+        helper.setBlock(first.south(), Blocks.STONE);
+        Portal portal = new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(first)),
+                Direction.UP, Direction.SOUTH);
+        PortalChoice.place(helper.getLevel(), owner.getUUID(), portal);
+        return portal;
+    }
+
+    private static void assertStandsOn(GameTestHelper helper, Pig pig, BlockPos frame, String which) {
+        double top = helper.absolutePos(frame).getY() + 1;
+        helper.assertTrue(pig.getY() > top - SINK, "A body on a floor portal " + which + " should stand on it, "
+                + "its feet stand at y " + pig.getY() + " under the frame's top at " + top);
+    }
     /** How far east the far partner stands: past any view distance the server holds. */
     private static final int FAR = 480;
     /** A pitch tipping the look down into the frame's face. */
