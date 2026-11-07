@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.held.Telekinesis;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -14,6 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * What the held glove says about aiming: the goo type it throws, the
@@ -52,10 +54,26 @@ public final class GloveAim {
      * @return the aim range, in blocks
      */
     public static double aimRange(Player player, double throwRange) {
-        String abilityId = selectedAbilityId(player);
-        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        ClientAbility ability = selectedAbility(player);
         return ability == null ? throwRange
                 : GrabStep.reachOf(ability.behaviors(), Telekinesis.entityReachLaid(player)).orElse(throwRange);
+    }
+
+    /**
+     * The selected ability's steps, which name the entities the glove may
+     * outline (decision steps-declare-the-entities-they-take).
+     *
+     * @param player the local player
+     * @return the steps, empty when the glove holds no synced ability
+     */
+    public static List<Step> selectedBehaviors(Player player) {
+        ClientAbility ability = selectedAbility(player);
+        return ability == null ? List.of() : ability.behaviors();
+    }
+
+    private static @Nullable ClientAbility selectedAbility(Player player) {
+        String abilityId = selectedAbilityId(player);
+        return abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
     }
 
     /**

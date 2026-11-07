@@ -28,7 +28,7 @@ import java.util.stream.Stream;
  * @param life   the ticks each silhouette takes to grow and fade, evaluated when the step runs
  * @param inward whether the silhouettes collapse onto the body rather than ripple out of it
  */
-public record AfterimageStep(ResourceKey<GooTypeDefinition> goo, Expr life, boolean inward) implements Step {
+public record AfterimageStep(ResourceKey<GooTypeDefinition> goo, Expr life, boolean inward) implements TakesNoEntity {
 
     private static final String NAME = "afterimage";
     private static final String FIELD_GOO = "goo";

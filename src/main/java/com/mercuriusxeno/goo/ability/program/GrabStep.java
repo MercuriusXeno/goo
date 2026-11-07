@@ -161,9 +161,15 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         return hit == null ? null : hit.getEntity();
     }
 
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return liftable(entity);
+    }
+
     /**
-     * Whether Grab can take an entity: a living mob that is no boss, which
-     * it lifts, or an item entity, which it pulls.
+     * Whether Grab can take an entity: a living mob that is no boss and
+     * rides nothing, which it lifts, or an item entity, which it pulls.
+     * decision steps-declare-the-entities-they-take
      *
      * @param candidate the entity
      * @return true where Grab takes it

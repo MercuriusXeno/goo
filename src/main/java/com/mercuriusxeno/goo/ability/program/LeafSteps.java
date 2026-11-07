@@ -6,10 +6,12 @@ import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * The leaf steps whose frame {@link LeafStep} carries, each its body and
@@ -25,13 +27,15 @@ public final class LeafSteps {
     private static final Set<HostCapability> HOARD = Set.of(HostCapability.HOARD);
     private static final Set<HostCapability> IGNITE_LANDING = Set.of(HostCapability.IGNITE);
     private static final float PERCENT = 100;
+    private static final Predicate<Object> ANY = entity -> true;
 
     /**
      * Idles for a number of ticks, then finishes. {@code wait ticks=2} lets
      * two ticks pass before the next step runs.
      */
     public static final LeafStepType<Expr> WAIT = StepType.of("wait", "ticks",
-            Set.of(HostCapability.TICKING), (ticks, context) -> context.stepTicks() >= ticks.evaluateInt(context));
+            Set.of(HostCapability.TICKING), (ticks, context) -> context.stepTicks() >= ticks.evaluateInt(context))
+            .takingNone();
 
     /**
      * Takes every breakable block within a sphere around the host anchor
@@ -43,7 +47,7 @@ public final class LeafSteps {
             (radius, context) -> {
                 context.hostAs(HoardHost.class).hoardBlocks(radius.evaluateInt(context));
                 return true;
-            });
+            }).takingNone();
 
     /**
      * Leaves the host's hoard as one compression sphere at the anchor,
@@ -54,7 +58,7 @@ public final class LeafSteps {
             (none, context) -> {
                 context.hostAs(HoardHost.class).dropSphere();
                 return true;
-            });
+            }).takingNone();
 
     /**
      * Removes the host's target from the world without a death, drops or a
@@ -70,25 +74,16 @@ public final class LeafSteps {
      * to toggle and is left alone, so a program wraps
      * {@code set_ai enabled=false} in {@code target where=[mob]}.
      */
-    public static final LeafStepType<Boolean> SET_AI = StepType.of("set_ai", ENABLED, TARGET, (enabled, context) -> {
-        if (context.hostAs(TargetHost.class).target() instanceof Mob mob) {
-            mob.setNoAi(!enabled);
-        }
-        return true;
-    });
+    public static final LeafStepType<Boolean> SET_AI = StepType.onTarget("set_ai", ENABLED, Mob.class, ANY,
+            (mob, enabled, context) -> mob.setNoAi(!enabled));
 
     /**
      * Makes the host's target a baby or an adult; a target with no baby
      * form is left as it is, so a program guards the step with
      * {@code target where=[has_baby_form, not_baby]}.
      */
-    public static final LeafStepType<Boolean> SET_BABY = StepType.of("set_baby", ENABLED, TARGET,
-            (enabled, context) -> {
-                if (context.hostAs(TargetHost.class).target() instanceof Mob mob) {
-                    mob.setBaby(enabled);
-                }
-                return true;
-            });
+    public static final LeafStepType<Boolean> SET_BABY = StepType.onTarget("set_baby", ENABLED, Mob.class, ANY,
+            (mob, enabled, context) -> mob.setBaby(enabled));
 
     /**
      * Toggles the host's target's invulnerability.
@@ -105,13 +100,8 @@ public final class LeafSteps {
      * mob is left alone.
      * rewind-fills-while-held
      */
-    public static final LeafStepType<Unit> REWIND_HOLD = StepType.of("rewind_hold", NO_PARAMS, TARGET,
-            (none, context) -> {
-                if (context.hostAs(TargetHost.class).target() instanceof Mob mob) {
-                    RewindEvents.hold(mob, mob.level().getGameTime());
-                }
-                return true;
-            });
+    public static final LeafStepType<Unit> REWIND_HOLD = StepType.onTarget("rewind_hold", NO_PARAMS, Mob.class, ANY,
+            (mob, none, context) -> RewindEvents.hold(mob, mob.level().getGameTime()));
 
     /**
      * Sets the host's target on fire for a number of seconds; blaze ignite
@@ -129,7 +119,7 @@ public final class LeafSteps {
             (none, context) -> {
                 context.hostAs(IgniteHost.class).lightFire();
                 return true;
-            });
+            }).takingNone();
 
     /**
      * Sets off the explosive ability block the landing struck as a fiery
@@ -140,7 +130,7 @@ public final class LeafSteps {
             (power, context) -> {
                 context.hostAs(IgniteHost.class).detonateExplosive(power.evaluateFloat(context));
                 return true;
-            });
+            }).takingNone();
 
     /**
      * Heals the host's target by an amount of health points; vitality
@@ -158,14 +148,15 @@ public final class LeafSteps {
      * every animal its waves wash over each tick.
      * vitality-waves-regenerate-and-court
      */
-    public static final LeafStepType<Expr> COURT = StepType.of("court", "chance", TARGET, (chance, context) -> {
-        TargetHost host = context.hostAs(TargetHost.class);
-        if (host.target() instanceof Animal animal && animal.getAge() == 0 && animal.canFallInLove()
-                && courts(chance.evaluateFloat(context), animal.getRandom().nextFloat())) {
-            animal.setInLove(host.thrower() instanceof Player player ? player : null);
-        }
-        return true;
-    });
+    public static final LeafStepType<Expr> COURT = StepType.onTarget("court", "chance", Animal.class,
+            animal -> !animal.isBaby(), (animal, chance, context) -> {
+                // the client reads no breeding cooldown, so the aim takes every adult and the roll waits for one off it
+                if (animal.getAge() == 0 && animal.canFallInLove()
+                        && courts(chance.evaluateFloat(context), animal.getRandom().nextFloat())) {
+                    Entity thrower = context.hostAs(TargetHost.class).thrower();
+                    animal.setInLove(thrower instanceof Player player ? player : null);
+                }
+            });
 
     /**
      * Starts aging the block the host's blob landed on: Yore's aging blob is
@@ -176,7 +167,7 @@ public final class LeafSteps {
             Set.of(HostCapability.AGING), (none, context) -> {
                 context.hostAs(AgingHost.class).startAging();
                 return true;
-            });
+            }).takingNone();
 
     /**
      * Ticks the redstone device the host's blob landed on, as one pulse of
@@ -187,7 +178,7 @@ public final class LeafSteps {
             Set.of(HostCapability.POWER_PULSE), (none, context) -> {
                 context.hostAs(PowerPulseHost.class).powerPulse();
                 return true;
-            });
+            }).takingNone();
 
     /**
      * Stuns the host's target for a number of ticks: it drops its target and
@@ -196,7 +187,8 @@ public final class LeafSteps {
      * zap-ticks-the-device-and-stuns
      */
     public static final LeafStepType<Expr> STUN = TargetEffectStep.of("stun", "ticks",
-            (target, ticks, context) -> StunEvents.stun(target, ticks.evaluateInt(context)));
+            (target, ticks, context) -> StunEvents.stun(target, ticks.evaluateInt(context)))
+            .taking(Mob.class::isInstance);
 
     /**
      * Gives the host's target, when a player, an enchanted book holding one
@@ -204,13 +196,8 @@ public final class LeafSteps {
      * on the invoking player once its book is consumed.
      * enchant-book-with-a-purple-afterimage
      */
-    public static final LeafStepType<Unit> ENCHANT_BOOK = StepType.of("enchant_book", NO_PARAMS, TARGET,
-            (none, context) -> {
-                if (context.hostAs(TargetHost.class).target() instanceof Player player) {
-                    RandomEnchantment.giveBook(player);
-                }
-                return true;
-            });
+    public static final LeafStepType<Unit> ENCHANT_BOOK = StepType.onTarget("enchant_book", NO_PARAMS, Player.class,
+            ANY, (player, none, context) -> RandomEnchantment.giveBook(player));
 
     private LeafSteps() {
     }

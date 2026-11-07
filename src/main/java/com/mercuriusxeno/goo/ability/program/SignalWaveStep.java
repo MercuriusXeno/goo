@@ -20,7 +20,7 @@ import java.util.stream.Stream;
  * @param range the blocks the wave reaches past the landing, evaluated when the step runs
  * @param cone  the wave's cone, apex to rim, in degrees, evaluated when the step runs
  */
-public record SignalWaveStep(Expr range, Expr cone) implements Step {
+public record SignalWaveStep(Expr range, Expr cone) implements TakesNoEntity {
 
     private static final String NAME = "signal_wave";
     private static final String FIELD_RANGE = "range";

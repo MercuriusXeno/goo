@@ -4,7 +4,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
@@ -17,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests Grab's hold distance by pitch, its reach with and without
@@ -98,6 +106,49 @@ class GrabStepTest {
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+        }
+    }
+
+    @Nested
+    class EntityAnswer {
+
+        private final List<Step> grabProgram = List.of(GRAB);
+
+        @Test
+        void grabTakesAnItemEntityAndAFreeLivingMob() {
+            assertTrue(Step.takenByAny(grabProgram, alive(ItemEntity.class)));
+            assertTrue(Step.takenByAny(grabProgram, alive(Mob.class)));
+        }
+
+        @Test
+        void grabRefusesAPlayerABossAnArmorStandAndAPassenger() {
+            Mob boss = alive(Mob.class);
+            when(boss.getType()).thenAnswer(unused -> EntityType.WITHER);
+            Mob rider = alive(Mob.class);
+            when(rider.isPassenger()).thenReturn(true);
+            assertFalse(Step.takenByAny(grabProgram, alive(Player.class)));
+            assertFalse(Step.takenByAny(grabProgram, boss));
+            assertFalse(Step.takenByAny(grabProgram, alive(ArmorStand.class)));
+            assertFalse(Step.takenByAny(grabProgram, rider));
+        }
+
+        @Test
+        void aStepWithNoRuleOfItsOwnTakesALivingEntity() {
+            Step heal = LeafSteps.HEAL.step(Expr.literal(1));
+            assertTrue(heal.takesEntity(alive(Player.class)));
+            assertFalse(heal.takesEntity(alive(ItemEntity.class)));
+        }
+
+        @Test
+        void anAbilityTakesWhatAnyOfItsStepsTakes() {
+            Step heal = LeafSteps.HEAL.step(Expr.literal(1));
+            assertTrue(Step.takenByAny(List.of(GRAB, heal), alive(Player.class)));
+        }
+
+        private static <E extends Entity> E alive(Class<E> kind) {
+            E entity = mock(kind);
+            when(entity.isAlive()).thenReturn(true);
+            return entity;
         }
     }
 

@@ -308,6 +308,11 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
     }
 
     @Override
+    public boolean takesEntity(Entity entity) {
+        return Step.takenThrough(where, steps, entity);
+    }
+
+    @Override
     public Stream<HostedStep> hostedChildren(HostKind host) {
         return Stream.concat(steps.stream().map(child -> new HostedStep(child, HostKind.ENTITY)),
                 impact.stream().map(child -> new HostedStep(child, HostKind.IMPACT)));

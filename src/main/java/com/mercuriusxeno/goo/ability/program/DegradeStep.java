@@ -25,7 +25,7 @@ import java.util.stream.Stream;
  * @param map   the id of the block map the blocks step along
  * @param ticks the ticks of swarm a block takes to step
  */
-public record DegradeStep(Identifier map, int ticks) implements Step {
+public record DegradeStep(Identifier map, int ticks) implements TakesNoEntity {
 
     private static final String NAME = "degrade";
     private static final String FIELD_MAP = "map";

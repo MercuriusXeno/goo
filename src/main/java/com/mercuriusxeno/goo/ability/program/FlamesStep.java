@@ -6,6 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
@@ -161,11 +162,23 @@ public record FlamesStep(Expr damage, int every, int burnSeconds) implements Ste
      * @param burnSeconds the seconds it stays alight
      */
     static void burn(ServerLevel level, LivingEntity target, float amount, int burnSeconds) {
-        if (target.fireImmune()) {
+        if (!BroilStep.catchesFire(target)) {
             return;
         }
         target.igniteForSeconds(burnSeconds);
         BroilStep.scald(level, target, amount);
+    }
+
+    /**
+     * Flames takes a living thing that is not fire-immune, the one it burns.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return BroilStep.catchesFire(entity);
     }
 
     @Override
