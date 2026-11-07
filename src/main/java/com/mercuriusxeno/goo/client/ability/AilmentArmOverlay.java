@@ -40,7 +40,8 @@ public final class AilmentArmOverlay {
     public static void onRenderArm(RenderArmEvent event) {
         AbstractClientPlayer player = event.getPlayer();
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        List<MobAilments.Worn> worn = MobAilments.CLIENT.ailmentsOf(player.getId(), player.level().getGameTime());
+        List<MobAilments.Worn> worn = MobAilments.CLIENT.ailmentsOf(player.getId(), player.level().getGameTime())
+                .stream().filter(ailment -> ailment.kind().drawsOverlay()).toList();
         if (worn.isEmpty()) {
             return;
         }
