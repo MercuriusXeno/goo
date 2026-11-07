@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Shards' glass knives scatter knife to knife across the cone, stream out
+ * Knives' glass knives scatter knife to knife across the cone, stream out
  * across the sweep, and arc under gravity (decision shards-sling-then-morph-to-flechettes).
  */
 class KnifeRainTest {

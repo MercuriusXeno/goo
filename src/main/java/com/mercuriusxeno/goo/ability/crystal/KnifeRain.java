@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * The flight of Shards' glass knives, shared by the server that strikes
+ * The flight of Knives' glass knives, shared by the server that strikes
  * with them and the client that draws them: each knife leaves the hand at
  * its own tick, aimed into its own slice of the cone with a scatter of
  * yaw, pitch and speed, and arcs under gravity, so the cloud rains into an
