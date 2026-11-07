@@ -27,6 +27,17 @@ class AbilityCostsTest {
             assertEquals("{\"rock\":\"3 * minecraft:cobblestone.rock + $stick.rock + 2 * $base\"}",
                     AbilityCosts.shown("3 * minecraft:cobblestone + $stick + 2 * $base", "rock", Set.of("stick")));
         }
+
+        @Test
+        void aDecimalCostShowsAsTheFractionTheBuilderReads() {
+            assertEquals("{\"rock\":\"25/2\"}", AbilityCosts.shown("12.5", "rock", Set.of()));
+        }
+
+        @Test
+        void aDecimalCostWritesBackAsItsFraction() {
+            assertEquals(Optional.of("25 / 2"), AbilityCosts.written(AbilityCosts.shown("12.5", "rock", Set.of()),
+                    "rock"));
+        }
     }
 
     @Nested

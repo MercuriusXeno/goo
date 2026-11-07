@@ -214,7 +214,7 @@ public final class GooStreamHandler {
         if (held == 0 || !paysReagents(player, ability, held)) {
             return 0;
         }
-        int share = StreamHolds.shareAt(ability.cost().in(GooValues.of(player.level())),
+        int share = StreamHolds.shareAt(ability.cost().exactIn(GooValues.of(player.level())),
                 ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;

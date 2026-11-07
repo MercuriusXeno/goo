@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
@@ -29,9 +30,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Every ability prices a throw at the one integer its JSON names, the same at
- * every stack count, and a cost that is not one whole number refuses at load
- * naming the cost (decision flat-cost-per-throw).
+ * Every ability prices a throw at the one amount its JSON names, the same at
+ * every stack count, a fraction priced exactly, and a cost that is no amount of 0 or more refuses at load
+ * naming the cost (decisions flat-cost-per-throw, goo-is-an-int-and-only-the-remainder-is-a-fraction).
  */
 class ThrowCostTest {
 
@@ -62,8 +63,8 @@ class ThrowCostTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"{\"formula\": \"quadratic\", \"baseCost\": 1000}", "1000.5", "-1", "\"cheap\""})
-    void costThatIsNotOneWholeNumberRefusesNamingIt(String cost) throws IOException {
+    @ValueSource(strings = {"{\"formula\": \"quadratic\", \"baseCost\": 1000}", "-1", "\"cheap\""})
+    void costThatIsNoAmountRefusesNamingIt(String cost) throws IOException {
         JsonElement json = read(LURKER);
         json.getAsJsonObject().add("cost", JsonParser.parseString(cost));
 
@@ -86,6 +87,17 @@ class ThrowCostTest {
                 .parse(JsonOps.INSTANCE, json).getOrThrow();
 
         assertEquals(750, definition.cost().in(GooValueTable.EMPTY));
+    }
+
+    @Test
+    void fractionalCostLoadsExact() throws IOException {
+        JsonElement json = read(LURKER);
+        json.getAsJsonObject().addProperty("cost", 1000.5);
+
+        AbilityDefinition definition = AbilityDefinition.codecFor(AbilityJson.idOfResource(LURKER))
+                .parse(JsonOps.INSTANCE, json).getOrThrow();
+
+        assertEquals(GooFraction.of(2001, 2), definition.cost().exactIn(GooValueTable.EMPTY));
     }
 
     /**

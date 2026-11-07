@@ -13,10 +13,10 @@ import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetGatedStep;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
@@ -47,6 +47,8 @@ public final class GooThrowHandler {
     public static final int THROW_COST = 1000;
     /** The cost of a refused throw, more than any inventory holds. */
     public static final int REFUSED = Integer.MAX_VALUE;
+    // The refused price as an exact cost, which no inventory pays.
+    private static final GooFraction REFUSED_COST = GooFraction.of(REFUSED);
     /** Maximum throw range in blocks. */
     public static final double MAX_RANGE = 64.0;
     private static final double MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
@@ -67,7 +69,7 @@ public final class GooThrowHandler {
     /** Log: a throw whose ability consumes an item the player lacks, refused. */
     private static final String LOG_NO_REAGENT = "Throw rejected: {} lacks a reagent ability '{}' consumes";
     /** Log: partial depletion warning. */
-    private static final String LOG_PARTIAL_DEPLETE = "Partial depletion ({}/{}) for {} throw - proceeding anyway";
+    private static final String LOG_PARTIAL_DEPLETE = "Could not charge {} mB for {} throw - proceeding anyway";
     /** Log: throw executed successfully. */
     private static final String LOG_THROW_OK = "Throw executed: {} by {} -> arrival in {} ticks";
 
@@ -369,7 +371,7 @@ public final class GooThrowHandler {
         Vec3 eye = player.getEyePosition();
         Vec3 capped = capToRange(eye, payload.targetPoint(), MAX_RANGE);
         GooThrowPayload aimed = capped.equals(payload.targetPoint()) ? payload : payload.aimedAt(capped);
-        int cost = resolveThrowCost(player, aimed, gooType);
+        GooFraction cost = resolveThrowCost(player, aimed, gooType);
         if (refuses(player, aimed, cost) || !validateSupply(player, gooType, cost)) { return; }
         depleteAndThrow(player, aimed, gooType, eye.distanceToSqr(capped), cost);
     }
@@ -386,11 +388,10 @@ public final class GooThrowHandler {
      */
     private static void rollGoo(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType,
                                 AbilityDefinition ability) {
-        int cost = ability.cost().in(GooValues.of(player.level()));
-        if (!validateSupply(player, gooType, cost)) {
+        if (!AbilityCharges.charge(player, gooType, ability.cost().exactIn(GooValues.of(player.level())))) {
+            logNoGoo(gooType);
             return;
         }
-        GooSourceScanner.deplete(player, gooType, cost);
         consumeReagents(player, payload.abilityId(), gooType);
         Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
                 ThrowArc.HAND_REACH * player.getScale());
@@ -439,7 +440,7 @@ public final class GooThrowHandler {
     private static void throwFlight(ServerPlayer player, GooThrowPayload payload,
             ResourceKey<GooTypeDefinition> gooType) {
         if (!validateRange(player, payload)) { return; }
-        int cost = resolveThrowCost(player, payload, gooType);
+        GooFraction cost = resolveThrowCost(player, payload, gooType);
         if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
         double distSq = targetDistanceSquared(player, payload);
         depleteAndThrow(player, payload, gooType, distSq, cost);
@@ -488,13 +489,18 @@ public final class GooThrowHandler {
      *
      * @param player  the throwing player
      * @param gooType the goo type to check
-     * @param cost    the resolved mB cost for this throw
+     * @param cost    the resolved exact mB cost for this throw, the player's remainder paying first
      * @return true if supply is sufficient
      */
-    private static boolean validateSupply(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int cost) {
-        if (GooSourceScanner.hasEnough(player, gooType, cost)) { return true; }
-        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_NO_GOO, GooTypes.id(gooType)); }
+    private static boolean validateSupply(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                          GooFraction cost) {
+        if (AbilityCharges.affords(player, gooType, cost)) { return true; }
+        logNoGoo(gooType);
         return false;
+    }
+
+    private static void logNoGoo(ResourceKey<GooTypeDefinition> gooType) {
+        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_NO_GOO, GooTypes.id(gooType)); }
     }
 
     /**
@@ -507,8 +513,8 @@ public final class GooThrowHandler {
      * @param cost    the resolved cost
      * @return true when the throw is refused
      */
-    private static boolean refuses(ServerPlayer player, GooThrowPayload payload, int cost) {
-        if (cost != REFUSED) { return false; }
+    private static boolean refuses(ServerPlayer player, GooThrowPayload payload, GooFraction cost) {
+        if (!cost.equals(REFUSED_COST)) { return false; }
         Aging.fizzle(player.level(), payload.targetPos());
         return true;
     }
@@ -521,17 +527,18 @@ public final class GooThrowHandler {
      * @param player  the throwing player
      * @param payload the throw payload
      * @param gooType the resolved goo type
-     * @return the cost in mB for this throw
+     * @return the exact cost in mB for this throw
      */
-    static int resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
+    static GooFraction resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
             ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition def = thrownAbility(player.level(), payload.abilityId(), gooType);
-        if (def == null) { return THROW_COST; }
+        if (def == null) { return GooFraction.of(THROW_COST); }
         if (ages(def)) {
-            return AgingTable.priceOf(player.level().getBlockState(payload.targetPos())).orElse(REFUSED);
+            return GooFraction.of(AgingTable.priceOf(player.level().getBlockState(payload.targetPos()))
+                    .orElse(REFUSED));
         }
         // ability-cost-builds-as-a-one-type-by-type-value
-        return def.cost().in(GooValues.of(player.level()));
+        return def.cost().exactIn(GooValues.of(player.level()));
     }
 
     /**
@@ -597,13 +604,12 @@ public final class GooThrowHandler {
      * @param payload the throw payload data
      * @param gooType the validated goo type
      * @param distSq  squared distance to target (pre-validated)
-     * @param cost    the resolved mB cost for this throw
+     * @param cost    the resolved exact mB cost for this throw
      */
     private static void depleteAndThrow(ServerPlayer player, GooThrowPayload payload,
-            ResourceKey<GooTypeDefinition> gooType, double distSq, int cost) {
-        int depleted = GooSourceScanner.deplete(player, gooType, cost);
-        if (depleted < cost && Goo.LOGGER.isWarnEnabled()) {
-            Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, depleted, cost, GooTypes.id(gooType));
+            ResourceKey<GooTypeDefinition> gooType, double distSq, GooFraction cost) {
+        if (!AbilityCharges.charge(player, gooType, cost) && Goo.LOGGER.isWarnEnabled()) {
+            Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, cost, GooTypes.id(gooType));
         }
         consumeReagents(player, payload.abilityId(), gooType);
 

@@ -135,6 +135,23 @@ class AbilityDefinitionTest {
 
             assertEquals(850, priced.cost().in(values));
         }
+
+        @Test
+        void aDecimalCostAndAFractionUpkeepPriceExactly() {
+            AbilityDefinition fractional = costing("12.5", "\"1 / 2\"");
+
+            assertEquals(GooFraction.of(25, 2), fractional.cost().exactIn(GooValueTable.EMPTY));
+            assertEquals(GooFraction.of(1, 2), fractional.upkeep().exactIn(GooValueTable.EMPTY));
+        }
+
+        @Test
+        void aCostOverFractionalPrefabsSumsExactly() {
+            AbilityDefinition priced = costing("\"3 * $third + $third / 2\"", "0");
+            IGooValueLookup values = mock(IGooValueLookup.class);
+            when(values.prefabs()).thenReturn(new PrefabValues(Map.of("third", GooFraction.of(1, 3)), Map.of()));
+
+            assertEquals(GooFraction.of(7, 6), priced.cost().exactIn(values));
+        }
     }
 
     /**
