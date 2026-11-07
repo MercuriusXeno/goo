@@ -31,9 +31,9 @@ import java.util.Map;
  * What a Sculker senses, while its brew stands. Every sound heard within
  * reach ripples out from its source and lights the block faces open to air
  * its front crosses, which draw sculk teal and fade out, weaker the farther
- * away they stand; a louder sound ripples farther and lasts longer, and a
- * mob's sound lights only the mob and the area just near it, briefly
- * ({@link SculkerEchoes}). A mob that moves or sounds draws the sculk
+ * away they stand; a louder sound ripples farther and lasts longer, a mob's
+ * alike, and every living mob within hearing gives off a quiet ripple every
+ * couple of seconds ({@link SculkerEchoes}). A mob that moves or sounds draws the sculk
  * outline for as long as its sound's reveal lasts while it stays within
  * sight, and leaves the echoing silhouette of the shared afterimage, dimmer
  * the farther it stands. The brew's end forgets it all.
@@ -115,10 +115,26 @@ public final class SculkerSenses {
         long now = level.getGameTime();
         ECHOES.advance(now, pos -> level.getBlockState(pos).isAir());
         forgetFadedEntities(level, now);
-        for (Entity entity : level.getEntities(player, player.getBoundingBox().inflate(SculkerEchoes.SIGHT_REACH))) {
-            if (movedEnough(entity.position().subtract(entity.xo, entity.yo, entity.zo))) {
-                hearEntity(mc, player, entity, now, SculkerEchoes.fadeTicksFor(1f, true));
-            }
+        for (Entity entity : level.getEntities(player, player.getBoundingBox().inflate(SculkerEchoes.HEARING_REACH))) {
+            hearMovingOrPulsing(mc, player, entity, now);
+        }
+    }
+
+    /**
+     * Hears a living mob on its ambient pulse, a quiet ripple from where it
+     * stands, and any entity that moved this tick.
+     *
+     * @param mc     the client
+     * @param player the local player
+     * @param entity an entity within hearing
+     * @param now    the game time
+     */
+    private static void hearMovingOrPulsing(Minecraft mc, LocalPlayer player, Entity entity, long now) {
+        if (entity instanceof LivingEntity && SculkerEchoes.pulses(now, entity.getId(), entity.distanceTo(player))) {
+            ECHOES.hear(entity.position(), now, SculkerEchoes.PULSE_LOUDNESS);
+            hearEntity(mc, player, entity, now, SculkerEchoes.fadeTicksFor(SculkerEchoes.PULSE_LOUDNESS));
+        } else if (movedEnough(entity.position().subtract(entity.xo, entity.yo, entity.zo))) {
+            hearEntity(mc, player, entity, now, SculkerEchoes.fadeTicksFor(1f));
         }
     }
 
@@ -173,8 +189,8 @@ public final class SculkerSenses {
         long now = mc.level.getGameTime();
         List<Entity> mobs = mc.level.getEntities(player, new AABB(at, at).inflate(SOUND_OWNER_REACH),
                 LivingEntity.class::isInstance);
-        ECHOES.hear(at, now, loudness, !mobs.isEmpty());
-        int fade = SculkerEchoes.fadeTicksFor(loudness, true);
+        ECHOES.hear(at, now, loudness);
+        int fade = SculkerEchoes.fadeTicksFor(loudness);
         for (Entity mob : mobs) {
             hearEntity(mc, player, mob, now, fade);
         }
