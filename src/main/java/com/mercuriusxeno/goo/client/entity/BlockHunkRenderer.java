@@ -148,9 +148,11 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
     }
 
     /**
-     * A placed hunk lingering over its stone: each block drawn in the texture
-     * it wore while carried, fading out over the block the world now draws in
-     * its cell, so a texture that differs at the new cell crossfades rather than popping.
+     * A hunk lingering over the stone it set: each block tesselated as the
+     * world tesselates the block in its cell, so it shades as the world's
+     * block does rather than as a moving block over it; a placed chunk's
+     * blocks wear the texture they wore while carried and fade out, so a
+     * texture that differs at the new cell crossfades rather than popping.
      *
      * @param hunk   the hunk
      * @param state  the render state
@@ -158,7 +160,9 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
      * @param placed how far the linger has run, 0 to 1
      */
     private static void fadeOverThePlacedStone(BlockHunk hunk, HunkRenderState state, Vec3 lerped, double placed) {
-        state.fade = (float) (1 - placed);
+        // A settled pillar wears the variant its cells do, so it covers the world's stone whole, never see-through
+        // while the client's chunk redraws; a placed chunk's variant may differ at its new cells, so it crossfades.
+        state.fade = hunk.risesFromTheGround() ? WHOLE : (float) (1 - placed);
         for (BlockHunk.HunkBlock block : hunk.blocks()) {
             if (block.state().getRenderShape() != RenderShape.MODEL) {
                 continue;

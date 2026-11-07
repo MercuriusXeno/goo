@@ -39,4 +39,17 @@ class BlockHunkTest {
         BlockHunk.HunkBlock block = new BlockHunk.HunkBlock(new BlockPos(1, 2, -1), mock(BlockState.class));
         assertEquals(new BlockPos(11, 66, -4), BlockHunk.variantCellOf(home, block));
     }
+
+    @Test
+    void aSettledHunkFadesOutOverItsStoneFromTheMomentItSettles() {
+        // A pillar settled at tick 100 draws faded over the world's stone, not as moving blocks over it.
+        assertEquals(0, BlockHunk.lingerShare(100, 100), 1e-9);
+        assertEquals(0.5, BlockHunk.lingerShare(100 + BlockHunk.SETTLE_LINGER_TICKS / 2.0, 100), 1e-9);
+        assertEquals(1, BlockHunk.lingerShare(100 + BlockHunk.SETTLE_LINGER_TICKS, 100), 1e-9);
+    }
+
+    @Test
+    void aHunkNotYetSettledDrawsNoFade() {
+        assertEquals(BlockHunk.NOT_PLACED, BlockHunk.lingerShare(99.9, 100), 1e-9);
+    }
 }
