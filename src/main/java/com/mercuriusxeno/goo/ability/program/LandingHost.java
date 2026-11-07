@@ -19,7 +19,6 @@ import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.GlobalPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -147,11 +146,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         if (player == null) {
             return false;
         }
-        Optional<Portal> frame = Portal.frameAt(
-                // portals-link-by-looking-through-portal-vision: a portal opens only on an opaque solid block
-                pos -> level.getBlockState(pos).isSolidRender(),
-                pos -> level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
-                GlobalPos.of(level.dimension(), cell.relative(face.getOpposite())), face, player.getDirection());
+        Optional<Portal> frame = Portal.frameOn(level, cell.relative(face.getOpposite()), face, player.getDirection());
         frame.ifPresent(portal -> PortalChoice.place(level, caster, portal));
         return frame.isPresent();
     }

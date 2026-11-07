@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
@@ -68,6 +69,23 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
                 .filter(frame -> Stream.of(frame.block().pos(), frame.second())
                         .allMatch(cell -> solid.test(cell) && open.test(cell.relative(face))))
                 .findFirst();
+    }
+
+    /**
+     * The frame a cast lays on a struck face of a level: its two blocks
+     * opaque and solid, the cells before them holding nothing a body
+     * collides with.
+     *
+     * @param level  the level
+     * @param struck the struck block
+     * @param face   the struck face
+     * @param facing the caster's horizontal facing
+     * @return the frame, empty where none fits
+     */
+    public static Optional<Portal> frameOn(Level level, BlockPos struck, Direction face, Direction facing) {
+        return frameAt(pos -> level.getBlockState(pos).isSolidRender(),
+                pos -> level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
+                GlobalPos.of(level.dimension(), struck), face, facing);
     }
 
     /**

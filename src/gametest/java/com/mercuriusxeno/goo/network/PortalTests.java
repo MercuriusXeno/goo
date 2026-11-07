@@ -61,6 +61,8 @@ public final class PortalTests {
                 PortalTests::placedAfterTheLastBrokeStandsInert);
         GooTestFunctions.registerTest(registrar, LINKING_BY_HAND_COSTS_GOO, PortalTests::linkingByHandCostsGoo);
         GooTestFunctions.registerTest(registrar, ONLY_ON_OPAQUE_BLOCKS, PortalTests::opensOnlyOnOpaqueSolidBlocks);
+        GooTestFunctions.registerTest(registrar, THROW_AT_NO_ROOM_DOES_NOTHING,
+                PortalTests::throwWhereNoFrameFitsDoesNothing);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
         GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
                 PortalTests::unlinkedPortalHoldsABodyUp);
@@ -218,6 +220,40 @@ public final class PortalTests {
                 "A portal cast on stone should place one");
         level.getServer().getPlayerList().remove(player);
         helper.succeed();
+    }
+
+    private static final String THROW_AT_NO_ROOM_DOES_NOTHING = "portal_throw_where_no_frame_fits_does_nothing";
+
+    /**
+     * A Portal throw at a face no frame fits on, a wall of glass, is refused
+     * before it flies: it costs nothing and places nothing
+     * (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void throwWhereNoFrameFitsDoesNothing(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        player.setGameMode(GameType.SURVIVAL);
+        player.connection.markClientLoaded();
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+        helper.setBlock(THIRD, Blocks.GLASS);
+        helper.setBlock(THIRD.above(), Blocks.GLASS);
+        int held = com.mercuriusxeno.goo.item.GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.QUANTUM, 0);
+        com.mercuriusxeno.goo.item.GooGloveItem.setSelection(player.getMainHandItem(),
+                com.mercuriusxeno.goo.ability.GloveSelection.ofAbility(GooTypes.QUANTUM, Identifier.parse(PORTAL)));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.QUANTUM), NO_ENTITY,
+                helper.absolutePos(THIRD), Direction.SOUTH.ordinal(), false, PORTAL, player.getEyePosition()));
+        int after = com.mercuriusxeno.goo.item.GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.QUANTUM, 0);
+        helper.assertTrue(after == held, "A Portal throw where no frame fits should cost nothing, held " + held
+                + " then " + after);
+        helper.runAfterDelay(THROUGH, () -> {
+            helper.assertTrue(QuantumPortals.get(level).portalsOf(player.getUUID()).isEmpty(),
+                    "A Portal throw where no frame fits should place nothing");
+            level.getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
     }
 
     /** A fourth wall frame's lower block. */
