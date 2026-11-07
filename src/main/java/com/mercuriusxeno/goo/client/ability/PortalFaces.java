@@ -46,6 +46,8 @@ public final class PortalFaces {
     private static final int VISION_ALPHA = 120;
     private static final int PICKED_ALPHA = 235;
     private static final int OPAQUE = 255;
+    /** The idle swirl's alpha: nearly solid, a little of the wall showing through its dark heart. */
+    private static final int SWIRL_ALPHA = 235;
     /** The width of the colored rim around a portal's view, in blocks. */
     private static final double RIM = 0.06;
     /** How far off its blocks a portal's face, or its view, stands. */
@@ -94,11 +96,74 @@ public final class PortalFaces {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         if (choosing.isEmpty()) {
             drawViews(pose, buffers, camera);
+            drawIdle(pose, buffers, camera, mc.level.dimension());
         }
         RenderType type = choosing.isPresent() ? GooRenderTypes.SPORE_SHELL_THROUGH_BLOCKS_TYPE
                 : GooRenderTypes.SPORE_SHELL_TYPE;
         drawFaces(pose, buffers.getBuffer(type), camera, mc.level.dimension(), choosing, picked);
         buffers.endBatch(type);
+    }
+
+    /**
+     * Draws each portal with no view to show as its idle swirl.
+     *
+     * @param pose      the pose
+     * @param buffers   the frame's buffers
+     * @param camera    the main camera's position
+     * @param dimension the level drawn
+     */
+    private static void drawIdle(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            ResourceKey<Level> dimension) {
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
+        for (Portal portal : ClientPortals.portals()) {
+            if (portal.block().dimension().equals(dimension) && PortalView.viewOf(portal).isEmpty()) {
+                emitSwirl(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
+                        ARGB.color(SWIRL_ALPHA, colorOf(portal, ClientPortals.link())));
+            }
+        }
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
+    }
+
+    /**
+     * Emits a frame's face as a quad standing a lift off it, its corners
+     * mapped zero to one across each way, for the swirl to fill as an oval.
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param box      the frame's blocks, camera-relative
+     * @param side     the face
+     * @param color    the packed ARGB color
+     */
+    static void emitSwirl(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int color) {
+        int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+        for (int[] corner : corners) {
+            Vec3 at = cornerOf(box, side, corner[0], corner[1]);
+            consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z()).setUv(corner[0], corner[1])
+                    .setColor(color);
+        }
+    }
+
+    /**
+     * A corner of a box's side, standing the face lift off it.
+     *
+     * @param box   the box
+     * @param side  the side
+     * @param first zero for the low end across the side's first axis, one for the high
+     * @param second zero for the low end across its second axis, one for the high
+     * @return the corner
+     */
+    private static Vec3 cornerOf(AABB box, Direction side, int first, int second) {
+        Direction.Axis axis = side.getAxis();
+        Direction.Axis firstAxis = axis == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
+        Direction.Axis secondAxis = axis == Direction.Axis.Z ? Direction.Axis.Y : Direction.Axis.Z;
+        double plane = side.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                ? box.max(axis) + FACE_LIFT : box.min(axis) - FACE_LIFT;
+        double[] xyz = new double[Direction.Axis.values().length];
+        xyz[axis.ordinal()] = plane;
+        xyz[firstAxis.ordinal()] = first == 0 ? box.min(firstAxis) : box.max(firstAxis);
+        xyz[secondAxis.ordinal()] = second == 0 ? box.min(secondAxis) : box.max(secondAxis);
+        return new Vec3(xyz[Direction.Axis.X.ordinal()], xyz[Direction.Axis.Y.ordinal()],
+                xyz[Direction.Axis.Z.ordinal()]);
     }
 
     /**
@@ -137,11 +202,11 @@ public final class PortalFaces {
             if (portal.block().dimension().equals(dimension)) {
                 AABB frame = portal.blocks().move(camera.reverse());
                 int color = ARGB.color(alphaOf(portal, choosing, picked), colorOf(portal, ClientPortals.link()));
-                if (choosing.isEmpty() && PortalView.viewOf(portal).isPresent()) {
+                if (choosing.isPresent()) {
+                    emitFace(pose, consumer, frame, portal.face(), FACE_LIFT, color);
+                } else if (PortalView.viewOf(portal).isPresent()) {
                     rimOf(frame, portal.face().getAxis()).forEach(strip -> emitFace(pose, consumer, strip,
                             portal.face(), RIM_LIFT, color));
-                } else {
-                    emitFace(pose, consumer, frame, portal.face(), FACE_LIFT, color);
                 }
             }
         }

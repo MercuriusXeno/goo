@@ -998,6 +998,29 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
+    /**
+     * Idle portal pipeline (decision portals-link-by-looking-through-portal-vision):
+     * a portal with no view to show drawn through {@code goo_portal_idle.vsh / .fsh},
+     * an oval of its color swirling in from a glowing rim toward a dark heart,
+     * blended over the wall, depth tested and written as the face stands in
+     * the world.
+     */
+    public static final RenderPipeline GOO_PORTAL_IDLE = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_idle"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    /** RenderType for an idle portal's swirl. */
+    public static final RenderType GOO_PORTAL_IDLE_TYPE = RenderType.create("goo_portal_idle",
+            RenderSetup.builder(GOO_PORTAL_IDLE).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+                    .createRenderSetup());
+
     /** Per-view memoized render types on the portal view pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GOO_PORTAL_VIEW_FACTORY =
             net.minecraft.util.Util.memoize(view -> RenderType.create(
@@ -1250,6 +1273,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GOO_PORTAL_VIEW);
+        event.registerPipeline(GOO_PORTAL_IDLE);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
