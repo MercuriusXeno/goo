@@ -6,6 +6,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -100,7 +101,8 @@ public final class OpenHoles {
     }
 
     /**
-     * Whether a hole's time is up.
+     * Whether a hole closes: its time is up and nothing stands in either of
+     * its mouths, so it never closes on a body passing through it.
      *
      * @param server the server
      * @param hole   the hole
@@ -108,6 +110,11 @@ public final class OpenHoles {
      */
     private static boolean closed(MinecraftServer server, Hole hole) {
         ServerLevel level = server.getLevel(hole.dimension());
-        return level == null || level.getGameTime() >= hole.closesAt();
+        return level == null || level.getGameTime() >= hole.closesAt() && !occupied(level, hole.entry())
+                && !occupied(level, hole.exit());
+    }
+
+    private static boolean occupied(ServerLevel level, Gate mouth) {
+        return !level.getEntities((Entity) null, mouth.blocks(), Entity::isAlive).isEmpty();
     }
 }

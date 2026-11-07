@@ -44,6 +44,7 @@ public final class WormholeTests {
     private static final String USES_A_ONE_BY_TWO_WALL = "hole_uses_a_one_by_two_wall";
     private static final String DROPS_THROUGH_A_ONE_BY_ONE_FLOOR = "hole_drops_through_a_one_by_one_floor";
     private static final String REACHES_THROUGH_A_THICK_WALL = "hole_reaches_through_a_thick_wall";
+    private static final String HOLDS_OPEN_WHILE_OCCUPIED = "hole_holds_open_while_occupied";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -59,6 +60,7 @@ public final class WormholeTests {
         GooTestFunctions.registerTest(registrar, DROPS_THROUGH_A_ONE_BY_ONE_FLOOR,
                 WormholeTests::dropsThroughAOneByOneFloor);
         GooTestFunctions.registerTest(registrar, REACHES_THROUGH_A_THICK_WALL, WormholeTests::reachesThroughAThickWall);
+        GooTestFunctions.registerTest(registrar, HOLDS_OPEN_WHILE_OCCUPIED, WormholeTests::holdsOpenWhileOccupied);
     }
 
     private static final String CLOSES_AFTER_ITS_LIFETIME = "hole_closes_after_its_lifetime";
@@ -305,6 +307,33 @@ public final class WormholeTests {
             helper.succeed();
         });
     }
+
+    /**
+     * A hole whose time runs out while a body stands in one of its mouths
+     * stays open until the body steps clear, then closes.
+     *
+     * @param helper the gametest helper
+     */
+    public static void holdsOpenWhileOccupied(GameTestHelper helper) {
+        buildWall(helper);
+        ServerPlayer caster = caster(helper);
+        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> standAt(helper, caster, IN_THE_MOUTH));
+        helper.runAfterDelay(LANDED + LIFETIME + STEP, () -> {
+            helper.assertTrue(holeStruckAt(helper, STRUCK).isPresent(), "A hole with a body in its mouth should stay "
+                    + "open past its time");
+            standAt(helper, caster, START);
+        });
+        helper.runAfterDelay(LANDED + LIFETIME + STEP + STEP, () -> {
+            helper.assertTrue(holeStruckAt(helper, STRUCK).isEmpty(), "A hole past its time should close once the "
+                    + "body steps clear");
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /** Feet in the struck mouth, the body halfway into the wall's first block. */
+    private static final Vec3 IN_THE_MOUTH = new Vec3(2.5, 1, 2.2);
 
     /** Asserts the hole struck at a block opened, its struck-face mouth covering a box of blocks this size. */
     private static void assertMouthSpans(GameTestHelper helper, BlockPos struck, int x, int y, int z) {
