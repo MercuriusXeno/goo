@@ -1,10 +1,15 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -62,6 +67,72 @@ class AbilitiesPaneTest {
         DrawnFrame.Text error = frame.find("minecraft:cobblestone holds no unstable");
         assertEquals(Palette.DANGER, error.color());
         assertTrue(error.y() > frame.find("cost").y());
+    }
+
+    /**
+     * A number or expression row's box opens over the value it held with that text selected, draws ✗ Cancel from the
+     * moment it opens and ✓ Done once the value changed, as every box in the manager does (decisions
+     * every-number-box-opens-with-its-text-selected, value-expression-boxes-take-a-cancel-button).
+     */
+    @Nested
+    class EditBoxes {
+        private static final String RANGE = "16";
+        private static final String CANCEL = "✗ Cancel";
+        private static final String DONE = "✓ Done";
+
+        private final AbilitiesTab tab = new AbilitiesTab();
+        private final List<AbstractWidget> widgets = new ArrayList<>();
+        private AbilitiesPane pane;
+
+        private EditBox opened() {
+            tab.readModel(MODEL);
+            ManagerActions actions = mock(ManagerActions.class);
+            when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+                widgets.add(call.getArgument(0));
+                return call.getArgument(0);
+            });
+            ItemIcons icons = mock(ItemIcons.class);
+            when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+            pane = new AbilitiesPane(tab, actions, icons, new ExpressionBuilderPane(actions, icons, List::of,
+                    List::of), key -> key, ref -> Map.of(), java.util.Set::of);
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+            draw(pane).click(RANGE);
+            return widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                    .filter(box -> RANGE.equals(box.getValue())).findFirst()
+                    .orElseThrow(() -> new AssertionError("no box opened holding " + RANGE));
+        }
+
+        private AbilitiesTab.Leaf range() {
+            return tab.abilities().getFirst().leaves().get(2);
+        }
+
+        @Test
+        void theBoxOpensHoldingItsValueSelected() {
+            EditBox box = opened();
+            assertEquals(RANGE, box.getHighlighted());
+        }
+
+        @Test
+        void cancelDrawsAtOnceAndRestoresTheValueLeavingNoEdit() {
+            EditBox box = opened();
+            DrawnFrame open = draw(pane);
+            assertTrue(open.texts().contains(CANCEL), open.texts().toString());
+            assertTrue(!open.texts().contains(DONE), open.texts().toString());
+            box.setValue("99");
+            draw(pane).click(CANCEL);
+            assertEquals(RANGE, tab.valueOf(tab.abilities().getFirst(), range()));
+            assertTrue(!tab.edited(), "a cancelled edit still stands");
+        }
+
+        @Test
+        void doneDrawsOnceChangedAndKeepsTheEdit() {
+            EditBox box = opened();
+            box.setValue("24");
+            draw(pane).click(DONE);
+            assertEquals("24", tab.valueOf(tab.abilities().getFirst(), range()));
+            assertTrue(draw(pane).texts().contains("24"), "the row reads its new value once the box closes");
+        }
     }
 
     @Test
