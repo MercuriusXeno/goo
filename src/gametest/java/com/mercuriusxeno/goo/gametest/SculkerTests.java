@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
+import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -13,6 +14,9 @@ import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -22,9 +26,10 @@ import java.util.function.Consumer;
  * with no key pressed into a block; a player that only walks into a wall
  * stays outside it; a diver that rises out of a top face and jumps clear
  * stands on that block, out of the dive; a diver below the world's floor
- * rises back in; and nothing in the stone suffocates a player whose brew
- * stands (decisions sculker-swims-solid-blocks-and-surfaces-at-will and
- * sculker-grants-suffocation-immunity). The client moves a real player, so
+ * rises back in; nothing in the stone suffocates a player whose brew stands;
+ * and a sculk sensor never hears a player under Sculker walk or jump
+ * (decisions sculker-swims-solid-blocks-and-surfaces-at-will,
+ * sculker-grants-suffocation-immunity and sculker-mutes-your-movement-sounds). The client moves a real player, so
  * each test ticks the mock player as its connection would and sets the swim
  * velocity after each tick as SculkerClient does. The stone floats above
  * the test's own bay.
@@ -37,6 +42,7 @@ public final class SculkerTests {
     private static final String SCULKER_SURFACES = "sculker_surfaces_onto_the_top_face";
     private static final String SCULKER_RISES_BACK = "sculker_rises_back_into_the_world";
     private static final String SCULKER_BREATHES = "sculker_breathes_in_stone";
+    private static final String SCULKER_WALKS_SILENT = "sculker_walks_silent_past_a_sensor";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -50,6 +56,7 @@ public final class SculkerTests {
         GooTestFunctions.registerTest(registrar, SCULKER_SURFACES, SculkerTests::sculkerSurfacesOntoTheTopFace);
         GooTestFunctions.registerTest(registrar, SCULKER_RISES_BACK, SculkerTests::sculkerRisesBackIntoTheWorld);
         GooTestFunctions.registerTest(registrar, SCULKER_BREATHES, SculkerTests::sculkerBreathesInStone);
+        GooTestFunctions.registerTest(registrar, SCULKER_WALKS_SILENT, SculkerTests::sculkerWalksSilentPastASensor);
     }
 
     private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
@@ -81,12 +88,21 @@ public final class SculkerTests {
     private static final Input SNEAK_AND_JUMP = new Input(false, false, false, false, true, true, false);
     private static final Input JUMP = new Input(false, false, false, false, true, false, false);
     private static final Input FORWARD = new Input(true, false, false, false, false, false, false);
+    private static final Input FORWARD_AND_JUMP = new Input(true, false, false, false, true, false, false);
+    /** Ticks a player walks and jumps beside the sensor. */
+    private static final int WALK_TICKS = 40;
+    /** Ticks a sensor takes to fall quiet again after it powers, its active span and cooldown with room to spare. */
+    private static final int SENSOR_RESET_TICKS = 80;
+    /** How far south of the walk the sensor stands, well inside its hearing. */
+    private static final int SENSOR_OFFSET = 2;
     private static final String SHOULD_SINK = "Sneak and jump should sink the player below the stone's top at y=%d, it stands at y=%.2f";
     private static final String SHOULD_SWIM_ON = "Once diving, forward alone should swim the player east through stone, it moved %.2f";
     private static final String SHOULD_STAY_OUT = "Walking into the wall should leave the player outside it, its east edge at x=%.2f past the wall at x=%d";
     private static final String SHOULD_STAND = "The diver should stand on the stone's top at y=%d out of the dive: y=%.2f, on ground %b, diving %b";
     private static final String SHOULD_RETURN = "A diver below the world's floor at y=%d should rise back in, it reached y=%.2f";
     private static final String SHOULD_BREATHE = "The player should take no suffocation buried in stone, health %.1f of %.1f";
+    private static final String SHOULD_MUTE = "A sensor beside a walking, jumping Sculker should stay unpowered, it reached power %d";
+    private static final String SHOULD_HEAR = "The same sensor beside the walk with the brew ended should power, it reached power %d";
     private static final String SHOULD_MOVE = "The diver should swim a block east through the stone, moved %.2f";
 
     private SculkerTests() {
@@ -228,6 +244,67 @@ public final class SculkerTests {
         helper.assertTrue(swum >= SWUM_AT_LEAST, String.format(SHOULD_MOVE, swum));
         helper.assertTrue(lowest >= maxHealth, String.format(SHOULD_BREATHE, lowest, maxHealth));
         helper.succeed();
+    }
+
+    /**
+     * A sculk sensor beside a player under Sculker that walks and jumps
+     * along the stone stays unpowered; with the brew ended, the same walk
+     * beside the same sensor powers it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sculkerWalksSilentPastASensor(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos top = layStone(helper);
+        BlockPos start = top.above().west(HALF_WIDTH - 1);
+        BlockPos sensor = top.above().south(SENSOR_OFFSET);
+        ServerPlayer player = brewed(helper);
+        int[] mutedPower = {0};
+        int[] heardPower = {0};
+        helper.startSequence()
+                .thenExecute(() -> standAt(player, start))
+                .thenIdle(2)
+                .thenExecute(() -> level.setBlock(sensor, Blocks.SCULK_SENSOR.defaultBlockState(), Block.UPDATE_ALL))
+                .thenIdle(SENSOR_RESET_TICKS)
+                .thenExecuteFor(WALK_TICKS, () -> mutedPower[0] = Math.max(mutedPower[0], walkTick(player, level, sensor)))
+                .thenExecute(() -> {
+                    HeldEffectsEvents.end(player, DEEP_SCULKER);
+                    standAt(player, start);
+                })
+                .thenIdle(SENSOR_RESET_TICKS)
+                .thenExecuteFor(WALK_TICKS, () -> heardPower[0] = Math.max(heardPower[0], walkTick(player, level, sensor)))
+                .thenExecute(() -> {
+                    level.getServer().getPlayerList().remove(player);
+                    level.setBlock(sensor, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+                    clearStone(level, top);
+                    helper.assertTrue(mutedPower[0] == 0, String.format(SHOULD_MUTE, mutedPower[0]));
+                    helper.assertTrue(heardPower[0] > 0, String.format(SHOULD_HEAR, heardPower[0]));
+                })
+                .thenSucceed();
+    }
+
+    private static void standAt(ServerPlayer player, BlockPos feet) {
+        player.setYRot(FACING_EAST);
+        player.teleportTo(feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5);
+        player.setDeltaMovement(Vec3.ZERO);
+    }
+
+    /**
+     * One game tick of a player walking east and jumping, ticked as its
+     * connection would, read as the sensor's power after it.
+     *
+     * @param player the player
+     * @param level  the level
+     * @param sensor the sensor's cell
+     * @return the sensor's power now
+     */
+    private static int walkTick(ServerPlayer player, ServerLevel level, BlockPos sensor) {
+        player.setLastClientInput(FORWARD_AND_JUMP);
+        player.setJumping(true);
+        player.zza = 1f;
+        player.doTick();
+        BlockState state = level.getBlockState(sensor);
+        return state.hasProperty(BlockStateProperties.POWER) ? state.getValue(BlockStateProperties.POWER) : 0;
     }
 
     /**
