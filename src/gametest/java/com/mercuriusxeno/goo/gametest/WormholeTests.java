@@ -45,6 +45,8 @@ public final class WormholeTests {
     private static final String DROPS_THROUGH_A_ONE_BY_ONE_FLOOR = "hole_drops_through_a_one_by_one_floor";
     private static final String REACHES_THROUGH_A_THICK_WALL = "hole_reaches_through_a_thick_wall";
     private static final String HOLDS_OPEN_WHILE_OCCUPIED = "hole_holds_open_while_occupied";
+    private static final String CRAWLS_THROUGH_A_ONE_BY_ONE_WALL = "hole_crawls_through_a_one_by_one_wall";
+    private static final String STANDS_BEFORE_A_FULL_MOUTH = "hole_stands_before_a_full_mouth";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -61,6 +63,9 @@ public final class WormholeTests {
                 WormholeTests::dropsThroughAOneByOneFloor);
         GooTestFunctions.registerTest(registrar, REACHES_THROUGH_A_THICK_WALL, WormholeTests::reachesThroughAThickWall);
         GooTestFunctions.registerTest(registrar, HOLDS_OPEN_WHILE_OCCUPIED, WormholeTests::holdsOpenWhileOccupied);
+        GooTestFunctions.registerTest(registrar, CRAWLS_THROUGH_A_ONE_BY_ONE_WALL,
+                WormholeTests::crawlsThroughAOneByOneWall);
+        GooTestFunctions.registerTest(registrar, STANDS_BEFORE_A_FULL_MOUTH, WormholeTests::standsBeforeAFullMouth);
     }
 
     private static final String CLOSES_AFTER_ITS_LIFETIME = "hole_closes_after_its_lifetime";
@@ -331,6 +336,47 @@ public final class WormholeTests {
             helper.succeed();
         });
     }
+
+    /**
+     * A 1x1 hole on a wall is crawled through: standing before its mouth puts
+     * a player in a crawl, while before a 3x3 mouth it stays standing.
+     *
+     * @param helper the gametest helper
+     */
+    public static void crawlsThroughAOneByOneWall(GameTestHelper helper) {
+        for (int z = WALL_NEAR_Z; z <= WALL_FAR_Z; z++) {
+            helper.setBlock(new BlockPos(2, 1, z), Blocks.STONE);
+        }
+        ServerPlayer caster = caster(helper);
+        throwAt(caster, helper.absolutePos(LOW_IN_THE_SLIM_WALL), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            assertMouthSpans(helper, LOW_IN_THE_SLIM_WALL, 1, 1, 1);
+            standAt(helper, caster, BEFORE_THE_FACE);
+            helper.assertTrue(GatePassage.crawlsThrough(caster), "A player before a 1x1 wall mouth should crawl");
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Before a 3x3 mouth a player stays standing.
+     *
+     * @param helper the gametest helper
+     */
+    public static void standsBeforeAFullMouth(GameTestHelper helper) {
+        buildWall(helper);
+        ServerPlayer caster = caster(helper);
+        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            standAt(helper, caster, BEFORE_THE_FACE);
+            helper.assertFalse(GatePassage.crawlsThrough(caster), "A player before a 3x3 mouth should stand");
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /** Feet a step before the struck face. */
+    private static final Vec3 BEFORE_THE_FACE = new Vec3(2.5, 1, 1.5);
 
     /** Feet in the struck mouth, the body halfway into the wall's first block. */
     private static final Vec3 IN_THE_MOUTH = new Vec3(2.5, 1, 2.2);
