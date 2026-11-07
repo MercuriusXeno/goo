@@ -32,7 +32,7 @@ import java.util.stream.Stream;
  * @param map   the id of the block map the blocks step along
  * @param ticks the ticks of fog a block takes to step one rung
  */
-public record CalcifyStep(Identifier map, int ticks) implements Step {
+public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
 
     private static final String NAME = "calcify";
     private static final String FIELD_MAP = "map";

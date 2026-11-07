@@ -8,6 +8,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -133,6 +134,11 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double growth, double
     @Override
     public Stream<Step> children() {
         return steps.stream();
+    }
+
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return Step.takenThrough(where, steps, entity);
     }
 
     @Override

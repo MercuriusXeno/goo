@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.BrewEffectIcon;
 import com.mercuriusxeno.goo.ability.BrewEffectName;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
@@ -95,6 +96,7 @@ import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEve
 import org.jspecify.annotations.Nullable;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
@@ -133,24 +135,27 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
-        BrewEffectName.readConnectionNamesFrom(GooClientSetup::syncedBrewAbilityName);
+        BrewEffectName.readConnectionNamesFrom(
+                type -> syncedBrewAbility(type).map(ClientAbility::displayName).orElse(null));
+        BrewEffectIcon.readConnectionIconsFrom(
+                type -> syncedBrewAbility(type).map(ClientAbility::iconTexture).orElse(null));
         HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
     /**
-     * Answers the displayName key of the brew ability a type grants, from the
-     * abilities the server synced, picked as AbilityRegistry.brewAbilityFor picks.
+     * Answers the brew ability a type grants, from the abilities the server synced,
+     * picked as AbilityRegistry.brewAbilityFor picks; its name and its icon are the
+     * brew effect's.
      * decision brew-effect-reads-the-abilitys-own-name
+     * decision every-brew-effect-draws-its-abilitys-icon
      *
      * @param type the goo type
-     * @return the ability's displayName key, or null when the type grants none
+     * @return the ability, or empty when the type grants none
      */
-    private static @Nullable String syncedBrewAbilityName(ResourceKey<GooTypeDefinition> type) {
+    private static Optional<ClientAbility> syncedBrewAbility(ResourceKey<GooTypeDefinition> type) {
         return AbilitySyncHandler.getAbilitiesForType(type).stream()
                 .filter(ability -> SelfEatRoute.eats(ability.delivery(), ability.badge()))
-                .min(Comparator.comparingInt(ClientAbility::order))
-                .map(ClientAbility::displayName)
-                .orElse(null);
+                .min(Comparator.comparingInt(ClientAbility::order));
     }
 
     /**

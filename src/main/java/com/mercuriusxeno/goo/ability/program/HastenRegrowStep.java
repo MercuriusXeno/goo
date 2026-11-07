@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  *
  * @param ticks the ticks the regrow clock runs ahead by each held tick
  */
-public record HastenRegrowStep(Expr ticks) implements Step {
+public record HastenRegrowStep(Expr ticks) implements TakesNoEntity {
 
     private static final String NAME = "hasten_regrow";
     private static final String FIELD_TICKS = "ticks";

@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  * @param goo  the goo type whose color the ghosts wear
  * @param life the ticks the trail takes to fade out, evaluated when the step runs
  */
-public record GhostTrailStep(ResourceKey<GooTypeDefinition> goo, Expr life) implements Step {
+public record GhostTrailStep(ResourceKey<GooTypeDefinition> goo, Expr life) implements TakesNoEntity {
 
     private static final String NAME = "ghost_trail";
     private static final String FIELD_GOO = "goo";

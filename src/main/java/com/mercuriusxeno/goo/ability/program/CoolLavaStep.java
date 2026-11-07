@@ -16,7 +16,7 @@ import java.util.stream.Stream;
  * lava it reaches: {@code cool_lava}.
  * weird-bounces-and-softens-harm
  */
-public record CoolLavaStep() implements Step {
+public record CoolLavaStep() implements TakesNoEntity {
 
     private static final String NAME = "cool_lava";
 

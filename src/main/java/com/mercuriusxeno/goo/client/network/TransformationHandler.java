@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.mercuriusxeno.goo.client.ability.MorphStandIns;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
@@ -30,6 +31,12 @@ public final class TransformationHandler {
             }
             Transformations.CLIENT.add(payload.gooType(), payload.from(), payload.to(), payload.targetEntityId(),
                     payload.targetBlock(), mc.level.getGameTime(), payload.ticks());
+            if (payload.standIn() != null) {
+                // slime-blob-morphs-into-the-slime-it-becomes: the server holds the entity back, so the
+                // blob morphs into a stand-in its spawn replaces
+                MorphStandIns.stand(mc.level, payload.standIn(), payload.targetEntityId(), payload.to(),
+                        payload.ticks());
+            }
             if (payload.targetBlock() != null) {
                 // prism-blob-becomes-a-milky-quartz-crystal: a blob growing into a prism sounds as it forms
                 PrismFormingSounds.CLIENT.start(payload.targetBlock(), mc.level.getGameTime(), payload.ticks());
