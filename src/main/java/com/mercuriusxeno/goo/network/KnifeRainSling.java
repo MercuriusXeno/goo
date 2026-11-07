@@ -53,27 +53,15 @@ public final class KnifeRainSling {
 
     /**
      * Pays the release's cost and reagents once and queues each knife to
-     * leave the hand on its tick, scattered by the player's own random.
-     *
-     * @param player    the releasing player
-     * @param gooType   the ability's goo type
-     * @param ability   the slinging ability
-     * @param heldTicks the ticks the use key was held
-     */
-    static void sling(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
-                      int heldTicks) {
-        sling(player, gooType, ability, heldTicks, player.getRandom());
-    }
-
-    /**
-     * Pays the release's cost and reagents once and queues each knife to
      * leave the hand on its tick; the releasing client poses the arm's fling.
+     * The scatter comes from the press's seed, so each knife flies along the
+     * line the client drew for it (decision knives-aims-a-spread-fan-not-a-blob-line).
      *
      * @param player    the releasing player
      * @param gooType   the ability's goo type
      * @param ability   the slinging ability
      * @param heldTicks the ticks the use key was held
-     * @param random    the scatter's source
+     * @param random    the scatter's source, seeded by the press
      */
     public static void sling(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
                              int heldTicks, RandomSource random) {
@@ -84,8 +72,8 @@ public final class KnifeRainSling {
         Charge charge = delivery.charge();
         float share = delivery.chargeShare(heldTicks);
         int count = charge.fleckCount(share);
-        List<Vec3> velocities = KnifeRain.scatteredVelocities(player.getYRot(), player.getXRot(), count,
-                charge.spreadDegrees(share), random);
+        List<Vec3> velocities = KnifeRain.releaseVelocities(player.getYRot(), player.getXRot(), charge, share,
+                random);
         int[] launchTicks = KnifeRain.launchTicks(count, charge.sweepTicks(), random);
         boolean gloveRight = gloveOnTheRight(player);
 

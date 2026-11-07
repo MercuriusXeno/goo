@@ -67,7 +67,7 @@ final class KnifeAimLineRenderer {
         };
         List<Vec3[]> lines = KnifeAimLines.velocitiesAt(player.getViewYRot(partialTick),
                         player.getViewXRot(partialTick), delivery.charge(),
-                        delivery.chargeShare(GloveUseTracker.heldTicks())).stream()
+                        delivery.chargeShare(GloveUseTracker.heldTicks()), GloveUseTracker.scatterSeed()).stream()
                 .map(velocity -> KnifeAimLines.flight(hand, velocity, blocks).toArray(Vec3[]::new))
                 .toList();
         ArcRenderer.renderKnifeLines(poseStack, bufferSource, camera, lines, rgb, partialTick);

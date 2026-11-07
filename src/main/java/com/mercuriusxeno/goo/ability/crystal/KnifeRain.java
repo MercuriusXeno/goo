@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
+import com.mercuriusxeno.goo.ability.Charge;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -68,6 +69,23 @@ public final class KnifeRain {
                     (float) (yaw + yawOffset)).scale(speed));
         }
         return velocities;
+    }
+
+    /**
+     * Each knife's velocity leaving the hand for a release at a share of the
+     * charge: the one scatter the server slings and the client's aim lines draw.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @param yaw    the thrower's yaw, in degrees
+     * @param pitch  the thrower's pitch, in degrees
+     * @param charge the delivery's charge
+     * @param share  the share of a full charge the hold reached, 0 to 1
+     * @param random the scatter's source
+     * @return a velocity per knife, in blocks a tick
+     */
+    public static List<Vec3> releaseVelocities(float yaw, float pitch, Charge charge, float share,
+                                               RandomSource random) {
+        return scatteredVelocities(yaw, pitch, charge.fleckCount(share), charge.spreadDegrees(share), random);
     }
 
     /**

@@ -12,14 +12,11 @@ import java.util.List;
  * Knives' aim as points: one line per knife the current charge slings,
  * scattered across the charged cone the way the release scatters them, each
  * following its knife's flight from the hand until it would strike. The
- * scatter is seeded the same every frame, so the lines hold still through a
- * press rather than flicker.
+ * scatter is the press's own seed, rolled anew each press and sent with the
+ * release, so the lines hold still through a press and the knives fly them.
  * knives-aims-a-spread-fan-not-a-blob-line
  */
 final class KnifeAimLines {
-
-    /** The scatter's seed, the same every frame. */
-    private static final long SCATTER_SEED = 0x6B6E69766573L;
 
     private KnifeAimLines() {
     }
@@ -47,11 +44,11 @@ final class KnifeAimLines {
      * @param pitch  the thrower's pitch, in degrees
      * @param charge the delivery's charge
      * @param share  the share of a full charge the hold reached, 0 to 1
+     * @param seed   the press's scatter seed, which the release sends
      * @return a velocity per line, in blocks a tick
      */
-    static List<Vec3> velocitiesAt(float yaw, float pitch, Charge charge, float share) {
-        return KnifeRain.scatteredVelocities(yaw, pitch, charge.fleckCount(share), charge.spreadDegrees(share),
-                RandomSource.create(SCATTER_SEED));
+    static List<Vec3> velocitiesAt(float yaw, float pitch, Charge charge, float share, long seed) {
+        return KnifeRain.releaseVelocities(yaw, pitch, charge, share, RandomSource.create(seed));
     }
 
     /**
