@@ -472,13 +472,13 @@
   "goo.ability.param.arc.blocks_per_tick": "Roll speed",
   "goo.ability.param.arc.blocks_per_tick.description": "Blocks per tick the thrown goo rolls in a straight line, which it does instead of arcing when a range is set and this is below 2.5.",
   "goo.ability.param.arc.flecks": "Charge flecks",
-  "goo.ability.param.arc.flecks.description": "Flecks a fully charged release slings; a shorter charge slings fewer, at least one.",
+  "goo.ability.param.arc.flecks.description": "Flecks a fully charged release slings; a shorter charge slings fewer, down to the fewest flecks.",
   "goo.ability.param.arc.max_ticks": "Charge ticks",
   "goo.ability.param.arc.max_ticks.description": "Ticks you hold the throw to charge it fully before releasing.",
   "goo.ability.param.arc.range": "Roll range",
   "goo.ability.param.arc.range.description": "Blocks the thrown goo rolls in a straight line, with no gravity, when its speed is below 2.5 blocks per tick.",
   "goo.ability.param.arc.spread_degrees": "Charge spread",
-  "goo.ability.param.arc.spread_degrees.description": "Degrees, edge to edge, that a fully charged release fans its flecks across; an uncharged release fans half as wide.",
+  "goo.ability.param.arc.spread_degrees.description": "Degrees, edge to edge, that a fully charged release fans its flecks across; a shorter charge fans narrower, down to the narrowest spread.",
   "goo.ability.param.arc.sweep_ticks": "Charge sweep",
   "goo.ability.param.arc.sweep_ticks.description": "Ticks between the first fleck of a charged release leaving your hand and the last.",
   "goo.ability.param.arc.top_speed": "Top speed",
@@ -901,5 +901,10 @@
   "goo.ability.param.outsider.ring_ticks": "Ring ticks",
   "goo.ability.param.outsider.ring_ticks.description": "Ticks of holding the platform takes to grow each ring outward.",
   "goo.ability.param.pocket_open.slot_cost": "Slot cost",
-  "goo.ability.param.pocket_open.slot_cost.description": "Void goo in mB the Pocket reserves for each slot its stored items fill."
+  "goo.ability.param.pocket_open.slot_cost.description": "Void goo in mB the Pocket reserves for each slot its stored items fill.",
+
+  "goo.ability.param.arc.fewest_flecks": "Fewest flecks",
+  "goo.ability.param.arc.fewest_flecks.description": "Flecks a release with no charge slings; a longer charge slings more, up to the full charge's flecks.",
+  "goo.ability.param.arc.narrowest_degrees": "Narrowest spread",
+  "goo.ability.param.arc.narrowest_degrees.description": "Degrees, edge to edge, that a release with no charge fans its flecks across; a longer charge fans wider."
 }

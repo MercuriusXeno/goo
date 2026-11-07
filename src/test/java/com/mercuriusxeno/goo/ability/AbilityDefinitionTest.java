@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
@@ -43,6 +45,8 @@ class AbilityDefinitionTest {
     private static final float LURKER_POWER = 2.5f;
     /** The widest radius Razor's field step writes. */
     private static final double RAZOR_RADIUS = 4.5;
+    /** The damage each knife Knives slings deals. */
+    private static final double KNIFE_DAMAGE = 2;
     private static final Pattern RADIUS_BEARING = Pattern.compile("\"radius\"|\"type\"\s*:\s*\"explode\"");
 
     // decision one-proving-ability-per-kind
@@ -63,6 +67,14 @@ class AbilityDefinitionTest {
         AbilityArea written = new AbilityArea(AbilityArea.Shape.CONE, JSON_SIZE, CONE_ANGLE);
         List<Step> explodes = List.of(new ExplodeStep(Expr.literal(EXPLOSION_POWER), ExplosionMode.TNT));
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
+    }
+
+    // decision knives-deal-two-each
+    @Test
+    void knivesDealsTwoAKnife() {
+        DamageStep damage = AbilityJson.decode("crystal_knives").behaviors().stream()
+                .filter(DamageStep.class::isInstance).map(DamageStep.class::cast).findFirst().orElseThrow();
+        assertEquals(KNIFE_DAMAGE, damage.amount().evaluate(Variables.NONE), TOLERANCE);
     }
 
     @Test
