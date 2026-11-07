@@ -74,7 +74,9 @@ void main() {
     float echoAt = mod(center - seconds * ECHO_SPEED, ECHO_SPACING);
     float echo = 1.0 - smoothstep(0.0, ECHO_WIDTH, min(echoAt, ECHO_SPACING - echoAt));
     float fade = 1.0 - smoothstep(dimReach * 0.5, dimReach * 1.5, center);
-    float distanceLight = 1.0 - smoothstep(CLEAR_REACH, dimReach, center);
+    // where nothing drew, the diver is looking into the stone around it, which is near: it keeps
+    // the near look; only what drew fades into black with its distance
+    float distanceLight = mix(1.0 - smoothstep(CLEAR_REACH, dimReach, center), 1.0, sky);
 
     float nearness = 1.0 - smoothstep(nearReach * 0.4, nearReach, center);
     vec3 dark = mix(DEEP_SEA + scene * DIM_SHARE, scene * NEAR_SHARE, nearness) * distanceLight;
