@@ -31,7 +31,6 @@ class AbilityPoseTableTest {
             Map.entry("crystal_prism", ArmPose.SWUNG),
             Map.entry("crystal_scales", ArmPose.HELD_UP),
             Map.entry("crystal_shards", ArmPose.SHOULDER_CAST),
-            Map.entry("deep_churn", ArmPose.SWUNG),
             Map.entry("deep_convoke", ArmPose.SWUNG),
             Map.entry("deep_dive", ArmPose.HELD_UP),
             Map.entry("ender_blink", ArmPose.HELD_OUT),

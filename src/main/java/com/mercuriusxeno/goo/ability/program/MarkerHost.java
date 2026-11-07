@@ -41,7 +41,7 @@ import java.util.function.Consumer;
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
         FieldEffectHost, PhasedHost, WatchHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
-        BeatHost, RelayHost, FrostHost, GreeningHost, ChurnHost {
+        BeatHost, RelayHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -53,8 +53,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      * (decision black-hole-leaves-a-compression-sphere).
      */
     static final int BLOCKS_TAKEN_PER_TICK = 2048;
-    /** The most cells one churn lifts, a large ore vein whole. */
-    static final int VEIN_CELLS = 64;
 
     @Override
     public HostKind kind() {
@@ -261,24 +259,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         SculkCall.pulse(level, pos, inner, outer);
     }
 
-    /**
-     * Lifts the vein under the block the marker landed on, no higher than
-     * that block's layer, keeping the vein on the marker between ticks.
-     * decision churn-pulls-a-vein-up-as-a-fluid-chain
-     */
-    @Override
-    public boolean pullVein(int depth) {
-        BlockPos landed = pos.relative(be.getPlacedFace().getOpposite());
-        LevelChurnCells cells = new LevelChurnCells(level);
-        ChurnVeinState vein = be.programState().churnVein();
-        if (!vein.found()) {
-            vein.standAt(ChurnVein.find(landed, depth, VEIN_CELLS, cells));
-        }
-        List<BlockPos> risen = ChurnVein.rise(vein.cells(), landed.getY(), cells);
-        boolean rose = !risen.equals(vein.cells());
-        vein.standAt(risen);
-        return rose;
-    }
 
     @Override
     public void placeBlock(Identifier block, Map<String, String> state) {

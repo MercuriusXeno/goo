@@ -105,11 +105,6 @@ public enum HostCapability {
      */
     CONVOKE(ConvokeHost.class),
     /**
-     * A vein under the landed block that a churn lifts (decision
-     * churn-pulls-a-vein-up-as-a-fluid-chain).
-     */
-    CHURN(ChurnHost.class),
-    /**
      * A struck surface an End gate can open over (decision
      * end-clears-blocks-and-opens-a-portal).
      */
