@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.held.Telekinesis;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -7,6 +8,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
@@ -15,6 +17,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -24,10 +27,11 @@ import java.util.stream.Stream;
  * and every tick after holds it in front of the player along the look, from
  * the far distance with the look level or above, drawn in to the near
  * distance as the look pitches down to {@link #FULL_DRAW_PITCH}. A left click
- * while held throws it at the throw speed (GrabEvents.throwHeld).
+ * while held throws it at the throw speed (GrabEvents.throwHeld), and the
+ * press lifts nothing more until right click lets go.
  * decision grab-holds-and-throws-a-physics-body
  *
- * @param range      how far the look reaches for an entity to lift, in blocks
+ * @param range      how far the look reaches for an entity to lift, in blocks, before Telekinesis adds its reach
  * @param near       how far from the eye the held entity hangs with the look pitched fully down
  * @param far        how far from the eye the held entity hangs with the look level or above
  * @param throwSpeed the speed a throw launches the held entity at, in blocks per tick
@@ -63,7 +67,9 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
 
     @Override
     public boolean tick(StepContext context) {
-        if (!(context.hostAs(TargetHost.class).target() instanceof ServerPlayer player)) {
+        if (!(context.hostAs(TargetHost.class).target() instanceof ServerPlayer player)
+                || GrabEvents.extendSpentPress(player)) {
+            // decision diagnose-and-correct-grabs-left-click-throw: a throw spends the press until right click lets go
             return true;
         }
         Entity held = GrabEvents.heldBy(player);
@@ -106,15 +112,39 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
     }
 
     /**
-     * The first entity Grab can lift along the player's look within range,
-     * short of the first block the look strikes.
+     * How far Grab's look reaches for an entity to lift: its own range, and
+     * Telekinesis's reach on top while Telekinesis holds.
+     * decision grab-reaches-telekinesis-range
+     *
+     * @param telekinesisReach the modifier Telekinesis lays on the player's entity reach, or null where none stands
+     * @return the reach, in blocks
+     */
+    double reachWith(@Nullable AttributeModifier telekinesisReach) {
+        return telekinesisReach == null ? range : range + telekinesisReach.amount();
+    }
+
+    /**
+     * How far an ability's Grab reaches, so the glove aims no farther than it lifts.
+     *
+     * @param behaviors        the ability's behaviors
+     * @param telekinesisReach the modifier Telekinesis lays on the player's entity reach, or null where none stands
+     * @return the reach, in blocks, or empty where the ability holds no grab
+     */
+    public static OptionalDouble reachOf(List<Step> behaviors, @Nullable AttributeModifier telekinesisReach) {
+        return behaviors.stream().filter(GrabStep.class::isInstance).map(GrabStep.class::cast)
+                .mapToDouble(grab -> grab.reachWith(telekinesisReach)).findFirst();
+    }
+
+    /**
+     * The first entity Grab can lift along the player's look within its
+     * reach, short of the first block the look strikes.
      *
      * @param player the channeling player
      * @return the entity, or null where the look strikes none
      */
     private @Nullable Entity struckByLook(ServerPlayer player) {
         Vec3 eye = player.getEyePosition();
-        Vec3 reach = eye.add(player.getLookAngle().scale(range));
+        Vec3 reach = eye.add(player.getLookAngle().scale(reachWith(Telekinesis.entityReachLaid(player))));
         Vec3 stop = player.level().clip(new ClipContext(eye, reach, ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE, player)).getLocation();
         AABB swept = player.getBoundingBox().expandTowards(stop.subtract(eye)).inflate(PICK_SLACK);
