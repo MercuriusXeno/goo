@@ -37,9 +37,9 @@ class ScryPaintedMobsTest {
         painted.paint(MOB, HIT_AT, TINT);
 
         assertTrue(painted.isPainted(MOB, HIT_AT), "outlined as the front crosses it");
-        assertTrue(painted.isPainted(MOB, HIT_AT + 39), "still outlined just inside the linger");
+        assertTrue(painted.isPainted(MOB, HIT_AT + 119), "still outlined just inside the six seconds");
         assertEquals(TINT, painted.outlineAt(MOB, HIT_AT) & 0xFFFFFF, "in the sweep's color");
-        assertFalse(painted.isPainted(MOB, HIT_AT + 40), "let go once the linger runs out");
+        assertFalse(painted.isPainted(MOB, HIT_AT + 120), "let go once the six seconds run out");
         assertFalse(painted.isPainted(MOB + 1, HIT_AT), "a mob no front crossed stays plain");
     }
 
@@ -48,8 +48,8 @@ class ScryPaintedMobsTest {
         ScryPaintedMobs painted = new ScryPaintedMobs();
         painted.paint(MOB, HIT_AT, TINT);
 
-        painted.paint(MOB, HIT_AT + 30, TINT);
+        painted.paint(MOB, HIT_AT + 100, TINT);
 
-        assertTrue(painted.isPainted(MOB, HIT_AT + 60), "the second front's linger");
+        assertTrue(painted.isPainted(MOB, HIT_AT + 150), "the second front's linger");
     }
 }

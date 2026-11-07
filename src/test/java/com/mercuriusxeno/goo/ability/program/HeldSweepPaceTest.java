@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * A held sweep's front leaves the caster at one steady pace, 48 blocks a
  * second, with no ease and no rest, landing Scry's 96 blocks on tick 40 and
  * Glitter's and Magnet's 64 on tick 27; and a press starts a pulse at once
- * and a hold another every tenth tick.
+ * and a hold another every second (operator ruling 2026-11-06: fewer pulses).
  * decision held-sweeps-share-one-fast-shell-visual
  */
 class HeldSweepPaceTest {
@@ -39,12 +39,12 @@ class HeldSweepPaceTest {
     }
 
     @Test
-    void aPressStartsAPulseAtOnceAndAHoldAnotherEveryTenthTick() {
+    void aPressStartsAPulseAtOnceAndAHoldAnotherEverySecond() {
         assertTrue(SCRY.startsPulse(1), "the press");
-        for (int held = 2; held <= 10; held++) {
+        for (int held = 2; held <= 20; held++) {
             assertFalse(SCRY.startsPulse(held), "held " + held);
         }
-        assertTrue(SCRY.startsPulse(11), "half a second into the hold");
         assertTrue(SCRY.startsPulse(21), "a second into the hold");
+        assertTrue(SCRY.startsPulse(41), "two seconds into the hold");
     }
 }

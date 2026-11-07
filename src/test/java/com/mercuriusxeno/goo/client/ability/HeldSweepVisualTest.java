@@ -63,11 +63,16 @@ class HeldSweepVisualTest {
         private static final double BLOCKS_A_TICK = 2.4;
         private static final long HEARD_AT = 100;
 
+        /**
+         * A hit wall holds full brightness for three seconds, then fades
+         * slowly over three more (operator ruling 2026-11-06).
+         */
         @Test
-        void aHitWallGlowsWholeOnItsHitTickHalfAtTwentyAndGoneAtForty() {
+        void aHitWallGlowsWholeForThreeSecondsThenFadesOverThreeMore() {
             assertEquals(1f, HeldSweepVisual.glowAt(0), 1e-6f);
-            assertEquals(0.5f, HeldSweepVisual.glowAt(20), 1e-6f);
-            assertEquals(0f, HeldSweepVisual.glowAt(40), 0f);
+            assertEquals(1f, HeldSweepVisual.glowAt(60), 1e-6f);
+            assertEquals(0.5f, HeldSweepVisual.glowAt(90), 1e-6f);
+            assertEquals(0f, HeldSweepVisual.glowAt(120), 0f);
         }
 
         @Test
@@ -77,7 +82,7 @@ class HeldSweepVisualTest {
             pulse.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
             assertTrue(!pulse.lit().isEmpty(), "the floor the front crossed lights");
 
-            pulse.fadeOut(HEARD_AT + 1 + 40);
+            pulse.fadeOut(HEARD_AT + 1 + 120);
 
             assertTrue(pulse.lit().isEmpty(), "every lit wall has faded and left");
         }

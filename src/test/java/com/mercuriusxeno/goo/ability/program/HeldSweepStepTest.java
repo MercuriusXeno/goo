@@ -14,8 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Scry, Glitter and Magnet, decoded from their shipped JSON, each sweep
  * through the one held-sweep payload; and a held sweep's pulses overlap:
- * the hold's eleventh tick starts a second pulse while the first still
- * travels, each live pulse sending its own payload.
+ * a hold starts a second pulse while the first still
+ * travels, each live pulse sending its own payload; the hold's
+ * twenty-first tick, a second in, starts the second pulse.
  * decision held-sweeps-share-one-fast-shell-visual
  */
 class HeldSweepStepTest {
@@ -45,15 +46,15 @@ class HeldSweepStepTest {
     }
 
     @Test
-    void theHoldsEleventhTickSendsTwoFrontsEachWithItsOwnPulseAndRadius() {
+    void theHoldsTwentyFirstTickSendsTwoFrontsEachWithItsOwnPulseAndRadius() {
         HeldSweepStep scry = sweepOf("astral_scry");
-        List<HeldSweepPulses.Pulse> live = holdFor(scry, new HeldSweepPulses(), 11);
+        List<HeldSweepPulses.Pulse> live = holdFor(scry, new HeldSweepPulses(), 21);
 
-        List<HeldSweepPayload> sent = live.stream().map(pulse -> scry.sweepOf(pulse, PRESSED_AT + 10)).toList();
+        List<HeldSweepPayload> sent = live.stream().map(pulse -> scry.sweepOf(pulse, PRESSED_AT + 20)).toList();
 
         assertEquals(2, sent.size(), "two fronts stand at once");
         assertEquals(2, sent.stream().map(HeldSweepPayload::pulse).distinct().count(), "each names its own pulse");
-        assertEquals(11 * BLOCKS_A_TICK, sent.get(0).radius(), EXACT, "the first front, eleven ticks out");
+        assertEquals(21 * BLOCKS_A_TICK, sent.get(0).radius(), EXACT, "the first front, twenty-one ticks out");
         assertEquals(BLOCKS_A_TICK, sent.get(1).radius(), EXACT, "the second front, just leaving");
     }
 
