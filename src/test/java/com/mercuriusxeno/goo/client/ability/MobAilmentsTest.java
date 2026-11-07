@@ -1,11 +1,16 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.held.LuxEvents;
+import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.zone.ShifterEvents;
+import com.mercuriusxeno.goo.ability.zone.ZoneEvents;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static com.mercuriusxeno.goo.client.ability.MobAilments.FADE_TICKS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -62,16 +67,20 @@ class MobAilmentsTest {
     class Expiry {
 
         @Test
-        void ailmentIsGoneOnTheTickItEnds() {
-            assertTrue(hexedAt(LAND_TICK).ailmentsOf(MOB, LAND_TICK + DURATION).isEmpty());
+        void anEndedAilmentFadesOverTheSecondAfterItsEndThenIsGone() {
+            MobAilments ailments = hexedAt(LAND_TICK);
+            assertEquals(List.of(new MobAilments.Worn(AilmentKind.HEX, 0)),
+                    ailments.ailmentsOf(MOB, LAND_TICK + DURATION));
+            assertFalse(ailments.ailmentsOf(MOB, LAND_TICK + DURATION).getFirst().stands());
+            assertTrue(ailments.ailmentsOf(MOB, LAND_TICK + DURATION + FADE_TICKS).isEmpty());
         }
 
         @Test
-        void aLaterLandingDropsEndedAilmentsOfOtherEntities() {
+        void aLaterLandingDropsFadedAilmentsOfOtherEntities() {
             MobAilments ailments = hexedAt(LAND_TICK);
-            ailments.afflict(MOB + 1, AilmentKind.STASIS, LAND_TICK + DURATION, DURATION);
+            ailments.afflict(MOB + 1, AilmentKind.STASIS, LAND_TICK + DURATION + FADE_TICKS, DURATION);
 
-            assertTrue(ailments.ailmentsOf(MOB, LAND_TICK).isEmpty(), "an ended ailment was kept");
+            assertTrue(ailments.ailmentsOf(MOB, LAND_TICK).isEmpty(), "a faded ailment was kept");
         }
 
         @Test
@@ -79,14 +88,55 @@ class MobAilmentsTest {
             assertEquals(20, FADE_TICKS);
         }
 
+        /** decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends: nothing fades before the end. */
         @Test
-        void overlayIsWholeUntilTheFadeThenFallsToNothing() {
+        void overlayIsWholeUntilItsEndThenFallsToNothingOverTheFade() {
             assertEquals(1f, MobAilments.strength(DURATION));
-            assertEquals(1f, MobAilments.strength(FADE_TICKS));
-            assertEquals(0.5f, MobAilments.strength(FADE_TICKS / 2f));
-            assertEquals(0f, MobAilments.strength(0f));
-            assertEquals(0f, MobAilments.strength(-1f));
+            assertEquals(1f, MobAilments.strength(0.01f));
+            assertEquals(1f, MobAilments.strength(0f));
+            assertEquals(0.5f, MobAilments.strength(-FADE_TICKS / 2f));
+            assertEquals(0f, MobAilments.strength(-FADE_TICKS));
         }
+    }
+
+    /** A refreshed overlay draws whole from one refresh to the next, so no source's overlay dims while it stands (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends). */
+    @Nested
+    class Refreshing {
+
+        private static final float LAST_FRAME_BEFORE_THE_TICK = 0.99f;
+
+        /** Each source that keeps an overlay alive by refreshing it, with its longest gap between refreshes. */
+        private enum RefreshedSource {
+            LUX_GLISTEN(LuxEvents.GAZE_EVERY, LuxEvents.GAZE_GLISTEN_TICKS),
+            // a channel tick may land as late as the hold's grace allows
+            GRAB_FLAIL(GrabEvents.HOLD_GRACE_TICKS, GrabEvents.FLAIL_OVERLAY_TICKS),
+            SHIFTER_SHIMMER(ShifterEvents.SHIMMER_REFRESH_TICKS, ShifterEvents.SHIMMER_TICKS),
+            ZONE_SHIMMER(ZoneEvents.SHIMMER_REFRESH_TICKS, ZoneEvents.SHIMMER_TICKS);
+
+            private final int periodTicks;
+            private final int durationTicks;
+
+            RefreshedSource(int periodTicks, int durationTicks) {
+                this.periodTicks = periodTicks;
+                this.durationTicks = durationTicks;
+            }
+        }
+
+        @Test
+        void eachSourcesOverlayStandsWholeUntilItsNextRefresh() {
+            for (RefreshedSource source : RefreshedSource.values()) {
+                MobAilments ailments = new MobAilments();
+                ailments.afflict(MOB, AilmentKind.GLOW, LAND_TICK, source.durationTicks);
+                long beforeNext = LAND_TICK + source.periodTicks;
+                MobAilments.Worn worn = ailments.ailmentsOf(MOB, beforeNext).getFirst();
+                assertEquals(1f, MobAilments.strength(worn.ticksLeft() - LAST_FRAME_BEFORE_THE_TICK), source.name());
+            }
+        }
+    }
+
+    @Test
+    void aStandingAilmentStands() {
+        assertTrue(hexedAt(LAND_TICK).ailmentsOf(MOB, LAND_TICK).getFirst().stands());
     }
 
     /** A clear fades the overlay out over the second after it lands (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends). */
@@ -121,12 +171,19 @@ class MobAilmentsTest {
         }
 
         @Test
-        void aClearNeverLengthensAnAilmentAlreadyFading() {
-            MobAilments ailments = new MobAilments();
-            ailments.afflict(MOB, AilmentKind.HEX, LAND_TICK, 4);
-            ailments.afflict(MOB, AilmentKind.HEX, LAND_TICK + 1, 0);
+        void aClearEndsTheAilmentWhereItLands() {
+            MobAilments ailments = hexedAt(LAND_TICK);
+            ailments.afflict(MOB, AilmentKind.HEX, CLEARED_AT, 0);
 
-            assertEquals(List.of(new MobAilments.Worn(AilmentKind.HEX, 3)), ailments.ailmentsOf(MOB, LAND_TICK + 1));
+            assertFalse(ailments.ailmentsOf(MOB, CLEARED_AT).getFirst().stands());
+        }
+
+        @Test
+        void aClearNeverLengthensAnAilmentAlreadyFading() {
+            MobAilments ailments = hexedAt(LAND_TICK);
+            ailments.afflict(MOB, AilmentKind.HEX, LAND_TICK + DURATION + 5, 0);
+
+            assertTrue(ailments.ailmentsOf(MOB, LAND_TICK + DURATION + FADE_TICKS).isEmpty());
         }
 
         @Test

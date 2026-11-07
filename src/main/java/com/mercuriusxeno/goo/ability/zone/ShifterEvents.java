@@ -38,9 +38,9 @@ import java.util.Optional;
 public final class ShifterEvents {
 
     /** Ticks between one shimmer refresh and the next. */
-    static final int SHIMMER_REFRESH_TICKS = 20;
+    public static final int SHIMMER_REFRESH_TICKS = 20;
     /** Ticks each refresh keeps the shimmer on, outlasting the refresh period. */
-    static final int SHIMMER_TICKS = 40;
+    public static final int SHIMMER_TICKS = 40;
     private static final int SHIMMER_CLEARED = 0;
     /** Ticks each blink's afterimage grows and fades over, the blink's own. */
     static final int AFTERIMAGE_LIFE_TICKS = 12;
