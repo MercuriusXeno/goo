@@ -17,7 +17,6 @@ import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlock;
-import com.mercuriusxeno.goo.block.outsider.VoidstoneBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.quantum.PhasedBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -25,6 +24,7 @@ import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.SoundType;
@@ -215,8 +215,8 @@ public class GooBlocks {
      * the one block there nothing can take away (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
      */
-    public static final DeferredBlock<VoidstoneBlock> VOIDSTONE = BLOCKS.registerBlock("voidstone",
-            VoidstoneBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(UNBREAKABLE, UNBLASTABLE)
+    public static final DeferredBlock<Block> VOIDSTONE = BLOCKS.registerSimpleBlock("voidstone",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(UNBREAKABLE, UNBLASTABLE)
                     .noLootTable().pushReaction(PushReaction.BLOCK).lightLevel(state -> VOIDSTONE_GLOW));
 
     /**
