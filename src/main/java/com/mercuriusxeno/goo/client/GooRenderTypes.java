@@ -666,8 +666,8 @@ public final class GooRenderTypes {
 
     /**
      * Voidstone's faces: near-black stone holding pale stars placed by world
-     * position, drawn over the block's own faces, which the depth bias lets
-     * them win (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
+     * position, drawn by VoidstoneFaces over the block's own plain dark faces,
+     * which the depth bias lets them win (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
      */
     public static final RenderPipeline VOIDSTONE = RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET,
