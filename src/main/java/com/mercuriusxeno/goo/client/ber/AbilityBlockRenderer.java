@@ -32,7 +32,7 @@ import org.jspecify.annotations.Nullable;
  * <p>Active visualizers:
  * <ul>
  *   <li>{@link MarkerOrbVisual} - the slime-like orb while the program runs</li>
- *   <li>{@link MetalSpikeVisual} - Urchin's resting bristle and its telescoping spears</li>
+ *   <li>{@link MetalSpikeVisual} - Urchin's bristle and the spike each shot shoots</li>
  *   <li>{@link CrystalCloudVisual} - the shard cloud a crystal marker stands</li>
  *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
  *   <li>{@link VineTrapVisual} - the Vines trap's knot and tendrils on the ground</li>

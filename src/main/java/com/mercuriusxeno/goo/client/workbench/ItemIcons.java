@@ -23,14 +23,21 @@ final class ItemIcons {
     // A hover key no prefab name spells, since a name holds no colon.
     private static final String HOVER_PREFIX = "goo-item:";
 
+    private static final String ANCHORS = "anchors";
+    // Every anchor shows, so the line leaves none out.
+    private static final int NONE_LEFT_OUT = 0;
+
     private final Map<String, ItemStack> stacks = new HashMap<>();
     private final Function<String, Map<String, String>> amounts;
+    private final Function<String, List<String>> anchors;
 
     /**
      * @param amounts each item's goo value by type, empty for an item nothing values
+     * @param anchors each item's anchors, empty for an item holding an entry or traced to none
      */
-    ItemIcons(Function<String, Map<String, String>> amounts) {
+    ItemIcons(Function<String, Map<String, String>> amounts, Function<String, List<String>> anchors) {
         this.amounts = amounts;
+        this.anchors = anchors;
     }
 
     /**
@@ -50,7 +57,7 @@ final class ItemIcons {
             return Optional.empty();
         }
         String id = hoverKey.substring(HOVER_PREFIX.length());
-        return Optional.of(tooltipLines(nameOf(id), amounts.apply(id)));
+        return Optional.of(tooltipLines(nameOf(id), amounts.apply(id), anchors.apply(id)));
     }
 
     /**
@@ -58,13 +65,20 @@ final class ItemIcons {
      *
      * @param name    the item's name
      * @param amounts each goo type the item is worth with its amount, empty where nothing values it
-     * @return the name, then one line per goo type with its amount
+     * @param anchors the item's anchors, empty where it has none
+     * @return the name, one line per goo type with its amount, then the word anchors over the anchors' icons where
+     *     it has any
      */
-    static List<TooltipLine> tooltipLines(String name, Map<String, String> amounts) {
+    static List<TooltipLine> tooltipLines(String name, Map<String, String> amounts, List<String> anchors) {
         List<TooltipLine> lines = new ArrayList<>();
         lines.add(new TooltipLine.Text(Component.literal(name)));
         // decision value-tooltips-draw-each-types-icon-before-its-amount
         amounts.forEach((type, amount) -> lines.add(new TooltipLine.GooAmount(type, amount)));
+        // decision item-hover-lists-its-anchors
+        if (!anchors.isEmpty()) {
+            lines.add(new TooltipLine.Text(Component.literal(ANCHORS)));
+            lines.add(new TooltipLine.Members(anchors, NONE_LEFT_OUT));
+        }
         return lines;
     }
 

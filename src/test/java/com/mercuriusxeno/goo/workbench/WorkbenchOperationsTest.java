@@ -710,10 +710,12 @@ class WorkbenchOperationsTest {
                     """;
             JsonObject items = answeredJson(WorkbenchOperations.DERIVED_FROM, posted(logs)).getAsJsonObject("items");
             assertEquals(JsonParser.parseString("""
-                    {"inputs": [{"id": "minecraft:oak_planks", "count": 4}], "output": 1}
+                    {"inputs": [{"id": "minecraft:oak_planks", "count": 4}], "output": 1,
+                     "anchors": ["minecraft:oak_log"]}
                     """), items.get("minecraft:crafting_table"));
             assertEquals(JsonParser.parseString("""
-                    {"inputs": [{"id": "minecraft:oak_log", "count": 1}], "output": 4}
+                    {"inputs": [{"id": "minecraft:oak_log", "count": 1}], "output": 4,
+                     "anchors": ["minecraft:oak_log"]}
                     """), items.get("minecraft:oak_planks"));
             assertFalse(items.has("minecraft:oak_log"), items.toString());
         }
