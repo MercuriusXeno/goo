@@ -178,6 +178,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private double seatFall;
     /** The ticks a hunk moving to its seat has stood held fast. */
     private int stuckTicks;
+    /** The ticks a hunk has stood on its seat, waiting for the client to draw it there. */
+    private int atSeatTicks;
     /** By block index, whether a shattering hunk has dropped that block. */
     private boolean[] dropped = new boolean[0];
 
@@ -781,6 +783,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         seat = HoleFit.settleNear(originCellOf(position()), shape(), this::open).orElse(null);
         seatFall = 0;
         stuckTicks = 0;
+        atSeatTicks = 0;
     }
 
     /**
@@ -798,6 +801,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         setPos(position().add(moved));
         if (position().distanceToSqr(there) < SEATED_SQR) {
             setPos(there);
+            // The client draws the hunk interpolation's ticks behind, so it holds still until the client draws it seated.
+            if (++atSeatTicks < InterpolationHandler.DEFAULT_INTERPOLATION_STEPS) {
+                return;
+            }
             seat = null;
             placeBlocks(level);
             entityData.set(PLACED_AT, level.getGameTime());

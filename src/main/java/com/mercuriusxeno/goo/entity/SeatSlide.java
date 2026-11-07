@@ -3,9 +3,10 @@ package com.mercuriusxeno.goo.entity;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * How a let-go chunk come to rest moves on to its seat on the grid, a step
- * each tick so it draws moving rather than jumping there: up first to a seat
- * above it, then across over the seat, then falling into it, never past it.
+ * How a let-go chunk come to rest moves on to its seat in the grid column
+ * it stands over, a step each tick so it draws moving rather than jumping
+ * there: up first to a seat above it, then across, under half a block, onto
+ * the column's middle, then falling into it, never past it.
  * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
  */
 final class SeatSlide {
