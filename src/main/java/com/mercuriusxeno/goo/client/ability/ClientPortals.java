@@ -23,6 +23,7 @@ public final class ClientPortals {
     private static List<Portal> portals = List.of();
     private static Optional<QuantumPortals.Link> link = Optional.empty();
     private static Optional<Portal> choosing = Optional.empty();
+    private static List<QuantumPortals.Link> links = List.of();
 
     private ClientPortals() {
     }
@@ -38,6 +39,7 @@ public final class ClientPortals {
             portals = List.copyOf(payload.portals());
             link = payload.link();
             choosing = payload.choosing();
+            links = List.copyOf(payload.links());
             ClientGates.refresh();
         });
     }
@@ -54,6 +56,14 @@ public final class ClientPortals {
      */
     public static Optional<QuantumPortals.Link> link() {
         return link;
+    }
+
+    /**
+     * @return every pair any player linked in the local player's level
+     * linked-partner-chunks-stream-to-any-viewer
+     */
+    public static List<QuantumPortals.Link> links() {
+        return links;
     }
 
     /**

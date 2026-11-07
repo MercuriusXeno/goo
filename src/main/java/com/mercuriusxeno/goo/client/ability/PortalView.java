@@ -79,6 +79,8 @@ public final class PortalView {
     private static final PortalCamera CAMERA = new PortalCamera();
     private static ProjectionMatrixBuffer projection;
     private static boolean drawing;
+    /** Where the view being drawn draws its partner's side from. */
+    private static PartnerView.Source source = PartnerView.Source.NONE;
 
     private PortalView() {
     }
@@ -136,7 +138,7 @@ public final class PortalView {
      */
     private static List<Gate[]> pairs() {
         List<Gate[]> pairs = new ArrayList<>();
-        ClientPortals.link().ifPresent(link -> pairs.add(new Gate[] {link.entry().gate(), link.exit().gate()}));
+        ClientPortals.links().forEach(link -> pairs.add(new Gate[] {link.entry().gate(), link.exit().gate()}));
         ClientHoles.holes().forEach(hole -> pairs.add(new Gate[] {hole.entry(), hole.exit()}));
         return pairs;
     }
@@ -169,8 +171,11 @@ public final class PortalView {
     }
 
     /**
-     * Whether the client holds the partner's surroundings to draw: its
-     * chunk, within the view area around the main camera.
+     * Whether the client holds the partner's surroundings to draw, and from
+     * where: the ClientLevel where its chunk stands within the view area
+     * around the main camera, else the streamed view where the server
+     * streamed it; the view through draws from whichever holds it.
+     * linked-partner-chunks-stream-to-any-viewer
      *
      * @param mc   the client
      * @param main the main camera
@@ -179,10 +184,18 @@ public final class PortalView {
      */
     private static boolean holds(Minecraft mc, Camera main, Gate far) {
         ChunkPos chunk = ChunkPos.containing(BlockPos.containing(far.center()));
-        return far.dimension().equals(mc.level.dimension())
-                && mc.level.hasChunk(chunk.x(), chunk.z())
+        boolean clientLevelHolds = mc.level.hasChunk(chunk.x(), chunk.z())
                 && far.center().distanceTo(main.position())
                 < (mc.options.getEffectiveRenderDistance() - 1) * BLOCKS_PER_CHUNK;
+        source = PartnerView.sourceFor(clientLevelHolds, PartnerView.CLIENT.holds(chunk));
+        return far.dimension().equals(mc.level.dimension()) && source != PartnerView.Source.NONE;
+    }
+
+    /**
+     * @return whether the view being drawn draws its partner's side from the streamed view
+     */
+    public static boolean drawsStreamed() {
+        return source == PartnerView.Source.STREAMED;
     }
 
     /**

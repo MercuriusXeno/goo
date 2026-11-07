@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.MeltAbsorbs;
+import com.mercuriusxeno.goo.client.ability.PartnerView;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.ScrySweep;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
@@ -39,6 +40,8 @@ import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
+import com.mercuriusxeno.goo.network.PartnerChunkPayload;
+import com.mercuriusxeno.goo.network.PartnerChunksDropPayload;
 import com.mercuriusxeno.goo.network.PortalsSyncPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
@@ -83,6 +86,8 @@ public final class GooClientNetworking {
         event.register(WorkbenchReplyPayload.TYPE, ValuesManagerHandlers::handleReply);
         event.register(PortalsSyncPayload.TYPE, ClientPortals::handle);
         event.register(HolesSyncPayload.TYPE, ClientHoles::handle);
+        event.register(PartnerChunkPayload.TYPE, PartnerView::handle);
+        event.register(PartnerChunksDropPayload.TYPE, PartnerView::handleDrop);
         registerAbilityVisualHandlers(event);
     }
 

@@ -48,6 +48,8 @@ public final class GooNetworking {
         r.playToClient(WorkbenchReplyPayload.TYPE, WorkbenchReplyPayload.STREAM_CODEC);
         r.playToClient(PortalsSyncPayload.TYPE, PortalsSyncPayload.STREAM_CODEC);
         r.playToClient(HolesSyncPayload.TYPE, HolesSyncPayload.STREAM_CODEC);
+        r.playToClient(PartnerChunkPayload.TYPE, PartnerChunkPayload.STREAM_CODEC);
+        r.playToClient(PartnerChunksDropPayload.TYPE, PartnerChunksDropPayload.STREAM_CODEC);
         registerAbilityVisualPayloads(r);
     }
 

@@ -5,12 +5,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -80,7 +82,7 @@ public final class PortalChoice {
             sound(player, relink.now().entry().faceCenter(), LINK_PITCH);
             sound(player, relink.now().exit().faceCenter(), LINK_PITCH);
         });
-        sync(player);
+        syncEveryone(player.level().getServer());
     }
 
     /**
@@ -107,7 +109,7 @@ public final class PortalChoice {
                 BREAK_SPREAD, BREAK_SPREAD, BREAK_SPEED);
         level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(),
                 SoundSource.BLOCKS, SOUND_VOLUME, BREAK_PITCH);
-        level.getServer().getPlayerList().getPlayers().forEach(PortalChoice::sync);
+        syncEveryone(level.getServer());
         return true;
     }
 
@@ -117,14 +119,38 @@ public final class PortalChoice {
      * @param player the player
      */
     public static void sync(ServerPlayer player) {
-        QuantumPortals portals = QuantumPortals.get(player.level());
-        UUID owner = player.getUUID();
-        PortalsSyncPayload payload = new PortalsSyncPayload(portals.portalsOf(owner), portals.linkOf(owner),
-                portals.choosing(owner));
+        PortalsSyncPayload payload = syncFor(player);
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         if (player.connection.hasChannel(payload)) {
             PacketDistributor.sendToPlayer(player, payload);
         }
+    }
+
+    /**
+     * The portal sync a player's client is sent.
+     *
+     * @param player the player
+     * @return the payload
+     */
+    public static PortalsSyncPayload syncFor(ServerPlayer player) {
+        QuantumPortals portals = QuantumPortals.get(player.level());
+        UUID owner = player.getUUID();
+        // linked-partner-chunks-stream-to-any-viewer
+        List<QuantumPortals.Link> links = portals.links().values().stream()
+                .filter(link -> link.entry().block().dimension().equals(player.level().dimension()))
+                .toList();
+        return new PortalsSyncPayload(portals.portalsOf(owner), portals.linkOf(owner), portals.choosing(owner),
+                links);
+    }
+
+    /**
+     * Tells every player's client of the portals, since a link any player
+     * makes or loses shows to all of them.
+     *
+     * @param server the server
+     */
+    public static void syncEveryone(MinecraftServer server) {
+        server.getPlayerList().getPlayers().forEach(PortalChoice::sync);
     }
 
     private static void sound(ServerPlayer player, Vec3 at, float pitch) {

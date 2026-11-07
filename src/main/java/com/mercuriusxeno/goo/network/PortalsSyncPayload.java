@@ -21,9 +21,11 @@ import java.util.Optional;
  * @param portals  every portal the player placed
  * @param link     the pair they linked, empty for none
  * @param choosing the portal they are choosing a partner for, empty while they choose none
+ * @param links    every pair any player linked in the player's level, so the client sees through each
  */
 public record PortalsSyncPayload(List<Portal> portals, Optional<QuantumPortals.Link> link,
-                                 Optional<Portal> choosing) implements CustomPacketPayload {
+                                 Optional<Portal> choosing, List<QuantumPortals.Link> links)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<PortalsSyncPayload> TYPE =
@@ -34,6 +36,7 @@ public record PortalsSyncPayload(List<Portal> portals, Optional<QuantumPortals.L
             Portal.STREAM_CODEC.apply(ByteBufCodecs.list()), PortalsSyncPayload::portals,
             ByteBufCodecs.optional(QuantumPortals.Link.STREAM_CODEC), PortalsSyncPayload::link,
             ByteBufCodecs.optional(Portal.STREAM_CODEC), PortalsSyncPayload::choosing,
+            QuantumPortals.Link.STREAM_CODEC.apply(ByteBufCodecs.list()), PortalsSyncPayload::links,
             PortalsSyncPayload::new);
 
     @Override
