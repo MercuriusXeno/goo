@@ -1,6 +1,10 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mojang.serialization.MapCodec;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerPlayer;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -12,7 +16,7 @@ import java.util.stream.Stream;
  * {@code quantum_portal}.
  * portals-link-by-looking-through-portal-vision
  */
-public record PortalStep() implements Step {
+public record PortalStep() implements TargetGatedStep {
 
     private static final String NAME = "quantum_portal";
 
@@ -35,6 +39,20 @@ public record PortalStep() implements Step {
     public boolean tick(StepContext context) {
         context.hostAs(PortalHost.class).placePortal();
         return true;
+    }
+
+    /**
+     * A throw at a face no frame fits on is refused before it flies, costing
+     * nothing and showing nothing.
+     *
+     * @param thrower the throwing player
+     * @param struck  the block the throw would strike
+     * @param face    the face it would strike
+     * @return true where a frame fits on the face
+     */
+    @Override
+    public boolean admitsFace(ServerPlayer thrower, BlockPos struck, Direction face) {
+        return Portal.frameOn(thrower.level(), struck, face, thrower.getDirection()).isPresent();
     }
 
     /**
