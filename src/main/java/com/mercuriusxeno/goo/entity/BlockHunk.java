@@ -14,6 +14,8 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -24,6 +26,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -119,6 +122,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     public static final double NOT_PLACED = -1;
     /** The shatter time a whole hunk names. */
     public static final long WHOLE = -1;
+    /** The most placement sounds a placed hunk clicks with. */
+    static final int MOST_PLACE_CLICKS = 3;
+    /** Each click sound's pitch off its type's own, in order: level, a tenth under, a tenth over. */
+    private static final float[] CLICK_PITCH_SPREAD = {0f, -0.1f, 0.1f};
     /** The fastest a let-go hunk falls into its seat, in blocks a tick. */
     private static final double MOST_SEAT_FALL = 0.5;
     /** How near its seat, squared, a moving hunk counts as seated. */
@@ -600,6 +607,51 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
+     * One of the placement sounds a placed hunk clicks with.
+     *
+     * @param sound  the block's placement sound
+     * @param volume its sound type's volume
+     * @param pitch  its pitch, spread from the click's other sounds
+     */
+    public record PlaceClick(SoundEvent sound, float volume, float pitch) {
+    }
+
+    /**
+     * The sounds a hunk clicks into place with: one per distinct sound type
+     * among its blocks, in block order, at most {@link #MOST_PLACE_CLICKS};
+     * the first at its type's own pitch, the next a step under and the third
+     * a step over, so the superimposed sounds read as one click.
+     * decision placed-hunk-clicks-with-its-blocks-placement-sounds
+     *
+     * @param types each block's sound type, in block order
+     * @return the click's sounds
+     */
+    public static List<PlaceClick> placeClicks(List<SoundType> types) {
+        List<SoundType> distinct = types.stream().distinct().limit(MOST_PLACE_CLICKS).toList();
+        List<PlaceClick> clicks = new ArrayList<>();
+        for (int index = 0; index < distinct.size(); index++) {
+            SoundType type = distinct.get(index);
+            clicks.add(new PlaceClick(type.getPlaceSound(), type.getVolume(),
+                    type.getPitch() * (1 + CLICK_PITCH_SPREAD[index])));
+        }
+        return clicks;
+    }
+
+    /**
+     * Plays a placed hunk's click at it, every sound in this one tick, so they superimpose.
+     *
+     * @param level the server level
+     */
+    private void clickIntoPlace(ServerLevel level) {
+        List<SoundType> types = blocks.stream()
+                .map(block -> block.state().getSoundType(level, cellOf(block), null)).toList();
+        for (PlaceClick click : placeClicks(types)) {
+            level.playSound(null, getX(), getY(), getZ(), click.sound(), SoundSource.BLOCKS, click.volume(),
+                    click.pitch());
+        }
+    }
+
+    /**
      * How far a linger over set stone has run at a moment.
      *
      * @param time  the game time
@@ -832,6 +884,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             }
             seat = null;
             placeBlocks(level);
+            clickIntoPlace(level);
             entityData.set(PLACED_AT, level.getGameTime());
             return;
         }
