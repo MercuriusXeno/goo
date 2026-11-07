@@ -48,8 +48,10 @@ final class AbilitiesPane {
     // The icon sits in its sprite row as an item sprite does.
     private static final int ICON_INSET = (RowLayout.SPRITE_ROW_HEIGHT - RowLayout.SPRITE_SIZE) / 2;
     private static final int HALF = 2;
-    // Price fields stand this far apart.
-    private static final int FIELD_GAP = GAP * 3;
+    // Decision ability-params-lay-in-a-four-column-grid-spanning-whole-cells: the names take the left third, the
+    // price fields four equal columns right of it.
+    private static final int NAME_SHARE = 3;
+    private static final int COLUMNS = 4;
     // The least room an open text box takes, so a short value's box still reads what is typed.
     private static final int EDITOR_WIDTH = 60;
 
@@ -344,80 +346,74 @@ final class AbilitiesPane {
         targets.add(x, from.top(), from.right() - x, HEADING_HEIGHT, fold);
     }
 
-    // The ability indented under its type's heading: its heading, then its price fields on the name's line right of
-    // the name, a field past the width wrapping under the name and a cost's open builder taking a line of its own;
-    // answers the y below its last line.
+    // The ability indented under its type's heading: its heading in the left third the names reserve, then its price
+    // fields in four equal columns right of that third, the same four lefts in every ability, a field wider than a
+    // column taking whole columns and a cost's open builder all four; answers the y below its last line.
     // Decisions abilities-tab-lists-every-numeric-param-as-expression-boxes,
     // ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
     private int drawAbility(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
                             GroupsPane.Bounds from, ClickTargets targets) {
-        HeadingLaid heading = drawHeading(graphics, font, ability, from.left() + ControlFlow.INDENT, from.top(),
-                targets);
-        FieldFlow flow = new FieldFlow(heading.nameLeft(), from.right(), from.top(), heading.right());
+        drawHeading(graphics, font, ability, from.left() + ControlFlow.INDENT, from.top(), targets);
+        int priceLeft = from.left() + (from.right() - from.left()) / NAME_SHARE;
+        ColumnFlow flow = new ColumnFlow(priceLeft, (from.right() - priceLeft) / COLUMNS, from.top());
         for (AbilitiesTab.Leaf leaf : ability.prices()) {
-            boolean building = isBuilding(ability, leaf);
-            int width = building ? from.right() - heading.nameLeft() : fieldWidth(font, ability, leaf);
-            GroupsPane.Bounds field = flow.place(width, building, from.bottom());
-            int bottom = drawField(graphics, font, new Priced(ability, leaf), field, from.right(), targets);
-            flow.took(bottom, field.right(), building);
+            int columns = isBuilding(ability, leaf) ? COLUMNS : flow.columnsFor(fieldWidth(font, ability, leaf));
+            GroupsPane.Bounds field = flow.place(columns, from.bottom());
+            flow.took(drawField(graphics, font, new Priced(ability, leaf), field, from.right(), targets), columns);
         }
         return flow.bottom() + GAP;
     }
 
     /**
-     * Where an ability's price fields stand: one after another from the end of its heading, a line wrapping under the
-     * name where the next field overruns the width, and a field taking a whole line standing alone on it.
+     * Where an ability's price fields stand: four equal columns from the left third's edge, a field taking the whole
+     * columns its width needs, and a field past the last column wrapping to the first on the next line.
      */
-    private static final class FieldFlow {
-        private final int wrapLeft;
-        private final int right;
-        private int x;
+    private static final class ColumnFlow {
+        private final int left;
+        private final int cell;
+        private int column;
         private int top;
         private int bottom;
-        private boolean lineFull;
 
-        FieldFlow(int wrapLeft, int right, int top, int headingRight) {
-            this.wrapLeft = wrapLeft;
-            this.right = right;
+        ColumnFlow(int left, int cell, int top) {
+            this.left = left;
+            this.cell = Math.max(1, cell);
             this.top = top;
             this.bottom = top + RowLayout.SPRITE_ROW_HEIGHT;
-            this.x = headingRight + FIELD_GAP;
         }
 
-        // The next field's bounds, a new line begun where it fits the line no longer.
-        GroupsPane.Bounds place(int width, boolean wholeLine, int floor) {
-            if (x > wrapLeft && (lineFull || wholeLine || x + width > right)) {
+        // The whole columns a field of the width given takes, at most all four.
+        int columnsFor(int width) {
+            return Math.clamp((width + cell - 1) / cell, 1, COLUMNS);
+        }
+
+        // The next field's bounds, a new line begun where its columns pass the last.
+        GroupsPane.Bounds place(int columns, int floor) {
+            if (column > 0 && column + columns > COLUMNS) {
                 top = bottom + GAP;
-                x = wrapLeft;
+                column = 0;
             }
-            return new GroupsPane.Bounds(x, top, x + width, floor);
+            int fieldLeft = left + column * cell;
+            return new GroupsPane.Bounds(fieldLeft, top, fieldLeft + columns * cell, floor);
         }
 
-        // Moves past the field placed last, which reached the bottom and the right given.
-        void took(int fieldBottom, int fieldRight, boolean wholeLine) {
+        // Moves past the field placed last, which reached the y given.
+        void took(int fieldBottom, int columns) {
             bottom = Math.max(bottom, fieldBottom);
-            x = fieldRight + FIELD_GAP;
-            lineFull = wholeLine;
+            column += columns;
         }
 
         int bottom() {
             return bottom;
         }
     }
-    /**
-     * Where a drawn heading stands.
-     *
-     * @param nameLeft the name's left edge, which a wrapped line of price fields starts at
-     * @param right    the right edge of the name or the draft badge after it
-     */
-    private record HeadingLaid(int nameLeft, int right) {
-    }
+
 
     // The rail's room at the left edge, the ability's 16px icon as an item sprite sits in its row, its name bold
     // hovering its description, and the gold draft badge after it while a draft stands over its live file.
     // Decision ability-heading-is-rail-icon-name-draft-badge-and-hovers-its-description.
-    private HeadingLaid drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
-                                    int top, ClickTargets targets) {
+    private void drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
+                             int top, ClickTargets targets) {
         int bottom = top + RowLayout.SPRITE_ROW_HEIGHT;
         Rails.draw(graphics, left, top, bottom);
         targets.addGrab(left, top, ControlFlow.RAIL_WIDTH, bottom - top, railGrab(ability), ability.id());
@@ -431,12 +427,9 @@ final class AbilitiesPane {
         graphics.text(font, name, nameLeft, textTop, Palette.TEXT);
         targets.addHover(nameLeft, top, font.width(name), RowLayout.SPRITE_ROW_HEIGHT,
                 DESCRIPTION_HOVER + ability.description());
-        int right = nameLeft + font.width(name);
         if (ability.draft()) {
-            graphics.text(font, DRAFT_BADGE, right + GAP, textTop, Palette.GOLD);
-            right += GAP + font.width(DRAFT_BADGE);
+            graphics.text(font, DRAFT_BADGE, nameLeft + font.width(name) + GAP, textTop, Palette.GOLD);
         }
-        return new HeadingLaid(nameLeft, right);
     }
 
     private boolean isBuilding(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
