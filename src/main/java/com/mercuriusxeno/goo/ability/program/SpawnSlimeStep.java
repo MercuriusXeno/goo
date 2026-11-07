@@ -2,12 +2,14 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.BlockVisuals;
 import com.mercuriusxeno.goo.network.TransformationPayload;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -15,14 +17,15 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.phys.Vec3;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
  * Births a slime where the blob lands and finishes: the players watching
- * see the goo morph into the slime right where it splatted. Weird's Slime is
+ * see the goo morph into the slime right where it splatted, and the slime
+ * comes to life once the morph ends, never before. Weird's Slime is
  * {@code spawn_slime goo=weird size=1}.
  * slime-creates-slimes-at-will
+ * slime-blob-morphs-into-the-slime-it-becomes
  * model-transformation-is-one-animation
  *
  * @param goo  the goo type of the blob that becomes the slime
@@ -68,27 +71,28 @@ public record SpawnSlimeStep(ResourceKey<GooTypeDefinition> goo, int size) imple
         Vec3 feet = Vec3.atBottomCenterOf(cell);
         slime.setSize(size, true);
         slime.snapTo(feet.x, feet.y, feet.z, 0f, 0f);
-        TransformationPayload morph = new TransformationPayload(goo, host.morphFrom(), host.morphFrom(),
-                slime.getId(), TRANSFORMATION_TICKS);
-        spawnAnnounced(slime, () -> BlockVisuals.sendToWatchers(level, cell, morph), level::addFreshEntity);
+        // slime-blob-morphs-into-the-slime-it-becomes: the client morphs into a stand-in under the slime's id,
+        // and the slime's own spawn replaces it once the morph ends
+        BlockVisuals.sendToWatchers(level, cell, morphOf(goo, host.morphFrom(), slime.getId()));
+        GooServerState.of(level.getServer()).morphBirths().holdUntil(level, slime,
+                level.getServer().getTickCount() + TRANSFORMATION_TICKS);
         return true;
     }
 
     /**
-     * Announces a birth's transformation, then adds the newborn to the level.
-     * Adding it sends its spawn to the watchers at once, so the
-     * transformation goes first: the client keys it by the newborn's id,
-     * which it holds from construction, and draws it at nothing from its
-     * first frame.
+     * The transformation of the landed blob into the slime it births, in
+     * place where the blob splatted: a morph whose ends sit apart hops the
+     * blob up and down first, which the operator ruled out.
+     * slime-blob-morphs-into-the-slime-it-becomes
      *
-     * @param born     the newborn, its id and position set
-     * @param announce sends the transformation to the watchers
-     * @param add      adds the newborn to the level, which sends its spawn to the watchers at once
-     * @param <E>      the newborn's type
+     * @param goo     the blob's goo type
+     * @param splat   where the blob landed
+     * @param slimeId the id the held slime holds
+     * @return the transformation the watchers play
      */
-    static <E> void spawnAnnounced(E born, Runnable announce, Consumer<E> add) {
-        announce.run();
-        add.accept(born);
+    static TransformationPayload morphOf(ResourceKey<GooTypeDefinition> goo, Vec3 splat, int slimeId) {
+        return TransformationPayload.intoHeldEntity(goo, splat, splat, slimeId,
+                BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.SLIME), TRANSFORMATION_TICKS);
     }
 
     @Override
