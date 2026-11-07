@@ -46,12 +46,38 @@ final class PortalCamera extends Camera {
         setEntity(player);
         update(delta);
         setPosition(eye);
+        sampleEnvironment(level, eye);
         setRotation(turn.yaw(), turn.pitch(), turn.roll());
         float depthFar = Math.max(minecraft.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK
                 * FAR_PER_VIEW_DISTANCE, minecraft.options.cloudRange().get() * BLOCKS_PER_CHUNK);
         setupPerspective(NEAR, depthFar, fov, minecraft.getWindow().getWidth(), minecraft.getWindow().getHeight());
         prepareCullFrustum(getViewRotationMatrix(new Matrix4f()), createProjectionMatrixForCulling(), eye);
     }
+
+    /**
+     * Samples the sky and fog colors where the view looks from, once a game
+     * tick, as the frame's camera does from its own tick: a camera that never
+     * samples reads them black, and draws its sky and fog black. On its first
+     * use it samples twice, so the colors it eases between both stand filled.
+     *
+     * @param level the level
+     * @param eye   where the view looks from
+     */
+    private void sampleEnvironment(ClientLevel level, Vec3 eye) {
+        long now = level.getGameTime();
+        if (now == sampledAt) {
+            return;
+        }
+        if (sampledAt == NEVER) {
+            attributeProbe().tick(level, eye);
+        }
+        attributeProbe().tick(level, eye);
+        sampledAt = now;
+    }
+
+    /** The game time this camera last sampled its environment at, or never. */
+    private long sampledAt = NEVER;
+    private static final long NEVER = Long.MIN_VALUE;
 
     /**
      * A view through a portal stands apart from the player, so the player's
