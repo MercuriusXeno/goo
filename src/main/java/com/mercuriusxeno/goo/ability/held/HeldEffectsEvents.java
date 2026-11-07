@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.gluttony.GluttonyEvents;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
@@ -132,7 +133,8 @@ public final class HeldEffectsEvents {
 
     /**
      * Draws each held effect's upkeep on the server, ending one the
-     * inventory can no longer pay. A heart effect whose shields are all
+     * inventory can no longer pay, and first ending one whose ability is no
+     * longer known. A heart effect whose shields are all
      * broken stays held, its crawl regrowing them.
      *
      * @param event the player tick event
@@ -146,6 +148,9 @@ public final class HeldEffectsEvents {
         if (held.isEmpty()) {
             return;
         }
+        // dive-is-renamed-sculker: an effect saved under an ability no longer shipped ends rather than standing on
+        AbilityRegistry registry = AbilityRegistry.of(player.level());
+        held = apply(player, held.endUnknown(ability -> registry.getAbility(ability) != null));
         HeldEffects.Ticked ticked = held.tick(type -> GooSourceScanner.aggregateAvailable(player)
                 .getOrDefault(type, 0), player.level().getGameTime());
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> draw : ticked.drawn().entrySet()) {
