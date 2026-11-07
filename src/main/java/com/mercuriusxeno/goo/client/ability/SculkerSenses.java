@@ -27,11 +27,12 @@ import java.util.Map;
 /**
  * What a Sculker senses, while its brew stands. Every sound heard within
  * reach ripples out from its source and lights the block faces open to air
- * its front crosses, which stay remembered and draw sculk teal, weaker the
- * farther away they stand ({@link SculkerEchoes}). An entity that moves or
- * sounds is remembered too: it draws the sculk outline while it stays within
- * sight, and leaves the echoing silhouette of the shared afterimage as it
- * moves or sounds, dimmer the farther it stands. The brew's end forgets it all.
+ * its front crosses, which draw sculk teal and fade out over about five
+ * seconds, weaker the farther away they stand ({@link SculkerEchoes}). An
+ * entity that moves or sounds is heard too: it draws the sculk outline for
+ * the same five seconds while it stays within sight, and leaves the echoing
+ * silhouette of the shared afterimage as it moves or sounds, dimmer the
+ * farther it stands. The brew's end forgets it all.
  * decision sculker-sight-persists-where-echoes-have-touched
  * decision afterimage-is-one-shared-effect
  */
@@ -49,13 +50,13 @@ public final class SculkerSenses {
     /** Ticks each silhouette takes to grow and fade. */
     private static final int SILHOUETTE_LIFE_TICKS = 16;
     /** The opacity a remembered face draws at beside the player. */
-    private static final int FACE_ALPHA = 150;
+    private static final int FACE_ALPHA = 80;
     /** A remembered face this faint is not drawn at all. */
     private static final float FAINTEST = 0.02f;
     private static final AABB UNIT_CUBE = new AABB(0, 0, 0, 1, 1, 1);
 
     private static final SculkerEchoes ECHOES = new SculkerEchoes();
-    /** Each remembered entity's id and the game time it last left a silhouette. */
+    /** Each heard entity's id and the game time it last left a silhouette, which its outline fades from. */
     private static final Map<Integer, Long> REMEMBERED_ENTITIES = new HashMap<>();
 
     private SculkerSenses() {
@@ -69,8 +70,12 @@ public final class SculkerSenses {
      */
     public static boolean outlines(Entity entity) {
         LocalPlayer player = Minecraft.getInstance().player;
-        return player != null && REMEMBERED_ENTITIES.containsKey(entity.getId())
-                && SculkerEchoes.strengthAt(entity.distanceTo(player)) > 0;
+        return player != null && heardRecently(entity) && SculkerEchoes.strengthAt(entity.distanceTo(player)) > 0;
+    }
+
+    private static boolean heardRecently(Entity entity) {
+        Long heardAt = REMEMBERED_ENTITIES.get(entity.getId());
+        return heardAt != null && entity.level().getGameTime() - heardAt < SculkerEchoes.FADE_TICKS;
     }
 
     /**
@@ -102,7 +107,8 @@ public final class SculkerSenses {
         }
         long now = level.getGameTime();
         ECHOES.advance(now, pos -> level.getBlockState(pos).isAir());
-        REMEMBERED_ENTITIES.keySet().removeIf(id -> level.getEntity(id) == null);
+        REMEMBERED_ENTITIES.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null
+                || now - heard.getValue() >= SculkerEchoes.FADE_TICKS);
         for (Entity entity : level.getEntities(player, player.getBoundingBox().inflate(SculkerEchoes.SIGHT_REACH))) {
             if (movedEnough(entity.position().subtract(entity.xo, entity.yo, entity.zo))) {
                 hearEntity(mc, player, entity, now);
@@ -161,8 +167,8 @@ public final class SculkerSenses {
     }
 
     /**
-     * Draws every remembered face within sight, its opacity falling with its
-     * distance from the player.
+     * Draws every lit face within sight, its opacity falling with its
+     * distance from the player and as it fades.
      *
      * @param event the level render stage event
      */
@@ -178,8 +184,9 @@ public final class SculkerSenses {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
         Vec3 standing = player.position();
-        ECHOES.remembered().keySet().forEach(face -> {
-            float strength = SculkerEchoes.strength(face, standing);
+        long now = mc.level.getGameTime();
+        ECHOES.remembered().forEach((face, litAt) -> {
+            float strength = SculkerEchoes.strength(face, litAt, standing, now);
             if (strength > FAINTEST) {
                 AABB box = UNIT_CUBE.move(Vec3.atLowerCornerOf(face.pos()).subtract(camera));
                 ScrySweep.emitBoxFace(pose, consumer, box, face.side(),
