@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.BrewEffectIcon;
+import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -24,7 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Each brew effect's icon on the HUD and in the inventory effect list: the icon of the
+ * Each held effect's icon on the HUD and in the inventory effect list: the icon of the
  * ability its type grants, drawn at 16px in the middle of the slot vanilla draws an effect
  * icon in. A type granting none draws nothing of its own, so vanilla draws the effect's tile.
  * Shroom's effect is Sight's eye, which draws Sight's icon in the inventory.
@@ -33,7 +33,7 @@ import java.util.Map;
  * decision ability-icons-read-16x16
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class BrewEffectIcons {
+public final class HeldEffectIcons {
 
     /** Where vanilla draws a HUD effect's icon inside its background. */
     static final int HUD_INSET = 3;
@@ -48,25 +48,25 @@ public final class BrewEffectIcons {
     private static final int OPAQUE = 255;
     private static final float FULL_ALPHA = 1f;
 
-    private BrewEffectIcons() {
+    private HeldEffectIcons() {
     }
 
     /**
-     * Registers each bundled brew effect's icon extension.
+     * Registers each bundled held effect's icon extension.
      *
      * @param event the client extensions registration event
      */
     @SubscribeEvent
-    public static void registerBrewIcons(RegisterClientExtensionsEvent event) {
+    public static void registerHeldEffectIcons(RegisterClientExtensionsEvent event) {
         extensionsFor(GooTypes.BUNDLED).forEach((type, extension) ->
-                event.registerMobEffect(extension, GooMobEffects.BREW_EFFECTS.get(type).get()));
+                event.registerMobEffect(extension, GooMobEffects.HELD_EFFECTS.get(type).get()));
     }
 
     /**
-     * The icon extension of each type's brew effect: Sight's eye for shroom, and the granted
+     * The icon extension of each type's held effect: Sight's eye for shroom, and the granted
      * ability's icon for every other.
      *
-     * @param types the goo types whose brew effects draw
+     * @param types the goo types whose held effects draw
      * @return each type's extension, in the types' order
      */
     static Map<ResourceKey<GooTypeDefinition>, IClientMobEffectExtensions> extensionsFor(
@@ -113,7 +113,7 @@ public final class BrewEffectIcons {
     }
 
     /**
-     * A brew effect drawing its type's granted ability icon on the HUD and in the inventory.
+     * A held effect drawing its type's granted ability icon on the HUD and in the inventory.
      */
     static final class AbilityIconExtension implements IClientMobEffectExtensions {
 
@@ -129,7 +129,7 @@ public final class BrewEffectIcons {
          * @return the texture, or null for a type granting none
          */
         @Nullable Identifier iconTexture() {
-            return BrewEffectIcon.of(type);
+            return HeldEffectIcon.of(type);
         }
 
         @Override

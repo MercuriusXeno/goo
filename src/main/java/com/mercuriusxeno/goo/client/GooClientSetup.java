@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
-import com.mercuriusxeno.goo.ability.BrewEffectIcon;
-import com.mercuriusxeno.goo.ability.BrewEffectName;
+import com.mercuriusxeno.goo.ability.HeldEffectIcon;
+import com.mercuriusxeno.goo.ability.HeldEffectName;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
@@ -137,17 +137,17 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
-        BrewEffectName.readConnectionNamesFrom(
+        HeldEffectName.readConnectionNamesFrom(
                 type -> syncedDurativeAbility(type).map(ClientAbility::displayName).orElse(null));
-        BrewEffectIcon.readConnectionIconsFrom(
+        HeldEffectIcon.readConnectionIconsFrom(
                 type -> syncedDurativeAbility(type).map(ClientAbility::iconTexture).orElse(null));
         HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
     /**
-     * Answers the brew ability a type grants, from the abilities the server synced,
+     * Answers the durative ability a type grants, from the abilities the server synced,
      * picked as AbilityRegistry.durativeAbilityFor picks; its name and its icon are the
-     * brew effect's.
+     * held effect's.
      * decision brew-effect-reads-the-abilitys-own-name
      * decision every-brew-effect-draws-its-abilitys-icon
      *

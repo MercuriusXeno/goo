@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * goo_abilities JSON grants it, a texture the jar carries, and no icon for a type granting none.
  * decision every-brew-effect-draws-its-abilitys-icon
  */
-class BrewEffectIconTest {
+class HeldEffectIconTest {
 
     private static final String ASSETS = "/assets/";
     private static final char PATH_SEPARATOR = '/';
@@ -45,7 +45,7 @@ class BrewEffectIconTest {
     void brewEffectDrawsTheIconTheRadialDrawsForItsAbility(ResourceKey<GooTypeDefinition> type) throws IOException {
         AbilityDefinition granted = shipped.durativeAbilityFor(type);
 
-        Identifier icon = BrewEffectIcon.textureOf(granted);
+        Identifier icon = HeldEffectIcon.textureOf(granted);
 
         if (granted == null) {
             assertNull(icon, () -> GooTypes.id(type) + " grants no brew ability");
@@ -55,7 +55,7 @@ class BrewEffectIconTest {
                 AbilitySyncPayload.gloveEntries(type, List.of(granted)).getFirst()).iconTexture();
         assertEquals(radial, icon, () -> GooTypes.id(type) + "'s brew effect icon");
         String resource = ASSETS + radial.getNamespace() + PATH_SEPARATOR + radial.getPath();
-        try (InputStream in = BrewEffectIconTest.class.getResourceAsStream(resource)) {
+        try (InputStream in = HeldEffectIconTest.class.getResourceAsStream(resource)) {
             assertNotNull(in, resource);
         }
     }

@@ -84,7 +84,7 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The heart overlay a heart brew lays over a player's health bar, synced to
+     * The heart overlay a heart effect lays over a player's health bar, synced to
      * the owning client for the HUD and left behind at death (decision
      * overlay-hearts-are-an-elemental-overshield).
      */

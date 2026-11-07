@@ -92,9 +92,8 @@ public final class AbilityRegistry {
     }
 
     /**
-     * The ability a drunk brew of this type runs: the type's self ability
-     * wearing the durative badge, lowest by order.
-     * decision brew-grants-the-self-ability-for-an-hour
+     * The type's durative ability: its self ability wearing the durative
+     * badge, lowest by order, whose name and icon its held effect shows.
      *
      * @param type the goo type
      * @return the durative ability, or null when the type carries none yet

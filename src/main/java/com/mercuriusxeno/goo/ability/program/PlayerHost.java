@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.pocket.PocketOpening;
-import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -23,7 +22,6 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -34,9 +32,6 @@ import java.util.function.Consumer;
  * Every read and world action runs as the struck entity host would run it
  * on the player, and like that host it has no driver for later ticks.
  *
- * A drunk brew runs its ability on this host too, carrying the brew's
- * duration (decision brew-grants-the-self-ability-for-an-hour).
- *
  * A held channel runs its ability on this host each tick of the hold,
  * carrying that tick's aim (decision flatten-disc-cursor-breaks-above-the-plane).
  *
@@ -45,13 +40,11 @@ import java.util.function.Consumer;
  *
  * @param level         the server level
  * @param player        the invoking player
- * @param brewDuration  the drunk brew's duration in ticks, empty for a glove invocation
  * @param channelAim    the held channel's aim this tick, empty outside a channel
  * @param charge        the share of a full charge a charged ability's hold reached, 0 outside a charge
  */
-public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
-                         Optional<ChannelAim> channelAim, float charge)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost, SiphonHost,
+public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge)
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, SiphonHost,
         PocketHost, OutsiderHost {
 
     /** The share of the player's height Nova emanates from. */
@@ -66,24 +59,13 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     private static final String LOG_TOGGLES = "Pulser toggles {} devices among {} cells";
 
     /**
-     * The host of a glove invocation, which carries no brew duration.
+     * The host of a glove invocation.
      *
      * @param level  the server level
      * @param player the invoking player
      */
     public PlayerHost(ServerLevel level, ServerPlayer player) {
-        this(level, player, OptionalInt.empty(), Optional.empty(), NO_CHARGE);
-    }
-
-    /**
-     * The host of a drunk brew, carrying its duration.
-     *
-     * @param level        the server level
-     * @param player       the drinking player
-     * @param brewDuration the brew's duration in ticks
-     */
-    public PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration) {
-        this(level, player, brewDuration, Optional.empty(), NO_CHARGE);
+        this(level, player, Optional.empty(), NO_CHARGE);
     }
 
     /**
@@ -95,7 +77,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @return the host carrying the aim
      */
     public static PlayerHost channeling(ServerLevel level, ServerPlayer player, ChannelAim aim) {
-        return new PlayerHost(level, player, OptionalInt.empty(), Optional.of(aim), NO_CHARGE);
+        return new PlayerHost(level, player, Optional.of(aim), NO_CHARGE);
     }
 
     /**
@@ -108,7 +90,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @return the host carrying the charge
      */
     public static PlayerHost charged(ServerLevel level, ServerPlayer player, float charge) {
-        return new PlayerHost(level, player, OptionalInt.empty(), Optional.empty(), charge);
+        return new PlayerHost(level, player, Optional.empty(), charge);
     }
 
     @Override
@@ -227,14 +209,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
         return player;
     }
 
-    /**
-     * Lengthens the player's timed effects by the drunk brew's duration; a
-     * glove invocation lengthens nothing (decision extender-multiplies-the-next-self-duration).
-     */
-    @Override
-    public void extendTimedEffects() {
-        brewDuration.ifPresent(duration -> ExtenderEvents.extendStanding(player, duration));
-    }
 
     /**
      * Toggles each device standing in the cells once, a door's two halves

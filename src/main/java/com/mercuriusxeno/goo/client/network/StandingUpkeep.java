@@ -11,9 +11,9 @@ import java.util.stream.Collectors;
  * The upkeep already standing on one goo type, which a time count on that type subtracts.
  * time-counts-net-standing-upkeep
  *
- * @param perTick  the mB a tick the type's standing glove effects draw, Extender's halving applied
- * @param extended whether an Extender stands, which halves a brew's own upkeep
- * @param paying   the abilities standing on the glove and paying upkeep, a prepaid brew not among them
+ * @param perTick  the mB a tick the type's standing held effects draw, Extender's halving applied
+ * @param extended whether an Extender stands, which halves a durative ability's own upkeep
+ * @param paying   the abilities standing on the glove and paying upkeep
  */
 public record StandingUpkeep(double perTick, boolean extended, Set<Identifier> paying) {
 
@@ -30,7 +30,7 @@ public record StandingUpkeep(double perTick, boolean extended, Set<Identifier> p
     /**
      * Standing upkeep naming no standing ability.
      *
-     * @param perTick  the mB a tick the type's standing glove effects draw
+     * @param perTick  the mB a tick the type's standing held effects draw
      * @param extended whether an Extender stands
      */
     public StandingUpkeep(double perTick, boolean extended) {
@@ -46,16 +46,16 @@ public record StandingUpkeep(double perTick, boolean extended, Set<Identifier> p
      */
     public static StandingUpkeep on(HeldEffects effects, ResourceKey<GooTypeDefinition> type) {
         return new StandingUpkeep(effects.upkeepPerTick().getOrDefault(type, 0.0), effects.extended(),
-                effects.held().stream().filter(standing -> !standing.prepaid()).map(HeldEffects.Held::ability)
+                effects.held().stream().map(HeldEffects.Held::ability)
                         .collect(Collectors.toUnmodifiableSet()));
     }
 
     /**
-     * A brew's own upkeep a tick once it stands beside these effects: halved while an Extender
-     * stands, unless the brew is the Extender.
+     * A durative ability's own upkeep a tick once it stands beside these effects: halved while
+     * an Extender stands, unless the ability is the Extender.
      *
-     * @param upkeep        the brew's upkeep a tick
-     * @param extendsOthers whether the brew is itself an Extender
+     * @param upkeep        the ability's upkeep a tick
+     * @param extendsOthers whether the ability is itself an Extender
      * @return the upkeep it would draw a tick
      */
     double ownDurativeUpkeep(int upkeep, boolean extendsOthers) {

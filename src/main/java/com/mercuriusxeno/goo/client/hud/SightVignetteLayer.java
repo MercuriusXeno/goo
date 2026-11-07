@@ -73,7 +73,7 @@ public final class SightVignetteLayer {
     /**
      * The vignette's strength over a sight's life: rising over its first
      * second, full through the last tick it stands, and falling over the
-     * second after it ends, by the glove, by dry goo or by the brew's clock,
+     * second after it ends, by the glove or by dry goo,
      * whichever the client sees first of the sight reading gone or passing
      * its expiry. Nothing fades before the end.
      * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends

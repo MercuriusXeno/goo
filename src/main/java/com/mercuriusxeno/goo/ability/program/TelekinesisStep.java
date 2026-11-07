@@ -7,8 +7,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Kinetic's Telekinesis, laid on the player holding its self or brew
- * effect: the player's block and entity interaction ranges rise by the
+ * Kinetic's Telekinesis, laid on the player holding its held
+ * effect on the glove: the player's block and entity interaction ranges rise by the
  * reach until the held effect ends.
  * decision telekinesis-enacts-at-extended-reach
  *

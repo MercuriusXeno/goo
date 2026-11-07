@@ -12,7 +12,7 @@ import java.util.stream.Stream;
  * Makes the host's target player count as undead and finishes: harming
  * heals it, healing harms it, smite strikes it and direct daylight burns it
  * the JSON's damage each second, until its held effect ends, by the player's
- * press, by running dry or by a brew's expiry. A target that is not a player
+ * press or by running dry. A target that is not a player
  * is left alone. Undead is {@code undead sun_damage=1}
  * (decision undead-nether-hearts-burn-in-sunlight).
  *

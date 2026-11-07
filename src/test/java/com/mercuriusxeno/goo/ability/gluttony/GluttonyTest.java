@@ -28,28 +28,12 @@ class GluttonyTest {
     private static final Gluttony CAPS = Gluttony.caps(MAX_OVERHEAL, MAX_OVERHUNGER);
 
     private static Gluttony glutton() {
-        return Gluttony.NONE.apply(CAPS, DURATION, NOW);
+        return new Gluttony(NOW + DURATION, MAX_OVERHEAL, MAX_OVERHUNGER, 0f, 0);
     }
 
     @Nested
     class Apply {
 
-        @Test
-        void anInvokeStandsForItsDurationUnderTheCaps() {
-            Gluttony gluttony = glutton();
-            assertEquals(NOW + DURATION, gluttony.expiresAt());
-            assertEquals(MAX_OVERHEAL, gluttony.maxOverheal());
-            assertEquals(MAX_OVERHUNGER, gluttony.maxOverhunger());
-        }
-
-        @Test
-        void aRepeatInvokeStacksTheDurationAndKeepsTheBanks() {
-            Gluttony banked = new Gluttony(NOW + DURATION, MAX_OVERHEAL, MAX_OVERHUNGER, 2f, 1);
-            Gluttony stacked = banked.apply(CAPS, DURATION, NOW + 10);
-            assertEquals(NOW + 2L * DURATION, stacked.expiresAt());
-            assertEquals(1, stacked.overhunger());
-            assertEquals(2f, stacked.overheal());
-        }
 
         @Test
         void aHeldStartNeverExpires() {
@@ -59,11 +43,6 @@ class GluttonyTest {
             assertSame(held, held.tick(NOW + 100L * DURATION));
         }
 
-        @Test
-        void aBrewOverAHeldGluttonyKeepsItHeld() {
-            Gluttony held = Gluttony.NONE.hold(CAPS, NOW);
-            assertEquals(Gluttony.NEVER_EXPIRES, held.apply(CAPS, DURATION, NOW + 1).expiresAt());
-        }
     }
 
     @Nested
