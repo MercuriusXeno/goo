@@ -10,6 +10,12 @@ import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
@@ -59,7 +65,86 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_POCKET_SHOWS_NO_SKY, OutsiderTests::pocketShowsNoSky);
         GooTestFunctions.registerTest(registrar, OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH,
                 OutsiderTests::showsItsChargeAndGrowth);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_KEEPS_YOU_IN_YOUR_OWN_ROOM,
+                OutsiderTests::keepsYouInYourOwnRoom);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_REFUSES_BUILDING_PAST_THE_PLATFORM,
+                OutsiderTests::refusesBuildingPastThePlatform);
     }
+
+    private static final String OUTSIDER_KEEPS_YOU_IN_YOUR_OWN_ROOM = "outsider_keeps_you_in_your_own_room";
+    private static final String OUTSIDER_REFUSES_BUILDING_PAST_THE_PLATFORM =
+            "outsider_refuses_building_past_the_platform";
+    /** Blocks east of the center: past the starting 3 by 3's edge. */
+    private static final int PAST_THE_EDGE = 3;
+    private static final String SHOULD_FOLD_BACK = "%s should fold the player back onto their own arrival at %s, stands at %s";
+    private static final String SHOULD_REFUSE = "A block placed past the platform's edge at %s should be refused, %s stands there";
+    private static final String SHOULD_PLACE = "A block placed on the platform at %s should stand, %s stands there";
+
+    /**
+     * Two players each have their own room, a million blocks apart. A player
+     * put into the other's room, and a player standing off their own grown
+     * cells, is folded back onto their own arrival cell at once.
+     *
+     * @param helper the gametest helper
+     */
+    public static void keepsYouInYourOwnRoom(GameTestHelper helper) {
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        ServerPlayer neighbour = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, owner, CHARGE_TICKS);
+        holdFor(helper, neighbour, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            int room = assertEntered(helper, owner);
+            int theirs = assertEntered(helper, neighbour);
+            Vec3 home = arrivalOf(room);
+
+            owner.setPos(arrivalOf(theirs));
+            owner.doTick();
+            helper.assertTrue(owner.position().equals(home),
+                    String.format(SHOULD_FOLD_BACK, "Another player's room", home, owner.position()));
+
+            Vec3 offTheEdge = Vec3.atBottomCenterOf(OutsiderRooms.voidstoneOf(room).east(PAST_THE_EDGE).above());
+            owner.setPos(offTheEdge);
+            owner.doTick();
+            helper.assertTrue(owner.position().equals(home),
+                    String.format(SHOULD_FOLD_BACK, "Stepping off the grown cells", home, owner.position()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A player in their room places stone against the platform's east edge,
+     * past the grown cells, and it is refused; placed on top of the platform,
+     * it stands.
+     *
+     * @param helper the gametest helper
+     */
+    public static void refusesBuildingPastThePlatform(GameTestHelper helper) {
+        ServerPlayer builder = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, builder, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            int room = assertEntered(helper, builder);
+            ServerLevel pocket = (ServerLevel) builder.level();
+            BlockPos edge = OutsiderRooms.voidstoneOf(room).east();
+            builder.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.STONE, 2));
+
+            place(builder, edge, Direction.EAST);
+            helper.assertTrue(pocket.getBlockState(edge.east()).isAir(),
+                    String.format(SHOULD_REFUSE, edge.east(), pocket.getBlockState(edge.east())));
+
+            place(builder, edge, Direction.UP);
+            helper.assertTrue(pocket.getBlockState(edge.above()).is(Blocks.STONE),
+                    String.format(SHOULD_PLACE, edge.above(), pocket.getBlockState(edge.above())));
+            helper.succeed();
+        });
+    }
+
+    private static void place(ServerPlayer builder, BlockPos against, Direction face) {
+        Vec3 hit = Vec3.atCenterOf(against).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(HALF));
+        builder.getOffhandItem().useOn(new UseOnContext(builder, InteractionHand.OFF_HAND,
+                new BlockHitResult(hit, face, against, false)));
+    }
+
+    private static final double HALF = 0.5;
 
     private static final String OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH = "outsider_shows_its_charge_and_growth";
     /** Ticks held inside before the first grown cell's 13 mB is fed at 2 mB a tick, and a tick more. */

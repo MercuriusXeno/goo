@@ -21,6 +21,7 @@ public final class PlatformSpiral {
     private static final int EAST_SIDE = 0;
     private static final int SOUTH_SIDE = 1;
     private static final int WEST_SIDE = 2;
+    private static final int NORTH_SIDE = 3;
     /** A ring k out runs 2k cells along each side, so its square is 2k + 1 cells across. */
     private static final int PER_RING = 2;
 
@@ -71,6 +72,33 @@ public final class PlatformSpiral {
      * @param perDistance the void each block of Manhattan distance adds (mB)
      * @return the cell's cost (mB)
      */
+    /**
+     * A cell's place along the spiral, the inverse of {@link #cellAt}.
+     *
+     * @param cell the cell's offset from the center
+     * @return its place along the spiral
+     */
+    public static long indexOf(Cell cell) {
+        long ring = Math.max(Math.abs((long) cell.x()), Math.abs((long) cell.z()));
+        if (ring == 0) {
+            return 0;
+        }
+        long side = PER_RING * ring;
+        long start = (side - 1) * (side - 1);
+        long x = cell.x();
+        long z = cell.z();
+        if (x == ring && z > -ring) {
+            return start + z + ring - 1;
+        }
+        if (z == ring) {
+            return start + SOUTH_SIDE * side + ring - 1 - x;
+        }
+        if (x == -ring) {
+            return start + WEST_SIDE * side + ring - 1 - z;
+        }
+        return start + NORTH_SIDE * side + x + ring - 1;
+    }
+
     /**
      * The ring a cell sits in: ring k holds the cells of the square 2k + 1
      * across that the square 2k - 1 across leaves out.

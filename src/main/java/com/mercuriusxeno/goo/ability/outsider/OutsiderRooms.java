@@ -30,7 +30,11 @@ import java.util.UUID;
  * doorway leads back to where the player cast Outsider from; the doorway and
  * every platform cell stand again if anything removes them; and a player
  * falling below the floor is set back south of the door unharmed, the pocket
- * folding them back. Held on inside, Outsider feeds void into the platform,
+ * folding them back; a room's bounds are exactly its grown cells, so a
+ * player whose feet leave them is folded back the same way and no block may
+ * be placed outside them. Each player's room is saved to them forever, and
+ * every way in, catch and bound reads that room alone. Rooms stand a million
+ * blocks apart along {@link RoomGrid}. Held on inside, Outsider feeds void into the platform,
  * which grows in voidstone along {@link PlatformSpiral}. Each part shows
  * itself: void motes spiral in and a hum rises while the hold charges, void
  * bursts where the player leaves and arrives, motes stream off the player
@@ -45,8 +49,6 @@ public final class OutsiderRooms {
             Identifier.fromNamespaceAndPath(Goo.MODID, "pocket"));
     /** Ticks between checks that every loaded room still holds its platform and door. */
     public static final int RESTORE_INTERVAL = 20;
-    /** Blocks along x between one room's centre and the next, so no room reaches another. */
-    static final int ROOM_SPACING = 1024;
     /** The height of every room's floor. */
     public static final int ROOM_FLOOR_Y = 63;
     /** How far below the floor a falling player drops before the pocket folds them back. */
@@ -92,7 +94,8 @@ public final class OutsiderRooms {
      * @return the voidstone's block
      */
     public static BlockPos voidstoneOf(int room) {
-        return new BlockPos(room * ROOM_SPACING, ROOM_FLOOR_Y, 0);
+        PlatformSpiral.Cell center = RoomGrid.centerOf(room);
+        return new BlockPos(center.x(), ROOM_FLOOR_Y, center.z());
     }
 
     /**
@@ -237,13 +240,41 @@ public final class OutsiderRooms {
     }
 
     /**
-     * The room whose column a point in the pocket stands nearest.
+     * Whether a column stands over one of a room's grown cells: a room's
+     * bounds are exactly the cells its platform has grown.
      *
-     * @param x the point's x
-     * @return the room number
+     * @param room  the room number
+     * @param cells the platform's cell count
+     * @param x     the column's x
+     * @param z     the column's z
+     * @return true over a grown cell
      */
-    static int roomNear(double x) {
-        return (int) Math.max(0, Math.round(x / ROOM_SPACING));
+    static boolean overGrownCell(int room, int cells, int x, int z) {
+        BlockPos center = voidstoneOf(room);
+        PlatformSpiral.Cell cell = new PlatformSpiral.Cell(x - center.getX(), z - center.getZ());
+        if (Math.max(Math.abs(cell.x()), Math.abs(cell.z())) > PlatformSpiral.ringOf(cells)) {
+            return false;
+        }
+        return PlatformSpiral.indexOf(cell) < cells;
+    }
+
+    /**
+     * Whether a player may place a block at a spot: only in the pocket, in
+     * a column over one of the player's own grown cells; anywhere outside
+     * the pocket is not this rule's to judge.
+     *
+     * @param player the player placing
+     * @param pos    the block placed
+     * @return true where the placement may stand
+     */
+    public static boolean mayBuildAt(ServerPlayer player, BlockPos pos) {
+        if (player.level().dimension() != POCKET) {
+            return true;
+        }
+        VoidPockets pockets = VoidPockets.get(player.level());
+        Integer room = pockets.roomOf(player.getUUID());
+        return room != null && overGrownCell(room, pockets.platformOf(player.getUUID()).cells(), pos.getX(),
+                pos.getZ());
     }
 
     /**
@@ -263,8 +294,9 @@ public final class OutsiderRooms {
         Integer room = pockets.roomOf(player.getUUID());
         if (room == null) {
             room = pockets.handOut(player.getUUID());
-            layRoom(pocket, room);
         }
+        // The room is laid whole on the way in, so a room the grid moved stands again at once.
+        restoreRoom(pocket, room, pockets.platformOf(player.getUUID()).cells());
         pockets.keepReturn(player.getUUID(), new VoidPockets.ReturnPoint(player.level().dimension(),
                 player.position(), player.getYRot(), player.getXRot()));
         burst(player.level(), player.position());
@@ -337,36 +369,65 @@ public final class OutsiderRooms {
      * @param pocket the pocket dimension
      */
     public static void restoreFixtures(ServerLevel pocket) {
-        BlockState voidstone = GooBlocks.VOIDSTONE.get().defaultBlockState();
-        BlockState door = GooBlocks.DIMENSION_DOOR.get().defaultBlockState();
         VoidPockets.get(pocket).platformCellsByRoom().forEach((room, cells) -> {
-            for (int index = 0; index < cells; index++) {
-                BlockPos at = platformCellOf(room, index);
-                if (pocket.isLoaded(at) && pocket.getBlockState(at).isAir()) {
-                    pocket.setBlock(at, voidstone, Block.UPDATE_ALL);
-                }
-            }
-            for (BlockPos doorway : doorwayOf(room)) {
-                if (pocket.isLoaded(doorway) && !pocket.getBlockState(doorway).is(door.getBlock())) {
-                    pocket.setBlock(doorway, door, Block.UPDATE_ALL);
-                }
+            if (pocket.isLoaded(voidstoneOf(room))) {
+                restoreRoom(pocket, room, cells);
             }
         });
     }
 
     /**
-     * Sets a player who fell below their room's floor back south of its door
-     * with no fall built up, the pocket folding them back in a burst of void.
+     * Stands a room's missing platform cells and its doorway again.
+     *
+     * @param pocket the pocket dimension
+     * @param room   the room number
+     * @param cells  the platform's cell count
+     */
+    private static void restoreRoom(ServerLevel pocket, int room, int cells) {
+        BlockState voidstone = GooBlocks.VOIDSTONE.get().defaultBlockState();
+        BlockState door = GooBlocks.DIMENSION_DOOR.get().defaultBlockState();
+        for (int index = 0; index < cells; index++) {
+            BlockPos at = platformCellOf(room, index);
+            if (pocket.getBlockState(at).isAir()) {
+                pocket.setBlock(at, voidstone, Block.UPDATE_ALL);
+            }
+        }
+        for (BlockPos doorway : doorwayOf(room)) {
+            if (!pocket.getBlockState(doorway).is(door.getBlock())) {
+                pocket.setBlock(doorway, door, Block.UPDATE_ALL);
+            }
+        }
+    }
+
+    /**
+     * Keeps a player in the pocket inside their own room, the one saved to
+     * them forever: a player who falls below its floor, or whose feet leave
+     * the cells its platform has grown, whether by stepping, flying or being
+     * put elsewhere, is set back on their own arrival cell with no fall built
+     * up, the pocket folding them back in a burst of void. A player in the
+     * pocket with no room of their own is sent back where they came from.
      *
      * @param player the player
-     * @return true when the player was caught
+     * @return true when the player was moved
      */
-    public static boolean catchFalling(ServerPlayer player) {
-        if (player.level().dimension() != POCKET || player.getY() >= ROOM_FLOOR_Y - CATCH_DEPTH) {
+    public static boolean keepInRoom(ServerPlayer player) {
+        if (player.level().dimension() != POCKET) {
             return false;
         }
         ServerLevel pocket = player.level();
-        Vec3 arrival = arrivalOf(roomNear(player.getX()));
+        VoidPockets pockets = VoidPockets.get(pocket);
+        Integer room = pockets.roomOf(player.getUUID());
+        if (room == null) {
+            player.teleport(wayHome(player));
+            return true;
+        }
+        boolean fell = player.getY() < ROOM_FLOOR_Y - CATCH_DEPTH;
+        boolean strayed = !overGrownCell(room, pockets.platformOf(player.getUUID()).cells(), player.getBlockX(),
+                player.getBlockZ());
+        if (!fell && !strayed) {
+            return false;
+        }
+        Vec3 arrival = arrivalOf(room);
         player.teleport(new TeleportTransition(pocket, arrival, Vec3.ZERO, FACING_DOOR, 0f,
                 TeleportTransition.DO_NOTHING));
         player.resetFallDistance();
