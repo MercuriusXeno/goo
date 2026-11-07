@@ -165,7 +165,7 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
             GLIDES.remove(hunk.getId());
             return null;
         }
-        Vec3 target = !hunk.clearOfHole() ? lerped : onTheLook(hunk, player, terrakinesis, partialTick);
+        Vec3 target = !hunk.clearOfHole() ? lerped : hunk.seatedHold(onTheLook(hunk, player, terrakinesis, partialTick));
         return glide(hunk.getId(), lerped, target, now);
     }
 
