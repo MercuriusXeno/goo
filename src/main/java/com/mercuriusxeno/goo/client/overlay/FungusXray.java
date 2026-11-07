@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.ShiftStep;
+import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.fade.Afterglow;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -59,7 +61,7 @@ public final class FungusXray {
     static final int RESCAN_TICKS = 20;
     private static final int MOST_SEEN = 512;
     /** The ghost's tint: a little translucent, leaning toward shroom's mauve. */
-    private static final int GHOST_TINT = 0xB8E0B0F0;
+    static final int GHOST_TINT = 0xB8E0B0F0;
     /** The halo's magenta. */
     private static final int GLOW_RGB = 0xFF40C0;
     /** The halo's alpha at full pulse. */
@@ -77,6 +79,8 @@ public final class FungusXray {
     /** Marks that no scan has run. */
     static final long UNSCANNED = Long.MIN_VALUE;
     private static long scannedAt = UNSCANNED;
+    /** The outlines' trace, read between frames so they fade after the sight ends. */
+    private static final Afterglow<Sight> OUTLINE_GLOW = new Afterglow<>();
 
     private FungusXray() {
     }
@@ -95,23 +99,54 @@ public final class FungusXray {
             return;
         }
         long now = mc.level.getGameTime();
-        if (!player.getData(GooAttachments.SIGHT).standsAt(now)) {
+        Sight sight = player.getData(GooAttachments.SIGHT);
+        float strength = outlineStrength(OUTLINE_GLOW, sight, now,
+                now + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+        if (strength <= 0f) {
             seen.clear();
             return;
         }
-        rescanEverySecond(mc.level, player, now);
+        if (sight.standsAt(now)) {
+            rescanEverySecond(mc.level, player, now);
+        }
         if (!seen.isEmpty()) {
-            drawAll(mc, event.getPoseStack());
+            drawAll(mc, event.getPoseStack(), strength);
         }
     }
 
-    private static void drawAll(Minecraft mc, PoseStack poseStack) {
+    /**
+     * The strength the outlines draw at: whole while the sight stands, and
+     * falling over the second after it ends, the last scan's blocks fading
+     * where they stood.
+     * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
+     *
+     * @param glow  the outlines' trace, kept between frames
+     * @param sight the local player's sight
+     * @param now   the game tick
+     * @param time  the game time with the frame's partial tick
+     * @return zero to one, zero once no sight stands and the fade is spent
+     */
+    static float outlineStrength(Afterglow<Sight> glow, Sight sight, long now, float time) {
+        return glow.read(sight.standsAt(now) ? sight : null, time).map(Afterglow.Glow::strength).orElse(0f);
+    }
+
+    /**
+     * The ghost's tint at the outlines' strength.
+     *
+     * @param strength the outlines' strength, zero to one
+     * @return the ARGB tint
+     */
+    static int ghostTint(float strength) {
+        return Afterglow.fadeArgb(GHOST_TINT, strength);
+    }
+
+    private static void drawAll(Minecraft mc, PoseStack poseStack, float strength) {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         RenderType xray = GooRenderTypes.fungusXray(atlas);
         VertexConsumer ghost = buffers.getBuffer(xray);
-        QuadInstance ghostLook = instance(GHOST_TINT);
+        QuadInstance ghostLook = instance(ghostTint(strength));
         for (BlockPos pos : seen) {
             drawBlock(mc, poseStack, ghost, camera, pos, ghostLook, 1f);
         }
@@ -119,7 +154,7 @@ public final class FungusXray {
         RenderType glow = GooRenderTypes.fungusGlow(atlas);
         VertexConsumer halo = buffers.getBuffer(glow);
         float seconds = Util.getMillis() / MILLIS_PER_SECOND;
-        QuadInstance haloLook = instance(glowColor(pulse(seconds, HALO_PULSE_PER_SECOND), HALO_ALPHA));
+        QuadInstance haloLook = instance(glowColor(pulse(seconds, HALO_PULSE_PER_SECOND), HALO_ALPHA * strength));
         for (BlockPos pos : seen) {
             drawBlock(mc, poseStack, halo, camera, pos, haloLook, HALO_SWELL);
         }
