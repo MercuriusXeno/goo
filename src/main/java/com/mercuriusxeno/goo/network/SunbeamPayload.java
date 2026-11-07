@@ -19,8 +19,11 @@ import java.util.List;
  * @param casterId  the casting player's entity id
  * @param end       where the ray stopped: the struck mob, block or prism, or its reach
  * @param refracted the points each refracted beam ends at, empty where no prism refracted it
+ * @param range     how far the ray reaches, which the caster's own client casts its drawn ray to
+ *                  (decision diagnose-and-correct-the-sunbeam-jitter)
  */
-public record SunbeamPayload(int casterId, Vec3 end, List<Vec3> refracted) implements CustomPacketPayload {
+public record SunbeamPayload(int casterId, Vec3 end, List<Vec3> refracted, double range)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<SunbeamPayload> TYPE =
@@ -40,6 +43,7 @@ public record SunbeamPayload(int casterId, Vec3 end, List<Vec3> refracted) imple
         writePoint(buf, payload.end);
         buf.writeVarInt(payload.refracted.size());
         payload.refracted.forEach(point -> writePoint(buf, point));
+        buf.writeDouble(payload.range);
     }
 
     private static SunbeamPayload decode(FriendlyByteBuf buf) {
@@ -50,7 +54,7 @@ public record SunbeamPayload(int casterId, Vec3 end, List<Vec3> refracted) imple
         for (int i = 0; i < count; i++) {
             refracted.add(readPoint(buf));
         }
-        return new SunbeamPayload(casterId, end, refracted);
+        return new SunbeamPayload(casterId, end, refracted, buf.readDouble());
     }
 
     private static void writePoint(FriendlyByteBuf buf, Vec3 point) {

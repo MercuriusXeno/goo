@@ -8,6 +8,7 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRootRemainders;
+import com.mercuriusxeno.goo.data.GooUndercutChains;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.RecipeInput;
 import com.mercuriusxeno.goo.item.GooFormat;
@@ -26,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Function;
@@ -43,6 +45,8 @@ final class Valuations {
     private static final String OUTPUT = "output";
     private static final String SOLVED_FROM = "solvedFrom";
     private static final String LESS = "less";
+    private static final String ANCHORS = "anchors";
+    private static final String WOULD_BE = "wouldBe";
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final String DENIED = "denied";
@@ -101,6 +105,9 @@ final class Valuations {
     private static String lastDerivedText;
     private static InventoryView lastDerivedInventory;
     private static GooBaseValuesPreview.Derived lastDerived;
+    private static String rederivedText;
+    private static InventoryView rederivedInventory;
+    private static final Map<Identifier, Optional<JsonObject>> REDERIVED_BY_ITEM = new HashMap<>();
 
     private Valuations() {
     }
@@ -485,20 +492,125 @@ final class Valuations {
         DerivedLookups lookups = DerivedLookups.of(model, inventory, derived);
         Map<Identifier, RecipeInput> solving = DerivedLookups.solvingRecipes(derived);
         Set<Identifier> handKeyed = loaded.baseValues().keySet();
+        GooUndercutChains.ChainWalk anchorWalk = GooUndercutChains.walkOf(derived.registry());
         JsonObject items = new JsonObject();
         for (String id : inventory.itemIds()) {
             Identifier item = Identifier.tryParse(id);
-            if (item == null || !derived.derived().contains(item) || ownEntry(model, id) != null
-                    || lookups.groupValuing(id) != null) {
+            if (!readsDerived(model, derived, lookups, item, id)) {
                 continue;
             }
             RecipeInput solvedBy = lookups.making().containsKey(item) ? null : solving.get(item);
-            items.add(id, solvedBy != null ? invertedRecipe(item, solvedBy)
-                    : equivalencyOf(from(item, lookups, handKeyed), lookups.making().get(item)));
+            JsonObject recipe = solvedBy != null ? invertedRecipe(item, solvedBy)
+                    : equivalencyOf(from(item, lookups, handKeyed), lookups.making().get(item));
+            recipe.add(ANCHORS, anchorsJson(anchorWalk, item));
+            items.add(id, recipe);
         }
+        addWouldBes(model, inventory, derived, anchorWalk, items);
         JsonObject root = new JsonObject();
         root.add(ITEMS, items);
         return root.toString();
+    }
+
+    // An item recipes value that neither its own entry nor a group does.
+    private static boolean readsDerived(BaseValuesModel model, GooBaseValuesPreview.Derived derived,
+                                        DerivedLookups lookups, @Nullable Identifier item, String id) {
+        return item != null && derived.derived().contains(item) && ownEntry(model, id) == null
+                && lookups.groupValuing(id) == null;
+    }
+
+    // Decision item-value-view-lists-its-anchors.
+    private static JsonArray anchorsJson(GooUndercutChains.ChainWalk anchorWalk, Identifier item) {
+        JsonArray anchors = new JsonArray();
+        anchorWalk.anchorsOf(item).forEach(anchor -> anchors.add(anchor.toString()));
+        return anchors;
+    }
+
+    // Each item its own entry values that a recipe makes reads the equivalency it would derive were the entry unset.
+    // Decision explicit-value-row-reads-vs-its-would-be-derivative.
+    private static void addWouldBes(BaseValuesModel model, InventoryView inventory,
+                                    GooBaseValuesPreview.Derived derived, GooUndercutChains.ChainWalk anchorWalk,
+                                    JsonObject items) {
+        Map<Identifier, List<RecipeInput>> makingByOutput = new HashMap<>();
+        inventory.recipeInputs().forEach(recipe -> makingByOutput.computeIfAbsent(recipe.output(),
+                output -> new ArrayList<>()).add(recipe));
+        String text = model.serialize();
+        for (String id : inventory.itemIds()) {
+            Identifier item = Identifier.tryParse(id);
+            BaseValuesModel.Member own = ownEntry(model, id);
+            List<RecipeInput> making = item == null ? null : makingByOutput.get(item);
+            if (own == null || making == null) {
+                continue;
+            }
+            JsonObject wouldBe = wouldBeOf(new Unset(model, text, inventory, item, own.key()), making, derived,
+                    anchorWalk);
+            if (wouldBe != null) {
+                JsonObject entry = new JsonObject();
+                entry.add(WOULD_BE, wouldBe);
+                items.add(id, entry);
+            }
+        }
+    }
+
+    /**
+     * An item whose own entry a would-be read sets aside.
+     *
+     * @param model     the model
+     * @param text      the model's text
+     * @param inventory the inventory, whose recipes derive
+     * @param item      the item
+     * @param key       its entry's key as the file spells it
+     */
+    private record Unset(BaseValuesModel model, String text, InventoryView inventory, Identifier item, String key) {
+    }
+
+    // The derivation's pick over the standing values, unless an input it takes values itself from the item's own
+    // entry: then the pick a derivation with that entry removed makes, since the standing values lean on the entry.
+    private static @Nullable JsonObject wouldBeOf(Unset unset, List<RecipeInput> making,
+                                                  GooBaseValuesPreview.Derived derived,
+                                                  GooUndercutChains.ChainWalk anchorWalk) {
+        Map<Identifier, GooValue> values = derived.effective();
+        RecipeInput picked = GooBaseValuesPreview.wouldBeRecipe(unset.item(), making, values);
+        if (picked == null) {
+            return null;
+        }
+        List<Identifier> picks = picked.ingredientAlternatives().stream().map(slot -> slot.stream()
+                .filter(alternative -> values.get(alternative) != null)
+                .min(Comparator.comparing((Identifier alternative) -> values.get(alternative).totalExact())
+                        .thenComparing(Identifier::toString))).flatMap(Optional::stream).toList();
+        boolean leansOnTheEntry = picks.stream().anyMatch(input -> anchorWalk.anchorsOf(input).contains(unset.item()));
+        return leansOnTheEntry ? rederivedWouldBe(unset) : pickedEquivalency(picks, picked.resultCount());
+    }
+
+    // Derives once per model text, inventory and item, as derivedFor does for the whole model.
+    private static synchronized @Nullable JsonObject rederivedWouldBe(Unset unset) {
+        if (!unset.text().equals(rederivedText) || unset.inventory() != rederivedInventory) {
+            REDERIVED_BY_ITEM.clear();
+            rederivedText = unset.text();
+            rederivedInventory = unset.inventory();
+        }
+        return REDERIVED_BY_ITEM.computeIfAbsent(unset.item(), item -> Optional.ofNullable(settingEquivalency(
+                GooBaseValuesPreview.derive(unset.model().withoutTopLevel(unset.key()).serialize(),
+                        unset.inventory().recipeInputs(), unset.inventory().tagResolver()), item))).orElse(null);
+    }
+
+    // The recipe a derivation values the item by, where it makes the item: each slot's cheapest alternative.
+    private static @Nullable JsonObject settingEquivalency(GooBaseValuesPreview.Derived derived, Identifier item) {
+        RecipeInput setting = derived.registry().valueSettingRecipeByItem().get(item);
+        if (setting == null || !setting.output().equals(item)) {
+            return null;
+        }
+        List<Identifier> picks = setting.ingredientAlternatives().stream()
+                .map(slot -> slot.stream().sorted().findFirst()).flatMap(Optional::stream).toList();
+        return pickedEquivalency(picks, setting.resultCount());
+    }
+
+    private static JsonObject pickedEquivalency(List<Identifier> picks, int made) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        picks.forEach(pick -> counts.merge(pick.toString(), 1, Integer::sum));
+        JsonObject equivalency = new JsonObject();
+        equivalency.add(INPUTS, countedInputs(counts));
+        equivalency.addProperty(OUTPUT, Math.max(1, made));
+        return equivalency;
     }
 
     // The recipe as the Items tab reads it, its inputs grouped by item with each count summed across the slots, and

@@ -13,6 +13,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
@@ -96,7 +98,7 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
         boolean hits = hitsOn(held);
         List<Vec3> refracted = land(level, caster, hit, hits);
         impactAt(level, eye, hit, held, hits);
-        EntityVisuals.sendToWatchers(caster, new SunbeamPayload(caster.getId(), hit.getLocation(), refracted));
+        EntityVisuals.sendToWatchers(caster, new SunbeamPayload(caster.getId(), hit.getLocation(), refracted, range));
         return true;
     }
 
@@ -199,13 +201,30 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
     }
 
     private HitResult cast(ServerLevel level, LivingEntity caster, Vec3 eye, Vec3 reach) {
+        return castFrom(level, caster, eye, reach, living -> passes(living, caster));
+    }
+
+    /**
+     * What a ray from the eye toward its reach strikes first: a living mob
+     * the filter keeps, else the block outline it meets. The client casts
+     * the same ray each frame to draw its own (decision diagnose-and-correct-the-sunbeam-jitter).
+     *
+     * @param level   the level the ray runs in
+     * @param caster  the channeling entity, never struck
+     * @param eye     where the ray starts
+     * @param reach   the furthest point it reaches
+     * @param strikes which living mobs the ray stops on
+     * @return the mob or block struck, or a miss at the reach
+     */
+    public static HitResult castFrom(Level level, Entity caster, Vec3 eye, Vec3 reach,
+                                     Predicate<LivingEntity> strikes) {
         // A prism stands no collision, so the ray stops on outlines to strike it.
         BlockHitResult block = level.clip(new ClipContext(eye, reach, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, caster));
         Vec3 stop = block.getLocation();
         AABB swept = caster.getBoundingBox().expandTowards(stop.subtract(eye)).inflate(1);
         EntityHitResult entity = ProjectileUtil.getEntityHitResult(caster, eye, stop, swept,
-                candidate -> candidate instanceof LivingEntity living && living.isAlive() && passes(living, caster),
+                candidate -> candidate instanceof LivingEntity living && living.isAlive() && strikes.test(living),
                 eye.distanceToSqr(stop));
         return entity != null ? entity : block;
     }
