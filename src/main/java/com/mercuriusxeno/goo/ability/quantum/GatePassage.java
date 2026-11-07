@@ -7,12 +7,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,6 +47,11 @@ public final class GatePassage {
     private static final double UNIT = 1.0;
     /** A crawling body's height. */
     private static final double CRAWL_HEIGHT = 0.6;
+    /** How far before a low wall gate's face a player drops into a crawl. */
+    private static final double CRAWL_REACH = 1.5;
+    /** The players this passage put in a crawl, on each side. */
+    private static final Set<UUID> SERVER_CRAWLED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> CLIENT_CRAWLED = java.util.concurrent.ConcurrentHashMap.newKeySet();
     /** How far from where the server last held a player its client may say it crossed a gate, in blocks. */
     private static final double TRUSTED_STEP = 4.0;
     private static final float DEGREES = (float) (180.0 / Math.PI);
@@ -129,6 +136,46 @@ public final class GatePassage {
         return pairs.stream().flatMap(pair -> Stream.of(pair.one(), pair.other()))
                 .anyMatch(gate -> gate.dimension().equals(entity.level().dimension())
                         && atTheFace(gate, entity, middle));
+    }
+
+    /**
+     * Whether a player must crawl to pass a gate before it: one on a wall
+     * shorter than the player stands, its mouth before the player's feet.
+     *
+     * @param player the player
+     * @return true where it crawls
+     */
+    public static boolean crawlsThrough(Player player) {
+        List<Pair> pairs = player.level().isClientSide() ? clientPairs : serverPairs;
+        double standing = player.getDimensions(Pose.STANDING).height();
+        Vec3 crawling = player.position().add(0, CRAWL_HEIGHT * HALF, 0);
+        return pairs.stream().flatMap(pair -> Stream.of(pair.one(), pair.other()))
+                .anyMatch(gate -> gate.face().getAxis().isHorizontal()
+                        && gate.dimension().equals(player.level().dimension())
+                        && gate.blocks().getYsize() < standing
+                        && gate.blocks().expandTowards(gate.face().getUnitVec3().scale(CRAWL_REACH))
+                                .contains(crawling));
+    }
+
+    /**
+     * Holds each player in a crawl while it stands before or in a wall gate
+     * too low to stand through, and lets it stand again once clear; a pose
+     * something else forced stands untouched.
+     *
+     * @param event the player's tick
+     */
+    @SubscribeEvent
+    public static void onPlayerTick(PlayerTickEvent.Pre event) {
+        Player player = event.getEntity();
+        Set<UUID> crawled = player.level().isClientSide() ? CLIENT_CRAWLED : SERVER_CRAWLED;
+        if (crawlsThrough(player)) {
+            if (player.getForcedPose() == null || crawled.contains(player.getUUID())) {
+                player.setForcedPose(Pose.SWIMMING);
+                crawled.add(player.getUUID());
+            }
+        } else if (crawled.remove(player.getUUID()) && player.getForcedPose() == Pose.SWIMMING) {
+            player.setForcedPose(null);
+        }
     }
 
     private static boolean atTheFace(Gate gate, Entity entity, Vec3 middle) {
