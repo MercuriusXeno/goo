@@ -23,7 +23,7 @@ import net.minecraft.world.phys.Vec3;
 public final class SculkerSwim {
 
     /** The speed the swim drives toward under full input, in blocks per tick. */
-    static final double SWIM_SPEED = 0.6;
+    static final double SWIM_SPEED = 0.3;
     /** The share of the way the swim turns toward the driven speed each tick. */
     static final double SWIM_STEER = 0.25;
     /** How far the box shrinks before asking whether it is inside a solid block, so a body resting on a face is not. */
@@ -132,18 +132,34 @@ public final class SculkerSwim {
     }
 
     /**
-     * One tick of a diver's swim: the velocity it moves at next, with its
+     * The velocity a diver's first stroke steers from as it enters the dive:
+     * its own across the ground, its fall or rise dropped, so the dive starts
+     * weightless and no gravity carried in draws it down.
+     *
+     * @param player the diver
+     * @return the velocity the first stroke steers from
+     */
+    public static Vec3 enteringStroke(Player player) {
+        Vec3 moving = player.getDeltaMovement();
+        return new Vec3(moving.x, 0, moving.z);
+    }
+
+    /**
+     * One tick of a diver's swim: the velocity it moves at next, steered from
+     * the stroke before rather than from the velocity the tick's gravity has
+     * pulled down, so a diver is weightless and hangs where it stops, with its
      * rise or fall stopped where it would carry the body out past the world's
      * floor or ceiling, never where it brings the body back in.
      *
-     * @param player  the diver
-     * @param forward the forward input, -1 to 1
-     * @param strafe  the strafe input, -1 to 1, left positive
-     * @param rise    the rise input, jump 1, sneak -1
+     * @param player     the diver
+     * @param lastStroke the velocity the stroke before set, or {@link #enteringStroke} as it enters the dive
+     * @param forward    the forward input, -1 to 1
+     * @param strafe     the strafe input, -1 to 1, left positive
+     * @param rise       the rise input, jump 1, sneak -1
      * @return the velocity the swim moves the diver at
      */
-    public static Vec3 swimStroke(Player player, double forward, double strafe, double rise) {
-        Vec3 swim = swum(player.getDeltaMovement(), forward, strafe, rise, player.getLookAngle());
+    public static Vec3 swimStroke(Player player, Vec3 lastStroke, double forward, double strafe, double rise) {
+        Vec3 swim = swum(lastStroke, forward, strafe, rise, player.getLookAngle());
         AABB body = player.getBoundingBox();
         Level level = player.level();
         return new Vec3(swim.x, heldInTheWorld(swim.y, body.minY, body.maxY, level.getMinY(), level.getMaxY() + 1),

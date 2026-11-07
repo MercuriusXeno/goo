@@ -196,7 +196,7 @@ public final class SculkerSenses {
         Vec3 standing = player.position();
         long now = mc.level.getGameTime();
         ECHOES.remembered().forEach((face, litAt) -> {
-            float strength = SculkerEchoes.strength(face, litAt, standing, now);
+            float strength = SculkerEchoes.strength(face, litAt, standing, now) * SculkerVision.presence();
             if (strength > FAINTEST) {
                 AABB box = UNIT_CUBE.move(Vec3.atLowerCornerOf(face.pos()).subtract(camera));
                 ScrySweep.emitBoxFace(pose, consumer, box, face.side(),

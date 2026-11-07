@@ -28,8 +28,14 @@ public final class SculkerVision {
     /** The chain at {@code assets/goo/post_effect/sculker_sense.json}. */
     static final Identifier POST_EFFECT_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "sculker_sense");
     private static final String SCULKER_CONFIG_BLOCK = "SculkerConfig";
-    /** Std140 size of {@code SculkerConfig}: one vec4. */
-    private static final int SCULKER_CONFIG_SIZE = 16;
+    /** Std140 size of {@code SculkerConfig}: two vec4s. */
+    private static final int SCULKER_CONFIG_SIZE = 32;
+    /** How far from the diver, in blocks, the world has dimmed almost to nothing. */
+    private static final float DIM_REACH = 40f;
+    /** The share of the gap to full or no presence the vision closes each tick, about a second and a half to settle. */
+    static final float EASE_PER_TICK = 0.05f;
+    /** Below this presence the vision is gone and the slot is released. */
+    static final float GONE = 0.01f;
     /** How far from the diver, in blocks, the scene's own colors still show: the glass field's radius. */
     private static final float NEAR_REACH = (float) SculkerGlass.FIELD_RADIUS;
     private static final float BLOCKS_PER_CHUNK = 16f;
@@ -39,21 +45,53 @@ public final class SculkerVision {
 
     private static final OwnedPostEffect SLOT = new OwnedPostEffect(POST_EFFECT_ID, SCULKER_CONFIG_BLOCK);
     private static final Vector4f SCULKER_PARAMS = new Vector4f();
+    private static final Vector4f SCULKER_LOOK = new Vector4f();
+    private static float presence;
 
     private SculkerVision() {
     }
 
+    private static boolean brewStands(Minecraft mc) {
+        LocalPlayer player = mc.player;
+        return player != null && mc.level != null && SculkerSwim.dives(player);
+    }
+
     /**
-     * Draws the senses while the local player's Sculker stands and releases
-     * the slot once it ends.
+     * How fully the vision stands now, easing in as the brew starts and out as it ends.
+     *
+     * @return the presence, 0 to 1
+     */
+    public static float presence() {
+        return presence;
+    }
+
+    /**
+     * The presence after a frame: it closes a share of the gap to full
+     * presence while the brew stands, and to none otherwise.
+     *
+     * @param presence   the presence before the frame, 0 to 1
+     * @param stands     whether the brew stands
+     * @param deltaTicks the frame's length in ticks
+     * @return the presence after the frame
+     */
+    static float easedPresence(float presence, boolean stands, float deltaTicks) {
+        float target = stands ? 1f : 0f;
+        return presence + (target - presence) * Math.min(1f, deltaTicks * EASE_PER_TICK);
+    }
+
+    /**
+     * Eases the senses in while the local player's Sculker stands and out
+     * once it ends, releasing the slot when they are gone.
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
     public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || !SculkerSwim.dives(player)) {
+        boolean stands = brewStands(mc);
+        presence = easedPresence(presence, stands, mc.getDeltaTracker().getRealtimeDeltaTicks());
+        if (mc.level == null || !stands && presence < GONE) {
+            presence = stands ? presence : 0f;
             SLOT.hide(mc.gameRenderer);
             return;
         }
@@ -62,9 +100,12 @@ public final class SculkerVision {
         float far = Math.max(mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK * FAR_PER_RENDER_BLOCK,
                 mc.options.cloudRange().get() * BLOCKS_PER_CHUNK);
         SCULKER_PARAMS.set(seconds, NEAR_REACH, far, Camera.PROJECTION_Z_NEAR);
+        float aspect = (float) mc.getWindow().getWidth() / Math.max(1, mc.getWindow().getHeight());
+        SCULKER_LOOK.set(presence, aspect, DIM_REACH, 0f);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             Std140Builder builder = Std140Builder.onStack(stack, SCULKER_CONFIG_SIZE);
             builder.putVec4(SCULKER_PARAMS);
+            builder.putVec4(SCULKER_LOOK);
             SLOT.show(mc, builder.get());
         }
     }

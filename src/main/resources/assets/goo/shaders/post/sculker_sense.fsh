@@ -4,7 +4,9 @@
 // Where depth breaks, at the edges of open space, a sculk-teal contour
 // draws, brightened by echo rings sweeping out from the diver. Near the
 // diver the scene's own colors show faintly, the blocks still told apart;
-// past that solid space is a dim sea. What the diver's echoes lit, the faces
+// past that the world dims with distance until it has all but gone dark,
+// and a sculk vignette creeps in from the screen's edge. The whole vision
+// eases in as the brew starts and out as it ends. Solid space is a dim sea. What the diver's echoes lit, the faces
 // and outlines drawn sculk teal, shows bright wherever it stands, as faint
 // as its fade with distance drew it.
 // decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
@@ -23,14 +25,17 @@ layout(std140) uniform SamplerInfo {
 layout(std140) uniform SculkerConfig {
     // (seconds, nearReach, far, near): nearReach in blocks where the scene still shows
     vec4 SculkerParams;
+    // (presence, aspect, dimReach, unused): presence 0 passes the view through,
+    // dimReach in blocks where the world has all but gone dark
+    vec4 SculkerLook;
 };
 
 out vec4 fragColor;
 
 const vec3 SCULK = vec3(0.06, 0.78, 0.82);
-const vec3 DEEP_SEA = vec3(0.03, 0.07, 0.09);
+const vec3 DEEP_SEA = vec3(0.015, 0.04, 0.055);
 // the scene's own colors kept everywhere, so the world reads as a dim cave rather than black
-const float DIM_SHARE = 0.22;
+const float DIM_SHARE = 0.12;
 const float NEAR_SHARE = 0.6;
 const float EDGE_GAIN = 14.0;
 const float ECHO_SPEED = 12.0;
@@ -39,6 +44,15 @@ const float ECHO_WIDTH = 2.5;
 // an echo draws sculk teal: green and blue well above red, which the dark lets through bright
 const float TEAL_CHROMA = 0.22;
 const float ECHO_GAIN = 1.1;
+// the sculk vignette: dark teal creeping in from the screen's edge, veined and slowly drifting
+const vec3 VIGNETTE_DEEP = vec3(0.0, 0.04, 0.05);
+const float VIGNETTE_INNER = 0.38;
+const float VIGNETTE_OUTER = 0.95;
+const float VIGNETTE_STRENGTH = 0.85;
+const float VEIN_SPOKES = 9.0;
+const float VEIN_RINGS = 14.0;
+const float VEIN_DRIFT = 0.7;
+const float VEIN_SHARE = 0.4;
 
 float linearDepth(vec2 uv, float near, float far) {
     float z = texture(InDepthSampler, uv).r * 2.0 - 1.0;
@@ -50,6 +64,9 @@ void main() {
     float nearReach = SculkerParams.y;
     float far = SculkerParams.z;
     float near = SculkerParams.w;
+    float presence = SculkerLook.x;
+    float aspect = SculkerLook.y;
+    float dimReach = SculkerLook.z;
     vec2 texel = 1.0 / OutSize;
     vec3 scene = texture(InSampler, texCoord).rgb;
 
@@ -64,14 +81,24 @@ void main() {
     float sky = step(far * 0.99, center);
     float echoAt = mod(center - seconds * ECHO_SPEED, ECHO_SPACING);
     float echo = 1.0 - smoothstep(0.0, ECHO_WIDTH, min(echoAt, ECHO_SPACING - echoAt));
-    float fade = 1.0 - smoothstep(far * 0.25, far * 0.6, center);
+    float fade = 1.0 - smoothstep(dimReach * 0.5, dimReach * 1.5, center);
+    float distanceLight = 1.0 - smoothstep(nearReach, dimReach, center);
 
     float nearness = 1.0 - smoothstep(nearReach * 0.4, nearReach, center);
-    vec3 dark = mix(DEEP_SEA + scene * DIM_SHARE, scene * NEAR_SHARE, nearness);
+    vec3 dark = mix(DEEP_SEA + scene * DIM_SHARE * distanceLight, scene * NEAR_SHARE, nearness);
     vec3 heard = SCULK * contour * (0.45 + 0.55 * echo) * fade * (1.0 - sky);
     vec3 color = dark + heard;
 
     float tealness = min(scene.g, scene.b) - scene.r;
     float echoed = smoothstep(TEAL_CHROMA * 0.5, TEAL_CHROMA, tealness);
-    fragColor = vec4(mix(color, scene * ECHO_GAIN, echoed), 1.0);
+    vec3 sensed = mix(color, scene * ECHO_GAIN, echoed);
+
+    vec2 fromCenter = (texCoord - vec2(0.5)) * vec2(aspect, 1.0);
+    float radial = length(fromCenter) / max(aspect * 0.5, 0.5);
+    float edge = smoothstep(VIGNETTE_INNER, VIGNETTE_OUTER, radial);
+    float vein = 0.5 + 0.5 * sin(atan(fromCenter.y, fromCenter.x) * VEIN_SPOKES + radial * VEIN_RINGS - seconds * VEIN_DRIFT);
+    vec3 vignette = mix(VIGNETTE_DEEP, SCULK * 0.35, vein * VEIN_SHARE);
+    sensed = mix(sensed, vignette, edge * VIGNETTE_STRENGTH);
+
+    fragColor = vec4(mix(scene, sensed, presence), 1.0);
 }

@@ -43,6 +43,7 @@ public final class SculkerTests {
     private static final String SCULKER_RISES_BACK = "sculker_rises_back_into_the_world";
     private static final String SCULKER_BREATHES = "sculker_breathes_in_stone";
     private static final String SCULKER_WALKS_SILENT = "sculker_walks_silent_past_a_sensor";
+    private static final String SCULKER_HANGS_STILL = "sculker_hangs_still_in_stone";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -57,6 +58,7 @@ public final class SculkerTests {
         GooTestFunctions.registerTest(registrar, SCULKER_RISES_BACK, SculkerTests::sculkerRisesBackIntoTheWorld);
         GooTestFunctions.registerTest(registrar, SCULKER_BREATHES, SculkerTests::sculkerBreathesInStone);
         GooTestFunctions.registerTest(registrar, SCULKER_WALKS_SILENT, SculkerTests::sculkerWalksSilentPastASensor);
+        GooTestFunctions.registerTest(registrar, SCULKER_HANGS_STILL, SculkerTests::sculkerHangsStillInStone);
     }
 
     private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
@@ -93,6 +95,10 @@ public final class SculkerTests {
     private static final int WALK_TICKS = 40;
     /** Ticks a sensor takes to fall quiet again after it powers, its active span and cooldown with room to spare. */
     private static final int SENSOR_RESET_TICKS = 80;
+    /** Ticks a walker heads one way before it turns back, so it paces on the stone and never walks off it. */
+    private static final int PACE_TICKS = 15;
+    /** The yaw that faces a player west, along -x. */
+    private static final float FACING_WEST = 90f;
     /** How far south of the walk the sensor stands, well inside its hearing. */
     private static final int SENSOR_OFFSET = 2;
     private static final String SHOULD_SINK = "Sneak and jump should sink the player below the stone's top at y=%d, it stands at y=%.2f";
@@ -101,6 +107,9 @@ public final class SculkerTests {
     private static final String SHOULD_STAND = "The diver should stand on the stone's top at y=%d out of the dive: y=%.2f, on ground %b, diving %b";
     private static final String SHOULD_RETURN = "A diver below the world's floor at y=%d should rise back in, it reached y=%.2f";
     private static final String SHOULD_BREATHE = "The player should take no suffocation buried in stone, health %.1f of %.1f";
+    /** How far a diver holding no key may drift in two seconds and still read as hanging still. */
+    private static final double STILL_WITHIN = 0.05;
+    private static final String SHOULD_HANG = "A diver holding no key should hang still in stone, it drifted %.2f in y";
     private static final String SHOULD_MUTE = "A sensor beside a walking, jumping Sculker should stay unpowered, it reached power %d";
     private static final String SHOULD_HEAR = "The same sensor beside the walk with the brew ended should power, it reached power %d";
     private static final String SHOULD_MOVE = "The diver should swim a block east through the stone, moved %.2f";
@@ -247,6 +256,26 @@ public final class SculkerTests {
     }
 
     /**
+     * A diver inside stone holding no key hangs where it is for two seconds,
+     * weightless, no gravity drawing it down.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sculkerHangsStillInStone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos top = layStone(helper);
+        ServerPlayer player = diving(helper);
+        player.teleportTo(top.getX() + 0.5, top.getY() - 2, top.getZ() + 0.5);
+        double before = player.getY();
+        swimFor(player, NONE, STROKE_TICKS);
+        double drift = player.getY() - before;
+        level.getServer().getPlayerList().remove(player);
+        clearStone(level, top);
+        helper.assertTrue(Math.abs(drift) <= STILL_WITHIN, String.format(SHOULD_HANG, drift));
+        helper.succeed();
+    }
+
+    /**
      * A sculk sensor beside a player under Sculker that walks and jumps
      * along the stone stays unpowered; with the brew ended, the same walk
      * beside the same sensor powers it.
@@ -290,8 +319,8 @@ public final class SculkerTests {
     }
 
     /**
-     * One game tick of a player walking east and jumping, ticked as its
-     * connection would, read as the sensor's power after it.
+     * One game tick of a player pacing east and west and jumping, ticked as
+     * its connection would, read as the sensor's power after it.
      *
      * @param player the player
      * @param level  the level
@@ -301,6 +330,7 @@ public final class SculkerTests {
     private static int walkTick(ServerPlayer player, ServerLevel level, BlockPos sensor) {
         player.setLastClientInput(FORWARD_AND_JUMP);
         player.setJumping(true);
+        player.setYRot((player.tickCount / PACE_TICKS) % 2 == 0 ? FACING_EAST : FACING_WEST);
         player.zza = 1f;
         player.doTick();
         BlockState state = level.getBlockState(sensor);
@@ -336,7 +366,7 @@ public final class SculkerTests {
      * Ticks a player the way its client does: the tick moves it by its
      * velocity under vanilla physics, jumping where jump is held, and after
      * the tick a diver passing through stone takes the swim stroke's velocity
-     * for the next, as SculkerClient sets it.
+     * for the next, steered from the stroke before, as SculkerClient sets it.
      *
      * @param player the player
      * @param keys   the keys its client reports held
@@ -349,10 +379,15 @@ public final class SculkerTests {
         player.setShiftKeyDown(keys.shift());
         double forward = keys.forward() ? 1 : 0;
         float lowest = player.getHealth();
+        Vec3 lastStroke = null;
         for (int tick = 0; tick < ticks; tick++) {
             player.doTick();
             if (SculkerSwim.passesThrough(player)) {
-                player.setDeltaMovement(SculkerSwim.swimStroke(player, forward, 0, SculkerSwim.riseOf(keys)));
+                Vec3 from = lastStroke == null ? SculkerSwim.enteringStroke(player) : lastStroke;
+                lastStroke = SculkerSwim.swimStroke(player, from, forward, 0, SculkerSwim.riseOf(keys));
+                player.setDeltaMovement(lastStroke);
+            } else {
+                lastStroke = null;
             }
             lowest = Math.min(lowest, player.getHealth());
         }
