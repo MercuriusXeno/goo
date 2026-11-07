@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.deep.Dive;
+import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.gluttony.GluttonyEvents;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
@@ -354,9 +354,9 @@ public final class HeldEffectsEvents {
             // eldritch-sight-reveals-the-out-of-phase: the eldritch state ends with its held effect
             EldritchEvents.end(player);
         }
-        if (lays.contains(LaidState.DIVE)) {
+        if (lays.contains(LaidState.SCULKER)) {
             // dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks: the swim and the vision end with its held effect
-            player.setData(GooAttachments.DIVE, Dive.NONE);
+            player.setData(GooAttachments.SCULKER, Sculker.NONE);
         }
     }
 }

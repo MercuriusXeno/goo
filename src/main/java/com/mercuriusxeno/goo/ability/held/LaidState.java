@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.held;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.BusterStep;
-import com.mercuriusxeno.goo.ability.program.DiveStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
@@ -13,6 +12,7 @@ import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.PhaseStep;
 import com.mercuriusxeno.goo.ability.program.RallyStep;
+import com.mercuriusxeno.goo.ability.program.SculkerStep;
 import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -64,7 +64,7 @@ public enum LaidState {
     /** Zoo's Rally over the peaceful mobs around the drinker (decision zoo-rally-holds-for-the-brew). */
     RALLY,
     /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
-    DIVE;
+    SCULKER;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -107,7 +107,7 @@ public enum LaidState {
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE),
             Map.entry(RallyStep.class, RALLY),
-            Map.entry(DiveStep.class, DIVE));
+            Map.entry(SculkerStep.class, SCULKER));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

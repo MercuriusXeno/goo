@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.ability.deep.DiveSwim;
+import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametest for Deep's dive held from the glove: a survival player standing
+ * Gametest for Deep's Sculker held from the glove: a survival player standing
  * inside a block of stone swims a whole block through it and, after two
  * seconds buried, has lost no health to suffocation (decision
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks).
@@ -28,10 +28,10 @@ import java.util.function.Consumer;
  * above the test's own bay.
  */
 @RegistersGameTests
-public final class DiveTests {
-    private static final String DIVE_SWIMS = "dive_swims_through_stone";
-    private static final String DIVE_STOPS_AT_BEDROCK = "dive_stops_at_bedrock";
-    private static final String DIVE_RISES_INTO_A_CEILING = "dive_rises_into_a_ceiling";
+public final class SculkerTests {
+    private static final String SCULKER_SWIMS = "sculker_swims_through_stone";
+    private static final String SCULKER_STOPS_AT_BEDROCK = "sculker_stops_at_bedrock";
+    private static final String SCULKER_RISES_INTO_A_CEILING = "sculker_rises_into_a_ceiling";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -39,12 +39,12 @@ public final class DiveTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, DIVE_SWIMS, DiveTests::diveSwimsThroughStone);
-        GooTestFunctions.registerTest(registrar, DIVE_STOPS_AT_BEDROCK, DiveTests::diveStopsAtBedrock);
-        GooTestFunctions.registerTest(registrar, DIVE_RISES_INTO_A_CEILING, DiveTests::diveRisesIntoACeiling);
+        GooTestFunctions.registerTest(registrar, SCULKER_SWIMS, SculkerTests::sculkerSwimsThroughStone);
+        GooTestFunctions.registerTest(registrar, SCULKER_STOPS_AT_BEDROCK, SculkerTests::sculkerStopsAtBedrock);
+        GooTestFunctions.registerTest(registrar, SCULKER_RISES_INTO_A_CEILING, SculkerTests::sculkerRisesIntoACeiling);
     }
 
-    private static final Identifier DEEP_DIVE = Identifier.parse("goo:deep_dive");
+    private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
     /** How far above the bay's floor the stone's middle floats. */
     private static final int LIFT = 12;
     /** The stone reaches this far from its middle cell on every axis. */
@@ -66,7 +66,7 @@ public final class DiveTests {
     private static final String SHOULD_STOP = "Sinking should stop on the bedrock at y=%d, the diver reached y=%.2f";
     private static final String SHOULD_RISE = "Jumping into the ceiling at y=%d should take the diver into it, it reached y=%.2f";
 
-    private DiveTests() {
+    private SculkerTests() {
     }
 
     /**
@@ -76,13 +76,13 @@ public final class DiveTests {
      *
      * @param helper the gametest helper
      */
-    public static void diveStopsAtBedrock(GameTestHelper helper) {
+    public static void sculkerStopsAtBedrock(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos grass = helper.absolutePos(new BlockPos(3, LIFT, 3));
         List<Block> layers = List.of(Blocks.GRASS_BLOCK, Blocks.DIRT, Blocks.DIRT, Blocks.BEDROCK);
         layPatch(level, grass, layers);
         int bedrockTop = grass.getY() - layers.size() + 2;
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_DIVE);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
         player.teleportTo(grass.getX() + 0.5, grass.getY() + 1, grass.getZ() + 0.5);
         player.setShiftKeyDown(true);
         double lowest = swimFor(player, SNEAK, -1);
@@ -99,7 +99,7 @@ public final class DiveTests {
      *
      * @param helper the gametest helper
      */
-    public static void diveRisesIntoACeiling(GameTestHelper helper) {
+    public static void sculkerRisesIntoACeiling(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos floor = helper.absolutePos(new BlockPos(3, LIFT, 3));
         List<Block> ceiling = List.of(Blocks.STONE, Blocks.STONE, Blocks.STONE);
@@ -107,7 +107,7 @@ public final class DiveTests {
         layPatch(level, ceilingTop, ceiling);
         layPatch(level, floor, List.of(Blocks.STONE));
         int ceilingBottom = floor.getY() + 3;
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_DIVE);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
         player.teleportTo(floor.getX() + 0.5, ceilingBottom - player.getBbHeight(), floor.getZ() + 0.5);
         swimFor(player, JUMP, 1);
         double reached = player.getY();
@@ -122,7 +122,7 @@ public final class DiveTests {
      * Ticks a diver the way its client does: the tick moves it by its
      * velocity under vanilla physics, jumping where jump is held, and after
      * the tick a diver passing through stone takes the swim stroke's velocity
-     * for the next, as DiveClient sets it.
+     * for the next, as SculkerClient sets it.
      *
      * @param player the diver
      * @param keys   the keys its client reports held
@@ -135,8 +135,8 @@ public final class DiveTests {
         double lowest = player.getY();
         for (int tick = 0; tick < STROKE_TICKS; tick++) {
             player.doTick();
-            if (DiveSwim.passesThrough(player)) {
-                player.setDeltaMovement(DiveSwim.swimStroke(player, 0, 0, rise));
+            if (SculkerSwim.passesThrough(player)) {
+                player.setDeltaMovement(SculkerSwim.swimStroke(player, 0, 0, rise));
             }
             lowest = Math.min(lowest, player.getY());
         }
@@ -165,17 +165,17 @@ public final class DiveTests {
     }
 
     /**
-     * A survival player holding dive, set inside stone, ticks two seconds
+     * A survival player holding Sculker, set inside stone, ticks two seconds
      * there, then swims a block east: it moves the whole block and stands at
      * full health.
      *
      * @param helper the gametest helper
      */
-    public static void diveSwimsThroughStone(GameTestHelper helper) {
+    public static void sculkerSwimsThroughStone(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos middle = helper.absolutePos(new BlockPos(3, LIFT, 3));
         fillStone(level, middle, Blocks.STONE);
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_DIVE);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
         player.teleportTo(middle.getX() + 0.5, middle.getY(), middle.getZ() + 0.5);
         for (int tick = 0; tick < BURIED_TICKS; tick++) {
             player.doTick();

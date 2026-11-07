@@ -1,6 +1,6 @@
 {
   "gooType": "deep",
-  "displayName": "goo.ability.deep.dive",
+  "displayName": "goo.ability.deep.sculker",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 10,
@@ -8,7 +8,7 @@
   "requires": ["minecraft:nautilus_shell"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "dive" },
+    { "type": "sculker" },
     { "type": "sound", "id": "minecraft:entity.warden.listening", "at": "target", "source": "players", "volume": 0.8, "pitch": 0.8 }
   ],
   "tags": ["self"]

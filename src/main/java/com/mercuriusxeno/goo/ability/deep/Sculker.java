@@ -8,31 +8,32 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
 /**
- * The dive a player holds until the game time it ends at: while it stands
+ * The Sculker a player holds until the game time it ends at: while it stands
  * the player swims through solid blocks and sees the way the deep sees.
  * Saved with the player and synced to its client, which moves the player
  * and draws the vision.
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
+ * decision dive-is-renamed-sculker
  *
  * @param expiresAt the game time the dive ends at; zero when none stands
  */
-public record Dive(long expiresAt) {
+public record Sculker(long expiresAt) {
 
-    /** No dive. */
-    public static final Dive NONE = new Dive(0L);
+    /** No Sculker. */
+    public static final Sculker NONE = new Sculker(0L);
     /** The end time of a dive held until its held effect ends. */
     public static final long NEVER_EXPIRES = Long.MAX_VALUE;
 
     private static final String FIELD_EXPIRES_AT = "expires_at";
 
     /** Saves the dive with the player. */
-    public static final MapCodec<Dive> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.LONG.fieldOf(FIELD_EXPIRES_AT).forGetter(Dive::expiresAt)
-    ).apply(inst, Dive::new));
+    public static final MapCodec<Sculker> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Codec.LONG.fieldOf(FIELD_EXPIRES_AT).forGetter(Sculker::expiresAt)
+    ).apply(inst, Sculker::new));
 
     /** Syncs the dive to the owning client, which moves the player and draws the vision. */
-    public static final StreamCodec<ByteBuf, Dive> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.VAR_LONG, Dive::expiresAt, Dive::new);
+    public static final StreamCodec<ByteBuf, Sculker> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.VAR_LONG, Sculker::expiresAt, Sculker::new);
 
     /**
      * Whether the dive stands at a game time.
@@ -50,8 +51,8 @@ public record Dive(long expiresAt) {
      *
      * @return the dive after the cast
      */
-    public Dive hold() {
-        return new Dive(NEVER_EXPIRES);
+    public Sculker hold() {
+        return new Sculker(NEVER_EXPIRES);
     }
 
     /**
@@ -62,7 +63,7 @@ public record Dive(long expiresAt) {
      * @param gameTime the game time of the drink
      * @return the dive after the drink
      */
-    public Dive brew(int ticks, long gameTime) {
-        return new Dive(Math.max(expiresAt, gameTime + ticks));
+    public Sculker brew(int ticks, long gameTime) {
+        return new Sculker(Math.max(expiresAt, gameTime + ticks));
     }
 }

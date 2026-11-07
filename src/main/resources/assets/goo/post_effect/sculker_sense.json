@@ -5,7 +5,7 @@
     "passes": [
         {
             "vertex_shader": "minecraft:core/screenquad",
-            "fragment_shader": "goo:post/dive_sense",
+            "fragment_shader": "goo:post/sculker_sense",
             "inputs": [
                 {
                     "sampler_name": "In",
@@ -19,9 +19,9 @@
             ],
             "output": "swap",
             "uniforms": {
-                "DiveConfig": [
+                "SculkerConfig": [
                     {
-                        "name": "DiveParams",
+                        "name": "SculkerParams",
                         "type": "vec4",
                         "value": [ 0.0, 6.0, 256.0, 0.05 ]
                     }

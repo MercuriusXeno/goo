@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.deep.DiveSwim;
+import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
@@ -31,7 +31,7 @@ import java.util.Map;
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class DiveSenses {
+public final class SculkerSenses {
 
     /** How far from the diver, in blocks, a movement or a sound is sensed. */
     static final double SENSE_REACH = 32;
@@ -50,7 +50,7 @@ public final class DiveSenses {
     /** Each sensed block and the tick its box ends at. */
     private static final Map<BlockPos, Long> SENSED_BLOCKS = new HashMap<>();
 
-    private DiveSenses() {
+    private SculkerSenses() {
     }
 
     /**
@@ -76,7 +76,7 @@ public final class DiveSenses {
 
     /**
      * Senses every entity in reach that moved this tick, and drops what has
-     * gone quiet, while the local player's dive stands.
+     * gone quiet, while the local player's Sculker stands.
      *
      * @param event the client tick
      */
@@ -85,7 +85,7 @@ public final class DiveSenses {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
-        if (player == null || level == null || !DiveSwim.dives(player)) {
+        if (player == null || level == null || !SculkerSwim.dives(player)) {
             SENSED_ENTITIES.clear();
             SENSED_BLOCKS.clear();
             return;
@@ -110,7 +110,7 @@ public final class DiveSenses {
     public static void onPlaySound(PlaySoundEvent event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || event.getSound() == null || !DiveSwim.dives(player)) {
+        if (player == null || mc.level == null || event.getSound() == null || !SculkerSwim.dives(player)) {
             return;
         }
         senseSound(mc, player, new Vec3(event.getSound().getX(), event.getSound().getY(), event.getSound().getZ()));

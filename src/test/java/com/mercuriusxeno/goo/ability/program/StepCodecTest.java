@@ -170,7 +170,7 @@ class StepCodecTest {
             Map.entry("zone", new ZoneStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("shifter", new ShifterStep(Expr.literal(8))),
             Map.entry("convoke", new ConvokeStep(Expr.literal(40), Expr.literal(16), Expr.literal(600))),
-            Map.entry("dive", new DiveStep()),
+            Map.entry("sculker", new SculkerStep()),
             Map.entry("end", new EndStep(Expr.literal(1200))),
             Map.entry("astral_gate", new AstralGateStep(Expr.literal(1200))),
             Map.entry("void_pocket", new VoidPocketStep(Expr.literal(1200))),
