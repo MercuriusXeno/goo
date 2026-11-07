@@ -8,9 +8,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 
 /**
- * Draws the vanilla outline around an entity a diver senses, for the moment
- * it is sensed.
+ * Draws the vanilla outline around an entity a Sculker remembers, while it
+ * stays within sight.
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
+ * sculker-sight-persists-where-echoes-have-touched
  */
 @Mixin(Minecraft.class)
 public abstract class MinecraftSculkerOutlineMixin {
