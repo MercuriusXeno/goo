@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.deep;
 
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -98,6 +99,23 @@ public final class SculkerSwim {
 
     private static boolean jumpsClear(Input keys, boolean inside, boolean overATopFace) {
         return keys.jump() && !keys.shift() && !inside && overATopFace;
+    }
+
+    /**
+     * Holds a diver in the swimming pose, which the pose update inside stone
+     * could never fit, so the diver swims through stone with the swim's own
+     * animation; once out of the dive, lets the pose go back to the player's
+     * own, leaving any pose another source forced.
+     *
+     * @param player the player
+     * @param diving whether it is in the dive this tick
+     */
+    public static void holdTheSwimPose(Player player, boolean diving) {
+        if (diving) {
+            player.setForcedPose(Pose.SWIMMING);
+        } else if (player.getForcedPose() == Pose.SWIMMING) {
+            player.setForcedPose(null);
+        }
     }
 
     /**

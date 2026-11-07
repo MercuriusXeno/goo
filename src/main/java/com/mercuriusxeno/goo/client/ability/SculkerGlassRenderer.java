@@ -31,9 +31,10 @@ import java.util.Set;
 
 /**
  * Draws Sculker's glass field: every block within the field's radius of the
- * local player's eyes draws its own model and texture through the x-ray
- * pipeline Fungal Sight draws through, ghosted at the field's strength for
- * its distance, farthest first so the nearer glass lies over it. A block
+ * local player's eyes draws its own model and texture, ghosted at the
+ * field's strength for its distance, farthest first so the nearer glass
+ * lies over it, depth tested so the diver's own body and every entity in
+ * front of the glass shows over it. A block
  * draws only the faces that border something else, air, another kind of
  * block or the field's edge, so a run of one stone reads as one piece of
  * glass with no seam between its blocks, while an ore in it shows its own
@@ -75,7 +76,7 @@ public final class SculkerGlassRenderer {
         PoseStack poseStack = event.getPoseStack();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        RenderType glass = GooRenderTypes.fungusXray(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
+        RenderType glass = GooRenderTypes.sculkerGlass(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
         VertexConsumer consumer = buffers.getBuffer(glass);
         for (BlockPos pos : field) {
             float strength = SculkerGlass.strengthAt(Vec3.atCenterOf(pos).distanceTo(eyes)) * SculkerVision.presence();
