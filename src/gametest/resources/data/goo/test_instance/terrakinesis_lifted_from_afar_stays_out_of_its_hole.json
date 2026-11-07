@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:terrakinesis_lifted_from_afar_stays_out_of_its_hole",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 120,
+  "setup_ticks": 0,
+  "required": true
+}

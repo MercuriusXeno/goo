@@ -6,6 +6,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -30,26 +31,42 @@ public final class HunkCollision {
      * @return the move allowed, each axis cut where a block of the chunk would strike the world
      */
     public static Vec3 allowed(Level level, List<AABB> cells, Vec3 move) {
-        double dy = along(level, cells, Direction.Axis.Y, move.y);
+        return allowed(level, cells, move, List.of());
+    }
+
+    /**
+     * The part of a move the world allows a chunk, with more boxes standing solid besides the world's blocks.
+     *
+     * @param level the level
+     * @param cells the chunk's block cells where it stands
+     * @param move  the move wanted
+     * @param solid boxes that stop the chunk as blocks do, such as its own hole while it is held over it
+     * @return the move allowed, each axis cut where a block of the chunk would strike the world or a solid box
+     */
+    public static Vec3 allowed(Level level, List<AABB> cells, Vec3 move, List<AABB> solid) {
+        double dy = along(level, cells, Direction.Axis.Y, move.y, solid);
         List<AABB> moved = shifted(cells, 0, dy, 0);
         if (Math.abs(move.x) >= Math.abs(move.z)) {
-            double dx = along(level, moved, Direction.Axis.X, move.x);
-            double dz = along(level, shifted(moved, dx, 0, 0), Direction.Axis.Z, move.z);
+            double dx = along(level, moved, Direction.Axis.X, move.x, solid);
+            double dz = along(level, shifted(moved, dx, 0, 0), Direction.Axis.Z, move.z, solid);
             return new Vec3(dx, dy, dz);
         }
-        double dz = along(level, moved, Direction.Axis.Z, move.z);
-        double dx = along(level, shifted(moved, 0, 0, dz), Direction.Axis.X, move.x);
+        double dz = along(level, moved, Direction.Axis.Z, move.z, solid);
+        double dx = along(level, shifted(moved, 0, 0, dz), Direction.Axis.X, move.x, solid);
         return new Vec3(dx, dy, dz);
     }
 
-    private static double along(Level level, List<AABB> cells, Direction.Axis axis, double distance) {
+    private static double along(Level level, List<AABB> cells, Direction.Axis axis, double distance,
+                                List<AABB> solid) {
         double allowed = distance;
         for (AABB cell : cells) {
             if (allowed == 0) {
                 return 0;
             }
             AABB swept = cell.expandTowards(axisVector(axis, allowed));
-            Iterable<VoxelShape> shapes = level.getBlockCollisions(null, swept);
+            List<VoxelShape> shapes = new ArrayList<>();
+            level.getBlockCollisions(null, swept).forEach(shapes::add);
+            solid.stream().filter(swept::intersects).map(Shapes::create).forEach(shapes::add);
             allowed = Shapes.collide(axis, cell, shapes, allowed);
         }
         return allowed;

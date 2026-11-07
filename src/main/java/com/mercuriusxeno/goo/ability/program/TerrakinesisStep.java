@@ -236,27 +236,30 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      * @return the hunk's position
      */
     private Vec3 holdPoint(ServerPlayer player, BlockHunk hunk) {
-        return heldAt(hunk, player.getEyePosition(), player.getLookAngle(), player.getXRot(), player.getBoundingBox());
+        return heldAt(hunk, player.getEyePosition(), player.getLookAngle(), player.getXRot(), player.getYRot(),
+                player.getBoundingBox());
     }
 
     /**
      * Where a held hunk goes for a look, on the server and on the holder's
-     * client alike: at Grab's hold distance on the look, or resting on the
-     * surface the look strikes short of it (BlockHunk.restOnTheLook), then
-     * pushed out across the look until it clears the holder, so it never sits
-     * in the holder's own body.
+     * client alike: resting on the surface the look strikes within the grab's
+     * range (BlockHunk.restOnTheLook), or with none struck at Grab's hold
+     * distance on the look, then
+     * pushed out the way the holder faces until it clears the holder, so it
+     * never sits in the holder's own body, even looking straight down.
      *
      * @param hunk      the held hunk
      * @param eye       the holder's eye
      * @param look      the holder's unit look
      * @param pitch     the look's pitch in degrees, positive looking down
+     * @param yaw       the holder's facing in degrees
      * @param holderBox the holder's bounding box
      * @return the hunk's position
      */
-    public Vec3 heldAt(BlockHunk hunk, Vec3 eye, Vec3 look, float pitch, AABB holderBox) {
+    public Vec3 heldAt(BlockHunk hunk, Vec3 eye, Vec3 look, float pitch, float yaw, AABB holderBox) {
         AABB shape = hunk.getBoundingBox().move(hunk.position().reverse());
-        Vec3 rest = hunk.restOnTheLook(eye, look, holdPosition(eye, look, pitch, shape, holderBox));
-        Vec3 away = new Vec3(look.x, 0, look.z).normalize();
+        Vec3 rest = hunk.restOnTheLook(eye, look, holdPosition(eye, look, pitch, shape, holderBox), range);
+        Vec3 away = Vec3.directionFromRotation(0, yaw);
         AABB clearOf = holderBox.inflate(HOLDER_CLEARANCE);
         for (double pushed = 0; shape.move(rest).intersects(clearOf) && pushed < MOST_PUSH; pushed += PUSH_STEP) {
             rest = rest.add(away.scale(PUSH_STEP));
