@@ -32,7 +32,11 @@ import java.util.UUID;
  * anything removes them; and a player
  * falling below the floor is set back south of the door unharmed, the pocket
  * folding them back. Held on inside, Outsider feeds void into the platform,
- * which grows in voidstone along {@link PlatformSpiral}.
+ * which grows in voidstone along {@link PlatformSpiral}. Each part shows
+ * itself: void motes spiral in and a hum rises while the hold charges, void
+ * bursts where the player leaves and arrives, motes stream off the player
+ * while they feed the platform, and each grown cell puffs void and chimes,
+ * higher the farther out it stands.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  */
 public final class OutsiderRooms {
@@ -57,6 +61,29 @@ public final class OutsiderRooms {
     private static final double FOLD_SPEED = 0.6;
     private static final float FOLD_VOLUME = 0.6f;
     private static final float FOLD_PITCH = 0.7f;
+    private static final int CHARGE_MOTES = 6;
+    private static final double CHARGE_RADIUS = 1.4;
+    private static final double CHARGE_TURN = 0.35;
+    private static final double CHARGE_LIFT = 0.8;
+    private static final double MOTE_FLOOR = 0.3;
+    private static final int HUM_EVERY = 5;
+    private static final float HUM_VOLUME = 0.35f;
+    private static final float HUM_PITCH = 0.6f;
+    private static final int BURST_PARTICLES = 40;
+    private static final double BURST_SPREAD = 0.4;
+    private static final double BURST_SPEED = 0.5;
+    private static final int FEED_MOTES = 2;
+    private static final double FEED_SPREAD = 0.35;
+    private static final double FEED_SPEED = 0.05;
+    private static final int GROW_PARTICLES = 14;
+    private static final double GROW_SPREAD = 0.3;
+    private static final double GROW_RISE = 0.15;
+    private static final double GROW_SPEED = 0.04;
+    private static final float CHIME_VOLUME = 0.8f;
+    private static final float CHIME_PITCH = 0.8f;
+    private static final float CHIME_RISE = 0.04f;
+    private static final float CHIME_TOP = 2.0f;
+    private static final double HALF_BLOCK = 0.5;
 
     private OutsiderRooms() {
     }
@@ -169,6 +196,8 @@ public final class OutsiderRooms {
         if (room == null || pocket.dimension() != POCKET) {
             return;
         }
+        pocket.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1, player.getZ(),
+                FEED_MOTES, FEED_SPREAD, FEED_SPREAD, FEED_SPREAD, FEED_SPEED);
         VoidPockets.Platform platform = pockets.platformOf(player.getUUID());
         int cells = platform.cells();
         long fed = platform.fed() + feed;
@@ -178,10 +207,27 @@ public final class OutsiderRooms {
             if (pocket.getBlockState(at).isAir()) {
                 pocket.setBlock(at, GooBlocks.VOIDSTONE.get().defaultBlockState(), Block.UPDATE_ALL);
             }
+            showGrowth(pocket, at, at.distManhattan(voidstoneOf(room)));
             cells++;
             fed -= cost;
         }
         pockets.keepPlatform(player.getUUID(), new VoidPockets.Platform(cells, fed));
+    }
+
+    /**
+     * Shows a cell growing: void puffs up off it and it chimes, higher the
+     * farther it stands from the center.
+     *
+     * @param pocket   the pocket dimension
+     * @param at       the grown cell
+     * @param distance the cell's Manhattan distance from the center
+     */
+    private static void showGrowth(ServerLevel pocket, BlockPos at, int distance) {
+        Vec3 top = Vec3.atCenterOf(at).add(0, HALF_BLOCK, 0);
+        pocket.sendParticles(ParticleTypes.REVERSE_PORTAL, top.x, top.y, top.z, GROW_PARTICLES,
+                GROW_SPREAD, GROW_RISE, GROW_SPREAD, GROW_SPEED);
+        pocket.playSound(null, top.x, top.y, top.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS,
+                CHIME_VOLUME, Math.min(CHIME_TOP, CHIME_PITCH + distance * CHIME_RISE));
     }
 
     /**
@@ -215,10 +261,49 @@ public final class OutsiderRooms {
         }
         pockets.keepReturn(player.getUUID(), new VoidPockets.ReturnPoint(player.level().dimension(),
                 player.position(), player.getYRot(), player.getXRot()));
+        burst(player.level(), player.position());
         Vec3 arrival = arrivalOf(room);
         player.teleport(new TeleportTransition(pocket, arrival, Vec3.ZERO, FACING_DOOR, 0f,
                 TeleportTransition.PLAY_PORTAL_SOUND));
+        burst(pocket, arrival);
         return true;
+    }
+
+    /**
+     * Shows a hold charging Outsider: void motes circle the player, closing in
+     * and rising as the charge fills, under a hum that rises with them.
+     *
+     * @param player the player holding
+     * @param held   the hold's tick count
+     * @param charge the ticks the charge takes
+     */
+    public static void showCharge(ServerPlayer player, int held, int charge) {
+        ServerLevel level = player.level();
+        double share = Math.min(1.0, held / (double) charge);
+        double radius = CHARGE_RADIUS * (1 - share) + MOTE_FLOOR;
+        for (int mote = 0; mote < CHARGE_MOTES; mote++) {
+            double angle = held * CHARGE_TURN + mote * Math.TAU / CHARGE_MOTES;
+            level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX() + Math.cos(angle) * radius,
+                    player.getY() + MOTE_FLOOR + share * CHARGE_LIFT, player.getZ() + Math.sin(angle) * radius,
+                    1, 0, 0, 0, 0);
+        }
+        if (held % HUM_EVERY == 1) {
+            level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PORTAL_AMBIENT,
+                    SoundSource.PLAYERS, HUM_VOLUME, HUM_PITCH + (float) share);
+        }
+    }
+
+    /**
+     * Bursts void at a point, where a player leaves for the pocket or arrives in it.
+     *
+     * @param level the level
+     * @param at    the point
+     */
+    private static void burst(ServerLevel level, Vec3 at) {
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, at.x, at.y + 1, at.z, BURST_PARTICLES,
+                BURST_SPREAD, BURST_SPREAD, BURST_SPREAD, BURST_SPEED);
+        level.playSound(null, at.x, at.y, at.z, SoundEvents.PLAYER_TELEPORT, SoundSource.PLAYERS,
+                FOLD_VOLUME, 1f);
     }
 
     /**

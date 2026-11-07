@@ -57,8 +57,14 @@ public record OutsiderStep(Expr charge, Expr enter, Expr feed, Expr cellCost, Ex
         if (host.standsInPocket()) {
             host.feedPlatform(feed.evaluateInt(context), cellCost.evaluateInt(context),
                     distanceCost.evaluateInt(context));
-        } else if (host.channelAim().map(ChannelAim::held).orElse(0) == charge.evaluateInt(context)) {
-            host.enterPocket(enter.evaluateInt(context));
+        } else {
+            int held = host.channelAim().map(ChannelAim::held).orElse(0);
+            int charged = charge.evaluateInt(context);
+            if (held == charged) {
+                host.enterPocket(enter.evaluateInt(context));
+            } else if (held > 0 && held < charged) {
+                host.showCharge(held, charged);
+            }
         }
         return true;
     }
