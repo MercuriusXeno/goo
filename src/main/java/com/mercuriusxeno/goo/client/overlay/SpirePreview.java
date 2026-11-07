@@ -11,7 +11,7 @@ import java.util.Set;
 /**
  * What Spire's preview draws: the ripple echo's rings across the footprint's
  * ground cells, the tops the stone grows from, each ring the footprint's own
- * outline scaled from its center; and once the footprint is fixed the ghost
+ * outline scaled from its center, over a steady outline of its edge; and once the footprint is fixed the ghost
  * stone filling every cell the rise would fill above them, only its outer
  * faces, so no seam shows between its blocks.
  * decision spire-previews-as-a-surface-ripple-and-ghost-stone
@@ -45,6 +45,17 @@ final class SpirePreview {
         Vec3 northWest = new Vec3(centerX - halfX, y, centerZ - halfZ);
         return new Vec3[] {northWest, new Vec3(centerX - halfX, y, centerZ + halfZ),
             new Vec3(centerX + halfX, y, centerZ + halfZ), new Vec3(centerX + halfX, y, centerZ - halfZ), northWest};
+    }
+
+    /**
+     * The steady outline under the rings: the footprint's own edge, the line
+     * every ring grows out to, so the footprint reads clearly between rings.
+     *
+     * @param footprint the live footprint
+     * @return the edge's corners, closed on its first
+     */
+    static Vec3[] edgeOutline(SpireFootprint footprint) {
+        return ringCorners(footprint, 1);
     }
 
     /**

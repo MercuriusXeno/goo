@@ -28,7 +28,7 @@ import java.util.Set;
  * Draws Spire's preview in place of a wireframe: the ripple echo, the face
  * bullseye's RippleRings grown across the footprint, each ring a glowing
  * rectangle scaled from the footprint's center out to its edge in the goo
- * type's color, fading as it grows; and, once the footprint is fixed and the
+ * type's color, fading as it grows, over a steady outline of that edge; and, once the footprint is fixed and the
  * rise is being set, ghost stone, the stone Spire grows drawn translucent and
  * full bright through the moving-block shader, only its outer faces, so it
  * reads as one solid ghost with no seams between its blocks.
@@ -38,6 +38,8 @@ final class SpirePreviewRenderer {
 
     /** A ring's alpha at its birth, out of 255, the face bullseye's own. */
     static final int RING_PEAK_ALPHA = 160;
+    /** The steady edge outline's alpha, out of 255, solid enough to read between rings. */
+    static final int EDGE_ALPHA = 230;
     /** The ghost stone's alpha, out of 255. */
     static final int GHOST_ALPHA = 150;
     /** How far the ghost stone leans toward the goo type's color, 0 for plain stone. */
@@ -72,6 +74,7 @@ final class SpirePreviewRenderer {
                                   SpireFootprint footprint, int rgb, double nowSeconds) {
         float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
         LineContext lines = new LineContext(ps.last(), buf.getBuffer(GooRenderTypes.LINES_GLOW));
+        lines.emitPolyline(camPos, SpirePreview.edgeOutline(footprint), ARGB.color(EDGE_ALPHA, rgb), width);
         for (double phase : RippleRings.ringPhases(nowSeconds)) {
             int alpha = (int) (RING_PEAK_ALPHA * RippleRings.ringOpacity(phase));
             if (RippleRings.isAlive(phase) && alpha > 0) {

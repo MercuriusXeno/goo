@@ -73,4 +73,12 @@ class SpirePreviewTest {
         BlockPos inside = new BlockPos(11, 66, 21);
         assertEquals(Set.of(Direction.EAST), Set.copyOf(SpirePreview.outerFaces(inside, ghost)));
     }
+
+    @Test
+    void theSteadyEdgeTracesTheFootprintsOutlineUnderTheRings() {
+        Vec3[] edge = SpirePreview.edgeOutline(FOOTPRINT);
+        double y = 65 + SpirePreview.RING_LIFT;
+        assertEquals(java.util.List.of(new Vec3(10, y, 20), new Vec3(10, y, 23), new Vec3(12, y, 23),
+                new Vec3(12, y, 20), new Vec3(10, y, 20)), java.util.List.of(edge));
+    }
 }
