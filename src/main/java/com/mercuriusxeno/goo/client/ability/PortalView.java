@@ -86,6 +86,8 @@ public final class PortalView {
     private static boolean drawing;
     /** The views drawn so far this frame. */
     private static int passes;
+    /** The views the frame sees directly still to draw, which views within views leave room for. */
+    private static int reserved;
     /** The pass drawing now, zero for the main frame. */
     private static int currentPass = MAIN_PASS;
     /** The camera of the pass drawing now. */
@@ -154,8 +156,13 @@ public final class PortalView {
         }
         Camera main = mc.gameRenderer.getMainCamera();
         Eye eye = new Eye(main.position(), vec(main.forwardVector()), vec(main.upVector()));
-        for (Gate[] way : ways()) {
-            drawThrough(mc, delta, new Seen(MAIN_PASS, eye, main), way[0], way[1], 1);
+        Seen frame = new Seen(MAIN_PASS, eye, main);
+        // Every gate the frame sees directly holds a view before any view within a view spends the budget,
+        // so a tunnel never leaves a portal or a hole in plain sight showing its swirl.
+        List<Gate[]> direct = ways().stream().filter(way -> shows(mc, frame, way[0])).toList();
+        reserved = Math.min(direct.size(), MOST_VIEWS);
+        for (Gate[] way : direct) {
+            drawThrough(mc, delta, frame, way[0], way[1], 1);
         }
     }
 
@@ -250,7 +257,11 @@ public final class PortalView {
      */
     private static void drawThrough(Minecraft mc, DeltaTracker delta, Seen seen, Gate near, Gate far, int depth) {
         PartnerView.Source from = sourceOf(mc, far);
-        if (passes >= MOST_VIEWS || from == PartnerView.Source.NONE || !shows(mc, seen, near)) {
+        if (depth == 1) {
+            reserved--;
+        }
+        boolean full = passes + (depth == 1 ? 0 : reserved) >= MOST_VIEWS;
+        if (full || from == PartnerView.Source.NONE || !shows(mc, seen, near)) {
             return;
         }
         PortalTransform through = PortalTransform.between(near, far);
