@@ -664,6 +664,29 @@ public final class GooRenderTypes {
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
             .build();
 
+    /**
+     * Voidstone's faces: near-black stone holding pale stars placed by world
+     * position, drawn over the block's own faces, which the depth bias lets
+     * them win (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
+     */
+    public static final RenderPipeline VOIDSTONE = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "voidstone"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
+            .withCull(false)
+            .build();
+
+    /** The render type voidstone's faces draw through. */
+    public static final RenderType VOIDSTONE_TYPE = RenderType.create(
+            "goo_voidstone",
+            RenderSetup.builder(VOIDSTONE).createRenderSetup()
+    );
+
     /** Per-atlas memoized render types on the block transform pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_FACTORY =
             net.minecraft.util.Util.memoize(atlas -> RenderType.create(
@@ -1193,6 +1216,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(BLOCK_MINGLE);
+        event.registerPipeline(VOIDSTONE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
         event.registerPipeline(BORE_VORTEX);
