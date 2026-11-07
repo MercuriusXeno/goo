@@ -19,6 +19,8 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -44,6 +46,7 @@ import java.util.function.Consumer;
 @RegistersGameTests
 public final class SpireTests {
     private static final String SPIRE_GROWS_STONE = "spire_grows_stone_above_the_footprint";
+    private static final String SPIRE_CARRIES_A_RIDER = "spire_carries_a_rider_up_with_the_stone";
 
     private static final String ROCK_SPIRE = "goo:rock_spire";
     /** The footprint's ground row, three cells along X at the bay's middle depth, one above the floor. */
@@ -65,6 +68,14 @@ public final class SpireTests {
     private static final String NO_HUNK = "One rising hunk should carry the %d stone blocks, found %s";
     /** The settle lands on the tick the rise ends; one more lets its block updates through. */
     private static final int SETTLE_SLACK_TICKS = 1;
+    /** The rider stands on the footprint's middle ground cell. */
+    private static final BlockPos RIDER_POS = new BlockPos(2, 2, 2);
+    /** How far the rider's feet may stand from the hunk's top mid-rise and still ride it. */
+    private static final double FEET_ON_THE_STONE = 0.1;
+    /** Halfway through the rise, the stone well off the ground and well short of its cells. */
+    private static final int MID_RISE_TICKS = SpireStep.RISE_TICKS / 2;
+    /** Shrinks the rider's box off the faces it only rests on. */
+    private static final double RESTING = 1e-3;
 
     private SpireTests() {
     }
@@ -76,6 +87,7 @@ public final class SpireTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPIRE_GROWS_STONE, SpireTests::spireGrowsStoneAboveTheFootprint);
+        GooTestFunctions.registerTest(registrar, SPIRE_CARRIES_A_RIDER, SpireTests::spireCarriesARiderUp);
     }
 
     /**
@@ -109,6 +121,44 @@ public final class SpireTests {
             helper.assertTrue(stoneValue > 0, UNPRICED);
             int expected = stoneValue * GROUND.size() * RISE;
             helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A zombie standing on the footprint rides the rising stone up, its feet
+     * on the hunk's top mid-rise, and stands on the settled top when the rise
+     * ends, alive and inside no stone.
+     * decision spire-carries-its-riders-up-with-the-rising-stone
+     *
+     * @param helper the gametest helper
+     */
+    public static void spireCarriesARiderUp(GameTestHelper helper) {
+        for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
+            helper.setBlock(new BlockPos(x, CORNER.getY(), CORNER.getZ()), GROUND.get(x - CORNER.getX()));
+        }
+        Zombie rider = helper.spawn(EntityType.ZOMBIE, RIDER_POS);
+        rider.setNoAi(true);
+        submit(helper);
+        helper.runAfterDelay(MID_RISE_TICKS, () -> {
+            List<BlockHunk> hunks = helper.getLevel().getEntitiesOfClass(BlockHunk.class,
+                    new AABB(helper.absolutePos(CORNER)).inflate(GROUND.size() + RISE));
+            helper.assertTrue(hunks.size() == 1, "One hunk should be rising, found " + hunks.size());
+            double top = hunks.getFirst().getBoundingBox().maxY;
+            helper.assertTrue(Math.abs(rider.getY() - top) <= FEET_ON_THE_STONE,
+                    "The rider's feet should stand on the rising stone at " + top + ", stand at " + rider.getY());
+        });
+        helper.runAfterDelay(SpireStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            double settledTop = helper.absolutePos(CORNER).getY() + 1 + RISE;
+            helper.assertTrue(rider.isAlive(), "The rider should ride the spire up alive");
+            helper.assertTrue(rider.getY() >= settledTop - FEET_ON_THE_STONE,
+                    "The rider should stand on the settled top at " + settledTop + ", stands at " + rider.getY());
+            AABB box = rider.getBoundingBox().deflate(RESTING);
+            for (BlockPos cell : BlockPos.betweenClosed(BlockPos.containing(box.minX, box.minY, box.minZ),
+                    BlockPos.containing(box.maxX, box.maxY, box.maxZ))) {
+                helper.assertTrue(!helper.getLevel().getBlockState(cell).is(Blocks.STONE),
+                        "The rider's box should hold no stone, holds stone at " + cell.immutable());
+            }
             helper.succeed();
         });
     }

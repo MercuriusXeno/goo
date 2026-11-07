@@ -15,6 +15,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -25,6 +26,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,6 +40,11 @@ import java.util.List;
  * it reached when the rise ends. Both sides run the rise from the spawn data,
  * so the client draws it without waiting on the server's position updates.
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
+ *
+ * A rising hunk is solid: it carries whatever stands on its top up with it
+ * each tick, on both sides so a player's own client lifts them too, and
+ * leaves them standing on the settled stone.
+ * decision spire-carries-its-riders-up-with-the-rising-stone
  *
  * A lifted hunk hangs where a grab's hold puts it; let go or thrown, it flies
  * under gravity, and whatever it strikes, block or mob, it crushes on impact
@@ -75,6 +82,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private static final float MOST_DAMAGE = 20f;
     /** The longest a let-go hunk flies before it breaks apart where it is, in ticks. */
     private static final int MOST_FLIGHT_TICKS = 200;
+    /** How far a rider's feet may stand from the hunk's top and still ride it, in blocks. */
+    static final double RIDER_FOOTING = 0.1;
     /** Shrinks the crush box off the faces the hunk only touches. */
     private static final double TOUCH_SLACK = 1e-3;
 
@@ -202,7 +211,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         super.tick();
         age++;
         if (rising) {
-            setPos(start.lerp(target, risenShare(age, riseTicks)));
+            rise();
             if (age >= riseTicks && level() instanceof ServerLevel server) {
                 settle(server);
             }
@@ -217,20 +226,120 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
+     * One tick of the rise: the riders on the hunk's top move up by as far as
+     * the top climbs, before the hunk does, so they never stand inside it.
+     */
+    private void rise() {
+        Vec3 next = start.lerp(target, risenShare(age, riseTicks));
+        double climb = next.y - position().y;
+        if (climb > 0) {
+            carryRiders(climb);
+        }
+        setPos(next);
+    }
+
+    /**
+     * Moves everything standing on the hunk's top up by a climb, feet kept on
+     * the stone. A shulker's push, unlike a piston's, is not capped per tick,
+     * so a tall spire's fastest climb carries its riders whole.
+     *
+     * @param climb how far the top climbs this tick, in blocks
+     */
+    private void carryRiders(double climb) {
+        AABB box = getBoundingBox();
+        AABB footing = new AABB(box.minX, box.maxY - RIDER_FOOTING, box.minZ, box.maxX, box.maxY + RIDER_FOOTING,
+                box.maxZ);
+        for (Entity rider : level().getEntities(this, footing, this::standsOnTop)) {
+            rider.move(MoverType.SHULKER, new Vec3(0, climb, 0));
+            rider.resetFallDistance();
+            if (!(rider instanceof Player)) {
+                // A player's own client lifts them; a velocity packet would only fight it.
+                rider.hurtMarked = true;
+            }
+        }
+    }
+
+    /**
+     * Whether an entity stands on the hunk's top: its feet at the top face,
+     * over one of the blocks that make the top.
+     *
+     * @param entity the entity
+     * @return true for a rider
+     */
+    private boolean standsOnTop(Entity entity) {
+        if (entity.isSpectator() || entity instanceof BlockHunk) {
+            return false;
+        }
+        AABB feet = entity.getBoundingBox();
+        double top = getBoundingBox().maxY;
+        return Math.abs(feet.minY - top) <= RIDER_FOOTING && overATopBlock(feet, top);
+    }
+
+    private boolean overATopBlock(AABB feet, double top) {
+        for (HunkBlock block : blocks) {
+            Vec3 corner = cornerOf(position(), block);
+            if (Math.abs(corner.y + 1 - top) <= RIDER_FOOTING && overCell(feet, corner)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean overCell(AABB feet, Vec3 corner) {
+        boolean acrossX = feet.maxX > corner.x && feet.minX < corner.x + 1;
+        return acrossX && feet.maxZ > corner.z && feet.minZ < corner.z + 1;
+    }
+
+    /**
+     * Whether a hunk blocks movement: a rising one is solid, so nothing falls
+     * through Spire's stone mid-rise, while a lifted one collides with nothing.
+     *
+     * @param rising whether the hunk rises
+     * @return true where entities collide with it
+     */
+    public static boolean blocksMovement(boolean rising) {
+        return rising;
+    }
+
+    @Override
+    public boolean canBeCollidedWith(@Nullable Entity entity) {
+        return blocksMovement(rising);
+    }
+
+    /**
      * Settles each block into the cell it reached, where that cell can still
-     * be replaced, throwing dust off it, and ends the hunk.
+     * be replaced, throwing dust off it, sets anything the stone would fill
+     * standing on it, and ends the hunk.
      *
      * @param level the server level
      */
     private void settle(ServerLevel level) {
+        List<BlockPos> settled = new ArrayList<>();
         for (HunkBlock block : blocks) {
             BlockPos cell = cellOf(block);
             if (level.getBlockState(cell).canBeReplaced()) {
                 level.setBlockAndUpdate(cell, block.state());
                 throwDust(level, cell, block.state());
+                settled.add(cell);
             }
         }
+        settled.forEach(cell -> level.getEntities(this, new AABB(cell), entity -> !entity.isSpectator())
+                .forEach(entity -> standOnStone(level, entity)));
         discard();
+    }
+
+    /**
+     * Sets an entity the settled stone fills standing on the stone above its feet.
+     *
+     * @param level  the server level
+     * @param entity the entity
+     */
+    private static void standOnStone(ServerLevel level, Entity entity) {
+        BlockPos cell = entity.blockPosition();
+        while (!level.getBlockState(cell).getCollisionShape(level, cell).isEmpty() && cell.getY() < level.getMaxY()) {
+            cell = cell.above();
+        }
+        entity.teleportTo(entity.getX(), cell.getY(), entity.getZ());
     }
 
     /**
