@@ -7,6 +7,8 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
@@ -20,7 +22,8 @@ import java.util.stream.Stream;
  * sweeps' steady pace, fronts overlapping. The child steps run on every
  * living entity a front crosses, seen or behind walls, once for each
  * front. The caster's client is sent each live pulse each tick and lights
- * the walls each front hits in the goo type's colors. Scry is
+ * the walls each front hits in the goo type's colors, and each pulse pings
+ * as it leaves, an amethyst resonance (operator ruling 2026-11-06). Scry is
  * {@code scry goo=astral reach=96} with an astral {@code ailment_overlay}
  * as its child.
  * decision held-sweeps-share-one-fast-shell-visual
@@ -40,6 +43,9 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
     private static final String FIELD_REACH = "reach";
     private static final String FIELD_WHERE = "where";
     private static final String FIELD_STEPS = "steps";
+    /** The ping each pulse sounds as it leaves: the amethyst block's resonance, pitched up to a sonar ping. */
+    private static final float PING_VOLUME = 1f;
+    private static final float PING_PITCH = 1.6f;
 
     /**
      * Codec for the step's params. The child list codec is read lazily
@@ -87,6 +93,10 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
         for (HeldSweepPulses.Pulse pulse : HeldSweepPulses.SERVER.advance(caster.getUUID(), caster.position(), held,
                 now, pace)) {
             int age = pulse.ageAt(now);
+            if (pingsOn(pulse, now)) {
+                caster.level().playSound(null, caster.getX(), caster.getY(), caster.getZ(),
+                        SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, PING_VOLUME, PING_PITCH);
+            }
             strikeCrossed(context, caster, pulse.origin(), pace.radiusAt(age - 1), pace.radiusAt(age));
             EntityVisuals.sendToSelf(caster, sweepOf(pulse, now));
         }
@@ -115,6 +125,18 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
                         new ProgramBehavior(steps).tick(selected);
                     }
                 });
+    }
+
+    /**
+     * Whether Scry pings on a tick: as each pulse leaves the caster, its
+     * first tick alone, so the ping marks every front sent.
+     *
+     * @param pulse the pulse
+     * @param now   the game time
+     * @return true on the pulse's first tick
+     */
+    static boolean pingsOn(HeldSweepPulses.Pulse pulse, long now) {
+        return pulse.ageAt(now) == 1;
     }
 
     /**
