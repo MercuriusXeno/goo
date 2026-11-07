@@ -21,8 +21,10 @@ import org.jspecify.annotations.Nullable;
  * Runs Grab on the entities a player's channel holds: a held entity hangs
  * where the hold puts it, its AI and gravity suspended and its limbs
  * flailing, until the channel lets go a few ticks later or a left click
- * throws it along the look.
- * grab-holds-and-throws-a-physics-body
+ * throws it along the look. An item entity is pulled to the player instead
+ * of held.
+ * decision grab-holds-and-throws-a-physics-body
+ * decision grab-pulls-an-item-to-you-and-picks-it-up
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class GrabEvents {
@@ -72,12 +74,27 @@ public final class GrabEvents {
         held.setDeltaMovement(Vec3.ZERO);
         held.fallDistance = 0;
         held.hurtMarked = true;
-        if (held instanceof ItemEntity item) {
-            // A held item drawn in close would otherwise fall into the holder's pickup.
-            item.setPickUpDelay(FLAIL_OVERLAY_TICKS);
-        }
         player.setData(GooAttachments.GRAB_HOLD, new GrabHold(held.getId(), throwSpeed, until, false));
         EntityVisuals.sendToWatchers(held, new AilmentPayload(held.getId(), AilmentKind.GRABBED, FLAIL_OVERLAY_TICKS));
+    }
+
+    /**
+     * Pulls an item entity toward a player's eye this channel tick, by its
+     * motion rather than its position, so the client interpolates the flight,
+     * and clears its pickup delay so the player's own tick picks it up on
+     * arrival. The item stands under no hold, so a left click throws nothing.
+     * decision grab-pulls-an-item-to-you-and-picks-it-up
+     *
+     * @param player    the pulling player
+     * @param item      the item entity
+     * @param pullSpeed the speed the item flies at, in blocks per tick
+     */
+    public static void pull(ServerPlayer player, ItemEntity item, double pullSpeed) {
+        Vec3 toEye = player.getEyePosition().subtract(item.position());
+        // Capped at the distance left, so the last tick lands on the player rather than past it.
+        item.setDeltaMovement(toEye.normalize().scale(Math.min(pullSpeed, toEye.length())));
+        item.setNoPickUpDelay();
+        item.hurtMarked = true;
     }
 
     private static void suspend(Entity held, long until) {
