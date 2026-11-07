@@ -1,6 +1,6 @@
 {
   "gooType": "crystal",
-  "displayName": "goo.ability.crystal.shards",
+  "displayName": "goo.ability.crystal.knives",
   "badge": "channeled",
   "order": 10,
   "cost": 1000,
