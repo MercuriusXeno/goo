@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.overlay.FungusXray;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -64,7 +63,7 @@ public final class SculkerGlassRenderer {
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || !SculkerSwim.dives(player)) {
+        if (player == null || mc.level == null || SculkerVision.presence() < SculkerVision.GONE) {
             return;
         }
         Vec3 eyes = player.getEyePosition();
@@ -79,7 +78,7 @@ public final class SculkerGlassRenderer {
         RenderType glass = GooRenderTypes.fungusXray(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
         VertexConsumer consumer = buffers.getBuffer(glass);
         for (BlockPos pos : field) {
-            float strength = SculkerGlass.strengthAt(Vec3.atCenterOf(pos).distanceTo(eyes));
+            float strength = SculkerGlass.strengthAt(Vec3.atCenterOf(pos).distanceTo(eyes)) * SculkerVision.presence();
             QuadInstance look = FungusXray.instance(ARGB.color(Math.round(MOST_OPACITY * strength * OPAQUE), WHITE_RGB));
             drawBorderingFaces(mc, poseStack, consumer, camera, pos, inField, look);
         }
