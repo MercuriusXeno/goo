@@ -13,9 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A heard sound starts a ripple whose growing front lights each block face
  * open to air that it crosses, tick by tick, a louder sound reaching
- * farther and lighting faces for longer and a mob's sound lighting only the
- * faces just near it; a lit face fades out unless a new echo lights it
- * again, draws weaker the farther the player stands from it and not at all
+ * farther and lighting faces for longer; a mob within hearing pulses every
+ * two seconds; a lit face fades out over about ten seconds unless a new echo
+ * lights it again, draws weaker the farther the player stands from it and not at all
  * past the sight's reach, and the brew's end forgets it
  * (decision sculker-sight-persists-where-echoes-have-touched).
  */
@@ -31,17 +31,18 @@ class SculkerEchoesTest {
     private static final double CLOSE = 1e-6;
 
     private static final SculkerEchoes.Face FIFTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(15, 0, 0), Direction.UP);
-    private static final SculkerEchoes.Face FIVE_AWAY = new SculkerEchoes.Face(new BlockPos(5, 0, 0), Direction.UP);
     private static final float QUIET = 0.5f;
+    private static final long NINE_AND_A_HALF_SECONDS = 190;
+    private static final long TEN_SECONDS = 200;
     private static final float LOUD = 2f;
 
     private static SculkerEchoes heardAndAdvancedTo(long now) {
-        return heardAndAdvancedTo(now, 1f, false);
+        return heardAndAdvancedTo(now, 1f);
     }
 
-    private static SculkerEchoes heardAndAdvancedTo(long now, float loudness, boolean fromAMob) {
+    private static SculkerEchoes heardAndAdvancedTo(long now, float loudness) {
         SculkerEchoes echoes = new SculkerEchoes();
-        echoes.hear(SOUND, HEARD_AT, loudness, fromAMob);
+        echoes.hear(SOUND, HEARD_AT, loudness);
         for (long tick = HEARD_AT; tick <= now; tick++) {
             echoes.advance(tick, FLAT_GROUND);
         }
@@ -66,9 +67,9 @@ class SculkerEchoesTest {
         }
 
         @Test
-        void aLitFaceIsGoneFiveSecondsAfterItsLastEcho() {
-            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 1 + SculkerEchoes.FADE_TICKS + 1);
-            assertFalse(echoes.remembered().containsKey(UNDER_THE_SOUND));
+        void aLitFaceLastsAboutTenSecondsAfterItsLastEcho() {
+            assertTrue(heardAndAdvancedTo(HEARD_AT + NINE_AND_A_HALF_SECONDS).remembered().containsKey(UNDER_THE_SOUND));
+            assertFalse(heardAndAdvancedTo(HEARD_AT + 2 + TEN_SECONDS).remembered().containsKey(UNDER_THE_SOUND));
         }
 
         @Test
@@ -89,24 +90,15 @@ class SculkerEchoesTest {
 
         @Test
         void aLouderSoundRipplesFartherThanAQuietOne() {
-            assertTrue(heardAndAdvancedTo(HEARD_AT + 20, LOUD, false).remembered().containsKey(FIFTEEN_AWAY));
-            assertFalse(heardAndAdvancedTo(HEARD_AT + 20, QUIET, false).remembered().containsKey(FIFTEEN_AWAY));
+            assertTrue(heardAndAdvancedTo(HEARD_AT + 20, LOUD).remembered().containsKey(FIFTEEN_AWAY));
+            assertFalse(heardAndAdvancedTo(HEARD_AT + 20, QUIET).remembered().containsKey(FIFTEEN_AWAY));
         }
 
         @Test
         void aLouderSoundsFacesOutlastAQuietOnes() {
             long pastTheQuietFade = HEARD_AT + 2 + Math.round(SculkerEchoes.FADE_TICKS * QUIET);
-            assertTrue(heardAndAdvancedTo(pastTheQuietFade, LOUD, false).remembered().containsKey(UNDER_THE_SOUND));
-            assertFalse(heardAndAdvancedTo(pastTheQuietFade, QUIET, false).remembered().containsKey(UNDER_THE_SOUND));
-        }
-
-        @Test
-        void aMobsSoundLightsOnlyTheFacesJustNearItAndBriefly() {
-            SculkerEchoes mob = heardAndAdvancedTo(HEARD_AT + 10, 1f, true);
-            assertTrue(mob.remembered().containsKey(UNDER_THE_SOUND));
-            assertFalse(mob.remembered().containsKey(FIVE_AWAY));
-            assertFalse(heardAndAdvancedTo(HEARD_AT + 2 + SculkerEchoes.MOB_FADE_TICKS, 1f, true)
-                    .remembered().containsKey(UNDER_THE_SOUND));
+            assertTrue(heardAndAdvancedTo(pastTheQuietFade, LOUD).remembered().containsKey(UNDER_THE_SOUND));
+            assertFalse(heardAndAdvancedTo(pastTheQuietFade, QUIET).remembered().containsKey(UNDER_THE_SOUND));
         }
 
         @Test
@@ -115,6 +107,32 @@ class SculkerEchoesTest {
             assertFalse(echoes.remembered().isEmpty());
             echoes.clear();
             assertTrue(echoes.remembered().isEmpty());
+        }
+    }
+
+    @Nested
+    class AmbientPulse {
+
+        private static final int MOB = 42;
+        private static final long TWENTY_SECONDS = 400;
+        private static final long TWO_SECONDS = 40;
+
+        private long pulsesOver(long ticks, double distance) {
+            long count = 0;
+            for (long tick = 0; tick < ticks; tick++) {
+                count += SculkerEchoes.pulses(tick, MOB, distance) ? 1 : 0;
+            }
+            return count;
+        }
+
+        @Test
+        void aMobWithinHearingPulsesEveryTwoSeconds() {
+            assertEquals(TWENTY_SECONDS / TWO_SECONDS, pulsesOver(TWENTY_SECONDS, 20));
+        }
+
+        @Test
+        void aMobPastHearingNeverPulses() {
+            assertEquals(0, pulsesOver(TWENTY_SECONDS, SculkerEchoes.HEARING_REACH + 1));
         }
     }
 

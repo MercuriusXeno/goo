@@ -15,9 +15,10 @@ import java.util.function.Predicate;
  * its source whose front grows outward a block and a half a tick, the way
  * Scry's sweep grows, and every block face open to air that the front
  * crosses is lit. A louder sound's ripple reaches farther and the faces it
- * lights last longer before they fade; a mob's sound lights only the faces
- * just near the mob, briefly. A lit face fades out unless a new echo lights
- * it again, drawn weaker the farther the player stands from it and not at
+ * lights last longer before they fade, a mob's sound alike; every living mob
+ * within hearing gives off a dull ambient pulse, a quiet ripple every couple
+ * of seconds. A lit face fades out over about ten seconds unless a new echo
+ * lights it again, drawn weaker the farther the player stands from it and not at
  * all past the sight's reach; the brew's end forgets every face. The oldest
  * faces give way once the memory holds its most, so a loud dive never
  * outgrows it.
@@ -29,16 +30,12 @@ public final class SculkerEchoes {
     static final double RIPPLE_SPEED = 1.5;
     /** How far a sound of ordinary loudness ripples before it dies, in blocks. */
     static final double RIPPLE_REACH = 12;
-    /** How far a mob's sound of ordinary loudness ripples: the mob and the area just near it. */
-    static final double MOB_REACH = 2.5;
     /** How far any ripple reaches at the most, however loud its sound. */
     static final double LOUDEST_REACH = 32;
     /** How far from the player a lit face still shows, in blocks; it fades to nothing there. */
     static final double SIGHT_REACH = 32;
-    /** Ticks a face lit by a sound of ordinary loudness takes to fade out with no new echo, about five seconds. */
-    static final int FADE_TICKS = 100;
-    /** Ticks a face lit by a mob's sound of ordinary loudness takes to fade, briefly. */
-    static final int MOB_FADE_TICKS = 30;
+    /** Ticks a face lit by a sound of ordinary loudness takes to fade out with no new echo, about ten seconds. */
+    static final int FADE_TICKS = 200;
     /** The longest any lit face lasts, however loud the sound that lit it. */
     static final int LONGEST_FADE_TICKS = 400;
     /** The quietest and loudest a sound reads, as a share of ordinary loudness. */
@@ -110,43 +107,60 @@ public final class SculkerEchoes {
     }
 
     /**
-     * Starts a ripple at the source of a sound of ordinary loudness that no mob made.
+     * Starts a ripple at the source of a sound of ordinary loudness.
      *
      * @param at   where the sound played
      * @param tick the game time it played
      */
     public void hear(Vec3 at, long tick) {
-        hear(at, tick, 1f, false);
+        hear(at, tick, 1f);
     }
 
     /**
      * Starts a ripple at a sound's source, reaching farther and lighting
-     * faces for longer the louder the sound, and reaching only the area just
-     * near a mob that made it, briefly.
+     * faces for longer the louder the sound.
      *
-     * @param at        where the sound played
-     * @param tick      the game time it played
-     * @param loudness  the sound's loudness, 1 for an ordinary sound
-     * @param fromAMob  whether a mob made the sound
+     * @param at       where the sound played
+     * @param tick     the game time it played
+     * @param loudness the sound's loudness, 1 for an ordinary sound
      */
-    public void hear(Vec3 at, long tick, float loudness, boolean fromAMob) {
+    public void hear(Vec3 at, long tick, float loudness) {
         if (ripples.size() >= MOST_RIPPLES) {
             return;
         }
-        double reach = Math.min(LOUDEST_REACH, (fromAMob ? MOB_REACH : RIPPLE_REACH) * share(loudness));
-        ripples.add(new Ripple(at, tick, reach, fadeTicksFor(loudness, fromAMob)));
+        double reach = Math.min(LOUDEST_REACH, RIPPLE_REACH * share(loudness));
+        ripples.add(new Ripple(at, tick, reach, fadeTicksFor(loudness)));
+    }
+
+    /** Ticks between one ambient pulse of a mob within hearing and its next, about two seconds. */
+    static final int PULSE_TICKS = 40;
+    /** The loudness of a mob's ambient pulse, a quarter of an ordinary sound's. */
+    static final float PULSE_LOUDNESS = 0.25f;
+    /** How far from the player a mob's ambient pulse is heard, in blocks. */
+    static final double HEARING_REACH = 32;
+    /** Ticks each mob's pulse clock runs apart from the next mob's, so mobs pulse on their own beats. */
+    private static final int PULSE_STAGGER = 7;
+
+    /**
+     * Whether a mob gives off its ambient pulse on a tick.
+     *
+     * @param now      the game time
+     * @param mobId    the mob's entity id
+     * @param distance how far the mob stands from the player, in blocks
+     * @return true on the mob's pulse tick while it is within hearing
+     */
+    public static boolean pulses(long now, int mobId, double distance) {
+        return distance <= HEARING_REACH && Math.floorMod(now + (long) mobId * PULSE_STAGGER, PULSE_TICKS) == 0;
     }
 
     /**
-     * How long what a sound reveals lasts before it fades: longer the louder
-     * the sound, and brief for a mob's.
+     * How long what a sound reveals lasts before it fades: longer the louder the sound.
      *
      * @param loudness the sound's loudness, 1 for an ordinary sound
-     * @param fromAMob whether a mob made the sound
      * @return the ticks its reveal takes to fade
      */
-    public static int fadeTicksFor(float loudness, boolean fromAMob) {
-        return Math.min(LONGEST_FADE_TICKS, Math.round((fromAMob ? MOB_FADE_TICKS : FADE_TICKS) * share(loudness)));
+    public static int fadeTicksFor(float loudness) {
+        return Math.min(LONGEST_FADE_TICKS, Math.round(FADE_TICKS * share(loudness)));
     }
 
     private static float share(float loudness) {
