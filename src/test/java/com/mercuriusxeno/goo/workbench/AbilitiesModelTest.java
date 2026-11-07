@@ -114,6 +114,25 @@ class AbilitiesModelTest {
             assertEquals(30, ability.get("order").getAsInt());
         }
 
+        /**
+         * The model carries the file's icon and description key, the description reading its displayName key plus
+         * .description where the file names none (decision ability-json-carries-a-description).
+         */
+        @Test
+        void eachAbilityCarriesItsIconAndDescriptionKeys() {
+            JsonObject named = sample();
+            named.addProperty("icon", "goo:textures/goo/ability/custom.png");
+            named.addProperty("description", "goo.ability.kinetic.sample.told");
+            JsonObject ability = AbilitiesModel.model(Map.of(SAMPLE, named), Map.of())
+                    .getAsJsonArray("abilities").get(0).getAsJsonObject();
+            assertEquals("goo:textures/goo/ability/custom.png", ability.get("icon").getAsString());
+            assertEquals("goo.ability.kinetic.sample.told", ability.get("description").getAsString());
+            JsonObject defaulted = AbilitiesModel.model(Map.of(SAMPLE, sample()), Map.of())
+                    .getAsJsonArray("abilities").get(0).getAsJsonObject();
+            assertEquals("", defaulted.get("icon").getAsString());
+            assertEquals("goo.ability.kinetic.sample.description", defaulted.get("description").getAsString());
+        }
+
         @Test
         void theModelCarriesThePickersTypeOrder() {
             List<String> carried = AbilitiesModel.model(Map.of(), Map.of()).getAsJsonArray("typeOrder").asList()

@@ -1,15 +1,19 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mercuriusxeno.goo.ability.AbilityIconTexture;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -37,6 +41,10 @@ final class AbilitiesPane {
     private static final String CLOSED_MARK = ">";
     private static final String COLLAPSE_ALL = "Collapse all";
     private static final String EXPAND_ALL = "Expand all";
+    // A hover key no item, prefab or type spells, carrying the ability's description key.
+    private static final String DESCRIPTION_HOVER = "goo-ability-description:";
+    // The icon sits in its sprite row as an item sprite does.
+    private static final int ICON_INSET = (RowLayout.SPRITE_ROW_HEIGHT - RowLayout.SPRITE_SIZE) / 2;
 
     private final AbilitiesTab tab;
     private final ManagerActions actions;
@@ -252,8 +260,8 @@ final class AbilitiesPane {
     // The ability's heading, then each leaf's row; answers the y below its last row.
     private int drawAbility(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
                             GroupsPane.Bounds from, ClickTargets targets) {
-        drawHeading(graphics, font, ability, from.left(), from.top());
-        int y = from.top() + HEADING_HEIGHT + GAP;
+        drawHeading(graphics, font, ability, from.left(), from.top(), targets);
+        int y = from.top() + RowLayout.SPRITE_ROW_HEIGHT + GAP;
         for (AbilitiesTab.Leaf leaf : ability.leaves()) {
             GroupsPane.Bounds leafRow = new GroupsPane.Bounds(from.left(), y, from.right(), from.bottom());
             y += drawLeaf(graphics, font, ability, leaf, leafRow, targets) + GAP;
@@ -261,15 +269,40 @@ final class AbilitiesPane {
         return y;
     }
 
-    // The ability's name bold, and the gold draft badge after it while a draft stands over its live file.
+    // The rail's room at the left edge, the ability's 16px icon as an item sprite sits in its row, its name bold
+    // hovering its description, and the gold draft badge after it while a draft stands over its live file.
+    // Decision ability-heading-is-rail-icon-name-draft-badge-and-hovers-its-description.
     private void drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
-                             int top) {
+                             int top, ClickTargets targets) {
+        int x = left + ControlFlow.RAIL_ADVANCE;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, iconOf(ability), x, top + ICON_INSET, 0.0f, 0.0f,
+                RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE,
+                Palette.TEXT);
+        x += RowLayout.SPRITE_SIZE + GAP;
         Component name = Component.literal(translate.apply(ability.displayName())).withStyle(ChatFormatting.BOLD);
-        int textTop = Lettering.full(font).centeredTop(top, HEADING_HEIGHT);
-        graphics.text(font, name, left, textTop, Palette.TEXT);
+        int textTop = RowLayout.nameTop(font, top);
+        graphics.text(font, name, x, textTop, Palette.TEXT);
+        targets.addHover(x, top, font.width(name), RowLayout.SPRITE_ROW_HEIGHT,
+                DESCRIPTION_HOVER + ability.description());
         if (ability.draft()) {
-            graphics.text(font, DRAFT_BADGE, left + font.width(name) + GAP, textTop, Palette.GOLD);
+            graphics.text(font, DRAFT_BADGE, x + font.width(name) + GAP, textTop, Palette.GOLD);
         }
+    }
+
+    // The ability's icon texture, as the radial reads it: the file's override, else the convention path.
+    private static Identifier iconOf(AbilitiesTab.Ability ability) {
+        Identifier id = Identifier.tryParse(ability.id());
+        return AbilityIconTexture.of(id == null ? Identifier.withDefaultNamespace(ability.id()) : id, ability.icon());
+    }
+
+    /**
+     * @param hoverKey  what the hovered area names
+     * @param translate each translation key's text
+     * @return the ability's translated description where the area is an ability name's, empty otherwise
+     */
+    static Optional<String> descriptionFor(String hoverKey, Function<String, String> translate) {
+        return hoverKey.startsWith(DESCRIPTION_HOVER)
+                ? Optional.of(translate.apply(hoverKey.substring(DESCRIPTION_HOVER.length()))) : Optional.empty();
     }
 
     // Answers the height the leaf's row took.

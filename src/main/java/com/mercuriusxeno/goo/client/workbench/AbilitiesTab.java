@@ -39,6 +39,8 @@ public final class AbilitiesTab {
     private static final String BADGE = "badge";
     private static final String ORDER = "order";
     private static final String TYPE_ORDER = "typeOrder";
+    private static final String ICON = "icon";
+    private static final String DESCRIPTION = "description";
     private static final String NOT_A_NUMBER = "This box takes a number alone.";
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final String NO_TEXT = "";
@@ -81,9 +83,11 @@ public final class AbilitiesTab {
      * @param leaves      its numeric leaves in the file's order
      * @param badge       the target kind it declares, which ranks it in the radial fan
      * @param order       its order field, which sorts it inside its badge tier
+     * @param icon        its icon texture override, empty for the convention path
+     * @param description its description's translation key, which its name hovers
      */
     public record Ability(String id, String gooType, String displayName, boolean draft, List<Leaf> leaves,
-                          AbilityBadge badge, int order) {
+                          AbilityBadge badge, int order, String icon, String description) {
     }
 
     /**
@@ -113,7 +117,8 @@ public final class AbilitiesTab {
             JsonElement order = ability.get(ORDER);
             abilities.add(new Ability(ability.get(ID).getAsString(), stringOr(ability, GOO_TYPE),
                     stringOr(ability, DISPLAY_NAME), ability.get(DRAFT).getAsBoolean(), List.copyOf(leaves),
-                    badgeOf(stringOr(ability, BADGE)), order == null ? 0 : order.getAsInt()));
+                    badgeOf(stringOr(ability, BADGE)), order == null ? 0 : order.getAsInt(), stringOr(ability, ICON),
+                    stringOr(ability, DESCRIPTION)));
         }
         JsonElement types = model.get(TYPE_ORDER);
         if (types != null && types.isJsonArray()) {
