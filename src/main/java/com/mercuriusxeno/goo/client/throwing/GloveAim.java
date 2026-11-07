@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.held.Telekinesis;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
@@ -60,15 +61,17 @@ public final class GloveAim {
     }
 
     /**
-     * The selected ability's steps, which name the entities the glove may
-     * outline (decision steps-declare-the-entities-they-take).
+     * The selected ability's steps that act on what the glove aims at, which
+     * name the entities it may outline: a self ability's that reach past the
+     * caster, every step of any other (decision steps-declare-the-entities-they-take).
      *
      * @param player the local player
      * @return the steps, empty when the glove holds no synced ability
      */
     public static List<Step> selectedBehaviors(Player player) {
         ClientAbility ability = selectedAbility(player);
-        return ability == null ? List.of() : ability.behaviors();
+        return ability == null ? List.of()
+                : Step.reachingTheAim(ability.behaviors(), ability.delivery().kind() == DeliveryKind.SELF);
     }
 
     private static @Nullable ClientAbility selectedAbility(Player player) {

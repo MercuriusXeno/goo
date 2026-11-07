@@ -66,6 +66,16 @@ class AimAssistResolverTest {
             assertTrue(AimAssistResolver.isCandidate(pickable(Mob.class), heal));
         }
 
+        @Test
+        void aSelfAbilityRunningOnTheCasterOutlinesNoMob() {
+            assertFalse(AimAssistResolver.isCandidate(pickable(Mob.class), Step.reachingTheAim(heal, true)));
+        }
+
+        @Test
+        void aSelfGrabStillOutlinesTheMobItLifts() {
+            assertTrue(AimAssistResolver.isCandidate(pickable(Mob.class), Step.reachingTheAim(grab, true)));
+        }
+
         private static <E extends Entity> E pickable(Class<E> kind) {
             E entity = mock(kind);
             when(entity.isAlive()).thenReturn(true);
