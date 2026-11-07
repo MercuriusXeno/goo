@@ -45,15 +45,4 @@ public record Lux(long expiresAt) {
         return new Lux(NEVER_EXPIRES);
     }
 
-    /**
-     * A drunk brew: Lux stands for the brew's duration, or as long as it
-     * already stood where that is longer.
-     *
-     * @param ticks    the brew's duration
-     * @param gameTime the game time of the drink
-     * @return Lux after the drink
-     */
-    public Lux brew(int ticks, long gameTime) {
-        return new Lux(Math.max(expiresAt, gameTime + ticks));
-    }
 }

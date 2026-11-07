@@ -237,13 +237,11 @@ public final class SelfDeliveryTests {
         int drainedAtEat = HELD_GOO * GooStacks.THOUSAND - heldAtEat;
         helper.assertTrue(drainedAtEat == 0, String.format(SHOULD_DRAIN_NOTHING_AT_EAT, drainedAtEat));
         helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE), SHOULD_BE_HELD);
-        // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list shows the glove effect's time left
-        MobEffectInstance shown = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.BLAZE));
+        // The effect list shows the held effect's time left, the ticks the held goo pays for.
+        MobEffectInstance shown = player.getEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.BLAZE));
         int expectedTicks = heldAtEat / kindle.upkeep().in(GooValueTable.EMPTY);
-        boolean stillGlove = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
-                .noneMatch(HeldEffects.Held::prepaid);
-        helper.assertTrue(shown != null && Math.abs(shown.getDuration() - expectedTicks) <= 1 && !shown.isVisible()
-                && stillGlove, String.format(SHOULD_SHOW_TIME_LEFT, expectedTicks, shown));
+        helper.assertTrue(shown != null && Math.abs(shown.getDuration() - expectedTicks) <= 1 && !shown.isVisible(),
+                String.format(SHOULD_SHOW_TIME_LEFT, expectedTicks, shown));
         tickFor(helper, player, UPKEEP_TICKS);
         helper.runAfterDelay(UPKEEP_TICKS + 1, () -> {
             int drained = heldAtEat - held(player, GooTypes.BLAZE);

@@ -65,22 +65,6 @@ public record Gluttony(long expiresAt, int maxOverheal, int maxOverhunger, float
     }
 
     /**
-     * Applies Gluttony for a duration: standing gluttony stacks the duration
-     * onto its expiry and keeps its banks; otherwise it starts with empty banks.
-     *
-     * @param caps     the bank caps the step names
-     * @param duration the ticks the gluttony lasts
-     * @param now      the game time
-     * @return the gluttony after the invoke
-     */
-    public Gluttony apply(Gluttony caps, int duration, long now) {
-        if (stands()) {
-            return withExpiry(expiresAt == NEVER_EXPIRES ? NEVER_EXPIRES : expiresAt + duration);
-        }
-        return new Gluttony(now + duration, caps.maxOverheal, caps.maxOverhunger, 0f, 0);
-    }
-
-    /**
      * Starts gluttony the glove holds, with no expiry; standing gluttony keeps
      * its banks and holds on.
      * self-effects-trickle-until-ended

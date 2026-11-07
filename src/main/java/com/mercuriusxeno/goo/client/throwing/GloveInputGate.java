@@ -70,14 +70,14 @@ public final class GloveInputGate {
      * Whether an ability runs from the press while the use key is held,
      * rather than previewing and throwing on release: a held ability, a
      * stream or a channel (decisions stream-delivery-held-cone,
-     * flatten-disc-cursor-breaks-above-the-plane), and a brew, whose eat
+     * flatten-disc-cursor-breaks-above-the-plane), and a durative ability, whose eat
      * vanilla releases the tick the use key is up, so an eat begun on release
-     * would end the tick it started; the gate eats a brew before it streams.
+     * would end the tick it started; the gate eats a durative ability before it streams.
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param delivery the selected ability's delivery
      * @param badge    the selected ability's badge, or null where the client holds no synced copy
-     * @return true for a stream, a channel or a brew
+     * @return true for a stream, a channel or a durative ability
      */
     public static boolean runsFromPress(Delivery delivery, @Nullable AbilityBadge badge) {
         return HeldRoute.runsWhileHeld(delivery, badge) || SelfEatRoute.eats(delivery, badge);

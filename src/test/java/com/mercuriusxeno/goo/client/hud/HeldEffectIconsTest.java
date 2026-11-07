@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.BrewEffectIcon;
+import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * decision every-brew-effect-draws-its-abilitys-icon
  * decision shroom-hud-eye-stays-and-its-inventory-icon-is-sights
  */
-class BrewEffectIconsTest {
+class HeldEffectIconsTest {
 
     private static final String SIGHT_ICON = "textures/goo/ability/shroom_sight.png";
     private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(GooTypes.DEEP,
@@ -53,13 +53,13 @@ class BrewEffectIconsTest {
 
     @BeforeEach
     void readConnectionIconsFromTheShippedAbilities() {
-        BrewEffectIcon.readConnectionIconsFrom(type -> BrewEffectIcon.textureOf(shipped.durativeAbilityFor(type)));
-        extensions = BrewEffectIcons.extensionsFor(GooTypes.BUNDLED);
+        HeldEffectIcon.readConnectionIconsFrom(type -> HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type)));
+        extensions = HeldEffectIcons.extensionsFor(GooTypes.BUNDLED);
     }
 
     @AfterEach
     void restoreTheConnectionIcons() {
-        BrewEffectIcon.readConnectionIconsFrom(type -> null);
+        HeldEffectIcon.readConnectionIconsFrom(type -> null);
     }
 
     @Test
@@ -78,9 +78,9 @@ class BrewEffectIconsTest {
     @ParameterizedTest
     @MethodSource("bundledKeysButShroom")
     void brewEffectDrawsItsGrantedAbilitysIcon(ResourceKey<GooTypeDefinition> type) {
-        BrewEffectIcons.AbilityIconExtension extension =
-                assertInstanceOf(BrewEffectIcons.AbilityIconExtension.class, extensions.get(type));
-        assertEquals(BrewEffectIcon.textureOf(shipped.durativeAbilityFor(type)), extension.iconTexture(),
+        HeldEffectIcons.AbilityIconExtension extension =
+                assertInstanceOf(HeldEffectIcons.AbilityIconExtension.class, extensions.get(type));
+        assertEquals(HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type)), extension.iconTexture(),
                 () -> GooTypes.id(type) + "'s brew effect icon");
     }
 
@@ -88,8 +88,8 @@ class BrewEffectIconsTest {
     void typesGrantingNoBrewAbilityDrawNoIconSoVanillaDrawsTheirTile() {
         for (ResourceKey<GooTypeDefinition> type : GRANTING_NONE) {
             assertNull(shipped.durativeAbilityFor(type), () -> GooTypes.id(type) + " grants a brew ability");
-            BrewEffectIcons.AbilityIconExtension extension =
-                    assertInstanceOf(BrewEffectIcons.AbilityIconExtension.class, extensions.get(type));
+            HeldEffectIcons.AbilityIconExtension extension =
+                    assertInstanceOf(HeldEffectIcons.AbilityIconExtension.class, extensions.get(type));
             assertNull(extension.iconTexture(), () -> GooTypes.id(type) + " draws an icon");
         }
     }

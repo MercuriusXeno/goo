@@ -34,7 +34,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
                            long fireReadyAt, float damageTaken) {
 
     /**
-     * The overlay a player without a heart brew holds.
+     * The overlay a player without a heart effect holds.
      */
     public static final HeartOverlay NONE = new HeartOverlay(HeartKind.KINDLE, List.of(), 0L, 0L, 0L);
 
@@ -120,7 +120,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     /**
      * Answers whether an overlay stands.
      *
-     * @return true while a heart brew holds the bar
+     * @return true while a heart effect holds the bar
      */
     public boolean stands() {
         return expiresAt > 0L;
@@ -165,44 +165,8 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     /**
-     * Applies a heart brew. The same kind standing again changes nothing;
-     * another kind ends the standing overlay and primes its own from one
-     * heart, a full shield over the leftmost present heart and the crawl
-     * reaching the rest, a missing heart staying missing.
-     *
-     * @param brewKind the kind the brew lays
-     * @param duration the brew's duration in ticks
-     * @param health   the player's real health
-     * @param now      the game time
-     * @return the overlay after the brew
-     */
-    public HeartOverlay apply(HeartKind brewKind, int duration, float health, long now) {
-        return apply(brewKind, duration, health, health, WHOLE_HIT, now);
-    }
-
-    /**
-     * Applies a heart brew. The same kind standing again changes nothing;
-     * another kind ends the standing overlay and primes its own from one
-     * heart: a full shield over the leftmost present heart, or, for a kind
-     * filling the missing hearts, over the leftmost heart the player is
-     * missing, the crawl reaching each further heart over time.
-     *
-     * @param brewKind    the kind the brew lays
-     * @param duration    the brew's duration in ticks
-     * @param health      the player's real health
-     * @param maxHealth   the player's maximum health
-     * @param damageTaken the share of a physical hit a half of shield takes
-     * @param now         the game time
-     * @return the overlay after the brew
-     */
-    public HeartOverlay apply(HeartKind brewKind, int duration, float health, float maxHealth, float damageTaken,
-                              long now) {
-        return lay(brewKind, now + duration, health, maxHealth, damageTaken, now);
-    }
-
-    /**
-     * Lays a heart overlay the glove holds: the same as a brew, with no
-     * expiry, standing until the held effect ends.
+     * Lays a heart overlay the glove holds, with no expiry, standing until
+     * the held effect ends.
      * self-effects-trickle-until-ended
      *
      * @param heldKind    the kind the held effect lays
@@ -224,7 +188,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
             return laterEnd == expiresAt ? this
                     : new HeartOverlay(kind, shields, laterEnd, regrowAt, fireReadyAt, this.damageTaken);
         }
-        // one-heart-overlay-at-a-time: a heart brew ends any other heart brew the moment it takes effect
+        // one-heart-overlay-at-a-time: a heart effect ends any other heart effect the moment it takes effect
         List<Integer> laid = laidKind.fillsMissing() ? firstMissingFilled(health, maxHealth)
                 : firstPresentFilled(health);
         return new HeartOverlay(laidKind, laid, laidExpiresAt, now + laidKind.regrowInterval(sum(laid)), now,

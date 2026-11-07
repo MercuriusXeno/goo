@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
@@ -30,7 +29,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 /**
  * Server side of a self delivery: nothing leaves the hand. A self ability
@@ -251,24 +249,6 @@ public final class GooSelfHandler {
                 .flatMap(Step::refusal).ifPresent(host::playSound);
     }
 
-    /**
-     * Runs a drunk brew: the type's brew ability starts prepaid, the same
-     * held effect and program the glove runs, for the brew's duration with no
-     * goo drained. A type with no brew ability yet runs nothing.
-     * decision brew-grants-the-self-ability-for-an-hour
-     * decision brew-runs-the-crawl-prepaid-on-a-shown-clock
-     *
-     * @param player   the drinking player
-     * @param gooType  the brew's goo type
-     * @param duration the brew's duration in ticks
-     */
-    public static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int duration) {
-        AbilityDefinition ability = AbilityRegistry.of(player.level()).durativeAbilityFor(gooType);
-        if (ability != null) {
-            HeldEffectsEvents.startPrepaid(player, gooType, ability, duration);
-            runOn(new PlayerHost(player.level(), player, OptionalInt.of(duration)), ability);
-        }
-    }
 
     /**
      * Runs an ability's programs on a player host, logging a program the host refuses.

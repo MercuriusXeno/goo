@@ -38,7 +38,7 @@ import java.util.Optional;
  * delivery the glove aims and throws by (decision delivery-block-in-ability-json),
  * and the items a throw consumes, so the client refuses a throw it cannot pay
  * (decision ability-json-names-its-reagent), and the upkeep a held self +
- * brew effect pays each tick (decision self-effects-trickle-until-ended),
+ * held effect pays each tick (decision self-effects-trickle-until-ended),
  * and what a blink adds for its trip, so the HUD shows the live cost
  * (decision blink-lands-safely-costed-by-distance), and the on_prism
  * reaction, so the wheel badges a prism effect

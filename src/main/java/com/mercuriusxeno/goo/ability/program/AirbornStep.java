@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.LivingEntity;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -14,8 +13,7 @@ import java.util.stream.Stream;
  * sneak descends, forward and backward fly along the look, left and right
  * strafe, falls are slowed without fall damage, jumps go higher and an elytra
  * glide is drawn faster. Eaten from the glove it stands as a held effect,
- * paying its upkeep until ended; drunk as typhoon's brew it stands for the
- * brew's hour. Float is {@code airborn air_speed=0.6 climb_speed=0.4 air_steer=0.2
+ * paying its upkeep until ended. Float is {@code airborn air_speed=0.6 climb_speed=0.4 air_steer=0.2
  * fall_cap=0.4 jump_boost=0.5 glide_speed=1.2 glide_steer=0.05}.
  * tailwind-and-airborn-merge-into-float
  *
@@ -67,14 +65,10 @@ public record AirbornStep(Expr airSpeed, Expr climbSpeed, Expr airSteer, Expr fa
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
-        long now = target.level().getGameTime();
-        OptionalInt brew = host.brewDuration();
-        long standing = target.getData(GooAttachments.AIRBORN).expiresAt();
-        long endsAt = brew.isPresent() ? Math.max(standing, now + brew.getAsInt()) : Airborn.NEVER_EXPIRES;
         target.setData(GooAttachments.AIRBORN, new Airborn(airSpeed.evaluateFloat(context),
                 climbSpeed.evaluateFloat(context), airSteer.evaluateFloat(context), fallCap.evaluateFloat(context),
                 jumpBoost.evaluateFloat(context), glideSpeed.evaluateFloat(context), glideSteer.evaluateFloat(context),
-                endsAt));
+                Airborn.NEVER_EXPIRES));
         return true;
     }
 

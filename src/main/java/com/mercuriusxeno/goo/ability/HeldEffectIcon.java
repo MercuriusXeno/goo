@@ -10,26 +10,26 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 /**
- * The texture a goo type's brew effect draws on the HUD and in the inventory: the icon of
- * the brew ability the type grants, the same ability its name reads, picked from the
+ * The texture a goo type's held effect draws on the HUD and in the inventory: the icon of
+ * the durative ability the type grants, the same ability its name reads, picked from the
  * running server's abilities, else the client connection's synced ones. A type granting
  * none answers no texture, so the effect draws its own tile.
  * decision every-brew-effect-draws-its-abilitys-icon
  */
-public final class BrewEffectIcon {
+public final class HeldEffectIcon {
 
     /**
-     * Reads the icon texture of the brew ability a type grants on the client connection;
+     * Reads the icon texture of the durative ability a type grants on the client connection;
      * the client setup installs it once and a dedicated server leaves it answering none.
      */
     private static final AtomicReference<Function<ResourceKey<GooTypeDefinition>, @Nullable Identifier>>
             CONNECTION_ICONS = new AtomicReference<>(type -> null);
 
-    private BrewEffectIcon() {
+    private HeldEffectIcon() {
     }
 
     /**
-     * The icon texture a type's brew effect draws on this side.
+     * The icon texture a type's held effect draws on this side.
      *
      * @param type the goo type
      * @return the granted ability's icon texture, or null for a type granting none
@@ -43,9 +43,9 @@ public final class BrewEffectIcon {
     }
 
     /**
-     * The icon texture of a granted brew ability, as the radial resolves it.
+     * The icon texture of a granted durative ability, as the radial resolves it.
      *
-     * @param granted the brew ability a type grants, null for none
+     * @param granted the durative ability a type grants, null for none
      * @return the ability's icon texture, or null for none
      */
     public static @Nullable Identifier textureOf(@Nullable AbilityDefinition granted) {
@@ -53,9 +53,9 @@ public final class BrewEffectIcon {
     }
 
     /**
-     * Installs the reader of the client connection's brew ability icons, from the client setup.
+     * Installs the reader of the client connection's durative ability icons, from the client setup.
      *
-     * @param connectionIcons answers a type's brew ability icon texture, or null for none synced
+     * @param connectionIcons answers a type's durative ability icon texture, or null for none synced
      */
     public static void readConnectionIconsFrom(
             Function<ResourceKey<GooTypeDefinition>, @Nullable Identifier> connectionIcons) {

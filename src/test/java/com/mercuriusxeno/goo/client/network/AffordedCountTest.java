@@ -178,16 +178,6 @@ class AffordedCountTest {
 
             assertEquals("6s", AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow().label());
         }
-
-        @Test
-        void drunkBrewStandsNoUpkeepAndKeepsTheProspectiveCount() {
-            HeldEffects.Held drunk = new HeldEffects.Held(brew.id(), GooTypes.BLAZE, 1, Set.of(), STARTED,
-                    STARTED + 1000);
-            StandingUpkeep standing = StandingUpkeep.on(holding(drunk), GooTypes.BLAZE);
-
-            assertEquals(0.0, standing.perTick());
-            assertEquals("12s", AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow().label());
-        }
     }
 
     /** A dynamically priced petal reads its formula and never 0 (decision dynamic-costs-keep-the-mb-quantity). */

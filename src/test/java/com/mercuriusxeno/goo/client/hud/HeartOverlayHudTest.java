@@ -64,8 +64,8 @@ class HeartOverlayHudTest {
 
     @Test
     void stoneskinPaintsTheMissingSlotsItFillsAndOtherKindsOnlyRealHealth() {
-        HeartOverlay stoned = HeartOverlay.NONE.apply(HeartKind.STONESKIN, 1_200, 10f, 20f, 0.5f, 0L);
-        HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 10f, 0L);
+        HeartOverlay stoned = HeartOverlay.NONE.hold(HeartKind.STONESKIN, 10f, 20f, 0.5f, 0L);
+        HeartOverlay barked = HeartOverlay.NONE.hold(HeartKind.BARKSKIN, 10f, 10f, HeartOverlay.WHOLE_HIT, 0L);
         assertEquals(10, HeartOverlayHud.paintedSlots(stoned, 10));
         assertEquals(5, HeartOverlayHud.paintedSlots(barked, 10));
         assertEquals(0, HeartOverlayHud.paintedSlots(HeartOverlay.NONE, 10));
@@ -130,7 +130,7 @@ class HeartOverlayHudTest {
 
         private static final float DELTA = 1e-6f;
         private static final float ENDED_AT = 100f;
-        private final HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 10f, 0L);
+        private final HeartOverlay barked = HeartOverlay.NONE.hold(HeartKind.BARKSKIN, 10f, 10f, HeartOverlay.WHOLE_HIT, 0L);
         private final Afterglows<HeartKind, HeartOverlay> glows = new Afterglows<>();
 
         @BeforeEach
@@ -166,8 +166,8 @@ class HeartOverlayHudTest {
 
         private static final float DELTA = 1e-6f;
         private static final float REPLACED_AT = 100f;
-        private final HeartOverlay kindled = HeartOverlay.NONE.apply(HeartKind.KINDLE, 1_200, 10f, 0L);
-        private final HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 10f, 0L);
+        private final HeartOverlay kindled = HeartOverlay.NONE.hold(HeartKind.KINDLE, 10f, 10f, HeartOverlay.WHOLE_HIT, 0L);
+        private final HeartOverlay barked = HeartOverlay.NONE.hold(HeartKind.BARKSKIN, 10f, 10f, HeartOverlay.WHOLE_HIT, 0L);
         private final Afterglows<HeartKind, HeartOverlay> glows = new Afterglows<>();
 
         @BeforeEach

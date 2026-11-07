@@ -206,7 +206,7 @@ public class GooGloveItem extends Item {
 
     /**
      * Plays the eat sounds and crumbs on vanilla's cadence while a self +
-     * brew ability is eaten.
+     * durative ability is eaten.
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param level          the world
