@@ -174,7 +174,7 @@ public final class OutsiderTests {
     private static final String SHOULD_WAIT_FOR_THE_CHARGE = "A hold short of its charge should leave the caster in %s";
     private static final String SHOULD_ENTER = "The caster should stand south of the door at %s facing it in goo:pocket, stands at %s facing %s in %s";
     private static final String SHOULD_STAND_DOOR = "The room should hold a dimension doorway at %s, holds %s";
-    private static final String SHOULD_FRAME = "The doorway should stand framed in voidstone at %s, %s stands there";
+    private static final String SHOULD_STAND_OPEN = "The doorway should stand alone, two tall, with open air at %s, %s stands there";
     private static final String SHOULD_RETURN = "The door should return the caster to %s facing %s in %s, they stand at %s facing %s in %s";
     private static final String SHOULD_RESPAWN = "The %s at %s should stand again, %s stands there";
     private static final String SHOULD_CATCH = "The faller should stand south of the door at %s, stands at %s";
@@ -186,8 +186,8 @@ public final class OutsiderTests {
     /**
      * A caster holding Outsider stays put through a hold short of its charge;
      * the charge's tick carries them into their room in goo:pocket, onto the
-     * voidstone south of the two-tall doorway framed in voidstone on the
-     * center, facing it; walking into the doorway sets them back at the exact
+     * voidstone south of the two-tall doorway standing alone on the center,
+     * facing it; walking into the doorway sets them back at the exact
      * place and facing they cast from.
      *
      * @param helper the gametest helper
@@ -209,9 +209,9 @@ public final class OutsiderTests {
                 helper.assertTrue(pocket.getBlockState(doorway).is(GooBlocks.DIMENSION_DOOR.get()),
                         String.format(SHOULD_STAND_DOOR, doorway, pocket.getBlockState(doorway)));
             }
-            for (BlockPos frame : frameOf(room)) {
-                helper.assertTrue(pocket.getBlockState(frame).is(GooBlocks.VOIDSTONE.get()),
-                        String.format(SHOULD_FRAME, frame, pocket.getBlockState(frame)));
+            for (BlockPos around : aroundDoorwayOf(room)) {
+                helper.assertTrue(pocket.getBlockState(around).isAir(),
+                        String.format(SHOULD_STAND_OPEN, around, pocket.getBlockState(around)));
             }
             TeleportTransition home = GooBlocks.DIMENSION_DOOR.get().getPortalDestination(pocket, caster, door);
             helper.assertTrue(home != null, String.format(SHOULD_STAND_DOOR, door, "no way home"));
@@ -226,8 +226,8 @@ public final class OutsiderTests {
 
     /**
      * Once the caster stands in their room, the center voidstone, a ring
-     * cell of the platform, a post of the doorway's frame and both doorway
-     * cells removed stand again by the next restore check.
+     * cell of the platform and both doorway cells removed stand again by
+     * the next restore check.
      *
      * @param helper the gametest helper
      */
@@ -239,8 +239,7 @@ public final class OutsiderTests {
             room[0] = assertEntered(helper, caster);
             ServerLevel pocket = (ServerLevel) caster.level();
             BlockPos center = OutsiderRooms.voidstoneOf(room[0]);
-            for (BlockPos removed : List.of(doorOf(room[0]), doorOf(room[0]).above(), center, center.east(),
-                    center.east().above(2))) {
+            for (BlockPos removed : List.of(doorOf(room[0]), doorOf(room[0]).above(), center, center.east())) {
                 pocket.setBlockAndUpdate(removed, Blocks.AIR.defaultBlockState());
             }
         });
@@ -248,7 +247,7 @@ public final class OutsiderTests {
             ServerLevel pocket = (ServerLevel) caster.level();
             BlockPos center = OutsiderRooms.voidstoneOf(room[0]);
             BlockPos door = doorOf(room[0]);
-            for (BlockPos voidstone : List.of(center, center.east(), center.east().above(2))) {
+            for (BlockPos voidstone : List.of(center, center.east())) {
                 helper.assertTrue(pocket.getBlockState(voidstone).is(GooBlocks.VOIDSTONE.get()),
                         String.format(SHOULD_RESPAWN, "voidstone", voidstone, pocket.getBlockState(voidstone)));
             }
@@ -314,11 +313,10 @@ public final class OutsiderTests {
         return OutsiderRooms.voidstoneOf(room).above();
     }
 
-    /** The doorway's voidstone frame: a post either side, two high, and the lintel over the three. */
-    private static List<BlockPos> frameOf(int room) {
+    /** The open air the doorway stands in: either side of both its cells, and over it. */
+    private static List<BlockPos> aroundDoorwayOf(int room) {
         BlockPos door = doorOf(room);
-        return List.of(door.east(), door.east().above(), door.west(), door.west().above(),
-                door.above(2), door.above(2).east(), door.above(2).west());
+        return List.of(door.east(), door.east().above(), door.west(), door.west().above(), door.above(2));
     }
 
     /** Where a player arrives: on the voidstone just south of the door. */
