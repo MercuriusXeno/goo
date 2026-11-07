@@ -57,6 +57,8 @@ public final class PortalTests {
                 PortalTests::placingLinksToTheLastPlaced);
         GooTestFunctions.registerTest(registrar, NOT_IN_A_WALL_WHILE_PASSING, PortalTests::passingBodyIsNotInAWall);
         GooTestFunctions.registerTest(registrar, OTHER_ENTITIES_GO_THROUGH, PortalTests::otherEntitiesGoThrough);
+        GooTestFunctions.registerTest(registrar, BROKEN_LAST_LINKS_NOTHING,
+                PortalTests::placedAfterTheLastBrokeStandsInert);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
         GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
                 PortalTests::unlinkedPortalHoldsABodyUp);
@@ -126,6 +128,33 @@ public final class PortalTests {
             level.getServer().getPlayerList().remove(player);
             helper.succeed();
         });
+    }
+
+    private static final String BROKEN_LAST_LINKS_NOTHING = "portal_placed_after_the_last_broke_stands_inert";
+
+    /**
+     * A portal pairs with the last portal placed, and only that one: where the
+     * last placed portal broke, a new portal stands inert, never pairing with
+     * an older one (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void placedAfterTheLastBrokeStandsInert(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+        QuantumPortals portals = QuantumPortals.get(level);
+        Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
+        Portal second = castAt(helper, player, SECOND, Direction.NORTH);
+        PortalChoice.breakAt(level, second.block().pos(), second.face());
+        helper.assertTrue(portals.partnerOf(first).isEmpty(), "Breaking the second should leave the first unpaired");
+        Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
+        helper.assertTrue(portals.partnerOf(third).isEmpty() && portals.partnerOf(first).isEmpty(),
+                "A portal placed after the last placed broke should stand inert, holds "
+                        + portals.linkOf(player.getUUID()));
+        level.getServer().getPlayerList().remove(player);
+        helper.succeed();
     }
 
     /** A fourth wall frame's lower block. */
