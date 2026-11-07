@@ -72,4 +72,35 @@ class PlatformSpiralTest {
             assertEquals(13, PlatformSpiral.costOf(PlatformSpiral.START_CELLS, CELL_BASE, PER_DISTANCE));
         }
     }
+
+    @Nested
+    class Pace {
+
+        private static final int RING_TICKS = 40;
+
+        @Test
+        void eachCellSitsInTheRingItsSquareGrows() {
+            assertEquals(0, PlatformSpiral.ringOf(0));
+            assertEquals(1, PlatformSpiral.ringOf(1));
+            assertEquals(1, PlatformSpiral.ringOf(8));
+            assertEquals(2, PlatformSpiral.ringOf(9));
+            assertEquals(2, PlatformSpiral.ringOf(24));
+            assertEquals(3, PlatformSpiral.ringOf(25));
+        }
+
+        @Test
+        void theFeedFinishesEveryRingInTheRingTime() {
+            for (int ring = 2; ring <= 40; ring++) {
+                int first = (2 * ring - 1) * (2 * ring - 1);
+                long ringCost = 0;
+                for (int index = first; index < (2 * ring + 1) * (2 * ring + 1); index++) {
+                    ringCost += PlatformSpiral.costOf(index, CELL_BASE, PER_DISTANCE);
+                }
+                long feed = PlatformSpiral.feedFor(first, CELL_BASE, PER_DISTANCE, RING_TICKS);
+
+                assertTrue(feed * RING_TICKS >= ringCost && (feed - 1) * RING_TICKS < ringCost,
+                        "ring " + ring + " costs " + ringCost + ", fed " + feed + " a tick for " + RING_TICKS);
+            }
+        }
+    }
 }
