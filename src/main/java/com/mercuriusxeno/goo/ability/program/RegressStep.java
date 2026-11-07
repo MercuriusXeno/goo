@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -41,15 +43,30 @@ public record RegressStep(int ticks) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        if (!(context.hostAs(TargetHost.class).target() instanceof Mob mob) || RewindEvents.vanishing(mob)) {
+        LivingEntity target = context.hostAs(TargetHost.class).target();
+        if (!takesEntity(target) || RewindEvents.vanishing((Mob) target)) {
             return true;
         }
+        Mob mob = (Mob) target;
         if (EntityScan.hasBabyForm(mob) && !mob.isBaby()) {
             RewindEvents.shrinkIntoBaby(mob, ticks);
         } else {
             RewindEvents.shrinkIntoEgg(mob, mob.level().getGameTime(), ticks);
         }
         return true;
+    }
+
+
+    /**
+     * Regress takes a mob.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Mob;
     }
 
     @Override

@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * @param add the amount to add, evaluated when the step runs
  * @param set the value to set, evaluated when the step runs
  */
-public record CounterStep(Identifier id, Optional<Expr> add, Optional<Expr> set) implements Step {
+public record CounterStep(Identifier id, Optional<Expr> add, Optional<Expr> set) implements TakesNoEntity {
 
     private static final String NAME = "counter";
     private static final String FIELD_ID = "id";

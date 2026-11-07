@@ -31,7 +31,7 @@ import java.util.stream.Stream;
  * @param goo  the goo type of the blob that becomes the slime
  * @param size the slime's size, one the smallest
  */
-public record SpawnSlimeStep(ResourceKey<GooTypeDefinition> goo, int size) implements Step {
+public record SpawnSlimeStep(ResourceKey<GooTypeDefinition> goo, int size) implements TakesNoEntity {
 
     private static final String NAME = "spawn_slime";
     private static final String FIELD_GOO = "goo";

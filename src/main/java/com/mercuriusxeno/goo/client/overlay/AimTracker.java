@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -15,6 +16,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
+import java.util.List;
 
 /**
  * Resolves the client's one {@link AimState} each frame and answers its
@@ -47,8 +49,9 @@ public final class AimTracker {
         int entityOutline = selectedType != null ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         double range = GloveAim.aimRange(player, AimState.MAX_RANGE);
-        STATE.update(seed -> AimTargets.resolve(player, seed, GloveAim.targetingHint(player), range, partialTick),
-                entityOutline);
+        List<Step> behaviors = GloveAim.selectedBehaviors(player);
+        STATE.update(seed -> AimTargets.resolve(player, seed, GloveAim.targetingHint(player), range, behaviors,
+                partialTick), entityOutline);
     }
 
     /**

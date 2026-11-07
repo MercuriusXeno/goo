@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  * @param lift         how far above the anchor the burst centers
  */
 public record ParticlesStep(Identifier particle, FxAnchor at, Expr count, Expr spread, Optional<Expr> spreadAlong,
-                            Optional<Expr> spreadAcross, Expr speed, Expr lift) implements Step {
+                            Optional<Expr> spreadAcross, Expr speed, Expr lift) implements TakesNoEntity {
 
     private static final String NAME = "particles";
     private static final String FIELD_ID = "id";

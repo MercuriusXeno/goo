@@ -12,29 +12,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ChargeTest {
 
     private static final double TOLERANCE = 1e-9;
-    private final Charge shards = new Charge(30, 24, 60, 8);
+    private final Charge knives = new Charge(30, 24, 60, 8);
 
     @Test
     void aFullChargeThrowsEveryKnifeAcrossTheWholeCone() {
-        assertEquals(24, shards.fleckCount(1f));
-        assertEquals(60, shards.spreadDegrees(1f), TOLERANCE);
+        assertEquals(24, knives.fleckCount(1f));
+        assertEquals(60, knives.spreadDegrees(1f), TOLERANCE);
     }
 
     @Test
     void aHalfChargeThrowsHalfTheKnivesAcrossThreeQuartersOfTheCone() {
-        assertEquals(12, shards.fleckCount(0.5f));
-        assertEquals(45, shards.spreadDegrees(0.5f), TOLERANCE);
+        assertEquals(12, knives.fleckCount(0.5f));
+        assertEquals(45, knives.spreadDegrees(0.5f), TOLERANCE);
     }
 
     @Test
     void anUnchargedReleaseStillThrowsOneKnifeAcrossHalfTheCone() {
-        assertEquals(1, shards.fleckCount(0f));
-        assertEquals(30, shards.spreadDegrees(0f), TOLERANCE);
+        assertEquals(1, knives.fleckCount(0f));
+        assertEquals(30, knives.spreadDegrees(0f), TOLERANCE);
     }
 
     @Test
     void onlyAChargeNamingFlecksSlings() {
-        assertTrue(shards.slings());
+        assertTrue(knives.slings());
         assertFalse(Charge.of(30).slings());
         assertEquals(Charge.NONE, Charge.of(0));
     }

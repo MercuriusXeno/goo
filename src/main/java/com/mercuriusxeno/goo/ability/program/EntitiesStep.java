@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.Entity;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -76,6 +77,11 @@ public record EntitiesStep(SelectionShape shape, Expr radius, List<EntityFilter>
     @Override
     public Stream<Step> children() {
         return steps.stream();
+    }
+
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return Step.takenThrough(where, steps, entity);
     }
 
     @Override

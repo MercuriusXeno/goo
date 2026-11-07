@@ -34,7 +34,7 @@ import java.util.stream.Stream;
  * @param growth blocks the front grows each held tick
  * @param life   ticks each vein's ore shows through walls once revealed
  */
-public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int life) implements Step {
+public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int life) implements TakesNoEntity {
 
     private static final String NAME = "detect_ore";
 
