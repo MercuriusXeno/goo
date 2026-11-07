@@ -20,8 +20,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
- * One cell of the two-tall dimension doorway standing in each Outsider room,
- * framed in voidstone: a sheet of swirling void running east to west that a
+ * One cell of the two-tall, door-shaped dimension doorway standing alone in
+ * each Outsider room: a sheet of swirling void running east to west that a
  * player walks into to be carried back to the exact place they cast Outsider
  * from. Nothing breaks it, and the pocket stands it again if anything removes it.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform

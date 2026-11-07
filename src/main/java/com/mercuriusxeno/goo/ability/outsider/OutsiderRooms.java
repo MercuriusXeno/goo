@@ -24,12 +24,11 @@ import java.util.UUID;
  * Void's Outsider rooms in goo:pocket, an empty dimension where each
  * player's room stands apart from every other and keeps whatever was built
  * in it. Every platform cell is voidstone, as the operator ruled: a room
- * starts as a 3 by 3 of it, with a two-tall dimension doorway standing on
- * the center cell, framed by voidstone posts either side and a lintel over
- * them, and the player arrives on the cell just south of the doorway, facing
- * it. Walking into the doorway leads back to where the player cast Outsider
- * from; the doorway, its frame and every platform cell stand again if
- * anything removes them; and a player
+ * starts as a 3 by 3 of it, with a two-tall, door-shaped dimension doorway
+ * standing alone on the center cell, as the operator ruled, and the player
+ * arrives on the cell just south of the doorway, facing it. Walking into the
+ * doorway leads back to where the player cast Outsider from; the doorway and
+ * every platform cell stand again if anything removes them; and a player
  * falling below the floor is set back south of the door unharmed, the pocket
  * folding them back. Held on inside, Outsider feeds void into the platform,
  * which grows in voidstone along {@link PlatformSpiral}. Each part shows
@@ -52,8 +51,6 @@ public final class OutsiderRooms {
     public static final int ROOM_FLOOR_Y = 63;
     /** How far below the floor a falling player drops before the pocket folds them back. */
     static final int CATCH_DEPTH = 8;
-    /** The doorway's height in blocks. */
-    private static final int DOORWAY_HEIGHT = 2;
     /** The yaw facing north, toward the door from the arrival cell south of it. */
     private static final float FACING_DOOR = 180f;
     private static final int FOLD_PARTICLES = 48;
@@ -120,19 +117,6 @@ public final class OutsiderRooms {
         return List.of(door, door.above());
     }
 
-    /**
-     * The doorway's voidstone frame: a post either side, two high, and the
-     * lintel over all three columns.
-     *
-     * @param room the room number
-     * @return the frame's blocks
-     */
-    private static List<BlockPos> frameOf(int room) {
-        BlockPos door = doorOf(room);
-        BlockPos lintel = door.above(DOORWAY_HEIGHT);
-        return List.of(door.east(), door.east().above(), door.west(), door.west().above(),
-                lintel, lintel.east(), lintel.west());
-    }
 
     /**
      * Where a player arriving in a room stands: on the voidstone just south of the door.
@@ -325,9 +309,8 @@ public final class OutsiderRooms {
     }
 
     /**
-     * Stands the doorway, its frame and every missing platform cell again in
-     * each loaded room; a platform cell a player built into is left as they
-     * built it.
+     * Stands the doorway and every missing platform cell again in each loaded
+     * room; a platform cell a player built into is left as they built it.
      *
      * @param pocket the pocket dimension
      */
@@ -339,11 +322,6 @@ public final class OutsiderRooms {
                 BlockPos at = platformCellOf(room, index);
                 if (pocket.isLoaded(at) && pocket.getBlockState(at).isAir()) {
                     pocket.setBlock(at, voidstone, Block.UPDATE_ALL);
-                }
-            }
-            for (BlockPos frame : frameOf(room)) {
-                if (pocket.isLoaded(frame) && pocket.getBlockState(frame).isAir()) {
-                    pocket.setBlock(frame, voidstone, Block.UPDATE_ALL);
                 }
             }
             for (BlockPos doorway : doorwayOf(room)) {
@@ -382,8 +360,6 @@ public final class OutsiderRooms {
             pocket.setBlock(platformCellOf(room, index), GooBlocks.VOIDSTONE.get().defaultBlockState(),
                     Block.UPDATE_ALL);
         }
-        frameOf(room).forEach(frame -> pocket.setBlock(frame, GooBlocks.VOIDSTONE.get().defaultBlockState(),
-                Block.UPDATE_ALL));
         doorwayOf(room).forEach(doorway -> pocket.setBlock(doorway,
                 GooBlocks.DIMENSION_DOOR.get().defaultBlockState(), Block.UPDATE_ALL));
     }
