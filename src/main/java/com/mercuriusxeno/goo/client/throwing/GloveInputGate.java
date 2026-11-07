@@ -88,6 +88,8 @@ public final class GloveInputGate {
     private boolean eating;
     /** Ticks the live press has previewed, which a charged ability's release fires by. */
     private int heldTicks;
+    /** Ticks the live press has run a held channel or stream, which Terrakinesis's wind-up reads. */
+    private int channelTicks;
 
     /** Starts a press when the glove's use reaches the client; a live press ignores the repeat. */
     public void arm() {
@@ -97,6 +99,7 @@ public final class GloveInputGate {
             previewing = false;
             eating = false;
             heldTicks = 0;
+            channelTicks = 0;
         }
     }
 
@@ -129,9 +132,20 @@ public final class GloveInputGate {
         return previewing ? heldTicks : 0;
     }
 
+    /**
+     * Ticks the live press has run a held channel or stream, the first counted 1
+     * (decision terrakinesis-shakes-the-blocks-before-the-tear).
+     *
+     * @return the ticks, 0 while no channel runs
+     */
+    public int channelTicks() {
+        return streaming ? channelTicks : 0;
+    }
+
     /** Drops the live press. */
     public void cancel() {
         armed = false;
+        channelTicks = 0;
         streaming = false;
         previewing = false;
         eating = false;
@@ -191,6 +205,7 @@ public final class GloveInputGate {
     }
 
     private void tickStream(boolean useKeyDown, PressActions actions) {
+        channelTicks++;
         if (streaming) {
             if (useKeyDown) {
                 actions.hold();

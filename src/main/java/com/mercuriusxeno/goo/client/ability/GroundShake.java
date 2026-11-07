@@ -284,7 +284,7 @@ public final class GroundShake {
     private static @Nullable Zone runningZone(LocalPlayer player, float partialTick) {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        if (!shakes(ability, GloveUseTracker.runsHeld(player), GloveUseTracker.heldTicks())) {
+        if (!shakes(ability, GloveUseTracker.runsHeld(player), GloveUseTracker.channelTicks())) {
             return null;
         }
         Vec3 eye = player.getEyePosition(partialTick);
