@@ -66,6 +66,19 @@ class KnifeRainTest {
         assertTrue(ticks[12] >= 3 && ticks[12] <= 6, "the middle knife leaves mid-sweep, left at " + ticks[12]);
     }
 
+    // knives-aims-a-spread-fan-not-a-blob-line
+    @Test
+    void theHandPointSitsAheadBelowAndToTheGloveSideOfTheEye() {
+        Vec3 eye = new Vec3(4, 70, -3);
+        Vec3 lookSouth = new Vec3(0, 0, 1);
+
+        Vec3 right = KnifeRain.handPoint(eye, SOUTH, lookSouth, true).subtract(eye);
+        Vec3 left = KnifeRain.handPoint(eye, SOUTH, lookSouth, false).subtract(eye);
+
+        assertEquals(0, new Vec3(-0.35, -0.3, 0.4).distanceTo(right), 1e-6, "facing south, the right hand is west");
+        assertEquals(0, new Vec3(0.35, -0.3, 0.4).distanceTo(left), 1e-6, "a left glove mirrors the right");
+    }
+
     @Test
     void aKnifeArcsDownUnderGravity() {
         Vec3 start = new Vec3(0, 10, 0);
