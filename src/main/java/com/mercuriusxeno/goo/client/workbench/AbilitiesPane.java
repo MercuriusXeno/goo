@@ -381,73 +381,91 @@ final class AbilitiesPane {
     }
 
     // The ability indented under its type's heading: its heading in the left third the names reserve, then its price
-    // fields in four equal columns right of that third, the same four lefts in every ability, a field wider than a
-    // column taking whole columns and a cost's open builder all four; answers the y below its last line.
+    // fields one to a column in four equal columns right of that third, the same four lefts in every ability, a field
+    // past the fourth wrapping to the next line indented below the name, and a cost's open builder taking a line of
+    // its own; answers the y below its last line.
     // Decisions abilities-tab-lists-every-numeric-param-as-expression-boxes,
     // ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
     private int drawAbility(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
                             GroupsPane.Bounds from, ClickTargets targets) {
-        drawHeading(graphics, font, ability, from.left() + ControlFlow.INDENT, from.top(), targets);
+        int nameLeft = drawHeading(graphics, font, ability, from.left() + ControlFlow.INDENT, from.top(), targets);
         int priceLeft = from.left() + (from.right() - from.left()) / NAME_SHARE;
-        ColumnFlow flow = new ColumnFlow(priceLeft, (from.right() - priceLeft) / COLUMNS, from.top());
+        ColumnFlow flow = new ColumnFlow(priceLeft, nameLeft, (from.right() - priceLeft) / COLUMNS, from);
         for (AbilitiesTab.Leaf leaf : ability.prices()) {
-            int columns = isBuilding(ability, leaf) ? COLUMNS : flow.columnsFor(fieldWidth(font, ability, leaf));
-            GroupsPane.Bounds field = flow.place(columns, from.bottom());
-            flow.took(drawField(graphics, font, new Priced(ability, leaf), field, from.right(), targets), columns);
+            boolean editingLeaf = editing != null && editing.holds(ability, leaf);
+            GroupsPane.Bounds field = isBuilding(ability, leaf) ? flow.placeLine(from.bottom())
+                    : flow.place(editingLeaf ? flow.columnsFor(fieldWidth(font, ability, leaf)) : 1, from.bottom());
+            flow.took(drawField(graphics, font, new Priced(ability, leaf), field, from.right(), targets),
+                    field.right());
         }
         return flow.bottom() + GAP;
     }
 
     /**
-     * Where an ability's price fields stand: four equal columns from the left third's edge, a field taking the whole
-     * columns its width needs, and a field past the last column wrapping to the first on the next line.
+     * Where an ability's price fields stand: one to a column, four equal columns from the left third's edge on the
+     * name's line, and a field past the line's room wrapping to the next line at the name's left, at the same column
+     * width.
      */
     private static final class ColumnFlow {
-        private final int left;
+        private final int wrapLeft;
         private final int cell;
-        private int column;
+        private final int right;
+        private int x;
         private int top;
         private int bottom;
+        private boolean lineFull;
 
-        ColumnFlow(int left, int cell, int top) {
-            this.left = left;
+        ColumnFlow(int firstLeft, int wrapLeft, int cell, GroupsPane.Bounds from) {
+            this.wrapLeft = wrapLeft;
             this.cell = Math.max(1, cell);
-            this.top = top;
-            this.bottom = top + RowLayout.SPRITE_ROW_HEIGHT;
+            this.right = from.right();
+            this.x = firstLeft;
+            this.top = from.top();
+            this.bottom = from.top() + RowLayout.SPRITE_ROW_HEIGHT;
         }
 
-        // The whole columns a field of the width given takes, at most all four.
+        // The whole columns a field of the width given takes, at most the line's.
         int columnsFor(int width) {
             return Math.clamp((width + cell - 1) / cell, 1, COLUMNS);
         }
 
-        // The next field's bounds, a new line begun where its columns pass the last.
+        // The next field's bounds, a new line begun under the name where its columns pass the line's room.
         GroupsPane.Bounds place(int columns, int floor) {
-            if (column > 0 && column + columns > COLUMNS) {
-                top = bottom + GAP;
-                column = 0;
+            if (lineFull || x + columns * cell > right) {
+                wrap();
             }
-            int fieldLeft = left + column * cell;
-            return new GroupsPane.Bounds(fieldLeft, top, fieldLeft + columns * cell, floor);
+            return new GroupsPane.Bounds(x, top, x + columns * cell, floor);
         }
 
-        // Moves past the field placed last, which reached the y given.
-        void took(int fieldBottom, int columns) {
+        // A line of its own under the name, as an open builder takes.
+        GroupsPane.Bounds placeLine(int floor) {
+            wrap();
+            lineFull = true;
+            return new GroupsPane.Bounds(wrapLeft, top, right, floor);
+        }
+
+        private void wrap() {
+            top = bottom + GAP;
+            x = wrapLeft;
+            lineFull = false;
+        }
+
+        // Moves past the field placed last, which reached the bottom and the right given.
+        void took(int fieldBottom, int fieldRight) {
             bottom = Math.max(bottom, fieldBottom);
-            column += columns;
+            x = fieldRight;
         }
 
         int bottom() {
             return bottom;
         }
     }
-
-
-    // The rail's room at the left edge, the ability's 16px icon as an item sprite sits in its row, its name bold
-    // hovering its description, and the gold draft badge after it while a draft stands over its live file.
+    // The rail's room at the left edge, the ability's 16px icon as an item sprite sits in its row, its name hovering
+    // its description, and the gold draft badge after it while a draft stands over its live file; answers the name's
+    // left.
     // Decision ability-heading-is-rail-icon-name-draft-badge-and-hovers-its-description.
-    private void drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
-                             int top, ClickTargets targets) {
+    private int drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
+                            int top, ClickTargets targets) {
         int bottom = top + RowLayout.SPRITE_ROW_HEIGHT;
         Rails.draw(graphics, left, top, bottom);
         targets.addGrab(left, top, ControlFlow.RAIL_WIDTH, bottom - top, railGrab(ability), ability.id());
@@ -456,7 +474,9 @@ final class AbilitiesPane {
                 RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE, RowLayout.SPRITE_SIZE,
                 Palette.TEXT);
         int nameLeft = x + RowLayout.SPRITE_SIZE + GAP;
-        Component name = Component.literal(translate.apply(ability.displayName())).withStyle(ChatFormatting.BOLD);
+        // The name reads in regular weight, lighter than the goo type's bold heading (the operator's ruling of
+        // 2026-11-07).
+        Component name = Component.literal(translate.apply(ability.displayName()));
         int textTop = RowLayout.nameTop(font, top);
         graphics.text(font, name, nameLeft, textTop, Palette.TEXT);
         targets.addHover(nameLeft, top, font.width(name), RowLayout.SPRITE_ROW_HEIGHT,
@@ -464,6 +484,7 @@ final class AbilitiesPane {
         if (ability.draft()) {
             graphics.text(font, DRAFT_BADGE, nameLeft + font.width(name) + GAP, textTop, Palette.GOLD);
         }
+        return nameLeft;
     }
 
     private boolean isBuilding(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
@@ -514,7 +535,7 @@ final class AbilitiesPane {
         // The box centers on the heading's sprite row, and the label centers on the box, however tall its icons stand
         // it (the operator's ruling of 2026-11-07).
         int boxHeight = editing != null && editing.holds(ability, leaf) ? ButtonPainter.HEIGHT
-                : ReadValueButton.height(font, runs, field.right() - valueLeft);
+                : ReadValueButton.height(font, runs, boxRight(priced, field, valueLeft) - valueLeft);
         int boxTop = field.top() + Math.max(0, (RowLayout.SPRITE_ROW_HEIGHT - boxHeight) / HALF);
         int besideBox = building ? boxTop + ExpressionBuilderPane.PANEL_ABOVE : boxTop;
         // The labels read in the yellow the mechanism headings drew in (the operator's ruling of 2026-11-07).
@@ -523,7 +544,7 @@ final class AbilitiesPane {
                 DESCRIPTION_HOVER + AbilityWording.descriptionKey(leaf.mechanism(), leaf.field()));
         // The frame stands its box at its row's indent, so the row starts that indent short of the value.
         BuilderFrame.Row framed = new BuilderFrame.Row(new GroupsPane.Bounds(valueLeft - ControlFlow.INDENT, boxTop,
-                field.right(), field.bottom()), null, GooAmountGrid.NONE, false);
+                boxRight(priced, field, valueLeft), field.bottom()), null, GooAmountGrid.NONE, false);
         int y = boxTop + BuilderFrame.draw(graphics, font, framed, new BuilderFrame.Value(building, runs, NO_TEXT,
                 boxOf(graphics, font, priced, runs, targets)));
         // one-red-error-line-under-every-value: the line runs under the field to the ability's right edge, so it
@@ -533,6 +554,15 @@ final class AbilitiesPane {
             y += ExpressionLines.TEXT_LINE_HEIGHT;
         }
         return y;
+    }
+
+    // A read box takes half its column, the rest of the column the gap before the next; an open box or builder takes
+    // its field whole. Decision ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
+    private int boxRight(Priced priced, GroupsPane.Bounds field, int valueLeft) {
+        if (editing != null && editing.holds(priced.ability(), priced.leaf())) {
+            return field.right();
+        }
+        return Math.min(valueLeft + (field.right() - field.left()) / HALF, field.right() - GAP);
     }
 
     // The builder while it stands open over the cost, the text box while it stands open over a number, else the

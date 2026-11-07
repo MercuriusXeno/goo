@@ -312,7 +312,9 @@ class AbilitiesPaneTest {
                     anyFloat(), anyFloat(), eq(RowLayout.SPRITE_SIZE), eq(RowLayout.SPRITE_SIZE),
                     eq(RowLayout.SPRITE_SIZE), eq(RowLayout.SPRITE_SIZE), anyInt());
             assertTrue(frame.find(NAME).x() >= iconLeft + RowLayout.SPRITE_SIZE, frame.find(NAME).toString());
-            assertTrue(frame.bold(NAME));
+            // The name reads in regular weight, lighter than the goo type's bold heading (the operator's ruling of
+            // 2026-11-07).
+            assertFalse(frame.bold(NAME), NAME + " draws bold");
         }
 
         /**
@@ -372,6 +374,7 @@ class AbilitiesPaneTest {
                 Map.entry("goo.ability.param.cost_per_block.cost_per_block.description", PER_BLOCK_DESCRIPTION),
                 Map.entry("goo.ability.param.wall_cost.wall_cost", "Wall surcharge"),
                 Map.entry("goo.ability.param.node_percent.node_percent", "Oculus percent"),
+                Map.entry("goo.ability.param.upkeep.upkeep", "Upkeep"),
                 Map.entry("goo.ability.param.particles.count", "Count"),
                 Map.entry("goo.ability.param.outsider.charge", "Charge"),
                 Map.entry("goo.ability.param.outsider.enter", "Entry cost"),
@@ -383,12 +386,12 @@ class AbilitiesPaneTest {
                   {"id": "goo:ender_blink", "gooType": "ender", "displayName": "ender_blink", "draft": false,
                    "badge": "self", "order": 10, "leaves": [
                     {"path": "cost", "value": "200", "kind": "COST", "mechanism": "cost", "field": "cost"},
-                    %s, %s, %s, %s]},
+                    %s, %s, %s, %s, %s]},
                   {"id": "goo:void_outsider", "gooType": "void", "displayName": "void_outsider", "draft": false,
                    "badge": "channeled", "order": 10, "leaves": [%s, %s, %s, %s]}]}
                 """.formatted(leaf("cost_per_block", "cost_per_block", "cost_per_block", 100),
                 leaf("wall_cost", "wall_cost", "wall_cost", 400), leaf("node_percent", "node_percent", "node_percent",
-                        10), leaf("behaviors/0/count", "particles", "count", 32),
+                        10), leaf("upkeep", "upkeep", "upkeep", 4), leaf("behaviors/0/count", "particles", "count", 32),
                 leaf("behaviors/0/charge", "outsider", "charge", 20), leaf("behaviors/0/enter", "outsider", "enter", 6),
                 leaf("behaviors/0/cell_cost", "outsider", "cell_cost", 10),
                 leaf("behaviors/0/distance_cost", "outsider", "distance_cost", 1));
@@ -486,26 +489,26 @@ class AbilitiesPaneTest {
         }
 
         @Test
-        void aFieldWiderThanAColumnSpansWholeColumns() {
-            GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 300, 400);
-            DrawnFrame frame = drawn(narrow);
-            int cell = columnLeft(narrow, 1) - columnLeft(narrow, 0);
+        void eachBoxIsHalfItsColumnWideAndStaysInsideIt() {
+            GroupsPane.Bounds wide = new GroupsPane.Bounds(0, 0, 900, 400);
+            DrawnFrame frame = drawn(wide);
+            int cell = columnLeft(wide, 1) - columnLeft(wide, 0);
             DrawnFrame.Text value = frame.find("100");
+            int left = frame.buttonAround(value)[0];
             int right = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals("✎")
                     && text.x() > value.x() && Math.abs(text.y() - value.y()) <= 1).findFirst()
                     .orElseThrow(() -> new AssertionError("no pencil beside 100")))[2];
-            assertEquals(0, (right - priceLeft(narrow)) % cell, "the box ends at " + right + ", off a column's edge");
-            assertTrue((right - priceLeft(narrow)) / cell > 1, "the field spans one column");
+            assertEquals(cell / 2, right - left, "the box runs " + left + " to " + right);
+            assertTrue(right < columnLeft(wide, 2), "the box ends at " + right + ", past its column");
         }
 
         @Test
-        void aFieldPastTheLastColumnWrapsToTheFirst() {
-            GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 300, 400);
-            DrawnFrame frame = drawn(narrow);
-            DrawnFrame.Text last = frame.find("Oculus percent");
-            assertEquals(priceLeft(narrow), last.x(), last + " wrapped off the first column");
-            assertTrue(last.y() >= rowTopOf(frame.find(BLINK)) + RowLayout.SPRITE_ROW_HEIGHT,
-                    last + " stands on the name's line");
+        void aFieldPastTheFourthWrapsToTheNextLineUnderTheName() {
+            DrawnFrame frame = drawn(VIEW);
+            DrawnFrame.Text name = frame.find(BLINK);
+            DrawnFrame.Text fifth = frame.find("Upkeep");
+            assertEquals(name.x(), fifth.x(), fifth + " wrapped off the name's left");
+            assertTrue(fifth.y() >= rowTopOf(name) + RowLayout.SPRITE_ROW_HEIGHT, fifth + " stands on the name's line");
         }
         @Test
         void aLabelHoversItsDescription() {
