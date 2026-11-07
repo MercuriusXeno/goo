@@ -75,14 +75,8 @@ class MobAilmentsTest {
         }
 
         @Test
-        void aLandingOfNoDurationEndsTheAilmentAtOnce() {
-            MobAilments ailments = hexedAt(LAND_TICK);
-            ailments.afflict(MOB, AilmentKind.STASIS, LAND_TICK, DURATION);
-
-            ailments.afflict(MOB, AilmentKind.STASIS, LAND_TICK + 1, 0);
-
-            assertEquals(List.of(new MobAilments.Worn(AilmentKind.HEX, DURATION - 1)),
-                    ailments.ailmentsOf(MOB, LAND_TICK + 1));
+        void theFadeSpansASecond() {
+            assertEquals(20, FADE_TICKS);
         }
 
         @Test
@@ -92,6 +86,55 @@ class MobAilmentsTest {
             assertEquals(0.5f, MobAilments.strength(FADE_TICKS / 2f));
             assertEquals(0f, MobAilments.strength(0f));
             assertEquals(0f, MobAilments.strength(-1f));
+        }
+    }
+
+    /** A clear fades the overlay out over the second after it lands (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends). */
+    @Nested
+    class Clearing {
+
+        private static final float NEAR = 0.051f;
+        private static final long CLEARED_AT = LAND_TICK + 5;
+
+        private float strengthAt(MobAilments ailments, long tick) {
+            return MobAilments.strength(ailments.ailmentsOf(MOB, tick).getFirst().ticksLeft());
+        }
+
+        @Test
+        void aClearOnAWornAilmentFadesItOverTheSecondAfter() {
+            MobAilments ailments = hexedAt(LAND_TICK);
+            ailments.afflict(MOB, AilmentKind.HEX, CLEARED_AT, 0);
+
+            assertEquals(1f, strengthAt(ailments, CLEARED_AT + 1), NEAR);
+            assertEquals(0.5f, strengthAt(ailments, CLEARED_AT + FADE_TICKS / 2), NEAR);
+            assertTrue(ailments.ailmentsOf(MOB, CLEARED_AT + FADE_TICKS).isEmpty());
+        }
+
+        @Test
+        void aClearFadesOnlyTheAilmentItNames() {
+            MobAilments ailments = hexedAt(LAND_TICK);
+            ailments.afflict(MOB, AilmentKind.STASIS, LAND_TICK, DURATION);
+            ailments.afflict(MOB, AilmentKind.STASIS, CLEARED_AT, 0);
+
+            assertEquals(List.of(new MobAilments.Worn(AilmentKind.HEX, DURATION - FADE_TICKS - 5)),
+                    ailments.ailmentsOf(MOB, CLEARED_AT + FADE_TICKS));
+        }
+
+        @Test
+        void aClearNeverLengthensAnAilmentAlreadyFading() {
+            MobAilments ailments = new MobAilments();
+            ailments.afflict(MOB, AilmentKind.HEX, LAND_TICK, 4);
+            ailments.afflict(MOB, AilmentKind.HEX, LAND_TICK + 1, 0);
+
+            assertEquals(List.of(new MobAilments.Worn(AilmentKind.HEX, 3)), ailments.ailmentsOf(MOB, LAND_TICK + 1));
+        }
+
+        @Test
+        void aClearOnNothingWornLeavesNothingWorn() {
+            MobAilments ailments = new MobAilments();
+            ailments.afflict(MOB, AilmentKind.SCALES, LAND_TICK, 0);
+
+            assertTrue(ailments.ailmentsOf(MOB, LAND_TICK).isEmpty());
         }
     }
 
