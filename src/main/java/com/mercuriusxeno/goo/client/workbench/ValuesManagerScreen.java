@@ -323,6 +323,8 @@ public final class ValuesManagerScreen extends Screen {
                         setStatus(draftConfirm.doneStatus(draft.path()), false);
                         draftConfirm.cancel();
                         readDraftAfresh();
+                        // ability-drafts-promote-per-file-like-base-values: one confirm covers both kinds of draft
+                        abilitiesPane.refresh();
                     } else {
                         draftConfirm.cancel();
                         setStatus(reply.text(), true);

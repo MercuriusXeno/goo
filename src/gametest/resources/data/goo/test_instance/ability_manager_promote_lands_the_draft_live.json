@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:ability_manager_promote_lands_the_draft_live",
+  "environment": "goo:ability_manager_alone",
+  "structure": "goo:test_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}
