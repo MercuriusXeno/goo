@@ -31,20 +31,11 @@ public final class MeteorFall {
     }
 
     /**
-     * The ticks a meteor has fallen at an age: none through its wind-up,
-     * then one more each tick.
+     * Where a meteor stands a share of the way through its fall: it falls as
+     * a rock falls, from rest at its start and gathering speed, so it leaves
+     * the sky at once and slowly, the beat that lets it be seen coming, and
+     * strikes fast (operator ruling 2026-11-06: no hang before it falls).
      * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
-     *
-     * @param age         the meteor's age in ticks, 1 on its first
-     * @param windUpTicks the ticks it hangs before it drops
-     * @return the ticks it has fallen, 0 while it hangs
-     */
-    public static int fallenAt(int age, int windUpTicks) {
-        return Math.max(0, age - windUpTicks);
-    }
-
-    /**
-     * Where a meteor stands a share of the way through its fall.
      *
      * @param start  where it appeared
      * @param target where it strikes
@@ -53,6 +44,7 @@ public final class MeteorFall {
      * @return the point on the straight line from start to target
      */
     public static Vec3 positionAt(Vec3 start, Vec3 target, double age, int ticks) {
-        return start.lerp(target, Math.min(1.0, age / ticks));
+        double travelled = Math.min(1.0, age / ticks);
+        return start.lerp(target, travelled * travelled);
     }
 }

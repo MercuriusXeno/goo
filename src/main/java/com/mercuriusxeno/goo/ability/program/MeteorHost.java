@@ -10,10 +10,9 @@ public interface MeteorHost extends StepHost {
      * Calls a meteor down on the landing when the sky above it is clear,
      * fizzling otherwise.
      *
-     * @param power       the explosion's power
-     * @param windUpTicks the ticks the meteor hangs before it drops
-     * @param fallTicks   the ticks the meteor falls for
+     * @param power     the explosion's power
+     * @param fallTicks the ticks the meteor falls for
      * @return true once a meteor falls
      */
-    boolean callMeteor(float power, int windUpTicks, int fallTicks);
+    boolean callMeteor(float power, int fallTicks);
 }

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.world;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that a meteor appears its fall height above its target and falls in a straight line to the target over its
@@ -28,27 +29,33 @@ class MeteorTest {
     }
 
     /**
-     * It stands at its start, halfway down at half its fall time, and at its
-     * target when the fall time runs out.
+     * It falls as a rock falls, from rest and gathering speed: at its start
+     * at first, a quarter of the way down at half its fall time, and at its
+     * target when the fall time runs out (operator ruling 2026-11-06: it
+     * falls at once, speeding up, rather than hanging first).
      */
     @Test
-    void fallsStraightDownOverItsFallTime() {
+    void fallsFromRestGatheringSpeed() {
         assertEquals(START, MeteorFall.positionAt(START, TARGET, 0, FALL_TICKS));
-        assertEquals(new Vec3(TARGET.x, TARGET.y + MeteorFall.FALL_HEIGHT / 2.0, TARGET.z),
-                MeteorFall.positionAt(START, TARGET, FALL_TICKS / 2, FALL_TICKS));
+        assertEquals(TARGET.y + MeteorFall.FALL_HEIGHT * 3 / 4.0,
+                MeteorFall.positionAt(START, TARGET, FALL_TICKS / 2, FALL_TICKS).y, 1e-9);
         assertEquals(TARGET, MeteorFall.positionAt(START, TARGET, FALL_TICKS, FALL_TICKS));
     }
 
     /**
-     * Through its wind-up it has fallen nothing, then a tick more each tick
-     * (decision meteo-winds-up-then-drops-in-a-second-trailing-fire).
+     * It leaves its start on its first tick and falls further every tick
+     * after, never hanging still.
      */
     @Test
-    void hangsThroughItsWindUpThenFallsATickATime() {
-        int windUp = 20;
-        assertEquals(0, MeteorFall.fallenAt(1, windUp));
-        assertEquals(0, MeteorFall.fallenAt(windUp, windUp));
-        assertEquals(1, MeteorFall.fallenAt(windUp + 1, windUp));
+    void leavesItsStartAtOnceAndFallsFurtherEveryTick() {
+        double before = START.y;
+        double drop = 0;
+        for (int tick = 1; tick <= FALL_TICKS; tick++) {
+            double now = MeteorFall.positionAt(START, TARGET, tick, FALL_TICKS).y;
+            assertTrue(before - now > drop, "tick " + tick + " falls further than the last");
+            drop = before - now;
+            before = now;
+        }
     }
 
     /**
@@ -60,8 +67,9 @@ class MeteorTest {
     void aFrameBetweenTicksStandsBetweenTheirPoints() {
         double tenth = MeteorFall.positionAt(START, TARGET, 10, FALL_TICKS).y;
         double eleventh = MeteorFall.positionAt(START, TARGET, 11, FALL_TICKS).y;
+        double between = MeteorFall.positionAt(START, TARGET, 10.5, FALL_TICKS).y;
 
-        assertEquals((tenth + eleventh) / 2, MeteorFall.positionAt(START, TARGET, 10.5, FALL_TICKS).y, 1e-9);
+        assertTrue(between < tenth && between > eleventh, "between the ticks at " + between);
     }
 
     /**

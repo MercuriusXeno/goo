@@ -23,9 +23,8 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
 /**
- * Meteo's meteor: it appears high above its target and hangs there
- * smouldering through its wind-up, then drops straight down over its fall
- * time trailing fire and smoke, and explodes there through Goo's explosion
+ * Meteo's meteor: it appears high above its target and falls straight
+ * down from rest over its fall time, gathering speed, trailing fire and smoke, and explodes there through Goo's explosion
  * with a flash, breaking blocks into a crater every watching client
  * scorches. Its whole path is synced, so clients draw it smoothly down.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
@@ -36,7 +35,6 @@ public class Meteor extends Entity {
     private static final String TAG_TARGET = "Target";
     private static final String TAG_START = "Start";
     private static final String TAG_POWER = "Power";
-    private static final String TAG_WIND_UP_TICKS = "WindUpTicks";
     private static final String TAG_FALL_TICKS = "FallTicks";
     private static final String TAG_AGE = "Age";
     /** How far past the explosion's power the scorch reaches, in blocks. */
@@ -47,8 +45,6 @@ public class Meteor extends Entity {
             SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.VECTOR3);
     private static final EntityDataAccessor<Vector3fc> DATA_TARGET =
             SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.VECTOR3);
-    private static final EntityDataAccessor<Integer> DATA_WIND_UP_TICKS =
-            SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_FALL_TICKS =
             SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Long> DATA_CALLED_AT =
@@ -57,7 +53,6 @@ public class Meteor extends Entity {
     private Vec3 start = Vec3.ZERO;
     private Vec3 target = Vec3.ZERO;
     private float power;
-    private int windUpTicks;
     private int fallTicks = 1;
     private int age;
 
@@ -74,21 +69,19 @@ public class Meteor extends Entity {
 
     /**
      * Calls a meteor down on a point: it appears above the point, as high as
-     * the fall height or the world's top allows, hangs there through the
-     * wind-up and lands after the fall time.
+     * the fall height allows, and falls from rest, gathering speed, landing
+     * after the fall time.
      *
-     * @param level       the server level
-     * @param at          the point it strikes
-     * @param power       the explosion's power
-     * @param windUpTicks the ticks it hangs before it drops
-     * @param fallTicks   the ticks it falls for
+     * @param level     the server level
+     * @param at        the point it strikes
+     * @param power     the explosion's power
+     * @param fallTicks the ticks it falls for
      */
-    public static void call(ServerLevel level, Vec3 at, float power, int windUpTicks, int fallTicks) {
+    public static void call(ServerLevel level, Vec3 at, float power, int fallTicks) {
         Meteor meteor = new Meteor(GooEntities.METEOR.get(), level);
         meteor.target = at;
         meteor.start = MeteorFall.startAbove(at);
         meteor.power = power;
-        meteor.windUpTicks = Math.max(0, windUpTicks);
         meteor.fallTicks = Math.max(1, fallTicks);
         meteor.setPos(meteor.start);
         meteor.syncPath(level.getGameTime());
@@ -99,7 +92,6 @@ public class Meteor extends Entity {
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
         entityData.define(DATA_START, new Vector3f());
         entityData.define(DATA_TARGET, new Vector3f());
-        entityData.define(DATA_WIND_UP_TICKS, 0);
         entityData.define(DATA_FALL_TICKS, 0);
         entityData.define(DATA_CALLED_AT, 0L);
     }
@@ -114,7 +106,6 @@ public class Meteor extends Entity {
     private void syncPath(long calledAt) {
         entityData.set(DATA_START, start.toVector3f());
         entityData.set(DATA_TARGET, target.toVector3f());
-        entityData.set(DATA_WIND_UP_TICKS, windUpTicks);
         entityData.set(DATA_FALL_TICKS, fallTicks);
         entityData.set(DATA_CALLED_AT, calledAt);
     }
@@ -145,7 +136,7 @@ public class Meteor extends Entity {
         }
         double age = gameTime - entityData.get(DATA_CALLED_AT);
         return MeteorFall.positionAt(new Vec3(entityData.get(DATA_START)), new Vec3(entityData.get(DATA_TARGET)),
-                Math.max(0, age - entityData.get(DATA_WIND_UP_TICKS)), fall);
+                Math.max(0, age), fall);
     }
 
     @Override
@@ -155,18 +146,13 @@ public class Meteor extends Entity {
             return;
         }
         age++;
-        int fallen = MeteorFall.fallenAt(age, windUpTicks);
-        if (fallen == 0) {
-            MeteorMarks.windUp(server, start, target, age);
-            return;
-        }
-        if (fallen == 1) {
-            MeteorMarks.drop(server, start);
+        if (age == 1) {
+            MeteorMarks.drop(server, start, target);
         }
         Vec3 from = position();
-        setPos(MeteorFall.positionAt(start, target, fallen, fallTicks));
+        setPos(MeteorFall.positionAt(start, target, age, fallTicks));
         MeteorMarks.trail(server, from, position());
-        if (fallen >= fallTicks) {
+        if (age >= fallTicks) {
             strike(server);
         }
     }
@@ -203,7 +189,6 @@ public class Meteor extends Entity {
         start = input.read(TAG_START, Vec3.CODEC).orElse(position());
         target = input.read(TAG_TARGET, Vec3.CODEC).orElse(position());
         power = input.read(TAG_POWER, Codec.FLOAT).orElse(0f);
-        windUpTicks = Math.max(0, input.getIntOr(TAG_WIND_UP_TICKS, 0));
         fallTicks = Math.max(1, input.getIntOr(TAG_FALL_TICKS, 1));
         age = input.getIntOr(TAG_AGE, 0);
         syncPath(level().getGameTime() - age);
@@ -214,7 +199,6 @@ public class Meteor extends Entity {
         output.store(TAG_START, Vec3.CODEC, start);
         output.store(TAG_TARGET, Vec3.CODEC, target);
         output.store(TAG_POWER, Codec.FLOAT, power);
-        output.putInt(TAG_WIND_UP_TICKS, windUpTicks);
         output.putInt(TAG_FALL_TICKS, fallTicks);
         output.putInt(TAG_AGE, age);
     }
