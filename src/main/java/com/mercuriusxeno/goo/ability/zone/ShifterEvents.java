@@ -108,8 +108,8 @@ public final class ShifterEvents {
      */
     private static Optional<Vec3> escapeTo(ServerPlayer player, Shifter held, DamageSource source) {
         return source.is(DamageTypes.FELL_OUT_OF_WORLD) ? held.safeGround()
-                : TeleportStep.landingAlongLook(player, player.position(), player.getLookAngle(), held.distance(),
-                        Optional.empty()).map(BlinkLanding::feet);
+                : TeleportStep.landingAlongLook(player, player.position(), player.getLookAngle(), held.distance())
+                        .map(BlinkLanding::feet);
     }
 
     /**

@@ -195,10 +195,20 @@ public final class GloveThrowSender {
      * @return the aimed world point
      */
     private static Vec3 heldAimPoint(Player player, String abilityId) {
-        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        boolean locksOn = ability != null && ability.tags().contains(AbilityTags.LOCKS_ON);
         Vec3 lockedMob = AimTracker.currentTarget() instanceof TargetResult.EntityTarget locked ? locked.point() : null;
-        return ChannelAim.heldAimPoint(locksOn, lockedMob, cursorPoint(player));
+        return ChannelAim.heldAimPoint(locksOn(abilityId), lockedMob, cursorPoint(player));
+    }
+
+    /**
+     * Whether an ability's held aim follows the aim assist's lock.
+     * decision sunbeam-lands-with-impact-and-aim
+     *
+     * @param abilityId the ability id string, null for none
+     * @return true for an ability tagged to lock on
+     */
+    public static boolean locksOn(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability != null && ability.tags().contains(AbilityTags.LOCKS_ON);
     }
 
     /**
@@ -296,8 +306,7 @@ public final class GloveThrowSender {
     /**
      * Sends a self ability's payload, naming no target, when the player can
      * afford its cost (decision self-delivery-runs-on-player). A blink is
-     * priced from the trip it would make and carries the face its press
-     * pinned in the payload's target block and face
+     * priced from the trip it would make along the look
      * (decision blink-lands-safely-costed-by-distance).
      *
      * @param player    the local player
@@ -312,10 +321,7 @@ public final class GloveThrowSender {
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        Optional<ChannelAim.FacePlane> pin = BlinkAim.livePin();
-        sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
-                pin.map(ChannelAim.FacePlane::block).orElse(player.blockPosition()),
-                pin.map(plane -> plane.face().get3DDataValue()).orElse(NO_ENTITY),
+        sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
                 false, abilityId, lineOrigin(), player.position()));
         return true;
     }

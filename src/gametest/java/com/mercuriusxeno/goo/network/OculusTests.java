@@ -40,7 +40,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  */
 @RegistersGameTests
 public final class OculusTests {
-    private static final String BLINK_SNAPS_TO_OCULUS = "blink_snaps_to_oculus";
     private static final String OCULUS_COSTS_A_TENTH = "oculus_blink_costs_a_tenth";
     private static final String BLINK_MAKES_AN_OCULUS = "blink_at_a_bare_prism_makes_an_oculus";
 
@@ -50,7 +49,6 @@ public final class OculusTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, BLINK_SNAPS_TO_OCULUS, OculusTests::blinkSnapsToOculus);
         GooTestFunctions.registerTest(registrar, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);
         GooTestFunctions.registerTest(registrar, BLINK_MAKES_AN_OCULUS, OculusTests::blinkAtABarePrismMakesAnOculus);
     }
@@ -78,26 +76,6 @@ public final class OculusTests {
     private static final int OCULUS_PERCENT = 10;
 
     private OculusTests() {
-    }
-
-    /**
-     * A player looking straight up at an oculus twenty-four blocks over it
-     * presses on the face of the stone it stands on, pinning that face, and
-     * blinks: the oculus wins over the pin, so it lands beside the oculus.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blinkSnapsToOculus(GameTestHelper helper) {
-        ServerPlayer player = blinker(helper);
-        PrismBlockEntity oculus = oculusAbove(helper, player);
-        Vec3 cell = Vec3.atBottomCenterOf(oculus.getBlockPos());
-
-        blinkPinned(player, oculus.getBlockPos().below());
-
-        Vec3 after = player.position();
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(after.distanceTo(cell) < BESIDE, String.format(SHOULD_SNAP, cell, after));
-        helper.succeed();
     }
 
     /**
@@ -213,7 +191,7 @@ public final class OculusTests {
     }
 
     /**
-     * Throws Blink from the glove, the path a press takes, with no face pinned.
+     * Throws Blink from the glove, the path a press takes.
      *
      * @param player the player
      */
@@ -221,19 +199,6 @@ public final class OculusTests {
         GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.ENDER, ENDER_BLINK));
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ENDER), NO_ENTITY,
                 player.blockPosition(), NO_ENTITY, false, ENDER_BLINK.toString(), player.getEyePosition()));
-    }
-
-    /**
-     * Throws Blink from the glove with the bottom face of a block pinned, as a
-     * press begun on that face sends it.
-     *
-     * @param player the player
-     * @param pinned the block whose bottom face the press pinned
-     */
-    private static void blinkPinned(ServerPlayer player, BlockPos pinned) {
-        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.ENDER, ENDER_BLINK));
-        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ENDER), NO_ENTITY, pinned,
-                Direction.DOWN.get3DDataValue(), false, ENDER_BLINK.toString(), player.getEyePosition()));
     }
 
     private static AbilityDefinition ability(GameTestHelper helper, Identifier id) {

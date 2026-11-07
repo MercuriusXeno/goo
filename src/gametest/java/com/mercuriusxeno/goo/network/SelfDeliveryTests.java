@@ -20,7 +20,6 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
@@ -58,7 +57,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class SelfDeliveryTests {
     private static final String SELF_ENDER_BLINK = "self_ender_blink";
-    private static final String BLINK_ONTO_A_PILLAR = "blink_onto_a_pillar_costs_by_distance";
     private static final String SELF_GATED_BLINK_REFUSED = "self_gated_blink_refused";
     private static final String SELF_KINDLE_EATS_FIRST = "self_kindle_eats_before_the_embers";
     private static final String SELF_KINDLE_RELEASED_RUNS_NOTHING = "self_kindle_released_runs_nothing";
@@ -75,7 +73,6 @@ public final class SelfDeliveryTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
-        GooTestFunctions.registerTest(registrar, BLINK_ONTO_A_PILLAR, SelfDeliveryTests::blinkOntoAPillarCostsByDistance);
         GooTestFunctions.registerTest(registrar, SELF_GATED_BLINK_REFUSED, SelfDeliveryTests::gatedBlinkRefusedWithoutTheRecipe);
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_EATS_FIRST, SelfDeliveryTests::kindleEatsBeforeTheEmbers);
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_RELEASED_RUNS_NOTHING, SelfDeliveryTests::kindleLetGoMidEatRunsNothing);
@@ -102,13 +99,6 @@ public final class SelfDeliveryTests {
     /** The range Blink had before the operator lengthened it, which every blink east now passes. */
     private static final double OLD_BLINK_RANGE = 8;
     private static final double MOVE_TOLERANCE = 1e-6;
-    /** The pillar's two stones, east of where the player stands. */
-    private static final BlockPos PILLAR_BASE = new BlockPos(5, 1, 3);
-    private static final BlockPos PILLAR_TOP = new BlockPos(5, 2, 3);
-    private static final double HALF_BLOCK = 0.5;
-    private static final double LANDING_TOLERANCE = 0.05;
-    private static final String SHOULD_LAND_ON_TOP = "The blink should land on the pillar's top at %s, landed at %s";
-    private static final String SHOULD_PRICE_THE_TRIP = "The trip should cost %d mB, more than the flat %d";
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
     private static final String SHOULD_SEE = "Once the eat finishes the player should hold fungal sight";
@@ -194,43 +184,6 @@ public final class SelfDeliveryTests {
                 Optional.of(new BlinkLanding(Vec3.ZERO, moved, true)));
         helper.assertTrue(drained == pricedClear || drained == pricedThroughWall,
                 String.format(SHOULD_DRAIN_COST, pricedClear, drained));
-        helper.succeed();
-    }
-
-    /**
-     * A mock player facing a stone pillar presses on the pillar's top face,
-     * pinning it, and blinks: it lands standing on the pillar's top, and the
-     * goo drained is the flat cost plus the per-block amount for the blocks
-     * travelled (decision blink-lands-safely-costed-by-distance).
-     *
-     * @param helper the gametest helper
-     */
-    public static void blinkOntoAPillarCostsByDistance(GameTestHelper helper) {
-        AbilityDefinition blink = requireAbility(helper, ENDER_BLINK);
-        ServerPlayer player = invoker(helper, GooTypes.ENDER, ENDER_BLINK);
-        KnownRecipes.teachRequires(player, blink);
-        helper.setBlock(PILLAR_BASE, Blocks.STONE);
-        helper.setBlock(PILLAR_TOP, Blocks.STONE);
-        Vec3 top = Vec3.atCenterOf(helper.absolutePos(PILLAR_TOP)).add(0, HALF_BLOCK, 0);
-        Vec3 line = top.subtract(player.getEyePosition());
-        player.setYRot(FACING_EAST);
-        player.setXRot((float) -Math.toDegrees(Math.atan2(line.y(), Math.hypot(line.x(), line.z()))));
-        Vec3 before = player.position();
-        int heldBefore = held(player, GooTypes.ENDER);
-
-        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.ENDER, ENDER_BLINK));
-        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ENDER), NO_ENTITY,
-                helper.absolutePos(PILLAR_TOP), Direction.UP.get3DDataValue(), false, ENDER_BLINK.toString(),
-                player.getEyePosition()));
-
-        Vec3 after = player.position();
-        int drained = heldBefore - held(player, GooTypes.ENDER);
-        int priced = blink.distancePrice().priceOf(blink.cost(),
-                Optional.of(new BlinkLanding(after, before.distanceTo(after), false)));
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(after.distanceTo(top) < LANDING_TOLERANCE, String.format(SHOULD_LAND_ON_TOP, top, after));
-        helper.assertTrue(drained == priced, String.format(SHOULD_DRAIN_COST, priced, drained));
-        helper.assertTrue(priced > blink.cost(), String.format(SHOULD_PRICE_THE_TRIP, priced, blink.cost()));
         helper.succeed();
     }
 
