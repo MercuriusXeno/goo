@@ -7,9 +7,11 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 /**
- * A portal counts as a block for a hit: hitting a portal's face breaks the
- * portal, and the hit never reaches the wall behind it.
+ * A portal and a hole's mouth count as a block for a hit: hitting a portal's
+ * face breaks the portal, hitting a hole's mouth dismisses the hole, and the
+ * hit never reaches the wall behind either.
  * portals-link-by-looking-through-portal-vision
+ * hole-closes-the-space-to-an-opening-ahead
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class PortalHits {
@@ -27,8 +29,8 @@ public final class PortalHits {
         if (event.getAction() != PlayerInteractEvent.LeftClickBlock.Action.START || event.getFace() == null) {
             return;
         }
-        if (event.getLevel() instanceof ServerLevel level && PortalChoice.breakAt(level, event.getPos(),
-                event.getFace())) {
+        if (event.getLevel() instanceof ServerLevel level && (PortalChoice.breakAt(level, event.getPos(),
+                event.getFace()) || OpenHoles.dismissAt(level, event.getPos(), event.getFace()))) {
             event.setCanceled(true);
         }
     }

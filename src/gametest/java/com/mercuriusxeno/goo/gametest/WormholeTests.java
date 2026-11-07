@@ -47,6 +47,8 @@ public final class WormholeTests {
     private static final String HOLDS_OPEN_WHILE_OCCUPIED = "hole_holds_open_while_occupied";
     private static final String CRAWLS_THROUGH_A_ONE_BY_ONE_WALL = "hole_crawls_through_a_one_by_one_wall";
     private static final String STANDS_BEFORE_A_FULL_MOUTH = "hole_stands_before_a_full_mouth";
+    private static final String DISMISSED_BY_A_HIT = "hole_dismissed_by_a_hit";
+    private static final String OPENS_DOWN_FROM_THE_STRUCK_BLOCK = "hole_opens_down_from_the_struck_block";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -66,6 +68,9 @@ public final class WormholeTests {
         GooTestFunctions.registerTest(registrar, CRAWLS_THROUGH_A_ONE_BY_ONE_WALL,
                 WormholeTests::crawlsThroughAOneByOneWall);
         GooTestFunctions.registerTest(registrar, STANDS_BEFORE_A_FULL_MOUTH, WormholeTests::standsBeforeAFullMouth);
+        GooTestFunctions.registerTest(registrar, DISMISSED_BY_A_HIT, WormholeTests::dismissedByAHit);
+        GooTestFunctions.registerTest(registrar, OPENS_DOWN_FROM_THE_STRUCK_BLOCK,
+                WormholeTests::opensDownFromTheStruckBlock);
     }
 
     private static final String CLOSES_AFTER_ITS_LIFETIME = "hole_closes_after_its_lifetime";
@@ -374,6 +379,58 @@ public final class WormholeTests {
             helper.succeed();
         });
     }
+
+    /**
+     * A hit on a hole's mouth dismisses the hole, as a hit on a portal breaks
+     * the portal, and the wall behind it stands.
+     *
+     * @param helper the gametest helper
+     */
+    public static void dismissedByAHit(GameTestHelper helper) {
+        buildWall(helper);
+        ServerPlayer caster = caster(helper);
+        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            helper.assertTrue(holeStruckAt(helper, STRUCK).isPresent(), "The hole should stand open before the hit");
+            helper.assertTrue(OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH),
+                    "A hit on the hole's mouth should dismiss it");
+            helper.assertTrue(holeStruckAt(helper, STRUCK).isEmpty(), "The hole should stand dismissed");
+            helper.assertTrue(helper.getLevel().getBlockState(helper.absolutePos(STRUCK)).is(Blocks.STONE),
+                    "The wall behind a dismissed hole should stand");
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Thrown at a wall one block wide and four tall, the hole opens down
+     * from the struck block, its mouth the struck block and the two below,
+     * rather than centred on it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void opensDownFromTheStruckBlock(GameTestHelper helper) {
+        for (int y = 1; y <= TALL_WALL_TOP; y++) {
+            for (int z = WALL_NEAR_Z; z <= WALL_FAR_Z; z++) {
+                helper.setBlock(new BlockPos(2, y, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer caster = caster(helper);
+        throwAt(caster, helper.absolutePos(HIGH_IN_THE_TALL_WALL), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            assertMouthSpans(helper, HIGH_IN_THE_TALL_WALL, 1, 3, 1);
+            double bottom = holeStruckAt(helper, HIGH_IN_THE_TALL_WALL).orElseThrow().entry().blocks().minY;
+            helper.assertTrue(bottom == helper.absolutePos(new BlockPos(2, 1, 2)).getY(), "The hole should open down "
+                    + "from the struck block to the wall's foot, its bottom stands at " + bottom);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /** The top of a wall one block wide and four tall. */
+    private static final int TALL_WALL_TOP = 4;
+    /** The block the throw marks in the tall wall, two above its foot. */
+    private static final BlockPos HIGH_IN_THE_TALL_WALL = new BlockPos(2, 3, 2);
 
     /** Feet a step before the struck face. */
     private static final Vec3 BEFORE_THE_FACE = new Vec3(2.5, 1, 1.5);
