@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.FlattenStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,6 +21,7 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,7 +31,8 @@ import static org.mockito.Mockito.mock;
  * The ground shake jitters the blocks within its radius of the working point
  * and leaves the rest still, and a held bore and a held flatten each play it
  * (decisions bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera,
- * flatten-plays-bores-ground-shake).
+ * flatten-plays-bores-ground-shake), and a winding-up Terrakinesis shakes the
+ * cells it would lift (decision terrakinesis-shakes-the-blocks-before-the-tear).
  */
 class GroundShakeTest {
 
@@ -41,6 +44,9 @@ class GroundShakeTest {
     private static final Vec3 EYE = new Vec3(0.5, 64.5, 0.5);
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final double BORE_RANGE = 4;
+    /** A hold long past any wind-up. */
+    private static final int HELD_LONG = 100;
+    private static final TerrakinesisStep TERRAKINESIS = new TerrakinesisStep(6, 1.5, 2.5, 3.5, 1.5);
 
     private static ClientAbility ability(Step behavior) {
         return new ClientAbility(Identifier.parse("goo:rock_test"), "test", "", 0, List.of(), List.of(behavior), 0,
@@ -109,16 +115,42 @@ class GroundShakeTest {
 
         @Test
         void aHeldBoreAndAHeldFlattenEachShakeTheGround() {
-            assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, 2)), true));
-            assertTrue(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), true));
+            assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, 2)), true, HELD_LONG));
+            assertTrue(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), true, HELD_LONG));
         }
 
         @Test
         void neitherShakesUnheldAndOtherAbilitiesNever() {
-            assertFalse(GroundShake.shakes(ability(new BoreStep(BREAKABLE, 2)), false));
-            assertFalse(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), false));
-            assertFalse(GroundShake.shakes(ability(mock(Step.class)), true));
-            assertFalse(GroundShake.shakes(null, true));
+            assertFalse(GroundShake.shakes(ability(new BoreStep(BREAKABLE, 2)), false, HELD_LONG));
+            assertFalse(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), false, HELD_LONG));
+            assertFalse(GroundShake.shakes(ability(mock(Step.class)), true, HELD_LONG));
+            assertFalse(GroundShake.shakes(null, true, HELD_LONG));
+        }
+
+        @Test
+        void terrakinesisShakesWhileItWindsUpAndStopsOnceTheHunkIsHeldOrTheHoldEnds() {
+            ClientAbility terrakinesis = ability(TERRAKINESIS);
+            assertTrue(GroundShake.shakes(terrakinesis, true, 1));
+            assertTrue(GroundShake.shakes(terrakinesis, true, TerrakinesisStep.WINDUP_TICKS - 1));
+            assertFalse(GroundShake.shakes(terrakinesis, true, TerrakinesisStep.WINDUP_TICKS));
+            assertFalse(GroundShake.shakes(terrakinesis, false, 1));
+        }
+    }
+
+    @Nested
+    class TerrakinesisZone {
+
+        @Test
+        void theZoneShakesEveryCellTheHunkWouldLiftAndNoneBeside() {
+            BlockPos struck = new BlockPos(3, 63, 0);
+            Set<BlockPos> hunk = Set.of(struck, struck.east(), struck.below());
+            GroundShake.Zone zone = GroundShake.cellsZone(hunk);
+            for (BlockPos cell : hunk) {
+                assertTrue(widestSwing(cell, zone) > 0, cell + " never moves");
+            }
+            for (BlockPos beside : List.of(struck.west(), struck.above(), struck.north(), struck.east().east())) {
+                assertEquals(0, widestSwing(beside, zone), STILL, beside + " moves");
+            }
         }
     }
 }

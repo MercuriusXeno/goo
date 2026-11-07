@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -16,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * liftable blocks within the radius, and a left click hucks it
  * (decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity); it tears
  * free along its seams alone with a low stone-break
- * (decision terrakinesis-tears-free-with-a-stone-tear-and-seam-dust).
+ * (decision terrakinesis-tears-free-with-a-stone-tear-and-seam-dust), only once
+ * the wind-up has run, rumbling as it does
+ * (decision terrakinesis-shakes-the-blocks-before-the-tear).
  */
 class TerrakinesisStepTest {
 
@@ -82,6 +85,33 @@ class TerrakinesisStepTest {
         void theTearIsADeepslateBreakPitchedLow() {
             assertEquals(Identifier.withDefaultNamespace("block.deepslate.break"), TerrakinesisStep.TEAR.sound());
             assertTrue(TerrakinesisStep.TEAR.pitch() < 1f, "pitch " + TerrakinesisStep.TEAR.pitch());
+        }
+    }
+
+    @Nested
+    class WindUp {
+
+        @Test
+        void theHunkTearsOnTheTickTheWindUpCompletesAndNotBefore() {
+            assertTrue(TerrakinesisStep.windsUp(1));
+            assertTrue(TerrakinesisStep.windsUp(TerrakinesisStep.WINDUP_TICKS - 1));
+            assertFalse(TerrakinesisStep.windsUp(TerrakinesisStep.WINDUP_TICKS));
+        }
+
+        @Test
+        void theRumbleRisesInPitchOverTheWindUp() {
+            float lastPitch = 0f;
+            int rumbles = 0;
+            for (int held = 1; held < TerrakinesisStep.WINDUP_TICKS; held++) {
+                SoundCue rumble = TerrakinesisStep.rumbleAt(held);
+                if (rumble != null) {
+                    assertTrue(rumble.pitch() > lastPitch, "rumble at " + held + " pitched " + rumble.pitch());
+                    lastPitch = rumble.pitch();
+                    rumbles++;
+                }
+            }
+            assertTrue(rumbles >= 2, rumbles + " rumbles over the wind-up");
+            assertEquals(null, TerrakinesisStep.rumbleAt(TerrakinesisStep.WINDUP_TICKS));
         }
     }
 

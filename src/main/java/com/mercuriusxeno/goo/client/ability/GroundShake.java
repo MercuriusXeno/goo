@@ -4,12 +4,15 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.FlattenStep;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
+import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.data.GooValue;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -22,9 +25,15 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -33,7 +42,10 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * The ground shake bore and flatten play while they run: each solid block
@@ -42,6 +54,10 @@ import java.util.List;
  * itself trembles and sheds chips of itself while the camera stays still.
  * decision bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera
  * decision flatten-plays-bores-ground-shake
+ *
+ * A winding-up Terrakinesis shakes exactly the cells it is about to tear
+ * free, read on the client from the same rule the server lifts by.
+ * decision terrakinesis-shakes-the-blocks-before-the-tear
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GroundShake {
@@ -78,15 +94,41 @@ public final class GroundShake {
     private GroundShake() {
     }
 
+    /** Where the ground shakes, and how strongly each block in it does. */
+    interface Zone {
+
+        /**
+         * How strongly a block shakes.
+         *
+         * @param pos the block
+         * @return the strength, 0 for still to 1 for full
+         */
+        double strengthAt(BlockPos pos);
+
+        /**
+         * The lowest corner of the box holding every block the zone can shake.
+         *
+         * @return the block
+         */
+        BlockPos low();
+
+        /**
+         * The highest corner of the box holding every block the zone can shake.
+         *
+         * @return the block
+         */
+        BlockPos high();
+    }
+
     /**
-     * Where the ground shakes: every block within a radius of a line, the bore's
-     * tunnel or the flatten swath's spine.
+     * The ground within a radius of a line, the bore's tunnel or the flatten
+     * swath's spine, shaking fullest on the line.
      *
      * @param from   the line's start
      * @param to     the line's end
      * @param radius how far from the line the ground shakes, in blocks
      */
-    record Zone(Vec3 from, Vec3 to, double radius) {
+    record Capsule(Vec3 from, Vec3 to, double radius) implements Zone {
 
         /**
          * How far a point lies from the line.
@@ -101,35 +143,59 @@ public final class GroundShake {
             return point.distanceTo(from.add(line.scale(along)));
         }
 
-        /**
-         * How strongly a block shakes: full on the line, fading to still at the radius.
-         *
-         * @param pos the block
-         * @return the strength, 0 to 1
-         */
-        double strengthAt(BlockPos pos) {
+        @Override
+        public double strengthAt(BlockPos pos) {
             return Math.max(0, 1 - distanceTo(Vec3.atCenterOf(pos)) / radius);
         }
 
-        /**
-         * The lowest corner of the box holding every block the zone can shake.
-         *
-         * @return the block
-         */
-        BlockPos low() {
+        @Override
+        public BlockPos low() {
             return BlockPos.containing(Math.min(from.x, to.x) - radius, Math.min(from.y, to.y) - radius,
                     Math.min(from.z, to.z) - radius);
         }
 
-        /**
-         * The highest corner of the box holding every block the zone can shake.
-         *
-         * @return the block
-         */
-        BlockPos high() {
+        @Override
+        public BlockPos high() {
             return BlockPos.containing(Math.max(from.x, to.x) + radius, Math.max(from.y, to.y) + radius,
                     Math.max(from.z, to.z) + radius);
         }
+    }
+
+    /**
+     * Exactly a set of cells, each shaking at full strength, and nothing beside them.
+     *
+     * @param cells the shaking cells
+     */
+    record Cells(Set<BlockPos> cells) implements Zone {
+
+        @Override
+        public double strengthAt(BlockPos pos) {
+            return cells.contains(pos) ? 1 : 0;
+        }
+
+        @Override
+        public BlockPos low() {
+            return new BlockPos(cells.stream().mapToInt(BlockPos::getX).min().orElse(0),
+                    cells.stream().mapToInt(BlockPos::getY).min().orElse(0),
+                    cells.stream().mapToInt(BlockPos::getZ).min().orElse(0));
+        }
+
+        @Override
+        public BlockPos high() {
+            return new BlockPos(cells.stream().mapToInt(BlockPos::getX).max().orElse(0),
+                    cells.stream().mapToInt(BlockPos::getY).max().orElse(0),
+                    cells.stream().mapToInt(BlockPos::getZ).max().orElse(0));
+        }
+    }
+
+    /**
+     * Where a winding-up Terrakinesis shakes the ground: the cells it would lift.
+     *
+     * @param cells the cells the hunk would lift
+     * @return the zone
+     */
+    static Zone cellsZone(Set<BlockPos> cells) {
+        return new Cells(Set.copyOf(cells));
     }
 
     /**
@@ -141,7 +207,7 @@ public final class GroundShake {
      * @return the zone
      */
     static Zone boreZone(Vec3 eye, Vec3 look, double range) {
-        return new Zone(eye, eye.add(look.normalize().scale(range)), RADIUS);
+        return new Capsule(eye, eye.add(look.normalize().scale(range)), RADIUS);
     }
 
     /**
@@ -155,7 +221,7 @@ public final class GroundShake {
     static Zone flattenZone(ChannelAim.FacePlane plane, BlockPos aimed) {
         BlockPos first = plane.cellOutFrom(aimed);
         BlockPos last = first.relative(plane.face(), SWATH_LAYERS_PAST_THE_FIRST);
-        return new Zone(Vec3.atCenterOf(first), Vec3.atCenterOf(last), RADIUS);
+        return new Capsule(Vec3.atCenterOf(first), Vec3.atCenterOf(last), RADIUS);
     }
 
     /**
@@ -193,15 +259,19 @@ public final class GroundShake {
     }
 
     /**
-     * Whether an ability shakes the ground: it bores or flattens and right click holds it.
+     * Whether an ability shakes the ground while right click holds it: a bore
+     * or a flatten the whole hold, a Terrakinesis only while it winds up,
+     * until the hunk tears free.
      *
-     * @param ability the selected ability's synced copy, or null when none
-     * @param useHeld whether right click holds a live press
+     * @param ability   the selected ability's synced copy, or null when none
+     * @param useHeld   whether right click holds a live press
+     * @param heldTicks the ticks the press has held
      * @return true while the ground shakes
      */
-    static boolean shakes(@Nullable ClientAbility ability, boolean useHeld) {
+    static boolean shakes(@Nullable ClientAbility ability, boolean useHeld, int heldTicks) {
         return useHeld && ability != null && ability.behaviors().stream()
-                .anyMatch(step -> step instanceof BoreStep || step instanceof FlattenStep);
+                .anyMatch(step -> step instanceof BoreStep || step instanceof FlattenStep
+                        || step instanceof TerrakinesisStep && TerrakinesisStep.windsUp(heldTicks));
     }
 
     /**
@@ -214,16 +284,53 @@ public final class GroundShake {
     private static @Nullable Zone runningZone(LocalPlayer player, float partialTick) {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        if (!shakes(ability, GloveUseTracker.runsHeld(player))) {
+        if (!shakes(ability, GloveUseTracker.runsHeld(player), GloveUseTracker.heldTicks())) {
             return null;
         }
         Vec3 eye = player.getEyePosition(partialTick);
+        TerrakinesisStep terrakinesis = ability.behaviors().stream().filter(TerrakinesisStep.class::isInstance)
+                .map(TerrakinesisStep.class::cast).findFirst().orElse(null);
+        if (terrakinesis != null) {
+            return terrakinesisZone(player, terrakinesis, eye, partialTick);
+        }
         if (ability.behaviors().stream().anyMatch(BoreStep.class::isInstance)) {
             return boreZone(eye, player.getViewVector(partialTick), ability.delivery().range());
         }
         ChannelAim.FacePlane plane = GloveUseTracker.pressPlane();
         return plane == null ? null
                 : flattenZone(plane, new ChannelAim(GloveThrowSender.cursorPoint(player), plane).aimedBlock(eye));
+    }
+
+    /**
+     * The cells a winding-up Terrakinesis would tear free: the block the look
+     * strikes and its joined neighbors, by the rule the server lifts by.
+     *
+     * @param player       the local player
+     * @param terrakinesis the selected Terrakinesis
+     * @param eye          the player's eye this frame
+     * @param partialTick  the frame's partial tick
+     * @return the zone, or null where the look strikes nothing the hunk lifts
+     */
+    private static @Nullable Zone terrakinesisZone(LocalPlayer player, TerrakinesisStep terrakinesis, Vec3 eye,
+                                                   float partialTick) {
+        ClientLevel level = (ClientLevel) player.level();
+        Vec3 reach = eye.add(player.getViewVector(partialTick).scale(terrakinesis.range()));
+        BlockHitResult hit = level.clip(new ClipContext(eye, reach, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        Predicate<BlockPos> liftable = cell -> liftable(level, cell);
+        if (hit.getType() == HitResult.Type.MISS || !liftable.test(hit.getBlockPos())) {
+            return null;
+        }
+        return cellsZone(new HashSet<>(TerrakinesisStep.hunkCells(hit.getBlockPos(), terrakinesis.radius(),
+                liftable)));
+    }
+
+    private static boolean liftable(ClientLevel level, BlockPos cell) {
+        BlockState state = level.getBlockState(cell);
+        Item item = state.getBlock().asItem();
+        GooValue value = item == Items.AIR ? null
+                : ClientGooValues.current().lookup(BuiltInRegistries.ITEM.getKey(item));
+        return TerrakinesisStep.liftableState(state, state.getDestroySpeed(level, cell), value);
     }
 
     /**

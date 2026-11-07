@@ -45,6 +45,7 @@ import java.util.function.Consumer;
 public final class TerrakinesisTests {
     private static final String LIFTS_A_HUNK = "terrakinesis_lifts_a_hunk_of_stone";
     private static final String HUCKS_THROUGH_A_WALL = "terrakinesis_hucks_a_hunk_through_a_wall";
+    private static final String RELEASE_CANCELS = "terrakinesis_release_before_the_tear_lifts_nothing";
 
     private static final Identifier ROCK_TERRAKINESIS = Identifier.parse("goo:rock_terrakinesis");
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
@@ -62,7 +63,12 @@ public final class TerrakinesisTests {
     /** Yaw looking east, along +x. */
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
-    private static final int HOLD_TICKS = 4;
+    /** Through the wind-up, then a few ticks more for the hunk to reach the hold. */
+    private static final int HOLD_TICKS = TerrakinesisStep.WINDUP_TICKS + 4;
+    /** Half the wind-up, then let go. */
+    private static final int SHORT_HOLD_TICKS = TerrakinesisStep.WINDUP_TICKS / 2;
+    /** Ticks after letting go past any hold's grace, by which a lift would have stood. */
+    private static final int AFTER_RELEASE_TICKS = TerrakinesisStep.WINDUP_TICKS + 4;
     private static final int FLIGHT_TICKS = 10;
     private static final int CASTER_GOO = 100 * GooStacks.THOUSAND;
     private static final double REACH = 6;
@@ -75,6 +81,9 @@ public final class TerrakinesisTests {
     private static final String WALL_STANDS = "The wall at %s should be crushed, holds %s";
     private static final String HUNK_STANDS = "The hunk should break apart on impact";
     private static final String DROPS_WRONG = "The hunk should drop its %d stone as items, dropped %d";
+    private static final String TORE_EARLY = "No hunk should stand before the wind-up completes, found %d";
+    private static final String CELL_LIFTED = "The cell at %s should still hold stone after an early release, holds %s";
+    private static final String SPENT_ON_RELEASE = "An early release should spend no rock goo, spent %d";
 
     private TerrakinesisTests() {
     }
@@ -87,18 +96,32 @@ public final class TerrakinesisTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LIFTS_A_HUNK, TerrakinesisTests::liftsAHunkOfStone);
         GooTestFunctions.registerTest(registrar, HUCKS_THROUGH_A_WALL, TerrakinesisTests::hucksAHunkThroughAWall);
+        GooTestFunctions.registerTest(registrar, RELEASE_CANCELS, TerrakinesisTests::releaseBeforeTheTearLiftsNothing);
     }
 
     /**
-     * Holding Terrakinesis on the slab empties its cells into one hunk of
-     * stone and spends the slab's rock goo value.
+     * Holding Terrakinesis on the slab through its wind-up tears no hunk a
+     * tick before the wind-up completes, then empties the slab's cells into
+     * one hunk of stone and spends the slab's rock goo value.
      *
      * @param helper the gametest helper
      */
     public static void liftsAHunkOfStone(GameTestHelper helper) {
         List<BlockPos> slab = placeSlab(helper);
         ServerPlayer player = caster(helper);
-        holdFor(helper, player);
+        // Each hold tick and its check share one callback: same-tick callbacks run in no set order.
+        for (int held = 1; held <= HOLD_TICKS; held++) {
+            int holdTick = held;
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(player, holdTick(player));
+                if (holdTick == TerrakinesisStep.WINDUP_TICKS - 1) {
+                    helper.assertTrue(hunksIn(helper).isEmpty(), String.format(TORE_EARLY, hunksIn(helper).size()));
+                } else if (holdTick == TerrakinesisStep.WINDUP_TICKS) {
+                    helper.assertTrue(hunksIn(helper).size() == 1, "One hunk should tear free on the tick the"
+                            + " wind-up completes, found " + hunksIn(helper).size());
+                }
+            });
+        }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             for (BlockPos cell : slab) {
                 helper.assertTrue(helper.getBlockState(cell).isAir(),
@@ -131,7 +154,7 @@ public final class TerrakinesisTests {
             }
         }
         ServerPlayer player = caster(helper);
-        holdFor(helper, player);
+        holdFor(helper, player, HOLD_TICKS);
         helper.runAfterDelay(HOLD_TICKS + 1, () -> helper.assertTrue(GrabEvents.throwHeld(player),
                 "The player should hold the hunk to huck it"));
         helper.runAfterDelay(HOLD_TICKS + 1 + FLIGHT_TICKS, () -> {
@@ -141,6 +164,28 @@ public final class TerrakinesisTests {
             int dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class, bay(helper)).stream()
                     .filter(item -> item.getItem().is(Items.STONE)).mapToInt(item -> item.getItem().getCount()).sum();
             helper.assertTrue(dropped == slab.size(), String.format(DROPS_WRONG, slab.size(), dropped));
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * Letting go of Terrakinesis halfway through its wind-up leaves the slab
+     * standing, raises no hunk and spends no rock goo.
+     *
+     * @param helper the gametest helper
+     */
+    public static void releaseBeforeTheTearLiftsNothing(GameTestHelper helper) {
+        List<BlockPos> slab = placeSlab(helper);
+        ServerPlayer player = caster(helper);
+        holdFor(helper, player, SHORT_HOLD_TICKS);
+        helper.runAfterDelay(SHORT_HOLD_TICKS + AFTER_RELEASE_TICKS, () -> {
+            for (BlockPos cell : slab) {
+                helper.assertTrue(helper.getBlockState(cell).is(Blocks.STONE),
+                        String.format(CELL_LIFTED, cell, helper.getBlockState(cell)));
+            }
+            helper.assertTrue(hunksIn(helper).isEmpty(), String.format(TORE_EARLY, hunksIn(helper).size()));
+            int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.ROCK, 0);
+            helper.assertTrue(spent == 0, String.format(SPENT_ON_RELEASE, spent));
             leave(helper, player);
         });
     }
@@ -157,8 +202,8 @@ public final class TerrakinesisTests {
         return slab;
     }
 
-    private static void holdFor(GameTestHelper helper, ServerPlayer player) {
-        for (int held = 1; held <= HOLD_TICKS; held++) {
+    private static void holdFor(GameTestHelper helper, ServerPlayer player, int ticks) {
+        for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, holdTick(player)));
         }
     }
