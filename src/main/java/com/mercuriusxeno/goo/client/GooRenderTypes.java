@@ -680,6 +680,44 @@ public final class GooRenderTypes {
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
             .build();
 
+    /**
+     * The block transform pipeline blended, for a translucent block's quads:
+     * a slime coat building in stays as see-through as the coat it becomes,
+     * and writes no depth, as translucent blocks write none
+     * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
+     */
+    public static final RenderPipeline BLOCK_MINGLE_TRANSLUCENT = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle_translucent"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
+            .build();
+
+    /** Per-atlas memoized render types on the blended block transform pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_TRANSLUCENT_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_block_mingle_translucent",
+                    RenderSetup.builder(BLOCK_MINGLE_TRANSLUCENT)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the blended block transform render type for the atlas a translucent block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType blockMingleTranslucent(Identifier atlas) {
+        return BLOCK_MINGLE_TRANSLUCENT_FACTORY.apply(atlas);
+    }
+
     /** Per-atlas memoized render types on the block transform pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_FACTORY =
             net.minecraft.util.Util.memoize(atlas -> RenderType.create(
