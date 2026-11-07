@@ -107,13 +107,23 @@ public final class SculkerSenses {
         }
         long now = level.getGameTime();
         ECHOES.advance(now, pos -> level.getBlockState(pos).isAir());
-        REMEMBERED_ENTITIES.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null
-                || now - heard.getValue() >= SculkerEchoes.FADE_TICKS);
+        forgetFadedEntities(level, now);
         for (Entity entity : level.getEntities(player, player.getBoundingBox().inflate(SculkerEchoes.SIGHT_REACH))) {
             if (movedEnough(entity.position().subtract(entity.xo, entity.yo, entity.zo))) {
                 hearEntity(mc, player, entity, now);
             }
         }
+    }
+
+    /**
+     * Forgets every heard entity that has left the level or whose outline has faded.
+     *
+     * @param level the client level
+     * @param now   the game time
+     */
+    private static void forgetFadedEntities(ClientLevel level, long now) {
+        REMEMBERED_ENTITIES.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null
+                || now - heard.getValue() >= SculkerEchoes.FADE_TICKS);
     }
 
     /**
