@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * Registers one potion per bundled goo type, keyed by the type's registry
  * key. Each potion carries its type's brew effect for an hour, which runs the
- * type's self + brew ability when drunk. Decision potions-stay-per-type: a
+ * type's durative ability when drunk. Decision potions-stay-per-type: a
  * type a datapack adds has no potion, so registration walks
  * {@link #POTION_TYPES}, the bundled keys, rather than the registry.
  * Registration happens in {@link #register}, not at class load, so the key

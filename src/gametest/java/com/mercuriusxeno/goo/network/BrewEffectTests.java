@@ -36,7 +36,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for drinking a goo brew: the potion's effect lands on a survival
- * mock player and runs the type's self + brew ability for the hour the
+ * mock player and runs the type's durative ability for the hour the
  * effect carries, with no goo drained; a type with no brew ability yet runs
  * nothing, and every bundled type's potion carries its own brew effect
  * (decision brew-grants-the-self-ability-for-an-hour).

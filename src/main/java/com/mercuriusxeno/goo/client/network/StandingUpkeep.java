@@ -58,7 +58,7 @@ public record StandingUpkeep(double perTick, boolean extended, Set<Identifier> p
      * @param extendsOthers whether the brew is itself an Extender
      * @return the upkeep it would draw a tick
      */
-    double ownBrewUpkeep(int upkeep, boolean extendsOthers) {
+    double ownDurativeUpkeep(int upkeep, boolean extendsOthers) {
         return extended && !extendsOthers ? (double) upkeep / HeldEffects.extendedDivisor() : upkeep;
     }
 }

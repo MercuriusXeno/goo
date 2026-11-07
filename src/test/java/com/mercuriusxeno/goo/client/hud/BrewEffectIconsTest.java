@@ -53,7 +53,7 @@ class BrewEffectIconsTest {
 
     @BeforeEach
     void readConnectionIconsFromTheShippedAbilities() {
-        BrewEffectIcon.readConnectionIconsFrom(type -> BrewEffectIcon.textureOf(shipped.brewAbilityFor(type)));
+        BrewEffectIcon.readConnectionIconsFrom(type -> BrewEffectIcon.textureOf(shipped.durativeAbilityFor(type)));
         extensions = BrewEffectIcons.extensionsFor(GooTypes.BUNDLED);
     }
 
@@ -80,14 +80,14 @@ class BrewEffectIconsTest {
     void brewEffectDrawsItsGrantedAbilitysIcon(ResourceKey<GooTypeDefinition> type) {
         BrewEffectIcons.AbilityIconExtension extension =
                 assertInstanceOf(BrewEffectIcons.AbilityIconExtension.class, extensions.get(type));
-        assertEquals(BrewEffectIcon.textureOf(shipped.brewAbilityFor(type)), extension.iconTexture(),
+        assertEquals(BrewEffectIcon.textureOf(shipped.durativeAbilityFor(type)), extension.iconTexture(),
                 () -> GooTypes.id(type) + "'s brew effect icon");
     }
 
     @Test
     void typesGrantingNoBrewAbilityDrawNoIconSoVanillaDrawsTheirTile() {
         for (ResourceKey<GooTypeDefinition> type : GRANTING_NONE) {
-            assertNull(shipped.brewAbilityFor(type), () -> GooTypes.id(type) + " grants a brew ability");
+            assertNull(shipped.durativeAbilityFor(type), () -> GooTypes.id(type) + " grants a brew ability");
             BrewEffectIcons.AbilityIconExtension extension =
                     assertInstanceOf(BrewEffectIcons.AbilityIconExtension.class, extensions.get(type));
             assertNull(extension.iconTexture(), () -> GooTypes.id(type) + " draws an icon");

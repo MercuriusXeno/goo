@@ -43,7 +43,7 @@ class BrewEffectIconTest {
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void brewEffectDrawsTheIconTheRadialDrawsForItsAbility(ResourceKey<GooTypeDefinition> type) throws IOException {
-        AbilityDefinition granted = shipped.brewAbilityFor(type);
+        AbilityDefinition granted = shipped.durativeAbilityFor(type);
 
         Identifier icon = BrewEffectIcon.textureOf(granted);
 
