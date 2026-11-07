@@ -330,9 +330,10 @@ class AbilitiesPaneTest {
     }
 
     /**
-     * The tab is for costs: an ability's price fields alone draw, on its name's line right of the name, each label at
-     * the builder's smaller lettering hovering its description and no mechanism heading drawn, the fields past the
-     * width wrapping under the name (decisions abilities-tab-lists-every-numeric-param-as-expression-boxes,
+     * The tab is for costs: an ability's price fields alone draw, on its name's line in four equal columns right of
+     * the left third its name reserves, each label at the builder's smaller lettering hovering its description and no
+     * mechanism heading drawn, a field past the last column wrapping to the first (decisions
+     * abilities-tab-lists-every-numeric-param-as-expression-boxes,
      * ability-params-read-named-under-their-mechanism-and-hover-a-description,
      * ability-params-lay-in-a-four-column-grid-spanning-whole-cells).
      */
@@ -422,26 +423,67 @@ class AbilitiesPaneTest {
                     label + " stands off the center of its box " + java.util.Arrays.toString(box));
         }
 
+        // The section's width, the scroll bar's room taken from the view.
+        private static int widthOf(GroupsPane.Bounds view) {
+            return view.right() - ScrollBar.WIDTH - ScrollBar.GAP - view.left();
+        }
+
+        // Where the price columns start: the left third the names reserve.
+        private static int priceLeft(GroupsPane.Bounds view) {
+            return view.left() + widthOf(view) / 3;
+        }
+
+        private static int columnLeft(GroupsPane.Bounds view, int column) {
+            int cell = (view.left() + widthOf(view) - priceLeft(view)) / 4;
+            return priceLeft(view) + column * cell;
+        }
+
         @Test
-        void theFirstPriceStandsOnTheNamesLineRightOfTheName() {
+        void theFirstPriceStartsAtTheLeftThirdOnTheNamesLine() {
             DrawnFrame frame = drawn(VIEW);
             DrawnFrame.Text name = frame.find(BLINK);
             DrawnFrame.Text cost = frame.find("Cost");
             int rowTop = rowTopOf(name);
-            assertTrue(cost.x() > name.x() + DrawnFrame.font().width(BLINK), cost + " stands left of the name's end");
+            assertEquals(priceLeft(VIEW), cost.x(), cost + " starts off the left third");
             assertTrue(cost.y() >= rowTop && cost.y() < rowTop + RowLayout.SPRITE_ROW_HEIGHT,
                     cost + " stands off the name's line at " + rowTop);
         }
 
         @Test
-        void pricesPastTheWidthWrapUnderTheName() {
-            DrawnFrame frame = drawn(new GroupsPane.Bounds(0, 0, 260, 400));
-            DrawnFrame.Text name = frame.find(BLINK);
-            DrawnFrame.Text last = frame.find("Oculus percent");
-            assertEquals(name.x(), last.x(), last + " wrapped off the name's left");
-            assertTrue(last.y() >= rowTopOf(name) + RowLayout.SPRITE_ROW_HEIGHT, last + " stands on the name's line");
+        void everyAbilitysPricesStandAtTheSameFourColumnLefts() {
+            GroupsPane.Bounds wide = new GroupsPane.Bounds(0, 0, 900, 400);
+            DrawnFrame frame = drawn(wide);
+            List<List<String>> abilities = List.of(List.of("Cost", "Cost per block", "Wall surcharge",
+                    "Oculus percent"), List.of("Entry cost", "Cell cost", "Distance cost"));
+            for (List<String> labels : abilities) {
+                for (int index = 0; index < labels.size(); index++) {
+                    assertEquals(columnLeft(wide, index), frame.find(labels.get(index)).x(), labels.get(index));
+                }
+            }
         }
 
+        @Test
+        void aFieldWiderThanAColumnSpansWholeColumns() {
+            GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 300, 400);
+            DrawnFrame frame = drawn(narrow);
+            int cell = columnLeft(narrow, 1) - columnLeft(narrow, 0);
+            DrawnFrame.Text value = frame.find("100");
+            int right = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals("✎")
+                    && text.x() > value.x() && Math.abs(text.y() - value.y()) <= 1).findFirst()
+                    .orElseThrow(() -> new AssertionError("no pencil beside 100")))[2];
+            assertEquals(0, (right - priceLeft(narrow)) % cell, "the box ends at " + right + ", off a column's edge");
+            assertTrue((right - priceLeft(narrow)) / cell > 1, "the field spans one column");
+        }
+
+        @Test
+        void aFieldPastTheLastColumnWrapsToTheFirst() {
+            GroupsPane.Bounds narrow = new GroupsPane.Bounds(0, 0, 300, 400);
+            DrawnFrame frame = drawn(narrow);
+            DrawnFrame.Text last = frame.find("Oculus percent");
+            assertEquals(priceLeft(narrow), last.x(), last + " wrapped off the first column");
+            assertTrue(last.y() >= rowTopOf(frame.find(BLINK)) + RowLayout.SPRITE_ROW_HEIGHT,
+                    last + " stands on the name's line");
+        }
         @Test
         void aLabelHoversItsDescription() {
             DrawnFrame frame = drawn(VIEW);
