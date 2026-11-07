@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:grab_throws_an_item",
+  "function": "goo:float_holds_jump_and_soft_falls_until_ended",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 60,
+  "max_ticks": 40,
   "setup_ticks": 0,
   "required": true
 }
