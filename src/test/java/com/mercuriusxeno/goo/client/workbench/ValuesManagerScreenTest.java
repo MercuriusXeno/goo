@@ -635,7 +635,9 @@ class ValuesManagerScreenTest {
         VariablesPane variables = new VariablesPane(new VariablesTab(draft), draft, icons, actions,
                 builder(actions, icons));
         ProcessesPane processes = new ProcessesPane(new ProcessesTab(draft), draft, actions, icons, List::of);
-        return new ManagerReads(actions, values, groups, variables, processes);
+        AbilitiesPane abilities = new AbilitiesPane(new AbilitiesTab(), actions, icons, builder(actions, icons),
+                key -> key, ref -> java.util.Map.of(), java.util.Set::of);
+        return new ManagerReads(actions, values, groups, variables, processes, abilities);
     }
 
     private static ExpressionBuilderPane builder(ManagerActions actions, ItemIcons icons) {

@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
@@ -22,8 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save, a [?] that toggles explainer mode and an X that closes it, a tab bar carrying every
@@ -55,6 +58,7 @@ public final class ValuesManagerScreen extends Screen {
     private final VariablesTab variablesTab = new VariablesTab(draft);
     private final ProcessesTab processesTab = new ProcessesTab(draft);
     private final AuditTab auditTab = new AuditTab();
+    private final AbilitiesTab abilitiesTab = new AbilitiesTab();
     private final ItemIcons icons = itemIconsOver(values);
     private final ClickTargets targets = new ClickTargets();
     private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
@@ -65,6 +69,7 @@ public final class ValuesManagerScreen extends Screen {
     private final VariablesPane variablesPane;
     private final ProcessesPane processesPane;
     private final AuditPane auditPane;
+    private final AbilitiesPane abilitiesPane;
     private final DraftConfirm draftConfirm = new DraftConfirm();
     private final DraftPane draftPane = new DraftPane(draftConfirm, this::runChoice);
     private final ManagerEntrySource entrySource;
@@ -93,7 +98,16 @@ public final class ValuesManagerScreen extends Screen {
                 .toList(), prefab -> variablesTab.prefabValue(prefab).map(VariablesTab.PrefabValue::tree)
                 .orElse(Map.of()));
         auditPane = new AuditPane(auditTab, draft, actions);
-        reads = new ManagerReads(actions, values, groupsPane, variablesPane, processesPane);
+        // abilities-tab-lists-every-numeric-param-as-expression-boxes
+        abilitiesPane = new AbilitiesPane(abilitiesTab, actions, icons, builderPane(actions),
+                key -> Language.getInstance().getOrDefault(key), this::worthOf, this::perTypePrefabs);
+        reads = new ManagerReads(actions, values, groupsPane, variablesPane, processesPane, abilitiesPane);
+    }
+
+    // The prefabs holding an amount per goo type, which an ability's cost reads at the ability's own type.
+    private Set<String> perTypePrefabs() {
+        return variablesTab.blocks().stream().filter(block -> VariablesTab.TREE_KIND.equals(block.kind()))
+                .map(VariablesTab.ConstantBlock::name).collect(Collectors.toUnmodifiableSet());
     }
 
     // A builder over the server's items and the draft's prefabs (decision
@@ -199,6 +213,7 @@ public final class ValuesManagerScreen extends Screen {
         groupsPane.init(font);
         variablesPane.init(font);
         processesPane.init(font);
+        abilitiesPane.init(font);
         selectTab(tab);
         if (!loaded) {
             loaded = true;
@@ -228,11 +243,13 @@ public final class ValuesManagerScreen extends Screen {
         groupsPane.show(chosen == ManagerTab.GROUPS);
         variablesPane.show(chosen == ManagerTab.VARIABLES);
         processesPane.show(chosen == ManagerTab.PROCESSES);
+        abilitiesPane.show(chosen == ManagerTab.ABILITIES);
     }
 
     private void load() {
         reads.open(entrySource, () -> setStatus(NO_STATUS, false));
         auditPane.refresh();
+        abilitiesPane.refresh();
     }
 
     private void readDraftAfresh() {
@@ -447,6 +464,7 @@ public final class ValuesManagerScreen extends Screen {
             case GROUPS -> groupsPane.keyPressed(key);
             case VARIABLES -> variablesPane.keyPressed(key);
             case PROCESSES -> processesPane.keyPressed(key);
+            case ABILITIES -> abilitiesPane.keyPressed(key);
             default -> false;
         };
     }
@@ -462,6 +480,7 @@ public final class ValuesManagerScreen extends Screen {
             case VARIABLES -> variablesPane.scroll(scrollY);
             case PROCESSES -> processesPane.scroll(x, scrollY);
             case AUDIT -> auditPane.scroll(y, scrollY);
+            case ABILITIES -> abilitiesPane.scroll(scrollY);
         }
         return true;
     }
@@ -502,6 +521,7 @@ public final class ValuesManagerScreen extends Screen {
             case VARIABLES -> variablesPane.extract(graphics, font, content, targets, mouseX, mouseY);
             case PROCESSES -> processesPane.extract(graphics, font, content, targets);
             case AUDIT -> auditPane.extract(graphics, font, content, targets);
+            case ABILITIES -> abilitiesPane.extract(graphics, font, content, targets);
         }
     }
 
@@ -531,6 +551,7 @@ public final class ValuesManagerScreen extends Screen {
             case VARIABLES -> variablesPane.overlayLayers();
             case PROCESSES -> processesPane.overlayLayers();
             case AUDIT -> List.of();
+            case ABILITIES -> abilitiesPane.overlayLayers();
         };
     }
 

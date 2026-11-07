@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.PrefabValues;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.FriendlyByteBuf;
@@ -16,13 +17,26 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Network payload carrying the full effective goo value map from server to client.
+ * Network payload carrying the full effective goo value map from server to client, and each prefab's value, which
+ * an ability's cost may read (decision ability-cost-builds-as-a-one-type-by-type-value).
  * Wire format: VarInt entry count, then per entry: Identifier + VarInt type count + per type:
- * type key + VarLong numerator + VarLong denominator.
+ * type key + VarLong numerator + VarLong denominator; then VarInt scalar prefab count, per prefab its name and its
+ * fraction, then VarInt per-type prefab count, per prefab its name and its value as an entry's.
  *
- * @param values the full effective goo value map
+ * @param values  the full effective goo value map
+ * @param prefabs each prefab's resolved value
  */
-public record GooValueSyncPayload(Map<Identifier, GooValue> values) implements CustomPacketPayload {
+public record GooValueSyncPayload(Map<Identifier, GooValue> values, PrefabValues prefabs)
+        implements CustomPacketPayload {
+
+    /**
+     * A payload carrying no prefab.
+     *
+     * @param values the full effective goo value map
+     */
+    public GooValueSyncPayload(Map<Identifier, GooValue> values) {
+        this(values, PrefabValues.EMPTY);
+    }
 
     /**
      * Payload type ID for registration.
@@ -48,6 +62,17 @@ public record GooValueSyncPayload(Map<Identifier, GooValue> values) implements C
             buf.writeIdentifier(entry.getKey());
             encodeGooValue(buf, entry.getValue());
         }
+        buf.writeVarInt(payload.prefabs.scalars().size());
+        for (Map.Entry<String, GooFraction> scalar : payload.prefabs.scalars().entrySet()) {
+            buf.writeUtf(scalar.getKey());
+            buf.writeVarLong(scalar.getValue().numerator());
+            buf.writeVarLong(scalar.getValue().denominator());
+        }
+        buf.writeVarInt(payload.prefabs.trees().size());
+        for (Map.Entry<String, GooValue> tree : payload.prefabs.trees().entrySet()) {
+            buf.writeUtf(tree.getKey());
+            encodeGooValue(buf, tree.getValue());
+        }
     }
 
     /**
@@ -63,7 +88,21 @@ public record GooValueSyncPayload(Map<Identifier, GooValue> values) implements C
             Identifier id = buf.readIdentifier();
             values.put(id, decodeGooValue(buf));
         }
-        return new GooValueSyncPayload(values);
+        return new GooValueSyncPayload(values, decodePrefabs(buf));
+    }
+
+    private static PrefabValues decodePrefabs(FriendlyByteBuf buf) {
+        int scalarCount = buf.readVarInt();
+        Map<String, GooFraction> scalars = new HashMap<>(scalarCount);
+        for (int i = 0; i < scalarCount; i++) {
+            scalars.put(buf.readUtf(), GooFraction.of(buf.readVarLong(), buf.readVarLong()));
+        }
+        int treeCount = buf.readVarInt();
+        Map<String, GooValue> trees = new HashMap<>(treeCount);
+        for (int i = 0; i < treeCount; i++) {
+            trees.put(buf.readUtf(), decodeGooValue(buf));
+        }
+        return new PrefabValues(scalars, trees);
     }
 
     /**

@@ -1,0 +1,301 @@
+package com.mercuriusxeno.goo.client.workbench;
+
+import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.network.chat.Component;
+import org.jspecify.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+/**
+ * Draws the Abilities tab: the search line every list stands at its top, then each ability its search matches, its
+ * display name heading its numeric leaves, each leaf a row of the one builder frame labeled by its path. A cost or an
+ * upkeep reads as its by-type value, its items drawn as their icons, and opens the expression builder restricted to
+ * the ability's own goo type; every other leaf reads its number or expression and opens a text box over it. A value
+ * that would not load, or a cost reading an item holding none of the ability's type, reads one red line under its
+ * row (decisions abilities-tab-lists-every-numeric-param-as-expression-boxes,
+ * ability-cost-builds-as-a-one-type-by-type-value, one-builder-frame-on-every-pane, one-red-error-line-under-every-value).
+ * The state lives in {@link AbilitiesTab}.
+ */
+final class AbilitiesPane {
+    private static final int GAP = 4;
+    private static final int HEADING_HEIGHT = ButtonPainter.HEIGHT;
+    private static final String DRAFT_BADGE = "draft";
+    private static final String NO_TEXT = "";
+
+    private final AbilitiesTab tab;
+    private final ManagerActions actions;
+    private final ItemIcons icons;
+    private final ExpressionBuilderPane builder;
+    private final Function<String, String> translate;
+    private final Function<ExpressionBuilder.Ref, Map<String, String>> worth;
+    private final Supplier<Set<String>> perTypePrefabs;
+    private final ScrollBar bar = new ScrollBar(ScrollBar.WHEEL_STEP);
+    private @Nullable EditBox search;
+    private @Nullable EditBox editor;
+    // The leaf the text box or the builder stands over, as the ability's id and the leaf's path.
+    private @Nullable Editing editing;
+    private boolean shown;
+
+    /**
+     * The leaf being edited.
+     *
+     * @param id     the ability's id
+     * @param path   the leaf's path
+     * @param before the leaf's value when editing started, which Escape restores
+     */
+    private record Editing(String id, String path, String before) {
+        boolean holds(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
+            return id.equals(ability.id()) && path.equals(leaf.path());
+        }
+    }
+
+    /**
+     * @param tab            the tab's state
+     * @param actions        the panes' line back to the screen
+     * @param icons          the items' icons
+     * @param builder        the expression builder a cost opens
+     * @param translate      each translation key's text, which names each ability
+     * @param worth          each item's or prefab's resolved amounts by goo type
+     * @param perTypePrefabs the prefabs holding an amount per goo type
+     */
+    AbilitiesPane(AbilitiesTab tab, ManagerActions actions, ItemIcons icons, ExpressionBuilderPane builder,
+                  Function<String, String> translate, Function<ExpressionBuilder.Ref, Map<String, String>> worth,
+                  Supplier<Set<String>> perTypePrefabs) {
+        this.tab = tab;
+        this.actions = actions;
+        this.icons = icons;
+        this.builder = builder;
+        this.translate = translate;
+        this.worth = worth;
+        this.perTypePrefabs = perTypePrefabs;
+    }
+
+    /**
+     * Stands the search box and the leaf's text box among the screen's widgets.
+     *
+     * @param font the screen's font
+     */
+    void init(Font font) {
+        builder.init(font);
+        String typed = search == null ? NO_TEXT : search.getValue();
+        search = actions.addWidget(new EditBox(font, 0, 0, 1, SearchRow.HEIGHT, Component.literal(NO_TEXT)));
+        search.setValue(typed);
+        editor = actions.addWidget(new EditBox(font, 0, 0, 1, ButtonPainter.HEIGHT, Component.literal(NO_TEXT)));
+        editor.setResponder(this::typed);
+        show(shown);
+    }
+
+    /**
+     * @param visible whether the tab is the one drawn
+     */
+    void show(boolean visible) {
+        shown = visible;
+        if (search != null) {
+            search.visible = visible;
+        }
+        if (editor != null) {
+            editor.visible = visible && editing != null && !builder.isOpen();
+        }
+        builder.show(visible);
+    }
+
+    /**
+     * Reads every ability's model afresh.
+     */
+    void refresh() {
+        actions.request(WorkbenchOperations.ABILITY_MODEL, NO_TEXT, tab::readModel);
+    }
+
+    /**
+     * Writes a draft for each edited ability, which the server applies to every player at once, then reads the
+     * model it answers (decision ability-drafts-promote-per-file-like-base-values).
+     *
+     * @param saved runs once the save answered, or at once where no leaf stands edited
+     */
+    void save(Runnable saved) {
+        if (!tab.edited()) {
+            saved.run();
+            return;
+        }
+        actions.request(WorkbenchOperations.SAVE_ABILITIES, tab.postedText(), reply -> {
+            tab.saved(reply);
+            saved.run();
+        });
+    }
+
+    /**
+     * @param amount the wheel's turn, positive away from the player
+     */
+    void scroll(double amount) {
+        if (!builder.scrollList(amount)) {
+            bar.wheel(amount);
+        }
+    }
+
+    /**
+     * Enter closes the leaf's text box keeping what it holds, and Escape closes it restoring the value it opened on.
+     *
+     * @param key the GLFW key pressed
+     * @return whether the pane took the key
+     */
+    boolean keyPressed(int key) {
+        if (editing != null && !builder.isOpen()) {
+            if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+                stopEditing(false);
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_ESCAPE) {
+                stopEditing(true);
+                return true;
+            }
+        }
+        return builder.keyPressed(key);
+    }
+
+    /**
+     * @return the builder's open lists, which the overlay stratum draws
+     */
+    List<OverlayStratum.Layer> overlayLayers() {
+        return builder.isOpen() ? List.of(builder::drawOverlays) : List.of();
+    }
+
+    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
+        SearchRow.Laid row = SearchRow.lay(bounds.left(), bounds.top(), bounds.right(), 0);
+        SearchRow.place(search, row);
+        GroupsPane.Bounds area = new GroupsPane.Bounds(bounds.left(), row.listTop(), bounds.right(), bounds.bottom());
+        graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
+        targets.clip(area.left(), area.top(), area.right(), area.bottom());
+        // The text box hides unless the leaf it edits draws this frame, as a search can filter it out.
+        if (editor != null) {
+            editor.visible = false;
+        }
+        int y = area.top() - bar.offset();
+        for (AbilitiesTab.Ability ability : tab.matching(translate, search == null ? NO_TEXT : search.getValue())) {
+            y = drawAbility(graphics, font, ability, new GroupsPane.Bounds(area.left(), y, area.right()
+                    - ScrollBar.WIDTH - ScrollBar.GAP, area.bottom()), targets);
+        }
+        targets.unclip();
+        graphics.disableScissor();
+        bar.measureAndDraw(graphics, targets, y, area.right(), area.top(), area.bottom());
+    }
+
+    // The ability's heading, then each leaf's row; answers the y below its last row.
+    private int drawAbility(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
+                            GroupsPane.Bounds from, ClickTargets targets) {
+        drawHeading(graphics, font, ability, from.left(), from.top());
+        int y = from.top() + HEADING_HEIGHT + GAP;
+        for (AbilitiesTab.Leaf leaf : ability.leaves()) {
+            GroupsPane.Bounds leafRow = new GroupsPane.Bounds(from.left(), y, from.right(), from.bottom());
+            y += drawLeaf(graphics, font, ability, leaf, leafRow, targets) + GAP;
+        }
+        return y;
+    }
+
+    // The ability's name bold, and the gold draft badge after it while a draft stands over its live file.
+    private void drawHeading(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability, int left,
+                             int top) {
+        Component name = Component.literal(translate.apply(ability.displayName())).withStyle(ChatFormatting.BOLD);
+        int textTop = Lettering.full(font).centeredTop(top, HEADING_HEIGHT);
+        graphics.text(font, name, left, textTop, Palette.TEXT);
+        if (ability.draft()) {
+            graphics.text(font, DRAFT_BADGE, left + font.width(name) + GAP, textTop, Palette.GOLD);
+        }
+    }
+
+    // Answers the height the leaf's row took.
+    private int drawLeaf(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
+                         AbilitiesTab.Leaf leaf, GroupsPane.Bounds row, ClickTargets targets) {
+        boolean editingLeaf = editing != null && editing.holds(ability, leaf);
+        boolean building = editingLeaf && leaf.kind() == AbilitiesTab.Kind.COST && builder.isOpen();
+        String value = tab.valueOf(ability, leaf);
+        List<ExpressionLines.Run> runs = runsOf(ability, leaf, value);
+        BuilderFrame.Row framed = new BuilderFrame.Row(row, leaf.path(), GooAmountGrid.NONE, false);
+        BuilderFrame.Box box;
+        if (building) {
+            box = area -> builder.extract(graphics, font, area, area.top(), targets);
+        } else if (editingLeaf && leaf.kind() != AbilitiesTab.Kind.COST) {
+            box = this::standEditor;
+        } else {
+            box = area -> ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(area.left(),
+                    area.top(), area.right(), () -> startEditing(ability, leaf)),
+                    ExpressionLines.Painter.linked(graphics, icons, targets, Palette.TEXT, actions), targets);
+        }
+        return BuilderFrame.draw(graphics, font, framed, new BuilderFrame.Value(building, runs,
+                tab.errorOf(ability, leaf, worth), box));
+    }
+
+    // The leaf's text box stands over its row's box; answers the height it takes.
+    private int standEditor(GroupsPane.Bounds area) {
+        if (editor != null) {
+            editor.setPosition(area.left(), area.top());
+            editor.setWidth(area.right() - area.left());
+            editor.visible = shown;
+        }
+        return ButtonPainter.HEIGHT;
+    }
+
+    // A cost reads as its by-type value, its items drawn as their icons; any other leaf reads as it is written.
+    private List<ExpressionLines.Run> runsOf(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf, String value) {
+        if (leaf.kind() != AbilitiesTab.Kind.COST) {
+            return List.of(new ExpressionLines.Run(ExpressionLines.Kind.TEXT, value, null));
+        }
+        return ExpressionTerms.parseShown(AbilityCosts.shown(value, ability.gooType(), perTypePrefabs.get()))
+                .map(shownCost -> ExpressionLines.runs(shownCost, icons::nameOf))
+                .orElseGet(() -> List.of(new ExpressionLines.Run(ExpressionLines.Kind.ERROR, value, null)));
+    }
+
+    private void startEditing(AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
+        stopEditing(false);
+        String value = tab.valueOf(ability, leaf);
+        editing = new Editing(ability.id(), leaf.path(), value);
+        if (leaf.kind() == AbilitiesTab.Kind.COST) {
+            String type = ability.gooType();
+            builder.openOneType(type, AbilityCosts.shown(value, type, perTypePrefabs.get()),
+                    written -> AbilityCosts.written(written, type).ifPresent(source -> {
+                        tab.edit(ability, leaf, source);
+                        actions.markUnsaved();
+                    }), () -> editing = null);
+            return;
+        }
+        if (editor != null) {
+            editor.setValue(value);
+            editor.visible = shown;
+            actions.focus(editor);
+        }
+    }
+
+    // The text box's every keystroke lands in the edited leaf.
+    private void typed(String text) {
+        Editing edited = editing;
+        if (edited == null || builder.isOpen()) {
+            return;
+        }
+        tab.abilities().stream().filter(ability -> ability.id().equals(edited.id())).findFirst()
+                .flatMap(ability -> ability.leaves().stream().filter(leaf -> leaf.path().equals(edited.path()))
+                        .findFirst().map(leaf -> {
+                            tab.edit(ability, leaf, text);
+                            return leaf;
+                        }))
+                .ifPresent(leaf -> actions.markUnsaved());
+    }
+
+    private void stopEditing(boolean restore) {
+        Editing edited = editing;
+        if (edited != null && restore && editor != null) {
+            editor.setValue(edited.before());
+        }
+        editing = null;
+        builder.close();
+        if (editor != null) {
+            editor.visible = false;
+        }
+    }
+}
