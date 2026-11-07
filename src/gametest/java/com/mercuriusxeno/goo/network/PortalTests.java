@@ -63,6 +63,8 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, ONLY_ON_OPAQUE_BLOCKS, PortalTests::opensOnlyOnOpaqueSolidBlocks);
         GooTestFunctions.registerTest(registrar, THROW_AT_NO_ROOM_DOES_NOTHING,
                 PortalTests::throwWhereNoFrameFitsDoesNothing);
+        GooTestFunctions.registerTest(registrar, SNEAKING_STANDS_ON_A_FLOOR_PORTAL,
+                PortalTests::sneakingStandsOnAFloorPortal);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
         GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
                 PortalTests::unlinkedPortalHoldsABodyUp);
@@ -252,6 +254,34 @@ public final class PortalTests {
             helper.assertTrue(QuantumPortals.get(level).portalsOf(player.getUUID()).isEmpty(),
                     "A Portal throw where no frame fits should place nothing");
             level.getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    private static final String SNEAKING_STANDS_ON_A_FLOOR_PORTAL = "portal_sneaking_stands_on_a_floor_portal";
+    /** Feet standing on the floor frame's top. */
+    private static final Vec3 ON_THE_FLOOR_PORTAL = new Vec3(3.5, 2, 4.0);
+
+    /**
+     * A player sneaking on a floor portal stands on it as on any floor, so a
+     * pair on the ground can be stepped out of; not sneaking, the frame's
+     * blocks stand open to it and it drops in
+     * (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void sneakingStandsOnAFloorPortal(GameTestHelper helper) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        Portal in = floorAt(helper, player, FLOOR_IN);
+        floorAt(helper, player, FLOOR_OUT);
+        helper.runAfterDelay(STEP, () -> {
+            standAt(helper, player, ON_THE_FLOOR_PORTAL);
+            BlockPos frame = in.block().pos();
+            player.setShiftKeyDown(true);
+            helper.assertFalse(GatePassage.passable(player, frame), "A sneaking player should stand on a floor portal");
+            player.setShiftKeyDown(false);
+            helper.assertTrue(GatePassage.passable(player, frame), "A player not sneaking should drop into it");
+            helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
         });
     }

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -132,7 +133,20 @@ public final class GatePassage {
      */
     private static boolean opensTo(Gate gate, Entity entity, BlockPos pos, Vec3 middle) {
         return gate.dimension().equals(entity.level().dimension()) && gate.covers(pos) && atTheFace(gate, entity,
-                middle);
+                middle) && !standsOn(gate, entity);
+    }
+
+    /**
+     * Whether a body stands on a gate as on any floor rather than dropping
+     * in: a player sneaking on a gate that faces up, so a pair on the ground
+     * that keeps dropping it through can be stepped out of.
+     *
+     * @param gate   the gate
+     * @param entity the body
+     * @return true where the gate holds the body up
+     */
+    private static boolean standsOn(Gate gate, Entity entity) {
+        return gate.face() == Direction.UP && entity instanceof Player player && player.isShiftKeyDown();
     }
 
     /**
