@@ -15,7 +15,7 @@ import java.util.SplittableRandom;
  * The tendrils are a live population, not a fixed set: they sprout at random
  * places along the edges at random times, never on top of one another, each
  * a thin, wispy vein with its own length, thickness and wiggling path that
- * often forks. A tendril grows the way a root does, each stretch fading in
+ * often forks, heading mostly inward from its edge rather than along it. A tendril grows the way a root does, each stretch fading in
  * as its tip passes, lingers, then dies back from its tip, fading where it
  * lies, so the count on screen drifts and no layout repeats.
  * sight-lengthens-shift-and-outlines-fungus
@@ -35,7 +35,7 @@ public final class TendrilVignette {
     /** The chance each tick a new tendril sprouts. */
     static final float SPROUT_CHANCE = 0.15f;
     /** How far apart along one edge two tendrils root at the least, as a share of the edge. */
-    static final float ROOT_GAP = 0.08f;
+    static final float ROOT_GAP = 0.12f;
     /** The most tendrils standing at once. */
     static final int MOST_TENDRILS = 40;
     /** The shortest and longest a tendril reaches, as a share of the screen's shorter side. */
@@ -49,6 +49,8 @@ public final class TendrilVignette {
     private static final int LONGEST_LINGER_TICKS = 160;
     /** The longest a tendril lives, growing, lingering and withering. */
     static final int LONGEST_LIFE_TICKS = SLOWEST_CHANGE_TICKS + LONGEST_LINGER_TICKS + SLOWEST_CHANGE_TICKS;
+    /** How far a tendril's path may stray sideways from its root at any point, as a share of how far in it has come. */
+    static final float MOST_SLANT = 0.35f;
     /** How far a tendril's path may turn each step, as a share of its length. */
     private static final float WANDER_STEP = 0.18f;
     /** The fewest and most waves a tendril's wiggle runs along its length. */
@@ -85,6 +87,8 @@ public final class TendrilVignette {
     private static final int EDGE_LEFT = 2;
     private static final int OPAQUE = 255;
     private static final float NO_TIME = Float.NaN;
+    /** The share of its heading a path keeps, turned back, when it meets its slant. */
+    private static final float HALF_TURN = 0.5f;
     /** A tendril's fork step where it forks none. */
     private static final int NO_FORK = -1;
     /** The smoothstep's cubic terms, 3s² - 2s³, easing a tendril's growth in and out. */
@@ -254,7 +258,12 @@ public final class TendrilVignette {
         float heading = between(-WANDER_STEP, WANDER_STEP);
         for (int step = 1; step <= steps; step++) {
             heading += between(-WANDER_STEP, WANDER_STEP);
-            path[step] = path[step - 1] + heading / steps * TENDRIL_STEPS * WANDER_STEP;
+            float inward = (float) step / steps;
+            float slant = MOST_SLANT * inward;
+            path[step] = Mth.clamp(path[step - 1] + heading / steps * TENDRIL_STEPS * WANDER_STEP, -slant, slant);
+            if (Math.abs(path[step]) >= slant) {
+                heading = -heading * HALF_TURN;
+            }
         }
         return path;
     }

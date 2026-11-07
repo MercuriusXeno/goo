@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.SculkCall;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -62,16 +63,17 @@ public final class ConvokeTests {
     private static final String SHOULD_TICK = "The far chunks should tick their entities";
     private static final String ABILITY_REQUIRED = "%s must be loaded";
     private static final String SHOULD_COME = "The zombie %d blocks out should walk nearer the blob, stood %.2f off, stands %.2f off";
-    private static final String SHOULD_STAY = "The cow %d blocks out should stay where it grazed, stood %.2f off, stands %.2f off";
+    private static final String SHOULD_LEAVE_THE_COW = "The ring should leave the cow uncalled";
+    private static final String SHOULD_CALL_THE_ZOMBIE = "The ring should call the zombie to the blob";
 
     private ConvokeTests() {
     }
 
     /**
-     * A zombie ten blocks west of the blob stands at least two and a half
-     * blocks nearer it eighty ticks after the ring reached it, while a cow
-     * four blocks east, which the ring crossed first, has come no nearer than
-     * a wandering cow would. The mobs spawn once the far chunks tick their
+     * A zombie ten blocks west of the blob is called to it and stands at least
+     * two and a half blocks nearer it eighty ticks after the ring reached it,
+     * while a cow four blocks east, which the ring crossed first, is never
+     * called. The mobs spawn once the far chunks tick their
      * entities, since a mob added sooner stands frozen.
      *
      * @param helper the gametest helper
@@ -93,11 +95,12 @@ public final class ConvokeTests {
                 })
                 .thenIdle(ringReaches(FAR) + WALK_TICKS)
                 .thenExecute(() -> {
-                    double nearOff = across(mobs.get(0).position(), blob);
+                    boolean cowCalled = SculkCall.isCalledTo(mobs.get(0), floor.above());
+                    boolean zombieCalled = SculkCall.isCalledTo(mobs.get(1), floor.above());
                     double farOff = across(mobs.get(1).position(), blob);
                     release(helper, floor, mobs);
-                    helper.assertTrue(nearOff > NEAR - WALKED_NEARER,
-                            String.format(SHOULD_STAY, NEAR, (double) NEAR, nearOff));
+                    helper.assertFalse(cowCalled, SHOULD_LEAVE_THE_COW);
+                    helper.assertTrue(zombieCalled, SHOULD_CALL_THE_ZOMBIE);
                     helper.assertTrue(farOff <= FAR - WALKED_NEARER,
                             String.format(SHOULD_COME, FAR, (double) FAR, farOff));
                 })
