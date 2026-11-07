@@ -105,8 +105,8 @@ public final class PortalFaces {
     }
 
     /**
-     * Every gate in a level the frame draws: the local player's portals and
-     * each open hole's two mouths.
+     * Every gate in a level the frame draws: the local player's portals,
+     * every pair another player linked, and each open hole's two mouths.
      *
      * @param dimension the level drawn
      * @return the gates
@@ -115,6 +115,13 @@ public final class PortalFaces {
         List<Drawn> gates = new ArrayList<>();
         ClientPortals.portals().forEach(portal -> gates.add(new Drawn(portal.gate(),
                 colorOf(portal, ClientPortals.link()))));
+        // linked-partner-chunks-stream-to-any-viewer
+        ClientPortals.links().stream()
+                .filter(link -> !ClientPortals.portals().contains(link.entry()))
+                .forEach(link -> {
+                    gates.add(new Drawn(link.entry().gate(), BLUE_RGB));
+                    gates.add(new Drawn(link.exit().gate(), ORANGE_RGB));
+                });
         ClientHoles.holes().forEach(hole -> {
             gates.add(new Drawn(hole.entry(), BLUE_RGB));
             gates.add(new Drawn(hole.exit(), ORANGE_RGB));

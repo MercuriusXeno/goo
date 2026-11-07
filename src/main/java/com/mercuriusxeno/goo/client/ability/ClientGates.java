@@ -21,7 +21,7 @@ final class ClientGates {
      */
     static void refresh() {
         List<GatePassage.Pair> pairs = new ArrayList<>();
-        ClientPortals.link().ifPresent(link -> pairs.add(new GatePassage.Pair(link.entry().gate(),
+        ClientPortals.links().forEach(link -> pairs.add(new GatePassage.Pair(link.entry().gate(),
                 link.exit().gate())));
         ClientHoles.holes().forEach(hole -> pairs.add(new GatePassage.Pair(hole.entry(), hole.exit())));
         GatePassage.setClientPairs(pairs);

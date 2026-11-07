@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.quantum.PartnerStreaming;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
 import com.mercuriusxeno.goo.ability.quantum.PortalTether;
@@ -49,6 +50,87 @@ public final class PortalTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PLACE_CHOOSE_LINK_AND_CARRY, PortalTests::placeChooseLinkAndCarry);
         GooTestFunctions.registerTest(registrar, HIT_BREAKS_THE_PORTAL, PortalTests::hitBreaksThePortal);
+        GooTestFunctions.registerTest(registrar, LINK_REACHES_EVERY_CLIENT, PortalTests::linkReachesEveryClient);
+        GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
+    }
+
+    private static final String LINK_REACHES_EVERY_CLIENT = "portal_link_reaches_every_client";
+    private static final String FAR_SIDE_STREAMS_TO_A_LOOK = "portal_far_side_streams_to_a_look";
+    /** How far east the far partner stands: past any view distance the server holds. */
+    private static final int FAR = 480;
+    /** A pitch tipping the look down into the frame's face. */
+    private static final float LOOK_DOWN = 30F;
+    /** A yaw looking north, into the first frame's south face. */
+    private static final float NORTH = 180F;
+
+    /**
+     * A pair linked farther apart than view distance: a player standing
+     * before the entry and looking into it is streamed the partner's chunk
+     * and the eight around it, and none once it looks away
+     * (decision linked-partner-chunks-stream-to-any-viewer).
+     *
+     * @param helper the gametest helper
+     */
+    public static void farSideStreamsToALook(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+        Portal near = castAt(helper, player, FIRST, Direction.SOUTH);
+        BlockPos farBlock = helper.absolutePos(FIRST).east(FAR);
+        level.setBlockAndUpdate(farBlock, Blocks.STONE.defaultBlockState());
+        level.setBlockAndUpdate(farBlock.above(), Blocks.STONE.defaultBlockState());
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP);
+        PortalChoice.place(level, player.getUUID(), far);
+        PortalChoice.choose(player, Optional.of(near));
+        PortalChoice.link(player, far);
+        standAt(helper, player, A_BLOCK_OFF);
+        player.setYRot(NORTH);
+        player.setXRot(LOOK_DOWN);
+        ChunkPos partner = ChunkPos.containing(farBlock);
+        Set<ChunkPos> nine = new java.util.HashSet<>();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                nine.add(new ChunkPos(partner.x() + dx, partner.z() + dz));
+            }
+        }
+        helper.runAfterDelay(STEP * 3, () -> {
+            helper.assertTrue(PartnerStreaming.streamedTo(player).equals(nine), "A player looking into the entry "
+                    + "should be streamed the nine chunks around its far partner, holds "
+                    + PartnerStreaming.streamedTo(player));
+            player.setYRot(0F);
+        });
+        helper.runAfterDelay(STEP * 6, () -> {
+            helper.assertTrue(PartnerStreaming.streamedTo(player).isEmpty(), "A player looking away should hold "
+                    + "no streamed chunk, holds " + PartnerStreaming.streamedTo(player));
+            level.getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One player links a pair; the portal sync the server sends a second
+     * player, who linked nothing, carries that link, so the second sees
+     * through it like its owner (decision linked-partner-chunks-stream-to-any-viewer).
+     *
+     * @param helper the gametest helper
+     */
+    public static void linkReachesEveryClient(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        ServerPlayer onlooker = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(owner, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, owner, Vec3.atBottomCenterOf(AWAY));
+        Portal first = castAt(helper, owner, FIRST, Direction.SOUTH);
+        Portal second = castAt(helper, owner, SECOND, Direction.NORTH);
+        PortalChoice.choose(owner, Optional.of(first));
+        PortalChoice.link(owner, second);
+        helper.assertTrue(PortalChoice.syncFor(onlooker).links().contains(new QuantumPortals.Link(first, second)),
+                "The sync a player who linked nothing receives should carry another player's link, carries "
+                        + PortalChoice.syncFor(onlooker).links());
+        level.getServer().getPlayerList().remove(owner);
+        level.getServer().getPlayerList().remove(onlooker);
+        helper.succeed();
     }
 
     private static final String HIT_BREAKS_THE_PORTAL = "portal_breaks_when_hit_and_the_wall_stands";

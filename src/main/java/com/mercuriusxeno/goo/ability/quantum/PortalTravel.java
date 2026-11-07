@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.quantum;
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -36,10 +35,7 @@ public final class PortalTravel {
             if (fallen(server, link.entry()) || fallen(server, link.exit())) {
                 PortalTether.tie(server, owned.getKey(), link, false);
                 portals.fall(fallen(server, link.entry()) ? link.entry() : link.exit());
-                ServerPlayer player = server.getPlayerList().getPlayer(owned.getKey());
-                if (player != null) {
-                    PortalChoice.sync(player);
-                }
+                PortalChoice.syncEveryone(server);
             }
         }
     }
