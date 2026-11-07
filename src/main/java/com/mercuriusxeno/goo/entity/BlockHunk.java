@@ -24,6 +24,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -31,7 +32,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -126,6 +130,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     static final int MOST_PLACE_CLICKS = 3;
     /** Each click sound's pitch off its type's own, in order: level, a tenth under, a tenth over. */
     private static final float[] CLICK_PITCH_SPREAD = {0f, -0.1f, 0.1f};
+    /** A hair in from a cell's edge, so cells only touching do not count as overlapping. */
+    private static final double EDGE = 1e-4;
     /** The fastest a let-go hunk falls into its seat, in blocks a tick. */
     private static final double MOST_SEAT_FALL = 0.5;
     /** How near its seat, squared, a moving hunk counts as seated. */
@@ -146,6 +152,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.LONG);
     /** Whether a held hunk has risen clear of its hole, so the holder's client glides it to the look. */
     private static final EntityDataAccessor<Boolean> CLEAR_OF_HOLE =
+            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
+    /** Whether a held hunk has been carried out of its hole's column, so its hole no longer counts as solid. */
+    private static final EntityDataAccessor<Boolean> CARRIED_AWAY =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
     /** The player holding a lifted hunk, so their own client draws it on their look. */
     private static final EntityDataAccessor<Integer> HOLDER =
@@ -313,6 +322,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         entityData.define(SHATTER_START, WHOLE);
         entityData.define(SHATTER_FACE, Direction.DOWN);
         entityData.define(CLEAR_OF_HOLE, false);
+        entityData.define(CARRIED_AWAY, false);
         entityData.define(THROWN, false);
         entityData.define(PLACED_AT, WHOLE);
     }
@@ -342,7 +352,88 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             }
         }
         entityData.set(CLEAR_OF_HOLE, true);
+        if (!carriedAway() && !overHome(position())) {
+            entityData.set(CARRIED_AWAY, true);
+        }
         return allowedTo(easedToward(position(), hold, HoldEase.TICK_SECONDS));
+    }
+
+    /**
+     * Whether the hunk has been carried out of its hole's column, so its own
+     * hole no longer counts as solid to the look.
+     *
+     * @return true once carried away
+     */
+    public boolean carriedAway() {
+        return entityData.get(CARRIED_AWAY);
+    }
+
+    /**
+     * Whether any of the hunk's blocks at a position stands over a cell of its hole, seen from above.
+     *
+     * @param position the hunk's position
+     * @return true while it overlaps its hole's column
+     */
+    private boolean overHome(Vec3 position) {
+        List<AABB> hole = cellsAt(Vec3.atBottomCenterOf(home));
+        return cellsAt(position).stream().anyMatch(cell -> hole.stream().anyMatch(cut -> cell.minX < cut.maxX - EDGE
+                && cell.maxX > cut.minX + EDGE && cell.minZ < cut.maxZ - EDGE && cell.maxZ > cut.minZ + EDGE));
+    }
+
+    /**
+     * Where the hold puts the hunk once the look meets the world: resting
+     * against the face the look strikes, short of the hold, so it sits on the
+     * ground looked down at and never sinks into it; its own hole counts as
+     * solid until it has been carried out of the hole's column, so a hunk
+     * just lifted sits on its hole rather than slipping back in. With nothing
+     * struck short of the hold, the hold stands.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @param eye  the holder's eye
+     * @param look the holder's unit look
+     * @param hold where the hold distance puts the hunk
+     * @return the hunk's position
+     */
+    public Vec3 restOnTheLook(Vec3 eye, Vec3 look, Vec3 hold) {
+        AABB shape = getBoundingBox().move(position().reverse());
+        Vec3 end = eye.add(look.scale(eye.distanceTo(hold.add(shape.getCenter()))));
+        BlockHitResult struck = level().clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, CollisionContext.empty()));
+        if (!carriedAway()) {
+            struck = nearer(eye, struck, AABB.clip(cellsAt(Vec3.atBottomCenterOf(home)), eye, end, BlockPos.ZERO));
+        }
+        return struck.getType() == HitResult.Type.MISS ? hold
+                : restAgainst(struck.getLocation(), struck.getDirection(), shape);
+    }
+
+    private static BlockHitResult nearer(Vec3 eye, BlockHitResult struck, @Nullable BlockHitResult other) {
+        if (other == null) {
+            return struck;
+        }
+        boolean otherFirst = struck.getType() == HitResult.Type.MISS
+                || eye.distanceToSqr(other.getLocation()) < eye.distanceToSqr(struck.getLocation());
+        return otherFirst ? other : struck;
+    }
+
+    /**
+     * Where a hunk rests against a face at a point: its box's side facing the
+     * face on the point, centered on it.
+     *
+     * @param point the point struck
+     * @param face  the face struck
+     * @param shape the hunk's box, relative to its position
+     * @return the hunk's position
+     */
+    static Vec3 restAgainst(Vec3 point, Direction face, AABB shape) {
+        return point.subtract(restingOffset(face, shape, Direction.Axis.X),
+                restingOffset(face, shape, Direction.Axis.Y), restingOffset(face, shape, Direction.Axis.Z));
+    }
+
+    private static double restingOffset(Direction face, AABB shape, Direction.Axis axis) {
+        if (face.getAxis() != axis) {
+            return shape.getCenter().get(axis);
+        }
+        return face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? shape.min(axis) : shape.max(axis);
     }
 
     /**
