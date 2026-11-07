@@ -158,6 +158,34 @@ public final class GooRenderTypes {
     public static final RenderType SCRY_FACES_TYPE = burnoutType(SCRY_FACES);
 
     /**
+     * Meteo's scorch over its crater (decision
+     * meteo-winds-up-then-drops-in-a-second-trailing-fire): plain colored
+     * quads alpha blended over the faces, depth tested with depth write off,
+     * so the scorch darkens what it lies on and never shows through walls.
+     */
+    public static final RenderPipeline METEOR_SCORCH = colorShellPipeline("meteor_scorch",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
+
+    /** RenderType for Meteo's scorch. */
+    public static final RenderType METEOR_SCORCH_TYPE = burnoutType(METEOR_SCORCH);
+
+    /**
+     * Meteo's rock (decision meteo-winds-up-then-drops-in-a-second-trailing-fire):
+     * plain colored quads that write depth, so the rock's near faces hide its
+     * far ones and it draws front to back as a solid.
+     */
+    public static final RenderPipeline METEOR_ROCK = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "meteor_rock"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    /** RenderType for Meteo's rock. */
+    public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
+
+    /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
      * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
      * implosion progress from the vertex Color.r channel and animates swirl
@@ -1270,6 +1298,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(BLOCK_MINGLE);
+        event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
@@ -1279,7 +1308,8 @@ public final class GooRenderTypes {
 
     /**
      * Registers the overlay pipelines: the goo ripple masks and edge, the
-     * ghost, Bulb's glow beam, Sunbeam's scorch, the glow shell, and Scry's faces.
+     * ghost, Bulb's glow beam, Sunbeam's scorch, the glow shell, Scry's
+     * faces, and Meteo's scorch and rock.
      *
      * @param event the event instance
      */
@@ -1292,6 +1322,8 @@ public final class GooRenderTypes {
         event.registerPipeline(SUNBEAM_SCORCH);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
+        event.registerPipeline(METEOR_SCORCH);
+        event.registerPipeline(METEOR_ROCK);
     }
 
     /**

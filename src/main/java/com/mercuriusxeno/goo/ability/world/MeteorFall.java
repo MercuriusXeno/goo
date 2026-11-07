@@ -10,8 +10,12 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class MeteorFall {
 
-    /** Blocks above the target a meteor appears at, capped at the world's top. */
-    public static final int FALL_HEIGHT = 48;
+    /**
+     * Blocks above the target a meteor appears at: high, high up, over the
+     * world's top where need be, so it is seen coming from far off rather
+     * than popping in just over the target (operator ruling 2026-11-06).
+     */
+    public static final int FALL_HEIGHT = 200;
 
     private MeteorFall() {
     }
@@ -20,23 +24,27 @@ public final class MeteorFall {
      * Where a meteor appears over its target.
      *
      * @param target the point it strikes
-     * @param worldTop the highest y the world holds
-     * @return the point the fall height above the target, no higher than the world's top
+     * @return the point the fall height above the target
      */
-    public static Vec3 startAbove(Vec3 target, int worldTop) {
-        return new Vec3(target.x, Math.min(worldTop, target.y + FALL_HEIGHT), target.z);
+    public static Vec3 startAbove(Vec3 target) {
+        return target.add(0, FALL_HEIGHT, 0);
     }
 
     /**
-     * Where a meteor stands a share of the way through its fall.
+     * Where a meteor stands a share of the way through its fall: it falls as
+     * a rock falls, from rest at its start and gathering speed, so it leaves
+     * the sky at once and slowly, the beat that lets it be seen coming, and
+     * strikes fast (operator ruling 2026-11-06: no hang before it falls).
+     * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
      *
      * @param start  where it appeared
      * @param target where it strikes
-     * @param age    the ticks it has fallen
+     * @param age    the ticks it has fallen, a fraction between ticks for a frame
      * @param ticks  the ticks its fall lasts
      * @return the point on the straight line from start to target
      */
-    public static Vec3 positionAt(Vec3 start, Vec3 target, int age, int ticks) {
-        return start.lerp(target, Math.min(1.0, (double) age / ticks));
+    public static Vec3 positionAt(Vec3 start, Vec3 target, double age, int ticks) {
+        double travelled = Math.min(1.0, age / ticks);
+        return start.lerp(target, travelled * travelled);
     }
 }
