@@ -1,15 +1,16 @@
 package com.mercuriusxeno.goo.ability.deep;
 
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A diver enters stone from inside it, by sinking and by pushing a wall,
- * and walks open ground otherwise; inside it swims along the look, jump
+ * A diver presses into stone along its heading, up with jump and down with
+ * sneak, and nowhere with no key held; it swims along the look, jump
  * lifting it, steering a share of the way each tick
  * (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks).
  */
@@ -19,18 +20,26 @@ class DiveSwimTest {
     private static final double CLOSE = 1e-9;
 
     @Nested
-    class Entering {
+    class Pressing {
+
+        private static final Input NONE = Input.EMPTY;
 
         @Test
-        void passesThroughFromInsideBySinkingOrByPushing() {
-            assertTrue(DiveSwim.entersStone(true, false, false));
-            assertTrue(DiveSwim.entersStone(false, true, false));
-            assertTrue(DiveSwim.entersStone(false, false, true));
+        void forwardPressesAlongTheHeadingWhateverThePitch() {
+            Input forward = new Input(true, false, false, false, false, false, false);
+            Vec3 lookingDownSouth = new Vec3(0, -0.8, 0.6);
+            assertEquals(List.of(SOUTH), DiveSwim.pressedDirections(forward, lookingDownSouth));
         }
 
         @Test
-        void walksOpenGroundOtherwise() {
-            assertFalse(DiveSwim.entersStone(false, false, false));
+        void jumpPressesUpAndSneakPressesDown() {
+            Input both = new Input(false, false, false, false, true, true, false);
+            assertEquals(List.of(new Vec3(0, 1, 0), new Vec3(0, -1, 0)), DiveSwim.pressedDirections(both, SOUTH));
+        }
+
+        @Test
+        void noKeyPressesNowhere() {
+            assertTrue(DiveSwim.pressedDirections(NONE, SOUTH).isEmpty());
         }
     }
 

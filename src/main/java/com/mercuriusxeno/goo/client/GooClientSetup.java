@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.BrewEffectName;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import com.mercuriusxeno.goo.ability.deep.DiveSwim;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -16,6 +17,7 @@ import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
+import com.mercuriusxeno.goo.client.ability.DiveClient;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
@@ -135,6 +137,7 @@ public final class GooClientSetup {
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
         BrewEffectName.readConnectionNamesFrom(GooClientSetup::syncedBrewAbilityName);
         HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
+        DiveSwim.readLocalKeysFrom(DiveClient::heldKeys);
     }
 
     /**
