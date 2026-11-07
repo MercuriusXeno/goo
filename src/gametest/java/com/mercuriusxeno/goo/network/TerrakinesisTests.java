@@ -46,6 +46,11 @@ public final class TerrakinesisTests {
     private static final String LIFTS_A_HUNK = "terrakinesis_lifts_a_hunk_of_stone";
     private static final String HUCKS_THROUGH_A_WALL = "terrakinesis_hucks_a_hunk_through_a_wall";
     private static final String RELEASE_CANCELS = "terrakinesis_release_before_the_tear_lifts_nothing";
+    private static final String GRABS_FROM_AFAR = "terrakinesis_grabs_from_eleven_blocks_away";
+    /** Where the caster stands for the long grab: 11 blocks west of the slab's face, inside the 12 it reaches. */
+    private static final BlockPos FAR_STAND_POS = new BlockPos(-9, 1, 2);
+    /** The bay's barrier wall where the far caster's level look crosses it. */
+    private static final BlockPos BAY_WALL_ON_THE_LOOK = new BlockPos(-1, 2, 2);
 
     private static final Identifier ROCK_TERRAKINESIS = Identifier.parse("goo:rock_terrakinesis");
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
@@ -97,6 +102,7 @@ public final class TerrakinesisTests {
         GooTestFunctions.registerTest(registrar, LIFTS_A_HUNK, TerrakinesisTests::liftsAHunkOfStone);
         GooTestFunctions.registerTest(registrar, HUCKS_THROUGH_A_WALL, TerrakinesisTests::hucksAHunkThroughAWall);
         GooTestFunctions.registerTest(registrar, RELEASE_CANCELS, TerrakinesisTests::releaseBeforeTheTearLiftsNothing);
+        GooTestFunctions.registerTest(registrar, GRABS_FROM_AFAR, TerrakinesisTests::grabsFromElevenBlocksAway);
     }
 
     /**
@@ -190,6 +196,26 @@ public final class TerrakinesisTests {
         });
     }
 
+    /**
+     * Terrakinesis tears up the slab from 11 blocks away, inside its reach of 12.
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabsFromElevenBlocksAway(GameTestHelper helper) {
+        placeSlab(helper);
+        // The bay is walled in barrier; the caster stands outside it, so the cell on the look line is opened.
+        helper.setBlock(BAY_WALL_ON_THE_LOOK, Blocks.AIR);
+        ServerPlayer player = caster(helper, FAR_STAND_POS);
+        holdFor(helper, player, HOLD_TICKS);
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            AABB span = new AABB(helper.absolutePos(FAR_STAND_POS)).minmax(new AABB(helper.absolutePos(
+                    new BlockPos(SLAB_X, SLAB_HIGH_Y, SLAB_HIGH_Z)))).inflate(SCATTER);
+            int torn = helper.getLevel().getEntitiesOfClass(BlockHunk.class, span).size();
+            helper.assertTrue(torn == 1, "A slab 11 blocks off should tear free inside the reach of 12, found " + torn);
+            leave(helper, player);
+        });
+    }
+
     private static List<BlockPos> placeSlab(GameTestHelper helper) {
         List<BlockPos> slab = new ArrayList<>();
         for (int y = SLAB_LOW_Y; y <= SLAB_HIGH_Y; y++) {
@@ -236,10 +262,15 @@ public final class TerrakinesisTests {
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static ServerPlayer caster(GameTestHelper helper) {
+        return caster(helper, STAND_POS);
+    }
+
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer caster(GameTestHelper helper, BlockPos standPos) {
         AbilityDefinition terrakinesis = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_TERRAKINESIS);
         helper.assertTrue(terrakinesis != null, ABILITY_REQUIRED);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(standPos));
         player.setPos(stand.x, stand.y, stand.z);
         player.setYRot(FACING_EAST);
         player.setYHeadRot(FACING_EAST);
