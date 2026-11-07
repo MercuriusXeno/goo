@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:outsider_keeps_you_in_your_own_room",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
