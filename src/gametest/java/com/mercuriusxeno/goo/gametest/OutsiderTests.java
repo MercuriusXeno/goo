@@ -12,7 +12,10 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -54,6 +57,37 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD,
                 OutsiderTests::platformSpiralsWhileHeldInside);
         GooTestFunctions.registerTest(registrar, OUTSIDER_POCKET_SHOWS_NO_SKY, OutsiderTests::pocketShowsNoSky);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH,
+                OutsiderTests::showsItsChargeAndGrowth);
+    }
+
+    private static final String OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH = "outsider_shows_its_charge_and_growth";
+    /** Ticks held inside before the first grown cell's 13 mB is fed at 2 mB a tick, and a tick more. */
+    private static final int HELD_TO_FIRST_CELL = 8;
+    private static final String SHOULD_SHOW_CHARGE = "A hold short of its charge should send void motes, sent %d particle packets";
+    private static final String SHOULD_CHIME = "A grown cell should chime, sounds sent %s";
+
+    /**
+     * A caster charging Outsider sees void motes gather before the charge
+     * lands, and once inside, the first cell the hold grows chimes.
+     *
+     * @param helper the gametest helper
+     */
+    public static void showsItsChargeAndGrowth(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        PacketRecorder packets = PacketRecorder.attachTo(caster);
+        holdFor(helper, caster, CHARGE_TICKS + HELD_TO_FIRST_CELL);
+        helper.runAfterDelay(CHARGE_TICKS - 1, () -> {
+            int motes = packets.sentOf(ClientboundLevelParticlesPacket.class).size();
+            helper.assertTrue(motes > 0, String.format(SHOULD_SHOW_CHARGE, motes));
+        });
+        helper.runAfterDelay(CHARGE_TICKS + HELD_TO_FIRST_CELL + 1, () -> {
+            List<String> sounds = packets.sentOf(ClientboundSoundPacket.class).stream()
+                    .map(sound -> sound.getSound().value().location().toString()).toList();
+            helper.assertTrue(sounds.contains(SoundEvents.AMETHYST_BLOCK_CHIME.location().toString()),
+                    String.format(SHOULD_CHIME, sounds));
+            helper.succeed();
+        });
     }
 
     private static final String OUTSIDER_POCKET_SHOWS_NO_SKY = "outsider_pocket_shows_no_sky";

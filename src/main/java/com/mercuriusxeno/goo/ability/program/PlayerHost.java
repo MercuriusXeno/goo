@@ -334,6 +334,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     /** Carries the player into their Outsider room (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
     @Override
+    public void showCharge(int held, int charge) {
+        OutsiderRooms.showCharge(player, held, charge);
+    }
+
+    @Override
     public void enterPocket(int cost) {
         if (GooSourceScanner.hasEnough(player, GooTypes.VOID, cost) && OutsiderRooms.enter(player)) {
             GooSourceScanner.deplete(player, GooTypes.VOID, cost);

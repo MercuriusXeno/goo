@@ -14,6 +14,14 @@ public interface OutsiderHost extends ChannelHost {
     boolean standsInPocket();
 
     /**
+     * Shows the hold charging toward the way in.
+     *
+     * @param held   the hold's tick count
+     * @param charge the ticks the charge takes
+     */
+    void showCharge(int held, int charge);
+
+    /**
      * Carries the player into their room, keeping where they stood for its
      * door, when they can pay the way in.
      *
