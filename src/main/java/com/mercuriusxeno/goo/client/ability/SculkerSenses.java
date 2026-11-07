@@ -11,8 +11,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -22,17 +24,19 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * What a Sculker senses, while its brew stands. Every sound heard within
  * reach ripples out from its source and lights the block faces open to air
- * its front crosses, which draw sculk teal and fade out over about five
- * seconds, weaker the farther away they stand ({@link SculkerEchoes}). An
- * entity that moves or sounds is heard too: it draws the sculk outline for
- * the same five seconds while it stays within sight, and leaves the echoing
- * silhouette of the shared afterimage as it moves or sounds, dimmer the
- * farther it stands. The brew's end forgets it all.
+ * its front crosses, which draw sculk teal and fade out, weaker the farther
+ * away they stand; a louder sound ripples farther and lasts longer, and a
+ * mob's sound lights only the mob and the area just near it, briefly
+ * ({@link SculkerEchoes}). A mob that moves or sounds draws the sculk
+ * outline for as long as its sound's reveal lasts while it stays within
+ * sight, and leaves the echoing silhouette of the shared afterimage, dimmer
+ * the farther it stands. The brew's end forgets it all.
  * decision sculker-sight-persists-where-echoes-have-touched
  * decision afterimage-is-one-shared-effect
  */
@@ -56,8 +60,10 @@ public final class SculkerSenses {
     private static final AABB UNIT_CUBE = new AABB(0, 0, 0, 1, 1, 1);
 
     private static final SculkerEchoes ECHOES = new SculkerEchoes();
-    /** Each heard entity's id and the game time it last left a silhouette, which its outline fades from. */
-    private static final Map<Integer, Long> REMEMBERED_ENTITIES = new HashMap<>();
+    /** Each heard entity's id and the game time its outline fades out at. */
+    private static final Map<Integer, Long> OUTLINED_UNTIL = new HashMap<>();
+    /** Each heard entity's id and the game time it last left a silhouette. */
+    private static final Map<Integer, Long> SILHOUETTE_AT = new HashMap<>();
 
     private SculkerSenses() {
     }
@@ -74,8 +80,8 @@ public final class SculkerSenses {
     }
 
     private static boolean heardRecently(Entity entity) {
-        Long heardAt = REMEMBERED_ENTITIES.get(entity.getId());
-        return heardAt != null && entity.level().getGameTime() - heardAt < SculkerEchoes.FADE_TICKS;
+        Long until = OUTLINED_UNTIL.get(entity.getId());
+        return until != null && entity.level().getGameTime() < until;
     }
 
     /**
@@ -102,7 +108,8 @@ public final class SculkerSenses {
         ClientLevel level = mc.level;
         if (player == null || level == null || !SculkerSwim.dives(player)) {
             ECHOES.clear();
-            REMEMBERED_ENTITIES.clear();
+            OUTLINED_UNTIL.clear();
+            SILHOUETTE_AT.clear();
             return;
         }
         long now = level.getGameTime();
@@ -110,7 +117,7 @@ public final class SculkerSenses {
         forgetFadedEntities(level, now);
         for (Entity entity : level.getEntities(player, player.getBoundingBox().inflate(SculkerEchoes.SIGHT_REACH))) {
             if (movedEnough(entity.position().subtract(entity.xo, entity.yo, entity.zo))) {
-                hearEntity(mc, player, entity, now);
+                hearEntity(mc, player, entity, now, SculkerEchoes.fadeTicksFor(1f, true));
             }
         }
     }
@@ -122,13 +129,14 @@ public final class SculkerSenses {
      * @param now   the game time
      */
     private static void forgetFadedEntities(ClientLevel level, long now) {
-        REMEMBERED_ENTITIES.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null
-                || now - heard.getValue() >= SculkerEchoes.FADE_TICKS);
+        OUTLINED_UNTIL.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null || now >= heard.getValue());
+        SILHOUETTE_AT.keySet().retainAll(OUTLINED_UNTIL.keySet());
     }
 
     /**
-     * Hears a sound within sight: its echo ripples out of its source, and
-     * the entities making it are remembered.
+     * Hears a sound within sight at its loudness: a mob's sound lights the
+     * mob and the area just near it, briefly, and any other ripples out of
+     * its source and lights the faces its front crosses.
      *
      * @param event the sound about to play
      */
@@ -139,35 +147,57 @@ public final class SculkerSenses {
         if (player == null || mc.level == null || event.getSound() == null || !SculkerSwim.dives(player)) {
             return;
         }
-        hearSound(mc, player, new Vec3(event.getSound().getX(), event.getSound().getY(), event.getSound().getZ()));
+        SoundInstance sound = event.getSound();
+        hearSound(mc, player, new Vec3(sound.getX(), sound.getY(), sound.getZ()), loudnessOf(mc, sound));
     }
 
-    private static void hearSound(Minecraft mc, LocalPlayer player, Vec3 at) {
+    /**
+     * A sound's loudness: its volume, 1 for an ordinary sound, read once the
+     * sound has been resolved to the file it plays.
+     *
+     * @param mc    the client
+     * @param sound the sound about to play
+     * @return its loudness
+     */
+    private static float loudnessOf(Minecraft mc, SoundInstance sound) {
+        if (sound.getSound() == null) {
+            sound.resolve(mc.getSoundManager());
+        }
+        return sound.getSound() == null ? 1f : sound.getVolume();
+    }
+
+    private static void hearSound(Minecraft mc, LocalPlayer player, Vec3 at, float loudness) {
         if (mc.level == null || SculkerEchoes.strengthAt(at.distanceTo(player.position())) <= 0) {
             return;
         }
         long now = mc.level.getGameTime();
-        ECHOES.hear(at, now);
-        for (Entity owner : mc.level.getEntities(player, new AABB(at, at).inflate(SOUND_OWNER_REACH))) {
-            hearEntity(mc, player, owner, now);
+        List<Entity> mobs = mc.level.getEntities(player, new AABB(at, at).inflate(SOUND_OWNER_REACH),
+                LivingEntity.class::isInstance);
+        ECHOES.hear(at, now, loudness, !mobs.isEmpty());
+        int fade = SculkerEchoes.fadeTicksFor(loudness, true);
+        for (Entity mob : mobs) {
+            hearEntity(mc, player, mob, now, fade);
         }
     }
 
     /**
-     * Remembers an entity heard and leaves its echoing silhouette, no
-     * oftener than the silhouette gap, dimmer the farther it stands.
+     * Outlines an entity heard for as long as its sound's reveal lasts and
+     * leaves its echoing silhouette, no oftener than the silhouette gap,
+     * dimmer the farther it stands.
      *
-     * @param mc     the client
-     * @param player the local player
-     * @param entity the entity heard
-     * @param now    the game time
+     * @param mc        the client
+     * @param player    the local player
+     * @param entity    the entity heard
+     * @param now       the game time
+     * @param fadeTicks how long the reveal of its sound lasts
      */
-    private static void hearEntity(Minecraft mc, LocalPlayer player, Entity entity, long now) {
-        Long last = REMEMBERED_ENTITIES.get(entity.getId());
+    private static void hearEntity(Minecraft mc, LocalPlayer player, Entity entity, long now, int fadeTicks) {
+        OUTLINED_UNTIL.merge(entity.getId(), now + fadeTicks, Math::max);
+        Long last = SILHOUETTE_AT.get(entity.getId());
         if (last != null && now - last < SILHOUETTE_GAP_TICKS) {
             return;
         }
-        REMEMBERED_ENTITIES.put(entity.getId(), now);
+        SILHOUETTE_AT.put(entity.getId(), now);
         EntityRenderState snapshot = EntitySnapshots.of(mc, entity.getId());
         if (snapshot != null) {
             float strength = SculkerEchoes.strengthAt(entity.distanceTo(player));
@@ -195,8 +225,8 @@ public final class SculkerSenses {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
         Vec3 standing = player.position();
         long now = mc.level.getGameTime();
-        ECHOES.remembered().forEach((face, litAt) -> {
-            float strength = SculkerEchoes.strength(face, litAt, standing, now) * SculkerVision.presence();
+        ECHOES.remembered().forEach((face, lit) -> {
+            float strength = SculkerEchoes.strength(face, lit, standing, now) * SculkerVision.presence();
             if (strength > FAINTEST) {
                 AABB box = UNIT_CUBE.move(Vec3.atLowerCornerOf(face.pos()).subtract(camera));
                 ScrySweep.emitBoxFace(pose, consumer, box, face.side(),
