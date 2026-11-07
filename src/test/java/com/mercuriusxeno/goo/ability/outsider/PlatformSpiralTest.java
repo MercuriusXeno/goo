@@ -74,6 +74,19 @@ class PlatformSpiralTest {
     }
 
     @Nested
+    class Inverse {
+
+        @Test
+        void aCellFindsItsOwnPlaceAlongTheSpiral() {
+            for (int index = 0; index < 2000; index++) {
+                PlatformSpiral.Cell cell = PlatformSpiral.cellAt(index);
+
+                assertEquals(index, PlatformSpiral.indexOf(cell), "cell " + cell);
+            }
+        }
+    }
+
+    @Nested
     class Pace {
 
         private static final int RING_TICKS = 40;

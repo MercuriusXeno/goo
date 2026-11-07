@@ -5,13 +5,15 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
  * Keeps Outsider's rooms whole: once a second the pocket stands every
- * removed voidstone and door again, and each player tick catches a player
- * falling below their room's floor.
+ * removed voidstone and doorway again, each player tick keeps a player in the
+ * pocket inside their own room, and a block placed outside the placer's own
+ * grown cells is refused.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -34,14 +36,26 @@ public final class OutsiderEvents {
     }
 
     /**
-     * Catches a player falling out of their room.
+     * Keeps a player in the pocket inside their own room.
      *
      * @param event the player tick event
      */
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            OutsiderRooms.catchFalling(player);
+            OutsiderRooms.keepInRoom(player);
+        }
+    }
+
+    /**
+     * Refuses a block a player places in the pocket outside their own grown cells.
+     *
+     * @param event the block place event
+     */
+    @SubscribeEvent
+    public static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && !OutsiderRooms.mayBuildAt(player, event.getPos())) {
+            event.setCanceled(true);
         }
     }
 }
