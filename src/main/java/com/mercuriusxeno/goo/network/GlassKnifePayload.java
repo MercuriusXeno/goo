@@ -9,7 +9,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: one of Shards' glass knives left the hand, for
+ * Server-to-client payload: one of Knives' glass knives left the hand, for
  * every client watching to fly along the same arc to where it ends
  * (decision shards-sling-then-morph-to-flechettes).
  *

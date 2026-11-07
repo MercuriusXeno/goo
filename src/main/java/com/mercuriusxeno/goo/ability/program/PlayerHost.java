@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
+import com.mercuriusxeno.goo.ability.pocket.PocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -49,7 +51,8 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
                          Optional<ChannelAim> channelAim, float charge)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost, SiphonHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost, SiphonHost,
+        PocketHost, OutsiderHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -314,6 +317,42 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
                 && living.isAlive() && boxes.stream().anyMatch(living.getBoundingBox()::intersects)
                 && EntityScan.passes(living, filters, player))) {
             body.accept(new EntityHost(level, living, player));
+        }
+    }
+
+    /** Opens the player's Pocket (decision pocket-is-a-void-reserving-container-with-scroll-and-search). */
+    @Override
+    public void openPocket(int slotCost) {
+        PocketOpening.open(player, slotCost);
+    }
+
+    @Override
+    public boolean standsInPocket() {
+        return level.dimension() == OutsiderRooms.POCKET;
+    }
+
+    /** Carries the player into their Outsider room (decision
+     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
+    @Override
+    public void showCharge(int held, int charge) {
+        OutsiderRooms.showCharge(player, held, charge);
+    }
+
+    @Override
+    public void enterPocket(int cost) {
+        if (GooSourceScanner.hasEnough(player, GooTypes.VOID, cost) && OutsiderRooms.enter(player)) {
+            GooSourceScanner.deplete(player, GooTypes.VOID, cost);
+        }
+    }
+
+    /** Grows the player's Outsider platform (decision
+     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
+    @Override
+    public void feedPlatform(int ringTicks, int base, int perDistance) {
+        int feed = OutsiderRooms.feedOf(player, ringTicks, base, perDistance);
+        if (GooSourceScanner.hasEnough(player, GooTypes.VOID, feed)) {
+            GooSourceScanner.deplete(player, GooTypes.VOID, feed);
+            OutsiderRooms.feedPlatform(player, feed, base, perDistance);
         }
     }
 

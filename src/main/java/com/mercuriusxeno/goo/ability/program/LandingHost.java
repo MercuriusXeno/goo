@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
-import com.mercuriusxeno.goo.ability.gate.VoidPocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.PortableHole;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
@@ -123,15 +122,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     public int phaseBlocks(int depth, int radius, int lifetime) {
         return PortableHole.open(level, cell.relative(face.getOpposite()), face.getOpposite(), depth, radius,
                 lifetime);
-    }
-
-    /**
-     * Opens Void's pocket gate over the block the blob struck, into the caster's room.
-     * decision void-opens-a-pocket-dimension
-     */
-    @Override
-    public boolean openVoidPocket(int lifetime) {
-        return VoidPocketOpening.open(level, cell.relative(face.getOpposite()), face, lifetime, caster);
     }
 
     /**

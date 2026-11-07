@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -82,12 +83,17 @@ public final class GloveInputGate {
         return HeldRoute.runsWhileHeld(delivery, badge) || SelfEatRoute.eats(delivery, badge);
     }
 
+    /** Where each press rolls its scatter seed from. */
+    private static final RandomSource SEEDS = RandomSource.create();
+
     private boolean armed;
     private boolean streaming;
     private boolean previewing;
     private boolean eating;
     /** Ticks the live press has previewed, which a charged ability's release fires by. */
     private int heldTicks;
+    /** The scatter the live press slings its knives by. */
+    private long scatterSeed;
 
     /** Starts a press when the glove's use reaches the client; a live press ignores the repeat. */
     public void arm() {
@@ -97,6 +103,7 @@ public final class GloveInputGate {
             previewing = false;
             eating = false;
             heldTicks = 0;
+            scatterSeed = SEEDS.nextLong();
         }
     }
 
@@ -127,6 +134,18 @@ public final class GloveInputGate {
      */
     public int heldTicks() {
         return previewing ? heldTicks : 0;
+    }
+
+    /**
+     * The scatter the live press slings its knives by, rolled anew each
+     * press and held through it, so the lines hold still while held and the
+     * server throws the knives along them.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @return the press's scatter seed
+     */
+    public long scatterSeed() {
+        return scatterSeed;
     }
 
     /** Drops the live press. */
