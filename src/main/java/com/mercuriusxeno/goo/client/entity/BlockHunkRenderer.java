@@ -16,7 +16,9 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -31,9 +33,12 @@ import java.util.List;
  * so they cover the chunk's own stone without fighting it for depth.
  * decision spire-carries-its-riders-up-with-the-rising-stone
  *
- * A hunk the local player holds draws where the player's own look puts it
- * this frame, by the same hold the server keeps it at, so it glides with the
- * look instead of stepping with the server's updates.
+ * A hunk the local player holds, once the server has brought it to the hold,
+ * draws where the player's own look puts it this frame, by the same hold the
+ * server keeps it at and only as far as the world lets it move, so it glides
+ * with the look and never draws inside a block; while it still rises out of
+ * its hole or travels in, it draws where the server moves it. A struck hunk
+ * draws nothing: HunkCrumbles draws it coming apart.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  */
 public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunkRenderer.HunkRenderState> {
@@ -44,6 +49,8 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
     /** How far a lingering hunk's blocks swell past the stone beneath them. */
     private static final float LINGER_SWELL = 1.002f;
     private static final float WHOLE = 1f;
+    /** How near the hold the server must have brought a hunk before the holder's look draws it. */
+    private static final double AT_THE_HOLD = 1.0;
 
     /** The hunk's blocks as this frame draws them, each with its offset from the hunk's drawn position. */
     public static final class HunkRenderState extends EntityRenderState {
@@ -69,22 +76,19 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
         super.extractRenderState(hunk, state, partialTick);
         state.blocks.clear();
         state.offsets.clear();
-        if (!(hunk.level() instanceof ClientLevel level)) {
+        if (!(hunk.level() instanceof ClientLevel level) || hunk.shattering()) {
             return;
         }
         Vec3 lerped = hunk.getPosition(partialTick);
         Vec3 drawnAt = heldOnTheLocalLook(hunk, partialTick);
         Vec3 position = drawnAt == null ? lerped : drawnAt;
         state.swell = hunk.lingers(level.getGameTime()) ? LINGER_SWELL : WHOLE;
-        for (BlockHunk.HunkBlock block : hunk.blocks()) {
-            if (block.state().getRenderShape() != RenderShape.MODEL) {
-                continue;
-            }
+        hunk.blocks().stream().filter(block -> block.state().getRenderShape() == RenderShape.MODEL).forEach(block -> {
             Vec3 corner = BlockHunk.cornerOf(position, block);
             state.blocks.add(movingBlock(level, block, corner, BlockHunk.variantCellOf(hunk.home(), block)));
             // The pose stands at the lerped position, so a block drawn elsewhere is offset from it.
             state.offsets.add(corner.subtract(lerped));
-        }
+        });
     }
 
     private static MovingBlockRenderState movingBlock(ClientLevel level, BlockHunk.HunkBlock block, Vec3 corner,
@@ -112,18 +116,28 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
      */
     private static @Nullable Vec3 heldOnTheLocalLook(BlockHunk hunk, float partialTick) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || hunk.holderId() != player.getId()) {
-            return null;
-        }
-        String abilityId = GloveAim.selectedAbilityId(player);
-        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        TerrakinesisStep terrakinesis = ability == null ? null : ability.behaviors().stream()
-                .filter(TerrakinesisStep.class::isInstance).map(TerrakinesisStep.class::cast).findFirst().orElse(null);
+        TerrakinesisStep terrakinesis = player == null || hunk.holderId() != player.getId() ? null
+                : selectedTerrakinesis(player);
         if (terrakinesis == null) {
             return null;
         }
-        return terrakinesis.holdPosition(player.getEyePosition(partialTick), player.getViewVector(partialTick),
-                player.getViewXRot(partialTick), hunk.getBoundingBox().getCenter().subtract(hunk.position()));
+        Vec3 lerped = hunk.getPosition(partialTick);
+        Vec3 onTheLook = terrakinesis.holdPosition(player.getEyePosition(partialTick),
+                player.getViewVector(partialTick), player.getViewXRot(partialTick),
+                hunk.getBoundingBox().getCenter().subtract(hunk.position()));
+        if (onTheLook.distanceTo(lerped) > AT_THE_HOLD) {
+            return null;
+        }
+        AABB drawnBox = hunk.getBoundingBox().move(lerped.subtract(hunk.position()));
+        return lerped.add(Entity.collideBoundingBox(hunk, onTheLook.subtract(lerped), drawnBox, hunk.level(),
+                List.of()));
+    }
+
+    private static @Nullable TerrakinesisStep selectedTerrakinesis(LocalPlayer player) {
+        String abilityId = GloveAim.selectedAbilityId(player);
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? null : ability.behaviors().stream().filter(TerrakinesisStep.class::isInstance)
+                .map(TerrakinesisStep.class::cast).findFirst().orElse(null);
     }
 
     @Override

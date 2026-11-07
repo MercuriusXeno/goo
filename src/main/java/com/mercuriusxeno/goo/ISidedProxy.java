@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo;
 
+import com.mercuriusxeno.goo.entity.BlockHunk;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
@@ -59,5 +60,15 @@ public interface ISidedProxy {
      */
     default boolean syncedAbilityEats(String abilityId) {
         return false;
+    }
+
+    /**
+     * Begins drawing a hunk the client has seen strike something come apart
+     * block by block. Server: does nothing, since only the client draws it
+     * (decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity).
+     *
+     * @param hunk the shattering hunk
+     */
+    default void hunkShattered(BlockHunk hunk) {
     }
 }
