@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
+import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -15,7 +16,10 @@ import java.util.List;
  * fluid texture (decision crystallizer-emits-chrysm): the crystal growing on the
  * crystallizer and the chrysm items draw through this one path. Each prism is a
  * hexagonal column capped by a pointed tip, in model pixels scaled to the block,
- * standing on {@link CrystalCluster}'s base point.
+ * standing on {@link CrystalCluster}'s base point. The texture wraps each prism in
+ * the prism's own frame, around its axis and up it, so neighboring faces meet on
+ * the same texel and the wrap closes on itself.
+ * decision diagnose-then-fix-crystal-texture-seams
  */
 public final class CrystalClusterSubmitter {
 
@@ -26,8 +30,6 @@ public final class CrystalClusterSubmitter {
     private static final double PIXEL = 1.0 / 16.0;
     /** A sprite is 16 texels across. */
     private static final double SPRITE_TEXELS = 16;
-    /** The height, in model pixels, v counts down from above the crystal's base. */
-    private static final double SPRITE_PIXELS = 16;
     /** Texels per model pixel: half the texture's first scale (operator ruling). */
     private static final double TEXELS_PER_PIXEL = 2;
     private static final int TRIANGLE = 3;
@@ -38,17 +40,15 @@ public final class CrystalClusterSubmitter {
      */
     private static final int ROUND_BANDS = 8;
     private static final int ROUND_SLICES = 12;
+    private static final int SHAFT_BOTTOM_RING = 1;
     private static final int SHAFT_TOP_RING = 5;
     /** The spheroid's latitudes count up from the base, a quarter turn below its equator. */
     private static final double SOUTH_POLE = Math.PI / 2;
     /** Half a hexagon side's turn, 30 degrees. */
     private static final double HALF_SIDE = Math.PI / SIDES;
     private static final double HALF = 0.5;
-    /**
-     * A face turned evenly between x and z reads x's plane: without the margin, rounding
-     * in its normal flips the choice frame to frame as the crystal grows, and the face flickers.
-     */
-    private static final double AXIS_TIE = 1e-6;
+    /** A corner this close to a column's axis has no angle around it of its own. */
+    private static final double ON_AXIS = 1e-9;
 
     private CrystalClusterSubmitter() {
     }
@@ -93,14 +93,17 @@ public final class CrystalClusterSubmitter {
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
             RenderContext ctx = new RenderContext(pose, c, light);
             for (CrystalCluster.Prism prism : prisms) {
-                emitPrism(ctx, prism, look.color(), look.uv());
+                for (TexelPoint[] face : wrappedFaces(prism)) {
+                    emitFace(ctx, look.color(), look.uv(), face);
+                }
             }
         });
     }
 
     /**
-     * Submits faces in model pixels, each four corners in winding order, in one draw
-     * on the block atlas, tiled as a prism's faces are.
+     * Submits faces of a column standing on {@link CrystalCluster}'s base point along
+     * +y, in model pixels, each four corners in winding order, in one draw on the
+     * block atlas, the texture wrapped around the column as the prism column's is.
      *
      * @param poseStack     the pose stack, placed so model pixels map onto the block
      * @param nodeCollector the node collector
@@ -110,10 +113,11 @@ public final class CrystalClusterSubmitter {
      */
     public static void submitFaces(PoseStack poseStack, SubmitNodeCollector nodeCollector, List<Vec3[]> faces,
                                    Look look, int light) {
+        double circumference = wrapCircumference(PrismColumn.PRISM);
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
             RenderContext ctx = new RenderContext(pose, c, light);
             for (Vec3[] face : faces) {
-                emitQuad(ctx, look.color(), look.uv(), face);
+                emitFace(ctx, look.color(), look.uv(), wrapAroundColumn(face, circumference));
             }
         });
     }
@@ -139,31 +143,101 @@ public final class CrystalClusterSubmitter {
     }
 
     /**
-     * A rounding prism's faces in model pixels (operator ruling: its six sides round
-     * into 60 degree spheroid segments until what is left is a sphere). Rings run from
-     * the base's center up the shaft and the tip to the point, each cut into slices;
-     * every point moves from its place on the hexagonal prism toward its place on the
-     * spheroid the prism's length and radius span, by the prism's rounding. Each face
-     * is four corners wound outward, a band at a pole closing on the pole twice.
+     * A point of a face, in model pixels, with its texture place in texels.
      *
+     * @param pos the point, in model pixels
+     * @param u   texels around the column
+     * @param v   texels down the column
+     */
+    record TexelPoint(Vec3 pos, double u, double v) {
+    }
+
+    /**
      * @param prism the prism
-     * @return the faces
+     * @return its faces with their texels, the rounding mesh once it rounds, else its flat faces
+     */
+    static List<TexelPoint[]> wrappedFaces(CrystalCluster.Prism prism) {
+        return prism.rounding() > 0 ? wrappedRoundedFaces(prism) : wrappedPrismFaces(prism);
+    }
+
+    /**
+     * @param prism the prism
+     * @return the rounding mesh's faces in model pixels, as {@link #wrappedRoundedFaces} wraps them
      */
     static List<Vec3[]> roundedFaces(CrystalCluster.Prism prism) {
-        Frame frame = Frame.of(prism);
-        List<Vec3[]> faces = new ArrayList<>();
+        return positionsOf(wrappedRoundedFaces(prism));
+    }
+
+    /**
+     * @param prism the prism
+     * @return the flat faces in model pixels, as {@link #wrappedPrismFaces} wraps them
+     */
+    static List<Vec3[]> prismFaces(CrystalCluster.Prism prism) {
+        return positionsOf(wrappedPrismFaces(prism));
+    }
+
+    /**
+     * A rounding prism's faces (operator ruling: its six sides round into 60 degree
+     * spheroid segments until what is left is a sphere). Rings run from the base's
+     * center up the shaft and the tip to the point, each cut into slices; every point
+     * moves from its place on the hexagonal prism toward its place on the spheroid the
+     * prism's length and radius span, by the prism's rounding. Each face is four corners
+     * wound outward, a band at a pole closing on the pole twice, each pole corner
+     * carrying its own slice's texels so the faces around the pole meet on them.
+     *
+     * @param prism the prism
+     * @return the faces, each corner wrapped by its slice around the axis and its arc up the meridian
+     */
+    static List<TexelPoint[]> wrappedRoundedFaces(CrystalCluster.Prism prism) {
+        TexelPoint[][] grid = roundedGrid(prism);
+        List<TexelPoint[]> faces = new ArrayList<>();
         for (int band = 0; band < ROUND_BANDS; band++) {
             for (int slice = 0; slice < ROUND_SLICES; slice++) {
-                Vec3 lowerLeft = roundedPoint(frame, prism, band, slice);
-                Vec3 lowerRight = roundedPoint(frame, prism, band, slice + 1);
-                Vec3 upperRight = roundedPoint(frame, prism, band + 1, slice + 1);
-                Vec3 upperLeft = roundedPoint(frame, prism, band + 1, slice);
+                TexelPoint lowerLeft = grid[band][slice];
+                TexelPoint lowerRight = grid[band][slice + 1];
+                TexelPoint upperRight = grid[band + 1][slice + 1];
+                TexelPoint upperLeft = grid[band + 1][slice];
                 // The base band starts on its upper edge, so the pole's repeat falls last and the normal holds.
-                faces.add(band == 0 ? new Vec3[] {upperRight, upperLeft, lowerLeft, lowerRight}
-                        : new Vec3[] {lowerLeft, lowerRight, upperRight, upperLeft});
+                faces.add(band == 0 ? new TexelPoint[] {upperRight, upperLeft, lowerLeft, lowerRight}
+                        : new TexelPoint[] {lowerLeft, lowerRight, upperRight, upperLeft});
             }
         }
         return faces;
+    }
+
+    /**
+     * @param prism the prism
+     * @return its mesh's points by ring and slice, each with its texels
+     */
+    private static TexelPoint[][] roundedGrid(CrystalCluster.Prism prism) {
+        Frame frame = Frame.of(prism);
+        double circumference = wrapCircumference(prism);
+        TexelPoint[][] grid = new TexelPoint[ROUND_BANDS + 1][ROUND_SLICES + 1];
+        for (int slice = 0; slice <= ROUND_SLICES; slice++) {
+            Vec3[] meridian = new Vec3[ROUND_BANDS + 1];
+            for (int ring = 0; ring <= ROUND_BANDS; ring++) {
+                meridian[ring] = roundedPoint(frame, prism, ring, slice);
+            }
+            double[] up = arcsFromShaftBottom(meridian);
+            for (int ring = 0; ring <= ROUND_BANDS; ring++) {
+                grid[ring][slice] = new TexelPoint(meridian[ring], circumference * slice / ROUND_SLICES,
+                        -up[ring] * TEXELS_PER_PIXEL);
+            }
+        }
+        return grid;
+    }
+
+    /**
+     * @param meridian a slice's points from the base's center to the point
+     * @return each point's distance along the meridian from the shaft's bottom ring, negative below it
+     */
+    private static double[] arcsFromShaftBottom(Vec3[] meridian) {
+        double[] arcs = new double[meridian.length];
+        arcs[0] = -meridian[0].distanceTo(meridian[SHAFT_BOTTOM_RING]);
+        for (int ring = SHAFT_BOTTOM_RING + 1; ring < meridian.length; ring++) {
+            arcs[ring] = arcs[ring - 1] + meridian[ring - 1].distanceTo(meridian[ring]);
+        }
+        return arcs;
     }
 
     /**
@@ -206,59 +280,166 @@ public final class CrystalClusterSubmitter {
     }
 
     /**
-     * A point of a face, in model pixels, with its texture place in texels.
+     * A prism's flat faces, each four corners in winding order: the six sides, then the
+     * six tip faces, each tip face closing on the tip twice, each tip corner carrying
+     * its own side's texels so the tip faces meet on them.
      *
-     * @param pos the point, in model pixels
-     * @param u   texels along the face's plane
-     * @param v   texels down the face's plane
+     * @param prism the prism
+     * @return the faces, each corner wrapped by its corner around the axis and its arc up the side
      */
-    record TexelPoint(Vec3 pos, double u, double v) {
+    static List<TexelPoint[]> wrappedPrismFaces(CrystalCluster.Prism prism) {
+        Frame frame = Frame.of(prism);
+        double shaftLength = prism.length() - prism.tipLength();
+        Vec3 tip = frame.base().add(frame.axis().scale(prism.length()));
+        Vec3 shaft = frame.axis().scale(shaftLength);
+        double topV = -shaftLength * TEXELS_PER_PIXEL;
+        double tipV = topV - Math.hypot(prism.tipLength(), prism.radius()) * TEXELS_PER_PIXEL;
+        double circumference = wrapCircumference(prism);
+        TexelPoint[] bottom = new TexelPoint[SIDES + 1];
+        TexelPoint[] top = new TexelPoint[SIDES + 1];
+        TexelPoint[] tips = new TexelPoint[SIDES + 1];
+        for (int k = 0; k <= SIDES; k++) {
+            Vec3 rim = frame.base().add(frame.rim(k % SIDES * SIDE_ANGLE).scale(prism.radius()));
+            double around = circumference * k / SIDES;
+            bottom[k] = new TexelPoint(rim, around, 0);
+            top[k] = new TexelPoint(rim.add(shaft), around, topV);
+            tips[k] = new TexelPoint(tip, around, tipV);
+        }
+        List<TexelPoint[]> faces = new ArrayList<>();
+        for (int k = 0; k < SIDES; k++) {
+            faces.add(new TexelPoint[] {bottom[k], bottom[k + 1], top[k + 1], top[k]});
+            faces.add(new TexelPoint[] {top[k], top[k + 1], tips[k + 1], tips[k]});
+        }
+        return faces;
     }
 
     /**
-     * Cuts a face along the sprite's tile edges, each piece carrying texels within one
-     * sprite, so the goo texture repeats across the crystal as it does across blocks,
-     * never clamped or stretched and never jumping as the crystal grows (operator
-     * rulings: tile, don't stretch; half the texture's first scale). A face reads its
-     * place in the block on its dominant plane: turned up, x and z; turned to x, z and
-     * height; turned to z, x and height.
+     * The texels once around a prism: its rim's length at two texels a pixel, rounded
+     * to whole sprites so the wrap's closing edge meets itself (operator ruling: tile,
+     * don't stretch beyond that rounding).
      *
-     * @param corners the face's corners in winding order, in model pixels
-     * @param normal  the face's normal
+     * @param prism the prism
+     * @return the circumference in texels, at least one sprite
+     */
+    private static double wrapCircumference(CrystalCluster.Prism prism) {
+        double rim = SIDES * prism.radius() + (Math.TAU - SIDES) * prism.radius() * prism.rounding();
+        return Math.max(1, Math.round(rim * TEXELS_PER_PIXEL / SPRITE_TEXELS)) * SPRITE_TEXELS;
+    }
+
+    /**
+     * Wraps a face of a column standing on {@link CrystalCluster}'s base point along +y:
+     * u by its angle around the axis, v by its height. A corner on the axis takes the
+     * angle of the corner beside it off the axis, the one before it where it has one,
+     * so the faces around a pole meet on the same texels.
+     *
+     * @param face          the face's corners in winding order, in model pixels
+     * @param circumference the texels once around the column, whole sprites
+     * @return the face's corners with their texels
+     */
+    static TexelPoint[] wrapAroundColumn(Vec3[] face, double circumference) {
+        int count = face.length;
+        double[] angles = new double[count];
+        boolean[] onAxis = new boolean[count];
+        double reference = Double.NaN;
+        for (int i = 0; i < count; i++) {
+            double east = face[i].x - CrystalCluster.BASE_X;
+            double north = CrystalCluster.BASE_Z - face[i].z;
+            onAxis[i] = Math.hypot(east, north) < ON_AXIS;
+            if (!onAxis[i]) {
+                double angle = Math.atan2(north, east);
+                // A face straddling the angle's wrap reads one side of it, so its u runs on unbroken.
+                reference = Double.isNaN(reference) ? angle : reference;
+                angles[i] = angle + Math.TAU * Math.round((reference - angle) / Math.TAU);
+            }
+        }
+        TexelPoint[] wrapped = new TexelPoint[count];
+        for (int i = 0; i < count; i++) {
+            double angle = onAxis[i] ? poleAngle(angles, onAxis, i, reference) : angles[i];
+            wrapped[i] = new TexelPoint(face[i], circumference * angle / Math.TAU,
+                    -(face[i].y - CrystalCluster.BASE_Y) * TEXELS_PER_PIXEL);
+        }
+        return wrapped;
+    }
+
+    private static double poleAngle(double[] angles, boolean[] onAxis, int corner, double reference) {
+        int before = (corner + angles.length - 1) % angles.length;
+        if (!onAxis[before]) {
+            return angles[before];
+        }
+        int after = (corner + 1) % angles.length;
+        if (!onAxis[after]) {
+            return angles[after];
+        }
+        return Double.isNaN(reference) ? 0 : reference;
+    }
+
+    private static List<Vec3[]> positionsOf(List<TexelPoint[]> faces) {
+        List<Vec3[]> positions = new ArrayList<>();
+        for (TexelPoint[] face : faces) {
+            positions.add(positionsOf(face));
+        }
+        return positions;
+    }
+
+    private static Vec3[] positionsOf(TexelPoint[] face) {
+        Vec3[] corners = new Vec3[face.length];
+        for (int i = 0; i < face.length; i++) {
+            corners[i] = face[i].pos();
+        }
+        return corners;
+    }
+
+    /**
+     * Cuts a face along the sprite's tile edges, each piece shifted by whole sprites to
+     * carry texels within one sprite, so the goo texture repeats across the crystal as
+     * it does across blocks, never clamped or stretched (operator rulings: tile, don't
+     * stretch; half the texture's first scale).
+     *
+     * @param corners the face's corners in winding order, with their texels
      * @return the pieces, each a convex polygon with texels in [0, 16]
      */
-    static List<List<TexelPoint>> tilePieces(Vec3[] corners, Vec3 normal) {
-        List<List<TexelPoint>> pieces = List.of(distinctCorners(corners, normal));
-        pieces = cutAlong(pieces, true);
-        pieces = cutAlong(pieces, false);
+    static List<List<TexelPoint>> tilePieces(TexelPoint[] corners) {
         List<List<TexelPoint>> local = new ArrayList<>();
-        for (List<TexelPoint> piece : pieces) {
-            if (piece.size() >= TRIANGLE) {
-                local.add(intoOneSprite(piece));
-            }
+        for (List<TexelPoint> piece : cutAtSpriteEdges(corners)) {
+            local.add(intoOneSprite(piece));
         }
         return local;
     }
 
     /**
-     * Projects a face's corners to texels, dropping each corner that repeats the one
-     * before it and a closing corner that repeats the first, so a collapsed edge
-     * yields no zero-length side.
-     *
-     * @param corners the face's corners in winding order, in model pixels
-     * @param normal  the face's normal
-     * @return the face's distinct corners with their texels
+     * @param corners the face's corners in winding order, with their texels
+     * @return the face cut at every sprite edge its texels cross, each piece keeping the face's texels
      */
-    // decision tile-pieces-dedupe-extracted
-    private static List<TexelPoint> distinctCorners(Vec3[] corners, Vec3 normal) {
-        List<TexelPoint> face = new ArrayList<>();
-        for (Vec3 corner : corners) {
-            if (face.isEmpty() || !face.getLast().pos().equals(corner)) {
-                double[] texel = project(corner, normal);
-                face.add(new TexelPoint(corner, texel[0], texel[1]));
+    static List<List<TexelPoint>> cutAtSpriteEdges(TexelPoint[] corners) {
+        List<List<TexelPoint>> pieces = List.of(distinctCorners(corners));
+        pieces = cutAlong(pieces, true);
+        pieces = cutAlong(pieces, false);
+        List<List<TexelPoint>> whole = new ArrayList<>();
+        for (List<TexelPoint> piece : pieces) {
+            if (piece.size() >= TRIANGLE) {
+                whole.add(piece);
             }
         }
-        if (face.size() > 1 && face.getFirst().pos().equals(face.getLast().pos())) {
+        return whole;
+    }
+
+    /**
+     * Drops each corner that repeats the one before it and a closing corner that repeats
+     * the first, so a collapsed edge yields no zero-length side. A pole corner repeating
+     * with another slice's texels stays: it carries that slice's edge.
+     *
+     * @param corners the face's corners in winding order, with their texels
+     * @return the face's distinct corners
+     */
+    // decision tile-pieces-dedupe-extracted
+    private static List<TexelPoint> distinctCorners(TexelPoint[] corners) {
+        List<TexelPoint> face = new ArrayList<>();
+        for (TexelPoint corner : corners) {
+            if (face.isEmpty() || !face.getLast().equals(corner)) {
+                face.add(corner);
+            }
+        }
+        if (face.size() > 1 && face.getFirst().equals(face.getLast())) {
             face.removeLast();
         }
         return face;
@@ -272,23 +453,6 @@ public final class CrystalClusterSubmitter {
     static float[] atlasUv(GooRenderUtil.UvRect uv, TexelPoint point) {
         return new float[] {uv.u0() + (uv.u1() - uv.u0()) * (float) (point.u() / SPRITE_TEXELS),
             uv.v0() + (uv.v1() - uv.v0()) * (float) (point.v() / SPRITE_TEXELS)};
-    }
-
-    /**
-     * @param corner a corner, in model pixels
-     * @param normal the face's normal
-     * @return the corner's {u, v} in texels on the face's dominant plane, v counted down from the top
-     */
-    private static double[] project(Vec3 corner, Vec3 normal) {
-        double down = SPRITE_PIXELS - (corner.y - CrystalCluster.BASE_Y);
-        double[] planar;
-        if (Math.abs(normal.y) >= Math.abs(normal.x) - AXIS_TIE && Math.abs(normal.y) >= Math.abs(normal.z) - AXIS_TIE) {
-            planar = new double[] {corner.x, corner.z};
-        } else {
-            planar = Math.abs(normal.x) >= Math.abs(normal.z) - AXIS_TIE
-                    ? new double[] {corner.z, down} : new double[] {corner.x, down};
-        }
-        return new double[] {planar[0] * TEXELS_PER_PIXEL, planar[1] * TEXELS_PER_PIXEL};
     }
 
     /**
@@ -351,66 +515,34 @@ public final class CrystalClusterSubmitter {
 
     /**
      * @param piece a piece lying within one tile
-     * @return the piece with its texels shifted by whole sprites into [0, 16]
+     * @return the piece with its texels shifted by the whole sprites of its centroid, into [0, 16]
      */
     private static List<TexelPoint> intoOneSprite(List<TexelPoint> piece) {
-        double sumU = 0;
-        double sumV = 0;
-        for (TexelPoint point : piece) {
-            sumU += point.u();
-            sumV += point.v();
-        }
-        double shiftU = Math.floor(sumU / piece.size() / SPRITE_TEXELS) * SPRITE_TEXELS;
-        double shiftV = Math.floor(sumV / piece.size() / SPRITE_TEXELS) * SPRITE_TEXELS;
+        TexelPoint middle = middleOf(piece);
+        double shiftU = Math.floor(middle.u() / SPRITE_TEXELS) * SPRITE_TEXELS;
+        double shiftV = Math.floor(middle.v() / SPRITE_TEXELS) * SPRITE_TEXELS;
         List<TexelPoint> local = new ArrayList<>();
         for (TexelPoint point : piece) {
-            local.add(new TexelPoint(point.pos(), clampToSprite(point.u() - shiftU), clampToSprite(point.v() - shiftV)));
+            local.add(new TexelPoint(point.pos(), point.u() - shiftU, point.v() - shiftV));
         }
         return local;
     }
 
-    private static double clampToSprite(double texels) {
-        return Math.max(0, Math.min(SPRITE_TEXELS, texels));
-    }
-
     /**
-     * Emits one prism's six sides and its six tip faces, or its rounding mesh once it rounds.
-     *
-     * @param ctx   the render context
-     * @param prism the prism
-     * @param color the tint
-     * @param uv    the type's sprite rectangle, tiled onto each face by {@link #blockUv}
+     * @param piece a piece
+     * @return the mean of its points, in place and in texels
      */
-    private static void emitPrism(RenderContext ctx, CrystalCluster.Prism prism, int color, GooRenderUtil.UvRect uv) {
-        for (Vec3[] face : prism.rounding() > 0 ? roundedFaces(prism) : prismFaces(prism)) {
-            emitQuad(ctx, color, uv, face);
+    private static TexelPoint middleOf(List<TexelPoint> piece) {
+        Vec3 pos = Vec3.ZERO;
+        double u = 0;
+        double v = 0;
+        for (TexelPoint point : piece) {
+            pos = pos.add(point.pos());
+            u += point.u();
+            v += point.v();
         }
-    }
-
-    /**
-     * A prism's faces in model pixels, each four corners in winding order: the six sides,
-     * then the six tip faces, each tip face closing on the tip twice.
-     *
-     * @param prism the prism
-     * @return the faces
-     */
-    static List<Vec3[]> prismFaces(CrystalCluster.Prism prism) {
-        Frame frame = Frame.of(prism);
-        Vec3 tip = frame.base().add(frame.axis().scale(prism.length()));
-        Vec3 shaft = frame.axis().scale(prism.length() - prism.tipLength());
-        Vec3[] bottom = new Vec3[SIDES];
-        Vec3[] top = new Vec3[SIDES];
-        for (int k = 0; k < SIDES; k++) {
-            bottom[k] = frame.base().add(frame.rim(k * SIDE_ANGLE).scale(prism.radius()));
-            top[k] = bottom[k].add(shaft);
-        }
-        List<Vec3[]> faces = new ArrayList<>();
-        for (int k = 0; k < SIDES; k++) {
-            int next = (k + 1) % SIDES;
-            faces.add(new Vec3[] {bottom[k], bottom[next], top[next], top[k]});
-            faces.add(new Vec3[] {top[k], top[next], tip, tip});
-        }
-        return faces;
+        double share = 1.0 / piece.size();
+        return new TexelPoint(pos.scale(share), u * share, v * share);
     }
 
     /**
@@ -422,20 +554,24 @@ public final class CrystalClusterSubmitter {
     }
 
     /**
-     * Emits one face, cut at the sprite's tile edges, each piece as a fan of quads,
-     * lit by the face's own normal.
+     * Emits one face, cut at the sprite's tile edges, each piece as a fan of quads
+     * around its middle, lit by the face's own normal. A pole corner repeats with each
+     * slice's texels, and a fan from a corner would draw the edge one slice shares
+     * with its neighbor in the other slice's texels; the middle's fan draws every edge
+     * in its own.
      *
      * @param ctx     the render context
      * @param color   the tint
      * @param sprite  the type's sprite rectangle
-     * @param corners the four corners in winding order
+     * @param corners the corners in winding order, with their texels
      */
-    private static void emitQuad(RenderContext ctx, int color, GooRenderUtil.UvRect sprite, Vec3[] corners) {
-        Vec3 normal = faceNormal(corners);
-        for (List<TexelPoint> piece : tilePieces(corners, normal)) {
-            for (int i = 1; i + 1 < piece.size(); i++) {
-                TexelPoint[] quad = {piece.getFirst(), piece.get(i), piece.get(i + 1), piece.get(i + 1)};
-                for (TexelPoint point : quad) {
+    private static void emitFace(RenderContext ctx, int color, GooRenderUtil.UvRect sprite, TexelPoint[] corners) {
+        Vec3 normal = faceNormal(positionsOf(corners));
+        for (List<TexelPoint> piece : tilePieces(corners)) {
+            TexelPoint middle = middleOf(piece);
+            for (int i = 0; i < piece.size(); i++) {
+                TexelPoint next = piece.get((i + 1) % piece.size());
+                for (TexelPoint point : new TexelPoint[] {middle, piece.get(i), next, next}) {
                     Vec3 corner = point.pos().scale(PIXEL);
                     float[] uv = atlasUv(sprite, point);
                     ctx.vertexColored(color, (float) corner.x, (float) corner.y, (float) corner.z, uv[0], uv[1],
