@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  * @param radius     how far the swell reaches, in blocks
  * @param swellTicks the ticks the swell takes to reach it
  */
-public record ReapStep(Expr radius, Expr swellTicks) implements Step {
+public record ReapStep(Expr radius, Expr swellTicks) implements TakesNoEntity {
 
     private static final String NAME = "reap";
     private static final String FIELD_RADIUS = "radius";

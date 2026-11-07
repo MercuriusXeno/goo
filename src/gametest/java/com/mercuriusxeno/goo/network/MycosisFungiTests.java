@@ -76,7 +76,9 @@ public final class MycosisFungiTests {
     /** The held ticks a bud aged on every tick takes to become a mushroom: its four ages. */
     private static final int INSTANT_RIPENING_TICKS = 4;
     private static final String SHOULD_STAY_BUD = "A bud held four ticks should still be a bud at wart's pace, stands %s";
-    private static final String GROWTH_SPARES_WART = "Growth's breeze should leave nether wart at age 0, stands at age %d";
+    private static final String GROWTH_SPARES_WART = "Growth's breeze should leave nether wart unripened, stands at age %d";
+    /** The age the world's own random ticks may bring a wart to over Growth's hold, without Growth ticking it. */
+    private static final int AGED_BY_THE_WORLD_AT_MOST = 1;
 
     private MycosisFungiTests() {
     }
@@ -139,8 +141,8 @@ public final class MycosisFungiTests {
 
     /**
      * A mock player holds Growth on freshly planted nether wart for a long
-     * hold, and the wart stands at age 0 when it ends: nether wart is shroom's
-     * to grow.
+     * hold, and the wart stands unripened when it ends, aged once at most by
+     * the world's own random ticks: nether wart is shroom's to grow.
      *
      * @param helper the gametest helper
      */
@@ -150,7 +152,8 @@ public final class MycosisFungiTests {
         ServerPlayer player = hold(helper, GooTypes.LEAF, LEAF_GROWTH, GROWTH_HOLD_TICKS);
         helper.runAfterDelay(GROWTH_HOLD_TICKS + 1, () -> {
             int age = helper.getBlockState(FUNGUS_POS).getValue(NetherWartBlock.AGE);
-            helper.assertTrue(age == 0, String.format(GROWTH_SPARES_WART, age));
+            // the world's own random ticks may age the wart once over the hold; a breeze ticking it ripens it to 3
+            helper.assertTrue(age <= AGED_BY_THE_WORLD_AT_MOST, String.format(GROWTH_SPARES_WART, age));
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
         });

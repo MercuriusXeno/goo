@@ -35,6 +35,15 @@ public final class FleckLaunches {
     }
 
     /**
+     * The flecks yet to leave the hand.
+     *
+     * @return the count queued
+     */
+    public int pendingCount() {
+        return pending.size();
+    }
+
+    /**
      * Sends every fleck whose tick has come, in the order they were queued.
      *
      * @param currentTick the current server tick

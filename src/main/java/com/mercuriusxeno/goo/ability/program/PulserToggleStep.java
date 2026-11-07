@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  *
  * @param every the held ticks between toggles, evaluated when the step runs
  */
-public record PulserToggleStep(Expr every) implements Step {
+public record PulserToggleStep(Expr every) implements TakesNoEntity {
 
     private static final String NAME = "pulser_toggle";
     private static final String FIELD_EVERY = "every";

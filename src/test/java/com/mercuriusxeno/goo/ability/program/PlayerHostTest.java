@@ -1,7 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.typhoon.Airborn;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -77,7 +75,6 @@ class PlayerHostTest {
         when(player.level()).thenReturn(openAir);
         when(player.getLookAngle()).thenReturn(look);
         when(player.getDeltaMovement()).thenReturn(Vec3.ZERO);
-        when(player.getData(GooAttachments.AIRBORN)).thenReturn(Airborn.NONE);
         when(player.getItemBySlot(EquipmentSlot.CHEST)).thenReturn(mock(ItemStack.class));
         when(player.position()).thenReturn(new Vec3(X, Y, Z));
         when(player.getX()).thenReturn(X);
@@ -133,8 +130,8 @@ class PlayerHostTest {
     class Push {
 
         private static final double STRENGTH = 1.5;
-        /** typhoon_tailwind.json's push: its speed and the shares it steers by, without and with an elytra. */
-        private static final double JET_STRENGTH = 0.8;
+        /** A held self push: its speed and the shares it steers by, without and with an elytra. */
+        private static final double JET_STRENGTH = 1.2;
         private static final double JET_STEER = 0.2;
         private static final double JET_ELYTRA_STEER = 0.5;
         private static final PushStep JET = new PushStep(Expr.literal(JET_STRENGTH), Expr.literal(JET_STEER),
@@ -231,10 +228,10 @@ class PlayerHostTest {
         }
 
         @Test
-        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksEffectExtendsFrostAndSiphon() {
+        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksEffectExtendsFrostSiphonPocketAndOutsider() {
             assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                             HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS, HostCapability.EXTEND_EFFECTS,
-                            HostCapability.FROST, HostCapability.SIPHON),
+                            HostCapability.FROST, HostCapability.SIPHON, HostCapability.POCKET, HostCapability.OUTSIDER),
                     HostKind.PLAYER.capabilities());
         }
     }

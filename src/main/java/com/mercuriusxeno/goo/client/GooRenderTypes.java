@@ -158,6 +158,34 @@ public final class GooRenderTypes {
     public static final RenderType SCRY_FACES_TYPE = burnoutType(SCRY_FACES);
 
     /**
+     * Meteo's scorch over its crater (decision
+     * meteo-winds-up-then-drops-in-a-second-trailing-fire): plain colored
+     * quads alpha blended over the faces, depth tested with depth write off,
+     * so the scorch darkens what it lies on and never shows through walls.
+     */
+    public static final RenderPipeline METEOR_SCORCH = colorShellPipeline("meteor_scorch",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
+
+    /** RenderType for Meteo's scorch. */
+    public static final RenderType METEOR_SCORCH_TYPE = burnoutType(METEOR_SCORCH);
+
+    /**
+     * Meteo's rock (decision meteo-winds-up-then-drops-in-a-second-trailing-fire):
+     * plain colored quads that write depth, so the rock's near faces hide its
+     * far ones and it draws front to back as a solid.
+     */
+    public static final RenderPipeline METEOR_ROCK = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "meteor_rock"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    /** RenderType for Meteo's rock. */
+    public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
+
+    /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
      * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
      * implosion progress from the vertex Color.r channel and animates swirl
@@ -407,6 +435,22 @@ public final class GooRenderTypes {
     public static RenderType glowBeam(Identifier texture) {
         return GLOW_BEAM_FACTORY.apply(texture);
     }
+
+    /**
+     * Sunbeam's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
+     * a quad flush on each block face the ray burnt, through
+     * {@code sunbeam_scorch.vsh / .fsh}, cooling white-hot through orange to a
+     * dark burn mark. Alpha blended so the char darkens the face, depth tested
+     * with depth write off and biased toward the camera as a decal is, so it
+     * wins the face's own depth without standing off it.
+     */
+    public static final RenderPipeline SUNBEAM_SCORCH = shaderPairPipeline("sunbeam_scorch", "sunbeam_scorch",
+            BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT));
+
+    /** RenderType that draws Sunbeam's scorch. */
+    public static final RenderType SUNBEAM_SCORCH_TYPE = burnoutType(SUNBEAM_SCORCH);
 
     /**
      * Nether black-hole accretion-disk pipeline: third render pass that
@@ -663,6 +707,67 @@ public final class GooRenderTypes {
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
             .build();
+
+    /**
+     * Voidstone's faces: near-black stone holding pale stars placed by world
+     * position, drawn by VoidstoneFaces over the block's own plain dark faces,
+     * which the depth bias lets them win (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
+     */
+    public static final RenderPipeline VOIDSTONE = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "voidstone"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
+            .withCull(false)
+            .build();
+
+    /** The render type voidstone's faces draw through. */
+    public static final RenderType VOIDSTONE_TYPE = RenderType.create(
+            "goo_voidstone",
+            RenderSetup.builder(VOIDSTONE).createRenderSetup()
+    );
+
+    /**
+     * The block transform pipeline blended, for a translucent block's quads:
+     * a slime coat building in stays as see-through as the coat it becomes,
+     * and writes no depth, as translucent blocks write none
+     * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
+     */
+    public static final RenderPipeline BLOCK_MINGLE_TRANSLUCENT = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle_translucent"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
+            .build();
+
+    /** Per-atlas memoized render types on the blended block transform pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_TRANSLUCENT_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_block_mingle_translucent",
+                    RenderSetup.builder(BLOCK_MINGLE_TRANSLUCENT)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the blended block transform render type for the atlas a translucent block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType blockMingleTranslucent(Identifier atlas) {
+        return BLOCK_MINGLE_TRANSLUCENT_FACTORY.apply(atlas);
+    }
 
     /** Per-atlas memoized render types on the block transform pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_FACTORY =
@@ -1276,6 +1381,8 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(BLOCK_MINGLE);
+        event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
+        event.registerPipeline(VOIDSTONE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
         event.registerPipeline(BORE_VORTEX);
@@ -1284,7 +1391,8 @@ public final class GooRenderTypes {
 
     /**
      * Registers the overlay pipelines: the goo ripple masks and edge, the
-     * ghost, Bulb's glow beam, the glow shell, and Scry's faces.
+     * ghost, Bulb's glow beam, Sunbeam's scorch, the glow shell, Scry's
+     * faces, and Meteo's scorch and rock.
      *
      * @param event the event instance
      */
@@ -1297,8 +1405,11 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_IDLE);
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GLOW_BEAM);
+        event.registerPipeline(SUNBEAM_SCORCH);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
+        event.registerPipeline(METEOR_SCORCH);
+        event.registerPipeline(METEOR_ROCK);
     }
 
     /**

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.BrewEffectIcon;
 import com.mercuriusxeno.goo.ability.BrewEffectName;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
@@ -22,9 +23,10 @@ import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
-import com.mercuriusxeno.goo.client.ability.GlitterShell;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
+import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LiftWind;
+import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
@@ -54,6 +56,7 @@ import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.FeedPileRenderer;
+import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -95,6 +98,7 @@ import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEve
 import org.jspecify.annotations.Nullable;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
@@ -133,24 +137,27 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
-        BrewEffectName.readConnectionNamesFrom(GooClientSetup::syncedBrewAbilityName);
+        BrewEffectName.readConnectionNamesFrom(
+                type -> syncedBrewAbility(type).map(ClientAbility::displayName).orElse(null));
+        BrewEffectIcon.readConnectionIconsFrom(
+                type -> syncedBrewAbility(type).map(ClientAbility::iconTexture).orElse(null));
         HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
     /**
-     * Answers the displayName key of the brew ability a type grants, from the
-     * abilities the server synced, picked as AbilityRegistry.brewAbilityFor picks.
+     * Answers the brew ability a type grants, from the abilities the server synced,
+     * picked as AbilityRegistry.brewAbilityFor picks; its name and its icon are the
+     * brew effect's.
      * decision brew-effect-reads-the-abilitys-own-name
+     * decision every-brew-effect-draws-its-abilitys-icon
      *
      * @param type the goo type
-     * @return the ability's displayName key, or null when the type grants none
+     * @return the ability, or empty when the type grants none
      */
-    private static @Nullable String syncedBrewAbilityName(ResourceKey<GooTypeDefinition> type) {
+    private static Optional<ClientAbility> syncedBrewAbility(ResourceKey<GooTypeDefinition> type) {
         return AbilitySyncHandler.getAbilitiesForType(type).stream()
                 .filter(ability -> SelfEatRoute.eats(ability.delivery(), ability.badge()))
-                .min(Comparator.comparingInt(ClientAbility::order))
-                .map(ClientAbility::displayName)
-                .orElse(null);
+                .min(Comparator.comparingInt(ClientAbility::order));
     }
 
     /**
@@ -251,8 +258,8 @@ public final class GooClientSetup {
         // swap-body-stands-until-reverted: a client body wears its owner's skin, drawn by the player renderer
         ClientSwapBody.install();
         event.registerEntityRenderer(GooEntities.SWAP_BODY.get(), swapBodyRenderer());
-        // meteo-needs-a-clear-sky: the meteor shows as the flame trail the server sends
-        event.registerEntityRenderer(GooEntities.METEOR.get(), NoopRenderer::new);
+        // meteo-winds-up-then-drops-in-a-second-trailing-fire: the meteor shows as a burning rock
+        event.registerEntityRenderer(GooEntities.METEOR.get(), MeteorRenderer::new);
         // monstrosities-harvest-under-quantum
         event.registerEntityRenderer(GooEntities.ELDRITCH_MONSTROSITY.get(), EldritchMonstrosityRenderer::new);
     }
@@ -522,10 +529,11 @@ public final class GooClientSetup {
         ViewportRipples.CLIENT.clear();
     }
 
-    /** Clears Crystal's glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
+    /** Clears Crystal's glass knives, ore sightings, held sweeps, Meteo's scorches, arm poses and forming prisms. */
     private static void clearCrystalVisuals() {
         OreSightings.CLIENT.clear();
-        GlitterShell.clear();
+        HeldSweepVisual.clear();
+        MeteorScorches.clear();
         GlassKnives.clear();
         AbilityPoses.clear();
         PrismFormingSounds.CLIENT.clear();

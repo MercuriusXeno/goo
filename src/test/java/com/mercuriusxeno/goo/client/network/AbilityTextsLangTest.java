@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
@@ -17,6 +18,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -56,6 +58,13 @@ class AbilityTextsLangTest {
 
     private static String valueOf(String key) {
         return lang.has(key) ? lang.get(key).getAsString() : "";
+    }
+
+    // crystal-shards-becomes-crystal-knives-everywhere
+    @Test
+    void crystalKnivesReadsKnivesWithADescription() {
+        assertEquals("Knives", valueOf("goo.ability.crystal.knives"));
+        assertFalse(valueOf("goo.ability.crystal.knives.description").isBlank());
     }
 
     @ParameterizedTest

@@ -6,10 +6,12 @@
     "BlockStateGatePassageMixin",
     "ContainerShiftClickMergeMixin",
     "EntityPhasePassMixin",
+    "EntitySlimeCoatUnderfootMixin",
     "FoodDataLifetapMixin",
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
     "LivingEntityHeldFallsMixin",
+    "LivingEntityPneumaBreathMixin",
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "PlayerGluttonyEatMixin",
@@ -22,10 +24,13 @@
     "ClientLevelGooValuesMixin",
     "ClientPacketListenerGooMixin",
     "GameRendererPortalViewMixin",
+    "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
     "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",
-    "PlayerModelAbilityPoseMixin"
+    "PlayerModelAbilityPoseMixin",
+    "EntityScryOutlineColorMixin",
+    "MinecraftScryOutlineMixin"
   ]
 }

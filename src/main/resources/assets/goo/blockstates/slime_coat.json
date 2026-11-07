@@ -1,0 +1,9 @@
+{
+  "multipart": [
+    { "apply": { "model": "goo:block/slime_coat" } },
+    { "when": { "north": "true" }, "apply": { "model": "goo:block/slime_coat_drips" } },
+    { "when": { "east": "true" }, "apply": { "model": "goo:block/slime_coat_drips", "y": 90 } },
+    { "when": { "south": "true" }, "apply": { "model": "goo:block/slime_coat_drips", "y": 180 } },
+    { "when": { "west": "true" }, "apply": { "model": "goo:block/slime_coat_drips", "y": 270 } }
+  ]
+}
