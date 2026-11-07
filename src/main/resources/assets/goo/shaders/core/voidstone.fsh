@@ -6,8 +6,10 @@
 // near-black stone holding a field of pale stars. Every star sits on a sixteenth-of-a-block texel picked by
 // hashing that texel's world position and face, so a floor of any size reads as one random field with no
 // tile repeating; each star twinkles on its own clock over a faint nebula drifting through the dark.
+// Rooms stand a million blocks out, past where a float can place a sixteenth of a block, so the texel is
+// counted in integers: the camera's block times sixteen plus the camera-relative texel, exact anywhere.
 
-in vec3 voidWorldPos;
+in vec3 voidLocal;
 flat in vec3 voidNormal;
 
 out vec4 fragColor;
@@ -16,61 +18,77 @@ const float TEXELS = 16.0;
 const float TICKS_PER_CLOCK = 24000.0;
 const float BRIGHT_STARS = 0.012;
 const float DIM_STARS = 0.035;
-const float NEBULA_TEXELS = 40.0;
+const int NEBULA_TEXELS = 40;
 const float NEBULA_DRIFT = 0.004;
 const vec3 STONE = vec3(0.010, 0.009, 0.016);
 const vec3 NEBULA = vec3(0.030, 0.020, 0.055);
 const vec3 STAR = vec3(0.87, 0.86, 0.96);
 
-float hash(vec3 point) {
-    point = fract(point * vec3(443.897, 441.423, 437.195));
-    point += dot(point, point.yzx + 19.19);
-    return fract((point.x + point.y) * point.z);
+uint mixBits(uint value) {
+    value ^= value >> 16;
+    value *= 0x7feb352du;
+    value ^= value >> 15;
+    value *= 0x846ca68bu;
+    value ^= value >> 16;
+    return value;
 }
 
-float valueNoise(vec2 point, float seed) {
-    vec2 cell = floor(point);
-    vec2 into = fract(point);
+float hash(ivec3 point) {
+    uint mixed = mixBits(uint(point.x) ^ mixBits(uint(point.y) ^ mixBits(uint(point.z))));
+    return float(mixed) / 4294967295.0;
+}
+
+int floorDiv(int value, int by) {
+    return value >= 0 ? value / by : -((-value + by - 1) / by);
+}
+
+float valueNoise(ivec2 texel, vec2 within, int seed) {
+    ivec2 cell = ivec2(floorDiv(texel.x, NEBULA_TEXELS), floorDiv(texel.y, NEBULA_TEXELS));
+    vec2 into = (vec2(texel - cell * NEBULA_TEXELS) + within) / float(NEBULA_TEXELS);
     into = into * into * (3.0 - 2.0 * into);
-    float a = hash(vec3(cell, seed));
-    float b = hash(vec3(cell + vec2(1.0, 0.0), seed));
-    float c = hash(vec3(cell + vec2(0.0, 1.0), seed));
-    float d = hash(vec3(cell + vec2(1.0, 1.0), seed));
+    float a = hash(ivec3(cell, seed));
+    float b = hash(ivec3(cell + ivec2(1, 0), seed));
+    float c = hash(ivec3(cell + ivec2(0, 1), seed));
+    float d = hash(ivec3(cell + ivec2(1, 1), seed));
     return mix(mix(a, b, into.x), mix(c, d, into.x), into.y);
 }
 
 void main() {
     vec3 facing = abs(voidNormal);
-    vec2 across;
-    float depth;
-    float side;
+    ivec3 blockTexels = CameraBlockPos * 16;
+    vec3 local = voidLocal * TEXELS;
+    ivec2 across;
+    int plane;
+    int side;
+    vec2 within;
     if (facing.y > 0.5) {
-        across = voidWorldPos.xz;
-        depth = voidWorldPos.y;
-        side = 0.0;
+        across = blockTexels.xz + ivec2(floor(local.xz));
+        within = fract(local.xz);
+        plane = blockTexels.y + int(floor(local.y + 0.5));
+        side = 0;
     } else if (facing.x > 0.5) {
-        across = voidWorldPos.zy;
-        depth = voidWorldPos.x;
-        side = 1.0;
+        across = blockTexels.zy + ivec2(floor(local.zy));
+        within = fract(local.zy);
+        plane = blockTexels.x + int(floor(local.x + 0.5));
+        side = 1;
     } else {
-        across = voidWorldPos.xy;
-        depth = voidWorldPos.z;
-        side = 2.0;
+        across = blockTexels.xy + ivec2(floor(local.xy));
+        within = fract(local.xy);
+        plane = blockTexels.z + int(floor(local.z + 0.5));
+        side = 2;
     }
     // The face's own plane and side seed its stars, so the top and the sides of one block differ.
-    float plane = floor(depth * TEXELS + 0.5) + side * 4099.0;
-    vec2 texel = floor(across * TEXELS);
+    int seed = plane * 3 + side;
     float ticks = GameTime * TICKS_PER_CLOCK;
 
-    vec2 drift = vec2(ticks * NEBULA_DRIFT, ticks * NEBULA_DRIFT * 0.6);
-    float nebula = valueNoise(texel / NEBULA_TEXELS + drift / NEBULA_TEXELS, plane + 11.0);
-    nebula = smoothstep(0.45, 1.0, nebula);
+    ivec2 drift = ivec2(int(ticks * NEBULA_DRIFT), int(ticks * NEBULA_DRIFT * 0.6));
+    float nebula = smoothstep(0.45, 1.0, valueNoise(across + drift, within, seed + 11));
     vec3 color = STONE + NEBULA * nebula;
 
-    float pick = hash(vec3(texel, plane));
-    float rate = 0.03 + 0.09 * hash(vec3(texel, plane + 7.0));
+    float pick = hash(ivec3(across, seed));
+    float rate = 0.03 + 0.09 * hash(ivec3(across, seed + 7));
     float twinkle = 0.55 + 0.45 * sin(ticks * rate + pick * 61.0);
-    float bright = step(1.0 - BRIGHT_STARS, pick) * (0.7 + 0.3 * hash(vec3(texel, plane + 3.0)));
+    float bright = step(1.0 - BRIGHT_STARS, pick) * (0.7 + 0.3 * hash(ivec3(across, seed + 3)));
     float dim = step(1.0 - BRIGHT_STARS - DIM_STARS, pick) * (1.0 - step(1.0 - BRIGHT_STARS, pick)) * 0.28;
     color += STAR * (bright + dim) * twinkle;
 
