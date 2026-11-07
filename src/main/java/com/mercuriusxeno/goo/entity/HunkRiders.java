@@ -22,8 +22,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @EventBusSubscriber(modid = Goo.MODID)
 public final class HunkRiders {
 
-    /** The climbing hunks on both sides; the integrated server and its client share it, so it is concurrent. */
-    private static final Set<BlockHunk> CLIMBING = ConcurrentHashMap.newKeySet();
+    /**
+     * The climbing hunks on each side, one set a side: an entity equals any
+     * other bearing its id, so a client's copy of a hunk and the integrated
+     * server's own equal each other, and one shared set kept only the first.
+     */
+    private static final Set<BlockHunk> CLIMBING_SERVER = ConcurrentHashMap.newKeySet();
+    private static final Set<BlockHunk> CLIMBING_CLIENT = ConcurrentHashMap.newKeySet();
 
     private HunkRiders() {
     }
@@ -34,7 +39,15 @@ public final class HunkRiders {
      * @param hunk the hunk
      */
     static void rises(BlockHunk hunk) {
-        CLIMBING.add(hunk);
+        climbingOn(hunk.level().isClientSide()).add(hunk);
+    }
+
+    /**
+     * @param client whether the side is the client
+     * @return that side's climbing hunks
+     */
+    static Set<BlockHunk> climbingOn(boolean client) {
+        return client ? CLIMBING_CLIENT : CLIMBING_SERVER;
     }
 
     /**
@@ -43,7 +56,7 @@ public final class HunkRiders {
      * @param hunk the hunk
      */
     static void forget(BlockHunk hunk) {
-        CLIMBING.remove(hunk);
+        climbingOn(hunk.level().isClientSide()).remove(hunk);
     }
 
     /**
@@ -54,8 +67,9 @@ public final class HunkRiders {
     @SubscribeEvent
     public static void onEntityTickPre(EntityTickEvent.Pre event) {
         Entity rider = event.getEntity();
-        if (!CLIMBING.isEmpty() && mayRide(rider)) {
-            liftOnAnyHunk(rider);
+        Set<BlockHunk> climbing = climbingOn(rider.level().isClientSide());
+        if (!climbing.isEmpty() && mayRide(rider)) {
+            liftOnAnyHunk(rider, climbing);
         }
     }
 
@@ -63,10 +77,10 @@ public final class HunkRiders {
         return !(rider instanceof BlockHunk) && !rider.isSpectator() && movedHere(rider);
     }
 
-    private static void liftOnAnyHunk(Entity rider) {
-        for (BlockHunk hunk : List.copyOf(CLIMBING)) {
+    private static void liftOnAnyHunk(Entity rider, Set<BlockHunk> climbing) {
+        for (BlockHunk hunk : List.copyOf(climbing)) {
             if (hunk.isRemoved() || !hunk.climbsAt(hunk.level().getGameTime())) {
-                CLIMBING.remove(hunk);
+                climbing.remove(hunk);
             } else if (hunk.level() == rider.level() && hunk.liftRider(rider)) {
                 return;
             }

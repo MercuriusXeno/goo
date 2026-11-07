@@ -49,6 +49,13 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
     /** How far a lingering hunk's blocks swell past the stone beneath them. */
     private static final float LINGER_SWELL = 1.002f;
     private static final float WHOLE = 1f;
+    /** The farthest a rising pillar trembles from its line at the start of its rise, in blocks. */
+    private static final double TREMBLE = 0.05;
+    /** The tremble's two sine rates on each axis, in radians a tick, unrelated so it never repeats. */
+    private static final double TREMBLE_FAST = 2.9;
+    private static final double TREMBLE_SLOW = 1.7;
+    /** Offsets the tremble's z from its x, so the pillar shakes in a wobble rather than along a line. */
+    private static final double TREMBLE_PHASE = 1.3;
     /** How near the hold the server must have brought a hunk before the holder's look draws it. */
     private static final double AT_THE_HOLD = 1.0;
 
@@ -81,7 +88,7 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
         }
         Vec3 lerped = hunk.getPosition(partialTick);
         Vec3 drawnAt = heldOnTheLocalLook(hunk, partialTick);
-        Vec3 position = drawnAt == null ? lerped : drawnAt;
+        Vec3 position = (drawnAt == null ? lerped : drawnAt).add(trembleOf(hunk, level.getGameTime() + partialTick));
         state.swell = hunk.lingers(level.getGameTime()) ? LINGER_SWELL : WHOLE;
         hunk.blocks().stream().filter(block -> block.state().getRenderShape() == RenderShape.MODEL).forEach(block -> {
             Vec3 corner = BlockHunk.cornerOf(position, block);
@@ -89,6 +96,28 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
             // The pose stands at the lerped position, so a block drawn elsewhere is offset from it.
             state.offsets.add(corner.subtract(lerped));
         });
+    }
+
+    /**
+     * How far a rising pillar trembles off its line this frame: a sum of fast
+     * sines across the ground, strongest as it breaks out and easing to
+     * still as it reaches its cells.
+     * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
+     *
+     * @param hunk the hunk
+     * @param time the game time with the partial tick
+     * @return the tremble, zero for a hunk not climbing
+     */
+    private static Vec3 trembleOf(BlockHunk hunk, double time) {
+        if (!hunk.climbing(time)) {
+            return Vec3.ZERO;
+        }
+        double strength = TREMBLE * (1 - hunk.risenShareAt(time));
+        return new Vec3(sway(time, 0), 0, sway(time, TREMBLE_PHASE)).scale(strength);
+    }
+
+    private static double sway(double time, double phase) {
+        return HALF * (Math.sin(time * TREMBLE_FAST + phase) + Math.sin(time * TREMBLE_SLOW + phase));
     }
 
     private static MovingBlockRenderState movingBlock(ClientLevel level, BlockHunk.HunkBlock block, Vec3 corner,
