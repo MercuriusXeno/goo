@@ -4,11 +4,15 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mojang.blaze3d.ProjectionType;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
+import net.minecraft.client.CloudStatus;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.TextureFilteringMethod;
@@ -18,6 +22,7 @@ import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.chunk.CompiledSectionMesh;
 import net.minecraft.client.renderer.chunk.RenderRegionCache;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
+import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -37,6 +42,8 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.joml.Vector4f;
+import org.lwjgl.system.MemoryStack;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -93,6 +100,9 @@ public final class PortalView {
     /** The projection a view's sky draws with, unclipped. */
     private static ProjectionMatrixBuffer skyProjection;
     private static final String SKY_VIEW_LABEL = "goo_portal_view_sky";
+    private static final String FOG_LABEL = "goo_portal_view_fog";
+    /** The fog the views draw with, apart from the frame's own. */
+    private static GpuBuffer fogBuffer;
     /** The clipped projection a view takes once its sky is drawn, null outside a view's sky. */
     private static Matrix4f clippedAfterSky;
     private static boolean drawing;
@@ -387,8 +397,12 @@ public final class PortalView {
         GameRenderer game = mc.gameRenderer;
         LevelRenderState state = game.gameRenderState.levelRenderState;
         RenderTarget frame = mc.mainRenderTarget;
+        CloudStatus clouds = game.gameRenderState.optionsRenderState.cloudStatus;
         drawing = true;
         try {
+            // The cloud renderer keeps one mesh built around one camera; drawing clouds from a view would rebuild
+            // it around the view's camera and leave the frame's clouds jumping between the two.
+            game.gameRenderState.optionsRenderState.cloudStatus = CloudStatus.OFF;
             mc.mainRenderTarget = target;
             placeGlobalCamera(mc, delta, camera.pos);
             if (skyDraws(state, camera)) {
@@ -399,11 +413,10 @@ public final class PortalView {
                 RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(camera.projectionMatrix),
                         ProjectionType.PERSPECTIVE);
             }
-            game.fogRenderer.updateBuffer(camera.fogData);
             mc.levelRenderer.renderLevel(game.resourcePool, delta, false, camera, camera.viewRotationMatrix,
-                    game.fogRenderer.getBuffer(FogRenderer.FogMode.WORLD), camera.fogData.color, true,
-                    state.chunkSectionsToRender);
+                    viewFog(camera.fogData), camera.fogData.color, true, state.chunkSectionsToRender);
         } finally {
+            game.gameRenderState.optionsRenderState.cloudStatus = clouds;
             mc.mainRenderTarget = frame;
             drawing = false;
             clippedAfterSky = null;
@@ -435,6 +448,36 @@ public final class PortalView {
             RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(clippedAfterSky), ProjectionType.PERSPECTIVE);
             clippedAfterSky = null;
         }
+    }
+
+    /**
+     * The fog a view draws with, written into the view's own buffer through
+     * the command stream, so it lands in order between the frame's draws:
+     * the frame's fog buffer is written straight from the processor, and a
+     * view writing there raced the frame's own fog, the frame's sky now and
+     * then drawn in the view's fog.
+     *
+     * @param fog the view's fog
+     * @return the buffer slice the view's level render reads its fog from
+     */
+    private static GpuBufferSlice viewFog(FogData fog) {
+        if (fogBuffer == null) {
+            fogBuffer = RenderSystem.getDevice().createBuffer(() -> FOG_LABEL,
+                    GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST, FogRenderer.FOG_UBO_SIZE);
+        }
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            ByteBuffer data = Std140Builder.onStack(stack, FogRenderer.FOG_UBO_SIZE)
+                    .putVec4(fog.color)
+                    .putFloat(fog.environmentalStart)
+                    .putFloat(fog.environmentalEnd)
+                    .putFloat(fog.renderDistanceStart)
+                    .putFloat(fog.renderDistanceEnd)
+                    .putFloat(fog.skyEnd)
+                    .putFloat(fog.cloudEnd)
+                    .get();
+            RenderSystem.getDevice().createCommandEncoder().writeToBuffer(fogBuffer.slice(), data);
+        }
+        return fogBuffer.slice();
     }
 
     private static ProjectionMatrixBuffer skyProjectionBuffer() {
