@@ -470,7 +470,8 @@ class AbilityLoaderTest {
                 "deep_churn", "1K x r\u00B3",
                 "nether_black_hole", "1K x r\u00B3",
                 "unstable_explode", "1K x r\u00B3",
-                "rock_spire", "value/block",
+                "rock_spire", "%s/m³",
+                "rock_terrakinesis", "%s/tear",
                 "unstable_unmake", "value/block",
                 "yore_age", "age/block");
 

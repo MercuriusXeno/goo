@@ -18,10 +18,11 @@ public final class ClientGooValues {
     /**
      * Answers the values the current connection received.
      *
-     * @return the values, empty while no connection stands
+     * @return the values, empty while no connection stands or no client runs
      */
     public static IGooValueLookup current() {
-        ClientPacketListener connection = Minecraft.getInstance().getConnection();
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientPacketListener connection = minecraft == null ? null : minecraft.getConnection();
         if (connection instanceof GooValueSource source) {
             return source.gooValueLookup();
         }

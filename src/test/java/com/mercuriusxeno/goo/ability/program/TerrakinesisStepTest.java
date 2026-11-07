@@ -27,7 +27,7 @@ class TerrakinesisStepTest {
 
     private static final BlockPos STRUCK = new BlockPos(0, 64, 0);
     private static final double RADIUS = 1.5;
-    private static final TerrakinesisStep TERRAKINESIS = new TerrakinesisStep(6, RADIUS, 2.5, 3.5, 1.5);
+    private static final TerrakinesisStep TERRAKINESIS = new TerrakinesisStep(6, RADIUS, 2.5, 3.5, 1.5, 1000);
 
     @Nested
     class HunkCells {

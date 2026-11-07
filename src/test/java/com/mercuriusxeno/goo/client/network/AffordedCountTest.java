@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -207,6 +208,18 @@ class AffordedCountTest {
             assertEquals("200 + 100/block", blink.petalLabel(THOUSAND, NO_REAGENTS));
         }
 
+        // terrakinesis-tears-free-with-a-stone-tear-and-seam-dust: the petal reads the tear's tunable fixed price
+        @Test
+        void terrakinesisReadsItsFixedPriceATear() {
+            ClientAbility terrakinesis = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "terrakinesis"),
+                    "ability.goo.terrakinesis", "", 0, List.of(),
+                    List.of(new TerrakinesisStep(12, 1.5, 2.5, 3.5, 2.5, 1000)), 0, Delivery.of(DeliveryKind.SELF),
+                    AbilityBadge.CHANNELED, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0,
+                    DistancePrice.NONE, List.of(), ArmPose.HELD_OUT, "ability.goo.terrakinesis.description",
+                    Optional.of("ability.goo.terrakinesis.cost_mechanics"), Optional.of("%s/tear"));
+            assertEquals("1K/tear", terrakinesis.petalLabel(THOUSAND, NO_REAGENTS));
+        }
+
         @Test
         void noShippedDynamicPetalReadsZero() {
             for (String name : DYNAMIC_ABILITIES) {
@@ -214,7 +227,8 @@ class AffordedCountTest {
                 ClientAbility ability = ClientAbility.fromEntry(
                         AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)).get(0));
                 String label = ability.petalLabel(THOUSAND, NO_REAGENTS);
-                assertEquals(definition.costFormula().orElse("no formula"), label, name);
+                // The petal reads the formula filled from the ability's own numbers.
+                assertEquals(ability.formula().orElse("no formula"), label, name);
                 assertNotEquals("0", label, name);
             }
         }
