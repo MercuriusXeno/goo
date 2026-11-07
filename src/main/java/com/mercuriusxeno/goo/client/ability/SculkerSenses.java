@@ -2,14 +2,10 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.network.EntitySnapshots;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.util.ARGB;
@@ -21,7 +17,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +25,7 @@ import java.util.Map;
 /**
  * What a Sculker senses, while its brew stands. Every sound heard within
  * reach ripples out from its source and lights the block faces open to air
- * its front crosses, which draw sculk teal and fade out, weaker the farther
+ * its front crosses, whose blocks SculkerEchoRenderer draws tinted sculk teal, fading out, weaker the farther
  * away they stand; a louder sound ripples farther and lasts longer, a mob's
  * alike, and every living mob within hearing gives off a quiet ripple every
  * couple of seconds ({@link SculkerEchoes}). A mob that moves or sounds draws the sculk
@@ -53,11 +48,6 @@ public final class SculkerSenses {
     private static final int SILHOUETTE_GAP_TICKS = 10;
     /** Ticks each silhouette takes to grow and fade. */
     private static final int SILHOUETTE_LIFE_TICKS = 16;
-    /** The opacity a remembered face draws at beside the player. */
-    private static final int FACE_ALPHA = 80;
-    /** A remembered face this faint is not drawn at all. */
-    private static final float FAINTEST = 0.02f;
-    private static final AABB UNIT_CUBE = new AABB(0, 0, 0, 1, 1, 1);
 
     private static final SculkerEchoes ECHOES = new SculkerEchoes();
     /** Each heard entity's id and the game time its outline fades out at. */
@@ -223,32 +213,9 @@ public final class SculkerSenses {
     }
 
     /**
-     * Draws every lit face within sight, its opacity falling with its
-     * distance from the player and as it fades.
-     *
-     * @param event the level render stage event
+     * @return what the local Sculker's echoes have lit, which SculkerEchoRenderer draws
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || ECHOES.remembered().isEmpty()) {
-            return;
-        }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        PoseStack.Pose pose = event.getPoseStack().last();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
-        Vec3 standing = player.position();
-        long now = mc.level.getGameTime();
-        ECHOES.remembered().forEach((face, lit) -> {
-            float strength = SculkerEchoes.strength(face, lit, standing, now) * SculkerVision.presence();
-            if (strength > FAINTEST) {
-                AABB box = UNIT_CUBE.move(Vec3.atLowerCornerOf(face.pos()).subtract(camera));
-                ScrySweep.emitBoxFace(pose, consumer, box, face.side(),
-                        ARGB.color(Math.round(FACE_ALPHA * strength), SCULK_RGB));
-            }
-        });
-        buffers.endBatch(GooRenderTypes.SCRY_FACES_TYPE);
+    static SculkerEchoes echoes() {
+        return ECHOES;
     }
 }
