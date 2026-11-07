@@ -9,17 +9,14 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * What Meteo shows the world as its meteor comes: the rock smouldering high
- * over its target through the wind-up, a trail of fire and smoke as it
- * drops, and a flash where it lands.
+ * What Meteo shows the world as its meteor comes: a trail of fire and
+ * smoke as it falls, and a flash where it lands.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  */
 public final class MeteorMarks {
 
     /** Points along each tick's fall the trail puffs from, so it runs unbroken. */
     static final int TRAIL_STEPS = 10;
-    private static final int SMOULDER_PARTICLES = 3;
-    private static final double SMOULDER_SPREAD = 0.4;
     private static final int TRAIL_FLAMES = 3;
     private static final int TRAIL_SMOKE = 1;
     private static final int TRAIL_LAVA = 1;
@@ -56,24 +53,6 @@ public final class MeteorMarks {
     }
 
     /**
-     * One tick of the wind-up: the rock smouldering where it hangs over its
-     * target; its first tick sounds the call.
-     *
-     * @param level  the server level
-     * @param start  where the rock hangs
-     * @param target the point it strikes
-     * @param age    the wind-up's tick, 1 on its first
-     */
-    public static void windUp(ServerLevel level, Vec3 start, Vec3 target, int age) {
-        if (age == 1) {
-            level.playSound(null, target.x, target.y, target.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS,
-                    CALL_VOLUME, CALL_PITCH);
-        }
-        farParticles(level, ParticleTypes.LARGE_SMOKE, start, SMOULDER_PARTICLES, SMOULDER_SPREAD, TRAIL_SPEED);
-        farParticles(level, ParticleTypes.FLAME, start, SMOULDER_PARTICLES, SMOULDER_SPREAD, TRAIL_SPEED);
-    }
-
-    /**
      * The points a tick's trail puffs from: spread evenly along the stretch
      * the rock fell that tick, so the trail runs unbroken down the sky.
      *
@@ -90,12 +69,16 @@ public final class MeteorMarks {
     }
 
     /**
-     * The first tick of the drop: the rock roars as it lets go.
+     * The first tick of the fall: the call sounds at the target and the rock
+     * roars as it leaves the sky.
      *
-     * @param level the server level
-     * @param at    where the rock hangs
+     * @param level  the server level
+     * @param at     where the rock appeared
+     * @param target the point it strikes
      */
-    public static void drop(ServerLevel level, Vec3 at) {
+    public static void drop(ServerLevel level, Vec3 at, Vec3 target) {
+        level.playSound(null, target.x, target.y, target.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS,
+                CALL_VOLUME, CALL_PITCH);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, DROP_VOLUME,
                 DROP_PITCH);
     }
