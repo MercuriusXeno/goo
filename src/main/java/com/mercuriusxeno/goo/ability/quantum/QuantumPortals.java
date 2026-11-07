@@ -178,9 +178,10 @@ public class QuantumPortals extends SavedData {
     }
 
     /**
-     * Links the portal a player is choosing for to another of theirs: the
-     * chosen-from portal is the entry, and the pair the player linked before
-     * is unlinked, so a player holds one pair at a time. Choosing ends.
+     * Links the portal a player is choosing for to another of theirs in the
+     * same dimension: the chosen-from portal is the entry, and the pair the
+     * player linked before is unlinked, so a player holds one pair at a time.
+     * Choosing ends. A portal in another dimension is refused, and choosing holds.
      *
      * @param owner  the player
      * @param target the portal right clicked as the partner
@@ -188,7 +189,8 @@ public class QuantumPortals extends SavedData {
      */
     public Optional<Relink> link(UUID owner, Portal target) {
         Portal from = choosing.get(owner);
-        if (from == null || from.equals(target) || !portalsOf(owner).contains(target)) {
+        if (from == null || from.equals(target) || !portalsOf(owner).contains(target)
+                || !from.block().dimension().equals(target.block().dimension())) {
             return Optional.empty();
         }
         choosing.remove(owner);
