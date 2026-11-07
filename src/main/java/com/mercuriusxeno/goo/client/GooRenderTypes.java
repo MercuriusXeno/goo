@@ -110,8 +110,9 @@ public final class GooRenderTypes {
     /**
      * Sculker's glass field (decision sculker-shows-blocks-translucent-close-up):
      * the x-ray's translucent block quads, depth tested so the diver's own
-     * body and every entity in front of the glass stands over it, and writing
-     * depth so the vision dims each block by its true distance.
+     * body and every entity in front of the glass stands over it, writing
+     * depth so the vision dims each block by its true distance, and culling
+     * back faces so where two blocks meet only the face toward the diver draws.
      */
     public static final RenderPipeline SCULKER_GLASS = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sculker_glass"))
@@ -120,7 +121,7 @@ public final class GooRenderTypes {
             .withSampler("Sampler1")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
-            .withCull(false)
+            .withCull(true)
             .build();
 
     /** Per-atlas memoized render types on Sculker's glass pipeline. */

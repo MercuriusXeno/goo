@@ -59,6 +59,23 @@ class TendrilVignetteTest {
     }
 
     @Test
+    void noTwoTendrilsSproutOnTopOfEachOther() {
+        TendrilVignette vignette = new TendrilVignette(SEED);
+        for (int tick = 0; tick <= SAMPLES_UNTIL; tick++) {
+            vignette.advance(tick);
+            List<TendrilVignette.Tendril> live = vignette.live();
+            for (int one = 0; one < live.size(); one++) {
+                for (int other = one + 1; other < live.size(); other++) {
+                    TendrilVignette.Tendril a = live.get(one);
+                    TendrilVignette.Tendril b = live.get(other);
+                    assertFalse(a.edge() == b.edge() && Math.abs(a.along() - b.along()) < TendrilVignette.ROOT_GAP,
+                            "two tendrils rooted within the gap of each other on one edge at tick " + tick);
+                }
+            }
+        }
+    }
+
+    @Test
     void someForkSomeRootThickAndTheRestDoNot() {
         List<TendrilVignette.Tendril> live = advancedTo(SAMPLES_UNTIL).live();
         assertTrue(live.stream().anyMatch(TendrilVignette.Tendril::forks)
