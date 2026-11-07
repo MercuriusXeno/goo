@@ -6,14 +6,16 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.Identifier;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeSet;
+import java.util.Set;
 
 /**
  * The Abilities tab's model with no server: every numeric leaf of each ability's own JSON by its path, a cost or an
@@ -33,6 +35,9 @@ public final class AbilitiesModel {
     private static final String GOO_TYPE = "gooType";
     private static final String DISPLAY_NAME = "displayName";
     private static final String DRAFT = "draft";
+    private static final String BADGE = "badge";
+    private static final String ORDER = "order";
+    private static final String TYPE_ORDER = "typeOrder";
     private static final String LEAVES = "leaves";
     private static final String PATH = "path";
     private static final String VALUE = "value";
@@ -184,7 +189,8 @@ public final class AbilitiesModel {
      */
     public static JsonObject model(Map<Identifier, JsonObject> live, Map<Identifier, JsonObject> drafts) {
         JsonArray abilities = new JsonArray();
-        TreeSet<Identifier> ids = new TreeSet<>(live.keySet());
+        // The client sections and sorts the abilities, so the model lists them in no order of its own.
+        Set<Identifier> ids = new LinkedHashSet<>(live.keySet());
         ids.addAll(drafts.keySet());
         for (Identifier id : ids) {
             JsonObject file = drafts.getOrDefault(id, live.get(id));
@@ -192,6 +198,10 @@ public final class AbilitiesModel {
         }
         JsonObject model = new JsonObject();
         model.add(ABILITIES, abilities);
+        // abilities-tab-sections-by-type-in-picker-order-fan-order-inside: the picker's type order, for the client
+        JsonArray typeOrder = new JsonArray();
+        GooTypes.order().forEach(type -> typeOrder.add(GooTypes.id(type)));
+        model.add(TYPE_ORDER, typeOrder);
         return model;
     }
 
@@ -200,6 +210,8 @@ public final class AbilitiesModel {
         ability.addProperty(ID, id.toString());
         ability.add(GOO_TYPE, file.get(GOO_TYPE));
         ability.add(DISPLAY_NAME, file.get(DISPLAY_NAME));
+        ability.add(BADGE, file.get(BADGE));
+        ability.addProperty(ORDER, file.has(ORDER) ? file.get(ORDER).getAsInt() : 0);
         ability.addProperty(DRAFT, draft);
         JsonArray leaves = new JsonArray();
         for (Leaf leaf : leaves(id, file)) {

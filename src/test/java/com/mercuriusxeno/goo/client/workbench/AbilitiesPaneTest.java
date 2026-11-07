@@ -8,9 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -132,6 +138,106 @@ class AbilitiesPaneTest {
             draw(pane).click(DONE);
             assertEquals("24", tab.valueOf(tab.abilities().getFirst(), range()));
             assertTrue(draw(pane).texts().contains("24"), "the row reads its new value once the box closes");
+        }
+    }
+
+    /**
+     * One section per goo type in the model's type order, each headed by the Audit chevron, the type's icon and its
+     * bold name, its abilities in fan order with a separator between them, every section open at first and folded by
+     * its chevron or the Expand all / Collapse all button (decisions
+     * abilities-tab-sections-by-type-in-picker-order-fan-order-inside,
+     * type-sections-fold-by-the-audit-chevron-and-start-expanded, entries-draw-line-separators).
+     */
+    @Nested
+    class Sections {
+        private static final String OPEN_MARK = "v";
+        private static final String CLOSED_MARK = ">";
+        private static final String COLLAPSE_ALL = "Collapse all";
+        private static final String EXPAND_ALL = "Expand all";
+        private final List<AbstractWidget> widgets = new ArrayList<>();
+
+        private AbilitiesPane sectioned() {
+            AbilitiesTab tab = new AbilitiesTab();
+            tab.readModel(AbilitiesTabTest.MODEL);
+            ManagerActions actions = mock(ManagerActions.class);
+            when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+                widgets.add(call.getArgument(0));
+                return call.getArgument(0);
+            });
+            ItemIcons icons = mock(ItemIcons.class);
+            AbilitiesPane pane = new AbilitiesPane(tab, actions, icons, new ExpressionBuilderPane(actions, icons,
+                    List::of, List::of), key -> key, ref -> Map.of(), java.util.Set::of);
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+            return pane;
+        }
+
+        private static String typeName(String type) {
+            return GooTypeIcons.nameOf(type).getString();
+        }
+
+        // A heading's row top, from its text's top, as the heading centers its text on its row.
+        private static int rowTopOf(DrawnFrame.Text heading) {
+            return heading.y() - Lettering.full(DrawnFrame.font()).centeredTop(0, ButtonPainter.HEIGHT);
+        }
+
+        @Test
+        void typesStandInTheModelsOrderAndAbilitiesInFanOrder() {
+            DrawnFrame frame = draw(sectioned());
+            assertTrue(frame.find(typeName("rock")).y() > frame.find(typeName("unstable")).y());
+            assertTrue(frame.find("rock_mob_first").y() > frame.find("rock_channeled").y());
+            assertTrue(frame.find("rock_world").y() > frame.find("rock_mob").y());
+        }
+
+        @Test
+        void aSectionHeadsWithTheChevronTheTypesIconAndItsBoldName() {
+            DrawnFrame frame = draw(sectioned());
+            DrawnFrame.Text name = frame.find(typeName("unstable"));
+            assertTrue(frame.bold(typeName("unstable")));
+            assertTrue(frame.findFirst(OPEN_MARK).x() < name.x(), "the chevron stands before the name");
+            verify(frame.graphics, atLeastOnce()).blit(any(), eq(GooTypeIcons.texture("unstable")), anyInt(),
+                    anyInt(), anyFloat(), anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        }
+
+        @Test
+        void theChevronFoldsTheSectionsAbilitiesOutAndBack() {
+            AbilitiesPane pane = sectioned();
+            draw(pane).clickFirst(OPEN_MARK);
+            DrawnFrame folded = draw(pane);
+            assertTrue(folded.texts().contains(typeName("unstable")), "the heading left with its abilities");
+            assertTrue(folded.texts().contains(CLOSED_MARK), folded.texts().toString());
+            assertFalse(folded.texts().contains("unstable_world"), folded.texts().toString());
+            assertTrue(folded.texts().contains("rock_world"), "folding one section folded another");
+            folded.clickFirst(CLOSED_MARK);
+            assertTrue(draw(pane).texts().contains("unstable_world"));
+        }
+
+        @Test
+        void collapseAllStandsRightOfTheSearchBoxAndFoldsEverySection() {
+            AbilitiesPane pane = sectioned();
+            DrawnFrame frame = draw(pane);
+            EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                    .findFirst().orElseThrow();
+            DrawnFrame.Text collapse = frame.find(COLLAPSE_ALL);
+            assertTrue(collapse.x() >= search.getRight(), collapse + " stands left of the search box's right edge");
+            assertTrue(collapse.y() < search.getBottom(), collapse + " stands below the search row");
+            frame.click(COLLAPSE_ALL);
+            DrawnFrame collapsed = draw(pane);
+            assertTrue(collapsed.texts().contains(EXPAND_ALL), collapsed.texts().toString());
+            assertFalse(collapsed.texts().contains("rock_world") || collapsed.texts().contains("unstable_world"));
+            collapsed.click(EXPAND_ALL);
+            DrawnFrame expanded = draw(pane);
+            assertTrue(expanded.texts().containsAll(List.of("unstable_world", "rock_channeled", "rock_world")));
+        }
+
+        @Test
+        void aRuleStandsAboveEachAbilityButTheFirstOfItsSection() {
+            DrawnFrame frame = draw(sectioned());
+            List<Integer> rules = frame.fillsOf(Palette.SEPARATOR).stream()
+                    .filter(fill -> fill[3] == fill[1] + 1).map(fill -> fill[1]).toList();
+            assertTrue(rules.contains(rowTopOf(frame.find("rock_mob_first")) - 1), rules.toString());
+            assertFalse(rules.contains(rowTopOf(frame.find("rock_channeled")) - 1), rules.toString());
+            assertFalse(rules.contains(rowTopOf(frame.find("unstable_world")) - 1), rules.toString());
         }
     }
 
