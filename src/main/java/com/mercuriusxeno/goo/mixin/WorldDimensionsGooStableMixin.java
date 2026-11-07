@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Reads goo's own dimensions, Astral's goo:lunar and goo:solar, as stable.
+ * Reads goo's own dimensions, Void's goo:pocket among them, as stable.
  * Vanilla reads every dimension that is not vanilla-like as experimental,
- * so the two the mod's datapack adds to every world opened each world on
+ * so a dimension the mod's datapack adds to every world opens each world on
  * the Experimental Settings screen (operator ruling 2026-10-11: suppress
  * it). A dimension any other source adds still reads as vanilla reads it.
  */
