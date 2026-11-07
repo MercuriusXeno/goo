@@ -84,5 +84,15 @@
         "stream": false
       }
     ]
+  },
+  "effects.earth_rumble": {
+    "category": "blocks",
+    "subtitle": "subtitles.goo.earth_rumble",
+    "sounds": [
+      {
+        "name": "goo:effects/earth_rumble",
+        "stream": false
+      }
+    ]
   }
 }
