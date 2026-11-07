@@ -45,6 +45,22 @@ class GooTargetHighlighterTest {
             assertNotEquals(cursorHit, target.resolveEndpoint());
             assertEquals(target.resolveEndpoint(), GooTargetHighlighter.aimLineEnd(target));
         }
+
+        @Test
+        void aCursorSwayingAcrossAMobLeavesTheLineEndPut() {
+            Entity cow = mock(Entity.class);
+            when(cow.getBoundingBox()).thenReturn(new AABB(6.5, 64.0, 0.5, 7.5, 65.4, 1.5));
+
+            assertEquals(GooTargetHighlighter.aimLineEnd(TargetResult.entity(cow, new Vec3(6.6, 64.2, 0.6))),
+                    GooTargetHighlighter.aimLineEnd(TargetResult.entity(cow, new Vec3(7.4, 65.3, 1.4))));
+        }
+
+        @Test
+        void aCursorSwayingAcrossAFaceLeavesTheLineEndPut() {
+            assertEquals(
+                    GooTargetHighlighter.aimLineEnd(TargetResult.block(POS, Direction.NORTH, new Vec3(2.1, 64.1, 2.0))),
+                    GooTargetHighlighter.aimLineEnd(TargetResult.block(POS, Direction.NORTH, new Vec3(2.9, 64.9, 2.0))));
+        }
     }
 
     @Nested
