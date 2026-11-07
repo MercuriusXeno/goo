@@ -40,6 +40,39 @@ class GatePassageTest {
     }
 
     @Test
+    void steppingStraightBackIntoThePartnerCrossesIt() {
+        Vec3 eye = new Vec3(0.5, 1.5, -0.03);
+        GatePassage.Landing landing = GatePassage.landingThrough(NEAR, FAR, new GatePassage.Held(eye, 1.62), 1.8,
+                Vec3.ZERO, 0F, 0F);
+        Vec3 landed = landing.feet().add(0, 1.62, 0);
+        Vec3 stepBack = landed.subtract(FAR.face().getUnitVec3().scale(STEP_BACK));
+        assertTrue(GatePassage.crossed(FAR, landed, stepBack),
+                "Stepping back from where it landed should cross the partner again, never into the wall behind it");
+    }
+
+    @Test
+    void aBodyMovingInPastTheMarginCrossesFromWhereverItsLastTickStood() {
+        Vec3 before = new Vec3(0.5, 1.5, FAR_FACE_Z + 0.02);
+        Vec3 now = new Vec3(0.5, 1.5, FAR_FACE_Z - 0.05);
+        assertTrue(GatePassage.crossed(FAR, before, now), "A body moving in past the margin should cross, though its "
+                + "last tick already stood within the margin");
+    }
+
+    @Test
+    void aBodyMovingOutAcrossTheMarginDoesNotCross() {
+        Vec3 before = new Vec3(0.5, 1.5, FAR_FACE_Z - 0.05);
+        Vec3 now = new Vec3(0.5, 1.5, FAR_FACE_Z + 0.02);
+        org.junit.jupiter.api.Assertions.assertFalse(GatePassage.crossed(FAR, before, now),
+                "A body coming out of the face should not cross back");
+    }
+
+    /** The far mouth's face, the plane z 3. */
+    private static final double FAR_FACE_Z = 3.0;
+
+    /** A short step back toward the face just come out of. */
+    private static final double STEP_BACK = 0.06;
+
+    @Test
     void aCrossedEyeLandsBeyondTheNearPlaneBeforeThePartnersFace() {
         Vec3 eye = new Vec3(0.5, 1.5, -0.03);
         GatePassage.Landing landing = GatePassage.landingThrough(NEAR, FAR, new GatePassage.Held(eye, 1.62), 1.8,

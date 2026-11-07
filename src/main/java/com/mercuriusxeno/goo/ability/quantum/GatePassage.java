@@ -52,6 +52,12 @@ public final class GatePassage {
      * the wall behind it, and lands that far before the partner's face.
      */
     private static final double CAMERA_MARGIN = 0.08;
+    /**
+     * How far before the partner's face a carried eye or middle lands: clear
+     * of the crossing margin, so a step straight back counts as crossing the
+     * partner rather than walking into the opened blocks behind its face.
+     */
+    private static final double LANDING_MARGIN = 0.12;
     /** A crawling body's height. */
     private static final double CRAWL_HEIGHT = 0.6;
     /** How far before a low wall gate's face a player drops into a crawl. */
@@ -237,8 +243,11 @@ public final class GatePassage {
     }
 
     /**
-     * Whether a point crossed a gate's face, from before it to just behind
-     * it, within its oval.
+     * Whether a point crossed a gate's face: moving in, it now stands past
+     * the margin before the face, no deeper than a body can be, within the
+     * oval, wherever it stood the tick before, so a body stepping straight
+     * back into the gate it just came out of crosses it again rather than
+     * walking into the opened blocks behind it.
      *
      * @param gate   the gate
      * @param before the point before
@@ -247,7 +256,7 @@ public final class GatePassage {
      */
     public static boolean crossed(Gate gate, Vec3 before, Vec3 now) {
         double out = gate.out(now);
-        return gate.out(before) >= CAMERA_MARGIN && out < CAMERA_MARGIN && out > -DEEPEST && gate.withinOval(now);
+        return out < gate.out(before) && out < CAMERA_MARGIN && out > -DEEPEST && gate.withinOval(now);
     }
 
     /**
@@ -393,8 +402,8 @@ public final class GatePassage {
             float pitch) {
         Landing landing = landing(PortalTransform.between(near, far), held.point(), held.drop(), motion, yaw, pitch);
         // The held point lands mirrored, as far behind the partner's face as it stood before this one; it is set
-        // the camera's margin before the partner's face instead, so the camera never stands where it would clip.
-        double short_ = CAMERA_MARGIN - far.out(landing.feet().add(0, held.drop(), 0));
+        // the landing margin before the partner's face instead, so the camera never stands where it would clip.
+        double short_ = LANDING_MARGIN - far.out(landing.feet().add(0, held.drop(), 0));
         Vec3 ahead = short_ > 0 ? landing.feet().add(far.face().getUnitVec3().scale(short_)) : landing.feet();
         return new Landing(clearOf(far, ahead, height), landing.motion(), landing.yaw(), landing.pitch());
     }
