@@ -177,8 +177,6 @@
   "goo.ability.crystal.scales.description": "Your hearts gain a crystal shell that blocks damage instead of reducing your life.",
   "goo.ability.crystal.prism": "Prism",
   "goo.ability.crystal.prism.description": "Grow a prism where it lands. Prisms react with other goo types.",
-  "goo.ability.astral.gate": "Astral Gate",
-  "goo.ability.astral.gate.description": "Ephemeral lunar/solar portal depending on time of day.",
   "goo.ability.astral.meteo": "Meteo",
   "goo.ability.astral.meteo.description": "Calls a meteor; requires open sky.",
   "goo.ability.astral.scry": "Scry",
