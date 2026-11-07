@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mercuriusxeno.goo.type.GooTypes;
+import org.jspecify.annotations.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * What the expression builder offers where a value is read, so every choice it shows is one the game's evaluator
@@ -25,6 +28,8 @@ final class BuilderGrammar {
 
     private final boolean prefab;
     private final List<Prefab> readable;
+    // The one goo type an ability's cost holds, null for a value of any type.
+    private final @Nullable String oneType;
 
     /**
      * One prefab the value may read.
@@ -46,8 +51,58 @@ final class BuilderGrammar {
     }
 
     private BuilderGrammar(boolean prefab, List<Prefab> readable) {
+        this(prefab, readable, null);
+    }
+
+    private BuilderGrammar(boolean prefab, List<Prefab> readable, @Nullable String oneType) {
         this.prefab = prefab;
         this.readable = List.copyOf(readable);
+        this.oneType = oneType;
+    }
+
+    /**
+     * An ability's cost, built like a by-type value that can only accept one type, the ability's own, so an item or a
+     * per-type prefab in it contributes its amount of that type
+     * (decision ability-cost-builds-as-a-one-type-by-type-value).
+     *
+     * @param prefabs every prefab, in the file's order
+     * @param type    the ability's goo type id
+     * @return the grammar of the cost, one row of the type, reading numbers, items and every prefab
+     */
+    static BuilderGrammar forOneType(List<Prefab> prefabs, String type) {
+        return new BuilderGrammar(false, prefabs, type);
+    }
+
+    /**
+     * @return the goo types a row may hold: the ability's own alone for a cost, every type otherwise
+     */
+    Set<String> offeredTypes() {
+        if (oneType != null) {
+            return Set.of(oneType);
+        }
+        return GooTypes.order().stream().map(GooTypes::id).collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * @param builder the value
+     * @return the goo types the row and add-type pickers hide: the types its rows hold, and for a cost every type but
+     *     the ability's own
+     */
+    Set<String> hiddenTypes(ExpressionBuilder builder) {
+        Set<String> hidden = new HashSet<>(heldTypes(builder));
+        hidden.addAll(memberHidden());
+        return Set.copyOf(hidden);
+    }
+
+    /**
+     * @return the goo types a term's member picker hides: every type but the ability's own for a cost, none otherwise
+     */
+    Set<String> memberHidden() {
+        if (oneType == null) {
+            return Set.of();
+        }
+        return GooTypes.order().stream().map(GooTypes::id).filter(type -> !type.equals(oneType))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     /**
@@ -100,7 +155,8 @@ final class BuilderGrammar {
      *         per-type prefab stands
      */
     boolean offersGooKind() {
-        return !prefab || !perTypePrefabs().isEmpty();
+        // ability-cost-builds-as-a-one-type-by-type-value: a cost is by type alone
+        return oneType == null && (!prefab || !perTypePrefabs().isEmpty());
     }
 
     /**

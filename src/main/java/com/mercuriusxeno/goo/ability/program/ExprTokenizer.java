@@ -16,6 +16,7 @@ import java.util.List;
 final class ExprTokenizer {
 
     private static final String SYMBOLS = "+-*/(),";
+    private static final char PREFAB_MARK = '$';
     private static final String ERR_UNEXPECTED = "Unexpected character '%s' in step expression: %s";
 
     private ExprTokenizer() {
@@ -103,13 +104,14 @@ final class ExprTokenizer {
     }
 
     /**
-     * Tells whether the character may start a name.
+     * Tells whether the character may start a name: a letter, an underscore, or the $ of a prefab an ability's cost
+     * reads (decision ability-cost-builds-as-a-one-type-by-type-value).
      *
      * @param c the character
-     * @return true for a letter or an underscore
+     * @return true for a letter, an underscore or a $
      */
     private static boolean isNameStart(char c) {
-        return Character.isLetter(c) || c == '_';
+        return Character.isLetter(c) || c == '_' || c == PREFAB_MARK;
     }
 
     /**

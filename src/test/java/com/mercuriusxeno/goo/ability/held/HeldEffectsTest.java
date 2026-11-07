@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -97,6 +99,23 @@ class HeldEffectsTest {
             assertEquals(Map.of(GooTypes.BLAZE, UPKEEP), ticked.drawn());
             assertEquals(List.of(second), ticked.ended());
             assertTrue(ticked.after().holds(KINDLE));
+        }
+
+        @Test
+        void aHalfUpkeepDrawsOneEveryOtherTickItsRemainderPayingBetween() {
+            HeldEffects held = holding(new HeldEffects.Held(KINDLE, GooTypes.BLAZE, GooFraction.of(1, 2), Set.of(),
+                    STARTED));
+            GooRemainders remainders = GooRemainders.EMPTY;
+            List<Integer> draws = new ArrayList<>();
+            for (long now = STARTED + 1; now <= STARTED + 4; now++) {
+                HeldEffects.Ticked ticked = held.tick(type -> 10, remainders, now);
+                draws.add(ticked.drawn().getOrDefault(GooTypes.BLAZE, 0));
+                remainders = ticked.remainders();
+                assertTrue(ticked.ended().isEmpty());
+            }
+
+            assertEquals(List.of(1, 0, 1, 0), draws);
+            assertEquals(GooFraction.ZERO, remainders.of(GooTypes.BLAZE));
         }
     }
 
@@ -219,7 +238,7 @@ class HeldEffectsTest {
         @Test
         void aPrepaidExpiryPlaysTheAbilitysOwnCueOnce() {
             SoundCue own = SoundCue.of(Identifier.withDefaultNamespace("block.fire.extinguish"));
-            HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP,
+            HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, GooFraction.of(UPKEEP),
                     Set.of(LaidState.HEART_OVERLAY), STARTED, STARTED + 10, own);
             List<HeldEffects.Held> ended = holding(brewed).tick(type -> 0, STARTED + 10).ended();
             assertEquals(List.of(own.sound()), playedIds(ended));

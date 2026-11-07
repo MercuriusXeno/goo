@@ -30,6 +30,7 @@ import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.program.WobbleStep;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -257,10 +258,10 @@ class AbilityLoaderTest {
 
         for (AbilityDefinition ability : scanned.values()) {
             if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
-                assertEquals(0, ability.cost(), ability.id().toString());
-                assertTrue(ability.upkeep() >= 1, ability.id().toString());
+                assertEquals(0, ability.cost().in(GooValueTable.EMPTY), ability.id().toString());
+                assertTrue(ability.upkeep().in(GooValueTable.EMPTY) >= 1, ability.id().toString());
             } else {
-                assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep(), ability.id().toString());
+                assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep().in(GooValueTable.EMPTY), ability.id().toString());
             }
         }
     }
@@ -540,7 +541,7 @@ class AbilityLoaderTest {
 
             AbilityDefinition blast = AbilityJson.decode(BLAST);
 
-            assertTrue(blast.cost() > 0, "Blast's cost " + blast.cost());
+            assertTrue(blast.cost().in(GooValueTable.EMPTY) > 0, "Blast's cost " + blast.cost().in(GooValueTable.EMPTY));
             assertEquals(Optional.empty(), blast.costMechanics());
         }
     }
@@ -616,8 +617,8 @@ class AbilityLoaderTest {
 
             assertEquals(AbilityBadge.BREW, rally.badge());
             assertEquals(DeliveryKind.SELF, rally.delivery().kind());
-            assertTrue(rally.upkeep() > 0, "upkeep " + rally.upkeep());
-            assertEquals(0, rally.cost());
+            assertTrue(rally.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + rally.upkeep().in(GooValueTable.EMPTY));
+            assertEquals(0, rally.cost().in(GooValueTable.EMPTY));
             assertTrue(SelfEatRoute.eats(rally.delivery(), rally.badge()));
         }
 

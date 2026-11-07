@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.entity.CompressedHoard;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -727,7 +728,7 @@ public final class EffectExecutorTests {
                 HOLE_SIZE));
         int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.NETHER, 0);
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(spent == hole.cost(), String.format(HOLE_CHARGED_WRONG, hole.cost(), spent));
+        helper.assertTrue(spent == hole.cost().in(GooValueTable.EMPTY), String.format(HOLE_CHARGED_WRONG, hole.cost().in(GooValueTable.EMPTY), spent));
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
     }
 

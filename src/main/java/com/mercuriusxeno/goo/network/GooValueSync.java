@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -66,7 +67,8 @@ public final class GooValueSync {
      * @return the constructed sync payload
      */
     private static GooValueSyncPayload buildPayload(MinecraftServer server) {
-        Map<Identifier, GooValue> values = GooValues.of(server).getEffectiveValues();
-        return new GooValueSyncPayload(values);
+        IGooValueLookup lookup = GooValues.of(server);
+        Map<Identifier, GooValue> values = lookup.getEffectiveValues();
+        return new GooValueSyncPayload(values, lookup.prefabs());
     }
 }

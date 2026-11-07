@@ -12,9 +12,13 @@ import java.nio.file.Path;
  * @param auditDump     the audit dump the values-dumps run writes
  * @param cliqueDump    the clique dump the values-dumps run writes
  * @param auditJson     the audit's sections as data, each rule's section, lines and flags
+ * @param abilities     the live goo_abilities folder a promoted ability draft lands in
+ *                      (decision ability-drafts-promote-per-file-like-base-values)
+ * @param abilityDrafts the folder each edited ability's draft stands in, outside every pack's data folder, so no
+ *                      ability scan loads a draft as an ability
  */
 public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path auditDump, Path cliqueDump,
-                             Path auditJson) {
+                             Path auditJson, Path abilities, Path abilityDrafts) {
     private static final String GAMETEST_CONFIG = "runs/gameTestServer/config";
     private static final String SHIPPED_BASE_VALUES = "src/main/resources/data/goo/goo_values/base_values.json";
     private static final String INVENTORY_FILE = "goo_inventory.json";
@@ -25,6 +29,9 @@ public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path auditDump
     private static final String WORLD_PACK = "datapacks/goo_values";
     private static final String PACK_VALUES = "data/goo/goo_values/base_values.json";
     private static final String WORLD_WORKBENCH = "goo_workbench";
+    private static final String PACK_ABILITIES = "data/goo/goo_abilities";
+    private static final String SHIPPED_ABILITIES = "src/main/resources/data/goo/goo_abilities";
+    private static final String ABILITY_DRAFTS = "ability_drafts";
 
     /**
      * @param world a world's save folder
@@ -43,7 +50,8 @@ public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path auditDump
     public static WorkbenchPaths inWorld(Path world) {
         Path folder = world.resolve(WORLD_WORKBENCH);
         return new WorkbenchPaths(packRoot(world).resolve(PACK_VALUES), folder.resolve(INVENTORY_FILE),
-                folder.resolve(AUDIT_DUMP), folder.resolve(CLIQUE_DUMP), folder.resolve(AUDIT_JSON));
+                folder.resolve(AUDIT_DUMP), folder.resolve(CLIQUE_DUMP), folder.resolve(AUDIT_JSON),
+                packRoot(world).resolve(PACK_ABILITIES), folder.resolve(ABILITY_DRAFTS));
     }
 
     /**
@@ -83,6 +91,6 @@ public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path auditDump
         Path config = projectDir.resolve(GAMETEST_CONFIG);
         return new WorkbenchPaths(projectDir.resolve(SHIPPED_BASE_VALUES),
                 config.resolve(INVENTORY_FILE), config.resolve(AUDIT_DUMP), config.resolve(CLIQUE_DUMP),
-                config.resolve(AUDIT_JSON));
+                config.resolve(AUDIT_JSON), projectDir.resolve(SHIPPED_ABILITIES), config.resolve(ABILITY_DRAFTS));
     }
 }
