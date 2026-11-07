@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.ability.kinetic;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisHolds;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
+import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.network.AilmentPayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -147,6 +149,10 @@ public final class GrabEvents {
         player.setData(GooAttachments.GRAB_HOLD,
                 GrabHold.spentUntil(player.level().getGameTime() + HOLD_GRACE_TICKS));
         release(held);
+        if (held instanceof BlockHunk) {
+            // A thrown Terrakinesis chunk holds off the next grab while it flies.
+            TerrakinesisHolds.threw(player.getUUID(), player.level().getGameTime());
+        }
         held.setDeltaMovement(player.getLookAngle().scale(speed));
         held.hurtMarked = true;
         EntityVisuals.sendToWatchers(held, new AilmentPayload(held.getId(), AilmentKind.GRABBED, 0));

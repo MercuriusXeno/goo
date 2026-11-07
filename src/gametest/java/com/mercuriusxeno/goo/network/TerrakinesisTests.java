@@ -46,6 +46,7 @@ public final class TerrakinesisTests {
     private static final String HUCKS_THROUGH_A_WALL = "terrakinesis_hucks_a_hunk_through_a_wall";
     private static final String RELEASE_CANCELS = "terrakinesis_release_before_the_tear_lifts_nothing";
     private static final String GRABS_FROM_AFAR = "terrakinesis_grabs_from_eleven_blocks_away";
+    private static final String WAITS_AFTER_A_THROW = "terrakinesis_waits_after_a_throw";
     /** Where the caster stands for the long grab: 11 blocks west of the slab's face, inside the 12 it reaches. */
     private static final BlockPos FAR_STAND_POS = new BlockPos(-9, 1, 2);
     /** The bay's barrier wall where the far caster's level look crosses it. */
@@ -111,6 +112,7 @@ public final class TerrakinesisTests {
         GooTestFunctions.registerTest(registrar, HUCKS_THROUGH_A_WALL, TerrakinesisTests::hucksAHunkThroughAWall);
         GooTestFunctions.registerTest(registrar, RELEASE_CANCELS, TerrakinesisTests::releaseBeforeTheTearLiftsNothing);
         GooTestFunctions.registerTest(registrar, GRABS_FROM_AFAR, TerrakinesisTests::grabsFromElevenBlocksAway);
+        GooTestFunctions.registerTest(registrar, WAITS_AFTER_A_THROW, TerrakinesisTests::waitsAfterAThrow);
     }
 
     /**
@@ -242,6 +244,34 @@ public final class TerrakinesisTests {
             helper.assertTrue(torn == 1, "A slab 11 blocks off should tear free inside the reach of 12, found " + torn);
             leave(helper, player);
         });
+    }
+
+    /**
+     * Holding right click on after a throw grabs no new chunk until the
+     * cooldown has passed, so a second chunk never comes up while the first flies.
+     *
+     * @param helper the gametest helper
+     */
+    public static void waitsAfterAThrow(GameTestHelper helper) {
+        placeSlab(helper);
+        ServerPlayer player = caster(helper);
+        BlockPos fresh = new BlockPos(SLAB_X, SLAB_HIGH_Y, 2);
+        int thrownOn = HOLD_TICKS + 1;
+        for (int held = 1; held <= thrownOn + TerrakinesisStep.THROW_COOLDOWN_TICKS; held++) {
+            int holdTick = held;
+            helper.runAfterDelay(held, () -> {
+                if (holdTick == thrownOn) {
+                    helper.assertTrue(GrabEvents.throwHeld(player), "The player should hold the chunk to throw it");
+                    helper.setBlock(fresh, Blocks.STONE);
+                }
+                GooStreamHandler.streamTick(player, holdTick(player));
+                if (holdTick > thrownOn) {
+                    helper.assertTrue(helper.getBlockState(fresh).is(Blocks.STONE), "No chunk should be grabbed "
+                            + (holdTick - thrownOn) + " ticks after a throw, inside its cooldown");
+                }
+            });
+        }
+        helper.runAfterDelay(thrownOn + TerrakinesisStep.THROW_COOLDOWN_TICKS + 1, () -> leave(helper, player));
     }
 
     private static int droppedStone(GameTestHelper helper) {

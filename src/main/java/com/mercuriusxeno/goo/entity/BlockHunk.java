@@ -119,10 +119,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     public static final long WHOLE = -1;
     /** How fast a torn hunk rises out of its hole, in blocks a tick. */
     static final double RISE_OUT_SPEED = 0.3;
-    /** How fast a risen hunk travels to the hold, in blocks a tick. */
-    static final double PULL_SPEED = 1.2;
-    /** Below this a rise has stalled against something above the hole. */
-    private static final double STALLED = 1e-4;
+    /** Whether a held hunk has risen clear of its hole, so the holder's client glides it to the look. */
+    private static final EntityDataAccessor<Boolean> CLEAR_OF_HOLE =
+            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
     /** The player holding a lifted hunk, so their own client draws it on their look. */
     private static final EntityDataAccessor<Integer> HOLDER =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.INT);
@@ -155,10 +154,6 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private final InterpolationHandler interpolation = new InterpolationHandler(this);
     /** Ticks the hunk has flown free since a hold last stood on it. */
     private int flightTicks;
-    /** Whether a torn hunk has risen clear of its hole. */
-    private boolean clearOfHole;
-    /** The height a rising-out hunk stood at last tick, to tell a stalled rise. */
-    private double lastRiseY = Double.NaN;
     /** By block index, whether a shattering hunk has dropped that block. */
     private boolean[] dropped = new boolean[0];
 
@@ -283,6 +278,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         entityData.define(HOLDER, NO_HOLDER);
         entityData.define(SHATTER_START, WHOLE);
         entityData.define(SHATTER_FACE, Direction.DOWN);
+        entityData.define(CLEAR_OF_HOLE, false);
     }
 
     /**
@@ -296,24 +292,30 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     /**
      * Where a held hunk moves this tick toward its hold: straight up out of
-     * the hole it tore until its bottom clears the hole's rim or something
-     * above stops it, then along the line to the hold at the pull's speed.
+     * the hole it came from until its bottom clears the hole's rim, then
+     * easing toward the hold (HoldEase), so it glides in and trails the look.
      *
      * @param hold where the hold puts the hunk
      * @return the point to move it to this tick
      */
     public Vec3 holdStep(Vec3 hold) {
-        if (!clearOfHole) {
+        if (!clearOfHole()) {
             double rimHeight = home.getY() + heightInBlocks();
-            boolean stalled = !Double.isNaN(lastRiseY) && getY() - lastRiseY < STALLED;
-            if (getY() < rimHeight && !stalled) {
-                lastRiseY = getY();
+            if (getY() < rimHeight) {
                 return position().add(0, Math.min(RISE_OUT_SPEED, rimHeight - getY()), 0);
             }
-            clearOfHole = true;
         }
-        Vec3 toward = hold.subtract(position());
-        return toward.length() <= PULL_SPEED ? hold : position().add(toward.normalize().scale(PULL_SPEED));
+        entityData.set(CLEAR_OF_HOLE, true);
+        return HoldEase.toward(position(), hold, HoldEase.TICK_SECONDS);
+    }
+
+    /**
+     * Whether a held hunk has risen clear of its hole, from when it glides to the hold.
+     *
+     * @return true once clear
+     */
+    public boolean clearOfHole() {
+        return entityData.get(CLEAR_OF_HOLE);
     }
 
     private int heightInBlocks() {
@@ -469,9 +471,12 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             return;
         }
         if (hasData(GooAttachments.GRABBED)) {
+            // Held, it is an entity on the look and nothing in the world nudges it onto the block grid.
+            noPhysics = true;
             flightTicks = 0;
             return;
         }
+        noPhysics = false;
         entityData.set(HOLDER, NO_HOLDER);
         flightTicks++;
         fly(server);
