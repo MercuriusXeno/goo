@@ -1104,6 +1104,41 @@ public final class GooRenderTypes {
             .build();
 
     /**
+     * A hole's mouth showing the view through it: the far side see-through
+     * over the wall inside a torn, shifting edge
+     * (decision hole-closes-the-space-to-an-opening-ahead).
+     */
+    public static final RenderPipeline GOO_HOLE_VIEW = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_hole_view"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_hole_view"))
+            .withSampler("Sampler0")
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    private static final java.util.function.Function<Identifier, RenderType> GOO_HOLE_VIEW_FACTORY =
+            net.minecraft.util.Util.memoize(view -> RenderType.create("goo_hole_view",
+                    RenderSetup.builder(GOO_HOLE_VIEW)
+                            .withTexture("Sampler0", view)
+                            .setOutputTarget(OutputTarget.MAIN_TARGET)
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the hole view render type over a hole mouth's view texture.
+     *
+     * @param view the view texture's id
+     * @return memoized RenderType
+     */
+    public static RenderType gooHoleView(Identifier view) {
+        return GOO_HOLE_VIEW_FACTORY.apply(view);
+    }
+
+    /**
      * Idle portal pipeline (decision portals-link-by-looking-through-portal-vision):
      * a portal with no view to show drawn through {@code goo_portal_idle.vsh / .fsh},
      * an oval of its color swirling in from a glowing rim toward a dark heart,
@@ -1403,6 +1438,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GOO_PORTAL_VIEW);
         event.registerPipeline(GOO_PORTAL_IDLE);
+        event.registerPipeline(GOO_HOLE_VIEW);
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(SUNBEAM_SCORCH);

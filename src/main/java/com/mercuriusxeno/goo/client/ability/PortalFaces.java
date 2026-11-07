@@ -74,8 +74,26 @@ public final class PortalFaces {
      *
      * @param gate a portal's frame or a hole's mouth
      * @param rgb  its color, 0xRRGGBB
+     * @param hole whether it is a hole's mouth, drawn see-through with a torn edge and grown open
      */
-    record Drawn(Gate gate, int rgb) {
+    record Drawn(Gate gate, int rgb, boolean hole) {
+
+        /**
+         * @param camera the camera's position
+         * @return the blocks the gate covers, camera-relative, a hole's mouth shrunk as it grows open
+         */
+        AABB drawnBox(Vec3 camera) {
+            AABB box = gate.blocks().move(camera.reverse());
+            if (!hole) {
+                return box;
+            }
+            float grown = ClientHoles.grownOpen(gate, Minecraft.getInstance().getDeltaTracker()
+                    .getGameTimeDeltaPartialTick(false));
+            Direction.Axis normal = gate.face().getAxis();
+            return AABB.ofSize(box.getCenter(), box.getXsize() * (normal == Direction.Axis.X ? 1 : grown),
+                    box.getYsize() * (normal == Direction.Axis.Y ? 1 : grown),
+                    box.getZsize() * (normal == Direction.Axis.Z ? 1 : grown));
+        }
     }
 
     /**
@@ -115,17 +133,17 @@ public final class PortalFaces {
     private static List<Drawn> gatesIn(ResourceKey<Level> dimension) {
         List<Drawn> gates = new ArrayList<>();
         ClientPortals.portals().forEach(portal -> gates.add(new Drawn(portal.gate(),
-                colorOf(portal, ClientPortals.link()))));
+                colorOf(portal, ClientPortals.link()), false)));
         // linked-partner-chunks-stream-to-any-viewer
         ClientPortals.links().stream()
                 .filter(link -> !ClientPortals.portals().contains(link.entry()))
                 .forEach(link -> {
-                    gates.add(new Drawn(link.entry().gate(), BLUE_RGB));
-                    gates.add(new Drawn(link.exit().gate(), ORANGE_RGB));
+                    gates.add(new Drawn(link.entry().gate(), BLUE_RGB, false));
+                    gates.add(new Drawn(link.exit().gate(), ORANGE_RGB, false));
                 });
         ClientHoles.holes().forEach(hole -> {
-            gates.add(new Drawn(hole.entry(), BLUE_RGB));
-            gates.add(new Drawn(hole.exit(), ORANGE_RGB));
+            gates.add(new Drawn(hole.entry(), BLUE_RGB, true));
+            gates.add(new Drawn(hole.exit(), ORANGE_RGB, true));
         });
         gates.removeIf(drawn -> !drawn.gate().dimension().equals(dimension));
         return gates;
@@ -143,9 +161,10 @@ public final class PortalFaces {
             List<Drawn> gates) {
         for (Drawn drawn : gates) {
             PortalView.viewOf(drawn.gate()).ifPresent(view -> {
-                RenderType type = GooRenderTypes.gooPortalView(view);
-                emitOval(pose, buffers.getBuffer(type), drawn.gate().blocks().move(camera.reverse()),
-                        drawn.gate().face(), ARGB.color(OPAQUE, drawn.rgb()));
+                // hole-closes-the-space-to-an-opening-ahead
+                RenderType type = drawn.hole() ? GooRenderTypes.gooHoleView(view) : GooRenderTypes.gooPortalView(view);
+                emitOval(pose, buffers.getBuffer(type), drawn.drawnBox(camera), drawn.gate().face(),
+                        ARGB.color(OPAQUE, drawn.rgb()));
                 buffers.endBatch(type);
             });
         }
@@ -168,7 +187,7 @@ public final class PortalFaces {
         for (Drawn drawn : gates) {
             boolean swirls = PortalView.drawing() ? inert(drawn.gate()) : PortalView.viewOf(drawn.gate()).isEmpty();
             if (swirls) {
-                emitOval(pose, consumer, drawn.gate().blocks().move(camera.reverse()), drawn.gate().face(),
+                emitOval(pose, consumer, drawn.drawnBox(camera), drawn.gate().face(),
                         ARGB.color(SWIRL_ALPHA, drawn.rgb()));
             }
         }

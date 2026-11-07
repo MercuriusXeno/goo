@@ -1,0 +1,44 @@
+#version 330
+
+#moj_import <minecraft:globals.glsl>
+
+// A hole's mouth showing the view through it (decision hole-closes-the-space-to-an-opening-ahead):
+// the far side rendered from the camera mirrored through the pair, sampled at this fragment's own
+// screen point, laid over the wall see-through, inside an edge torn and shifting rather than a
+// clean oval, a band of the mouth's color along the tear.
+
+uniform sampler2D Sampler0;
+
+in vec2 frameCoord;
+in vec4 frameColor;
+
+out vec4 fragColor;
+
+// How strongly the far side shows through the mouth, the wall showing through the rest.
+const float VIEW_OPACITY = 0.6;
+// How deep the tear bites into the oval, as a share of its radius.
+const float TEAR_DEPTH = 0.16;
+// How wide the band of color along the tear runs, as a share of the radius.
+const float BAND = 0.12;
+// How fast the tear shifts; GameTime runs once a day, so this sets turns per day.
+const float TEAR_SPEED = 2400.0;
+
+float tear(float angle, float time) {
+    return 0.5 * sin(angle * 5.0 + time * 1.7)
+        + 0.3 * sin(angle * 11.0 - time * 2.9)
+        + 0.2 * sin(angle * 23.0 + time * 4.3);
+}
+
+void main() {
+    vec2 across = frameCoord * 2.0 - 1.0;
+    float out_ = length(across);
+    float time = GameTime * TEAR_SPEED;
+    float edge = 1.0 - TEAR_DEPTH * (0.5 + 0.5 * tear(atan(across.y, across.x), time));
+    if (out_ > edge) {
+        discard;
+    }
+    vec3 view = texture(Sampler0, gl_FragCoord.xy / ScreenSize).rgb;
+    float band = smoothstep(edge - BAND, edge, out_);
+    vec3 color = mix(view, frameColor.rgb * 1.4, band);
+    fragColor = vec4(color, mix(VIEW_OPACITY, 1.0, band));
+}

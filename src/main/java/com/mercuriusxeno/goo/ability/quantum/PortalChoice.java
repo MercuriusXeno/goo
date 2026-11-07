@@ -107,8 +107,8 @@ public final class PortalChoice {
         Vec3 at = hit.get().faceCenter();
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, at.x(), at.y(), at.z(), BREAK_PARTICLES, BREAK_SPREAD,
                 BREAK_SPREAD, BREAK_SPREAD, BREAK_SPEED);
-        level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(),
-                SoundSource.BLOCKS, SOUND_VOLUME, BREAK_PITCH);
+        level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS,
+                SOUND_VOLUME, BREAK_PITCH);
         syncEveryone(level.getServer());
         return true;
     }
