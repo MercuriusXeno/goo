@@ -45,6 +45,8 @@ public final class Wormhole {
     private static final float SOUND_VOLUME = 1.0f;
     private static final float MOUTH_PITCH = 1.3f;
     private static final float COLLAPSE_PITCH = 0.6f;
+    /** How hard an opening mouth's motes burst outward across its face. */
+    private static final double BURST_SPEED = 0.9;
 
     private Wormhole() {
     }
@@ -222,8 +224,8 @@ public final class Wormhole {
         Gate exit = new Gate(level.dimension(), boxOf(found.get().farWall()), inward, up);
         OpenHoles.open(level.getServer(), new OpenHoles.Hole(level.dimension(), entry, exit,
                 level.getGameTime() + lifetime));
-        mouth(level, entry.center());
-        mouth(level, exit.center());
+        mouth(level, entry);
+        mouth(level, exit);
         return true;
     }
 
@@ -265,23 +267,33 @@ public final class Wormhole {
         for (Vec3 offset : ring(face.getAxis())) {
             Vec3 at = middle.add(offset);
             Vec3 inward = offset.normalize().reverse();
-            level.sendParticles(ParticleTypes.REVERSE_PORTAL, at.x(), at.y(), at.z(), 0,
+            level.sendParticles(ParticleTypes.SQUID_INK, at.x(), at.y(), at.z(), 0,
                     inward.x(), inward.y(), inward.z(), COLLAPSE_SPEED);
         }
-        level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(),
+        level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.CONDUIT_DEACTIVATE,
                 SoundSource.BLOCKS, SOUND_VOLUME, COLLAPSE_PITCH);
     }
 
     /**
-     * Sounds a mouth opening; the client draws the mouth itself as a view
-     * through to its partner.
+     * Opens a mouth with some fanfare: a powering-up hum, and a burst of
+     * portal motes thrown outward across the face as the client grows the
+     * mouth open, its view through to the partner inside.
      *
-     * @param level  the level
-     * @param middle the mouth's middle
+     * @param level the level
+     * @param mouth the mouth
      */
-    static void mouth(ServerLevel level, Vec3 middle) {
-        level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
+    static void mouth(ServerLevel level, Gate mouth) {
+        Vec3 middle = mouth.center();
+        level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.BEACON_ACTIVATE,
                 SoundSource.PLAYERS, SOUND_VOLUME, MOUTH_PITCH);
+        for (Vec3 offset : ring(mouth.face().getAxis())) {
+            Vec3 outward = offset.normalize();
+            level.sendParticles(ParticleTypes.PORTAL, middle.x(), middle.y(), middle.z(), 0,
+                    outward.x(), outward.y(), outward.z(), BURST_SPEED);
+            level.sendParticles(ParticleTypes.REVERSE_PORTAL, middle.x() + offset.x() * HALF,
+                    middle.y() + offset.y() * HALF, middle.z() + offset.z() * HALF, 0, outward.x(), outward.y(),
+                    outward.z(), BURST_SPEED * HALF);
+        }
     }
 
     /**
