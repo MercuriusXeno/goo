@@ -32,6 +32,11 @@ final class AbilitiesPane {
     // Decision value-expression-boxes-take-a-cancel-button: the box's pair, as the builder draws it.
     private static final String CANCEL = "✗ Cancel";
     private static final String DONE = "✓ Done";
+    // The Audit pane's chevron marks and toggle-all labels.
+    private static final String OPEN_MARK = "v";
+    private static final String CLOSED_MARK = ">";
+    private static final String COLLAPSE_ALL = "Collapse all";
+    private static final String EXPAND_ALL = "Expand all";
 
     private final AbilitiesTab tab;
     private final ManagerActions actions;
@@ -173,8 +178,8 @@ final class AbilitiesPane {
     }
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
-        SearchRow.Laid row = SearchRow.lay(bounds.left(), bounds.top(), bounds.right(), 0);
-        SearchRow.place(search, row);
+        List<AbilitiesTab.Section> sections = tab.sections(translate, search == null ? NO_TEXT : search.getValue());
+        SearchRow.Laid row = drawSearchRow(graphics, font, bounds, sections, targets);
         GroupsPane.Bounds area = new GroupsPane.Bounds(bounds.left(), row.listTop(), bounds.right(), bounds.bottom());
         graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
         targets.clip(area.left(), area.top(), area.right(), area.bottom());
@@ -183,13 +188,65 @@ final class AbilitiesPane {
             editor.visible = false;
         }
         int y = area.top() - bar.offset();
-        for (AbilitiesTab.Ability ability : tab.matching(translate, search == null ? NO_TEXT : search.getValue())) {
-            y = drawAbility(graphics, font, ability, new GroupsPane.Bounds(area.left(), y, area.right()
-                    - ScrollBar.WIDTH - ScrollBar.GAP, area.bottom()), targets);
+        for (AbilitiesTab.Section section : sections) {
+            y = drawSection(graphics, font, section, new GroupsPane.Bounds(area.left(), y, area.right()
+                    - ScrollBar.WIDTH - ScrollBar.GAP, area.bottom()), targets) + GAP;
         }
         targets.unclip();
         graphics.disableScissor();
         bar.measureAndDraw(graphics, targets, y, area.right(), area.top(), area.bottom());
+    }
+
+    // The search box, then the toggle-all right of it reading as the Audit tab's does; answers the row laid.
+    // Decision type-sections-fold-by-the-audit-chevron-and-start-expanded.
+    private SearchRow.Laid drawSearchRow(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds,
+                                         List<AbilitiesTab.Section> sections, ClickTargets targets) {
+        List<String> types = sections.stream().map(AbilitiesTab.Section::type).toList();
+        String toggleAll = tab.anyOpen(types) ? COLLAPSE_ALL : EXPAND_ALL;
+        int controls = types.isEmpty() ? 0 : ButtonPainter.width(font, toggleAll);
+        SearchRow.Laid row = SearchRow.lay(bounds.left(), bounds.top(), bounds.right(), controls);
+        SearchRow.place(search, row);
+        if (!types.isEmpty()) {
+            ButtonPainter.draw(graphics, font, toggleAll, row.controlsLeft(), row.top(), SearchRow.HEIGHT, targets,
+                    () -> tab.toggleAll(types));
+        }
+        return row;
+    }
+
+    // The section's heading, as the Audit pane heads a section, then its abilities while open, a rule above each but
+    // the first; answers the y below its last ability.
+    // Decisions abilities-tab-sections-by-type-in-picker-order-fan-order-inside, entries-draw-line-separators.
+    private int drawSection(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Section section,
+                            GroupsPane.Bounds from, ClickTargets targets) {
+        boolean open = tab.open(section.type());
+        drawSectionHeading(graphics, font, section.type(), open, from, targets);
+        int y = from.top() + HEADING_HEIGHT + GAP;
+        if (!open) {
+            return y;
+        }
+        List<AbilitiesTab.Ability> abilities = section.abilities();
+        for (int index = 0; index < abilities.size(); index++) {
+            RowLayout.drawSeparatorAbove(graphics, index, y, from.left(), from.right());
+            y = drawAbility(graphics, font, abilities.get(index), new GroupsPane.Bounds(from.left(), y, from.right(),
+                    from.bottom()), targets);
+        }
+        return y;
+    }
+
+    // The chevron button, the type's icon at its texture's size hovering its name, then its name bold; the chevron
+    // and the heading past it fold the section, as the Audit pane's header does.
+    // Decisions section-chevron-becomes-a-button, goo-type-icons-draw-native-everywhere.
+    private void drawSectionHeading(GuiGraphicsExtractor graphics, Font font, String type, boolean open,
+                                    GroupsPane.Bounds from, ClickTargets targets) {
+        Runnable fold = () -> tab.toggle(type);
+        int x = ButtonPainter.draw(graphics, font, open ? OPEN_MARK : CLOSED_MARK, from.left(), from.top(),
+                HEADING_HEIGHT, targets, fold).right() + GAP;
+        int size = GooTypeIcons.sizeOf(type);
+        GooTypeIcons.draw(graphics, targets, type, x, from.top() + GooTypeIcons.centered(HEADING_HEIGHT, size), size);
+        x += size + GAP;
+        Component name = GooTypeIcons.nameOf(type).copy().withStyle(ChatFormatting.BOLD);
+        graphics.text(font, name, x, Lettering.full(font).centeredTop(from.top(), HEADING_HEIGHT), Palette.TEXT);
+        targets.add(x, from.top(), from.right() - x, HEADING_HEIGHT, fold);
     }
 
     // The ability's heading, then each leaf's row; answers the y below its last row.

@@ -1,11 +1,14 @@
 package com.mercuriusxeno.goo.workbench;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -83,6 +86,39 @@ class AbilitiesModelTest {
                     .filter(leaf -> leaf.path().equals("cost")).findFirst().orElseThrow();
 
             assertEquals(new JsonPrimitive(0), cost.value());
+        }
+    }
+
+    /**
+     * The model carries each ability's badge and order and the goo type picker's order, so the client sections the
+     * abilities by type and sorts them as the radial fan does with no server
+     * (decision abilities-tab-sections-by-type-in-picker-order-fan-order-inside).
+     */
+    @Nested
+    class Sorting {
+
+        @Test
+        void eachAbilityCarriesItsBadgeAndOrderZeroWhereTheFileNamesNone() {
+            JsonObject ability = AbilitiesModel.model(Map.of(SAMPLE, sample()), Map.of())
+                    .getAsJsonArray("abilities").get(0).getAsJsonObject();
+            assertEquals("channeled", ability.get("badge").getAsString());
+            assertEquals(0, ability.get("order").getAsInt());
+        }
+
+        @Test
+        void anOrderTheFileNamesIsCarried() {
+            JsonObject ordered = sample();
+            ordered.addProperty("order", 30);
+            JsonObject ability = AbilitiesModel.model(Map.of(SAMPLE, ordered), Map.of())
+                    .getAsJsonArray("abilities").get(0).getAsJsonObject();
+            assertEquals(30, ability.get("order").getAsInt());
+        }
+
+        @Test
+        void theModelCarriesThePickersTypeOrder() {
+            List<String> carried = AbilitiesModel.model(Map.of(), Map.of()).getAsJsonArray("typeOrder").asList()
+                    .stream().map(JsonElement::getAsString).toList();
+            assertEquals(GooTypes.order().stream().map(GooTypes::id).toList(), carried);
         }
     }
 

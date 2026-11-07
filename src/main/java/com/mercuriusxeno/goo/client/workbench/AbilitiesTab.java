@@ -4,14 +4,19 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mojang.serialization.DataResult;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -31,12 +36,17 @@ public final class AbilitiesTab {
     private static final String PATH = "path";
     private static final String VALUE = "value";
     private static final String KIND = "kind";
+    private static final String BADGE = "badge";
+    private static final String ORDER = "order";
+    private static final String TYPE_ORDER = "typeOrder";
     private static final String NOT_A_NUMBER = "This box takes a number alone.";
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final String NO_TEXT = "";
     private static final String LINE_JOIN = "; ";
 
     private final List<Ability> abilities = new ArrayList<>();
+    private final List<String> typeOrder = new ArrayList<>();
+    private final Set<String> closed = new HashSet<>();
     private final Map<String, Map<String, String>> edits = new LinkedHashMap<>();
 
     /**
@@ -69,8 +79,20 @@ public final class AbilitiesTab {
      * @param displayName its name's translation key
      * @param draft       whether a draft stands over its live file
      * @param leaves      its numeric leaves in the file's order
+     * @param badge       the target kind it declares, which ranks it in the radial fan
+     * @param order       its order field, which sorts it inside its badge tier
      */
-    public record Ability(String id, String gooType, String displayName, boolean draft, List<Leaf> leaves) {
+    public record Ability(String id, String gooType, String displayName, boolean draft, List<Leaf> leaves,
+                          AbilityBadge badge, int order) {
+    }
+
+    /**
+     * One goo type's abilities, as the tab sections them.
+     *
+     * @param type      the goo type's id
+     * @param abilities its abilities in the radial fan's order
+     */
+    public record Section(String type, List<Ability> abilities) {
     }
 
     /**
@@ -78,7 +100,9 @@ public final class AbilitiesTab {
      */
     public void readModel(String modelJson) {
         abilities.clear();
-        for (JsonElement element : JsonParser.parseString(modelJson).getAsJsonObject().getAsJsonArray(ABILITIES)) {
+        typeOrder.clear();
+        JsonObject model = JsonParser.parseString(modelJson).getAsJsonObject();
+        for (JsonElement element : model.getAsJsonArray(ABILITIES)) {
             JsonObject ability = element.getAsJsonObject();
             List<Leaf> leaves = new ArrayList<>();
             for (JsonElement leaf : ability.getAsJsonArray(LEAVES)) {
@@ -86,8 +110,92 @@ public final class AbilitiesTab {
                 leaves.add(new Leaf(each.get(PATH).getAsString(), each.get(VALUE).getAsString(),
                         Kind.valueOf(each.get(KIND).getAsString())));
             }
+            JsonElement order = ability.get(ORDER);
             abilities.add(new Ability(ability.get(ID).getAsString(), stringOr(ability, GOO_TYPE),
-                    stringOr(ability, DISPLAY_NAME), ability.get(DRAFT).getAsBoolean(), List.copyOf(leaves)));
+                    stringOr(ability, DISPLAY_NAME), ability.get(DRAFT).getAsBoolean(), List.copyOf(leaves),
+                    badgeOf(stringOr(ability, BADGE)), order == null ? 0 : order.getAsInt()));
+        }
+        JsonElement types = model.get(TYPE_ORDER);
+        if (types != null && types.isJsonArray()) {
+            types.getAsJsonArray().forEach(type -> typeOrder.add(type.getAsString()));
+        }
+    }
+
+    // The badge an ability's file names, the world badge where the model carries none it knows.
+    private static AbilityBadge badgeOf(String named) {
+        for (AbilityBadge badge : AbilityBadge.values()) {
+            if (badge.getSerializedName().equals(named)) {
+                return badge;
+            }
+        }
+        return AbilityBadge.WORLD;
+    }
+
+    /**
+     * One section per goo type holding an ability the search matches, in the goo type picker's order the model
+     * carries, each section's abilities as the radial fan sorts them, badge tier then order field
+     * (decision abilities-tab-sections-by-type-in-picker-order-fan-order-inside).
+     *
+     * @param translate each translation key's text
+     * @param typed     what the search box holds
+     * @return the sections, none empty
+     */
+    public List<Section> sections(Function<String, String> translate, String typed) {
+        Map<String, List<Ability>> byType = new LinkedHashMap<>();
+        for (Ability ability : matching(translate, typed)) {
+            byType.computeIfAbsent(ability.gooType(), type -> new ArrayList<>()).add(ability);
+        }
+        Comparator<Ability> fan = AbilityBadge.fanOrder(Ability::badge, Ability::order);
+        return byType.entrySet().stream()
+                .sorted(Comparator.comparingInt(entry -> typeRank(entry.getKey())))
+                .map(entry -> new Section(entry.getKey(), entry.getValue().stream().sorted(fan).toList()))
+                .toList();
+    }
+
+    // A type the model's order names ranks by its place there, any other after every named one.
+    private int typeRank(String type) {
+        int rank = typeOrder.indexOf(type);
+        return rank < 0 ? typeOrder.size() : rank;
+    }
+
+    /**
+     * Every section starts open, its abilities drawn with no click taken
+     * (decision type-sections-fold-by-the-audit-chevron-and-start-expanded).
+     *
+     * @param type a section's goo type
+     * @return whether its abilities draw
+     */
+    public boolean open(String type) {
+        return !closed.contains(type);
+    }
+
+    /**
+     * @param type a section's goo type, which closes if open and opens if closed
+     */
+    public void toggle(String type) {
+        if (!closed.remove(type)) {
+            closed.add(type);
+        }
+    }
+
+    /**
+     * @param types the sections the expand/collapse-all button opens and closes
+     * @return whether any of them stands open, so the button reads Collapse all
+     */
+    public boolean anyOpen(Collection<String> types) {
+        return types.stream().anyMatch(this::open);
+    }
+
+    /**
+     * Closes every one of the sections while any stands open, else opens every one.
+     *
+     * @param types the sections the expand/collapse-all button opens and closes
+     */
+    public void toggleAll(Collection<String> types) {
+        if (anyOpen(types)) {
+            closed.addAll(types);
+        } else {
+            closed.removeAll(types);
         }
     }
 
