@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -67,8 +68,8 @@ public final class FlatCostTests {
                     helper.absolutePos(MARKER_POS), Direction.DOWN.ordinal(), false, CRYSTAL_CLOUD.toString(),
                     player.getEyePosition()));
             int after = crystalHeld(player);
-            helper.assertTrue(held - after == cloud.cost(),
-                    String.format(CHARGED, throwNumber, cloud.cost(), held - after));
+            helper.assertTrue(held - after == cloud.cost().in(GooValueTable.EMPTY),
+                    String.format(CHARGED, throwNumber, cloud.cost().in(GooValueTable.EMPTY), held - after));
             held = after;
         }
         helper.getLevel().getServer().getPlayerList().remove(player);

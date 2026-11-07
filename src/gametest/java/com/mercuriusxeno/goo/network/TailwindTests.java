@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -79,7 +80,7 @@ public final class TailwindTests {
         }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             int drained = heldBefore - typhoon(player);
-            int expected = tailwind.cost() * HOLD_TICKS / tailwind.delivery().ticksPerCharge();
+            int expected = tailwind.cost().in(GooValueTable.EMPTY) * HOLD_TICKS / tailwind.delivery().ticksPerCharge();
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(drained == expected, String.format(SHOULD_DRAIN_EACH_TICK, HOLD_TICKS, expected, drained));
             helper.succeed();

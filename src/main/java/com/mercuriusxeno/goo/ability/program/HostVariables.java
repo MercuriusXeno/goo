@@ -77,6 +77,18 @@ public final class HostVariables {
      * @return true for a counter id
      */
     public static boolean isCounter(String name) {
+        return isNamespacedId(name);
+    }
+
+    /**
+     * Tells whether an expression's name is a namespaced id, which a step reads as a counter and an ability's cost
+     * reads as an item, spelled as base_values spells it
+     * (decision ability-cost-builds-as-a-one-type-by-type-value).
+     *
+     * @param name the name
+     * @return true for a namespaced id
+     */
+    public static boolean isNamespacedId(String name) {
         return name.indexOf(COUNTER_SEPARATOR) >= 0;
     }
 

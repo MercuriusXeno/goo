@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -92,7 +93,7 @@ class AbilityBadgeTest {
         return switch (definition.delivery().kind()) {
             case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);
             // self-effects-trickle-until-ended
-            case SELF -> EnumSet.of(definition.upkeep() > AbilityDefinition.NO_UPKEEP ? AbilityBadge.BREW
+            case SELF -> EnumSet.of(definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP ? AbilityBadge.BREW
                     : holds ? AbilityBadge.CHANNELED : AbilityBadge.SELF);
             default -> holds ? EnumSet.of(AbilityBadge.CHANNELED)
                     : EnumSet.of(definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD,

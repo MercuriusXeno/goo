@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -116,13 +117,14 @@ public final class KnifeRainSling {
      */
     private static boolean pay(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                AbilityDefinition ability) {
-        if (!GooSourceScanner.hasEnough(player, gooType, ability.cost())) {
+        int cost = ability.cost().in(GooValues.of(player.level()));
+        if (!GooSourceScanner.hasEnough(player, gooType, cost)) {
             if (Goo.LOGGER.isDebugEnabled()) {
                 Goo.LOGGER.debug(LOG_NO_GOO, GooTypes.id(gooType));
             }
             return false;
         }
-        GooSourceScanner.deplete(player, gooType, ability.cost());
+        GooSourceScanner.deplete(player, gooType, cost);
         GooThrowHandler.consumeReagents(player, ability.id().toString(), gooType);
         ServerLevel level = player.level();
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP,

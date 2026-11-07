@@ -5,6 +5,11 @@ import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,10 +18,13 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Covers the area an ability's definition draws while right click is held: an
@@ -62,6 +70,47 @@ class AbilityDefinitionTest {
         AbilityDefinition spawn = AbilityJson.decode("zoo_spawn");
         assertEquals(List.of(), spawn.consumes());
         assertEquals(List.of(), spawn.requires());
+    }
+
+    /**
+     * A cost and an upkeep decode written as a number and as an expression alike, an item in the
+     * expression reading its value in the ability's own goo type
+     * (decision ability-cost-builds-as-a-one-type-by-type-value).
+     */
+    @Nested
+    class Costs {
+
+        private static final Identifier GLOWSTONE = Identifier.withDefaultNamespace("glowstone_dust");
+
+        private static AbilityDefinition costing(String cost, String upkeep) {
+            return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
+                    + " \"cost\": " + cost + ", \"upkeep\": " + upkeep + ", \"badge\": \"world\", \"behaviors\": [],"
+                    + " \"delivery\": {\"kind\": \"arc\"}}");
+        }
+
+        private static IGooValueLookup rockGlowstoneAt(int mb) {
+            IGooValueLookup values = mock(IGooValueLookup.class);
+            when(values.lookup(GLOWSTONE)).thenReturn(new GooValue(Map.of(GooTypes.ROCK, mb)));
+            return values;
+        }
+
+        @Test
+        void aNumberCostAndUpkeepEvaluateToThemselves() {
+            AbilityDefinition flat = costing("1000", "4");
+
+            assertEquals(1000, flat.cost().in(GooValueTable.EMPTY));
+            assertEquals(4, flat.upkeep().in(GooValueTable.EMPTY));
+        }
+
+        @Test
+        void anExpressionCostAndUpkeepEvaluateOverTheItemsTheyName() {
+            AbilityDefinition priced = costing("\"2 * minecraft:glowstone_dust + 100\"",
+                    "\"minecraft:glowstone_dust / 50\"");
+            IGooValueLookup values = rockGlowstoneAt(200);
+
+            assertEquals(500, priced.cost().in(values));
+            assertEquals(4, priced.upkeep().in(values));
+        }
     }
 
     /**

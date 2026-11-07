@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetGatedStep;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -383,10 +384,11 @@ public final class GooThrowHandler {
      */
     private static void rollGoo(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType,
                                 AbilityDefinition ability) {
-        if (!validateSupply(player, gooType, ability.cost())) {
+        int cost = ability.cost().in(GooValues.of(player.level()));
+        if (!validateSupply(player, gooType, cost)) {
             return;
         }
-        GooSourceScanner.deplete(player, gooType, ability.cost());
+        GooSourceScanner.deplete(player, gooType, cost);
         consumeReagents(player, payload.abilityId(), gooType);
         Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
                 ThrowArc.HAND_REACH * player.getScale());
@@ -526,7 +528,8 @@ public final class GooThrowHandler {
         if (ages(def)) {
             return AgingTable.priceOf(player.level().getBlockState(payload.targetPos())).orElse(REFUSED);
         }
-        return def.cost();
+        // ability-cost-builds-as-a-one-type-by-type-value
+        return def.cost().in(GooValues.of(player.level()));
     }
 
     /**

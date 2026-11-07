@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -82,7 +83,7 @@ public final class HeldEffectsEvents {
      * @param ability the self + brew ability
      */
     public static void start(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
-        HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, ability.upkeep(),
+        HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, upkeepOf(player, ability),
                 LaidState.laidBy(ability.behaviors()), player.level().getGameTime(), HeldEffects.NEVER_EXPIRES,
                 downSoundOf(ability));
         apply(player, player.getData(GooAttachments.HELD_EFFECTS).start(started));
@@ -103,9 +104,21 @@ public final class HeldEffectsEvents {
     public static void startPrepaid(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                     AbilityDefinition ability, int duration) {
         long now = player.level().getGameTime();
-        HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, ability.upkeep(),
+        HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, upkeepOf(player, ability),
                 LaidState.laidBy(ability.behaviors()), now, now + duration, downSoundOf(ability));
         apply(player, player.getData(GooAttachments.HELD_EFFECTS).start(started));
+    }
+
+    /**
+     * The upkeep a held effect stands on, its items priced in the server's goo values as it starts.
+     * ability-cost-builds-as-a-one-type-by-type-value
+     *
+     * @param player  the player
+     * @param ability the self + brew ability
+     * @return the upkeep in mB a tick
+     */
+    private static int upkeepOf(ServerPlayer player, AbilityDefinition ability) {
+        return ability.upkeep().in(GooValues.of(player.level()));
     }
 
     /**
