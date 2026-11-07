@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -151,7 +152,10 @@ public final class PortalFaces {
     }
 
     /**
-     * Draws each gate with no view to show as its idle swirl.
+     * Draws each gate with no view to show as its idle swirl. Inside a view
+     * through a pair only an inert gate, one no link holds, draws its swirl:
+     * a linked gate seen through the view stands clear of any overlay, and
+     * the pair looked through never draws over its own view.
      *
      * @param pose    the pose
      * @param buffers the frame's buffers
@@ -162,12 +166,22 @@ public final class PortalFaces {
             List<Drawn> gates) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
         for (Drawn drawn : gates) {
-            if (PortalView.drawing() || PortalView.viewOf(drawn.gate()).isEmpty()) {
+            boolean swirls = PortalView.drawing() ? inert(drawn.gate()) : PortalView.viewOf(drawn.gate()).isEmpty();
+            if (swirls) {
                 emitOval(pose, consumer, drawn.gate().blocks().move(camera.reverse()), drawn.gate().face(),
                         ARGB.color(SWIRL_ALPHA, drawn.rgb()));
             }
         }
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
+    }
+
+    /**
+     * @param gate a gate
+     * @return whether no link the client knows holds it
+     */
+    private static boolean inert(Gate gate) {
+        return GatePassage.clientPairs().stream().noneMatch(pair -> pair.one().equals(gate)
+                || pair.other().equals(gate));
     }
 
     /**
