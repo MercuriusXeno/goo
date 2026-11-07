@@ -25,21 +25,17 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Draws Sculker's glass field: every block within the field's radius of the
  * local player's eyes draws its own model and texture, ghosted at the
  * field's strength for its distance, farthest first so the nearer glass
  * lies over it, depth tested so the diver's own body and every entity in
- * front of the glass shows over it. A block
- * draws only the faces that border something else, air, another kind of
- * block or the field's edge, so a run of one stone reads as one piece of
- * glass with no seam between its blocks, while an ore in it shows its own
- * faces. The blocks the player's body is inside are within the field and
- * draw with the rest.
+ * front of the glass shows over it. A block draws only its sides where two
+ * different block types meet, air among them, and of the two faces where
+ * they meet only the one facing the diver, so the diver sees the places
+ * where different blocks meet and nothing of the same block carrying on.
  * decision sculker-shows-blocks-translucent-close-up
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -72,7 +68,6 @@ public final class SculkerGlassRenderer {
         if (field.isEmpty()) {
             return;
         }
-        Set<BlockPos> inField = new HashSet<>(field);
         PoseStack poseStack = event.getPoseStack();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
@@ -81,7 +76,7 @@ public final class SculkerGlassRenderer {
         for (BlockPos pos : field) {
             float strength = SculkerGlass.strengthAt(Vec3.atCenterOf(pos).distanceTo(eyes)) * SculkerVision.presence();
             QuadInstance look = FungusXray.instance(ARGB.color(Math.round(MOST_OPACITY * strength * OPAQUE), WHITE_RGB));
-            drawBorderingFaces(mc, poseStack, consumer, camera, pos, inField, look);
+            drawBorderingFaces(mc, poseStack, consumer, camera, pos, look);
         }
         buffers.endBatch(glass);
     }
@@ -95,11 +90,10 @@ public final class SculkerGlassRenderer {
      * @param consumer  the vertex consumer
      * @param camera    the camera's position
      * @param pos       the block
-     * @param inField   the cells the field draws
      * @param look      the color, light and overlay the quads take
      */
     private static void drawBorderingFaces(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
-                                           BlockPos pos, Set<BlockPos> inField, QuadInstance look) {
+                                           BlockPos pos, QuadInstance look) {
         BlockState state = mc.level.getBlockState(pos);
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
         List<BlockStateModelPart> parts = new ArrayList<>();
@@ -109,7 +103,7 @@ public final class SculkerGlassRenderer {
         for (BlockStateModelPart part : parts) {
             for (Direction side : Direction.values()) {
                 BlockPos beside = pos.relative(side);
-                if (bordersSomethingElse(state, mc.level.getBlockState(beside), inField.contains(beside))) {
+                if (whereTypesMeet(state, mc.level.getBlockState(beside))) {
                     part.getQuads(side).forEach(quad -> consumer.putBakedQuad(poseStack.last(), quad, look));
                 }
             }
@@ -119,15 +113,15 @@ public final class SculkerGlassRenderer {
     }
 
     /**
-     * Whether a block's side borders something else and so draws.
+     * Whether a block's side draws: only where two different block types
+     * meet, air among them, never where the same block carries on.
      *
      * @param state       the block
      * @param besideState the block beside that side
-     * @param besideDrawn whether the field draws the block beside
-     * @return true unless the same block, drawn by the field, stands beside
+     * @return true where a different block stands beside
      */
-    static boolean bordersSomethingElse(BlockState state, BlockState besideState, boolean besideDrawn) {
-        return !besideDrawn || !besideState.equals(state);
+    static boolean whereTypesMeet(BlockState state, BlockState besideState) {
+        return !besideState.equals(state);
     }
 
     /**

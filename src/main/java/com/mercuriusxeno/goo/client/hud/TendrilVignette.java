@@ -13,9 +13,11 @@ import java.util.SplittableRandom;
  * with a breathing mist, and tendrils curl in from the edges, each sight in
  * its own colors; Fungal Sight draws it in magenta, Sculker in sculk teal.
  * The tendrils are a live population, not a fixed set: they sprout at random
- * places along the edges at random times, each with its own length,
- * thickness and wandering path that may fork; each grows in, lingers, then
- * withers and retracts, so the count on screen drifts and no layout repeats.
+ * places along the edges at random times, never on top of one another, each
+ * a thin, wispy vein with its own length, thickness and wiggling path that
+ * often forks. A tendril grows the way a root does, each stretch fading in
+ * as its tip passes, lingers, then dies back from its tip, fading where it
+ * lies, so the count on screen drifts and no layout repeats.
  * sight-lengthens-shift-and-outlines-fungus
  * sculker-sight-persists-where-echoes-have-touched
  */
@@ -32,11 +34,13 @@ public final class TendrilVignette {
     private static final float MIST_BREATH_SPEED = 0.05f;
     /** The chance each tick a new tendril sprouts. */
     static final float SPROUT_CHANCE = 0.15f;
+    /** How far apart along one edge two tendrils root at the least, as a share of the edge. */
+    static final float ROOT_GAP = 0.08f;
     /** The most tendrils standing at once. */
     static final int MOST_TENDRILS = 40;
     /** The shortest and longest a tendril reaches, as a share of the screen's shorter side. */
-    private static final float SHORTEST = 0.03f;
-    private static final float LONGEST = 0.12f;
+    private static final float SHORTEST = 0.02f;
+    private static final float LONGEST = 0.06f;
     /** The ticks a tendril takes to grow in and to wither back, at the least and at the most. */
     private static final int FASTEST_CHANGE_TICKS = 12;
     private static final int SLOWEST_CHANGE_TICKS = 40;
@@ -46,26 +50,33 @@ public final class TendrilVignette {
     /** The longest a tendril lives, growing, lingering and withering. */
     static final int LONGEST_LIFE_TICKS = SLOWEST_CHANGE_TICKS + LONGEST_LINGER_TICKS + SLOWEST_CHANGE_TICKS;
     /** How far a tendril's path may turn each step, as a share of its length. */
-    private static final float WANDER_STEP = 0.09f;
+    private static final float WANDER_STEP = 0.18f;
+    /** The fewest and most waves a tendril's wiggle runs along its length. */
+    private static final float FEWEST_WAVES = 1.5f;
+    private static final float MOST_WAVES = 3.5f;
+    /** The ticks a newly grown stretch takes to fade in, and a dying one to fade out. */
+    private static final float STRETCH_FADE_TICKS = 8f;
+    /** The tries a sprout takes to find a root clear of every other on its edge. */
+    private static final int ROOT_TRIES = 4;
     /** How far a tendril sways at its tip at the most, as a share of the screen's shorter side. */
     private static final float MOST_SWAY = 0.015f;
     private static final float SLOWEST_SWAY_SPEED = 0.05f;
     private static final float FASTEST_SWAY_SPEED = 0.2f;
     /** The share of tendrils that root thick, and that fork. */
     private static final float THICK_SHARE = 0.35f;
-    private static final float FORK_SHARE = 0.4f;
+    private static final float FORK_SHARE = 0.6f;
     /** How long a fork reaches, as a share of the tendril beyond where it leaves. */
     private static final float FORK_LENGTH = 0.6f;
-    private static final int TENDRIL_STEPS = 18;
+    private static final int TENDRIL_STEPS = 36;
     private static final int FORK_STEPS = TENDRIL_STEPS / 2;
     /** Where along a tendril it may fork, from and to, in steps. */
     private static final int FORK_FROM = TENDRIL_STEPS / 4;
     private static final int FORK_TO = TENDRIL_STEPS * 3 / 4;
-    private static final int TENDRIL_DOT = 2;
-    private static final int THICK_DOT = 3;
+    private static final int TENDRIL_DOT = 1;
+    private static final int THICK_DOT = 2;
     /** The share of a thick tendril, root outward, drawn thick. */
     private static final float THICK_REACH = 0.4f;
-    private static final float TENDRIL_ALPHA = 0.55f;
+    private static final float TENDRIL_ALPHA = 0.4f;
     /** The most ticks one frame catches up on, so a pause does not sprout a crowd at once. */
     private static final int MOST_CATCH_UP_TICKS = 20;
     private static final int EDGES = 4;
@@ -114,13 +125,14 @@ public final class TendrilVignette {
      * @param sway        how far it sways at its tip, as a share of the screen's shorter side
      * @param swaySpeed   how fast it sways, radians a tick
      * @param swayPhase   its sway's phase in radians
+     * @param waves       the waves its wiggle runs along its length
      * @param path        its wandering path: each step's sideways offset, as a share of its length
      * @param forkAt      the step it forks at, or a negative number where it does not
      * @param forkPath    its fork's wandering path, as a share of the fork's length, empty where it does not fork
      */
     record Tendril(int edge, float along, float length, boolean thick, float bornAt, int growTicks,
-                   int lingerTicks, int witherTicks, float sway, float swaySpeed, float swayPhase, float[] path,
-                   int forkAt, float[] forkPath) {
+                   int lingerTicks, int witherTicks, float sway, float swaySpeed, float swayPhase, float waves,
+                   float[] path, int forkAt, float[] forkPath) {
 
         /**
          * @return true where the tendril forks
@@ -137,19 +149,30 @@ public final class TendrilVignette {
         }
 
         /**
-         * How grown the tendril stands at a time: easing in as it grows, full
-         * while it lingers, easing back as it withers.
+         * How far its tip has grown at a time, easing out as it nears full length.
          *
          * @param time the game time
          * @return zero to one
          */
         float grownAt(float time) {
-            float age = time - bornAt;
-            if (age < growTicks) {
-                return ease(age / growTicks);
-            }
-            float withering = age - growTicks - lingerTicks;
-            return withering <= 0 ? 1f : 1f - ease(Math.min(1f, withering / witherTicks));
+            return ease((time - bornAt) / growTicks);
+        }
+
+        /**
+         * How strongly a stretch of the tendril shows at a time: fading in
+         * as the tip passes it, full while it lingers, and fading out as the
+         * tendril dies back from its tip toward its root.
+         *
+         * @param time  the game time
+         * @param share the stretch's share along the tendril, zero at the root
+         * @return zero to one
+         */
+        float stretchAt(float time, float share) {
+            float grownAt = bornAt + growTicks * share;
+            float diesAt = bornAt + growTicks + lingerTicks + witherTicks * (1f - share);
+            float in = Mth.clamp((time - grownAt) / STRETCH_FADE_TICKS, 0f, 1f);
+            float out = 1f - Mth.clamp((time - diesAt) / STRETCH_FADE_TICKS, 0f, 1f);
+            return in * out;
         }
 
         private static float ease(float share) {
@@ -178,7 +201,7 @@ public final class TendrilVignette {
         int ticks = Math.min(MOST_CATCH_UP_TICKS, (int) Math.floor(time) - (int) Math.floor(lastTime));
         for (int tick = 1; tick <= ticks; tick++) {
             if (live.size() < MOST_TENDRILS && random.nextFloat() < SPROUT_CHANCE) {
-                live.add(sprout((float) Math.floor(lastTime) + tick));
+                sprout((float) Math.floor(lastTime) + tick);
             }
         }
         live.removeIf(tendril -> time >= tendril.goneAt());
@@ -186,20 +209,36 @@ public final class TendrilVignette {
     }
 
     /**
-     * A new tendril, every trait of it rolled at random.
+     * Sprouts a new tendril, every trait of it rolled at random, at a root
+     * clear of every other tendril on its edge; where a few tries find none,
+     * no tendril sprouts this time.
      *
      * @param bornAt the game time it sprouts
-     * @return the tendril
      */
-    private Tendril sprout(float bornAt) {
+    private void sprout(float bornAt) {
+        int edge = random.nextInt(EDGES);
+        for (int attempt = 0; attempt < ROOT_TRIES; attempt++) {
+            float along = random.nextFloat();
+            if (rootIsClear(edge, along)) {
+                live.add(rolled(edge, along, bornAt));
+                return;
+            }
+        }
+    }
+
+    private boolean rootIsClear(int edge, float along) {
+        return live.stream().noneMatch(other -> other.edge() == edge && Math.abs(other.along() - along) < ROOT_GAP);
+    }
+
+    private Tendril rolled(int edge, float along, float bornAt) {
         int forkAt = random.nextFloat() < FORK_SHARE ? random.nextInt(FORK_FROM, FORK_TO + 1) : NO_FORK;
-        return new Tendril(random.nextInt(EDGES), random.nextFloat(), between(SHORTEST, LONGEST),
+        return new Tendril(edge, along, between(SHORTEST, LONGEST),
                 random.nextFloat() < THICK_SHARE, bornAt,
                 random.nextInt(FASTEST_CHANGE_TICKS, SLOWEST_CHANGE_TICKS + 1),
                 random.nextInt(SHORTEST_LINGER_TICKS, LONGEST_LINGER_TICKS + 1),
                 random.nextInt(FASTEST_CHANGE_TICKS, SLOWEST_CHANGE_TICKS + 1),
                 between(0f, MOST_SWAY), between(SLOWEST_SWAY_SPEED, FASTEST_SWAY_SPEED),
-                between(0f, Mth.TWO_PI), wander(TENDRIL_STEPS), forkAt,
+                between(0f, Mth.TWO_PI), between(FEWEST_WAVES, MOST_WAVES), wander(TENDRIL_STEPS), forkAt,
                 forkAt < 0 ? new float[0] : wander(FORK_STEPS));
     }
 
@@ -296,7 +335,7 @@ public final class TendrilVignette {
                 float share = (float) step / TENDRIL_STEPS;
                 float side = tendril.path()[step] * length + swayAt(tendril, share, shorter);
                 int size = tendril.thick() && share < THICK_REACH ? THICK_DOT : TENDRIL_DOT;
-                dot(tendril, share * length, side, 1f - share, size);
+                dot(tendril, share * length, side, (1f - share) * tendril.stretchAt(time, share), size);
             }
             if (tendril.forks() && reached > tendril.forkAt()) {
                 drawFork(tendril, length, shorter, reached);
@@ -313,12 +352,15 @@ public final class TendrilVignette {
             for (int step = 1; step <= forkReached; step++) {
                 float share = (float) step / FORK_STEPS;
                 float side = rootSide + tendril.forkPath()[step] * forkLength;
-                dot(tendril, rootInward + share * forkLength, side, (1f - rootShare) * (1f - share), TENDRIL_DOT);
+                float along = rootShare + (1f - rootShare) * share;
+                dot(tendril, rootInward + share * forkLength, side,
+                        (1f - rootShare) * (1f - share) * tendril.stretchAt(time, along), TENDRIL_DOT);
             }
         }
 
         private float swayAt(Tendril tendril, float share, float shorter) {
-            return tendril.sway() * shorter * share * Mth.sin(time * tendril.swaySpeed() + tendril.swayPhase());
+            return tendril.sway() * shorter * share * Mth.sin(time * tendril.swaySpeed() + tendril.swayPhase()
+                    + share * tendril.waves() * Mth.TWO_PI);
         }
 
         private void dot(Tendril tendril, float inward, float side, float fade, int size) {
