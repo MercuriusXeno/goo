@@ -10,15 +10,19 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.data.AtlasIds;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -74,15 +78,10 @@ public final class BlockMingleRenderer {
     private static void drawAll(PoseStack poseStack, List<BlockTransforms.Transform> live,
                                 List<BlockTransforms.Exposure> exposing, float gameTime) {
         Minecraft mc = Minecraft.getInstance();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        RenderType mingle = GooRenderTypes.blockMingle(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
-        VertexConsumer consumer = buffers.getBuffer(mingle);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        ModelBlockRenderer tesselator = worldTesselator(mc);
+        List<Mingle> mingles = new ArrayList<>();
         for (BlockTransforms.Transform transform : live) {
-            drawMingle(poseStack, consumer, camera, tesselator,
-                    new Mingle(transform.pos(), transform.from(), transform.progress(gameTime),
-                            mingleColor(transform.tint()), transform.seed()));
+            mingles.add(new Mingle(transform.pos(), transform.from(), transform.progress(gameTime),
+                    mingleColor(transform.tint()), transform.seed()));
         }
         // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
         for (BlockTransforms.Exposure exposure : exposing) {
@@ -90,10 +89,34 @@ public final class BlockMingleRenderer {
                 // broil-heat-wave-ring-cooks-ahead: a block cooking away to air has no next block to mingle in
                 continue;
             }
-            drawMingle(poseStack, consumer, camera, tesselator, new Mingle(exposure.pos(), exposure.toward(),
-                    1f - exposure.share(), mingleColor(exposure.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
+            mingles.add(new Mingle(exposure.pos(), exposure.toward(), 1f - exposure.share(),
+                    mingleColor(exposure.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
         }
-        buffers.endBatch(mingle);
+        Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
+        drawPass(poseStack, mingles, GooRenderTypes.blockMingle(atlas), false);
+        // coat-is-a-green-slime-film-over-the-blocks-own-texture: a translucent block mingles in see-through
+        drawPass(poseStack, mingles, GooRenderTypes.blockMingleTranslucent(atlas), true);
+    }
+
+    /**
+     * Draws one batch of the mingles: the opaque quads, or the translucent ones.
+     *
+     * @param poseStack   the level's pose stack, camera relative
+     * @param mingles     the states mingling over their blocks
+     * @param renderType  the batch's render type
+     * @param translucent true for the translucent quads, false for the rest
+     */
+    private static void drawPass(PoseStack poseStack, List<Mingle> mingles, RenderType renderType,
+                                 boolean translucent) {
+        Minecraft mc = Minecraft.getInstance();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        VertexConsumer consumer = buffers.getBuffer(renderType);
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        ModelBlockRenderer tesselator = worldTesselator(mc);
+        for (Mingle mingle : mingles) {
+            drawMingle(poseStack, consumer, camera, tesselator, mingle, translucent);
+        }
+        buffers.endBatch(renderType);
     }
 
     /**
@@ -132,9 +155,10 @@ public final class BlockMingleRenderer {
      * @param camera    the camera's world position
      * @param tesselator the world's block tesselation
      * @param mingle    the state, the block and the progress
+     * @param translucent true to draw the state's translucent quads alone, false for the rest
      */
     private static void drawMingle(PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
-                                   ModelBlockRenderer tesselator, Mingle mingle) {
+                                   ModelBlockRenderer tesselator, Mingle mingle, boolean translucent) {
         Minecraft mc = Minecraft.getInstance();
         poseStack.pushPose();
         // The faces sit on the block's own, so nothing shifts when the world's block takes over;
@@ -145,8 +169,10 @@ public final class BlockMingleRenderer {
         int overlay = overlayCoords(mingle.progress(), mingle.seed());
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(mingle.state());
         tesselator.tesselateBlock((x, y, z, quad, instance) -> {
-            dressQuad(instance, mingle.color(), overlay);
-            consumer.putBakedQuad(pose, quad, instance);
+            if (drawsTranslucent(quad) == translucent) {
+                dressQuad(instance, mingle.color(), overlay);
+                consumer.putBakedQuad(pose, quad, instance);
+            }
         }, 0f, 0f, 0f, mc.level, mingle.pos(), mingle.state(), model, modelSeed(mingle.state(), mingle.pos()));
         poseStack.popPose();
     }
@@ -197,6 +223,19 @@ public final class BlockMingleRenderer {
      */
     static int progressCoords(float progress) {
         return Math.round(Math.clamp(progress, 0f, 1f) * PROGRESS_UNITS);
+    }
+
+    /**
+     * Whether a quad of a mingled block draws through the blended mingle, as
+     * a translucent block's quads do, so a slime coat building in stays
+     * translucent rather than opaque until it lands
+     * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
+     *
+     * @param quad the quad
+     * @return true for a quad on the translucent layer
+     */
+    static boolean drawsTranslucent(BakedQuad quad) {
+        return quad.materialInfo().layer() == ChunkSectionLayer.TRANSLUCENT;
     }
 
     /**
