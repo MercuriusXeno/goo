@@ -70,6 +70,16 @@ class AbilitiesPaneTest {
         }
     }
 
+    /** A cost drawing an item's icon stands taller than a number's box, and its label centers on it all the same. */
+    @Test
+    void aCostsLabelCentersOnItsTallerBox() {
+        DrawnFrame frame = draw(pane(Map.of("minecraft:cobblestone", Map.of("unstable", "250"))));
+        DrawnFrame.Text label = frame.find("cost");
+        int[] box = frame.buttonAround(frame.find("3"));
+        assertEquals(Lettering.builder(DrawnFrame.font()).centeredTop(box[1], box[3] - box[1]), label.y(),
+                label + " stands off the center of its box " + java.util.Arrays.toString(box));
+    }
+
     @Test
     void aCostItemHoldingNoneOfTheTypeReadsARedLine() {
         DrawnFrame frame = draw(pane(Map.of("minecraft:cobblestone", Map.of("rock", "250"))));
@@ -399,6 +409,17 @@ class AbilitiesPaneTest {
             for (String label : List.of("Cost", "Cost per block", "Entry cost")) {
                 assertEquals(ControlFlow.BUILDER_SCALE, frame.placed(label).scale(), label);
             }
+        }
+
+        /** The operator's ruling of 2026-11-07: the labels read in the yellow the mechanism headings drew in. */
+        @Test
+        void aLabelReadsYellowCenteredOnItsValuesBox() {
+            DrawnFrame frame = drawn(VIEW);
+            DrawnFrame.Text label = frame.find("Cost per block");
+            int[] box = frame.buttonAround(frame.find("100"));
+            assertEquals(Palette.FILE_HEADING, label.color());
+            assertEquals(Lettering.builder(DrawnFrame.font()).centeredTop(box[1], box[3] - box[1]), label.y(),
+                    label + " stands off the center of its box " + java.util.Arrays.toString(box));
         }
 
         @Test

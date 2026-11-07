@@ -47,8 +47,8 @@ final class AbilitiesPane {
     private static final String DESCRIPTION_HOVER = "goo-ability-description:";
     // The icon sits in its sprite row as an item sprite does.
     private static final int ICON_INSET = (RowLayout.SPRITE_ROW_HEIGHT - RowLayout.SPRITE_SIZE) / 2;
-    // A price field's box centers on the heading's sprite row, and fields stand this far apart.
-    private static final int BOX_INSET = Math.max(0, (RowLayout.SPRITE_ROW_HEIGHT - ButtonPainter.HEIGHT) / 2);
+    private static final int HALF = 2;
+    // Price fields stand this far apart.
     private static final int FIELD_GAP = GAP * 3;
     // The least room an open text box takes, so a short value's box still reads what is typed.
     private static final int EDITOR_WIDTH = 60;
@@ -483,12 +483,17 @@ final class AbilitiesPane {
         List<ExpressionLines.Run> runs = runsOf(ability, leaf, tab.valueOf(ability, leaf));
         String label = AbilityWording.label(leaf, translate);
         Lettering small = Lettering.builder(font);
-        int boxTop = field.top() + BOX_INSET;
-        int besideBox = building ? boxTop + ExpressionBuilderPane.PANEL_ABOVE : boxTop;
-        small.draw(graphics, label, field.left(), small.centeredTop(besideBox, ButtonPainter.HEIGHT), Palette.MUTED);
-        targets.addHover(field.left(), besideBox, small.width(label), ButtonPainter.HEIGHT,
-                DESCRIPTION_HOVER + AbilityWording.descriptionKey(leaf.mechanism(), leaf.field()));
         int valueLeft = field.left() + small.width(label) + BuilderFrame.LABEL_GAP;
+        // The box centers on the heading's sprite row, and the label centers on the box, however tall its icons stand
+        // it (the operator's ruling of 2026-11-07).
+        int boxHeight = editing != null && editing.holds(ability, leaf) ? ButtonPainter.HEIGHT
+                : ReadValueButton.height(font, runs, field.right() - valueLeft);
+        int boxTop = field.top() + Math.max(0, (RowLayout.SPRITE_ROW_HEIGHT - boxHeight) / HALF);
+        int besideBox = building ? boxTop + ExpressionBuilderPane.PANEL_ABOVE : boxTop;
+        // The labels read in the yellow the mechanism headings drew in (the operator's ruling of 2026-11-07).
+        small.draw(graphics, label, field.left(), small.centeredTop(besideBox, boxHeight), Palette.FILE_HEADING);
+        targets.addHover(field.left(), besideBox, small.width(label), boxHeight,
+                DESCRIPTION_HOVER + AbilityWording.descriptionKey(leaf.mechanism(), leaf.field()));
         // The frame stands its box at its row's indent, so the row starts that indent short of the value.
         BuilderFrame.Row framed = new BuilderFrame.Row(new GroupsPane.Bounds(valueLeft - ControlFlow.INDENT, boxTop,
                 field.right(), field.bottom()), null, GooAmountGrid.NONE, false);
