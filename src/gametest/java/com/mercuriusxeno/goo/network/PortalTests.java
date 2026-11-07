@@ -56,6 +56,7 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, PLACING_LINKS_TO_THE_LAST_PLACED,
                 PortalTests::placingLinksToTheLastPlaced);
         GooTestFunctions.registerTest(registrar, NOT_IN_A_WALL_WHILE_PASSING, PortalTests::passingBodyIsNotInAWall);
+        GooTestFunctions.registerTest(registrar, OTHER_ENTITIES_GO_THROUGH, PortalTests::otherEntitiesGoThrough);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
         GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
                 PortalTests::unlinkedPortalHoldsABodyUp);
@@ -241,6 +242,53 @@ public final class PortalTests {
                     "A player carried out of a floor portal should stand clear of every block, stands at "
                             + player.position());
             level.getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    private static final String OTHER_ENTITIES_GO_THROUGH = "portal_other_entities_go_through";
+    /** How hard the pig is shoved into the wall portal's face, in blocks a tick. */
+    private static final double SHOVE = 0.8;
+
+    /**
+     * Bodies other than players go through portals too: an item dropped on a
+     * floor portal comes out of its wall partner, and a pig shoved into a
+     * wall portal comes out of its wall partner
+     * (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void otherEntitiesGoThrough(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        Portal in = floorAt(helper, owner, FLOOR_IN);
+        castAt(helper, owner, THIRD, Direction.SOUTH);
+        net.minecraft.world.entity.item.ItemEntity item = new net.minecraft.world.entity.item.ItemEntity(level,
+                helper.absoluteVec(Vec3.atBottomCenterOf(FLOOR_IN.above(2))).x(),
+                helper.absoluteVec(Vec3.atBottomCenterOf(FLOOR_IN.above(2))).y(),
+                helper.absoluteVec(Vec3.atBottomCenterOf(FLOOR_IN.above(2))).z(),
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK));
+        item.setDeltaMovement(Vec3.ZERO);
+        level.addFreshEntity(item);
+        ServerPlayer other = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(other, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, other, Vec3.atBottomCenterOf(AWAY));
+        Portal wallIn = castAt(helper, other, FIRST, Direction.SOUTH);
+        Portal wallOut = castAt(helper, other, SECOND, Direction.NORTH);
+        helper.assertTrue(QuantumPortals.get(level).partnerOf(wallIn).equals(Optional.of(wallOut))
+                && QuantumPortals.get(level).partnerOf(in).isPresent(), "Both pairs should stand linked");
+        Pig pig = helper.spawn(EntityType.PIG, A_BLOCK_OFF);
+        pig.setDeltaMovement(0, 0, -SHOVE);
+        helper.runAfterDelay(THROUGH, () -> {
+            double itemFrom = item.position().distanceTo(helper.absoluteVec(Vec3.atCenterOf(FLOOR_IN)));
+            double itemTo = item.position().distanceTo(helper.absoluteVec(Vec3.atCenterOf(THIRD)));
+            helper.assertTrue(itemTo < itemFrom, "An item dropped on a floor portal should come out of its wall "
+                    + "partner, lies at " + item.position());
+            helper.assertTrue(pig.position().distanceTo(helper.absoluteVec(Vec3.atCenterOf(SECOND)))
+                    < pig.position().distanceTo(helper.absoluteVec(Vec3.atCenterOf(FIRST))),
+                    "A pig shoved into a wall portal should come out of its partner, stands at " + pig.position());
+            level.getServer().getPlayerList().remove(owner);
+            level.getServer().getPlayerList().remove(other);
             helper.succeed();
         });
     }
