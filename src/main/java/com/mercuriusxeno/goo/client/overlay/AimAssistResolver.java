@@ -120,9 +120,10 @@ final class AimAssistResolver {
             return exact;
         }
 
-        AimHit bestCone = findBestConeHit(candidates, player, from, lookDir);
+        double range = from.distanceTo(to);
+        AimHit bestCone = findBestConeHit(candidates, player, from, lookDir, range);
 
-        AimHit sticky = retainSticky(candidates, player, from, lookDir, bestCone, previous);
+        AimHit sticky = retainSticky(candidates, player, from, lookDir, bestCone, previous, range);
         return (sticky != null) ? sticky : bestCone;
     }
 
@@ -203,14 +204,15 @@ final class AimAssistResolver {
      * @param player     the aiming player
      * @param from       ray start
      * @param lookDir    normalized look direction
+     * @param range      how far the ray reaches
      * @return the cone-pass winner, or null if nothing clears the cone
      */
     private static @Nullable AimHit findBestConeHit(List<AimHit> candidates, Player player,
-                                                    Vec3 from, Vec3 lookDir) {
+                                                    Vec3 from, Vec3 lookDir, double range) {
         double bestCos = AIM_ASSIST_COS;
         AimHit best = null;
         for (AimHit candidate : candidates) {
-            double cos = coneCosine(candidate, player, from, lookDir, AIM_ASSIST_COS);
+            double cos = coneCosine(candidate, player, from, lookDir, AIM_ASSIST_COS, range);
             if (cos > bestCos) {
                 bestCos = cos;
                 best = candidate;
@@ -229,16 +231,17 @@ final class AimAssistResolver {
      * @param lookDir    normalized look direction
      * @param bestCone   the cone-pass winner this frame
      * @param previous   the previous hit, or null
+     * @param range      how far the ray reaches
      * @return the previous hit if it is retained, or null
      */
     private static @Nullable AimHit retainSticky(List<AimHit> candidates, Player player, Vec3 from,
                                                  Vec3 lookDir, @Nullable AimHit bestCone,
-                                                 @Nullable AimHit previous) {
+                                                 @Nullable AimHit previous, double range) {
         if (previous == null || previous.equals(bestCone)
                 || !previous.isAlive() || !candidates.contains(previous)) {
             return null;
         }
-        return coneCosine(previous, player, from, lookDir, STICKY_COS) > STICKY_COS ? previous : null;
+        return coneCosine(previous, player, from, lookDir, STICKY_COS, range) > STICKY_COS ? previous : null;
     }
 
     /**
@@ -250,16 +253,30 @@ final class AimAssistResolver {
      * @param from      ray start
      * @param lookDir   normalized look direction
      * @param coneCos   the cosine of the cone's half-angle
+     * @param range     how far the ray reaches
      * @return the cosine, or NO_CONE_ANGLE when out of range, outside the cone or occluded
      */
-    private static double coneCosine(AimHit candidate, Player player, Vec3 from, Vec3 lookDir, double coneCos) {
+    private static double coneCosine(AimHit candidate, Player player, Vec3 from, Vec3 lookDir, double coneCos,
+                                     double range) {
         Vec3 toTarget = candidate.box().getCenter().subtract(from);
-        double dist = toTarget.length();
-        if (dist <= CENTER_HALF || dist > MAX_RANGE) {
+        if (!inReach(toTarget.length(), range)) {
             return NO_CONE_ANGLE;
         }
         double cos = lookDir.dot(toTarget.normalize());
         return cos > coneCos && isInSight(candidate, player, from) ? cos : NO_CONE_ANGLE;
+    }
+
+    /**
+     * Whether a candidate's center stands within the ray's reach, past the
+     * eye's own box: the cone marks no mob beyond where the ray ends, so a
+     * grab marks none it cannot lift (decision grab-reaches-telekinesis-range).
+     *
+     * @param distance the distance from the eye to the candidate's center
+     * @param range    how far the ray reaches
+     * @return true where the cone may take the candidate
+     */
+    static boolean inReach(double distance, double range) {
+        return distance > CENTER_HALF && distance <= range;
     }
 
     /**
