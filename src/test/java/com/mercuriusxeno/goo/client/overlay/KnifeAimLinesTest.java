@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class KnifeAimLinesTest {
 
-    private static final Charge KNIVES = new Charge(30, 24, 50, 8);
+    private static final Charge KNIVES = new Charge(30, 27, 45, 8, 3, 5);
     private static final double TOLERANCE = 1e-9;
     /** Facing south, level. */
     private static final float SOUTH = 0f;
@@ -33,9 +33,9 @@ class KnifeAimLinesTest {
     class Knives {
 
         @Test
-        void aFreshPressAimsOneLineAndAFullChargeOnePerKnife() {
-            assertEquals(1, KnifeAimLines.velocitiesAt(SOUTH, 0f, KNIVES, 0f, SEED).size());
-            assertEquals(24, KnifeAimLines.velocitiesAt(SOUTH, 0f, KNIVES, 1f, SEED).size());
+        void aFreshPressAimsThreeLinesAndAFullChargeOnePerKnife() {
+            assertEquals(3, KnifeAimLines.velocitiesAt(SOUTH, 0f, KNIVES, 0f, SEED).size());
+            assertEquals(27, KnifeAimLines.velocitiesAt(SOUTH, 0f, KNIVES, 1f, SEED).size());
         }
 
         @Test
@@ -61,7 +61,7 @@ class KnifeAimLinesTest {
                 double yaw = Math.toDegrees(Math.atan2(-velocity.x, velocity.z));
                 leftmost = Math.min(leftmost, yaw);
                 rightmost = Math.max(rightmost, yaw);
-                assertTrue(Math.abs(yaw) <= 25 + 1e-6, "every line flies inside the cone, flew " + yaw);
+                assertTrue(Math.abs(yaw) <= 22.5 + 1e-6, "every line flies inside the cone, flew " + yaw);
             }
             assertTrue(rightmost - leftmost > 40, "the lines reach across the cone, spanned " + (rightmost - leftmost));
         }
