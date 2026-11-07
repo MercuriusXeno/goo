@@ -1,6 +1,6 @@
 #version 330
 
-// Dive's warden senses: the world goes dark and is heard rather than seen.
+// Sculker's warden senses: the world goes dark and is heard rather than seen.
 // Where depth breaks, at the edges of open space, a sculk-teal contour
 // draws, brightened by echo rings sweeping out from the diver. Near the
 // diver the scene's own colors show faintly, the blocks still told apart;
@@ -18,9 +18,9 @@ layout(std140) uniform SamplerInfo {
     vec2 InSize;
 };
 
-layout(std140) uniform DiveConfig {
+layout(std140) uniform SculkerConfig {
     // (seconds, nearReach, far, near): nearReach in blocks where the scene still shows
-    vec4 DiveParams;
+    vec4 SculkerParams;
 };
 
 out vec4 fragColor;
@@ -40,10 +40,10 @@ float linearDepth(vec2 uv, float near, float far) {
 }
 
 void main() {
-    float seconds = DiveParams.x;
-    float nearReach = DiveParams.y;
-    float far = DiveParams.z;
-    float near = DiveParams.w;
+    float seconds = SculkerParams.x;
+    float nearReach = SculkerParams.y;
+    float far = SculkerParams.z;
+    float near = SculkerParams.w;
     vec2 texel = 1.0 / OutSize;
     vec3 scene = texture(InSampler, texCoord).rgb;
 

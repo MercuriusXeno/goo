@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.deep.DiveSwim;
+import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
@@ -19,9 +19,9 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class DiveClient {
+public final class SculkerClient {
 
-    private DiveClient() {
+    private SculkerClient() {
     }
 
     /**
@@ -35,18 +35,18 @@ public final class DiveClient {
     }
 
     /**
-     * Swims the local player through the stone it passes through while its dive stands.
+     * Swims the local player through the stone it passes through while its Sculker stands.
      *
      * @param event the player tick
      */
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (!(event.getEntity() instanceof LocalPlayer player) || !DiveSwim.passesThrough(player)) {
+        if (!(event.getEntity() instanceof LocalPlayer player) || !SculkerSwim.passesThrough(player)) {
             return;
         }
         Input keys = player.input.keyPresses;
         double rise = (keys.jump() ? 1 : 0) - (keys.shift() ? 1 : 0);
-        player.setDeltaMovement(DiveSwim.swimStroke(player, player.zza, player.xxa, rise));
+        player.setDeltaMovement(SculkerSwim.swimStroke(player, player.zza, player.xxa, rise));
         player.resetFallDistance();
     }
 }

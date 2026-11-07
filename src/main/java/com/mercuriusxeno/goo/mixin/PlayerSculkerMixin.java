@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.ability.deep.DiveSwim;
+import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  */
 @Mixin(Player.class)
-public abstract class PlayerDiveMixin {
+public abstract class PlayerSculkerMixin {
 
     /**
      * Turns no-clip on for a diver passing through solid blocks.
@@ -27,7 +27,7 @@ public abstract class PlayerDiveMixin {
             opcode = org.objectweb.asm.Opcodes.PUTFIELD, shift = At.Shift.AFTER, ordinal = 0))
     private void goo$diverPassesThrough(CallbackInfo info) {
         Player player = (Player) (Object) this;
-        if (!player.noPhysics && DiveSwim.passesThrough(player)) {
+        if (!player.noPhysics && SculkerSwim.passesThrough(player)) {
             player.noPhysics = true;
         }
     }

@@ -123,7 +123,7 @@ public final class StepTypes {
         register(ZoneStep.TYPE);
         register(ShifterStep.TYPE);
         register(ConvokeStep.TYPE);
-        register(DiveStep.TYPE);
+        register(SculkerStep.TYPE);
         register(EndStep.TYPE);
         register(AstralGateStep.TYPE);
         register(VoidPocketStep.TYPE);

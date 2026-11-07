@@ -27,7 +27,7 @@ import java.util.function.Function;
  * dive leaves the world.
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  */
-public final class DiveSwim {
+public final class SculkerSwim {
 
     /** The speed the swim drives toward under full input, in blocks per tick. */
     static final double SWIM_SPEED = 0.3;
@@ -48,7 +48,7 @@ public final class DiveSwim {
      */
     private static Function<Player, Input> localKeys = player -> Input.EMPTY;
 
-    private DiveSwim() {
+    private SculkerSwim() {
     }
 
     /**
@@ -61,20 +61,20 @@ public final class DiveSwim {
     }
 
     /**
-     * Whether a player's dive stands now.
+     * Whether a player's Sculker stands now.
      *
      * @param player the player
      * @return true while the dive stands
      */
     public static boolean dives(Player player) {
-        return player.getData(GooAttachments.DIVE).standsAt(player.level().getGameTime());
+        return player.getData(GooAttachments.SCULKER).standsAt(player.level().getGameTime());
     }
 
     /**
      * Whether a player passes through solid blocks this tick.
      *
      * @param player the player
-     * @return true while its dive stands and it is inside solid blocks or presses into them
+     * @return true while its Sculker stands and it is inside solid blocks or presses into them
      */
     public static boolean passesThrough(Player player) {
         return dives(player) && (insideSolid(player) || pressesIntoStone(player, keysOf(player)));

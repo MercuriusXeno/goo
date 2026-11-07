@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.client.ability.DiveSenses;
+import com.mercuriusxeno.goo.client.ability.SculkerSenses;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,7 +13,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  */
 @Mixin(Minecraft.class)
-public abstract class MinecraftDiveOutlineMixin {
+public abstract class MinecraftSculkerOutlineMixin {
 
     /**
      * Answers whether an entity draws its outline: yes while a diver senses it, vanilla's answer otherwise.
@@ -24,6 +24,6 @@ public abstract class MinecraftDiveOutlineMixin {
      */
     @ModifyReturnValue(method = "shouldEntityAppearGlowing", at = @At("RETURN"))
     private boolean goo$diverSensesIt(boolean original, Entity entity) {
-        return original || DiveSenses.outlines(entity);
+        return original || SculkerSenses.outlines(entity);
     }
 }

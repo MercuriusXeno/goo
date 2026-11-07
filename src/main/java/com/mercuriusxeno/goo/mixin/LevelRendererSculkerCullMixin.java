@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.ability.deep.DiveSwim;
+import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  */
 @Mixin(LevelRenderer.class)
-public abstract class LevelRendererDiveCullMixin {
+public abstract class LevelRendererSculkerCullMixin {
 
     /**
      * Culls terrain as for a spectator while the local player dives.
@@ -28,6 +28,6 @@ public abstract class LevelRendererDiveCullMixin {
             index = 2)
     private boolean goo$diverCullsAsASpectator(boolean spectator) {
         Minecraft mc = Minecraft.getInstance();
-        return spectator || mc.player != null && DiveSwim.dives(mc.player);
+        return spectator || mc.player != null && SculkerSwim.dives(mc.player);
     }
 }
