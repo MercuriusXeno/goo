@@ -20,6 +20,7 @@ import org.lwjgl.system.MemoryStack;
  * rings, the scene's own colors faint near the diver and solid space a dark
  * sea past them.
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
+ * decision sculker-shows-blocks-translucent-close-up
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerVision {
@@ -29,8 +30,8 @@ public final class SculkerVision {
     private static final String SCULKER_CONFIG_BLOCK = "SculkerConfig";
     /** Std140 size of {@code SculkerConfig}: one vec4. */
     private static final int SCULKER_CONFIG_SIZE = 16;
-    /** How far from the diver, in blocks, the scene's own colors still show. */
-    private static final float NEAR_REACH = 6f;
+    /** How far from the diver, in blocks, the scene's own colors still show: the glass field's radius. */
+    private static final float NEAR_REACH = (float) SculkerGlass.FIELD_RADIUS;
     private static final float BLOCKS_PER_CHUNK = 16f;
     /** The camera's far plane past its render distance, as {@code Camera} sets it up. */
     private static final float FAR_PER_RENDER_BLOCK = 4f;
