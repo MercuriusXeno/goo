@@ -41,6 +41,15 @@ public final class SculkerEchoes {
     /** The quietest and loudest a sound reads, as a share of ordinary loudness. */
     static final float QUIETEST = 0.25f;
     static final float LOUDEST = 4f;
+    /** Ticks between one ambient pulse of a mob within hearing and its next, about two seconds. */
+    static final int PULSE_TICKS = 40;
+    /** The loudness of a mob's ambient pulse, a quarter of an ordinary sound's. */
+    static final float PULSE_LOUDNESS = 0.25f;
+    /** How far from the player a mob's ambient pulse is heard, in blocks. */
+    static final double HEARING_REACH = 32;
+    /** Ticks each mob's pulse clock runs apart from the next mob's, so mobs pulse on their own beats. */
+    private static final int PULSE_STAGGER = 7;
+
     /** The most faces the memory holds before the oldest give way. */
     static final int MOST_FACES = 32_768;
     /** The most ripples growing at once; a sound past them starts none. */
@@ -131,15 +140,6 @@ public final class SculkerEchoes {
         double reach = Math.min(LOUDEST_REACH, RIPPLE_REACH * share(loudness));
         ripples.add(new Ripple(at, tick, reach, fadeTicksFor(loudness)));
     }
-
-    /** Ticks between one ambient pulse of a mob within hearing and its next, about two seconds. */
-    static final int PULSE_TICKS = 40;
-    /** The loudness of a mob's ambient pulse, a quarter of an ordinary sound's. */
-    static final float PULSE_LOUDNESS = 0.25f;
-    /** How far from the player a mob's ambient pulse is heard, in blocks. */
-    static final double HEARING_REACH = 32;
-    /** Ticks each mob's pulse clock runs apart from the next mob's, so mobs pulse on their own beats. */
-    private static final int PULSE_STAGGER = 7;
 
     /**
      * Whether a mob gives off its ambient pulse on a tick.
