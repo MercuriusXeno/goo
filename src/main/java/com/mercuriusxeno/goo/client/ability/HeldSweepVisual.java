@@ -15,6 +15,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -22,6 +24,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -87,15 +90,27 @@ public final class HeldSweepVisual {
         Vec3 center = payload.origin().add(0, BODY_CENTER, 0);
         HeldSweepPulse pulse = PULSES.computeIfAbsent(payload.pulse(), id -> new HeldSweepPulse(
                 FIELDS.computeIfAbsent(center, EchoField::new), payload.range(),
-                tint(payload.gooType(), ClientGooTypes::color)));
+                tint(payload.gooType(), ClientGooTypes::color), payload.paintsMobs()));
         pulse.heard(payload.radius(), level.getGameTime());
     }
 
-    /** Drops every pulse, as a disconnect or a change of dimension does. */
+    /** Drops every pulse and every painted mob, as a disconnect or a change of dimension does. */
     public static void clear() {
         PULSES.clear();
         FIELDS.clear();
+        ScryPaintedMobs.CLIENT.clear();
         heardIn = null;
+    }
+
+    /**
+     * The client's game time with its partial tick, the clock the painted
+     * mobs' outlines read.
+     *
+     * @return the game time, 0 with no level
+     */
+    static double clientTime() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.level == null ? 0 : mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
     }
 
     /**
@@ -143,6 +158,7 @@ public final class HeldSweepVisual {
         advanceAll(PULSES, now, at -> level.getBlockState(at).isAir(),
                 at -> level.getBlockState(at).getShape(level, at).toAabbs());
         FIELDS.values().removeIf(field -> PULSES.values().stream().noneMatch(pulse -> pulse.field() == field));
+        paintCrossedMobs(level, mc.player, now);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
@@ -224,6 +240,41 @@ public final class HeldSweepVisual {
      * @param tintRgb its color, 0xRRGGBB
      */
     record WallGlow(EchoField.EchoFace face, float glow, int tintRgb) {
+    }
+
+    /**
+     * Paints every living mob, the caster aside, that a mob-painting front
+     * crossed this frame, and lets go the mobs whose linger has run out.
+     *
+     * @param level  the client level
+     * @param caster the caster, never painted
+     * @param now    the game time with its partial tick
+     */
+    private static void paintCrossedMobs(ClientLevel level, @Nullable Entity caster, double now) {
+        for (HeldSweepPulse pulse : PULSES.values()) {
+            if (pulse.paintsMobs() && pulse.front() > pulse.frontBefore()) {
+                paintCrossedBy(pulse, level.entitiesForRendering(), caster, now);
+            }
+        }
+        ScryPaintedMobs.CLIENT.forgetFaded(now);
+    }
+
+    /**
+     * Paints the living mobs, the caster aside, that one front crossed this frame.
+     *
+     * @param pulse    the pulse whose front moved
+     * @param entities the entities the client draws
+     * @param caster   the caster, never painted
+     * @param now      the game time with its partial tick
+     */
+    private static void paintCrossedBy(HeldSweepPulse pulse, Iterable<Entity> entities, @Nullable Entity caster,
+                                       double now) {
+        for (Entity entity : entities) {
+            if (entity instanceof LivingEntity && entity != caster && ScryPaintedMobs.crossedBy(
+                    pulse.field().center(), pulse.frontBefore(), pulse.front(), entity.getBoundingBox().getCenter())) {
+                ScryPaintedMobs.CLIENT.paint(entity.getId(), now, pulse.tintRgb());
+            }
+        }
     }
 
     /**

@@ -27,6 +27,16 @@ public interface HeldSweepStep extends Step {
     ResourceKey<GooTypeDefinition> goo();
 
     /**
+     * Whether the sweep's fronts outline the mobs they cross on the caster's
+     * client: Scry's do, the ore senses' do not.
+     *
+     * @return true for a sweep that paints mobs
+     */
+    default boolean paintsMobs() {
+        return false;
+    }
+
+    /**
      * The payload drawing one live pulse on one tick.
      *
      * @param pulse    the pulse
@@ -36,6 +46,6 @@ public interface HeldSweepStep extends Step {
     default HeldSweepPayload sweepOf(HeldSweepPulses.Pulse pulse, long gameTime) {
         HeldSweepPace pace = pace();
         return new HeldSweepPayload(pulse.id(), pulse.origin(), (float) pace.radiusAt(pulse.ageAt(gameTime)),
-                (float) pace.range(), goo());
+                (float) pace.range(), goo(), paintsMobs());
     }
 }

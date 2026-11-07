@@ -25,6 +25,8 @@
     "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",
-    "PlayerModelAbilityPoseMixin"
+    "PlayerModelAbilityPoseMixin",
+    "EntityScryOutlineColorMixin",
+    "MinecraftScryOutlineMixin"
   ]
 }

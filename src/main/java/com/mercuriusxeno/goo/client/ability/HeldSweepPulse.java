@@ -23,7 +23,9 @@ final class HeldSweepPulse {
     private final EchoField field;
     private final double range;
     private final int tintRgb;
+    private final boolean paintsMobs;
     private final List<LitFace> lit = new ArrayList<>();
+    private double frontBefore;
     private double lastRadius;
     private double lastRadiusAt;
     private double front;
@@ -35,9 +37,20 @@ final class HeldSweepPulse {
      * @param tintRgb its color, 0xRRGGBB
      */
     HeldSweepPulse(EchoField field, double range, int tintRgb) {
+        this(field, range, tintRgb, false);
+    }
+
+    /**
+     * @param field      the walls around the spot the pulse left from
+     * @param range      the radius its front reaches
+     * @param tintRgb    its color, 0xRRGGBB
+     * @param paintsMobs whether its front outlines the mobs it crosses
+     */
+    HeldSweepPulse(EchoField field, double range, int tintRgb, boolean paintsMobs) {
         this.field = field;
         this.range = range;
         this.tintRgb = tintRgb;
+        this.paintsMobs = paintsMobs;
     }
 
     /**
@@ -76,6 +89,7 @@ final class HeldSweepPulse {
      * @param room    how many more walls may light across every live pulse
      */
     void advance(double now, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf, int room) {
+        frontBefore = front;
         double radius = drawnRadius(now);
         field.reachTo(radius, isAir, shapeOf);
         int left = room;
@@ -116,6 +130,29 @@ final class HeldSweepPulse {
      */
     boolean travelling(double now) {
         return drawnRadius(now) < range;
+    }
+
+    /**
+     * The front's radius before its last advance, so what lies between it
+     * and the front now is what the front just crossed.
+     *
+     * @return the radius before the last advance
+     */
+    double frontBefore() {
+        return frontBefore;
+    }
+
+    /**
+     * The front's radius as its last advance left it.
+     *
+     * @return the radius
+     */
+    double front() {
+        return front;
+    }
+
+    boolean paintsMobs() {
+        return paintsMobs;
     }
 
     EchoField field() {

@@ -34,6 +34,16 @@ class HeldSweepStepTest {
         assertEquals(Set.of(HeldSweepPayload.class), visuals, "one visual draws all three");
     }
 
+    /** Scry's fronts paint the mobs they cross; Glitter's and Magnet's, which find ores, do not. */
+    @Test
+    void scrysFrontsPaintMobsAndGlittersAndMagnetsDoNot() {
+        HeldSweepPulses.Pulse pulse = new HeldSweepPulses.Pulse(1, Vec3.ZERO, PRESSED_AT);
+
+        assertTrue(sweepOf("astral_scry").sweepOf(pulse, PRESSED_AT).paintsMobs(), "scry");
+        assertTrue(!sweepOf("crystal_glitter").sweepOf(pulse, PRESSED_AT).paintsMobs(), "glitter");
+        assertTrue(!sweepOf("metal_magnet").sweepOf(pulse, PRESSED_AT).paintsMobs(), "magnet");
+    }
+
     @Test
     void theHoldsEleventhTickSendsTwoFrontsEachWithItsOwnPulseAndRadius() {
         HeldSweepStep scry = sweepOf("astral_scry");
