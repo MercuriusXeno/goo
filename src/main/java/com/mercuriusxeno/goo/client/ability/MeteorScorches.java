@@ -25,18 +25,18 @@ import java.util.function.Predicate;
 /**
  * Meteo's scorch on every watching client: an overlay laid over the faces
  * the crater left open to air, glowing ember at first, cooling to char and
- * fading to nothing over about ten seconds; no block changes.
+ * fading to nothing over about four seconds; no block changes.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class MeteorScorches {
 
-    /** Ticks the scorch takes to fade to nothing: about ten seconds. */
-    static final int SCORCH_TICKS = 200;
+    /** Ticks the scorch takes to fade to nothing: about four seconds (operator ruling 2026-11-06). */
+    static final int SCORCH_TICKS = 80;
     /** Ticks after the strike the scorch waits before reading the crater, so the blast's block changes arrive. */
     static final int SETTLE_TICKS = 3;
     /** Ticks the scorch glows as embers before it reads as char. */
-    private static final int EMBER_TICKS = 40;
+    private static final int EMBER_TICKS = 20;
     /** The scorch's alpha at full strength, at the strike's center. */
     private static final int CHAR_ALPHA = 200;
     /** How much of its alpha the scorch keeps at its rim, so it feathers out rather than ending in an edge. */

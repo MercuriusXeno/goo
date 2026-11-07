@@ -26,6 +26,7 @@ class MeteorScorchesTest {
     /** The crater: a ball of air blasted out of solid ground. */
     private static final double CRATER = 2.5;
     private static final double SCORCH_RADIUS = 3.5;
+    private static final long FOUR_SECONDS = 80;
     private static final Predicate<BlockPos> CRATERED = pos -> Vec3.atCenterOf(pos).distanceTo(CENTER) <= CRATER;
 
     @Test
@@ -35,6 +36,12 @@ class MeteorScorchesTest {
 
         assertEquals(exposedWithin(SCORCH_RADIUS), scorched);
         assertTrue(!scorched.isEmpty(), "the crater's walls scorch");
+    }
+
+    /** The scorch is gone within four seconds: ten seconds decayed too slowly (operator ruling 2026-11-06). */
+    @Test
+    void theScorchIsGoneWithinFourSeconds() {
+        assertEquals(0f, MeteorScorches.strengthAt(FOUR_SECONDS), 0f);
     }
 
     @Test
