@@ -115,6 +115,22 @@ public final class GatePassage {
                 middle);
     }
 
+    /**
+     * Whether a body is passing through a gate: its middle at a linked
+     * gate's face in its level, within the oval, where the gate's blocks stand
+     * open to it, so it is neither in a wall nor suffocating there.
+     *
+     * @param entity the body
+     * @return true while it passes
+     */
+    public static boolean passing(Entity entity) {
+        List<Pair> pairs = entity.level().isClientSide() ? clientPairs : serverPairs;
+        Vec3 middle = entity.getBoundingBox().getCenter();
+        return pairs.stream().flatMap(pair -> Stream.of(pair.one(), pair.other()))
+                .anyMatch(gate -> gate.dimension().equals(entity.level().dimension())
+                        && atTheFace(gate, entity, middle));
+    }
+
     private static boolean atTheFace(Gate gate, Entity entity, Vec3 middle) {
         double out = gate.out(middle);
         return out > -DEEPEST && out < APPROACH + entity.getBbWidth() && gate.withinOval(middle);

@@ -55,6 +55,7 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, LINK_REACHES_EVERY_CLIENT, PortalTests::linkReachesEveryClient);
         GooTestFunctions.registerTest(registrar, PLACING_LINKS_TO_THE_LAST_PLACED,
                 PortalTests::placingLinksToTheLastPlaced);
+        GooTestFunctions.registerTest(registrar, NOT_IN_A_WALL_WHILE_PASSING, PortalTests::passingBodyIsNotInAWall);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
         GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
                 PortalTests::unlinkedPortalHoldsABodyUp);
@@ -97,6 +98,33 @@ public final class PortalTests {
         assertTethered(helper, player, fourth);
         level.getServer().getPlayerList().remove(player);
         helper.succeed();
+    }
+
+    private static final String NOT_IN_A_WALL_WHILE_PASSING = "portal_passing_body_is_not_in_a_wall";
+    /** Feet a twentieth before the first frame's face, the eye's check reaching into the frame's blocks. */
+    private static final Vec3 AT_THE_FACE = new Vec3(1.5, 1, 2.05);
+
+    /**
+     * A body pressed to a linked portal's face, passing into it, is not in
+     * a wall, though the check about its eye reaches into the frame's blocks:
+     * crossing neither hurts nor blinds it
+     * (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void passingBodyIsNotInAWall(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+        castAt(helper, player, FIRST, Direction.SOUTH);
+        castAt(helper, player, SECOND, Direction.NORTH);
+        helper.runAfterDelay(STEP, () -> {
+            standAt(helper, player, AT_THE_FACE);
+            helper.assertFalse(player.isInWall(), "A body pressed to a linked portal's face should not be in a wall");
+            level.getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
     }
 
     /** A fourth wall frame's lower block. */
