@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class KnivesChargeTest {
 
-    private static final Charge KNIVES = new Charge(30, 24, 50, 8);
+    private static final Charge KNIVES = new Charge(30, 27, 45, 8, 3, 5);
     private static final float TOLERANCE = 1e-5f;
 
     @Nested
@@ -23,8 +23,8 @@ class KnivesChargeTest {
 
         @Test
         void theChargeStepsUpAsItGrowsUpToTheStepsItChimes() {
-            assertEquals(1, KnivesCharge.shownAt(KNIVES, 0f));
-            assertEquals(5, KnivesCharge.shownAt(KNIVES, 0.2f));
+            assertEquals(3, KnivesCharge.shownAt(KNIVES, 0f));
+            assertEquals(8, KnivesCharge.shownAt(KNIVES, 0.2f));
             assertEquals(KnivesCharge.MOST_SHOWN, KnivesCharge.shownAt(KNIVES, 1f));
         }
     }
