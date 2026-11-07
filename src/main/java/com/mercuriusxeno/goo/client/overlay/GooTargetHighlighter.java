@@ -338,10 +338,10 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the aim line to the exact point aimed at, the same frame the tile
+     * Draws the aim line to its end for the target, the same frame the tile
      * highlight draws, with nothing carried from the last frame.
      * aim-line-snaps-with-the-tile-highlight
-     * aim-point-follows-the-cursor
+     * aim-line-roots-to-the-aimed-mob-or-block
      *
      * @param event       the render stage event
      * @param target      the target this frame aims at
@@ -351,7 +351,7 @@ public final class GooTargetHighlighter {
      */
     private static void renderAimLine(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
                                       ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick) {
-        Vec3 end = target.point();
+        Vec3 end = aimLineEnd(target);
         if (end == null) {
             return;
         }
@@ -359,6 +359,23 @@ public final class GooTargetHighlighter {
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
                 partialTick, grannyWeight(target, delivery), delivery.aimsStraight());
+    }
+
+    /**
+     * Where the aim line ends for a target: the bullseye's anchor on an aimed
+     * mob or block, so hand sway leaves the line rooted, and the cursor for
+     * free aim, which favors nothing to root to.
+     * aim-line-roots-to-the-aimed-mob-or-block
+     *
+     * @param target the target this frame aims at
+     * @return the line's end, or null when nothing is aimed at
+     */
+    static @Nullable Vec3 aimLineEnd(TargetResult target) {
+        return switch (target) {
+            case TargetResult.PointTarget free -> free.point();
+            case TargetResult.None none -> null;
+            default -> target.resolveEndpoint();
+        };
     }
 
     /**
