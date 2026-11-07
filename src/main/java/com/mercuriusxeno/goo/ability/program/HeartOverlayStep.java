@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -63,7 +64,8 @@ public record HeartOverlayStep(HeartKind kind, float damageTaken) implements Ste
     @Override
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
-        if (host.target() instanceof Player player) {
+        if (takesEntity(host.target())) {
+            Player player = (Player) host.target();
             HeartOverlay standing = player.getData(GooAttachments.HEART_OVERLAY);
             long now = player.level().getGameTime();
             OptionalInt brewDuration = host.brewDuration();
@@ -75,6 +77,19 @@ public record HeartOverlayStep(HeartKind kind, float damageTaken) implements Ste
             player.setData(GooAttachments.HEART_OVERLAY, laid);
         }
         return true;
+    }
+
+
+    /**
+     * A heart overlay lies on a player.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Player;
     }
 
     @Override

@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  *
  * @param tag the blocks the stream breaks
  */
-public record BreakBlocksStep(TagKey<Block> tag) implements Step {
+public record BreakBlocksStep(TagKey<Block> tag) implements TakesNoEntity {
 
     private static final String NAME = "break_blocks";
     private static final String FIELD_TAG = "tag";

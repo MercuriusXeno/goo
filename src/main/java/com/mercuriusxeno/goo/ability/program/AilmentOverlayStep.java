@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  * @param kind     the ailment shown
  * @param duration the duration in ticks, evaluated when the step runs
  */
-public record AilmentOverlayStep(AilmentKind kind, Expr duration) implements Step {
+public record AilmentOverlayStep(AilmentKind kind, Expr duration) implements TakesNoEntity {
 
     private static final String NAME = "ailment_overlay";
     private static final String FIELD_KIND = "kind";

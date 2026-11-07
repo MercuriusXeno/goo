@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.reserve.ReserveDrain;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -50,7 +51,8 @@ public record ReserveDrainStep(Expr drain, Expr ratio, Expr cap, Expr floor) imp
     @Override
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
-        if (host.target() instanceof Player player) {
+        if (takesEntity(host.target())) {
+            Player player = (Player) host.target();
             ReserveDrain reserve = new ReserveDrain(drain.evaluateFloat(context), ratio.evaluateFloat(context),
                     cap.evaluateFloat(context), floor.evaluateFloat(context));
             ReserveDrain.Drawn drawn = reserve.draw(player.getData(GooAttachments.RESERVE), player.getHealth(),
@@ -60,6 +62,19 @@ public record ReserveDrainStep(Expr drain, Expr ratio, Expr cap, Expr floor) imp
             player.getFoodData().setFoodLevel(drawn.food());
         }
         return true;
+    }
+
+
+    /**
+     * Reserve drains a player.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Player;
     }
 
     @Override

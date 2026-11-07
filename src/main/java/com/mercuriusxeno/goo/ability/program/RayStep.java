@@ -45,7 +45,7 @@ import java.util.stream.Stream;
  * @param impact  the steps run where the ray lands each tick of the hold, on the mob or block face it strikes
  */
 public record RayStep(double range, int every, List<EntityFilter> where, Refraction refract, List<Step> steps,
-                      List<Step> impact) implements Step {
+                      List<Step> impact) implements ReachesTheAim {
 
     private static final String NAME = "ray";
     private static final String FIELD_RANGE = "range";
@@ -305,6 +305,11 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
     @Override
     public Stream<Step> children() {
         return Stream.concat(steps.stream(), impact.stream());
+    }
+
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return Step.takenThrough(where, steps, entity);
     }
 
     @Override

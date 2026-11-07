@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import java.util.Set;
@@ -46,10 +47,23 @@ public record FreezeStep(Expr amount, FrostCurve curve) implements Step {
     @Override
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
-        if (target instanceof Mob mob) {
-            FrozenEvents.freeze(mob, amount.evaluateFloat(context), curve);
+        if (takesEntity(target)) {
+            FrozenEvents.freeze((Mob) target, amount.evaluateFloat(context), curve);
         }
         return true;
+    }
+
+
+    /**
+     * Freeze takes a mob.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Mob;
     }
 
     @Override
