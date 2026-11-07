@@ -157,8 +157,8 @@ public final class GatePassage {
             Vec3 middle = entity.getBoundingBox().getCenter();
             Vec3 before = lastMiddles.get(entity.getUUID());
             if (before != null && crossed(near, before, middle)) {
-                carry(target, entity, landing(PortalTransform.between(near, far), middle,
-                        entity.getBbHeight() * HALF, entity.getDeltaMovement(), entity.getYRot(), entity.getXRot()));
+                carry(target, entity, landingThrough(near, far, new Held(middle, entity.getBbHeight() * HALF),
+                        entity.getBbHeight(), entity.getDeltaMovement(), entity.getYRot(), entity.getXRot()));
             }
             seen.put(entity.getUUID(), middle);
         }
@@ -260,17 +260,85 @@ public final class GatePassage {
      * @param pitch  its pitch, in degrees
      */
     public static void announced(ServerPlayer player, Gate near, Vec3 feet, Vec3 motion, float yaw, float pitch) {
-        Vec3 eye = feet.add(0, player.getEyeHeight(), 0);
         Optional<Gate> far = partnerOf(near, player.level().dimension());
-        if (far.isEmpty() || !behindTheFace(near, eye) || feet.distanceTo(player.position()) > TRUSTED_STEP) {
+        Optional<Held> held = heldBehind(near, feet, player.getEyeHeight(), player.getBbHeight());
+        if (far.isEmpty() || held.isEmpty() || feet.distanceTo(player.position()) > TRUSTED_STEP) {
             return;
         }
-        Landing landing = landing(PortalTransform.between(near, far.get()), eye, player.getEyeHeight(), motion,
-                yaw, pitch);
+        Landing landing = landingThrough(near, far.get(), held.get(), player.getBbHeight(), motion, yaw, pitch);
         player.absSnapTo(landing.feet().x(), landing.feet().y(), landing.feet().z(), landing.yaw(), landing.pitch());
         player.setDeltaMovement(landing.motion());
         player.resetFallDistance();
         player.connection.resetPosition();
+    }
+
+    /**
+     * The point a body crossing a gate is carried by: its eye where the eye
+     * stands just behind the face, so the camera carries on unbroken, else its
+     * middle, as when a body drops into a floor gate and sinks no deeper than
+     * the gate's one open block, its eye still above the face.
+     *
+     * @param point the point
+     * @param drop  how far the feet stand below it
+     */
+    public record Held(Vec3 point, double drop) {
+    }
+
+    /**
+     * The point a body standing with its feet at a spot crossed a gate by, if any.
+     *
+     * @param gate      the gate
+     * @param feet      the body's feet
+     * @param eyeHeight its eye's height over its feet
+     * @param height    its height
+     * @return the point it is carried by, empty where neither eye nor middle stands just behind the face
+     */
+    public static Optional<Held> heldBehind(Gate gate, Vec3 feet, double eyeHeight, double height) {
+        Vec3 eye = feet.add(0, eyeHeight, 0);
+        if (behindTheFace(gate, eye)) {
+            return Optional.of(new Held(eye, eyeHeight));
+        }
+        Vec3 middle = feet.add(0, height * HALF, 0);
+        return behindTheFace(gate, middle) ? Optional.of(new Held(middle, height * HALF)) : Optional.empty();
+    }
+
+    /**
+     * How a body crossing one gate of a pair comes out of the other: carried
+     * by the point it crossed by, and set clear of the partner's face where
+     * that face is a floor or a ceiling, so an upright body never comes out
+     * with its feet below a floor or its head above a ceiling.
+     *
+     * @param near   the gate crossed
+     * @param far    its partner
+     * @param held   the point the body crossed by
+     * @param height the body's height
+     * @param motion its momentum
+     * @param yaw    its yaw, in degrees
+     * @param pitch  its pitch, in degrees
+     * @return the landing
+     */
+    public static Landing landingThrough(Gate near, Gate far, Held held, double height, Vec3 motion, float yaw,
+            float pitch) {
+        Landing landing = landing(PortalTransform.between(near, far), held.point(), held.drop(), motion, yaw, pitch);
+        return new Landing(clearOf(far, landing.feet(), height), landing.motion(), landing.yaw(), landing.pitch());
+    }
+
+    /**
+     * Feet set clear of a floor or ceiling gate's face: on a floor no lower
+     * than the face, under a ceiling with the head no higher than it.
+     *
+     * @param gate   the gate come out of
+     * @param feet   where the feet would stand
+     * @param height the body's height
+     * @return where they stand
+     */
+    static Vec3 clearOf(Gate gate, Vec3 feet, double height) {
+        double plane = gate.center().y();
+        return switch (gate.face()) {
+            case UP -> new Vec3(feet.x(), Math.max(feet.y(), plane), feet.z());
+            case DOWN -> new Vec3(feet.x(), Math.min(feet.y(), plane - height), feet.z());
+            default -> feet;
+        };
     }
 
     private static Optional<Gate> partnerOf(Gate near, ResourceKey<Level> level) {

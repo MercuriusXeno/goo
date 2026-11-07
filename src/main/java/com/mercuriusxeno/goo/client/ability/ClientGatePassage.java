@@ -23,6 +23,8 @@ import java.util.Optional;
  */
 public final class ClientGatePassage {
 
+    private static final double HALF = 0.5;
+
     private ClientGatePassage() {
     }
 
@@ -37,33 +39,75 @@ public final class ClientGatePassage {
         if (player == null || mc.level == null || GatePassage.clientPairs().isEmpty()) {
             return;
         }
-        double eyeHeight = player.getEyeHeight();
-        Vec3 eyeBefore = new Vec3(player.xo, player.yo + eyeHeight, player.zo);
-        Vec3 eyeNow = player.getEyePosition(delta.getGameTimeDeltaPartialTick(true));
+        float partial = delta.getGameTimeDeltaPartialTick(true);
+        Vec3 feetBefore = new Vec3(player.xo, player.yo, player.zo);
+        Vec3 feetNow = player.getPosition(partial);
+        Vec3 eye = new Vec3(0, player.getEyeHeight(), 0);
+        Vec3 middle = new Vec3(0, player.getBbHeight() * HALF, 0);
         Optional<GatePassage.Pair> crossed = GatePassage.crossing(GatePassage.clientPairs(), mc.level.dimension(),
-                eyeBefore, eyeNow);
-        crossed.ifPresent(way -> carry(player, way, eyeHeight));
+                feetBefore.add(eye), feetNow.add(eye))
+                .or(() -> GatePassage.crossing(GatePassage.clientPairs(), mc.level.dimension(),
+                        feetBefore.add(middle), feetNow.add(middle)));
+        crossed.ifPresent(way -> carry(player, way));
     }
 
-    private static void carry(LocalPlayer player, GatePassage.Pair way, double eyeHeight) {
-        PortalTransform through = PortalTransform.between(way.one(), way.other());
+    /**
+     * Carries the player through, by the point it crossed by, as the server
+     * checks it: its place now and its place last tick both moved by the
+     * same carry, so the interpolated frame lands where it should.
+     *
+     * @param player the local player
+     * @param way    the gate crossed, then its partner
+     */
+    private static void carry(LocalPlayer player, GatePassage.Pair way) {
         Vec3 feet = player.position();
+        Optional<GatePassage.Held> held = GatePassage.heldBehind(way.one(), feet, player.getEyeHeight(),
+                player.getBbHeight());
+        if (held.isEmpty()) {
+            return;
+        }
         Vec3 motion = player.getDeltaMovement();
         float yaw = player.getYRot();
         float pitch = player.getXRot();
-        GatePassage.Landing now = GatePassage.landing(through, player.getEyePosition(), eyeHeight, motion, yaw,
-                pitch);
-        GatePassage.Landing before = GatePassage.landing(through, new Vec3(player.xo, player.yo + eyeHeight,
-                player.zo), eyeHeight, Vec3.ZERO, player.yRotO, player.xRotO);
-        float turn = Mth.wrapDegrees(now.yaw() - yaw);
+        GatePassage.Landing now = GatePassage.landingThrough(way.one(), way.other(), held.get(),
+                player.getBbHeight(), motion, yaw, pitch);
+        GatePassage.Landing before = landedBefore(player, way, held.get(), now);
+        placeAt(player, now, before);
+        player.connection.send(new ServerboundCustomPayloadPacket(new GateCrossedPayload(way.one(), feet, motion,
+                yaw, pitch)));
+    }
 
+    /**
+     * Where the player's place and look last tick land, carried by the same
+     * point and set clear by the same amount as its place now.
+     *
+     * @param player the local player
+     * @param way    the gate crossed, then its partner
+     * @param held   the point it crossed by now
+     * @param now    where it lands now
+     * @return where its last tick lands
+     */
+    private static GatePassage.Landing landedBefore(LocalPlayer player, GatePassage.Pair way, GatePassage.Held held,
+            GatePassage.Landing now) {
+        PortalTransform through = PortalTransform.between(way.one(), way.other());
+        Vec3 heldBefore = held.point().subtract(player.position()).add(player.xo, player.yo, player.zo);
+        GatePassage.Landing before = GatePassage.landing(through, heldBefore, held.drop(), Vec3.ZERO,
+                player.yRotO, player.xRotO);
+        Vec3 setClear = now.feet().subtract(GatePassage.landing(through, held.point(), held.drop(), Vec3.ZERO,
+                player.getYRot(), player.getXRot()).feet());
+        return new GatePassage.Landing(before.feet().add(setClear), before.motion(), before.yaw(), before.pitch());
+    }
+
+    private static void placeAt(LocalPlayer player, GatePassage.Landing now, GatePassage.Landing before) {
+        Vec3 feetBefore = before.feet();
+        float turn = Mth.wrapDegrees(now.yaw() - player.getYRot());
         player.setPos(now.feet());
-        player.xo = before.feet().x();
-        player.yo = before.feet().y();
-        player.zo = before.feet().z();
-        player.xOld = before.feet().x();
-        player.yOld = before.feet().y();
-        player.zOld = before.feet().z();
+        player.xo = feetBefore.x();
+        player.yo = feetBefore.y();
+        player.zo = feetBefore.z();
+        player.xOld = feetBefore.x();
+        player.yOld = feetBefore.y();
+        player.zOld = feetBefore.z();
         player.setDeltaMovement(now.motion());
         player.setYRot(now.yaw());
         player.setXRot(now.pitch());
@@ -71,8 +115,6 @@ public final class ClientGatePassage {
         player.xRotO = before.pitch();
         turnBodyBy(player, turn);
         player.resetFallDistance();
-        player.connection.send(new ServerboundCustomPayloadPacket(new GateCrossedPayload(way.one(), feet, motion,
-                yaw, pitch)));
     }
 
     private static void turnBodyBy(LocalPlayer player, float turn) {
