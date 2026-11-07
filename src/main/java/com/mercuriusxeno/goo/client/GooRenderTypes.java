@@ -1162,6 +1162,28 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
+     * A portal's outline through blocks while its owner chooses a partner: a
+     * thin glowing ring at the oval's edge passing every depth test, so a
+     * hidden portal can be found without covering what stands before it
+     * (decision portals-link-by-looking-through-portal-vision).
+     */
+    public static final RenderPipeline GOO_PORTAL_OUTLINE = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_outline"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_outline"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /** RenderType for a portal's outline through blocks. */
+    public static final RenderType GOO_PORTAL_OUTLINE_TYPE = RenderType.create("goo_portal_outline",
+            RenderSetup.builder(GOO_PORTAL_OUTLINE).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+                    .createRenderSetup());
+
+    /**
      * The idle swirl's twin passing every depth test, for portal vision:
      * while a player chooses a partner, every portal of theirs shows its
      * swirl through walls.
@@ -1439,6 +1461,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_VIEW);
         event.registerPipeline(GOO_PORTAL_IDLE);
         event.registerPipeline(GOO_HOLE_VIEW);
+        event.registerPipeline(GOO_PORTAL_OUTLINE);
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(SUNBEAM_SCORCH);

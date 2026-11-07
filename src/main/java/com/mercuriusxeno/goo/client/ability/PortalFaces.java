@@ -35,10 +35,12 @@ import java.util.Optional;
  * orange, and each open hole's mouths, blue on the struck side and orange on
  * the far side. A gate whose view drew this frame shows the far side flush
  * inside its oval under a rim of its color; one with no view shows its idle
- * swirl. With Portal in the glove, the portal being chosen from and, while
- * the player sneaks, the one its look faces show their swirl through walls
- * in place of their view, the faced one strobing. Inside a view's own pass
- * only an inert gate draws, its swirl, from that view's camera.
+ * swirl. With Portal in the glove, the portal being paired blinks its swirl
+ * in place of its view the whole time its owner chooses, and the one aimed
+ * at, while choosing or sneaking, blinks brighter; both stand behind what
+ * stands before them. While choosing, every portal of the owner's shows a
+ * thin outline through the blocks, to find and pick one from afar. Inside a
+ * view's own pass the views within it draw, and only an inert gate swirls.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
  */
@@ -52,6 +54,12 @@ public final class PortalFaces {
     private static final int OPAQUE = 255;
     /** The idle swirl's alpha: nearly solid, a little of the wall showing through its dark heart. */
     private static final int SWIRL_ALPHA = 235;
+    /** A portal's outline through blocks while its owner chooses. */
+    private static final int OUTLINE_ALPHA = 200;
+    /** The faintest the portal aimed at blinks down to, brighter than the one being paired. */
+    private static final float AIMED_BLINK_LOW = 140F;
+    /** How fast the portal aimed at blinks, in radians a tick, quicker than the one being paired. */
+    private static final float AIMED_BLINK_RATE = 1.1F;
     /** The faintest a faced portal's strobe dims to. */
     private static final float STROBE_LOW = 60F;
     /** How fast a faced portal strobes, in radians a tick. */
@@ -123,58 +131,88 @@ public final class PortalFaces {
             drawIdle(pose, buffers, camera, gates);
             return;
         }
-        List<Portal> worked = workedOn(player);
-        gates.removeIf(drawn -> worked.stream().anyMatch(portal -> portal.gate().equals(drawn.gate())));
+        boolean holding = PortalAim.selected(GloveAim.selectedAbilityId(player));
+        Optional<Portal> chosen = holding ? ClientPortals.choosing() : Optional.empty();
+        Optional<Portal> aimed = holding && (chosen.isPresent() || PortalAim.working(player))
+                ? PortalAim.faced(player) : Optional.empty();
+        List<Portal> blinking = new ArrayList<>(chosen.stream().toList());
+        aimed.filter(portal -> !blinking.contains(portal)).ifPresent(blinking::add);
+        gates.removeIf(drawn -> blinking.stream().anyMatch(portal -> portal.gate().equals(drawn.gate())));
         drawViews(pose, buffers, camera, gates);
         drawIdle(pose, buffers, camera, gates);
-        drawWorked(pose, buffers, camera, worked, player);
+        float time = player.tickCount + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        drawBlinking(pose, buffers, camera, blinking, aimed, time);
+        if (chosen.isPresent()) {
+            drawOutlines(pose, buffers, camera, player, blinking, aimed, time);
+        }
     }
 
     /**
-     * The portals a right click with Portal in the glove works on, which
-     * light up to say so: the one being chosen from, and, while the player
-     * sneaks, the one its look faces.
+     * How strongly a blinking portal shows this frame: the portal being
+     * paired blinks the whole time its owner chooses, and the one aimed at
+     * blinks brighter and quicker.
      *
-     * @param player the local player
-     * @return the portals, the chosen-from first
+     * @param aimed whether the portal is the one aimed at
+     * @param time  the ticks, with the frame's share of one
+     * @return the alpha
      */
-    private static List<Portal> workedOn(LocalPlayer player) {
-        if (!PortalAim.selected(GloveAim.selectedAbilityId(player))) {
-            return List.of();
-        }
-        List<Portal> worked = new ArrayList<>(ClientPortals.choosing().stream().toList());
-        if (PortalAim.working(player)) {
-            PortalAim.faced(player).filter(faced -> !worked.contains(faced)).ifPresent(worked::add);
-        }
-        return worked;
+    private static int blinkAlpha(boolean aimed, float time) {
+        float wave = HALF_WAVE + HALF_WAVE * Mth.sin(time * (aimed ? AIMED_BLINK_RATE : STROBE_RATE));
+        return (int) Mth.lerp(wave, aimed ? AIMED_BLINK_LOW : STROBE_LOW, OPAQUE);
     }
 
     /**
-     * Draws the portals a right click works on as their swirl in place of
-     * their view, seen through walls: the one being chosen from steady, the
-     * one the look faces while sneaking strobing.
+     * Draws the portals a right click with Portal in the glove works on, the
+     * one being paired and the one aimed at, as their swirl blinking in place
+     * of their view, behind whatever stands before them as any face does.
      *
-     * @param pose    the pose
-     * @param buffers the frame's buffers
-     * @param camera  the camera's position
-     * @param worked  the portals worked on
-     * @param player  the local player
+     * @param pose     the pose
+     * @param buffers  the frame's buffers
+     * @param camera   the camera's position
+     * @param blinking the portals blinking
+     * @param aimed    the portal aimed at, empty for none
+     * @param time     the ticks, with the frame's share of one
      */
-    private static void drawWorked(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-            List<Portal> worked, LocalPlayer player) {
-        if (worked.isEmpty()) {
+    private static void drawBlinking(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            List<Portal> blinking, Optional<Portal> aimed, float time) {
+        if (blinking.isEmpty()) {
             return;
         }
-        Optional<Portal> faced = PortalAim.working(player) ? PortalAim.faced(player) : Optional.empty();
-        float time = player.tickCount + Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        int strobe = (int) Mth.lerp(HALF_WAVE + HALF_WAVE * Mth.sin(time * STROBE_RATE), STROBE_LOW, OPAQUE);
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_VISION_TYPE);
-        for (Portal portal : worked) {
-            int alpha = faced.isPresent() && faced.get().equals(portal) ? strobe : SWIRL_ALPHA;
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
+        for (Portal portal : blinking) {
+            int alpha = blinkAlpha(aimed.isPresent() && aimed.get().equals(portal), time);
             emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
                     ARGB.color(alpha, colorOf(portal, ClientPortals.link())));
         }
-        buffers.endBatch(GooRenderTypes.GOO_PORTAL_VISION_TYPE);
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
+    }
+
+    /**
+     * While its owner chooses a partner, draws a thin outline of every one of
+     * its portals in the level through the blocks, so one hidden or far away
+     * can be found and picked without covering what stands before it; the
+     * one being paired and the one aimed at blink with their swirl.
+     *
+     * @param pose     the pose
+     * @param buffers  the frame's buffers
+     * @param camera   the camera's position
+     * @param player   the local player
+     * @param blinking the portals blinking
+     * @param aimed    the portal aimed at, empty for none
+     * @param time     the ticks, with the frame's share of one
+     */
+    private static void drawOutlines(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            LocalPlayer player, List<Portal> blinking, Optional<Portal> aimed, float time) {
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_OUTLINE_TYPE);
+        for (Portal portal : ClientPortals.portals()) {
+            if (portal.block().dimension().equals(player.level().dimension())) {
+                int alpha = blinking.contains(portal)
+                        ? blinkAlpha(aimed.isPresent() && aimed.get().equals(portal), time) : OUTLINE_ALPHA;
+                emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
+                        ARGB.color(alpha, colorOf(portal, ClientPortals.link())));
+            }
+        }
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_OUTLINE_TYPE);
     }
 
     /**

@@ -19,6 +19,8 @@ public final class ClientPortals {
 
     /** How far off the look, in degrees, a distant portal may stand and still be the one right clicked. */
     public static final double PICK_CONE_DEGREES = 6.0;
+    /** How far past a frame's blocks a look striking its face still counts, so its very edge picks it. */
+    private static final double FACE_SLACK = 0.01;
 
     private static List<Portal> portals = List.of();
     private static Optional<QuantumPortals.Link> link = Optional.empty();
@@ -105,11 +107,38 @@ public final class ClientPortals {
      */
     public static Optional<Portal> facedOnLook(List<Portal> among, net.minecraft.resources.ResourceKey<
             net.minecraft.world.level.Level> dimension, Vec3 eye, Vec3 look) {
+        List<Portal> here = among.stream().filter(portal -> portal.block().dimension().equals(dimension)).toList();
+        Optional<Portal> struck = here.stream()
+                .filter(portal -> lookHitsFace(portal, eye, look).isPresent())
+                .min(Comparator.comparingDouble(portal -> lookHitsFace(portal, eye, look).orElseThrow()));
+        if (struck.isPresent()) {
+            return struck;
+        }
         double cosine = Math.cos(Math.toRadians(PICK_CONE_DEGREES));
-        return among.stream()
-                .filter(portal -> portal.block().dimension().equals(dimension))
+        return here.stream()
                 .filter(portal -> alignment(portal, eye, look) >= cosine)
                 .max(Comparator.comparingDouble(portal -> alignment(portal, eye, look)));
+    }
+
+    /**
+     * How far along a look it strikes a portal's face anywhere across the
+     * frame's blocks, from the face's own side.
+     *
+     * @param portal the portal
+     * @param eye    the eye
+     * @param look   the unit look
+     * @return the distance, empty where the look misses the face
+     */
+    private static Optional<Double> lookHitsFace(Portal portal, Vec3 eye, Vec3 look) {
+        com.mercuriusxeno.goo.ability.quantum.Gate gate = portal.gate();
+        double toward = look.dot(gate.face().getUnitVec3());
+        double out = gate.out(eye);
+        if (toward >= 0 || out <= 0) {
+            return Optional.empty();
+        }
+        double distance = out / -toward;
+        Vec3 struck = eye.add(look.scale(distance));
+        return gate.blocks().inflate(FACE_SLACK).contains(struck) ? Optional.of(distance) : Optional.empty();
     }
 
     private static double alignment(Portal portal, Vec3 eye, Vec3 look) {
