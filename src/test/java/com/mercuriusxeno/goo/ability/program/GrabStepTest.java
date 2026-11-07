@@ -91,6 +91,22 @@ class GrabStepTest {
             assertTrue(GrabStep.reachOf(List.of(new AncientStep()), null).isEmpty());
         }
 
+        @Test
+        void aSentMobWithinReachIsTakenAndOnePastItIsRefused() {
+            Mob sent = mock(Mob.class);
+            when(sent.isAlive()).thenReturn(true);
+            assertTrue(GRAB.takesSent(sent, 7 * 7, null));
+            assertFalse(GRAB.takesSent(sent, 9 * 9, null));
+            assertTrue(GRAB.takesSent(sent, 15 * 15, laid(TELEKINESIS_REACH)));
+        }
+
+        @Test
+        void aSentPlayerWithinReachIsRefused() {
+            Player sent = mock(Player.class);
+            when(sent.isAlive()).thenReturn(true);
+            assertFalse(GRAB.takesSent(sent, 1, null));
+        }
+
         private static AttributeModifier laid(double reach) {
             return new AttributeModifier(Identifier.fromNamespaceAndPath("goo", "telekinesis_entity_reach"),
                     reach, AttributeModifier.Operation.ADD_VALUE);
