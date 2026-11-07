@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PlatformSpiralTest {
 
     private static final int SEVEN_BY_SEVEN = 49;
-    private static final int COST_STEP = 50;
+    private static final int CELL_BASE = 10;
+    private static final int PER_DISTANCE = 1;
 
     @Nested
     class Order {
@@ -56,15 +57,19 @@ class PlatformSpiralTest {
     class Cost {
 
         @Test
-        void eachGrownCellCostsMoreThanTheOneBefore() {
-            long before = PlatformSpiral.costOf(PlatformSpiral.START_CELLS, COST_STEP);
-            assertTrue(before > 0, "the first grown cell should cost void");
-            for (int index = PlatformSpiral.START_CELLS + 1; index < 200; index++) {
-                long cost = PlatformSpiral.costOf(index, COST_STEP);
+        void aCellCostsTheBasePlusOnePerBlockOfManhattanDistance() {
+            for (int index = PlatformSpiral.START_CELLS; index < 200; index++) {
+                PlatformSpiral.Cell cell = PlatformSpiral.cellAt(index);
+                long distance = Math.abs(cell.x()) + Math.abs(cell.z());
 
-                assertTrue(cost > before, "cell " + index + " should cost more than " + before + ", costs " + cost);
-                before = cost;
+                assertEquals(CELL_BASE + distance, PlatformSpiral.costOf(index, CELL_BASE, PER_DISTANCE),
+                        "cell " + index + " at " + cell + " should cost " + CELL_BASE + " plus " + distance);
             }
+        }
+
+        @Test
+        void theFirstGrownCellThreeBlocksOutCostsThirteen() {
+            assertEquals(13, PlatformSpiral.costOf(PlatformSpiral.START_CELLS, CELL_BASE, PER_DISTANCE));
         }
     }
 }

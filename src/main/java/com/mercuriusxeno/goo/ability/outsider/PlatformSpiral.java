@@ -7,8 +7,9 @@ package com.mercuriusxeno.goo.ability.outsider;
  * south side, north up the west side and east along the north side, so each
  * cell shares an edge with the one before and a room's starting 3 by 3 is
  * cells 0 to 8. The next cell follows from the platform's cell count alone.
- * Each grown cell costs a step more void than the one before, so the
- * platform grows more slowly the more is invested in it.
+ * A grown cell costs a base plus a little for each block of Manhattan
+ * distance from the center, as the operator ruled: the platform grows fast
+ * early and only slowly comes to cost more the farther out it reaches.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  */
 public final class PlatformSpiral {
@@ -61,14 +62,16 @@ public final class PlatformSpiral {
     }
 
     /**
-     * The void a cell costs to grow: a step for the first grown cell and a
-     * step more for each after it.
+     * The void a cell costs to grow: the base, plus the step for each block
+     * of Manhattan distance between the cell and the center.
      *
-     * @param index    the cell's place along the spiral
-     * @param costStep the void each cell costs more than the one before (mB)
+     * @param index       the cell's place along the spiral
+     * @param base        the void a cell costs at the center (mB)
+     * @param perDistance the void each block of Manhattan distance adds (mB)
      * @return the cell's cost (mB)
      */
-    public static long costOf(int index, int costStep) {
-        return (long) costStep * Math.max(1, index - START_CELLS + 1);
+    public static long costOf(int index, int base, int perDistance) {
+        Cell cell = cellAt(index);
+        return base + (long) perDistance * (Math.abs(cell.x()) + Math.abs(cell.z()));
     }
 }
