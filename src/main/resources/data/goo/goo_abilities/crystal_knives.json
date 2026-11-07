@@ -7,7 +7,7 @@
   "requires": ["minecraft:amethyst_shard"],
   "delivery": {
     "kind": "arc",
-    "charge": { "max_ticks": 30, "flecks": 24, "spread_degrees": 50, "sweep_ticks": 8 }
+    "charge": { "max_ticks": 30, "flecks": 27, "spread_degrees": 45, "sweep_ticks": 8, "fewest_flecks": 3, "narrowest_degrees": 5 }
   },
   "behaviors": [
     { "type": "damage", "amount": 2, "source": "magic", "knockback": false },
