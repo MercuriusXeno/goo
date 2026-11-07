@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.client.fade.Afterglow;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -14,8 +15,8 @@ import java.util.Map;
  */
 public final class MobAilments {
 
-    /** Game ticks the overlay takes to fade out as its ailment runs out. */
-    public static final int FADE_TICKS = 10;
+    /** Game ticks the overlay takes to fade out as its ailment runs out or is cleared: a second. */
+    public static final int FADE_TICKS = Afterglow.FADE_TICKS;
 
     /** The client's ailments. */
     public static final MobAilments CLIENT = new MobAilments();
@@ -45,7 +46,8 @@ public final class MobAilments {
 
     /**
      * An entity starts wearing an ailment, or wears it longer; a landing of
-     * no duration ends the ailment at once.
+     * no duration ends a worn ailment a fade later, so its overlay falls to
+     * nothing over the second after rather than snapping off.
      *
      * @param entityId      the entity's id
      * @param kind          the ailment
@@ -57,7 +59,8 @@ public final class MobAilments {
         if (durationTicks <= 0) {
             Map<AilmentKind, Long> worn = endTicks.get(entityId);
             if (worn != null) {
-                worn.remove(kind);
+                // brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
+                worn.computeIfPresent(kind, (ailment, end) -> Math.min(end, tick + FADE_TICKS));
             }
             return;
         }

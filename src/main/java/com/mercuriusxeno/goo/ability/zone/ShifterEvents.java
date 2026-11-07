@@ -41,6 +41,7 @@ public final class ShifterEvents {
     static final int SHIMMER_REFRESH_TICKS = 20;
     /** Ticks each refresh keeps the shimmer on, outlasting the refresh period. */
     static final int SHIMMER_TICKS = 40;
+    private static final int SHIMMER_CLEARED = 0;
     /** Ticks each blink's afterimage grows and fades over, the blink's own. */
     static final int AFTERIMAGE_LIFE_TICKS = 12;
 
@@ -59,12 +60,36 @@ public final class ShifterEvents {
             Shifter held = standing(player);
             if (held != null) {
                 rememberGround(level, player, held);
-                if (level.getGameTime() % SHIMMER_REFRESH_TICKS == 0) {
-                    EntityVisuals.sendToWatchers(player,
-                            new AilmentPayload(player.getId(), AilmentKind.SHIFTER, SHIMMER_TICKS));
-                }
+                keepShimmer(player, level.getGameTime());
             }
         }
+    }
+
+    /**
+     * Refreshes the shimmer of a player whose shifter stands, once each refresh period.
+     *
+     * @param player   the player
+     * @param gameTime the game time
+     */
+    static void keepShimmer(ServerPlayer player, long gameTime) {
+        if (gameTime % SHIMMER_REFRESH_TICKS == 0) {
+            sendShimmer(player, SHIMMER_TICKS);
+        }
+    }
+
+    /**
+     * Clears the shimmer the tick the shifter's held effect ends, so its fade
+     * starts at the end rather than when the last refresh lapses.
+     * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
+     *
+     * @param player the player whose shifter ended
+     */
+    public static void clearShimmer(ServerPlayer player) {
+        sendShimmer(player, SHIMMER_CLEARED);
+    }
+
+    private static void sendShimmer(ServerPlayer player, int ticks) {
+        EntityVisuals.sendToWatchers(player, new AilmentPayload(player.getId(), AilmentKind.SHIFTER, ticks));
     }
 
     /**
