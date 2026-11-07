@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ContainerShiftClickMergeMixin",
+    "EntityPhasePassMixin",
     "FoodDataLifetapMixin",
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",

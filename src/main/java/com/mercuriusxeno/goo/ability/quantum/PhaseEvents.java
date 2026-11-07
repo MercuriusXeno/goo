@@ -101,6 +101,20 @@ public final class PhaseEvents {
                 || target instanceof Player player && EldritchEvents.isEldritch(player);
     }
 
+    /**
+     * Whether two bodies stand on opposite sides of phase, so they pass
+     * through each other, pushing nothing; read on either side, off the
+     * synced phase.
+     * phase-shares-a-plane-between-the-phased
+     *
+     * @param one   a body
+     * @param other another body
+     * @return true where phase lies between them
+     */
+    public static boolean acrossPhase(Entity one, Entity other) {
+        return !OutOfPhase.sharePlane(EldritchEvents.isOutOfPhase(one), EldritchEvents.isOutOfPhase(other));
+    }
+
     // A projectile stands on its shooter's plane, so the shooter judges the hit; a hit with no entity behind it
     // comes from the world, which phase leaves to the hit's own source.
     private static boolean crossesPhase(DamageSource source, boolean victimPhased) {
