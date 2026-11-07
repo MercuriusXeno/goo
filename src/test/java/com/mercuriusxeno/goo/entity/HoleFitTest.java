@@ -43,7 +43,28 @@ class HoleFitTest {
         Set<BlockPos> hole = Set.of(home, home.east(), home.west(), home.south(), home.north(), home.below());
         // Its stem stood on the rim a block east, the plus two blocks up.
         BlockPos onTheRim = home.offset(1, 2, 0);
-        assertEquals(Optional.of(home), HoleFit.fitNear(onTheRim, peg, groundWithHoles(hole), HoleFit.SETTLE_RADIUS));
+        assertEquals(Optional.of(home), HoleFit.settleNear(onTheRim, peg, groundWithHoles(hole)));
+    }
+
+    @Test
+    void aChunkRestingOverALedgeSettlesWhereItRests() {
+        // Two blocks side by side, the east one hanging past the ground's edge at x 5.
+        List<BlockPos> pair = List.of(BlockPos.ZERO, new BlockPos(1, 0, 0));
+        Predicate<BlockPos> ledge = cell -> cell.getY() > GROUND_TOP || cell.getX() > 4;
+        BlockPos resting = new BlockPos(4, GROUND_TOP + 1, 0);
+        assertEquals(Optional.of(resting), HoleFit.settleNear(resting, pair, ledge));
+    }
+
+    @Test
+    void aChunkWedgedWhereNoNearSeatIsOpenSettlesAtTheNearestOpenSeatFurtherOut() {
+        // A shaft three wide, its walls solid up to y 80: the only open seats stand above the walls' tops.
+        List<BlockPos> wide = List.of(BlockPos.ZERO, new BlockPos(1, 0, 0), new BlockPos(2, 0, 0),
+                new BlockPos(3, 0, 0));
+        int wallsTop = 80;
+        Predicate<BlockPos> shaft = cell -> cell.getY() > wallsTop || (cell.getX() >= 0 && cell.getX() <= 2);
+        BlockPos wedged = new BlockPos(0, wallsTop - 4, 0);
+        Optional<BlockPos> seat = HoleFit.settleNear(wedged, wide, shaft);
+        assertEquals(wallsTop + 1, seat.orElseThrow().getY());
     }
 
     @Test

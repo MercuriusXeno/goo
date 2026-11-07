@@ -9,14 +9,13 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * Where a chunk can seat itself on the grid: the lowest, then nearest,
- * position within a radius at which every one of the chunk's cells stands
- * open and the ground under its lowest blocks is solid. A held chunk pushed
- * into the ground looks within {@link #SEARCH_RADIUS} of the aim; a let-go
- * chunk come to rest looks within {@link #SETTLE_RADIUS}, so a peg resting on
- * its hole's rim drops into the hole rather than settling on the rim. The
- * hole it was lifted out of is the common case, so it slots back where it
- * came from, and a chunk never settles where it would overwrite a block.
+ * Where a chunk can seat itself on the grid, never overlapping a block. A
+ * held chunk pushed into the ground leans toward the lowest, then nearest,
+ * position within {@link #SEARCH_RADIUS} of the aim where every one of its
+ * cells stands open and the ground under all its lowest blocks is solid, the
+ * hole it was lifted out of being the common case, so it slots back where it
+ * came from. A let-go chunk come to rest settles where its cells are open and
+ * it rests on the ground (settleNear).
  * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
  */
 public final class HoleFit {
@@ -25,6 +24,8 @@ public final class HoleFit {
     public static final int SEARCH_RADIUS = 1;
     /** How far a let-go chunk come to rest looks for a seat, deep enough to reach its hole from the rim. */
     public static final int SETTLE_RADIUS = 2;
+    /** How far a let-go chunk looks for an open seat at most, where none stands within {@link #SETTLE_RADIUS}. */
+    public static final int MOST_SETTLE_RADIUS = 8;
 
     private HoleFit() {
     }
@@ -52,14 +53,67 @@ public final class HoleFit {
      */
     public static Optional<BlockPos> fitNear(BlockPos aim, List<BlockPos> shape, Predicate<BlockPos> open,
                                              int radius) {
+        return candidates(aim, radius, lowestThenNearest(aim)).stream()
+                .filter(origin -> fits(origin, shape, open)).findFirst();
+    }
+
+    /**
+     * Where a let-go chunk come to rest settles: the lowest, then nearest,
+     * position within {@link #SETTLE_RADIUS} where every one of its cells is
+     * open and at least one of its lowest blocks rests on the ground, so a peg
+     * on its hole's rim drops in and a chunk over a ledge settles where it
+     * rests; where none stands that near, the nearest such position further
+     * out, up to {@link #MOST_SETTLE_RADIUS}, so it never overlaps a block.
+     *
+     * @param rest  the origin cell it came to rest in
+     * @param shape the chunk's blocks, each by its offset from the origin cell
+     * @param open  whether a cell is open, one the chunk may stand in
+     * @return the origin cell it settles in, or empty where nothing in reach is open
+     */
+    public static Optional<BlockPos> settleNear(BlockPos rest, List<BlockPos> shape, Predicate<BlockPos> open) {
+        Optional<BlockPos> near = candidates(rest, SETTLE_RADIUS, lowestThenNearest(rest)).stream()
+                .filter(origin -> restsAt(origin, shape, open)).findFirst();
+        if (near.isPresent()) {
+            return near;
+        }
+        Comparator<BlockPos> nearest = Comparator.comparingDouble((BlockPos cell) -> cell.distSqr(rest));
+        return candidates(rest, MOST_SETTLE_RADIUS, nearest.thenComparingInt(BlockPos::getY)).stream()
+                .filter(origin -> restsAt(origin, shape, open)).findFirst();
+    }
+
+    private static Comparator<BlockPos> lowestThenNearest(BlockPos around) {
+        return Comparator.comparingInt((BlockPos cell) -> cell.getY()).thenComparingDouble(cell -> cell.distSqr(around));
+    }
+
+    private static List<BlockPos> candidates(BlockPos around, int radius, Comparator<BlockPos> order) {
         List<BlockPos> candidates = new ArrayList<>();
-        for (BlockPos cell : BlockPos.betweenClosed(aim.offset(-radius, -radius, -radius),
-                aim.offset(radius, radius, radius))) {
+        for (BlockPos cell : BlockPos.betweenClosed(around.offset(-radius, -radius, -radius),
+                around.offset(radius, radius, radius))) {
             candidates.add(cell.immutable());
         }
-        candidates.sort(Comparator.comparingInt((BlockPos cell) -> cell.getY()).thenComparingDouble(cell -> cell.distSqr(aim))
-                .thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
-        return candidates.stream().filter(origin -> fits(origin, shape, open)).findFirst();
+        candidates.sort(order.thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
+        return candidates;
+    }
+
+    /**
+     * Whether a shape rests at an origin: every cell it fills is open, and at
+     * least one of its lowest blocks stands on a cell that is not.
+     *
+     * @param origin the origin cell
+     * @param shape  the blocks' offsets from the origin
+     * @param open   whether a cell is open
+     * @return true where the shape rests
+     */
+    static boolean restsAt(BlockPos origin, List<BlockPos> shape, Predicate<BlockPos> open) {
+        Set<BlockPos> own = Set.copyOf(shape);
+        boolean resting = false;
+        for (BlockPos offset : shape) {
+            if (!open.test(origin.offset(offset))) {
+                return false;
+            }
+            resting |= !own.contains(offset.below()) && !open.test(origin.offset(offset.below()));
+        }
+        return resting;
     }
 
     /**
