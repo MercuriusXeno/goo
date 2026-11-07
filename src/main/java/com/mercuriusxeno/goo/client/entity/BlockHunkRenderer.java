@@ -81,17 +81,19 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
                 continue;
             }
             Vec3 corner = BlockHunk.cornerOf(position, block);
-            state.blocks.add(movingBlock(level, block, corner));
+            state.blocks.add(movingBlock(level, block, corner, BlockHunk.variantCellOf(hunk.home(), block)));
             // The pose stands at the lerped position, so a block drawn elsewhere is offset from it.
             state.offsets.add(corner.subtract(lerped));
         }
     }
 
-    private static MovingBlockRenderState movingBlock(ClientLevel level, BlockHunk.HunkBlock block, Vec3 corner) {
+    private static MovingBlockRenderState movingBlock(ClientLevel level, BlockHunk.HunkBlock block, Vec3 corner,
+                                                      BlockPos variantCell) {
         // Lit from the cell its top stands in, so a block breaking out of the ground draws in daylight.
         BlockPos lightAt = BlockPos.containing(corner.add(HALF, JUST_UNDER_THE_TOP, HALF));
         MovingBlockRenderState moving = new MovingBlockRenderState();
-        moving.randomSeedPos = lightAt;
+        // Seeded by its home cell, so its texture's variant holds still as it moves.
+        moving.randomSeedPos = variantCell;
         moving.blockPos = lightAt;
         moving.blockState = block.state();
         moving.biome = level.getBiome(lightAt);

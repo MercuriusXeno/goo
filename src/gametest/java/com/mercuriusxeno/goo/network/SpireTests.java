@@ -47,6 +47,7 @@ import java.util.function.Consumer;
 public final class SpireTests {
     private static final String SPIRE_GROWS_STONE = "spire_grows_stone_above_the_footprint";
     private static final String SPIRE_CARRIES_A_RIDER = "spire_carries_a_rider_up_with_the_stone";
+    private static final String SPIRE_LETS_A_PLAYER_RIDE = "spire_accepts_a_riding_players_moves";
 
     private static final String ROCK_SPIRE = "goo:rock_spire";
     /** The footprint's ground row, three cells along X at the bay's middle depth, one above the floor. */
@@ -72,6 +73,8 @@ public final class SpireTests {
     private static final BlockPos RIDER_POS = new BlockPos(2, 2, 2);
     /** How far the rider's feet may stand from the hunk's top mid-rise and still ride it. */
     private static final double FEET_ON_THE_STONE = 0.1;
+    /** How far below the server's top a player's client reports their feet, a tick or so behind it. */
+    private static final double CLIENT_LAG = 0.15;
     /** How far a rider's last-tick feet may stand from last tick's top. */
     private static final double CLIMB_SLACK = 1e-3;
     /** Shrinks the rider's box off the faces it only rests on. */
@@ -88,6 +91,7 @@ public final class SpireTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPIRE_GROWS_STONE, SpireTests::spireGrowsStoneAboveTheFootprint);
         GooTestFunctions.registerTest(registrar, SPIRE_CARRIES_A_RIDER, SpireTests::spireCarriesARiderUp);
+        GooTestFunctions.registerTest(registrar, SPIRE_LETS_A_PLAYER_RIDE, SpireTests::spireAcceptsARidingPlayersMoves);
     }
 
     /**
@@ -128,6 +132,33 @@ public final class SpireTests {
         helper.runAfterDelay(SpireStep.RISE_TICKS + BlockHunk.SETTLE_LINGER_TICKS + SETTLE_SLACK_TICKS + 1, () -> {
             helper.assertTrue(hunksIn(helper).isEmpty(),
                     "The hunk should end once it has lingered, found " + hunksIn(helper).size());
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A player's own client lifts them up the stone, a tick or so behind the
+     * server's copy of it, so the feet their client reports stand a hair inside
+     * the server's stone; the server's move check, noCollision, must take that
+     * box, or it pulls the player back down through the stone.
+     * decision spire-carries-its-riders-up-with-the-rising-stone
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void spireAcceptsARidingPlayersMoves(GameTestHelper helper) {
+        for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
+            helper.setBlock(new BlockPos(x, CORNER.getY(), CORNER.getZ()), GROUND.get(x - CORNER.getX()));
+        }
+        submit(helper);
+        ServerPlayer rider = helper.makeMockServerPlayerInLevel();
+        helper.runAfterDelay(SpireStep.RISE_TICKS / 2, () -> {
+            double top = hunksIn(helper).getFirst().getBoundingBox().maxY;
+            Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(RIDER_POS));
+            rider.setPos(feet.x, top - CLIENT_LAG, feet.z);
+            helper.assertTrue(helper.getLevel().noCollision(rider, rider.getBoundingBox()),
+                    "The server should take the move of a player whose client lifts them a hair behind its stone");
+            helper.getLevel().getServer().getPlayerList().remove(rider);
             helper.succeed();
         });
     }

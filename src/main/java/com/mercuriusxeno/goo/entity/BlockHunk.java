@@ -18,6 +18,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -67,6 +68,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private static final String TAG_TARGET = "Target";
     private static final String TAG_RISE_TICKS = "RiseTicks";
     private static final String TAG_AGE = "Age";
+    private static final String TAG_HOME = "Home";
     private static final int DUST_PER_BLOCK = 6;
     private static final double DUST_SPREAD = 0.4;
     private static final double DUST_SPEED = 0.1;
@@ -124,6 +126,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private int riseTicks = 1;
     /** The game time the rise began on. */
     private long riseStartTime;
+    /** The origin cell the hunk's blocks are at home in: where they were lifted from, or where they settle. */
+    private BlockPos home = BlockPos.ZERO;
     private boolean settled;
     private final InterpolationHandler interpolation = new InterpolationHandler(this);
     /** Ticks the hunk has flown free since a hold last stood on it. */
@@ -159,6 +163,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         hunk.start = hunk.target.subtract(0, rise, 0);
         hunk.riseTicks = Math.max(1, riseTicks);
         hunk.riseStartTime = level.getGameTime();
+        hunk.home = origin.immutable();
         hunk.setPos(hunk.start);
         level.addFreshEntity(hunk);
         return hunk;
@@ -177,6 +182,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         BlockHunk hunk = new BlockHunk(GooEntities.BLOCK_HUNK.get(), level);
         hunk.blocks = List.copyOf(blocks);
         hunk.becomeLifted();
+        hunk.home = origin.immutable();
         hunk.setPos(Vec3.atBottomCenterOf(origin));
         level.addFreshEntity(hunk);
         return hunk;
@@ -207,6 +213,29 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      */
     public List<HunkBlock> blocks() {
         return blocks;
+    }
+
+    /**
+     * The cell a block of the hunk picks its model's variant by, wherever the
+     * hunk carries it: its home cell, the one it was lifted from or settles
+     * into, so its texture holds still as it moves and matches the block the
+     * world draws there.
+     *
+     * @param home  the hunk's home origin cell
+     * @param block the block
+     * @return the cell its variant seeds from
+     */
+    public static BlockPos variantCellOf(BlockPos home, HunkBlock block) {
+        return home.offset(block.offset());
+    }
+
+    /**
+     * The hunk's home origin cell.
+     *
+     * @return the cell its blocks were lifted from, or settle into
+     */
+    public BlockPos home() {
+        return home;
     }
 
     /**
@@ -407,7 +436,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     @Override
     public boolean canBeCollidedWith(@Nullable Entity entity) {
-        return blocksMovement(climbsAt(level().getGameTime()));
+        // A player's own client keeps them on the stone, a tick or so behind the server's copy, so the server's
+        // stone would reject the moves that client reports and pull the player back through it.
+        boolean playerOnTheServer = entity instanceof Player && !level().isClientSide();
+        return !playerOnTheServer && blocksMovement(climbsAt(level().getGameTime()));
     }
 
     /**
@@ -560,6 +592,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         writePoint(buffer, target);
         buffer.writeVarInt(riseTicks);
         buffer.writeLong(riseStartTime);
+        buffer.writeBlockPos(home);
     }
 
     @Override
@@ -577,6 +610,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         target = readPoint(buffer);
         riseTicks = buffer.readVarInt();
         riseStartTime = buffer.readLong();
+        home = buffer.readBlockPos();
         if (rising) {
             setPos(positionAt(level().getGameTime()));
         }
@@ -602,6 +636,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         target = input.read(TAG_TARGET, Vec3.CODEC).orElse(position());
         riseTicks = Math.max(1, input.getIntOr(TAG_RISE_TICKS, 1));
         riseStartTime = level().getGameTime() - input.getIntOr(TAG_AGE, 0);
+        home = input.read(TAG_HOME, BlockPos.CODEC).orElse(blockPosition());
         setPos(position());
     }
 
@@ -613,5 +648,6 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         output.store(TAG_TARGET, Vec3.CODEC, target);
         output.putInt(TAG_RISE_TICKS, riseTicks);
         output.putInt(TAG_AGE, (int) (level().getGameTime() - riseStartTime));
+        output.store(TAG_HOME, BlockPos.CODEC, home);
     }
 }
