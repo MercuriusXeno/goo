@@ -26,16 +26,24 @@ import java.util.List;
 /**
  * Draws Spire's preview in place of a wireframe: a ripple shimmering across
  * the footprint's surface in the goo type's color, each ground cell's top
- * cut into a grid of quads whose alpha rides SurfaceRipple's wave, so the
- * whole footprint reads as one rippling sheet; and, once the footprint is
- * fixed and the rise is being set, ghost stone, the stone Spire grows drawn
- * translucent and full bright in every cell the rise would fill.
+ * cut into a grid of quads fine enough to follow SurfaceRipple's wave, each
+ * quad taking the wave's alpha at its corners so neighbouring quads blend into
+ * one smooth rippling sheet rather than a checkerboard; and, once the footprint
+ * is fixed and the rise is being set, ghost stone, the stone Spire grows drawn
+ * translucent and full bright in every cell the rise would fill, through the
+ * moving-block shader so it shades as a world block does, never twice.
  * decision spire-previews-as-a-surface-ripple-and-ghost-stone
  */
 final class SpirePreviewRenderer {
 
-    /** Quads along each edge of a ground cell's top, so the ripple reads as a wave across it. */
-    static final int RIPPLE_QUADS_ACROSS = 4;
+    /** Quads along each edge of a ground cell's top, at least five to the ripple's shortest wave. */
+    static final int RIPPLE_QUADS_ACROSS = 12;
+    /** A quad's corners, in the order its vertices are drawn. */
+    static final int NORTH_WEST = 0;
+    static final int SOUTH_WEST = 1;
+    static final int SOUTH_EAST = 2;
+    static final int NORTH_EAST = 3;
+    private static final int CORNERS = 4;
     /** The ripple's alpha where its wave sits level, out of 255. */
     static final int RIPPLE_ALPHA = 120;
     /** How far the wave swings the ripple's alpha either way, out of 255. */
@@ -49,8 +57,6 @@ final class SpirePreviewRenderer {
     /** The stone Spire grows, which the ghost draws. */
     private static final BlockState STONE = Blocks.STONE.defaultBlockState();
     private static final float WHITE = 255f;
-    /** A quad's middle, half its step in from its edge. */
-    private static final double HALF = 0.5;
 
     private SpirePreviewRenderer() {
     }
@@ -85,19 +91,39 @@ final class SpirePreviewRenderer {
             float y = (float) (cell.getY() + 1 + RIPPLE_LIFT - camPos.y);
             for (int across = 0; across < RIPPLE_QUADS_ACROSS; across++) {
                 for (int down = 0; down < RIPPLE_QUADS_ACROSS; down++) {
-                    double worldX = cell.getX() + (across + HALF) * step;
-                    double worldZ = cell.getZ() + (down + HALF) * step;
-                    int color = rippleColor(SurfaceRipple.at(worldX, worldZ, day), rgb);
-                    float x0 = (float) (cell.getX() + across * step - camPos.x);
-                    float z0 = (float) (cell.getZ() + down * step - camPos.z);
-                    quads.addVertex(pose, x0, y, z0).setColor(color);
-                    quads.addVertex(pose, x0, y, z0 + step).setColor(color);
-                    quads.addVertex(pose, x0 + step, y, z0 + step).setColor(color);
-                    quads.addVertex(pose, x0 + step, y, z0).setColor(color);
+                    double worldX = cell.getX() + across * (double) step;
+                    double worldZ = cell.getZ() + down * (double) step;
+                    int[] colors = quadColors(worldX, worldZ, step, day, rgb);
+                    float x0 = (float) (worldX - camPos.x);
+                    float z0 = (float) (worldZ - camPos.z);
+                    quads.addVertex(pose, x0, y, z0).setColor(colors[NORTH_WEST]);
+                    quads.addVertex(pose, x0, y, z0 + step).setColor(colors[SOUTH_WEST]);
+                    quads.addVertex(pose, x0 + step, y, z0 + step).setColor(colors[SOUTH_EAST]);
+                    quads.addVertex(pose, x0 + step, y, z0).setColor(colors[NORTH_EAST]);
                 }
             }
         }
         buf.endBatch(RenderTypes.debugQuads());
+    }
+
+    /**
+     * The ripple's colors at a quad's four corners, in the order its vertices
+     * are drawn: (x0, z0), (x0, z0 + step), (x0 + step, z0 + step), (x0 + step, z0).
+     *
+     * @param x0   the quad's west edge, in world blocks
+     * @param z0   the quad's north edge, in world blocks
+     * @param step the quad's width
+     * @param day  the day fraction the wave runs on
+     * @param rgb  the goo type's color
+     * @return the four corners' ARGB
+     */
+    static int[] quadColors(double x0, double z0, double step, float day, int rgb) {
+        int[] colors = new int[CORNERS];
+        colors[NORTH_WEST] = rippleColor(SurfaceRipple.at(x0, z0, day), rgb);
+        colors[SOUTH_WEST] = rippleColor(SurfaceRipple.at(x0, z0 + step, day), rgb);
+        colors[SOUTH_EAST] = rippleColor(SurfaceRipple.at(x0 + step, z0 + step, day), rgb);
+        colors[NORTH_EAST] = rippleColor(SurfaceRipple.at(x0 + step, z0, day), rgb);
+        return colors;
     }
 
     /**
@@ -114,7 +140,7 @@ final class SpirePreviewRenderer {
 
     private static void drawGhostStone(Minecraft mc, PoseStack ps, MultiBufferSource.BufferSource buf, Vec3 camPos,
                                        List<BlockPos> cells, int rgb) {
-        RenderType ghost = GooSubmitter.renderType();
+        RenderType ghost = GooSubmitter.movingBlockTranslucent();
         VertexConsumer consumer = buf.getBuffer(ghost);
         QuadInstance look = new QuadInstance();
         look.setColor(ghostColor(rgb));
