@@ -72,8 +72,8 @@ public final class SpireTests {
     private static final BlockPos RIDER_POS = new BlockPos(2, 2, 2);
     /** How far the rider's feet may stand from the hunk's top mid-rise and still ride it. */
     private static final double FEET_ON_THE_STONE = 0.1;
-    /** Halfway through the rise, the stone well off the ground and well short of its cells. */
-    private static final int MID_RISE_TICKS = SpireStep.RISE_TICKS / 2;
+    /** How far a rider's last-tick feet may stand from last tick's top. */
+    private static final double CLIMB_SLACK = 1e-3;
     /** Shrinks the rider's box off the faces it only rests on. */
     private static final double RESTING = 1e-3;
 
@@ -110,6 +110,9 @@ public final class SpireTests {
         int spent = submit(helper);
         assertRising(helper);
         helper.runAfterDelay(SpireStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            // The hunk lingers over its settled stone while the clients' chunks redraw, so nothing blinks out.
+            helper.assertTrue(hunksIn(helper).size() == 1,
+                    "The hunk should linger over the settled stone, found " + hunksIn(helper).size());
             for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
                 for (int height = 1; height <= RISE; height++) {
                     assertHolds(helper, new BlockPos(x, CORNER.getY() + height, CORNER.getZ()),
@@ -121,8 +124,17 @@ public final class SpireTests {
             helper.assertTrue(stoneValue > 0, UNPRICED);
             int expected = stoneValue * GROUND.size() * RISE;
             helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
+        });
+        helper.runAfterDelay(SpireStep.RISE_TICKS + BlockHunk.SETTLE_LINGER_TICKS + SETTLE_SLACK_TICKS + 1, () -> {
+            helper.assertTrue(hunksIn(helper).isEmpty(),
+                    "The hunk should end once it has lingered, found " + hunksIn(helper).size());
             helper.succeed();
         });
+    }
+
+    private static List<BlockHunk> hunksIn(GameTestHelper helper) {
+        return helper.getLevel().getEntitiesOfClass(BlockHunk.class,
+                new AABB(helper.absolutePos(CORNER)).inflate(GROUND.size() + RISE));
     }
 
     /**
@@ -137,17 +149,26 @@ public final class SpireTests {
         for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
             helper.setBlock(new BlockPos(x, CORNER.getY(), CORNER.getZ()), GROUND.get(x - CORNER.getX()));
         }
+        submit(helper);
+        // Spawned after the hunk, the rider ticks after it: the order that left a rider's climb out of its own tick.
         Zombie rider = helper.spawn(EntityType.ZOMBIE, RIDER_POS);
         rider.setNoAi(true);
-        submit(helper);
-        helper.runAfterDelay(MID_RISE_TICKS, () -> {
-            List<BlockHunk> hunks = helper.getLevel().getEntitiesOfClass(BlockHunk.class,
-                    new AABB(helper.absolutePos(CORNER)).inflate(GROUND.size() + RISE));
-            helper.assertTrue(hunks.size() == 1, "One hunk should be rising, found " + hunks.size());
-            double top = hunks.getFirst().getBoundingBox().maxY;
-            helper.assertTrue(Math.abs(rider.getY() - top) <= FEET_ON_THE_STONE,
-                    "The rider's feet should stand on the rising stone at " + top + ", stand at " + rider.getY());
-        });
+        double[] lastTop = {Double.NaN};
+        for (int tick = 1; tick < SpireStep.RISE_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> {
+                List<BlockHunk> hunks = hunksIn(helper);
+                helper.assertTrue(hunks.size() == 1, "One hunk should be rising, found " + hunks.size());
+                double top = hunks.getFirst().getBoundingBox().maxY;
+                helper.assertTrue(Math.abs(rider.getY() - top) <= FEET_ON_THE_STONE,
+                        "The rider's feet should stand on the rising stone at " + top + ", stand at " + rider.getY());
+                if (!Double.isNaN(lastTop[0])) {
+                    // The climb lands inside the rider's own tick, so its drawn position glides from last tick's top.
+                    helper.assertTrue(Math.abs(rider.yo - lastTop[0]) <= CLIMB_SLACK, "The rider's last-tick feet "
+                            + rider.yo + " should stand on last tick's top " + lastTop[0]);
+                }
+                lastTop[0] = top;
+            });
+        }
         helper.runAfterDelay(SpireStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
             double settledTop = helper.absolutePos(CORNER).getY() + 1 + RISE;
             helper.assertTrue(rider.isAlive(), "The rider should ride the spire up alive");
