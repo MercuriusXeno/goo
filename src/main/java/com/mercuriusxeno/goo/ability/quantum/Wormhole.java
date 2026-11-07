@@ -171,7 +171,8 @@ public final class Wormhole {
     /**
      * Every mouth shape over a struck block, largest first: 3x3, then 3x2 and
      * 2x3, 2x2, 3x1 and 1x3, 2x1 and 1x2, then 1x1, each placed every way
-     * that covers the struck block, the most centred first.
+     * that covers the struck block: on a wall the struck block at the top
+     * first, so the mouth opens down from it, else the most centred first.
      *
      * @param struck the struck block
      * @param across the two positive directions across the face
@@ -186,8 +187,13 @@ public final class Wormhole {
                     placings.add(new int[] {first, second});
                 }
             }
-            placings.sort(java.util.Comparator.comparingDouble(placing -> Math.abs(placing[0] - (size[0] - 1) * HALF)
-                    + Math.abs(placing[1] - (size[1] - 1) * HALF)));
+            // On a wall a mouth opens down from the struck block, as a portal does, so one thrown level with the
+            // eye opens before the thrower rather than above; across, and on a floor or ceiling, it centres.
+            java.util.Comparator<int[]> centred = java.util.Comparator.comparingDouble(placing ->
+                    Math.abs(placing[0] - (size[0] - 1) * HALF) + Math.abs(placing[1] - (size[1] - 1) * HALF));
+            placings.sort(across[0] == Direction.UP
+                    ? java.util.Comparator.<int[]>comparingInt(placing -> -placing[0]).thenComparing(centred)
+                    : centred);
             for (int[] placing : placings) {
                 mouths.add(rectangle(struck, across, -placing[0], size[0] - 1 - placing[0], -placing[1],
                         size[1] - 1 - placing[1]));

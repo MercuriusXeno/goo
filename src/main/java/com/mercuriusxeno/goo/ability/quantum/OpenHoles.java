@@ -2,10 +2,14 @@ package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.network.HolesSyncPayload;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -26,6 +30,9 @@ import java.util.List;
 public final class OpenHoles {
 
     private static final List<Hole> OPEN = new ArrayList<>();
+    private static final double HALF = 0.5;
+    /** The pitch of the wind-down a hit hole closes with, as a hit portal breaks with. */
+    private static final float DISMISS_PITCH = 1.5F;
 
     private OpenHoles() {
     }
@@ -98,6 +105,30 @@ public final class OpenHoles {
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         OPEN.clear();
+    }
+
+    /**
+     * Dismisses the hole whose mouth covers a hit block's face, as a hit
+     * breaks a portal.
+     *
+     * @param level the level hit in
+     * @param block the hit block
+     * @param face  the hit face
+     * @return true when a hole was dismissed
+     */
+    public static boolean dismissAt(ServerLevel level, BlockPos block, Direction face) {
+        boolean dismissed = OPEN.removeIf(hole -> hole.dimension().equals(level.dimension())
+                && (mouthOn(hole.entry(), block, face) || mouthOn(hole.exit(), block, face)));
+        if (dismissed) {
+            level.playSound(null, block.getX() + HALF, block.getY() + HALF, block.getZ() + HALF,
+                    SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 1.0F, DISMISS_PITCH);
+            sync(level.getServer());
+        }
+        return dismissed;
+    }
+
+    private static boolean mouthOn(Gate mouth, BlockPos block, Direction face) {
+        return mouth.face() == face && mouth.covers(block);
     }
 
     /**
