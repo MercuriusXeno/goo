@@ -41,7 +41,7 @@ import java.util.stream.Stream;
  * @param life   ticks each vein's ore shows through walls once revealed
  */
 public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> goo, int radius, int life)
-        implements HeldSweepStep {
+        implements HeldSweepStep, TakesNoEntity {
 
     private static final String NAME = "detect_ore";
 
