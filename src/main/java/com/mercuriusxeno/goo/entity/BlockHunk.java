@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.entity;
 
+import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -53,9 +55,12 @@ import java.util.List;
  * glides with the stone, and leaves them standing on the settled stone.
  * decision spire-carries-its-riders-up-with-the-rising-stone
  *
- * A lifted hunk hangs where a grab's hold puts it; let go or thrown, it flies
- * under gravity, and whatever it strikes, block or mob, it crushes on impact
- * before it breaks apart, dropping each of its blocks as the block itself.
+ * A lifted hunk rises straight up out of the hole it tore until it clears
+ * it, then travels to where a grab's hold puts it, colliding with the world
+ * the whole way; let go or thrown, it flies under gravity, and whatever it
+ * strikes, block or mob, it crushes on impact before it comes apart block by
+ * block (HunkShatter), each crumbling to break particles and dropping as the
+ * block itself.
  * The client interpolates its moves, and the player holding it draws it where
  * their own look puts it, so it glides with the look.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
@@ -92,6 +97,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private static final float MOST_DAMAGE = 20f;
     /** The longest a let-go hunk flies before it breaks apart where it is, in ticks. */
     private static final int MOST_FLIGHT_TICKS = 200;
+    /** Ticks one block of a shattering hunk takes to crumble away. */
+    public static final int CRUMBLE_TICKS = 10;
+    /** Ticks between one block of a shattering hunk beginning to crumble and the next. */
+    public static final int BLOCK_STAGGER_TICKS = 2;
     /** Ticks a settled hunk keeps drawing over its stone while the clients' chunks redraw it. */
     public static final int SETTLE_LINGER_TICKS = 5;
     /** How far a rider's feet may stand from the hunk's top and still ride it, in blocks. */
@@ -100,6 +109,20 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private static final double TOUCH_SLACK = 1e-3;
     /** The id a hunk no player holds names as its holder. */
     public static final int NO_HOLDER = -1;
+    /** The game time a shattering hunk struck, or {@link #WHOLE} while it is whole. */
+    private static final EntityDataAccessor<Long> SHATTER_START =
+            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.LONG);
+    /** The face a shattering hunk struck with, which orders its crumble. */
+    private static final EntityDataAccessor<Direction> SHATTER_FACE =
+            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.DIRECTION);
+    /** The shatter time a whole hunk names. */
+    public static final long WHOLE = -1;
+    /** How fast a torn hunk rises out of its hole, in blocks a tick. */
+    static final double RISE_OUT_SPEED = 0.3;
+    /** How fast a risen hunk travels to the hold, in blocks a tick. */
+    static final double PULL_SPEED = 1.2;
+    /** Below this a rise has stalled against something above the hole. */
+    private static final double STALLED = 1e-4;
     /** The player holding a lifted hunk, so their own client draws it on their look. */
     private static final EntityDataAccessor<Integer> HOLDER =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.INT);
@@ -132,6 +155,12 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private final InterpolationHandler interpolation = new InterpolationHandler(this);
     /** Ticks the hunk has flown free since a hold last stood on it. */
     private int flightTicks;
+    /** Whether a torn hunk has risen clear of its hole. */
+    private boolean clearOfHole;
+    /** The height a rising-out hunk stood at last tick, to tell a stalled rise. */
+    private double lastRiseY = Double.NaN;
+    /** By block index, whether a shattering hunk has dropped that block. */
+    private boolean[] dropped = new boolean[0];
 
     /**
      * The constructor the entity type builds a loaded or synced hunk with.
@@ -252,6 +281,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
         entityData.define(HOLDER, NO_HOLDER);
+        entityData.define(SHATTER_START, WHOLE);
+        entityData.define(SHATTER_FACE, Direction.DOWN);
     }
 
     /**
@@ -261,6 +292,65 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      */
     public void holdBy(Entity holder) {
         entityData.set(HOLDER, holder.getId());
+    }
+
+    /**
+     * Where a held hunk moves this tick toward its hold: straight up out of
+     * the hole it tore until its bottom clears the hole's rim or something
+     * above stops it, then along the line to the hold at the pull's speed.
+     *
+     * @param hold where the hold puts the hunk
+     * @return the point to move it to this tick
+     */
+    public Vec3 holdStep(Vec3 hold) {
+        if (!clearOfHole) {
+            double rimHeight = home.getY() + heightInBlocks();
+            boolean stalled = !Double.isNaN(lastRiseY) && getY() - lastRiseY < STALLED;
+            if (getY() < rimHeight && !stalled) {
+                lastRiseY = getY();
+                return position().add(0, Math.min(RISE_OUT_SPEED, rimHeight - getY()), 0);
+            }
+            clearOfHole = true;
+        }
+        Vec3 toward = hold.subtract(position());
+        return toward.length() <= PULL_SPEED ? hold : position().add(toward.normalize().scale(PULL_SPEED));
+    }
+
+    private int heightInBlocks() {
+        int low = blocks.stream().mapToInt(block -> block.offset().getY()).min().orElse(0);
+        int high = blocks.stream().mapToInt(block -> block.offset().getY()).max().orElse(0);
+        return high - low + 1;
+    }
+
+    /**
+     * Whether the hunk has struck and is coming apart.
+     *
+     * @return true from the impact until its last block has crumbled
+     */
+    public boolean shattering() {
+        return entityData.get(SHATTER_START) != WHOLE;
+    }
+
+    /**
+     * @return the game time the hunk struck, or {@link #WHOLE}
+     */
+    public long shatterStart() {
+        return entityData.get(SHATTER_START);
+    }
+
+    /**
+     * @return the face the hunk struck with
+     */
+    public Direction shatterFace() {
+        return entityData.get(SHATTER_FACE);
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (SHATTER_START.equals(key) && shattering() && level().isClientSide()) {
+            ISidedProxy.get().hunkShattered(this);
+        }
     }
 
     /**
@@ -348,6 +438,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     private void liftedTick(ServerLevel server) {
+        if (shattering()) {
+            crumbleTick(server);
+            return;
+        }
         if (hasData(GooAttachments.GRABBED)) {
             flightTicks = 0;
             return;
@@ -520,7 +614,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             float damage = Math.min(MOST_DAMAGE, DAMAGE_PER_BLOCK * blocks.size());
             struck.forEach(mob -> mob.hurtServer(level, source, damage));
         }
-        breakApart(level);
+        setDeltaMovement(Vec3.ZERO);
+        dropped = new boolean[blocks.size()];
+        entityData.set(SHATTER_FACE, HunkShatter.leadingFace(motion));
+        entityData.set(SHATTER_START, level.getGameTime());
     }
 
     private static boolean crushable(ServerLevel level, BlockPos cell) {
@@ -530,20 +627,33 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Breaks the hunk apart where it stands, each block dropping as the block
-     * itself, as silk touch would drop it, and ends the hunk.
+     * One tick of a shattering hunk: each block whose crumble has ended drops
+     * as the block itself, as silk touch would drop it, and the hunk ends once
+     * its last block has.
      *
      * @param level the server level
      */
-    private void breakApart(ServerLevel level) {
-        for (HunkBlock block : blocks) {
-            BlockPos cell = cellOf(block);
-            if (block.state().getBlock().asItem() != Items.AIR) {
-                Block.popResource(level, cell, new ItemStack(block.state().getBlock()));
+    private void crumbleTick(ServerLevel level) {
+        long now = level.getGameTime();
+        int[] turns = HunkShatter.turnsOf(blocks, shatterFace());
+        boolean whole = false;
+        for (int index = 0; index < blocks.size(); index++) {
+            if (dropped[index]) {
+                continue;
             }
-            throwDust(level, cell, block.state());
+            if (now < HunkShatter.crumbleEnd(shatterStart(), turns[index])) {
+                whole = true;
+                continue;
+            }
+            dropped[index] = true;
+            HunkBlock block = blocks.get(index);
+            if (block.state().getBlock().asItem() != Items.AIR) {
+                Block.popResource(level, cellOf(block), new ItemStack(block.state().getBlock()));
+            }
         }
-        discard();
+        if (!whole) {
+            discard();
+        }
     }
 
     private BlockPos cellOf(HunkBlock block) {

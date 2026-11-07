@@ -140,7 +140,7 @@ public record TerrakinesisStep(double range, double radius, double near, double 
             hunk = lift(player);
         }
         if (hunk != null) {
-            GrabEvents.hold(player, hunk, holdPoint(player, hunk), throwSpeed);
+            GrabEvents.hold(player, hunk, hunk.holdStep(holdPoint(player, hunk)), throwSpeed);
             hunk.holdBy(player);
         }
         return true;

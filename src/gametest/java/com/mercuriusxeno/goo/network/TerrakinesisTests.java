@@ -68,8 +68,17 @@ public final class TerrakinesisTests {
     /** Yaw looking east, along +x. */
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
-    /** Through the wind-up, then a few ticks more for the hunk to reach the hold. */
-    private static final int HOLD_TICKS = TerrakinesisStep.WINDUP_TICKS + 4;
+    /** Through the wind-up, then long enough for the hunk to rise out of its hole and reach the hold. */
+    private static final int HOLD_TICKS = TerrakinesisStep.WINDUP_TICKS + 14;
+    /** The top of the hole the slab tears out of, the planks' rim around it. */
+    private static final int HOLE_TOP = SLAB_HIGH_Y + 1;
+    /** How far the hunk may stray across its hole while it rises out of it. */
+    private static final double OVER_THE_HOLE = 0.01;
+    /** The ability's far hold distance, eye to the hunk's middle. */
+    private static final double FAR = 3.5;
+    private static final double SETTLED = 0.3;
+    /** Every block of a hucked hunk has crumbled by then. */
+    private static final int SHATTER_TICKS = BlockHunk.BLOCK_STAGGER_TICKS * 6 + BlockHunk.CRUMBLE_TICKS + 2;
     /** Half the wind-up, then let go. */
     private static final int SHORT_HOLD_TICKS = TerrakinesisStep.WINDUP_TICKS / 2;
     /** Ticks after letting go past any hold's grace, by which a lift would have stood. */
@@ -114,7 +123,9 @@ public final class TerrakinesisTests {
      */
     public static void liftsAHunkOfStone(GameTestHelper helper) {
         List<BlockPos> slab = placeSlab(helper);
+        embedInPlanks(helper);
         ServerPlayer player = caster(helper);
+        boolean[] clearedOnce = {false};
         // Each hold tick and its check share one callback: same-tick callbacks run in no set order.
         for (int held = 1; held <= HOLD_TICKS; held++) {
             int holdTick = held;
@@ -125,6 +136,8 @@ public final class TerrakinesisTests {
                 } else if (holdTick == TerrakinesisStep.WINDUP_TICKS) {
                     helper.assertTrue(hunksIn(helper).size() == 1, "One hunk should tear free on the tick the"
                             + " wind-up completes, found " + hunksIn(helper).size());
+                } else if (holdTick > TerrakinesisStep.WINDUP_TICKS) {
+                    assertOverItsHoleUntilClear(helper, clearedOnce);
                 }
             });
         }
@@ -137,6 +150,9 @@ public final class TerrakinesisTests {
             helper.assertTrue(hunks.size() == 1 && hunks.getFirst().blocks().size() == slab.size()
                     && hunks.getFirst().blocks().stream().allMatch(block -> block.state().is(Blocks.STONE)),
                     String.format(NO_HUNK, slab.size(), hunks.stream().map(hunk -> hunk.blocks().size()).toList()));
+            double hangs = player.getEyePosition().distanceTo(hunks.getFirst().getBoundingBox().getCenter());
+            helper.assertTrue(Math.abs(hangs - FAR) < SETTLED,
+                    "Clear of its hole, the hunk should come to hang " + FAR + " from the eye, hangs " + hangs);
             helper.assertTrue(BuiltInRegistries.SOUND_EVENT.containsKey(TerrakinesisStep.TEAR.sound()),
                     "The tear's sound " + TerrakinesisStep.TEAR.sound() + " should stand in the sound registry");
             int expected = stoneRockValue(helper).exact(GooTypes.ROCK).times(slab.size()).ceiling();
@@ -163,12 +179,22 @@ public final class TerrakinesisTests {
         holdFor(helper, player, HOLD_TICKS);
         helper.runAfterDelay(HOLD_TICKS + 1, () -> helper.assertTrue(GrabEvents.throwHeld(player),
                 "The player should hold the hunk to huck it"));
-        helper.runAfterDelay(HOLD_TICKS + 1 + FLIGHT_TICKS, () -> {
+        boolean[] firstDropSeen = {false};
+        for (int tick = HOLD_TICKS + 2; tick <= HOLD_TICKS + 1 + FLIGHT_TICKS + SHATTER_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> {
+                int dropped = droppedStone(helper);
+                if (dropped > 0 && !firstDropSeen[0]) {
+                    firstDropSeen[0] = true;
+                    helper.assertTrue(dropped < slab.size(), "The hunk should crumble block by block, not drop all "
+                            + slab.size() + " of its stone on one tick, dropped " + dropped);
+                }
+            });
+        }
+        helper.runAfterDelay(HOLD_TICKS + 2 + FLIGHT_TICKS + SHATTER_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(WALL_MIDDLE).isAir(),
                     String.format(WALL_STANDS, WALL_MIDDLE, helper.getBlockState(WALL_MIDDLE)));
             helper.assertTrue(hunksIn(helper).isEmpty(), HUNK_STANDS);
-            int dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class, bay(helper)).stream()
-                    .filter(item -> item.getItem().is(Items.STONE)).mapToInt(item -> item.getItem().getCount()).sum();
+            int dropped = droppedStone(helper);
             helper.assertTrue(dropped == slab.size(), String.format(DROPS_WRONG, slab.size(), dropped));
             leave(helper, player);
         });
@@ -214,6 +240,50 @@ public final class TerrakinesisTests {
             helper.assertTrue(torn == 1, "A slab 11 blocks off should tear free inside the reach of 12, found " + torn);
             leave(helper, player);
         });
+    }
+
+    private static int droppedStone(GameTestHelper helper) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class, bay(helper)).stream()
+                .filter(item -> item.getItem().is(Items.STONE)).mapToInt(item -> item.getItem().getCount()).sum();
+    }
+
+    /**
+     * Sets the slab in a hole of planks, which carry no rock goo: walled on
+     * the north and south up to the slab's top, and on the east and west along
+     * its bottom row, below the look and below the hold, so the hunk sits in a
+     * hole it must rise out of and the hold stands in open air.
+     *
+     * @param helper the gametest helper
+     */
+    private static void embedInPlanks(GameTestHelper helper) {
+        for (int y = SLAB_LOW_Y; y <= SLAB_HIGH_Y; y++) {
+            helper.setBlock(new BlockPos(SLAB_X, y, SLAB_LOW_Z - 1), Blocks.OAK_PLANKS);
+            helper.setBlock(new BlockPos(SLAB_X, y, SLAB_HIGH_Z + 1), Blocks.OAK_PLANKS);
+        }
+        for (int z = SLAB_LOW_Z - 1; z <= SLAB_HIGH_Z + 1; z++) {
+            helper.setBlock(new BlockPos(SLAB_X - 1, SLAB_LOW_Y, z), Blocks.OAK_PLANKS);
+            helper.setBlock(new BlockPos(SLAB_X + 1, SLAB_LOW_Y, z), Blocks.OAK_PLANKS);
+        }
+    }
+
+    /**
+     * Until the hunk's bottom first clears the hole's rim it rises straight
+     * up over the cells it left, never sideways through the hole's walls;
+     * once clear it may come down toward a hold below the rim.
+     *
+     * @param helper      the gametest helper
+     * @param clearedOnce in its first slot, whether the hunk has cleared the rim yet
+     */
+    private static void assertOverItsHoleUntilClear(GameTestHelper helper, boolean[] clearedOnce) {
+        BlockHunk hunk = hunksIn(helper).getFirst();
+        if (clearedOnce[0] || hunk.getBoundingBox().minY >= helper.absolutePos(new BlockPos(0, HOLE_TOP, 0)).getY()) {
+            clearedOnce[0] = true;
+            return;
+        }
+        Vec3 ground = Vec3.atBottomCenterOf(hunk.home());
+        helper.assertTrue(Math.abs(hunk.getX() - ground.x) < OVER_THE_HOLE && Math.abs(hunk.getZ() - ground.z)
+                < OVER_THE_HOLE, "Until it clears its hole the hunk should rise straight up over " + ground
+                + ", stands at " + hunk.position());
     }
 
     private static List<BlockPos> placeSlab(GameTestHelper helper) {
