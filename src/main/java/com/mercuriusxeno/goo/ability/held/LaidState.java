@@ -48,7 +48,7 @@ public enum LaidState {
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP,
-    /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
+    /** Float's flight (decision tailwind-and-airborn-merge-into-float). */
     AIRBORN,
     /** Telekinesis's raised reach (decision telekinesis-enacts-at-extended-reach). */
     TELEKINESIS,

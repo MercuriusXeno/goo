@@ -1,0 +1,15 @@
+{
+  "gooType": "typhoon",
+  "displayName": "goo.ability.typhoon.pneuma",
+  "badge": "channeled",
+  "order": 40,
+  "cost": 100,
+  "requires": ["minecraft:turtle_scute"],
+  "delivery": { "kind": "self", "ticks_per_charge": 20,
+    "sound": { "id": "minecraft:entity.breeze.inhale", "every": 20, "volume": 0.8, "pitch": 1.0, "pitch_spread": 0.1 } },
+  "behaviors": [
+    { "type": "pneuma", "refill": 30, "reserve_cap": 300, "immunity": 60 }
+  ],
+  "tags": ["self"],
+  "pose": "held_up"
+}
