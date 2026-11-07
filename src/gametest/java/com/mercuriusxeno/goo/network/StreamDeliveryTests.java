@@ -39,10 +39,15 @@ public final class StreamDeliveryTests {
     private static final String STREAM_BLAZE_FLAMES = "stream_blaze_flames";
     private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
     private static final String FLAMES_DAMAGES_PER_TICK = "flames_damages_per_tick";
-    /** Ten held ticks; blaze_flames.json burns for one every other tick, five burns in all. */
+    /**
+     * Ten held ticks; blaze_flames.json pulses a burn of four every other tick, and the zombie's half-second
+     * invulnerability window swallows every pulse after the first, so one burn lands: 3.6 after the zombie's
+     * three armor, where a second landing would make 7.2.
+     */
     private static final int FLAMES_HOLD_TICKS = 10;
-    private static final float FLAMES_DAMAGE_OVER_HOLD = 5f;
-    private static final String SHOULD_LOSE = "The flamed zombie should lose at least %.1f health, lost %.2f";
+    private static final float FLAMES_LEAST_LOST = 3f;
+    private static final float FLAMES_LOST_UNDER = 7f;
+    private static final String SHOULD_LOSE = "The flamed zombie should lose at least %.1f and under %.1f health, lost %.2f";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -57,9 +62,10 @@ public final class StreamDeliveryTests {
 
     /**
      * A mock player holds blaze flames at a zombie four blocks ahead for ten
-     * ticks: every other tick burns it for one, so it has lost at least the
-     * five those ticks deal, and it is alight.
-     * decision flames-pixelated-fire-stream
+     * ticks: every other tick pulses a burn of four, but a burn lands at most
+     * once per half second, so it has lost at least three and under seven,
+     * and it is alight.
+     * decision flames-and-heater-respect-i-frames
      *
      * @param helper the gametest helper
      */
@@ -79,7 +85,8 @@ public final class StreamDeliveryTests {
         helper.runAfterDelay(FLAMES_HOLD_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             float lost = healthBefore - zombie.getHealth();
-            helper.assertTrue(lost >= FLAMES_DAMAGE_OVER_HOLD, String.format(SHOULD_LOSE, FLAMES_DAMAGE_OVER_HOLD, lost));
+            helper.assertTrue(lost >= FLAMES_LEAST_LOST && lost < FLAMES_LOST_UNDER,
+                    String.format(SHOULD_LOSE, FLAMES_LEAST_LOST, FLAMES_LOST_UNDER, lost));
             helper.assertTrue(zombie.isOnFire(), SHOULD_BURN);
             helper.succeed();
         });

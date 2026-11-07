@@ -29,7 +29,7 @@ class AbilitiesModelTest {
               "delivery": { "kind": "self" },
               "behaviors": [
                 { "type": "damage", "amount": 4, "source": "magic" },
-                { "type": "grab", "range": 16, "near": 2, "far": 4, "throw_speed": 1.5 }
+                { "type": "grab", "range": 16, "near": 2, "far": 4, "throw_speed": 1.5, "pull_speed": 1 }
               ]
             }
             """;
@@ -71,7 +71,8 @@ class AbilitiesModelTest {
         @Test
         void everyNumericLeafIsListedAndNoOther() {
             assertEquals(java.util.Set.of("cost", "upkeep", "behaviors/0/amount", "behaviors/1/range",
-                    "behaviors/1/near", "behaviors/1/far", "behaviors/1/throw_speed"), kindsByPath().keySet());
+                    "behaviors/1/near", "behaviors/1/far", "behaviors/1/throw_speed", "behaviors/1/pull_speed"),
+                    kindsByPath().keySet());
         }
 
         @Test

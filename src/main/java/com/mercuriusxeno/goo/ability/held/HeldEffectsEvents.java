@@ -293,14 +293,14 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the state an ended effect laid on how the player moves and on
-     * the mobs around it: its air control and its rally.
+     * the mobs around it: its flight and its rally.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
      */
     private static void clearMotionStates(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.AIRBORN)) {
-            // airborn-steerable-levitation-and-soft-falls: the air control ends with its held effect
+            // tailwind-and-airborn-merge-into-float: Float's flight ends with its held effect
             player.setData(GooAttachments.AIRBORN, Airborn.NONE);
         }
         if (lays.contains(LaidState.RALLY)) {
