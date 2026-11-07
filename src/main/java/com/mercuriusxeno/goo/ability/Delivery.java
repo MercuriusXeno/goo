@@ -243,13 +243,27 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
-     * Whether the glove aims a line at a target, the arc or the beam; a
-     * stream aims a cone and a self ability at nothing.
+     * Whether the release slings a fan of flecks across a cone rather than
+     * one blob along a line: an arc whose charge slings flecks, which aims the
+     * spread fan in place of the line.
+     * knives-aims-a-spread-fan-not-a-blob-line
      *
-     * @return true for an arc or a beam
+     * @return true for an arc whose charge slings
+     */
+    public boolean slingsAFan() {
+        return kind == DeliveryKind.ARC && charge.slings();
+    }
+
+    /**
+     * Whether the glove aims a line at a target, the arc or the beam; an arc
+     * slinging a fan aims the fan instead, a stream aims a cone and a self
+     * ability at nothing.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @return true for a beam, or an arc throwing one blob
      */
     public boolean aimsALine() {
-        return kind == DeliveryKind.ARC || kind == DeliveryKind.BEAM;
+        return (kind == DeliveryKind.ARC || kind == DeliveryKind.BEAM) && !slingsAFan();
     }
 
     /**

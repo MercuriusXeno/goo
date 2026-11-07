@@ -12,6 +12,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 
 /**
  * Renders a dashed arc polyline from the glove hand to the target, previewing
@@ -42,6 +43,12 @@ public final class ArcRenderer {
      * mob-ability-touches-at-reach
      */
     static final GlowPalette REACH_RING_GLOW = new GlowPalette(3, 80, 1.5f, 0.55f);
+    /**
+     * Knives' aim lines' bloom: fainter than the aim line, since a press
+     * draws one per knife and they overlay near the hand.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     */
+    static final GlowPalette KNIFE_LINE_GLOW = new GlowPalette(2, 20, 0.75f, 0.6f);
 
     /** Minimum arc segment count. */
     private static final int MIN_ARC_SEGMENTS = 8;
@@ -121,6 +128,27 @@ public final class ArcRenderer {
         emitDashedGlow(poseStack, bufferSource, camera, points, rgb,
                 computeDashOffset(partialTick), Minecraft.getInstance().getWindow().getAppropriateLineWidth(),
                 REACH_RING_GLOW);
+    }
+
+    /**
+     * Renders Knives' aim: a faint dashed line along each knife's flight.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @param poseStack    the current pose stack
+     * @param bufferSource the buffer source for render output
+     * @param camera       the active camera
+     * @param lines        each knife's flight, from the hand
+     * @param rgb          the RGB color for tinting
+     * @param partialTick  the partial tick for animation
+     */
+    static void renderKnifeLines(
+            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+            Camera camera, List<Vec3[]> lines, int rgb, float partialTick) {
+        float dashOffset = computeDashOffset(partialTick);
+        float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
+        for (Vec3[] line : lines) {
+            emitDashedGlow(poseStack, bufferSource, camera, line, rgb, dashOffset, width, KNIFE_LINE_GLOW);
+        }
     }
 
     /**

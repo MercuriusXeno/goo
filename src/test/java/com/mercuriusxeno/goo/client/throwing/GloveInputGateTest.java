@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -102,6 +103,20 @@ class GloveInputGateTest {
             }
             gate.tick(false, actions);
             assertEquals(5, actions.lastHeldTicks);
+        }
+
+        // knives-aims-a-spread-fan-not-a-blob-line
+        @Test
+        void eachPressRollsItsOwnScatterAndHoldsItThroughThePress() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = thrown();
+            gate.arm();
+            long first = gate.scatterSeed();
+            gate.tick(true, actions);
+            assertEquals(first, gate.scatterSeed());
+            gate.tick(false, actions);
+            gate.arm();
+            assertNotEquals(first, gate.scatterSeed());
         }
 
         @Test
