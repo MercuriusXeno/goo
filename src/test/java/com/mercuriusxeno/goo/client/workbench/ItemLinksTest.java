@@ -51,10 +51,23 @@ class ItemLinksTest {
         Map<String, String> amounts = new LinkedHashMap<>();
         amounts.put("leaf", "48");
         amounts.put("metal", "3/2");
-        List<TooltipLine> valued = ItemIcons.tooltipLines("Stick", amounts);
+        List<TooltipLine> valued = ItemIcons.tooltipLines("Stick", amounts, List.of());
         assertEquals(List.of(new TooltipLine.Text(Component.literal("Stick")),
                 new TooltipLine.GooAmount("leaf", "48"), new TooltipLine.GooAmount("metal", "3/2")), valued);
         assertEquals(List.of(new TooltipLine.Text(Component.literal("Torch"))),
-                ItemIcons.tooltipLines("Torch", Map.of()));
+                ItemIcons.tooltipLines("Torch", Map.of(), List.of()));
+    }
+
+    /**
+     * An item with anchors reads them as item icons after its goo amount lines, under the word anchors (decision
+     * item-hover-lists-its-anchors).
+     */
+    @Test
+    void tooltipEndsWithTheAnchorsAfterTheAmounts() {
+        List<String> anchors = List.of("minecraft:copper_ingot", "minecraft:tin_ingot");
+        List<TooltipLine> lines = ItemIcons.tooltipLines("Bronze Rod", Map.of("metal", "5"), anchors);
+        assertEquals(List.of(new TooltipLine.Text(Component.literal("Bronze Rod")),
+                new TooltipLine.GooAmount("metal", "5"), new TooltipLine.Text(Component.literal("anchors")),
+                new TooltipLine.Members(anchors, 0)), lines);
     }
 }
