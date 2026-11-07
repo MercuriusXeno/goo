@@ -18,10 +18,11 @@ public final class PocketOpening {
     /**
      * Opens the player's pocket.
      *
-     * @param player the pocket's owner
+     * @param player   the pocket's owner
+     * @param slotCost the void each slot the stored items fill reserves
      */
-    public static void open(ServerPlayer player) {
-        PocketVault vault = new PocketVault(player, PocketShelves.get(player.level()));
+    public static void open(ServerPlayer player, int slotCost) {
+        PocketVault vault = new PocketVault(player, PocketShelves.get(player.level()), slotCost);
         player.openMenu(new SimpleMenuProvider((containerId, inventory, opener) ->
                 new PocketMenu(containerId, inventory, vault), Component.translatable(TITLE)));
     }

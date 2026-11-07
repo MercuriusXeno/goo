@@ -42,7 +42,7 @@ public final class PocketScreens {
             Minecraft minecraft = Minecraft.getInstance();
             if (minecraft.player != null && minecraft.player.containerMenu instanceof PocketMenu pocket
                     && pocket.containerId == payload.containerId()) {
-                pocket.showEntries(payload.entries());
+                pocket.showEntries(payload.slotCost(), payload.entries());
             }
         });
     }

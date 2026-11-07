@@ -1,75 +1,69 @@
 package com.mercuriusxeno.goo.ability.pocket;
 
-import com.mercuriusxeno.goo.item.ContainerCapacity;
 import net.minecraft.world.item.ItemStack;
-import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-/** Covers the void Pocket reserves for what it holds, on the scale void grows a vat or canister. */
+/** Covers the void Pocket reserves: a flat amount for each slot its items fill, a stack's worth a slot. */
 class PocketReserveTest {
 
-    private static final long STACK = 64;
+    private static final int STACK = 64;
+    private static final int SLOT_COST = 6;
 
     @Nested
-    class Scale {
+    class Store {
 
-        @ParameterizedTest
-        @ValueSource(longs = {1, STACK, 1728, 100_000})
-        void reservesTheLeastVoidWhoseVatGrowthHoldsTheItems(long items) {
-            long reserved = PocketReserve.voidFor(items);
-            long room = items * PocketReserve.MB_PER_ITEM;
-
-            assertTrue(ContainerCapacity.voidGrowth(reserved) >= room,
-                    "the void reserved should grow room for every item");
-            assertTrue(ContainerCapacity.voidGrowth(reserved - 1) < room,
-                    "one mB less should fall short, so the reserve is the least that holds them");
+        @Test
+        void aFullStackFillsOneSlot() {
+            assertEquals(SLOT_COST, PocketReserve.reserveToStore(0, STACK, STACK, SLOT_COST));
         }
 
         @Test
-        void eachStackReservesLessThanTheStackBefore() {
-            long first = PocketReserve.reserveToStore(0, STACK);
-            long second = PocketReserve.reserveToStore(STACK, STACK);
-            long third = PocketReserve.reserveToStore(2 * STACK, STACK);
-
-            assertTrue(first > second && second > third,
-                    "stacks should reserve " + first + " > " + second + " > " + third);
-        }
-    }
-
-    @Nested
-    class StoreAndTake {
-
-        @Test
-        void takingAStackBackReleasesWhatStoringItReserved() {
-            long held = 500;
-            long reserved = PocketReserve.reserveToStore(held, STACK);
-
-            assertTrue(reserved > 0, "storing a stack should reserve void");
-            assertEquals(reserved, PocketReserve.releaseOnTake(held + STACK, STACK));
+        void oneItemPastAStackFillsASecondSlot() {
+            assertEquals(2 * SLOT_COST, PocketReserve.reserveToStore(0, STACK + 1, STACK, SLOT_COST));
         }
 
         @Test
-        void theShelfHoldsBackTheReserveOfEveryItemOnIt() {
-            List<PocketEntry> shelf = List.of(new PocketEntry(mock(ItemStack.class), STACK),
-                    new PocketEntry(mock(ItemStack.class), 3));
+        void topingUpAPartSlotReservesNothingMore() {
+            assertEquals(0, PocketReserve.reserveToStore(10, 20, STACK, SLOT_COST));
+        }
 
-            assertEquals(PocketReserve.voidFor(STACK + 3), PocketReserve.voidHeldBy(shelf));
+        @Test
+        void eachUnstackableItemFillsItsOwnSlot() {
+            assertEquals(3 * SLOT_COST, PocketReserve.reserveToStore(0, 3, 1, SLOT_COST));
         }
 
         @Test
         void storesAsMuchAsTheVoidAtHandReserves() {
-            long shortOfAStack = PocketReserve.reserveToStore(0, STACK) - 1;
-
-            long storable = PocketReserve.mostStorable(0, STACK, shortOfAStack);
-
-            assertEquals(STACK - 1, storable);
+            assertEquals(2 * STACK, PocketReserve.mostStorable(0, 3 * STACK, STACK, SLOT_COST, 2 * SLOT_COST + 1));
         }
+    }
+
+    @Nested
+    class Take {
+
+        @Test
+        void takingAStackBackReleasesWhatStoringItReserved() {
+            long held = 100;
+            long reserved = PocketReserve.reserveToStore(held, STACK, STACK, SLOT_COST);
+
+            assertEquals(reserved, PocketReserve.releaseOnTake(held + STACK, STACK, STACK, SLOT_COST));
+        }
+    }
+
+    @Test
+    void theShelfHoldsBackItsSlotsWorth() {
+        ItemStack stone = mock(ItemStack.class);
+        when(stone.getMaxStackSize()).thenReturn(STACK);
+        ItemStack sword = mock(ItemStack.class);
+        when(sword.getMaxStackSize()).thenReturn(1);
+        List<PocketEntry> shelf = List.of(new PocketEntry(stone, 200), new PocketEntry(sword, 2));
+
+        assertEquals((4 + 2) * SLOT_COST, PocketReserve.voidHeldBy(shelf, SLOT_COST));
     }
 }

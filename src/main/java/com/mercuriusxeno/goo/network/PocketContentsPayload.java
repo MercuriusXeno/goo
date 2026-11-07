@@ -16,9 +16,11 @@ import java.util.List;
  * (decision pocket-is-a-void-reserving-container-with-scroll-and-search).
  *
  * @param containerId the open pocket menu's id
+ * @param slotCost    the void each slot the stored items fill reserves
  * @param entries     the pocket's entries, in shelf order
  */
-public record PocketContentsPayload(int containerId, List<PocketEntry> entries) implements CustomPacketPayload {
+public record PocketContentsPayload(int containerId, int slotCost, List<PocketEntry> entries)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<PocketContentsPayload> TYPE =
@@ -28,6 +30,7 @@ public record PocketContentsPayload(int containerId, List<PocketEntry> entries) 
     public static final StreamCodec<RegistryFriendlyByteBuf, PocketContentsPayload> STREAM_CODEC =
         StreamCodec.composite(
             ByteBufCodecs.VAR_INT, PocketContentsPayload::containerId,
+            ByteBufCodecs.VAR_INT, PocketContentsPayload::slotCost,
             PocketEntry.STREAM_CODEC.apply(ByteBufCodecs.list()), PocketContentsPayload::entries,
             PocketContentsPayload::new);
 

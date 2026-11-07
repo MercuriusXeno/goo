@@ -70,13 +70,15 @@ public class PocketShelves extends SavedData {
     }
 
     /**
-     * The items a player's pocket holds, every entry counted.
+     * How many of a stack's kind a player's pocket holds.
      *
      * @param player the player's id
-     * @return the item count
+     * @param kind   a stack of the kind
+     * @return the count, 0 for a kind the pocket does not hold
      */
-    public long itemsHeld(UUID player) {
-        return shelves.getOrDefault(player, List.of()).stream().mapToLong(PocketEntry::count).sum();
+    public long countOf(UUID player, ItemStack kind) {
+        return shelves.getOrDefault(player, List.of()).stream().filter(entry -> entry.holds(kind))
+                .mapToLong(PocketEntry::count).findFirst().orElse(0);
     }
 
     /**

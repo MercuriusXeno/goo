@@ -11,15 +11,16 @@ import java.util.List;
 
 /**
  * A player's Pocket as its open container reaches it on the server: storing
- * a stack draws the void it reserves from what the player carries, and
+ * a stack draws the void its new slots reserve from what the player carries, and
  * taking items back deposits the void they release into what the player
  * carries, dropping what finds no home.
  * decision pocket-is-a-void-reserving-container-with-scroll-and-search
  *
- * @param player  the pocket's owner
- * @param shelves the server's pockets
+ * @param player   the pocket's owner
+ * @param shelves  the server's pockets
+ * @param slotCost the void each slot the stored items fill reserves
  */
-public record PocketVault(ServerPlayer player, PocketShelves shelves) {
+public record PocketVault(ServerPlayer player, PocketShelves shelves, int slotCost) {
 
     /**
      * The owner's entries.
@@ -41,17 +42,18 @@ public record PocketVault(ServerPlayer player, PocketShelves shelves) {
         if (offered.isEmpty()) {
             return 0;
         }
-        long held = shelves.itemsHeld(player.getUUID());
+        long held = shelves.countOf(player.getUUID(), offered);
+        int stackSize = offered.getMaxStackSize();
         long carried = GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.VOID, 0);
-        long storable = PocketReserve.mostStorable(held, offered.getCount(), carried);
+        long storable = PocketReserve.mostStorable(held, offered.getCount(), stackSize, slotCost, carried);
         if (storable == 0) {
             return 0;
         }
-        int wanted = (int) PocketReserve.reserveToStore(held, storable);
+        int wanted = (int) PocketReserve.reserveToStore(held, storable, stackSize, slotCost);
         int drawn = GooSourceScanner.deplete(player, GooTypes.VOID, wanted);
         if (drawn < wanted) {
-            storable = PocketReserve.mostStorable(held, storable, drawn);
-            release(drawn - PocketReserve.reserveToStore(held, storable));
+            storable = PocketReserve.mostStorable(held, storable, stackSize, slotCost, drawn);
+            release(drawn - PocketReserve.reserveToStore(held, storable, stackSize, slotCost));
         }
         shelves.add(player.getUUID(), offered, storable);
         offered.shrink((int) storable);
@@ -85,9 +87,14 @@ public record PocketVault(ServerPlayer player, PocketShelves shelves) {
         if (count <= 0) {
             return;
         }
-        long held = shelves.itemsHeld(player.getUUID());
-        shelves.remove(player.getUUID(), index, count);
-        release(PocketReserve.releaseOnTake(held, held - shelves.itemsHeld(player.getUUID())));
+        List<PocketEntry> shelf = entries();
+        if (index < 0 || index >= shelf.size()) {
+            return;
+        }
+        PocketEntry entry = shelf.get(index);
+        long taken = Math.min(count, entry.count());
+        shelves.remove(player.getUUID(), index, taken);
+        release(PocketReserve.releaseOnTake(entry.count(), taken, entry.kind().getMaxStackSize(), slotCost));
     }
 
     private void release(long voidReleased) {

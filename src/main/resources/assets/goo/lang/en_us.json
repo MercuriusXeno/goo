@@ -327,7 +327,7 @@
   "goo.ability.void.erase.description": "Removes the mob struck from the world. There is no reward for doing this.",
   "goo.ability.void.pocket": "Pocket",
   "goo.ability.void.pocket.description": "Item storage. Holds void goo while items are inside.",
-  "goo.ability.void.pocket.cost_mechanics": "Free to open. Stored items hold void goo until taken out.",
+  "goo.ability.void.pocket.cost_mechanics": "Open freely, items reserve %s void per slot to store, returned when retrieved.",
   "goo.pocket.title": "Pocket",
   "goo.ability.void.outsider": "Outsider",
   "goo.ability.void.outsider.description": "Hold to enter your dimension. The doorway takes you back. Hold inside to grow the floor.",
