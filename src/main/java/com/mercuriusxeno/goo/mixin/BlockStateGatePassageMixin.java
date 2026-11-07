@@ -10,12 +10,14 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 
 /**
  * Opens the blocks a linked gate lies on to a body passing into it, so it
- * walks through the gate's face into the space beyond.
+ * walks through the gate's face into the space beyond. The shape is changed
+ * only once the method and every other change to it have run, and only for
+ * a body at a linked gate's face within its oval, so it composes with any
+ * other mod's change to block collision.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
  */
@@ -23,21 +25,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class BlockStateGatePassageMixin {
 
     /**
-     * Answers no collision for a gate's block to a body passing into the gate.
+     * Answers no collision for a gate's block to a body passing into the
+     * gate, and the shape as it stood to every other body.
      *
+     * @param shape   the shape the method and every other change to it answered
      * @param level   the level
      * @param pos     the block
      * @param context the collision context
-     * @param cir     the callback
+     * @return the shape the body collides with
      */
-    @Inject(method = "getCollisionShape(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;"
-            + "Lnet/minecraft/world/phys/shapes/CollisionContext;)Lnet/minecraft/world/phys/shapes/VoxelShape;",
-            at = @At("HEAD"), cancellable = true)
-    private void goo$openToAPassingBody(BlockGetter level, BlockPos pos, CollisionContext context,
-            CallbackInfoReturnable<VoxelShape> cir) {
-        if (context instanceof EntityCollisionContext bodies && bodies.getEntity() != null
-                && GatePassage.passable(bodies.getEntity(), pos)) {
-            cir.setReturnValue(Shapes.empty());
-        }
+    @ModifyReturnValue(method = "getCollisionShape(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/"
+            + "BlockPos;Lnet/minecraft/world/phys/shapes/CollisionContext;)Lnet/minecraft/world/phys/shapes/VoxelShape;",
+            at = @At("RETURN"))
+    private VoxelShape goo$openToAPassingBody(VoxelShape shape, BlockGetter level, BlockPos pos,
+            CollisionContext context) {
+        boolean passing = context instanceof EntityCollisionContext bodies && bodies.getEntity() != null
+                && GatePassage.passable(bodies.getEntity(), pos);
+        return passing ? Shapes.empty() : shape;
     }
 }
