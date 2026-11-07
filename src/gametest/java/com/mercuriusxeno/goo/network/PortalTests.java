@@ -14,10 +14,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -44,6 +46,32 @@ public final class PortalTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PLACE_CHOOSE_LINK_AND_CARRY, PortalTests::placeChooseLinkAndCarry);
+        GooTestFunctions.registerTest(registrar, HIT_BREAKS_THE_PORTAL, PortalTests::hitBreaksThePortal);
+    }
+
+    private static final String HIT_BREAKS_THE_PORTAL = "portal_breaks_when_hit_and_the_wall_stands";
+
+    /**
+     * A creative player hitting a portal's face breaks the portal, as though
+     * it were a block over the wall, and the wall behind it stands.
+     *
+     * @param helper the gametest helper
+     */
+    public static void hitBreaksThePortal(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        player.setGameMode(GameType.CREATIVE);
+        Portal portal = castAt(helper, player, FIRST, Direction.SOUTH);
+        standAt(helper, player, A_BLOCK_OFF);
+        player.gameMode.handleBlockBreakAction(helper.absolutePos(FIRST.above()),
+                ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, Direction.SOUTH, level.getMaxY(), 0);
+        helper.assertTrue(QuantumPortals.get(level).portalsOf(player.getUUID()).isEmpty(),
+                "Hitting the portal's face should break the portal, holds " + portal);
+        helper.assertTrue(level.getBlockState(helper.absolutePos(FIRST.above())).is(Blocks.STONE),
+                "The wall behind a hit portal should stand");
+        level.getServer().getPlayerList().remove(player);
+        helper.succeed();
     }
 
     private static final String PORTAL = "goo:quantum_portal";
