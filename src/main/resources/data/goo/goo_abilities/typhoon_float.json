@@ -1,17 +1,15 @@
 {
   "gooType": "typhoon",
   "displayName": "goo.ability.typhoon.float",
-  "badge": "channeled",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
+  "badge": "brew",
   "order": 10,
-  "cost": 1000,
-  "requires": ["minecraft:phantom_membrane"],
-  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "airborn", "air_speed": 0.35, "air_steer": 0.15, "fall_cap": 0.4, "jump_boost": 0.5,
+    { "type": "airborn", "air_speed": 0.6, "climb_speed": 0.4, "air_steer": 0.2, "fall_cap": 0.4, "jump_boost": 0.5,
       "glide_speed": 1.2, "glide_steer": 0.05 },
-    { "type": "push", "strength": 1.2, "steer": 0.2, "elytra_steer": 0.5 },
-    { "type": "wind", "tailwind": { "range": 6, "cone": 30 } }
+    { "type": "sound", "id": "minecraft:entity.breeze.inhale", "at": "target", "source": "players", "volume": 0.8, "pitch": 1 }
   ],
-  "tags": ["self"],
-  "pose": "held_out"
+  "tags": ["self"]
 }

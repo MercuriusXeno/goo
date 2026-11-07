@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.held;
 
+import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.BusterStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
@@ -47,6 +48,8 @@ public enum LaidState {
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP,
+    /** Float's flight (decision tailwind-and-airborn-merge-into-float). */
+    AIRBORN,
     /** Telekinesis's raised reach (decision telekinesis-enacts-at-extended-reach). */
     TELEKINESIS,
     /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
@@ -94,6 +97,7 @@ public enum LaidState {
             Map.entry(ShifterStep.class, SHIFTER),
             Map.entry(ExtenderStep.class, EXTENDER),
             Map.entry(LifetapStep.class, LIFETAP),
+            Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(TelekinesisStep.class, TELEKINESIS),
             Map.entry(EldritchStep.class, ELDRITCH),
             Map.entry(BusterStep.class, BUSTER),
