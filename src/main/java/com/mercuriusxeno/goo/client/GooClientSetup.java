@@ -235,6 +235,7 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.VOIDSTONE.get(), VoidstoneRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PHASED_BLOCK.get(), PhasedBlockRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());

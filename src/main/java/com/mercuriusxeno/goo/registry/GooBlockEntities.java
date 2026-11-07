@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
 import com.mercuriusxeno.goo.block.gate.EndGateBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.block.outsider.VoidstoneBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.quantum.PhasedBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
@@ -36,6 +37,11 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CrucibleBlockEntity>> CRUCIBLE =
             BLOCK_ENTITIES.register("crucible",
                     () -> new BlockEntityType<>(CrucibleBlockEntity::new, GooBlocks.CRUCIBLE.get()));
+
+    /** Voidstone's star-drawing anchor (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<VoidstoneBlockEntity>> VOIDSTONE =
+            BLOCK_ENTITIES.register("voidstone",
+                    () -> new BlockEntityType<>(VoidstoneBlockEntity::new, GooBlocks.VOIDSTONE.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HubBlockEntity>> HUB =
             BLOCK_ENTITIES.register("hub",
