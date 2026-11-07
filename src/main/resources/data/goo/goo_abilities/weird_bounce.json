@@ -6,6 +6,6 @@
   "cost": 1000,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "bounce_pad", "ticks": 200 }
+    { "type": "place_block", "block": "goo:slime_coat" }
   ]
 }
