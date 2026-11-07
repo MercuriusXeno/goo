@@ -12,7 +12,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -80,6 +82,7 @@ public final class WorkbenchOperations {
     // The exit code a run reports when it was interrupted or could not start, since the runner gave none.
     private static final int RUN_FAILED_EXIT = -1;
     private static final String NO_DRAFT_AT = "No draft stands to promote at ";
+    private static final String NOR_AT = " nor in ";
     private static final String NO_INVENTORY_WRITTEN = "The inventory dump wrote no ";
     private static final String NO_CONSTANT_NAMED = "No constant is named $";
     private static final String NO_OPERATION_NAMED = "No workbench operation is named ";
@@ -426,17 +429,56 @@ public final class WorkbenchOperations {
      * @return the live model, or a conflict where no draft stands
      */
     private WorkbenchReply promote() throws IOException {
+        boolean values;
+        List<Identifier> abilities;
         synchronized (draftLock) {
-            if (!Files.isRegularFile(paths.draft())) {
-                return WorkbenchReply.of(CONFLICT, WorkbenchReply.TEXT, NO_DRAFT_AT + paths.draft());
+            if (!Files.isRegularFile(paths.draft()) && AbilityDrafts.read(paths.abilityDrafts()).isEmpty()) {
+                return WorkbenchReply.of(CONFLICT, WorkbenchReply.TEXT, NO_DRAFT_AT + paths.draft() + NOR_AT
+                        + paths.abilityDrafts());
             }
-            datafixedDraft();
-            Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE);
+            values = promoteValuesDraft();
+            // ability-drafts-promote-per-file-like-base-values: each ability draft lands over its live file
+            abilities = AbilityDrafts.promote(paths.abilityDrafts(), paths.abilities());
         }
-        String live = Files.readString(paths.baseValues());
-        applier.apply(live);
+        if (!abilities.isEmpty()) {
+            abilityFiles.apply(livePackAbilities());
+        }
+        String live = liveValuesText();
+        if (values) {
+            applier.apply(live);
+        }
         return modelReply(BaseValuesModel.parse(live));
+    }
+
+    // Renames the values draft over the live file where one stands; answers whether one stood.
+    private boolean promoteValuesDraft() throws IOException {
+        if (!Files.isRegularFile(paths.draft())) {
+            return false;
+        }
+        datafixedDraft();
+        Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+        return true;
+    }
+
+    // What the game reads for base values, read without seeding a draft, so a promote of ability drafts alone
+    // leaves no values draft for a second promote to find.
+    private String liveValuesText() throws IOException {
+        return Files.isRegularFile(paths.baseValues()) ? Files.readString(paths.baseValues())
+                : new String(seed.read(), java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    // The ability files the live folder holds, which stand over the server's packs, since a pack a promote wrote
+    // into reads afresh at the next reload alone.
+    private Map<Identifier, JsonObject> livePackAbilities() throws IOException {
+        return AbilityDrafts.readLive(paths.abilities());
+    }
+
+    // Every live ability file: the server's packs', the live folder's standing over them.
+    private Map<Identifier, JsonObject> liveAbilities() throws IOException {
+        Map<Identifier, JsonObject> live = new HashMap<>(abilityFiles.live());
+        live.putAll(livePackAbilities());
+        return live;
     }
 
     /**
@@ -451,8 +493,11 @@ public final class WorkbenchOperations {
             restored = Files.isRegularFile(paths.baseValues()) ? Files.readAllBytes(paths.baseValues()) : seed.read();
             Files.createDirectories(paths.draft().getParent());
             Files.write(paths.draft(), restored);
+            // ability-drafts-promote-per-file-like-base-values: each ability reads its live file again
+            AbilityDrafts.discard(paths.abilityDrafts());
         }
         applier.apply(new String(restored, java.nio.charset.StandardCharsets.UTF_8));
+        abilityFiles.apply(livePackAbilities());
         return modelReply(datafixedDraft());
     }
 
@@ -463,7 +508,7 @@ public final class WorkbenchOperations {
      * @return the abilities' model
      */
     private WorkbenchReply abilityModel() throws IOException {
-        return json(AbilitiesModel.model(abilityFiles.live(), AbilityDrafts.read(paths.abilityDrafts())).toString());
+        return json(AbilitiesModel.model(liveAbilities(), AbilityDrafts.read(paths.abilityDrafts())).toString());
     }
 
     /**
@@ -476,8 +521,23 @@ public final class WorkbenchOperations {
      */
     private WorkbenchReply saveAbilities(String posted) throws IOException {
         JsonObject edits = JsonParser.parseString(posted).getAsJsonObject().getAsJsonObject(ABILITIES);
-        Map<Identifier, JsonObject> live = abilityFiles.live();
+        Map<Identifier, JsonObject> live = liveAbilities();
         Map<Identifier, JsonObject> drafts = AbilityDrafts.read(paths.abilityDrafts());
+        Map<Identifier, JsonObject> written = editedAbilities(edits, live, drafts);
+        for (Map.Entry<Identifier, JsonObject> draft : written.entrySet()) {
+            AbilityDrafts.write(paths.abilityDrafts(), draft.getKey(), draft.getValue());
+        }
+        drafts.putAll(written);
+        Map<Identifier, JsonObject> standing = new HashMap<>(livePackAbilities());
+        standing.putAll(drafts);
+        abilityFiles.apply(standing);
+        return json(AbilitiesModel.model(live, drafts).toString());
+    }
+
+    // Each posted ability's changed leaves over its draft or its live file, refused whole where any edited ability
+    // would not load or names no ability.
+    private static Map<Identifier, JsonObject> editedAbilities(JsonObject edits, Map<Identifier, JsonObject> live,
+                                                               Map<Identifier, JsonObject> drafts) {
         Map<Identifier, JsonObject> written = new LinkedHashMap<>();
         for (Map.Entry<String, JsonElement> edit : edits.entrySet()) {
             Identifier id = Identifier.parse(edit.getKey());
@@ -491,12 +551,7 @@ public final class WorkbenchOperations {
             });
             written.put(id, edited);
         }
-        for (Map.Entry<Identifier, JsonObject> draft : written.entrySet()) {
-            AbilityDrafts.write(paths.abilityDrafts(), draft.getKey(), draft.getValue());
-        }
-        drafts.putAll(written);
-        abilityFiles.apply(drafts);
-        return json(AbilitiesModel.model(live, drafts).toString());
+        return written;
     }
 
     private WorkbenchReply inventory() throws IOException, InterruptedException {
