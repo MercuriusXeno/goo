@@ -3,14 +3,12 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
-import com.mercuriusxeno.goo.client.particle.DrinkChunkParticle;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
@@ -41,8 +39,8 @@ import java.util.Set;
  * streams that walk gives, kept so the next frame knows where liquid still
  * flows and the drink stays live until its last stream is spent, and keeps
  * each drinker's glove for their chunks to fly to. The frame a block's
- * square lands, the block stands as chunks of its own sprite that peel away
- * to the hand over the drain, so it is never seen vanishing.
+ * square lands, the block stands as solid chunks of its own faces that peel
+ * away to the hand over the drain, so it is never seen vanishing.
  * decision unmake-waves-dissolve-by-crucible-cost
  * decision diagnose-then-fix-unmake-seam-and-ribbing
  * decision unmake-drink-is-a-stream-of-break-particles
@@ -68,8 +66,6 @@ public final class DrinkRenderer {
     private static final Set<Integer> SHOWING = new HashSet<>();
     /** Which blocks of each drink have begun to peel, by its drinker. */
     private static final Map<Integer, DrinkLandings> LANDINGS = new HashMap<>();
-    /** Each drinker's glove as last placed, which their drink's chunks fly to. */
-    private static final Map<Integer, Vec3> GLOVES = new HashMap<>();
 
     private DrinkRenderer() {
     }
@@ -119,7 +115,7 @@ public final class DrinkRenderer {
         LAST.keySet().retainAll(drinkers);
         SHOWING.retainAll(drinkers);
         LANDINGS.keySet().retainAll(drinkers);
-        GLOVES.keySet().retainAll(drinkers);
+        DrinkPeels.CLIENT.keepGlovesOf(drinkers);
     }
 
     /**
@@ -193,11 +189,11 @@ public final class DrinkRenderer {
             built.put(stream.block().pos(), stream);
             flowing |= !stream.spent();
             if (landings.peelsAt(stream.block(), frame.ticks())) {
-                peel(level, drink.playerId(), stream.block(), states.get(stream.block().pos()), frame.glove());
+                peel(level, drink.playerId(), stream.block(), states.get(stream.block().pos()));
             }
         }
         LAST.put(drink.playerId(), built);
-        GLOVES.put(drink.playerId(), frame.glove());
+        DrinkPeels.CLIENT.glove(drink.playerId(), frame.glove());
         showing(drink.playerId(), flowing);
     }
 
@@ -247,29 +243,24 @@ public final class DrinkRenderer {
 
     /**
      * Peels a block into its chunks with its own break sound, as vanilla
-     * plays it: the chunks fill the block's outline and stand in its place,
-     * leaving one by one from the corner nearest the glove to fly to the
+     * plays it: the chunks fill the block's outline and stand in its place
+     * wearing its own faces, crumbling off one by one to fly to the
      * drinker's glove as it is placed frame by frame.
      *
      * @param level   the client level
      * @param drinker the drinker
      * @param block   the block
      * @param state   the block as it stood
-     * @param glove   the drinker's glove as the square lands
      */
-    private static void peel(ClientLevel level, int drinker, DrinkTree.Block block, BlockState state, Vec3 glove) {
-        Minecraft mc = Minecraft.getInstance();
+    private static void peel(ClientLevel level, int drinker, DrinkTree.Block block, BlockState state) {
         BlockPos pos = block.pos();
-        TextureAtlasSprite sprite = mc.getModelManager().getBlockStateModelSet().getParticleMaterial(state, level, pos)
-                .sprite();
         SoundType sound = state.getSoundType(level, pos, null);
         level.playLocalSound(pos, sound.getBreakSound(), SoundSource.BLOCKS, (sound.getVolume() + 1) * HALF_F,
                 sound.getPitch() * BREAK_PITCH, false);
         VoxelShape shape = state.getShape(level, pos);
         AABB outline = shape.isEmpty() ? Shapes.block().bounds() : shape.bounds();
-        for (DrinkRide.Chunk chunk : DrinkRide.chunksOf(block, outline, glove)) {
-            mc.particleEngine.add(new DrinkChunkParticle(level, state, pos, sprite, () -> GLOVES.get(drinker),
-                    chunk));
-        }
+        DrinkRide.Breakup breakup = DrinkRide.chunksOf(block, outline, level.getRandom());
+        DrinkPeels.CLIENT.begin(new DrinkPeels.Peel(drinker, pos.immutable(), breakup, PeelFaces.of(level, pos, state),
+                block.end() + (double) DrinkStream.LONGEST_TRAVEL_TICKS));
     }
 }

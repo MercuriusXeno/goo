@@ -2,11 +2,12 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.SiphonRule;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import java.util.Comparator;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,11 +17,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The drained block peels into chunks of its own texture: the chunks fill the
- * block's outline, stand in place until their turn, leave corner by corner
- * from the corner nearest the hand over the drain, the block standing until
- * its last chunk leaves, and each flies along the line from its place to the
- * glove at the stream's base pace, done at the glove
+ * The drained block peels into chunks of its own texture: its cells merge
+ * into a few rigid chunks of mixed size filling the block's outline, which
+ * stand in place until their turn, crumble off in random order from the
+ * outside of what still stands over the drain, the block standing until its
+ * last chunk leaves, and each flies along the line from its place to the glove at the
+ * stream's base pace, done at the glove; a whole block draws as its shell
  * (decisions unmake-peels-the-block-into-chunks-that-stream-to-the-hand,
  * unmake-drink-is-a-stream-of-break-particles).
  */
@@ -33,6 +35,8 @@ class DrinkRideTest {
     private static final long PICKED = LANDS - SiphonRule.INJECT_TICKS;
     private static final double TICK = 1;
     private static final double FRAME = 0.25;
+    private static final long SEED = 7L;
+    private static final int SEEDS = 64;
     private static final BlockPos POS = new BlockPos(7, 2, 3);
     private static final DrinkTree.Block BLOCK = new DrinkTree.Block(POS, Vec3.atCenterOf(POS), 1, PICKED, LANDS,
             DRAINED);
@@ -42,9 +46,23 @@ class DrinkRideTest {
     private static final Vec3 GLOVE = new Vec3(4.5, 3.2, 1.1);
     /** A glove so far off that no chunk reaches it within the drain, so every chunk that left is still flying. */
     private static final Vec3 FAR_GLOVE = Vec3.atCenterOf(POS).add(-40, 0, 0);
+    private static final int SHELL_FACES = 6 * DrinkRide.CELLS_ACROSS * DrinkRide.CELLS_ACROSS;
 
-    private static List<DrinkRide.Chunk> chunks() {
-        return DrinkRide.chunksOf(BLOCK, WHOLE, GLOVE);
+    private static DrinkRide.Breakup breakup(long seed) {
+        return DrinkRide.chunksOf(BLOCK, WHOLE, RandomSource.create(seed));
+    }
+
+    private static int facesShowing(DrinkRide.Breakup breakup, double now) {
+        boolean[] standing = DrinkRide.standingOf(breakup.chunks(), now);
+        int showing = 0;
+        for (int cell = 0; cell < DrinkRide.CELLS; cell++) {
+            for (Direction face : Direction.values()) {
+                if (DrinkRide.shows(breakup, cell, face, standing)) {
+                    showing++;
+                }
+            }
+        }
+        return showing;
     }
 
     @Nested
@@ -52,15 +70,16 @@ class DrinkRideTest {
 
         @Test
         void atHalfTheDrainAboutHalfTheChunksStandAndTheRestFlyToTheHand() {
-            List<DrinkRide.Chunk> chunks = DrinkRide.chunksOf(BLOCK, WHOLE, FAR_GLOVE);
+            List<DrinkRide.Chunk> chunks = DrinkRide.chunksOf(BLOCK, WHOLE, RandomSource.create(SEED))
+                    .chunks();
             int standing = DrinkRide.standingAt(chunks, HALF_TIME);
-            assertTrue(Math.abs(standing - chunks.size() / 2) <= chunks.size() / 8,
+            assertTrue(Math.abs(standing - chunks.size() / 2.0) <= 1,
                     standing + " of " + chunks.size() + " chunks stand at half the drain");
             int flying = 0;
             for (DrinkRide.Chunk chunk : chunks) {
                 Vec3 at = DrinkRide.pointOf(chunk, FAR_GLOVE, HALF_TIME);
                 assertNotNull(at, "a chunk reached a glove no chunk can reach yet");
-                if (HALF_TIME <= chunk.release()) {
+                if (DrinkRide.stands(chunk, HALF_TIME)) {
                     assertEquals(chunk.place(), at, "a standing chunk off its place");
                 } else {
                     assertNotEquals(chunk.place(), at, "a chunk that left still at its place");
@@ -74,7 +93,7 @@ class DrinkRideTest {
 
         @Test
         void theBlockStandsWholeUntilItsSquareLandsAndNeverReadsAbsentBeforeItsLastChunkLeaves() {
-            List<DrinkRide.Chunk> chunks = chunks();
+            List<DrinkRide.Chunk> chunks = breakup(SEED).chunks();
             assertEquals(chunks.size(), DrinkRide.standingAt(chunks, LANDS - TICK));
             double last = chunks.stream().mapToDouble(DrinkRide.Chunk::release).max().orElseThrow();
             assertTrue(last < DRAINED, "the last chunk leaves at " + last + ", after the drain ends");
@@ -85,45 +104,134 @@ class DrinkRideTest {
         }
 
         @Test
-        void chunksLeaveCornerByCornerFromTheCornerNearestTheHand() {
-            List<DrinkRide.Chunk> chunks = chunks();
-            Vec3 corner = new Vec3(POS.getX(), POS.getY() + 1, POS.getZ());
-            List<DrinkRide.Chunk> byTurn = chunks.stream().sorted(Comparator.comparingDouble(DrinkRide.Chunk::release))
-                    .toList();
-            for (int index = 1; index < byTurn.size(); index++) {
-                double before = byTurn.get(index - 1).place().distanceTo(corner);
-                double after = byTurn.get(index).place().distanceTo(corner);
-                assertTrue(before <= after + ON_THE_LINE, "a chunk " + after + " from the hand's corner left before"
-                        + " one " + before + " from it");
+        void eachChunkCrumblesOffTheOutsideOfWhatStillStands() {
+            for (long seed = 0; seed < SEEDS; seed++) {
+                DrinkRide.Breakup breakup = breakup(seed);
+                List<DrinkRide.Chunk> chunks = breakup.chunks();
+                boolean[] gone = new boolean[chunks.size()];
+                for (int turn = 0; turn < chunks.size(); turn++) {
+                    DrinkRide.Chunk chunk = chunks.get(turn);
+                    assertTrue(DrinkRide.onOutside(new int[][] {chunk.least(), chunk.span()}, breakup.chunkOfCell(),
+                            gone), "chunk " + turn + " of seed " + seed + " left from inside the block");
+                    gone[turn] = true;
+                }
+            }
+        }
+
+        @Test
+        void blocksCrumbleInTheirOwnRandomOrder() {
+            List<Vec3> first = breakup(SEED).chunks().stream().map(DrinkRide.Chunk::place).toList();
+            List<Vec3> second = breakup(SEED + 1).chunks().stream().map(DrinkRide.Chunk::place).toList();
+            assertNotEquals(first, second);
+        }
+
+        @Test
+        void chunksLeaveInTurnOrderSpreadEvenlyOverTheDrain() {
+            List<DrinkRide.Chunk> chunks = breakup(SEED).chunks();
+            double drain = DRAINED - LANDS;
+            for (int turn = 0; turn < chunks.size(); turn++) {
+                assertEquals(LANDS + drain * turn / chunks.size(), chunks.get(turn).release(), ON_THE_LINE);
+            }
+        }
+    }
+
+    @Nested
+    class Merge {
+
+        @Test
+        void neighbouringCellsMergeIntoAFewChunksOfMixedSize() {
+            for (long seed = 0; seed < SEEDS; seed++) {
+                List<DrinkRide.Chunk> chunks = breakup(seed).chunks();
+                assertTrue(chunks.size() <= DrinkRide.CELLS / 2, chunks.size() + " chunks from seed " + seed);
+                assertTrue(chunks.stream().anyMatch(chunk -> chunk.cells() > 2), "no big chunk from seed " + seed);
+                for (DrinkRide.Chunk chunk : chunks) {
+                    for (int span : chunk.span()) {
+                        assertTrue(span >= 1 && span <= DrinkRide.LONGEST_SPAN, "a chunk spans " + span);
+                    }
+                }
+            }
+        }
+
+        @Test
+        void everyCellBelongsToTheOneChunkWhoseBoxHoldsIt() {
+            DrinkRide.Breakup breakup = breakup(SEED);
+            assertEquals(DrinkRide.CELLS, breakup.chunks().stream().mapToInt(DrinkRide.Chunk::cells).sum());
+            for (int cell = 0; cell < DrinkRide.CELLS; cell++) {
+                DrinkRide.Chunk chunk = breakup.chunks().get(breakup.chunkOfCell()[cell]);
+                int[] place = {DrinkRide.xOf(cell), DrinkRide.yOf(cell), DrinkRide.zOf(cell)};
+                for (int axis = 0; axis < place.length; axis++) {
+                    assertTrue(place[axis] >= chunk.least()[axis]
+                            && place[axis] < chunk.least()[axis] + chunk.span()[axis], "cell " + cell + " outside");
+                }
             }
         }
 
         @Test
         void chunksFillTheBlocksOwnOutline() {
-            List<DrinkRide.Chunk> chunks = DrinkRide.chunksOf(BLOCK, SLAB, GLOVE);
-            double filled = 0;
-            for (DrinkRide.Chunk chunk : chunks) {
-                Vec3 local = chunk.place().subtract(POS.getX(), POS.getY(), POS.getZ());
-                assertTrue(SLAB.contains(local), "a chunk at " + local + " outside the slab");
-                filled += chunk.width() * chunk.width() * chunk.height();
+            DrinkRide.Breakup breakup = DrinkRide.chunksOf(BLOCK, SLAB, RandomSource.create(SEED));
+            for (int cell = 0; cell < DrinkRide.CELLS; cell++) {
+                Vec3 local = breakup.placeOf(cell).subtract(POS.getX(), POS.getY(), POS.getZ());
+                assertTrue(SLAB.contains(local), "a cell at " + local + " outside the slab");
             }
-            assertEquals(0.5, filled, ON_THE_LINE);
+            Vec3 size = breakup.cellSize();
+            assertEquals(0.5, DrinkRide.CELLS * size.x * size.y * size.z, ON_THE_LINE);
+        }
+    }
+
+    @Nested
+    class Faces {
+
+        @Test
+        void aWholeBlockOfStandingChunksShowsOnlyItsShell() {
+            assertEquals(SHELL_FACES, facesShowing(breakup(SEED), LANDS - TICK));
         }
 
         @Test
-        void eachChunkWearsItsOwnCellOfTheSprite() {
-            List<DrinkRide.Chunk> chunks = chunks();
-            long cells = chunks.stream().map(chunk -> chunk.across() * DrinkRide.CHUNKS_ACROSS + chunk.down())
-                    .distinct().count();
-            assertEquals((long) DrinkRide.CHUNKS_ACROSS * DrinkRide.CHUNKS_ACROSS, cells);
+        void aChunkThatLeftShowsItsWholeSurfaceAndBaresTheFacesBehindIt() {
+            DrinkRide.Breakup breakup = breakup(SEED);
+            DrinkRide.Chunk first = breakup.chunks().getFirst();
+            double gone = first.release() + FRAME;
+            boolean[] standing = DrinkRide.standingOf(breakup.chunks(), gone);
+            int[] span = first.span();
+            int surface = 2 * (span[1] * span[2] + span[0] * span[2] + span[0] * span[1]);
+            int ownShowing = 0;
+            for (int cell = 0; cell < DrinkRide.CELLS; cell++) {
+                for (Direction face : Direction.values()) {
+                    if (breakup.chunkOfCell()[cell] == 0 && DrinkRide.shows(breakup, cell, face, standing)) {
+                        ownShowing++;
+                    }
+                }
+            }
+            assertEquals(surface, ownShowing, "the flying chunk's own faces showing");
+            assertTrue(facesShowing(breakup, gone) > SHELL_FACES, "nothing bared behind the chunk that left");
+        }
+
+        @Test
+        void eachCellFaceOfABlockFaceWearsItsOwnCellOfTheTexture() {
+            DrinkRide.Breakup breakup = breakup(SEED);
+            boolean[] standing = DrinkRide.standingOf(breakup.chunks(), LANDS - TICK);
+            for (Direction face : Direction.values()) {
+                long cells = java.util.stream.IntStream.range(0, DrinkRide.CELLS)
+                        .filter(cell -> DrinkRide.shows(breakup, cell, face, standing))
+                        .mapToObj(cell -> DrinkRide.faceCellOf(cell, face)).distinct().count();
+                assertEquals((long) DrinkRide.CELLS_ACROSS * DrinkRide.CELLS_ACROSS, cells, face + " face");
+            }
+        }
+
+        @Test
+        void theTopFacesCellsRunAlongXAcrossAndZDown() {
+            int eastNorthTop = DrinkRide.cellAt(DrinkRide.CELLS_ACROSS - 1, DrinkRide.CELLS_ACROSS - 1, 0);
+            assertEquals(new DrinkRide.FaceCell(DrinkRide.CELLS_ACROSS - 1, 0),
+                    DrinkRide.faceCellOf(eastNorthTop, Direction.UP));
+            assertEquals(new DrinkRide.FaceCell(0, 0), DrinkRide.faceCellOf(eastNorthTop, Direction.NORTH));
         }
     }
 
     @Nested
     class Flight {
 
-        private final DrinkRide.Chunk chunk = new DrinkRide.Chunk(new Vec3(7.2, 2.7, 3.4), 0.25, 0.25, 0, 0,
-                LANDS + TICK);
+        private final DrinkRide.Chunk chunk = new DrinkRide.Chunk(new Vec3(7.2, 2.7, 3.4), new int[] {0, 0, 0},
+                new int[] {1, 1, 1}, LANDS + TICK);
 
         @Test
         void aChunkLiesOnTheLineFromItsPlaceToTheGloveAtThePacesDistance() {

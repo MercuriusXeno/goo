@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.client.particle;
+package com.mercuriusxeno.goo.client.ability;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
