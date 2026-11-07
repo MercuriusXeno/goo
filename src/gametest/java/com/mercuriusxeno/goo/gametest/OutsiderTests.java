@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -21,7 +20,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
@@ -140,7 +139,8 @@ public final class OutsiderTests {
     private static final float FACING_DOOR = 180f;
     private static final String SHOULD_WAIT_FOR_THE_CHARGE = "A hold short of its charge should leave the caster in %s";
     private static final String SHOULD_ENTER = "The caster should stand south of the door at %s facing it in goo:pocket, stands at %s facing %s in %s";
-    private static final String SHOULD_STAND_DOOR = "The room should hold a dimension door at %s, holds %s";
+    private static final String SHOULD_STAND_DOOR = "The room should hold a dimension doorway at %s, holds %s";
+    private static final String SHOULD_FRAME = "The doorway should stand framed in voidstone at %s, %s stands there";
     private static final String SHOULD_RETURN = "The door should return the caster to %s facing %s in %s, they stand at %s facing %s in %s";
     private static final String SHOULD_RESPAWN = "The %s at %s should stand again, %s stands there";
     private static final String SHOULD_CATCH = "The faller should stand south of the door at %s, stands at %s";
@@ -152,8 +152,9 @@ public final class OutsiderTests {
     /**
      * A caster holding Outsider stays put through a hold short of its charge;
      * the charge's tick carries them into their room in goo:pocket, onto the
-     * voidstone south of the door standing on the center, facing it; using
-     * the door sets them back at the exact place and facing they cast from.
+     * voidstone south of the two-tall doorway framed in voidstone on the
+     * center, facing it; walking into the doorway sets them back at the exact
+     * place and facing they cast from.
      *
      * @param helper the gametest helper
      */
@@ -170,10 +171,17 @@ public final class OutsiderTests {
             int room = assertEntered(helper, caster);
             ServerLevel pocket = (ServerLevel) caster.level();
             BlockPos door = doorOf(room);
-            helper.assertTrue(pocket.getBlockState(door).is(GooBlocks.DIMENSION_DOOR.get()),
-                    String.format(SHOULD_STAND_DOOR, door, pocket.getBlockState(door)));
-            pocket.getBlockState(door).useWithoutItem(pocket, caster,
-                    new BlockHitResult(Vec3.atCenterOf(door), Direction.UP, door, false));
+            for (BlockPos doorway : List.of(door, door.above())) {
+                helper.assertTrue(pocket.getBlockState(doorway).is(GooBlocks.DIMENSION_DOOR.get()),
+                        String.format(SHOULD_STAND_DOOR, doorway, pocket.getBlockState(doorway)));
+            }
+            for (BlockPos frame : frameOf(room)) {
+                helper.assertTrue(pocket.getBlockState(frame).is(GooBlocks.VOIDSTONE.get()),
+                        String.format(SHOULD_FRAME, frame, pocket.getBlockState(frame)));
+            }
+            TeleportTransition home = GooBlocks.DIMENSION_DOOR.get().getPortalDestination(pocket, caster, door);
+            helper.assertTrue(home != null, String.format(SHOULD_STAND_DOOR, door, "no way home"));
+            caster.teleport(home);
             helper.assertTrue(caster.level() == level && caster.position().equals(castFrom)
                             && caster.getYRot() == CAST_YAW,
                     String.format(SHOULD_RETURN, castFrom, CAST_YAW, level.dimension().identifier(),
@@ -184,8 +192,8 @@ public final class OutsiderTests {
 
     /**
      * Once the caster stands in their room, the center voidstone, a ring
-     * cell of the platform and the door removed stand again by the next
-     * restore check.
+     * cell of the platform, a post of the doorway's frame and both doorway
+     * cells removed stand again by the next restore check.
      *
      * @param helper the gametest helper
      */
@@ -197,20 +205,23 @@ public final class OutsiderTests {
             room[0] = assertEntered(helper, caster);
             ServerLevel pocket = (ServerLevel) caster.level();
             BlockPos center = OutsiderRooms.voidstoneOf(room[0]);
-            pocket.setBlockAndUpdate(doorOf(room[0]), Blocks.AIR.defaultBlockState());
-            pocket.setBlockAndUpdate(center, Blocks.AIR.defaultBlockState());
-            pocket.setBlockAndUpdate(center.east(), Blocks.AIR.defaultBlockState());
+            for (BlockPos removed : List.of(doorOf(room[0]), doorOf(room[0]).above(), center, center.east(),
+                    center.east().above(2))) {
+                pocket.setBlockAndUpdate(removed, Blocks.AIR.defaultBlockState());
+            }
         });
         helper.runAfterDelay(CHARGE_TICKS + 2 + OutsiderRooms.RESTORE_INTERVAL, () -> {
             ServerLevel pocket = (ServerLevel) caster.level();
             BlockPos center = OutsiderRooms.voidstoneOf(room[0]);
             BlockPos door = doorOf(room[0]);
-            for (BlockPos voidstone : List.of(center, center.east())) {
+            for (BlockPos voidstone : List.of(center, center.east(), center.east().above(2))) {
                 helper.assertTrue(pocket.getBlockState(voidstone).is(GooBlocks.VOIDSTONE.get()),
                         String.format(SHOULD_RESPAWN, "voidstone", voidstone, pocket.getBlockState(voidstone)));
             }
-            helper.assertTrue(pocket.getBlockState(door).is(GooBlocks.DIMENSION_DOOR.get()),
-                    String.format(SHOULD_RESPAWN, "door", door, pocket.getBlockState(door)));
+            for (BlockPos doorway : List.of(door, door.above())) {
+                helper.assertTrue(pocket.getBlockState(doorway).is(GooBlocks.DIMENSION_DOOR.get()),
+                        String.format(SHOULD_RESPAWN, "doorway", doorway, pocket.getBlockState(doorway)));
+            }
             helper.succeed();
         });
     }
@@ -264,9 +275,16 @@ public final class OutsiderTests {
         return room;
     }
 
-    /** The door's block: standing on the center voidstone. */
+    /** The doorway's lower block: standing on the center voidstone. */
     private static BlockPos doorOf(int room) {
         return OutsiderRooms.voidstoneOf(room).above();
+    }
+
+    /** The doorway's voidstone frame: a post either side, two high, and the lintel over the three. */
+    private static List<BlockPos> frameOf(int room) {
+        BlockPos door = doorOf(room);
+        return List.of(door.east(), door.east().above(), door.west(), door.west().above(),
+                door.above(2), door.above(2).east(), door.above(2).west());
     }
 
     /** Where a player arrives: on the voidstone just south of the door. */

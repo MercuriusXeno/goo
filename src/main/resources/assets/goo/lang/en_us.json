@@ -333,7 +333,7 @@
   "goo.ability.void.outsider.description": "Hold to slip into your own room outside the world. Its door brings you back where you left, and the void under it folds you back onto the floor.",
   "goo.ability.void.outsider.cost_mechanics": "Costs void to slip in once the hold charges; held on inside, it feeds void into the platform, which grows one cell at a time in a spiral, each cell costing a little more the farther it stands from the center.",
   "block.goo.voidstone": "Voidstone",
-  "block.goo.dimension_door": "Dimension Door",
+  "block.goo.dimension_door": "Dimension Doorway",
   "goo.pocket.search": "Search",
   "goo.ability.weird.bounce": "Bounce",
   "goo.ability.weird.bounce.description": "Leaves a bouncy pad where the blob lands.",
