@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:terrakinesis_wide_chunk_pulled_out_looking_down_stays_out",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}

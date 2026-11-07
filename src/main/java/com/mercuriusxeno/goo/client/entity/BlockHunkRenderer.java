@@ -1,16 +1,10 @@
 package com.mercuriusxeno.goo.client.entity;
 
-import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.entity.BlockHunk;
-import com.mercuriusxeno.goo.entity.HoldEase;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.MovingBlockRenderState;
@@ -25,11 +19,8 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Draws a block hunk as its blocks, each at its offset from the hunk's origin
@@ -61,20 +52,6 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
     private static final double TREMBLE_SLOW = 1.7;
     /** Offsets the tremble's z from its x, so the pillar shakes in a wobble rather than along a line. */
     private static final double TREMBLE_PHASE = 1.3;
-    /** More gliding hunks than one player could hold means stale ones are left; they are dropped. */
-    private static final int MOST_GLIDES = 16;
-    /** Where each held hunk last drew and when, by entity id, so it glides on from there. */
-    private static final Map<Integer, Glide> GLIDES = new HashMap<>();
-
-    /**
-     * Where a held hunk last drew.
-     *
-     * @param at   the position it drew at
-     * @param time the game time, with the partial tick, it drew at
-     */
-    private record Glide(Vec3 at, double time) {
-    }
-
     /** The hunk's blocks as this frame draws them, each with its offset from the hunk's drawn position. */
     public static final class HunkRenderState extends EntityRenderState {
         final List<MovingBlockRenderState> blocks = new ArrayList<>();
@@ -122,8 +99,8 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
             fadeOverThePlacedStone(hunk, state, lerped, placed);
             return;
         }
-        Vec3 drawnAt = heldOnTheLocalLook(hunk, partialTick);
-        Vec3 position = (drawnAt == null ? lerped : drawnAt).add(trembleOf(hunk, level.getGameTime() + partialTick));
+        // Drawn where the server holds it, so the holder sees what the world does.
+        Vec3 position = lerped.add(trembleOf(hunk, level.getGameTime() + partialTick));
         state.swell = hunk.lingers(level.getGameTime()) ? LINGER_SWELL : WHOLE;
         // One light for the whole hunk, from the open cell above its top, so it shades evenly as it moves.
         BlockPos lightAt = lightCellOf(hunk, position);
@@ -210,64 +187,6 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
     }
 
     /**
-     * Where a hunk the local player holds draws this frame: gliding (HoldEase)
-     * from where it last drew, along the server's rise until it clears its
-     * hole and then toward where the player's own look puts it, so it trails
-     * the look smoothly and never jumps.
-     *
-     * @param hunk        the hunk
-     * @param partialTick the frame's partial tick
-     * @return the position, or null for a hunk the local player does not hold
-     */
-    private static @Nullable Vec3 heldOnTheLocalLook(BlockHunk hunk, float partialTick) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        TerrakinesisStep terrakinesis = player == null || hunk.holderId() != player.getId() ? null
-                : selectedTerrakinesis(player);
-        double now = hunk.level().getGameTime() + partialTick;
-        Vec3 lerped = hunk.getPosition(partialTick);
-        if (terrakinesis == null) {
-            GLIDES.remove(hunk.getId());
-            return null;
-        }
-        Vec3 hold = hunk.clearOfHole() ? onTheLook(hunk, player, terrakinesis, partialTick) : null;
-        return glide(hunk, lerped, hold, now);
-    }
-
-    /**
-     * Glides a held hunk on from where it last drew: along the server's rise
-     * while it climbs out of its hole, then toward the hold by the same seated
-     * ease and the same collision by its own blocks the server moves it by,
-     * so it never draws through a block.
-     *
-     * @param hunk   the hunk
-     * @param lerped where the server last put it, where a new glide starts
-     * @param hold   where the look puts it, or null while it still climbs out of its hole
-     * @param now    the game time, with the partial tick
-     * @return where it draws this frame
-     */
-    private static Vec3 glide(BlockHunk hunk, Vec3 lerped, @Nullable Vec3 hold, double now) {
-        Glide last = GLIDES.get(hunk.getId());
-        Vec3 drawn = lerped;
-        if (last != null) {
-            double seconds = (now - last.time()) * HoldEase.TICK_SECONDS;
-            Vec3 eased = hold == null ? HoldEase.toward(last.at(), lerped, seconds)
-                    : hunk.easedToward(last.at(), hold, seconds);
-            drawn = hold == null ? eased : last.at().add(hunk.heldMove(last.at(), eased.subtract(last.at())));
-        }
-        if (GLIDES.size() > MOST_GLIDES) {
-            GLIDES.clear();
-        }
-        GLIDES.put(hunk.getId(), new Glide(drawn, now));
-        return drawn;
-    }
-
-    private static Vec3 onTheLook(BlockHunk hunk, LocalPlayer player, TerrakinesisStep terrakinesis,
-                                  float partialTick) {
-        return terrakinesis.heldAt(hunk, player.getEyePosition(partialTick), player.getViewVector(partialTick),
-                player.getViewXRot(partialTick), player.getViewYRot(partialTick), player.getBoundingBox());
-    }
-
-    /**
      * Draws a placed hunk's fading blocks, each tesselated as the world
      * tesselates the block in its cell but in the variant it wore while carried,
      * its alpha the fade's, swollen a hair so it sits over the world's block.
@@ -298,13 +217,6 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
                     }, 0f, 0f, 0f, level, faded.cell(), faded.state(), model, faded.seed()));
             poseStack.popPose();
         }
-    }
-
-    private static @Nullable TerrakinesisStep selectedTerrakinesis(LocalPlayer player) {
-        String abilityId = GloveAim.selectedAbilityId(player);
-        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        return ability == null ? null : ability.behaviors().stream().filter(TerrakinesisStep.class::isInstance)
-                .map(TerrakinesisStep.class::cast).findFirst().orElse(null);
     }
 
     @Override
