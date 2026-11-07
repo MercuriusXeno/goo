@@ -17,16 +17,19 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Void's Outsider rooms in goo:pocket, an empty dimension where each
  * player's room stands apart from every other and keeps whatever was built
  * in it. Every platform cell is voidstone, as the operator ruled: a room
- * starts as a 3 by 3 of it, with the dimension door standing on the center
- * cell, and the player arrives on the cell just south of the door, facing
- * it. The door leads back to where the player cast Outsider from; the door
- * and every platform cell stand again if anything removes them; and a player
+ * starts as a 3 by 3 of it, with a two-tall dimension doorway standing on
+ * the center cell, framed by voidstone posts either side and a lintel over
+ * them, and the player arrives on the cell just south of the doorway, facing
+ * it. Walking into the doorway leads back to where the player cast Outsider
+ * from; the doorway, its frame and every platform cell stand again if
+ * anything removes them; and a player
  * falling below the floor is set back south of the door unharmed, the pocket
  * folding them back. Held on inside, Outsider feeds void into the platform,
  * which grows in voidstone along {@link PlatformSpiral}.
@@ -45,6 +48,8 @@ public final class OutsiderRooms {
     public static final int ROOM_FLOOR_Y = 63;
     /** How far below the floor a falling player drops before the pocket folds them back. */
     static final int CATCH_DEPTH = 8;
+    /** The doorway's height in blocks. */
+    private static final int DOORWAY_HEIGHT = 2;
     /** The yaw facing north, toward the door from the arrival cell south of it. */
     private static final float FACING_DOOR = 180f;
     private static final int FOLD_PARTICLES = 48;
@@ -67,13 +72,39 @@ public final class OutsiderRooms {
     }
 
     /**
-     * The dimension door's block, standing on the center voidstone.
+     * The doorway's lower block, standing on the center voidstone; its upper
+     * block stands on it.
      *
      * @param room the room number
-     * @return the door's block
+     * @return the doorway's lower block
      */
     public static BlockPos doorOf(int room) {
         return voidstoneOf(room).above();
+    }
+
+    /**
+     * The doorway's two cells, lower then upper.
+     *
+     * @param room the room number
+     * @return the doorway's blocks
+     */
+    private static List<BlockPos> doorwayOf(int room) {
+        BlockPos door = doorOf(room);
+        return List.of(door, door.above());
+    }
+
+    /**
+     * The doorway's voidstone frame: a post either side, two high, and the
+     * lintel over all three columns.
+     *
+     * @param room the room number
+     * @return the frame's blocks
+     */
+    private static List<BlockPos> frameOf(int room) {
+        BlockPos door = doorOf(room);
+        BlockPos lintel = door.above(DOORWAY_HEIGHT);
+        return List.of(door.east(), door.east().above(), door.west(), door.west().above(),
+                lintel, lintel.east(), lintel.west());
     }
 
     /**
@@ -191,26 +222,27 @@ public final class OutsiderRooms {
     }
 
     /**
-     * Carries a player through the door back to the exact place and facing
-     * they cast Outsider from; a player with no such place, or one whose
+     * The way through the doorway back to the exact place and facing a
+     * player cast Outsider from; a player with no such place, or one whose
      * level is gone, goes to the world's respawn point.
      *
-     * @param player the player using the door
+     * @param player the player walking into the doorway
+     * @return the transition home
      */
-    public static void returnHome(ServerPlayer player) {
+    public static TeleportTransition wayHome(ServerPlayer player) {
         VoidPockets.ReturnPoint point = VoidPockets.get(player.level()).returnOf(player.getUUID());
         ServerLevel home = point == null ? null : player.level().getServer().getLevel(point.dimension());
         if (point == null || home == null) {
-            player.teleport(TeleportTransition.createDefault(player, TeleportTransition.PLAY_PORTAL_SOUND));
-            return;
+            return TeleportTransition.createDefault(player, TeleportTransition.PLAY_PORTAL_SOUND);
         }
-        player.teleport(new TeleportTransition(home, point.position(), Vec3.ZERO, point.yRot(), point.xRot(),
-                TeleportTransition.PLAY_PORTAL_SOUND));
+        return new TeleportTransition(home, point.position(), Vec3.ZERO, point.yRot(), point.xRot(),
+                TeleportTransition.PLAY_PORTAL_SOUND);
     }
 
     /**
-     * Stands the door and every missing platform cell again in each loaded
-     * room; a platform cell a player built into is left as they built it.
+     * Stands the doorway, its frame and every missing platform cell again in
+     * each loaded room; a platform cell a player built into is left as they
+     * built it.
      *
      * @param pocket the pocket dimension
      */
@@ -224,9 +256,15 @@ public final class OutsiderRooms {
                     pocket.setBlock(at, voidstone, Block.UPDATE_ALL);
                 }
             }
-            BlockPos doorAt = doorOf(room);
-            if (pocket.isLoaded(doorAt) && !pocket.getBlockState(doorAt).is(door.getBlock())) {
-                pocket.setBlock(doorAt, door, Block.UPDATE_ALL);
+            for (BlockPos frame : frameOf(room)) {
+                if (pocket.isLoaded(frame) && pocket.getBlockState(frame).isAir()) {
+                    pocket.setBlock(frame, voidstone, Block.UPDATE_ALL);
+                }
+            }
+            for (BlockPos doorway : doorwayOf(room)) {
+                if (pocket.isLoaded(doorway) && !pocket.getBlockState(doorway).is(door.getBlock())) {
+                    pocket.setBlock(doorway, door, Block.UPDATE_ALL);
+                }
             }
         });
     }
@@ -259,6 +297,9 @@ public final class OutsiderRooms {
             pocket.setBlock(platformCellOf(room, index), GooBlocks.VOIDSTONE.get().defaultBlockState(),
                     Block.UPDATE_ALL);
         }
-        pocket.setBlock(doorOf(room), GooBlocks.DIMENSION_DOOR.get().defaultBlockState(), Block.UPDATE_ALL);
+        frameOf(room).forEach(frame -> pocket.setBlock(frame, GooBlocks.VOIDSTONE.get().defaultBlockState(),
+                Block.UPDATE_ALL));
+        doorwayOf(room).forEach(doorway -> pocket.setBlock(doorway,
+                GooBlocks.DIMENSION_DOOR.get().defaultBlockState(), Block.UPDATE_ALL));
     }
 }

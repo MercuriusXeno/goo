@@ -227,7 +227,8 @@ public class GooBlocks {
     public static final DeferredBlock<DimensionDoorBlock> DIMENSION_DOOR = BLOCKS.registerBlock(
             "dimension_door", DimensionDoorBlock::new,
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).strength(UNBREAKABLE, UNBLASTABLE)
-                    .noLootTable().pushReaction(PushReaction.BLOCK).lightLevel(state -> DOOR_GLOW));
+                    .noCollision().noOcclusion().noLootTable().pushReaction(PushReaction.BLOCK)
+                    .lightLevel(state -> DOOR_GLOW));
 
     public static final DeferredBlock<PhasedBlock> PHASED_BLOCK = BLOCKS.registerBlock(
             "phased_block", PhasedBlock::new,
