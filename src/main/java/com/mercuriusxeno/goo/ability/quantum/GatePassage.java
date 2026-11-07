@@ -45,6 +45,13 @@ public final class GatePassage {
     private static final double DEEPEST = 1.5;
     private static final double HALF = 0.5;
     private static final double UNIT = 1.0;
+    /**
+     * How far before a gate's face a body's eye or middle counts as through
+     * it: past the camera's near plane, a twentieth of a block, and the face's
+     * own lift, so the camera never comes near enough the face to clip into
+     * the wall behind it, and lands that far before the partner's face.
+     */
+    private static final double CAMERA_MARGIN = 0.08;
     /** A crawling body's height. */
     private static final double CRAWL_HEIGHT = 0.6;
     /** How far before a low wall gate's face a player drops into a crawl. */
@@ -240,7 +247,7 @@ public final class GatePassage {
      */
     public static boolean crossed(Gate gate, Vec3 before, Vec3 now) {
         double out = gate.out(now);
-        return gate.out(before) >= 0 && out < 0 && out > -DEEPEST && gate.withinOval(now);
+        return gate.out(before) >= CAMERA_MARGIN && out < CAMERA_MARGIN && out > -DEEPEST && gate.withinOval(now);
     }
 
     /**
@@ -385,7 +392,11 @@ public final class GatePassage {
     public static Landing landingThrough(Gate near, Gate far, Held held, double height, Vec3 motion, float yaw,
             float pitch) {
         Landing landing = landing(PortalTransform.between(near, far), held.point(), held.drop(), motion, yaw, pitch);
-        return new Landing(clearOf(far, landing.feet(), height), landing.motion(), landing.yaw(), landing.pitch());
+        // The held point lands mirrored, as far behind the partner's face as it stood before this one; it is set
+        // the camera's margin before the partner's face instead, so the camera never stands where it would clip.
+        double short_ = CAMERA_MARGIN - far.out(landing.feet().add(0, held.drop(), 0));
+        Vec3 ahead = short_ > 0 ? landing.feet().add(far.face().getUnitVec3().scale(short_)) : landing.feet();
+        return new Landing(clearOf(far, ahead, height), landing.motion(), landing.yaw(), landing.pitch());
     }
 
     /**
@@ -418,7 +429,7 @@ public final class GatePassage {
 
     private static boolean behindTheFace(Gate gate, Vec3 point) {
         double out = gate.out(point);
-        return out < 0 && out > -DEEPEST && gate.withinOval(point);
+        return out < CAMERA_MARGIN && out > -DEEPEST && gate.withinOval(point);
     }
 
     /**
