@@ -11,7 +11,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Lets a diver through solid blocks: right after vanilla sets the player's
  * no-clip from spectator mode each tick, a player in Sculker's dive takes it
  * too, on the client that moves the player and the server that checks the
- * move alike.
+ * move alike, and holds the swimming pose for the dive's length, so the
+ * diver swims through the stone as through water.
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  * sculker-swims-solid-blocks-and-surfaces-at-will
  */
@@ -27,8 +28,10 @@ public abstract class PlayerSculkerMixin {
             opcode = org.objectweb.asm.Opcodes.PUTFIELD, shift = At.Shift.AFTER, ordinal = 0))
     private void goo$diverPassesThrough(CallbackInfo info) {
         Player player = (Player) (Object) this;
-        if (!player.noPhysics && SculkerSwim.passesThrough(player)) {
+        boolean diving = SculkerSwim.passesThrough(player);
+        if (!player.noPhysics && diving) {
             player.noPhysics = true;
         }
+        SculkerSwim.holdTheSwimPose(player, diving);
     }
 }

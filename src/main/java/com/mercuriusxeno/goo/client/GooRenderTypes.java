@@ -107,6 +107,34 @@ public final class GooRenderTypes {
                             .createRenderSetup()
             ));
 
+    /**
+     * Sculker's glass field (decision sculker-shows-blocks-translucent-close-up):
+     * the x-ray's translucent block quads, depth tested and writing no depth,
+     * so the diver's own body and every entity in front of the glass stands
+     * over it rather than the glass painting over them.
+     */
+    public static final RenderPipeline SCULKER_GLASS = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sculker_glass"))
+            .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
+            .withShaderDefine("PER_FACE_LIGHTING")
+            .withSampler("Sampler1")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .withCull(false)
+            .build();
+
+    /** Per-atlas memoized render types on Sculker's glass pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> SCULKER_GLASS_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_sculker_glass",
+                    RenderSetup.builder(SCULKER_GLASS)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
     /** Per-atlas memoized render types on the fungus x-ray pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> FUNGUS_XRAY_FACTORY =
             net.minecraft.util.Util.memoize(atlas -> RenderType.create(
@@ -711,6 +739,16 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Returns Sculker's glass render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType sculkerGlass(Identifier atlas) {
+        return SCULKER_GLASS_FACTORY.apply(atlas);
+    }
+
+    /**
      * Returns the block transform render type for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
@@ -1187,6 +1225,7 @@ public final class GooRenderTypes {
     private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(FUNGUS_XRAY);
+        event.registerPipeline(SCULKER_GLASS);
         event.registerPipeline(FUNGUS_GLOW);
         event.registerPipeline(SPORE_SHELL);
         event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
