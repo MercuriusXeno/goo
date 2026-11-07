@@ -115,7 +115,7 @@ class StepCodecTest {
             Map.entry("rewind_hold", LeafSteps.REWIND_HOLD.step(Unit.INSTANCE)),
             Map.entry("regress", new RegressStep(20)),
             Map.entry("ancient", new AncientStep()),
-            Map.entry("grab", new GrabStep(8, 2, 4, 1.5)),
+            Map.entry("grab", new GrabStep(8, 2, 4, 1.5, 1)),
             Map.entry("telekinesis", new TelekinesisStep(8)),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
             Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
