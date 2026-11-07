@@ -60,6 +60,7 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, BROKEN_LAST_LINKS_NOTHING,
                 PortalTests::placedAfterTheLastBrokeStandsInert);
         GooTestFunctions.registerTest(registrar, LINKING_BY_HAND_COSTS_GOO, PortalTests::linkingByHandCostsGoo);
+        GooTestFunctions.registerTest(registrar, ONLY_ON_OPAQUE_BLOCKS, PortalTests::opensOnlyOnOpaqueSolidBlocks);
         GooTestFunctions.registerTest(registrar, FAR_SIDE_STREAMS_TO_A_LOOK, PortalTests::farSideStreamsToALook);
         GooTestFunctions.registerTest(registrar, UNLINKED_PORTAL_HOLDS_A_BODY_UP,
                 PortalTests::unlinkedPortalHoldsABodyUp);
@@ -187,6 +188,34 @@ public final class PortalTests {
         PortalChoice.choose(player, Optional.of(third));
         helper.assertFalse(PortalLinkPayload.linkPaid(player, first), "A player holding no goo should be refused");
         helper.assertTrue(portals.partnerOf(first).equals(Optional.of(third)), "A refused link should leave the pair");
+        level.getServer().getPlayerList().remove(player);
+        helper.succeed();
+    }
+
+    private static final String ONLY_ON_OPAQUE_BLOCKS = "portal_opens_only_on_opaque_solid_blocks";
+
+    /**
+     * A portal opens only on opaque solid blocks: cast on a wall of glass it
+     * places nothing, cast on stone it places a portal
+     * (decision portals-link-by-looking-through-portal-vision).
+     *
+     * @param helper the gametest helper
+     */
+    public static void opensOnlyOnOpaqueSolidBlocks(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+        helper.setBlock(THIRD, Blocks.GLASS);
+        helper.setBlock(THIRD.above(), Blocks.GLASS);
+        GooEffectScheduler.applyEffect(new PendingEffect(0, level, player, GooTypes.QUANTUM, NO_ENTITY,
+                helper.absolutePos(THIRD), Direction.SOUTH, PORTAL));
+        helper.assertTrue(QuantumPortals.get(level).portalsOf(player.getUUID()).isEmpty(),
+                "A portal cast on glass should place nothing, holds " + QuantumPortals.get(level).portalsOf(
+                        player.getUUID()));
+        castAt(helper, player, FIRST, Direction.SOUTH);
+        helper.assertTrue(QuantumPortals.get(level).portalsOf(player.getUUID()).size() == 1,
+                "A portal cast on stone should place one");
         level.getServer().getPlayerList().remove(player);
         helper.succeed();
     }

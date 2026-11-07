@@ -55,10 +55,11 @@ public final class Wormhole {
      * The world as the scan reads it: whether a cell is open and whether a
      * body fits in a box.
      *
-     * @param open whether a cell holds nothing a body collides with, inside the world
-     * @param fits whether a box holds nothing a body collides with, inside the world
+     * @param open  whether a cell holds nothing a body collides with, inside the world
+     * @param fits  whether a box holds nothing a body collides with, inside the world
+     * @param solid whether a cell holds an opaque solid block a mouth may stand on
      */
-    public record Space(Predicate<BlockPos> open, Predicate<AABB> fits) {
+    public record Space(Predicate<BlockPos> open, Predicate<AABB> fits, Predicate<BlockPos> solid) {
 
         /**
          * The level as a player passing through reads it; a cell above or
@@ -72,7 +73,8 @@ public final class Wormhole {
             return new Space(cell -> !level.isOutsideBuildHeight(cell) && level.noCollision(player, new AABB(cell)),
                     box -> !level.isOutsideBuildHeight(BlockPos.containing(box.minX, box.minY, box.minZ))
                             && !level.isOutsideBuildHeight(BlockPos.containing(box.maxX, box.maxY, box.maxZ))
-                            && level.noCollision(player, box));
+                            && level.noCollision(player, box),
+                    cell -> level.getBlockState(cell).isSolidRender());
         }
     }
 
@@ -125,7 +127,8 @@ public final class Wormhole {
      */
     private static Optional<Opening> holeThrough(Space space, List<BlockPos> mouth, Direction face, int reach,
             double width) {
-        boolean faced = mouth.stream().allMatch(cell -> !space.open().test(cell)
+        // hole-closes-the-space-to-an-opening-ahead: each mouth stands only on opaque solid blocks
+        boolean faced = mouth.stream().allMatch(cell -> space.solid().test(cell)
                 && space.open().test(cell.relative(face)));
         if (!faced) {
             return Optional.empty();
@@ -135,8 +138,9 @@ public final class Wormhole {
             List<BlockPos> layer = shifted(mouth, inward, step);
             long open = layer.stream().filter(space.open()).count();
             if (open == layer.size()) {
-                return space.fits().test(crawlBoxIn(layer, inward, width))
-                        ? Optional.of(new Opening(mouth, shifted(mouth, inward, step - 1))) : Optional.empty();
+                List<BlockPos> farWall = shifted(mouth, inward, step - 1);
+                return space.fits().test(crawlBoxIn(layer, inward, width)) && farWall.stream().allMatch(space.solid())
+                        ? Optional.of(new Opening(mouth, farWall)) : Optional.empty();
             }
             if (open > 0) {
                 return Optional.empty();

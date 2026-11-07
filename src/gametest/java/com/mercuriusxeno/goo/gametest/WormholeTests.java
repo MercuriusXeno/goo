@@ -48,6 +48,7 @@ public final class WormholeTests {
     private static final String CRAWLS_THROUGH_A_ONE_BY_ONE_WALL = "hole_crawls_through_a_one_by_one_wall";
     private static final String STANDS_BEFORE_A_FULL_MOUTH = "hole_stands_before_a_full_mouth";
     private static final String DISMISSED_BY_A_HIT = "hole_dismissed_by_a_hit";
+    private static final String REFUSED_ON_GLASS = "hole_refused_on_glass";
     private static final String OPENS_DOWN_FROM_THE_STRUCK_BLOCK = "hole_opens_down_from_the_struck_block";
 
     /**
@@ -69,6 +70,7 @@ public final class WormholeTests {
                 WormholeTests::crawlsThroughAOneByOneWall);
         GooTestFunctions.registerTest(registrar, STANDS_BEFORE_A_FULL_MOUTH, WormholeTests::standsBeforeAFullMouth);
         GooTestFunctions.registerTest(registrar, DISMISSED_BY_A_HIT, WormholeTests::dismissedByAHit);
+        GooTestFunctions.registerTest(registrar, REFUSED_ON_GLASS, WormholeTests::refusedOnGlass);
         GooTestFunctions.registerTest(registrar, OPENS_DOWN_FROM_THE_STRUCK_BLOCK,
                 WormholeTests::opensDownFromTheStruckBlock);
     }
@@ -422,6 +424,29 @@ public final class WormholeTests {
             double bottom = holeStruckAt(helper, HIGH_IN_THE_TALL_WALL).orElseThrow().entry().blocks().minY;
             helper.assertTrue(bottom == helper.absolutePos(new BlockPos(2, 1, 2)).getY(), "The hole should open down "
                     + "from the struck block to the wall's foot, its bottom stands at " + bottom);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A hole opens only on opaque solid blocks: thrown at a wall of glass it
+     * is refused, no mouth opening.
+     *
+     * @param helper the gametest helper
+     */
+    public static void refusedOnGlass(GameTestHelper helper) {
+        for (int x = 1; x <= 3; x++) {
+            for (int y = 1; y <= 3; y++) {
+                for (int z = WALL_NEAR_Z; z <= WALL_FAR_Z; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.GLASS);
+                }
+            }
+        }
+        ServerPlayer caster = caster(helper);
+        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            helper.assertTrue(holeStruckAt(helper, STRUCK).isEmpty(), "A hole thrown at glass should be refused");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
