@@ -382,7 +382,9 @@ public final class GooClientSetup {
     /**
      * Adds the goo coat layer and the ailment overlay layer to every living
      * entity renderer, both player skins and mannequins among them
-     * (decisions shader-coat-on-every-mob-landing, ailment-overlay-shader-per-ailment).
+     * (decisions shader-coat-on-every-mob-landing, ailment-overlay-shader-per-ailment),
+     * and the glove arm layer to every skin's player and mannequin renderers.
+     * decision diagnose-and-correct-the-arm-through-the-glove
      *
      * @param event the event instance
      */
@@ -406,6 +408,7 @@ public final class GooClientSetup {
             EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE, null);
             VineTangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
+        GloveArmLayer.addToSkins(event);
     }
 
     /**
