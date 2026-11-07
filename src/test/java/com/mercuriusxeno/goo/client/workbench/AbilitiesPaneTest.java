@@ -70,6 +70,29 @@ class AbilitiesPaneTest {
         }
     }
 
+    /**
+     * The ability row the pointer hovers fills with the palette's selected fill across the section's width, from its
+     * name line's top to its last line's bottom; no row fills while the pointer stands off every row (the operator's
+     * ruling of 2026-11-07).
+     */
+    @Test
+    void theHoveredAbilitysRowFillsWithTheSelectedFill() {
+        AbilitiesPane pane = pane(Map.of());
+        DrawnFrame laid = draw(pane);
+        DrawnFrame.Text name = laid.find(NAME);
+        int rowTop = name.y() - RowLayout.nameTop(DrawnFrame.font(), 0);
+        DrawnFrame hovered = new DrawnFrame();
+        pane.extract(hovered.graphics, DrawnFrame.font(), VIEW, hovered.targets, name.x(), name.y() + 1);
+        DrawnFrame away = new DrawnFrame();
+        pane.extract(away.graphics, DrawnFrame.font(), VIEW, away.targets, VIEW.right() - 1, VIEW.bottom() - 1);
+
+        List<int[]> fills = hovered.fillsOf(Palette.SELECTED_FILL);
+        assertTrue(fills.stream().anyMatch(fill -> fill[0] == VIEW.left() && fill[1] == rowTop
+                && fill[3] >= rowTop + RowLayout.SPRITE_ROW_HEIGHT), "no row fill at " + rowTop + ": "
+                + fills.stream().map(java.util.Arrays::toString).toList());
+        assertEquals(List.of(), away.fillsOf(Palette.SELECTED_FILL));
+    }
+
     /** A cost drawing an item's icon stands taller than a number's box, and its label centers on it all the same. */
     @Test
     void aCostsLabelCentersOnItsTallerBox() {
