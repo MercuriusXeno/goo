@@ -606,7 +606,10 @@ public final class ValuesManagerScreen extends Screen {
         return oneLineTooltip(hoverKey).or(() -> icons.tooltipFor(hoverKey)
                 .or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
                 .or(() -> GroupHovers.tooltipFor(groupsTab, values, processesTab, hoverKey))
-                .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey)));
+                .or(() -> ConversionHovers.tooltipFor(processesTab, variablesTab, hoverKey))
+                // ability-heading-is-rail-icon-name-draft-badge-and-hovers-its-description
+                .or(() -> AbilitiesPane.descriptionFor(hoverKey, key -> Language.getInstance().getOrDefault(key))
+                        .map(text -> List.of(new TooltipLine.Text(Component.literal(text))))));
     }
 
     /**

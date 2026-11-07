@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mercuriusxeno.goo.ability.AbilityIconTexture;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import org.junit.jupiter.api.Nested;
@@ -176,9 +177,9 @@ class AbilitiesPaneTest {
             return GooTypeIcons.nameOf(type).getString();
         }
 
-        // A heading's row top, from its text's top, as the heading centers its text on its row.
+        // An ability heading's row top, from its name's top, as the heading centers its name on its sprite row.
         private static int rowTopOf(DrawnFrame.Text heading) {
-            return heading.y() - Lettering.full(DrawnFrame.font()).centeredTop(0, ButtonPainter.HEIGHT);
+            return heading.y() - RowLayout.nameTop(DrawnFrame.font(), 0);
         }
 
         @Test
@@ -238,6 +239,63 @@ class AbilitiesPaneTest {
             assertTrue(rules.contains(rowTopOf(frame.find("rock_mob_first")) - 1), rules.toString());
             assertFalse(rules.contains(rowTopOf(frame.find("rock_channeled")) - 1), rules.toString());
             assertFalse(rules.contains(rowTopOf(frame.find("unstable_world")) - 1), rules.toString());
+        }
+    }
+
+    /**
+     * An ability's heading reads its rail's room, its 16px icon, its bold name and the gold draft badge while a draft
+     * stands, and its name hovers its own description (decision
+     * ability-heading-is-rail-icon-name-draft-badge-and-hovers-its-description).
+     */
+    @Nested
+    class Heading {
+        private static final String DESCRIPTION_KEY = "goo.ability.unstable.lurker.description";
+        private static final String DESCRIPTION = "Lies in wait, then bursts when something walks over it.";
+        private static final Map<String, String> LANG = Map.of(NAME_KEY, NAME, DESCRIPTION_KEY, DESCRIPTION);
+        private static final String DRAFTED = """
+                {"typeOrder": ["unstable"], "abilities": [{"id": "goo:unstable_lurker", "gooType": "unstable",
+                  "displayName": "%s", "description": "%s", "icon": "", "badge": "world", "order": 10,
+                  "draft": true, "leaves": []}]}
+                """.formatted(NAME_KEY, DESCRIPTION_KEY);
+
+        private static DrawnFrame drawn() {
+            AbilitiesTab tab = new AbilitiesTab();
+            tab.readModel(DRAFTED);
+            ManagerActions actions = mock(ManagerActions.class);
+            ItemIcons icons = mock(ItemIcons.class);
+            AbilitiesPane pane = new AbilitiesPane(tab, actions, icons, new ExpressionBuilderPane(actions, icons,
+                    List::of, List::of), key -> LANG.getOrDefault(key, key), ref -> Map.of(), java.util.Set::of);
+            return draw(pane);
+        }
+
+        @Test
+        void theIconBlitsAtSixteenPastTheRailAndTheNameStandsPastIt() {
+            DrawnFrame frame = drawn();
+            int iconLeft = VIEW.left() + ControlFlow.RAIL_ADVANCE;
+            verify(frame.graphics).blit(any(), eq(AbilityIconTexture.of(
+                    net.minecraft.resources.Identifier.parse("goo:unstable_lurker"), "")), eq(iconLeft), anyInt(),
+                    anyFloat(), anyFloat(), eq(RowLayout.SPRITE_SIZE), eq(RowLayout.SPRITE_SIZE),
+                    eq(RowLayout.SPRITE_SIZE), eq(RowLayout.SPRITE_SIZE), anyInt());
+            assertTrue(frame.find(NAME).x() >= iconLeft + RowLayout.SPRITE_SIZE, frame.find(NAME).toString());
+            assertTrue(frame.bold(NAME));
+        }
+
+        @Test
+        void aDraftReadsTheGoldBadgeRightOfTheName() {
+            DrawnFrame frame = drawn();
+            DrawnFrame.Text badge = frame.find("draft");
+            assertEquals(Palette.GOLD, badge.color());
+            assertTrue(badge.x() > frame.find(NAME).x());
+        }
+
+        @Test
+        void theNameHoversTheAbilitysOwnDescription() {
+            DrawnFrame frame = drawn();
+            DrawnFrame.Text name = frame.find(NAME);
+            String hoverKey = frame.targets.hoveredArea(name.x() + 1, name.y() + 1)
+                    .map(ClickTargets.HoveredArea::hoverKey).orElseThrow(() -> new AssertionError("no hover"));
+            assertEquals(java.util.Optional.of(DESCRIPTION),
+                    AbilitiesPane.descriptionFor(hoverKey, key -> LANG.getOrDefault(key, key)));
         }
     }
 

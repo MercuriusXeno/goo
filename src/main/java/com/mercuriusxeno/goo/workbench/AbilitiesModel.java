@@ -36,6 +36,9 @@ public final class AbilitiesModel {
     private static final String DISPLAY_NAME = "displayName";
     private static final String DRAFT = "draft";
     private static final String BADGE = "badge";
+    private static final String ICON = "icon";
+    private static final String NO_ICON = "";
+    private static final String DESCRIPTION = "description";
     private static final String ORDER = "order";
     private static final String TYPE_ORDER = "typeOrder";
     private static final String LEAVES = "leaves";
@@ -210,6 +213,11 @@ public final class AbilitiesModel {
         ability.addProperty(ID, id.toString());
         ability.add(GOO_TYPE, file.get(GOO_TYPE));
         ability.add(DISPLAY_NAME, file.get(DISPLAY_NAME));
+        // ability-heading-is-rail-icon-name-draft-badge-and-hovers-its-description
+        ability.addProperty(ICON, file.has(ICON) ? file.get(ICON).getAsString() : NO_ICON);
+        ability.addProperty(DESCRIPTION, file.has(DESCRIPTION) ? file.get(DESCRIPTION).getAsString()
+                : AbilityDefinition.defaultDescription(file.has(DISPLAY_NAME) ? file.get(DISPLAY_NAME).getAsString()
+                : id.getPath()));
         ability.add(BADGE, file.get(BADGE));
         ability.addProperty(ORDER, file.has(ORDER) ? file.get(ORDER).getAsInt() : 0);
         ability.addProperty(DRAFT, draft);
