@@ -5,6 +5,7 @@
   "mixins": [
     "BlockStateGatePassageMixin",
     "ContainerShiftClickMergeMixin",
+    "EntityGatePassageMixin",
     "EntityPhasePassMixin",
     "EntitySlimeCoatUnderfootMixin",
     "FoodDataLifetapMixin",
@@ -30,6 +31,7 @@
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",
     "PlayerModelAbilityPoseMixin",
+    "ScreenEffectRendererGateMixin",
     "EntityScryOutlineColorMixin",
     "MinecraftScryOutlineMixin"
   ]
