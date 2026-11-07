@@ -148,7 +148,8 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
             return false;
         }
         Optional<Portal> frame = Portal.frameAt(
-                pos -> !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
+                // portals-link-by-looking-through-portal-vision: a portal opens only on an opaque solid block
+                pos -> level.getBlockState(pos).isSolidRender(),
                 pos -> level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
                 GlobalPos.of(level.dimension(), cell.relative(face.getOpposite())), face, player.getDirection());
         frame.ifPresent(portal -> PortalChoice.place(level, caster, portal));
