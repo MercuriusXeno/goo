@@ -39,8 +39,6 @@ public final class Wormhole {
     /** How far off the struck face the ring draws, so it shows over the block. */
     private static final double FACE_LIFT = 0.55;
     private static final double HALF = 0.5;
-    /** How far out of its face a mouth's slab reaches: a body touches it only by pressing against the face. */
-    private static final double FLUSH = 0.1;
     private static final float SOUND_VOLUME = 1.0f;
     private static final float MOUTH_PITCH = 1.3f;
     private static final float COLLAPSE_PITCH = 0.6f;
@@ -150,23 +148,19 @@ public final class Wormhole {
             int lifetime) {
         Space space = Space.of(level, caster);
         Direction inward = face.getOpposite();
-        Optional<Opening> found = openingAhead(space, struck, inward, reach, caster.getBbWidth(),
-                caster.getBbHeight());
+        Optional<Opening> found = framedOpening(space, struck, face, reach, caster);
         if (found.isEmpty()) {
             collapse(level, struck, face);
             return false;
         }
-        BlockPos firstOpen = found.get().firstOpen();
-        BlockPos farWall = firstOpen.relative(face);
+        BlockPos farWall = found.get().firstOpen().relative(face);
         Vec3 up = face.getAxis().isHorizontal() ? Direction.UP.getUnitVec3() : Direction.NORTH.getUnitVec3();
-        OpenHoles.Mouth entry = new OpenHoles.Mouth(flushOn(struck, face), arrivalBefore(space, struck, face,
-                caster), onFace(struck, face), new Gate(level.dimension(), layerAround(struck, face), face, up));
-        OpenHoles.Mouth exit = new OpenHoles.Mouth(flushOn(farWall, inward), found.get().feet(),
-                Vec3.atCenterOf(firstOpen), new Gate(level.dimension(), layerAround(farWall, inward), inward, up));
-        OpenHoles.open(level.getServer(), new OpenHoles.Hole(level.dimension(), entry, exit, face.getAxis(),
+        Gate entry = new Gate(level.dimension(), layerAround(struck, face), face, up);
+        Gate exit = new Gate(level.dimension(), layerAround(farWall, inward), inward, up);
+        OpenHoles.open(level.getServer(), new OpenHoles.Hole(level.dimension(), entry, exit,
                 level.getGameTime() + lifetime));
-        mouth(level, entry.middle());
-        mouth(level, exit.middle());
+        mouth(level, entry.center());
+        mouth(level, exit.center());
         return true;
     }
 
@@ -188,51 +182,6 @@ public final class Wormhole {
     }
 
     /**
-     * The thin slab lying flush on a face across the 3x3 around a block, which
-     * a body touches only by pressing against the face.
-     *
-     * @param block the block whose face it lies on, the cross-section's centre
-     * @param face  the face
-     * @return the slab
-     */
-    static AABB flushOn(BlockPos block, Direction face) {
-        Direction.Axis axis = face.getAxis();
-        boolean positive = face.getAxisDirection() == Direction.AxisDirection.POSITIVE;
-        double plane = block.get(axis) + (positive ? 1 : 0);
-        double outer = plane + (positive ? FLUSH : -FLUSH);
-        AABB span = new AABB(block).inflate(HALF_SPAN);
-        return switch (axis) {
-            case X -> new AABB(Math.min(plane, outer), span.minY, span.minZ, Math.max(plane, outer), span.maxY,
-                    span.maxZ);
-            case Y -> new AABB(span.minX, Math.min(plane, outer), span.minZ, span.maxX, Math.max(plane, outer),
-                    span.maxZ);
-            case Z -> new AABB(span.minX, span.minY, Math.min(plane, outer), span.maxX, span.maxY,
-                    Math.max(plane, outer));
-        };
-    }
-
-    /**
-     * Where a traveller comes back out before the struck face: the cell in
-     * front of it, or the one below that where the body fits only there.
-     *
-     * @param space  the world as the scan reads it
-     * @param struck the struck block
-     * @param face   the struck face
-     * @param caster the body that must fit
-     * @return the feet
-     */
-    private static Vec3 arrivalBefore(Space space, BlockPos struck, Direction face, ServerPlayer caster) {
-        BlockPos front = struck.relative(face);
-        for (BlockPos cell : List.of(front.below(), front)) {
-            Vec3 feet = Vec3.atBottomCenterOf(cell);
-            if (space.fits().test(boxAt(feet, caster.getBbWidth(), caster.getBbHeight()))) {
-                return feet;
-            }
-        }
-        return Vec3.atBottomCenterOf(front);
-    }
-
-    /**
      * Whether a wormhole from a struck face has an opening to carry a player
      * out to.
      *
@@ -244,8 +193,45 @@ public final class Wormhole {
      * @return true where an opening lies within reach
      */
     public static boolean opens(ServerLevel level, ServerPlayer player, BlockPos struck, Direction face, int reach) {
-        return openingAhead(Space.of(level, player), struck, face.getOpposite(), reach, player.getBbWidth(),
-                player.getBbHeight()).isPresent();
+        return framedOpening(Space.of(level, player), struck, face, reach, player).isPresent();
+    }
+
+    /**
+     * The opening ahead of a struck face where both mouths have a wall to
+     * stand in: the whole 3x3 at the struck face solid with open cells before
+     * it, and the whole 3x3 of the wall's far face solid, so no mouth ever
+     * hangs in the air.
+     *
+     * @param space  the world as the scan reads it
+     * @param struck the struck block
+     * @param face   the struck face
+     * @param reach  how many cells past the struck block the scan runs
+     * @param caster the body that must fit
+     * @return the opening, empty where none lies within reach or a mouth has no wall to stand in
+     */
+    static Optional<Opening> framedOpening(Space space, BlockPos struck, Direction face, int reach,
+            ServerPlayer caster) {
+        Direction inward = face.getOpposite();
+        if (!walled(space, struck, face, true)) {
+            return Optional.empty();
+        }
+        return openingAhead(space, struck, inward, reach, caster.getBbWidth(), caster.getBbHeight())
+                .filter(opening -> walled(space, opening.firstOpen().relative(face), inward, false));
+    }
+
+    /**
+     * Whether the 3x3 around a block across a face is all solid wall, and,
+     * where asked, every cell before it open.
+     *
+     * @param space     the world as the scan reads it
+     * @param block     the 3x3's centre
+     * @param face      the face the mouth would cover
+     * @param openFront whether the cells before the face must be open
+     * @return true where a mouth has a wall to stand in
+     */
+    private static boolean walled(Space space, BlockPos block, Direction face, boolean openFront) {
+        return openingsAt(block, acrossOf(face)).getFirst().stream()
+                .allMatch(cell -> !space.open().test(cell) && (!openFront || space.open().test(cell.relative(face))));
     }
 
     /**

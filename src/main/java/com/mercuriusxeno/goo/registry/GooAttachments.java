@@ -17,7 +17,6 @@ import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
-import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.SharedFate;
 import com.mercuriusxeno.goo.ability.quantum.SwapBodyRef;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
@@ -376,15 +375,6 @@ public final class GooAttachments {
                             .serialize(OutOfPhase.CODEC, OutOfPhase::laid)
                             .sync(GooAttachments::syncsToWatcher, OutOfPhase.STREAM_CODEC)
                             .build());
-
-    /**
-     * The Quantum portal a player last came out of, held until they step
-     * clear of its mouth, so arriving never carries them straight back. Not saved.
-     * portals-link-by-looking-through-portal-vision
-     */
-    public static final Supplier<AttachmentType<Optional<Portal>>> PORTAL_ARRIVAL =
-            ATTACHMENT_TYPES.register("portal_arrival",
-                    () -> AttachmentType.<Optional<Portal>>builder(Optional::empty).build());
 
     /**
      * The swap body a player has standing, saved with the player while one stands.

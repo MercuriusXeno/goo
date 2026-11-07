@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import io.netty.buffer.ByteBuf;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -42,6 +43,52 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
      */
     public Vec3 center() {
         return blocks.getCenter().add(face.getUnitVec3().scale(HALF));
+    }
+
+    /**
+     * @return its right, along the face, across its up
+     */
+    public Vec3 right() {
+        return up.cross(face.getUnitVec3());
+    }
+
+    /**
+     * How far a point stands out of the face: positive before it, negative
+     * behind it, inside the blocks.
+     *
+     * @param point a point
+     * @return the distance along the face's normal
+     */
+    public double out(Vec3 point) {
+        return point.subtract(center()).dot(face.getUnitVec3());
+    }
+
+    /**
+     * Whether a point lies within the gate's oval, seen square on.
+     *
+     * @param point a point
+     * @return true inside the oval
+     */
+    public boolean withinOval(Vec3 point) {
+        Vec3 offset = point.subtract(center());
+        double across = offset.dot(right()) / halfSpan(right());
+        double along = offset.dot(up) / halfSpan(up);
+        return across * across + along * along <= 1.0;
+    }
+
+    /**
+     * Whether a block is one of those the gate lies on.
+     *
+     * @param pos a block
+     * @return true for one of its blocks
+     */
+    public boolean covers(BlockPos pos) {
+        return blocks.contains(Vec3.atCenterOf(pos));
+    }
+
+    private double halfSpan(Vec3 axis) {
+        return Math.abs(axis.x()) * blocks.getXsize() * HALF + Math.abs(axis.y()) * blocks.getYsize() * HALF
+                + Math.abs(axis.z()) * blocks.getZsize() * HALF;
     }
 
     private static void encode(ByteBuf buf, Gate gate) {

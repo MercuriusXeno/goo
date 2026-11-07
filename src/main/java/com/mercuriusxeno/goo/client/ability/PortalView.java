@@ -7,6 +7,7 @@ import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -50,7 +51,7 @@ import java.util.Optional;
 public final class PortalView {
 
     /** How far in front of the partner's face the clip plane stands, so the partner's own block never shows. */
-    private static final float CLIP_OFFSET = 0.02F;
+    private static final float CLIP_OFFSET = 0.001F;
     /** How near the partner's plane, in blocks, the mirrored eye may stand before the view is skipped. */
     private static final double NEAREST_PLANE = 0.01;
     private static final int BLOCKS_PER_CHUNK = 16;
@@ -206,9 +207,37 @@ public final class PortalView {
         CAMERA.place(mc.level, mc.player, delta, main.getFov(), eye,
                 turnOf(through.direction(vec(main.forwardVector())), through.direction(vec(main.upVector()))));
         CameraRenderState camera = extractThrough(mc, delta);
+        bobAsTheFrameDoes(mc, camera);
         clipAt(camera.projectionMatrix, camera.viewRotationMatrix, eye, far);
         renderInto(mc, delta, targetFor(mc, slot), camera);
         return true;
+    }
+
+    /**
+     * Bobs the view's projection as the frame bobs its own, hurt and walk
+     * both, so the view sampled on the gate's face stays flush with the frame
+     * while the camera moves.
+     *
+     * @param mc     the client
+     * @param camera the portal camera's state, its projection bobbed in place
+     */
+    private static void bobAsTheFrameDoes(Minecraft mc, CameraRenderState camera) {
+        PoseStack bob = new PoseStack();
+        mc.gameRenderer.bobHurt(camera, bob);
+        if (mc.gameRenderer.gameRenderState.optionsRenderState.bobView) {
+            mc.gameRenderer.bobView(camera, bob);
+        }
+        camera.projectionMatrix.mul(bob.last().pose());
+    }
+
+    /**
+     * The position of the camera a view is being drawn from, for what draws
+     * inside the view's own pass.
+     *
+     * @return the portal camera's position
+     */
+    public static Vec3 cameraPosition() {
+        return CAMERA.position();
     }
 
     /**

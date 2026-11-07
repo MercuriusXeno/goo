@@ -993,7 +993,7 @@ public final class GooRenderTypes {
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
             .withSampler("Sampler0")
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
             .build();
@@ -1019,6 +1019,27 @@ public final class GooRenderTypes {
     /** RenderType for an idle portal's swirl. */
     public static final RenderType GOO_PORTAL_IDLE_TYPE = RenderType.create("goo_portal_idle",
             RenderSetup.builder(GOO_PORTAL_IDLE).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+                    .createRenderSetup());
+
+    /**
+     * The idle swirl's twin passing every depth test, for portal vision:
+     * while a player chooses a partner, every portal of theirs shows its
+     * swirl through walls.
+     */
+    public static final RenderPipeline GOO_PORTAL_VISION = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_vision"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /** RenderType for portal vision's swirls through walls. */
+    public static final RenderType GOO_PORTAL_VISION_TYPE = RenderType.create("goo_portal_vision",
+            RenderSetup.builder(GOO_PORTAL_VISION).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
                     .createRenderSetup());
 
     /** Per-view memoized render types on the portal view pipeline. */
@@ -1274,6 +1295,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GOO_PORTAL_VIEW);
         event.registerPipeline(GOO_PORTAL_IDLE);
+        event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
