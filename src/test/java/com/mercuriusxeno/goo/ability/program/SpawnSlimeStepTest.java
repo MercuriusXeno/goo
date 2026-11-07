@@ -1,25 +1,24 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.network.TransformationPayload;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
-import java.util.ArrayList;
-import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * A birth's transformation reaches the watchers before the newborn itself:
- * adding the newborn sends its spawn at once, so a transformation sent after
- * it would leave the newborn drawn whole for a frame before the blob appears
- * (decision model-transformation-is-one-animation).
+ * The landed Slime blob morphs into its slime where it splatted, with no hop
+ * up and down first (decision slime-blob-morphs-into-the-slime-it-becomes).
  */
 class SpawnSlimeStepTest {
 
     @Test
-    void theTransformationGoesOutBeforeTheNewbornIsAdded() {
-        List<String> sent = new ArrayList<>();
+    void theBlobMorphsWhereItSplattedWithNoHop() {
+        Vec3 splat = new Vec3(4.5, 64.0, -2.5);
 
-        SpawnSlimeStep.spawnAnnounced("slime", () -> sent.add("transformation"),
-                born -> sent.add(born + " spawn"));
+        TransformationPayload morph = SpawnSlimeStep.morphOf(GooTypes.WEIRD, splat, 4242);
 
-        assertEquals(List.of("transformation", "slime spawn"), sent);
+        assertEquals(splat, morph.from());
+        assertEquals(splat, morph.to());
     }
 }

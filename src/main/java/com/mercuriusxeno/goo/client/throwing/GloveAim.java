@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.held.Telekinesis;
+import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -39,6 +41,21 @@ public final class GloveAim {
             return TargetingHint.NONE;
         }
         return hintFromAbility(type, sel);
+    }
+
+    /**
+     * How far the glove aims for its selected ability: a grab's reach, so it
+     * marks no mob it cannot lift, and the throw range for every other ability.
+     *
+     * @param player     the local player
+     * @param throwRange the range every ability without a reach of its own aims to
+     * @return the aim range, in blocks
+     */
+    public static double aimRange(Player player, double throwRange) {
+        String abilityId = selectedAbilityId(player);
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? throwRange
+                : GrabStep.reachOf(ability.behaviors(), Telekinesis.entityReachLaid(player)).orElse(throwRange);
     }
 
     /**

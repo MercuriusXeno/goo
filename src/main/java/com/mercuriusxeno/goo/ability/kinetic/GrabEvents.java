@@ -76,7 +76,7 @@ public final class GrabEvents {
             // A held item drawn in close would otherwise fall into the holder's pickup.
             item.setPickUpDelay(FLAIL_OVERLAY_TICKS);
         }
-        player.setData(GooAttachments.GRAB_HOLD, new GrabHold(held.getId(), throwSpeed, until));
+        player.setData(GooAttachments.GRAB_HOLD, new GrabHold(held.getId(), throwSpeed, until, false));
         EntityVisuals.sendToWatchers(held, new AilmentPayload(held.getId(), AilmentKind.GRABBED, FLAIL_OVERLAY_TICKS));
     }
 
@@ -95,9 +95,26 @@ public final class GrabEvents {
     }
 
     /**
+     * Whether a throw spent the player's press, stretching the spent press
+     * across this channel tick so it stands until the channel lets go.
+     *
+     * @param player the channeling player
+     * @return true where the press is spent and lifts nothing
+     */
+    public static boolean extendSpentPress(ServerPlayer player) {
+        long now = player.level().getGameTime();
+        if (!player.getData(GooAttachments.GRAB_HOLD).spentAt(now)) {
+            return false;
+        }
+        player.setData(GooAttachments.GRAB_HOLD, GrabHold.spentUntil(now + HOLD_GRACE_TICKS));
+        return true;
+    }
+
+    /**
      * Throws what a player holds along the player's look at the hold's
-     * throw speed, freeing it first so it flies; a player holding nothing
-     * throws nothing.
+     * throw speed, freeing it first so it flies, and spends the press so
+     * the channel ticks right click still sends lift nothing until it lets
+     * go; a player holding nothing throws nothing and keeps a spent press spent.
      *
      * @param player the throwing player
      * @return true where the player held an entity and threw it
@@ -105,10 +122,13 @@ public final class GrabEvents {
     public static boolean throwHeld(ServerPlayer player) {
         Entity held = heldBy(player);
         double speed = player.getData(GooAttachments.GRAB_HOLD).throwSpeed();
-        player.setData(GooAttachments.GRAB_HOLD, GrabHold.NONE);
         if (held == null) {
+            // decision diagnose-and-correct-grabs-left-click-throw: a second click must not clear the spent press
             return false;
         }
+        // decision diagnose-and-correct-grabs-left-click-throw: a cleared hold let the next channel tick lift the thrown body again
+        player.setData(GooAttachments.GRAB_HOLD,
+                GrabHold.spentUntil(player.level().getGameTime() + HOLD_GRACE_TICKS));
         release(held);
         held.setDeltaMovement(player.getLookAngle().scale(speed));
         held.hurtMarked = true;
