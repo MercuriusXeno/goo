@@ -487,6 +487,10 @@ public final class AbilitySyncHandler {
             if (upkeep > 0) {
                 return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
             }
+            // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
+            if (cost == 0 && costFormula.isPresent()) {
+                return costFormula.get();
+            }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
             if (!pricedDynamically() && paysWhileHeld()) {
                 return GooFormat.formatAmount((long) cost * TICKS_PER_SECOND / delivery.ticksPerCharge()) + PER_SECOND;
