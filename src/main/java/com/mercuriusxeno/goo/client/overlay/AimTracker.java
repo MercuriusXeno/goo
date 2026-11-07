@@ -46,7 +46,8 @@ public final class AimTracker {
         ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(player);
         int entityOutline = selectedType != null ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        STATE.update(seed -> AimTargets.resolve(player, seed, GloveAim.targetingHint(player), partialTick),
+        double range = GloveAim.aimRange(player, AimState.MAX_RANGE);
+        STATE.update(seed -> AimTargets.resolve(player, seed, GloveAim.targetingHint(player), range, partialTick),
                 entityOutline);
     }
 
