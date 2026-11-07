@@ -181,8 +181,6 @@
   "goo.ability.astral.meteo.description": "Calls a meteor; requires open sky.",
   "goo.ability.astral.scry": "Scry",
   "goo.ability.astral.scry.description": "Hold to see the spaces around you.",
-  "goo.ability.deep.churn": "Churn",
-  "goo.ability.deep.churn.description": "Reaches down under where the blob lands for a vein of ore and pulls it up to the surface, the ground above it sinking into its place.",
   "goo.ability.deep.convoke": "Convoke",
   "goo.ability.deep.convoke.description": "A blob that sends a sculk ring out through the ground; every mob the ring reaches turns and walks to the blob while it lasts.",
   "goo.ability.deep.dive": "Dive",

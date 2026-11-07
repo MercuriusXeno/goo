@@ -171,7 +171,6 @@ class StepCodecTest {
             Map.entry("shifter", new ShifterStep(Expr.literal(8))),
             Map.entry("convoke", new ConvokeStep(Expr.literal(40), Expr.literal(16), Expr.literal(600))),
             Map.entry("dive", new DiveStep()),
-            Map.entry("churn", new ChurnStep(Expr.literal(12))),
             Map.entry("end", new EndStep(Expr.literal(1200))),
             Map.entry("astral_gate", new AstralGateStep(Expr.literal(1200))),
             Map.entry("void_pocket", new VoidPocketStep(Expr.literal(1200))),
