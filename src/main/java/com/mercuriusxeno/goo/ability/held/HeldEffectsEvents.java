@@ -15,6 +15,8 @@ import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -115,10 +117,10 @@ public final class HeldEffectsEvents {
      *
      * @param player  the player
      * @param ability the self + brew ability
-     * @return the upkeep in mB a tick
+     * @return the exact upkeep in mB a tick
      */
-    private static int upkeepOf(ServerPlayer player, AbilityDefinition ability) {
-        return ability.upkeep().in(GooValues.of(player.level()));
+    private static GooFraction upkeepOf(ServerPlayer player, AbilityDefinition ability) {
+        return ability.upkeep().exactIn(GooValues.of(player.level()));
     }
 
     /**
@@ -158,10 +160,15 @@ public final class HeldEffectsEvents {
         if (held.isEmpty()) {
             return;
         }
+        GooRemainders remainders = player.getData(GooAttachments.REMAINDERS);
         HeldEffects.Ticked ticked = held.tick(type -> GooSourceScanner.aggregateAvailable(player)
-                .getOrDefault(type, 0), player.level().getGameTime());
+                .getOrDefault(type, 0), remainders, player.level().getGameTime());
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> draw : ticked.drawn().entrySet()) {
             GooSourceScanner.deplete(player, draw.getKey(), draw.getValue());
+        }
+        // goo-is-an-int-and-only-the-remainder-is-a-fraction: a fractional upkeep banks its part under 1 mB
+        if (!ticked.remainders().equals(remainders)) {
+            player.setData(GooAttachments.REMAINDERS, ticked.remainders());
         }
         HeldEffects after = apply(player, new HeldEffects.Changed(ticked.after(), ticked.ended()));
         showTimeLeft(player, after);

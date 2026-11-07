@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.HostVariables;
 import org.jspecify.annotations.Nullable;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,8 +23,11 @@ import java.util.regex.Pattern;
  * spelled with its * and the type dropped (decision ability-cost-builds-as-a-one-type-by-type-value).
  */
 final class AbilityCosts {
-    // An item id or a $prefab, as the cost expression spells it.
-    private static final Pattern REFERENT = Pattern.compile("\\$[A-Za-z0-9_]+|[A-Za-z_][A-Za-z0-9_]*:[A-Za-z0-9_/]+");
+    // An item id or a $prefab, as the cost expression spells it, or a decimal number, which the builder reads as the
+    // fraction it writes.
+    private static final Pattern REFERENT = Pattern.compile(
+            "\\$[A-Za-z0-9_]+|[A-Za-z_][A-Za-z0-9_]*:[A-Za-z0-9_/]+|\\d+\\.\\d+");
+    private static final String FRACTION_BAR = "/";
     private static final char PREFAB_MARK = '$';
     private static final String TYPE_MARK = ".";
     private static final String TIMES = " * ";
@@ -48,14 +53,28 @@ final class AbilityCosts {
         StringBuilder typed = new StringBuilder();
         while (referents.find()) {
             String referent = referents.group();
-            boolean prefab = referent.charAt(0) == PREFAB_MARK;
-            String suffix = prefab && !perTypePrefabs.contains(referent.substring(1)) ? NO_TEXT : TYPE_MARK + type;
-            referents.appendReplacement(typed, Matcher.quoteReplacement(referent + suffix));
+            referents.appendReplacement(typed, Matcher.quoteReplacement(typedReferent(referent, type, perTypePrefabs)));
         }
         referents.appendTail(typed);
         JsonObject row = new JsonObject();
         row.addProperty(type, typed.toString());
         return row.toString();
+    }
+
+    // A referent naming the type, a scalar prefab as it is, and a decimal as its fraction: 12.5 reads 25/2.
+    private static String typedReferent(String referent, String type, Set<String> perTypePrefabs) {
+        if (Character.isDigit(referent.charAt(0))) {
+            BigDecimal decimal = new BigDecimal(referent).stripTrailingZeros();
+            int places = Math.max(0, decimal.scale());
+            BigInteger numerator = decimal.movePointRight(places).toBigIntegerExact();
+            BigInteger denominator = BigInteger.TEN.pow(places);
+            BigInteger common = numerator.gcd(denominator);
+            BigInteger reducedDenominator = denominator.divide(common);
+            return reducedDenominator.equals(BigInteger.ONE) ? numerator.divide(common).toString()
+                    : numerator.divide(common) + FRACTION_BAR + reducedDenominator;
+        }
+        boolean prefab = referent.charAt(0) == PREFAB_MARK;
+        return prefab && !perTypePrefabs.contains(referent.substring(1)) ? referent : referent + TYPE_MARK + type;
     }
 
     /**

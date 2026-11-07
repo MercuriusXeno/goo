@@ -96,7 +96,8 @@ public final class GooDragCastHandler {
     private static void open(ServerPlayer player, GooDragCastPayload payload, ResourceKey<GooTypeDefinition> gooType,
                              AbilityDefinition ability) {
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
-        int unitCost = ability.cost().in(GooValues.of(player.level()));
+        // goo-is-an-int-and-only-the-remainder-is-a-fraction: a fractional cost scales exactly, the radius's price rounded up
+        double unitCost = ability.cost().exactIn(GooValues.of(player.level())).toDouble();
         double radius = DragSize.affordable(Math.max(DragSize.MIN_RADIUS, payload.radius()), unitCost, holdings);
         int cost = DragSize.costAt(unitCost, radius);
         if (!GooSourceScanner.hasEnough(player, gooType, cost)) {
