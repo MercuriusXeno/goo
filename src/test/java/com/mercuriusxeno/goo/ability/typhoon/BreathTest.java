@@ -16,7 +16,7 @@ class BreathTest {
     private static final int MAX_AIR = 300;
     /** typhoon_pneuma.json's refill per held tick, reserve cap and immunity. */
     private static final int REFILL = 30;
-    private static final int RESERVE_CAP = 3000;
+    private static final int RESERVE_CAP = 300;
     private static final int IMMUNITY = 60;
     private static final long NOW = 1000L;
     /** One tick's breath underwater, as vanilla consumes it. */
@@ -43,7 +43,7 @@ class BreathTest {
 
         @Test
         void theReserveStopsAtItsCap() {
-            Breath nearlyFull = new Breath(RESERVE_CAP - 10, RESERVE_CAP, 0L);
+            Breath nearlyFull = new Breath(RESERVE_CAP - 10, RESERVE_CAP, 0L, 0);
 
             Breath.Refilled refilled = nearlyFull.refilled(MAX_AIR, MAX_AIR, REFILL, RESERVE_CAP, IMMUNITY, NOW);
 
@@ -65,7 +65,7 @@ class BreathTest {
 
         @Test
         void theReserveDrainsBeforeTheVanillaAir() {
-            Breath.Spent spent = new Breath(10, RESERVE_CAP, 0L).spent(ONE_TICK, NOW);
+            Breath.Spent spent = new Breath(10, RESERVE_CAP, 0L, 0).spent(ONE_TICK, NOW);
 
             assertEquals(0, spent.fromAir());
             assertEquals(9, spent.breath().reserve());
@@ -73,7 +73,7 @@ class BreathTest {
 
         @Test
         void whatTheReserveCannotCoverFallsToTheVanillaAir() {
-            Breath.Spent spent = new Breath(1, RESERVE_CAP, 0L).spent(3, NOW);
+            Breath.Spent spent = new Breath(1, RESERVE_CAP, 0L, 0).spent(3, NOW);
 
             assertEquals(2, spent.fromAir());
             assertEquals(0, spent.breath().reserve());
@@ -93,7 +93,7 @@ class BreathTest {
 
         @Test
         void noAirDepletesInsideTheWindow() {
-            Breath.Spent spent = new Breath(10, RESERVE_CAP, NOW + 1).spent(ONE_TICK, NOW);
+            Breath.Spent spent = new Breath(10, RESERVE_CAP, NOW + 1 - IMMUNITY, IMMUNITY).spent(ONE_TICK, NOW);
 
             assertEquals(0, spent.fromAir());
             assertEquals(10, spent.breath().reserve());
@@ -101,7 +101,7 @@ class BreathTest {
 
         @Test
         void airDepletesOnceTheWindowCloses() {
-            Breath.Spent spent = new Breath(0, RESERVE_CAP, NOW).spent(ONE_TICK, NOW);
+            Breath.Spent spent = new Breath(0, RESERVE_CAP, NOW - IMMUNITY, IMMUNITY).spent(ONE_TICK, NOW);
 
             assertEquals(ONE_TICK, spent.fromAir());
         }

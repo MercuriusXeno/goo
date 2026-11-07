@@ -13,7 +13,8 @@ import java.util.stream.Stream;
  * target's air rises by the refill, the air past its meter banks in the
  * reserve up to the cap, and the airless immunity window opens. Run every held
  * tick of the channel, the window closes its length after the hold lets go.
- * Pneuma is {@code pneuma refill=30 reserve_cap=3000 immunity=60}.
+ * Pneuma is {@code pneuma refill=30 reserve_cap=300 immunity=60}: a reserve
+ * of one more full meter, ten bubbles behind the air bar.
  * pneuma-overfills-the-air-meter-with-a-brief-airless-immunity
  *
  * @param refill     the air one held tick refills, in ticks of breath
