@@ -4,10 +4,12 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ContainerShiftClickMergeMixin",
+    "EntitySlimeCoatUnderfootMixin",
     "FoodDataLifetapMixin",
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
     "LivingEntityHeldFallsMixin",
+    "LivingEntityPneumaBreathMixin",
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "PlayerGluttonyEatMixin",
