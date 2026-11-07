@@ -252,7 +252,7 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
             double seconds = (now - last.time()) * HoldEase.TICK_SECONDS;
             Vec3 eased = hold == null ? HoldEase.toward(last.at(), lerped, seconds)
                     : hunk.easedToward(last.at(), hold, seconds);
-            drawn = hold == null ? eased : last.at().add(hunk.allowedMove(last.at(), eased.subtract(last.at())));
+            drawn = hold == null ? eased : last.at().add(hunk.heldMove(last.at(), eased.subtract(last.at())));
         }
         if (GLIDES.size() > MOST_GLIDES) {
             GLIDES.clear();
@@ -264,7 +264,7 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
     private static Vec3 onTheLook(BlockHunk hunk, LocalPlayer player, TerrakinesisStep terrakinesis,
                                   float partialTick) {
         return terrakinesis.heldAt(hunk, player.getEyePosition(partialTick), player.getViewVector(partialTick),
-                player.getViewXRot(partialTick), player.getBoundingBox());
+                player.getViewXRot(partialTick), player.getViewYRot(partialTick), player.getBoundingBox());
     }
 
     /**

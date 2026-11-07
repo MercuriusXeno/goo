@@ -51,6 +51,13 @@ public final class TerrakinesisTests {
     private static final String RELEASE_PLACES = "terrakinesis_release_places_the_chunk_on_the_grid";
     private static final String STAYS_OUT = "terrakinesis_held_looking_down_stays_out_of_its_hole";
     private static final String SLOTS_BACK = "terrakinesis_carried_away_and_aimed_back_slots_into_its_hole";
+    private static final String NEVER_IN_THE_HOLDER = "terrakinesis_held_looking_down_never_clips_into_the_holder";
+    private static final String STAYS_OUT_FROM_AFAR = "terrakinesis_lifted_from_afar_stays_out_of_its_hole";
+    private static final String WIDE_SLOTS_BACK = "terrakinesis_wide_chunk_aimed_back_down_slots_into_its_hole";
+    /** The far patch's east edge: three by three, two blocks deep in the floor, its middle four blocks off. */
+    private static final int FAR_STRIP_X = 5;
+    /** Pitches, looking down, the holder sweeps through: steep, near straight down, and straight down. */
+    private static final float[] DOWN_PITCHES = {60f, 80f, 89f, 90f};
     /** Where the caster carries the chunk aside to, on the planks floor east of its hole. */
     private static final int ASIDE_X = 4;
     /** Ticks spent carrying the chunk aside, then aiming it back. */
@@ -95,8 +102,6 @@ public final class TerrakinesisTests {
     /** The ability's far hold distance, eye to the hunk's middle. */
     private static final double FAR = 3.5;
     private static final double SETTLED = 0.3;
-    /** How far off the look a held hunk's middle may stand, held up by what it rests on. */
-    private static final double ON_THE_LOOK = 0.5;
     /** Every block of a hucked hunk has crumbled by then. */
     private static final int SHATTER_TICKS = BlockHunk.BLOCK_STAGGER_TICKS * 6 + BlockHunk.CRUMBLE_TICKS + 2;
     /** Half the wind-up, then let go. */
@@ -136,6 +141,9 @@ public final class TerrakinesisTests {
         GooTestFunctions.registerTest(registrar, RELEASE_PLACES, TerrakinesisTests::releasePlacesTheChunkOnTheGrid);
         GooTestFunctions.registerTest(registrar, STAYS_OUT, TerrakinesisTests::heldLookingDownStaysOutOfItsHole);
         GooTestFunctions.registerTest(registrar, SLOTS_BACK, TerrakinesisTests::carriedAwayAndAimedBackSlotsIntoItsHole);
+        GooTestFunctions.registerTest(registrar, NEVER_IN_THE_HOLDER, TerrakinesisTests::heldLookingDownNeverClipsIntoTheHolder);
+        GooTestFunctions.registerTest(registrar, STAYS_OUT_FROM_AFAR, TerrakinesisTests::liftedFromAfarStaysOutOfItsHole);
+        GooTestFunctions.registerTest(registrar, WIDE_SLOTS_BACK, TerrakinesisTests::wideChunkAimedBackDownSlotsIntoItsHole);
     }
 
     /**
@@ -174,13 +182,17 @@ public final class TerrakinesisTests {
             helper.assertTrue(hunks.size() == 1 && hunks.getFirst().blocks().size() == slab.size()
                     && hunks.getFirst().blocks().stream().allMatch(block -> block.state().is(Blocks.STONE)),
                     String.format(NO_HUNK, slab.size(), hunks.stream().map(hunk -> hunk.blocks().size()).toList()));
-            // Its own hole counts as solid until it is carried away, so the level look rests it against the hole.
-            Vec3 middle = hunks.getFirst().getBoundingBox().getCenter();
-            Vec3 eye = player.getEyePosition();
-            double offTheLook = middle.subtract(eye).cross(player.getLookAngle()).length();
-            helper.assertTrue(offTheLook < ON_THE_LOOK && middle.distanceTo(eye) <= FAR + SETTLED,
-                    "Clear of its hole, the hunk should come to hang on the look, within " + FAR + " of the eye;"
-                    + " its middle stands " + offTheLook + " off the look and " + middle.distanceTo(eye) + " out");
+            // Out of its hole, it rests on what the look strikes within the grab's range, in none of its own cells.
+            AABB box = hunks.getFirst().getBoundingBox();
+            AABB hole = AABB.encapsulatingFullBlocks(helper.absolutePos(slab.getFirst()),
+                    helper.absolutePos(slab.getLast())).deflate(RIM_SLACK);
+            double out = box.getCenter().distanceTo(player.getEyePosition());
+            double range = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_TERRAKINESIS).behaviors().stream()
+                    .filter(TerrakinesisStep.class::isInstance).map(TerrakinesisStep.class::cast).findFirst()
+                    .orElseThrow().range();
+            helper.assertTrue(!box.intersects(hole) && out <= range, "Clear of its hole, the hunk should stand out"
+                    + " of it within " + range + " of the eye; it stands at " + box + ", " + out + " out, its hole"
+                    + " at " + hole);
             helper.assertTrue(BuiltInRegistries.SOUND_EVENT.containsKey(TerrakinesisStep.TEAR.sound()),
                     "The tear's sound " + TerrakinesisStep.TEAR.sound() + " should stand in the sound registry");
             // The tear costs its fixed price, whatever the hunk holds.
@@ -405,6 +417,140 @@ public final class TerrakinesisTests {
                         + helper.getBlockState(cell));
             }
             helper.assertTrue(hunksIn(helper).isEmpty(), "The chunk should have become its blocks");
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A held chunk never stands in its holder: looking steeply down, even
+     * straight down at their own feet, the chunk stays clear of the holder's
+     * body, so the holder never sees through it from inside.
+     * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
+     *
+     * @param helper the gametest helper
+     */
+    public static void heldLookingDownNeverClipsIntoTheHolder(GameTestHelper helper) {
+        layFloorWithAStrip(helper);
+        ServerPlayer player = caster(helper);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, helper.absoluteVec(new Vec3(FLOOR_STRIP_X + 0.5, FLOOR_TOP,
+                STAND_POS.getZ() + 0.5)));
+        int perPitch = CARRY_TICKS;
+        int last = HOLD_TICKS + perPitch * DOWN_PITCHES.length;
+        for (int held = 1; held <= last; held++) {
+            int holdTick = held;
+            helper.runAfterDelay(held, () -> {
+                int pitchIndex = (holdTick - HOLD_TICKS) / perPitch;
+                if (holdTick >= HOLD_TICKS && pitchIndex < DOWN_PITCHES.length) {
+                    player.setXRot(DOWN_PITCHES[pitchIndex]);
+                }
+                GooStreamHandler.streamTick(player, holdTick(player));
+                List<BlockHunk> hunks = hunksIn(helper);
+                if (holdTick > HOLD_TICKS && !hunks.isEmpty()) {
+                    AABB hunk = hunks.getFirst().getBoundingBox();
+                    helper.assertTrue(!hunk.intersects(player.getBoundingBox()), "Looking down at pitch "
+                            + player.getXRot() + ", the held chunk " + hunk + " should stand clear of its holder "
+                            + player.getBoundingBox());
+                }
+                if (holdTick == last) {
+                    leave(helper, player);
+                }
+            });
+        }
+    }
+
+    /**
+     * A wide chunk two blocks deep lifted from four blocks off, the look held on
+     * where it came from, never slips back into its hole once it pokes out:
+     * its hole stays solid to it until it is carried out of the hole's column.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @param helper the gametest helper
+     */
+    public static void liftedFromAfarStaysOutOfItsHole(GameTestHelper helper) {
+        layFloorWithAStrip(helper);
+        for (int z = SLAB_LOW_Z; z <= SLAB_HIGH_Z; z++) {
+            helper.setBlock(new BlockPos(FLOOR_STRIP_X, 0, z), Blocks.OAK_PLANKS);
+            for (int x = FAR_STRIP_X - 2; x <= FAR_STRIP_X; x++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+                helper.setBlock(new BlockPos(x, -1, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer player = caster(helper);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, helper.absoluteVec(new Vec3(FAR_STRIP_X - 0.5, FLOOR_TOP,
+                STAND_POS.getZ() + 0.5)));
+        double rim = helper.absolutePos(new BlockPos(0, FLOOR_TOP, 0)).getY();
+        boolean[] clearedOnce = {false};
+        for (int held = 1; held <= LOOK_DOWN_TICKS; held++) {
+            int holdTick = held;
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(player, holdTick(player));
+                List<BlockHunk> hunks = hunksIn(helper);
+                if (hunks.isEmpty()) {
+                    return;
+                }
+                double bottom = hunks.getFirst().getBoundingBox().minY;
+                clearedOnce[0] |= bottom >= rim - RIM_SLACK;
+                helper.assertTrue(!clearedOnce[0] || bottom >= rim - RIM_SLACK, "Once it pokes out, a chunk"
+                        + " lifted from afar should never drop back into its hole; its bottom stands at " + bottom
+                        + ", the rim at " + rim);
+                if (holdTick == LOOK_DOWN_TICKS) {
+                    helper.assertTrue(clearedOnce[0], "The chunk should have come out of its hole");
+                    leave(helper, player);
+                }
+            });
+        }
+    }
+
+    /**
+     * A wide chunk, two by two and two deep, lifted from afar, drawn aside
+     * toward the caster, then aimed back down at its hole, sits in the hole,
+     * and let go there it becomes its stone again where it was lifted from.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @param helper the gametest helper
+     */
+    public static void wideChunkAimedBackDownSlotsIntoItsHole(GameTestHelper helper) {
+        layFloorWithAStrip(helper);
+        List<BlockPos> patch = new ArrayList<>();
+        for (int z = SLAB_LOW_Z; z <= SLAB_HIGH_Z; z++) {
+            helper.setBlock(new BlockPos(FLOOR_STRIP_X, 0, z), Blocks.OAK_PLANKS);
+        }
+        for (int x = FAR_STRIP_X - 1; x <= FAR_STRIP_X; x++) {
+            for (int z = STAND_POS.getZ(); z <= STAND_POS.getZ() + 1; z++) {
+                for (int y = -1; y <= 0; y++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+                    patch.add(new BlockPos(x, y, z));
+                }
+            }
+        }
+        ServerPlayer player = caster(helper);
+        Vec3 hole = helper.absoluteVec(new Vec3(FAR_STRIP_X, FLOOR_TOP, STAND_POS.getZ() + 1));
+        Vec3 aside = helper.absoluteVec(new Vec3(FLOOR_STRIP_X + 0.5, FLOOR_TOP, STAND_POS.getZ() + 1));
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, helper.absoluteVec(new Vec3(FAR_STRIP_X + 0.5, FLOOR_TOP,
+                STAND_POS.getZ() + 1.5)));
+        int lifted = HOLD_TICKS;
+        int carried = lifted + CARRY_TICKS;
+        int aimedBack = carried + CARRY_TICKS;
+        for (int held = 1; held <= aimedBack; held++) {
+            int holdTick = held;
+            helper.runAfterDelay(held, () -> {
+                if (holdTick == lifted) {
+                    player.lookAt(EntityAnchorArgument.Anchor.EYES, aside);
+                } else if (holdTick == carried) {
+                    player.lookAt(EntityAnchorArgument.Anchor.EYES, hole);
+                }
+                GooStreamHandler.streamTick(player, holdTick(player));
+            });
+        }
+        helper.runAfterDelay(aimedBack + LANDING_TICKS, () -> {
+            List<BlockPos> holding = patch.stream().filter(cell -> helper.getBlockState(cell).is(Blocks.STONE))
+                    .toList();
+            helper.assertTrue(hunksIn(helper).isEmpty() && holding.size() == patch.size(), "Aimed back down into"
+                    + " its hole and let go, the wide chunk should stand as stone in all " + patch.size()
+                    + " cells it was lifted from; stone stands in " + holding.size() + ", hunks left "
+                    + hunksIn(helper).size() + ", stone elsewhere at " + BlockPos.betweenClosedStream(new BlockPos(0, -1, 0),
+                    new BlockPos(WALL_X, WALL_HIGH_Y, SLAB_HIGH_Z + 1))
+                    .filter(cell -> helper.getBlockState(cell).is(Blocks.STONE)).map(BlockPos::immutable).toList());
             leave(helper, player);
         });
     }
