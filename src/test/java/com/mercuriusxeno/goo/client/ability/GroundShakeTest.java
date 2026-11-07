@@ -96,6 +96,14 @@ class GroundShakeTest {
                 GroundShake.renderType().pipeline().getVertexShader());
     }
 
+    @Test
+    void flattensDustDiscFloatsAboveEveryShakenFaceSoNoSeamShowsItThrough() {
+        // The disc is translucent tan; a shaken face rising through it leaves it showing only at the seams.
+        assertTrue(RockExplosionVisual.cursorHeightAboveFace() > GroundShake.highestFaceRise(),
+                "disc " + RockExplosionVisual.cursorHeightAboveFace() + " above the face, faces rise "
+                        + GroundShake.highestFaceRise());
+    }
+
     @Nested
     class Players {
 

@@ -183,6 +183,16 @@ public final class GroundShake {
     }
 
     /**
+     * The farthest a shaken block's face stands out past its cell: its swell
+     * and its jitter, both at full strength on the working point.
+     *
+     * @return the distance in blocks
+     */
+    static double highestFaceRise() {
+        return AMPLITUDE + AMPLITUDE;
+    }
+
+    /**
      * Whether an ability shakes the ground: it bores or flattens and right click holds it.
      *
      * @param ability the selected ability's synced copy, or null when none
