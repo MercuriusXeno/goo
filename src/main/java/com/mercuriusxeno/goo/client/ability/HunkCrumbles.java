@@ -42,6 +42,10 @@ public final class HunkCrumbles {
     private static final double SCATTER_SPEED = 0.12;
     private static final double HALF = 0.5;
     private static final float HALF_F = 0.5f;
+    /** How loud each chunk's crumble plays, beside the block's own volume. */
+    private static final float CRUMBLE_VOLUME = 0.7f;
+    /** The lowest a chunk's crumble is pitched, before its random spread. */
+    private static final float CRUMBLE_PITCH_LOW = 0.75f;
     /** Vanilla plays a block's break sound a little low. */
     private static final float BREAK_PITCH = 0.8f;
 
@@ -127,9 +131,7 @@ public final class HunkCrumbles {
         }
         if (!crumble.sounded()[0]) {
             crumble.sounded()[0] = true;
-            SoundType sound = crumble.state().getSoundType(level, crumble.cell(), null);
-            level.playLocalSound(crumble.cell(), sound.getBreakSound(), SoundSource.BLOCKS,
-                    (sound.getVolume() + 1) * HALF_F, sound.getPitch() * BREAK_PITCH, false);
+            breakSound(level, crumble.state(), crumble.cell());
         }
         List<DrinkRide.Chunk> chunks = crumble.breakup().chunks();
         boolean done = true;
@@ -143,6 +145,7 @@ public final class HunkCrumbles {
             }
             crumble.burst()[index] = true;
             burst(level, crumble.state(), chunks.get(index).place());
+            crumbleSound(level, crumble.state(), crumble.cell());
         }
         return done;
     }
@@ -154,6 +157,26 @@ public final class HunkCrumbles {
             level.addParticle(chip, at.x, at.y, at.z, scatter(random), scatter(random) + SCATTER_SPEED,
                     scatter(random));
         }
+    }
+
+    private static void breakSound(ClientLevel level, BlockState state, BlockPos cell) {
+        SoundType sound = state.getSoundType(level, cell, null);
+        level.playLocalSound(cell, sound.getBreakSound(), SoundSource.BLOCKS, (sound.getVolume() + 1) * HALF_F,
+                sound.getPitch() * BREAK_PITCH, false);
+    }
+
+    /**
+     * The crumble of one chunk breaking off: its block's own hit sound, quiet
+     * and a little low, so the hunk grinds apart as its chunks go.
+     *
+     * @param level the client level
+     * @param state the block
+     * @param cell  where it crumbles
+     */
+    private static void crumbleSound(ClientLevel level, BlockState state, BlockPos cell) {
+        SoundType sound = state.getSoundType(level, cell, null);
+        level.playLocalSound(cell, sound.getHitSound(), SoundSource.BLOCKS, sound.getVolume() * CRUMBLE_VOLUME,
+                sound.getPitch() * BREAK_PITCH * (CRUMBLE_PITCH_LOW + level.getRandom().nextFloat() * HALF_F), false);
     }
 
     private static double scatter(RandomSource random) {

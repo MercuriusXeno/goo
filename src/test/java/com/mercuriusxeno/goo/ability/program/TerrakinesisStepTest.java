@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -119,12 +120,22 @@ class TerrakinesisStepTest {
     @Test
     void aHeldHunkHangsWithItsMiddleOnTheLookAtTheFarDistanceWhenTheLookIsLevel() {
         Vec3 eye = new Vec3(0.5, 65.62, 0.5);
-        Vec3 toMiddle = new Vec3(0, 0.5, 0);
-        Vec3 position = TERRAKINESIS.holdPosition(eye, new Vec3(1, 0, 0), 0f, toMiddle);
-        Vec3 middle = position.add(toMiddle);
+        AABB hunkBox = new AABB(-0.5, -0.5, -0.5, 0.5, 1.5, 0.5);
+        AABB holder = new AABB(0.2, 64, 0.2, 0.8, 65.8, 0.8);
+        Vec3 position = TERRAKINESIS.holdPosition(eye, new Vec3(1, 0, 0), 0f, hunkBox, holder);
+        Vec3 middle = position.add(hunkBox.getCenter());
         assertEquals(eye.x + 3.5, middle.x, 1e-9);
         assertEquals(eye.y, middle.y, 1e-9);
         assertEquals(eye.z, middle.z, 1e-9);
+    }
+
+    @Test
+    void lookingStraightDownPushesTheHunkOutUntilItClearsTheHolder() {
+        Vec3 eye = new Vec3(0.5, 65.62, 0.5);
+        AABB hunkBox = new AABB(-1.5, -1, -1.5, 1.5, 1, 1.5);
+        AABB holder = new AABB(0.2, 64, 0.2, 0.8, 65.8, 0.8);
+        Vec3 position = TERRAKINESIS.holdPosition(eye, new Vec3(0, -1, 0), 90f, hunkBox, holder);
+        assertFalse(hunkBox.move(position).intersects(holder), "the hunk at " + position + " overlaps its holder");
     }
 
     @Test

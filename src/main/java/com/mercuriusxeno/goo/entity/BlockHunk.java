@@ -81,8 +81,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     /** Smoothstep's cubic weights: 3t^2 - 2t^3. */
     private static final double SMOOTHSTEP_SQUARE = 3;
     private static final double SMOOTHSTEP_CUBE = 2;
-    /** A flying hunk's fall, in blocks a tick per tick, a falling block's own. */
-    private static final double GRAVITY = 0.04;
+    /** A flying hunk's fall, in blocks a tick per tick: twice a falling block's, so a heavy hunk drops. */
+    private static final double GRAVITY = 0.08;
     /** A flying hunk's air drag each tick, a falling block's own. */
     private static final double DRAG = 0.98;
     /** The least speed, in blocks a tick, at which an impact crushes what it strikes. */
@@ -98,7 +98,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     /** The longest a let-go hunk flies before it breaks apart where it is, in ticks. */
     private static final int MOST_FLIGHT_TICKS = 200;
     /** Ticks one block of a shattering hunk takes to crumble away. */
-    public static final int CRUMBLE_TICKS = 5;
+    public static final int CRUMBLE_TICKS = 2;
     /** Ticks between one block of a shattering hunk beginning to crumble and the next. */
     public static final int BLOCK_STAGGER_TICKS = 1;
     /** Ticks a settled hunk keeps drawing over its stone while the clients' chunks redraw it. */
