@@ -52,4 +52,16 @@ final class PortalCamera extends Camera {
         setupPerspective(NEAR, depthFar, fov, minecraft.getWindow().getWidth(), minecraft.getWindow().getHeight());
         prepareCullFrustum(getViewRotationMatrix(new Matrix4f()), createProjectionMatrixForCulling(), eye);
     }
+
+    /**
+     * A view through a portal stands apart from the player, so the player's
+     * own body draws in it like any other entity: seen from behind through a
+     * portal beside it, or down the tunnel a pair facing each other makes.
+     *
+     * @return always true
+     */
+    @Override
+    public boolean isDetached() {
+        return true;
+    }
 }
