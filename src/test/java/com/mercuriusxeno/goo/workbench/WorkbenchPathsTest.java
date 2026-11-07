@@ -38,6 +38,32 @@ class WorkbenchPathsTest {
     }
 
     /**
+     * A world's live abilities stand in its goo_values pack beside base_values.json, and their drafts beside the
+     * inventory, outside every pack's data folder (decision ability-drafts-promote-per-file-like-base-values).
+     */
+    @Test
+    void worldAbilitiesStandInThePackAndTheirDraftsOutsideIt() {
+        WorkbenchPaths paths = WorkbenchPaths.inWorld(WORLD);
+        assertEquals(WORLD.resolve("datapacks/goo_values/data/goo/goo_abilities"), paths.abilities());
+        assertEquals(WORLD.resolve("goo_workbench/ability_drafts"), paths.abilityDrafts());
+        assertTrue(!paths.abilityDrafts().startsWith(WORLD.resolve("datapacks")), paths.abilityDrafts().toString());
+    }
+
+    /**
+     * A dev client's live abilities are the source tree's goo_abilities folder, so a promoted tuning pass lands where
+     * a branch commits it, and their drafts stand outside the source's data folder
+     * (decision ability-drafts-promote-per-file-like-base-values).
+     */
+    @Test
+    void projectAbilitiesAreTheSourceFolderAndTheirDraftsOutsideIt() {
+        Path project = Path.of("goo");
+        WorkbenchPaths paths = WorkbenchPaths.inProject(project);
+        assertEquals(project.resolve("src/main/resources/data/goo/goo_abilities"), paths.abilities());
+        assertTrue(!paths.abilityDrafts().startsWith(project.resolve("src/main/resources/data")),
+                paths.abilityDrafts().toString());
+    }
+
+    /**
      * The dev-client gate's walk from the run directory to the source base_values.json
      * (decision dev-client-workbench-targets-the-source-base-values).
      */

@@ -19,8 +19,9 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepContext;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -182,7 +183,8 @@ public final class GooSelfHandler {
         ServerPlayer player = host.player();
         Optional<BlinkLanding> trip = TeleportStep.tripOf(ability.behaviors(), player, player.position(),
                 player.getLookAngle());
-        int cost = ability.distancePrice().priceOf(ability.cost(), trip);
+        GooFraction cost = ability.distancePrice().exactPriceOf(ability.cost().exactIn(GooValues.of(player.level())),
+                trip);
         if (!affords(player, gooType, ability, cost)) {
             return false;
         }
@@ -190,7 +192,7 @@ public final class GooSelfHandler {
             playRefusal(host, ability);
             return false;
         }
-        GooSourceScanner.deplete(player, gooType, cost);
+        AbilityCharges.charge(player, gooType, cost);
         ReagentScanner.consumeOneOfEach(player, ability.consumes());
         Optional<BlockPos> converting = trip.flatMap(BlinkLanding::converts);
         if (converting.isPresent()) {
@@ -293,7 +295,7 @@ public final class GooSelfHandler {
      */
     private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
-        return affords(player, gooType, ability, ability.cost());
+        return affords(player, gooType, ability, ability.cost().exactIn(GooValues.of(player.level())));
     }
 
     /**
@@ -303,13 +305,14 @@ public final class GooSelfHandler {
      * @param player  the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
-     * @param cost    the cost this invocation drains
+     * @param cost    the exact cost this invocation drains, the player's remainder paying first
      * @return true when the inventory covers the cost
      */
     private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-            AbilityDefinition ability, int cost) {
+            AbilityDefinition ability, GooFraction cost) {
+        GooFraction upkeep = ability.upkeep().exactIn(GooValues.of(player.level()));
         // ability-json-names-its-reagent
-        if (GooSourceScanner.hasEnough(player, gooType, Math.max(cost, ability.upkeep()))
+        if (AbilityCharges.affords(player, gooType, cost.compareTo(upkeep) >= 0 ? cost : upkeep)
                 && ReagentScanner.holdsEvery(player, ability.consumes())) {
             return true;
         }

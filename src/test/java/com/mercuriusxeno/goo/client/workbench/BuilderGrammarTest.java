@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -128,6 +130,45 @@ class BuilderGrammarTest {
             for (String typed : List.of("2.5", "a", "-1", "1/2/3", "2  1")) {
                 assertFalse(BuilderGrammar.acceptsTypedMixed(typed), typed);
             }
+        }
+    }
+
+    /**
+     * An ability's cost builds like a by-type value that can only accept one type, the ability's own (decision
+     * ability-cost-builds-as-a-one-type-by-type-value).
+     */
+    @Nested
+    class OneType {
+        private final BuilderGrammar cost = BuilderGrammar.forOneType(PREFABS, "rock");
+        private final Set<String> everyOther = GooTypes.order().stream().map(GooTypes::id)
+                .filter(type -> !type.equals("rock")).collect(Collectors.toSet());
+
+        @Test
+        void offersTheAbilitysTypeAlone() {
+            assertEquals(Set.of("rock"), cost.offeredTypes());
+        }
+
+        @Test
+        void pickersHideEveryOtherType() {
+            assertEquals(everyOther, cost.memberHidden());
+            Set<String> hidden = cost.hiddenTypes(ExpressionBuilder.of("{\"rock\": \"3 minecraft:cobblestone.rock\"}"));
+            assertTrue(hidden.containsAll(everyOther), hidden.toString());
+        }
+
+        @Test
+        void readsItemsAndEveryPrefabByTypeAlone() {
+            assertTrue(cost.readsItems());
+            assertEquals(List.of("base", "medium"), cost.scalarPrefabs());
+            assertEquals(List.of("stick", "plank"), cost.perTypePrefabs());
+            assertFalse(cost.offersGooKind());
+            assertFalse(cost.offersNumberKind());
+        }
+
+        @Test
+        void aValueOfAnyTypeHidesNothingButWhatItHolds() {
+            assertEquals(Set.of(), BuilderGrammar.forItems(PREFABS).memberHidden());
+            assertEquals(Set.of("metal"),
+                    BuilderGrammar.forItems(PREFABS).hiddenTypes(ExpressionBuilder.of("{\"metal\": \"5\"}")));
         }
     }
 }

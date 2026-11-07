@@ -348,5 +348,25 @@
   "goo.ability.zoo.shape.description": "Turns a slime into a random peaceful mob for the biome it's in.",
   "goo.ability.zoo.spawn": "Spawn",
   "goo.ability.zoo.spawn.description": "Turns the slime struck into a random hostile mob for the biome it's in.",
-  "goo.ability.cost_mechanics.upkeep": "Costs nothing to start, then %s a second until you invoke it again or run dry."
+  "goo.ability.cost_mechanics.upkeep": "Costs nothing to start, then %s a second until you invoke it again or run dry.",
+
+  "goo.ability.param.cost.cost": "Cost",
+  "goo.ability.param.cost.cost.description": "Goo in mB that one use of the ability costs.",
+  "goo.ability.param.cost_per_block.cost_per_block": "Cost per block",
+  "goo.ability.param.cost_per_block.cost_per_block.description": "Goo in mB added to the cost for each block the blink travels.",
+  "goo.ability.param.node_percent.node_percent": "Oculus percent",
+  "goo.ability.param.node_percent.node_percent.description": "Percent of the full price a Blink to an Oculus costs, 100 for the full price.",
+  "goo.ability.param.upkeep.upkeep": "Upkeep",
+  "goo.ability.param.upkeep.upkeep.description": "The mB the held effect drains each tick it stands.",
+  "goo.ability.param.wall_cost.wall_cost": "Wall surcharge",
+  "goo.ability.param.wall_cost.wall_cost.description": "The mB added to a blink's cost when it passes through a solid block.",
+
+  "goo.ability.param.outsider.cell_cost": "Cell cost",
+  "goo.ability.param.outsider.cell_cost.description": "Void goo in mB a platform cell costs at the room's center.",
+  "goo.ability.param.outsider.distance_cost": "Distance cost",
+  "goo.ability.param.outsider.distance_cost.description": "Void goo in mB each block a cell stands from the room's center adds to its cost.",
+  "goo.ability.param.outsider.enter": "Entry cost",
+  "goo.ability.param.outsider.enter.description": "Void goo in mB the trip into your pocket room costs.",
+  "goo.ability.param.pocket_open.slot_cost": "Slot cost",
+  "goo.ability.param.pocket_open.slot_cost.description": "Void goo in mB the Pocket reserves for each slot its stored items fill."
 }

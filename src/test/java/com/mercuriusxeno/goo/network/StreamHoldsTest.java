@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -144,6 +145,18 @@ class StreamHoldsTest {
         @Test
         void eachTickDrainsItsShare() {
             assertEquals(COST / TICKS_PER_CHARGE, StreamHolds.shareAt(COST, TICKS_PER_CHARGE, 1));
+        }
+
+        @Test
+        void aFractionalCostDrainsExactlyAcrossCharges() {
+            GooFraction twelveAndAHalf = GooFraction.of(25, 2);
+            int firstCharge = IntStream.rangeClosed(1, TICKS_PER_CHARGE)
+                    .map(held -> StreamHolds.shareAt(twelveAndAHalf, TICKS_PER_CHARGE, held)).sum();
+            int twoCharges = IntStream.rangeClosed(1, 2 * TICKS_PER_CHARGE)
+                    .map(held -> StreamHolds.shareAt(twelveAndAHalf, TICKS_PER_CHARGE, held)).sum();
+
+            assertEquals(12, firstCharge);
+            assertEquals(25, twoCharges);
         }
     }
 }

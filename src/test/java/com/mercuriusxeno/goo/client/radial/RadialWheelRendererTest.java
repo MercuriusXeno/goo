@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
 import net.minecraft.world.item.ItemStack;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -85,7 +86,7 @@ class RadialWheelRendererTest {
     private static ClientAbility clientAbilityOf(AbilityDefinition definition) {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(), definition.behaviors(),
-                definition.cost(), definition.delivery(), definition.badge(), definition.requires());
+                definition.cost().in(GooValueTable.EMPTY), definition.delivery(), definition.badge(), definition.requires());
     }
 
     /**
