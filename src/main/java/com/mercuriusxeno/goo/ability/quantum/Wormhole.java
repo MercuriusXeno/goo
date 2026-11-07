@@ -28,8 +28,11 @@ import java.util.function.Predicate;
  */
 public final class Wormhole {
 
-    /** How far the cross-section reaches out from the scan's line each way. */
-    private static final int HALF_SPAN = 1;
+    /** The mouth sizes a hole tries, largest first, each as its two spans across the face. */
+    private static final int[][] MOUTH_SIZES = {{3, 3}, {3, 2}, {2, 3}, {2, 2}, {3, 1}, {1, 3}, {2, 1}, {1, 2},
+        {1, 1}};
+    /** A crawling body's height, the least room a hole needs past the wall. */
+    private static final double CRAWL_HEIGHT = 0.6;
     /** Points on the ring a wormhole's mouth or a collapse draws. */
     private static final int RING_POINTS = 24;
     /** The ring's radius around the mouth, in blocks. */
@@ -72,62 +75,123 @@ public final class Wormhole {
     }
 
     /**
-     * The first opening ahead of a struck face a body fits in.
+     * A hole that fits: the struck face's cells its mouth covers, and the
+     * cells of the wall's far face its other mouth covers, the same shape
+     * straight through.
      *
-     * @param feet       where a body stands in it
-     * @param firstOpen  the scan's centre cell where the opening's cross-section first opens, past the wall
+     * @param mouth   the cells on the struck face
+     * @param farWall the cells on the wall's far face, the last solid layer before the opening
      */
-    public record Opening(Vec3 feet, BlockPos firstOpen) {
+    public record Opening(List<BlockPos> mouth, List<BlockPos> farWall) {
     }
 
     /**
-     * Where a wormhole from a struck face comes out: the feet of the first
-     * opening ahead a body fits in, the whole cross-section preferred to a
-     * 2x3 within it at each step, and the step where that opening first
-     * opens past the wall.
+     * The largest hole a struck face makes room for, a 3x3 where there is
+     * room, else the next smaller down to 1x1, each placed over the struck
+     * block: its cells on the struck face solid with open cells before them,
+     * and straight through the wall the first layer not wholly solid wholly
+     * open, within reach, with room past it for a body to crawl out.
      *
      * @param space  the world as the scan reads it
-     * @param struck the struck block, the scan's first centre
-     * @param inward the direction the scan runs, into the struck face
+     * @param struck the struck block
+     * @param face   the struck face
      * @param reach  how many cells past the struck block the scan runs
      * @param width  the body's width
-     * @param height the body's height
-     * @return the opening, empty where none lies within reach
+     * @return the hole, empty where none fits
      */
-    public static Optional<Opening> openingAhead(Space space, BlockPos struck, Direction inward, int reach,
-            double width, double height) {
-        Direction[] across = acrossOf(inward);
-        for (int step = 1; step <= reach; step++) {
-            List<List<BlockPos>> openings = openingsAt(struck.relative(inward, step), across);
-            for (int shape = 0; shape < openings.size(); shape++) {
-                List<BlockPos> opening = openings.get(shape);
-                if (opening.stream().allMatch(space.open())
-                        && space.fits().test(boxAt(feetIn(opening), width, height))) {
-                    return Optional.of(new Opening(feetIn(opening), firstOpen(space, struck, inward, step, shape)));
-                }
+    public static Optional<Opening> largestHole(Space space, BlockPos struck, Direction face, int reach,
+            double width) {
+        Direction inward = face.getOpposite();
+        for (List<BlockPos> mouth : mouthsOver(struck, acrossOf(inward))) {
+            Optional<Opening> hole = holeThrough(space, mouth, face, reach, width);
+            if (hole.isPresent()) {
+                return hole;
             }
         }
         return Optional.empty();
     }
 
     /**
-     * Walks back from the step an opening was found at while its shape's cells stay open.
+     * The hole one mouth's shape makes, if it fits.
      *
-     * @param space  the world as the scan reads it
-     * @param struck the struck block
-     * @param inward the direction the scan runs
-     * @param step   the step the opening was found at
-     * @param shape  the opening's place among a cross-section's openings
-     * @return the centre cell where the opening first opens past the wall
+     * @param space the world as the scan reads it
+     * @param mouth the mouth's cells on the struck face
+     * @param face  the struck face
+     * @param reach how many cells past the struck block the scan runs
+     * @param width the body's width
+     * @return the hole, empty where the shape does not fit
      */
-    private static BlockPos firstOpen(Space space, BlockPos struck, Direction inward, int step, int shape) {
-        Direction[] across = acrossOf(inward);
-        int first = step;
-        while (first > 1 && openingsAt(struck.relative(inward, first - 1), across).get(shape).stream()
-                .allMatch(space.open())) {
-            first--;
+    private static Optional<Opening> holeThrough(Space space, List<BlockPos> mouth, Direction face, int reach,
+            double width) {
+        boolean faced = mouth.stream().allMatch(cell -> !space.open().test(cell)
+                && space.open().test(cell.relative(face)));
+        if (!faced) {
+            return Optional.empty();
         }
-        return struck.relative(inward, first);
+        Direction inward = face.getOpposite();
+        for (int step = 1; step <= reach; step++) {
+            List<BlockPos> layer = shifted(mouth, inward, step);
+            long open = layer.stream().filter(space.open()).count();
+            if (open == layer.size()) {
+                return space.fits().test(crawlBoxIn(layer, inward, width))
+                        ? Optional.of(new Opening(mouth, shifted(mouth, inward, step - 1))) : Optional.empty();
+            }
+            if (open > 0) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static List<BlockPos> shifted(List<BlockPos> cells, Direction toward, int steps) {
+        return cells.stream().map(cell -> cell.relative(toward, steps)).toList();
+    }
+
+    /**
+     * The box a crawling body fills coming out into an opening's layer: its
+     * middle across, at the layer's floor through a wall, hung from the far
+     * wall's face coming out of a ceiling, and standing on it coming out of a floor.
+     *
+     * @param layer  the opening's cells
+     * @param inward the way the hole runs
+     * @param width  the body's width
+     * @return the box
+     */
+    private static AABB crawlBoxIn(List<BlockPos> layer, Direction inward, double width) {
+        double x = layer.stream().mapToDouble(cell -> cell.getX() + HALF).average().orElseThrow();
+        double z = layer.stream().mapToDouble(cell -> cell.getZ() + HALF).average().orElseThrow();
+        double low = layer.stream().mapToInt(BlockPos::getY).min().orElseThrow();
+        double bottom = inward == Direction.DOWN ? low + 1 - CRAWL_HEIGHT : low;
+        double half = width * HALF;
+        return new AABB(x - half, bottom, z - half, x + half, bottom + CRAWL_HEIGHT, z + half);
+    }
+
+    /**
+     * Every mouth shape over a struck block, largest first: 3x3, then 3x2 and
+     * 2x3, 2x2, 3x1 and 1x3, 2x1 and 1x2, then 1x1, each placed every way
+     * that covers the struck block, the most centred first.
+     *
+     * @param struck the struck block
+     * @param across the two positive directions across the face
+     * @return each mouth's cells
+     */
+    static List<List<BlockPos>> mouthsOver(BlockPos struck, Direction[] across) {
+        List<List<BlockPos>> mouths = new ArrayList<>();
+        for (int[] size : MOUTH_SIZES) {
+            List<int[]> placings = new ArrayList<>();
+            for (int first = 0; first < size[0]; first++) {
+                for (int second = 0; second < size[1]; second++) {
+                    placings.add(new int[] {first, second});
+                }
+            }
+            placings.sort(java.util.Comparator.comparingDouble(placing -> Math.abs(placing[0] - (size[0] - 1) * HALF)
+                    + Math.abs(placing[1] - (size[1] - 1) * HALF)));
+            for (int[] placing : placings) {
+                mouths.add(rectangle(struck, across, -placing[0], size[0] - 1 - placing[0], -placing[1],
+                        size[1] - 1 - placing[1]));
+            }
+        }
+        return mouths;
     }
 
     /**
@@ -148,15 +212,14 @@ public final class Wormhole {
             int lifetime) {
         Space space = Space.of(level, caster);
         Direction inward = face.getOpposite();
-        Optional<Opening> found = framedOpening(space, struck, face, reach, caster);
+        Optional<Opening> found = largestHole(space, struck, face, reach, caster.getBbWidth());
         if (found.isEmpty()) {
             collapse(level, struck, face);
             return false;
         }
-        BlockPos farWall = found.get().firstOpen().relative(face);
         Vec3 up = face.getAxis().isHorizontal() ? Direction.UP.getUnitVec3() : Direction.NORTH.getUnitVec3();
-        Gate entry = new Gate(level.dimension(), layerAround(struck, face), face, up);
-        Gate exit = new Gate(level.dimension(), layerAround(farWall, inward), inward, up);
+        Gate entry = new Gate(level.dimension(), boxOf(found.get().mouth()), face, up);
+        Gate exit = new Gate(level.dimension(), boxOf(found.get().farWall()), inward, up);
         OpenHoles.open(level.getServer(), new OpenHoles.Hole(level.dimension(), entry, exit,
                 level.getGameTime() + lifetime));
         mouth(level, entry.center());
@@ -165,20 +228,13 @@ public final class Wormhole {
     }
 
     /**
-     * The 3x3 layer of blocks around a block across a face, one block deep:
-     * the blocks a mouth on that face covers.
+     * The blocks a mouth covers, as one box one block deep.
      *
-     * @param block the layer's centre
-     * @param face  the face the mouth covers
-     * @return the layer
+     * @param cells the mouth's cells
+     * @return the box
      */
-    static AABB layerAround(BlockPos block, Direction face) {
-        AABB cell = new AABB(block);
-        return switch (face.getAxis()) {
-            case X -> cell.inflate(0, HALF_SPAN, HALF_SPAN);
-            case Y -> cell.inflate(HALF_SPAN, 0, HALF_SPAN);
-            case Z -> cell.inflate(HALF_SPAN, HALF_SPAN, 0);
-        };
+    static AABB boxOf(List<BlockPos> cells) {
+        return cells.stream().map(AABB::new).reduce(AABB::minmax).orElseThrow();
     }
 
     /**
@@ -193,45 +249,7 @@ public final class Wormhole {
      * @return true where an opening lies within reach
      */
     public static boolean opens(ServerLevel level, ServerPlayer player, BlockPos struck, Direction face, int reach) {
-        return framedOpening(Space.of(level, player), struck, face, reach, player).isPresent();
-    }
-
-    /**
-     * The opening ahead of a struck face where both mouths have a wall to
-     * stand in: the whole 3x3 at the struck face solid with open cells before
-     * it, and the whole 3x3 of the wall's far face solid, so no mouth ever
-     * hangs in the air.
-     *
-     * @param space  the world as the scan reads it
-     * @param struck the struck block
-     * @param face   the struck face
-     * @param reach  how many cells past the struck block the scan runs
-     * @param caster the body that must fit
-     * @return the opening, empty where none lies within reach or a mouth has no wall to stand in
-     */
-    static Optional<Opening> framedOpening(Space space, BlockPos struck, Direction face, int reach,
-            ServerPlayer caster) {
-        Direction inward = face.getOpposite();
-        if (!walled(space, struck, face, true)) {
-            return Optional.empty();
-        }
-        return openingAhead(space, struck, inward, reach, caster.getBbWidth(), caster.getBbHeight())
-                .filter(opening -> walled(space, opening.firstOpen().relative(face), inward, false));
-    }
-
-    /**
-     * Whether the 3x3 around a block across a face is all solid wall, and,
-     * where asked, every cell before it open.
-     *
-     * @param space     the world as the scan reads it
-     * @param block     the 3x3's centre
-     * @param face      the face the mouth would cover
-     * @param openFront whether the cells before the face must be open
-     * @return true where a mouth has a wall to stand in
-     */
-    private static boolean walled(Space space, BlockPos block, Direction face, boolean openFront) {
-        return openingsAt(block, acrossOf(face)).getFirst().stream()
-                .allMatch(cell -> !space.open().test(cell) && (!openFront || space.open().test(cell.relative(face))));
+        return largestHole(Space.of(level, player), struck, face, reach, player.getBbWidth()).isPresent();
     }
 
     /**
@@ -291,24 +309,6 @@ public final class Wormhole {
         return Vec3.atCenterOf(struck).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(FACE_LIFT));
     }
 
-    /**
-     * The openings a cross-section offers, best first: the whole 3x3, then
-     * each 2x3 within it, either way up.
-     *
-     * @param centre the cross-section's centre cell
-     * @param across the two positive directions across the scan
-     * @return each opening's cells
-     */
-    static List<List<BlockPos>> openingsAt(BlockPos centre, Direction[] across) {
-        List<List<BlockPos>> openings = new ArrayList<>();
-        openings.add(rectangle(centre, across, -HALF_SPAN, HALF_SPAN, -HALF_SPAN, HALF_SPAN));
-        openings.add(rectangle(centre, across, -HALF_SPAN, 0, -HALF_SPAN, HALF_SPAN));
-        openings.add(rectangle(centre, across, 0, HALF_SPAN, -HALF_SPAN, HALF_SPAN));
-        openings.add(rectangle(centre, across, -HALF_SPAN, HALF_SPAN, -HALF_SPAN, 0));
-        openings.add(rectangle(centre, across, -HALF_SPAN, HALF_SPAN, 0, HALF_SPAN));
-        return openings;
-    }
-
     private static List<BlockPos> rectangle(BlockPos centre, Direction[] across, int firstFrom, int firstTo,
             int secondFrom, int secondTo) {
         List<BlockPos> cells = new ArrayList<>();
@@ -318,25 +318,6 @@ public final class Wormhole {
             }
         }
         return cells;
-    }
-
-    /**
-     * The bottom centre of an opening: its cells' middle across, standing on its lowest cell.
-     *
-     * @param opening the opening's cells
-     * @return the feet of a body standing in it
-     */
-    private static Vec3 feetIn(List<BlockPos> opening) {
-        double x = opening.stream().mapToDouble(cell -> cell.getX() + HALF).average().orElseThrow();
-        double z = opening.stream().mapToDouble(cell -> cell.getZ() + HALF).average().orElseThrow();
-        int y = opening.stream().mapToInt(BlockPos::getY).min().orElseThrow();
-        return new Vec3(x, y, z);
-    }
-
-    private static AABB boxAt(Vec3 feet, double width, double height) {
-        double half = width * HALF;
-        return new AABB(feet.x() - half, feet.y(), feet.z() - half, feet.x() + half, feet.y() + height,
-                feet.z() + half);
     }
 
     private static Direction[] acrossOf(Direction inward) {

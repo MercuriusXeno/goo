@@ -41,6 +41,9 @@ public final class WormholeTests {
     private static final String THROUGH_TO_A_FULL_OPENING = "hole_carries_through_to_a_full_opening";
     private static final String THROUGH_TO_A_NARROW_OPENING = "hole_carries_through_to_a_narrow_opening";
     private static final String REFUSED_WITH_NO_OPENING = "hole_refuses_with_no_opening";
+    private static final String USES_A_ONE_BY_TWO_WALL = "hole_uses_a_one_by_two_wall";
+    private static final String DROPS_THROUGH_A_ONE_BY_ONE_FLOOR = "hole_drops_through_a_one_by_one_floor";
+    private static final String REACHES_THROUGH_A_THICK_WALL = "hole_reaches_through_a_thick_wall";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -52,6 +55,10 @@ public final class WormholeTests {
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_NARROW_OPENING, WormholeTests::throughToANarrowOpening);
         GooTestFunctions.registerTest(registrar, REFUSED_WITH_NO_OPENING, WormholeTests::refusedWithNoOpening);
         GooTestFunctions.registerTest(registrar, CLOSES_AFTER_ITS_LIFETIME, WormholeTests::closesAfterItsLifetime);
+        GooTestFunctions.registerTest(registrar, USES_A_ONE_BY_TWO_WALL, WormholeTests::usesAOneByTwoWall);
+        GooTestFunctions.registerTest(registrar, DROPS_THROUGH_A_ONE_BY_ONE_FLOOR,
+                WormholeTests::dropsThroughAOneByOneFloor);
+        GooTestFunctions.registerTest(registrar, REACHES_THROUGH_A_THICK_WALL, WormholeTests::reachesThroughAThickWall);
     }
 
     private static final String CLOSES_AFTER_ITS_LIFETIME = "hole_closes_after_its_lifetime";
@@ -167,10 +174,12 @@ public final class WormholeTests {
      */
     private static void crossAt(GameTestHelper helper, ServerPlayer player, Vec3 feet) {
         standAt(helper, player, feet);
+        Vec3 stood = player.position();
         for (OpenHoles.Hole hole : OpenHoles.open()) {
             for (Gate mouth : List.of(hole.entry(), hole.exit())) {
-                GatePassage.announced(player, mouth, player.position(), Vec3.ZERO, player.getYRot(),
-                        player.getXRot());
+                if (player.position().equals(stood)) {
+                    GatePassage.announced(player, mouth, stood, Vec3.ZERO, player.getYRot(), player.getXRot());
+                }
             }
         }
     }
@@ -216,6 +225,114 @@ public final class WormholeTests {
             helper.succeed();
         });
     }
+
+    /**
+     * Thrown at a wall one block wide and two tall, the hole uses the space
+     * it is thrown on: a 1x2 mouth on the struck face, and going through it
+     * comes out past the wall.
+     *
+     * @param helper the gametest helper
+     */
+    public static void usesAOneByTwoWall(GameTestHelper helper) {
+        for (int y = 1; y <= 2; y++) {
+            for (int z = WALL_NEAR_Z; z <= WALL_FAR_Z; z++) {
+                helper.setBlock(new BlockPos(2, y, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer caster = caster(helper);
+        throwAt(caster, helper.absolutePos(LOW_IN_THE_SLIM_WALL), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            assertMouthSpans(helper, LOW_IN_THE_SLIM_WALL, 1, 2, 1);
+            crossAt(helper, caster, THROUGH_THE_FACE);
+        });
+        helper.runAfterDelay(LANDED + STEP, () -> {
+            assertAt(helper, caster, OUT_PAST_THE_WALL, "Going through a 1x2 hole should come out past the wall");
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Thrown down at a floor over a cell only one block wide, the hole makes
+     * the 1x1 the space below leaves room for, and a body dropping into it
+     * comes out in the cell beneath.
+     *
+     * @param helper the gametest helper
+     */
+    public static void dropsThroughAOneByOneFloor(GameTestHelper helper) {
+        for (int x = 1; x <= 3; x++) {
+            for (int z = 1; z <= 3; z++) {
+                helper.setBlock(new BlockPos(x, FLOOR_Y, z), Blocks.STONE);
+                helper.setBlock(new BlockPos(x, FLOOR_Y - 1, z), x == 2 && z == 2 ? Blocks.AIR : Blocks.STONE);
+                helper.setBlock(new BlockPos(x, FLOOR_Y - 2, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer caster = caster(helper);
+        caster.snapTo(helper.absoluteVec(ON_THE_FLOOR));
+        throwAt(caster, helper.absolutePos(new BlockPos(2, FLOOR_Y, 2)), Direction.UP);
+        helper.runAfterDelay(LANDED, () -> {
+            assertMouthSpans(helper, new BlockPos(2, FLOOR_Y, 2), 1, 1, 1);
+            crossAt(helper, caster, SUNK_IN_THE_FLOOR);
+        });
+        helper.runAfterDelay(LANDED + STEP, () -> {
+            assertAt(helper, caster, IN_THE_CELL_BELOW, "Dropping into a 1x1 floor hole should come out in the "
+                    + "cell beneath");
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Thrown at a wall twenty blocks thick, past sixteen blocks but within
+     * the hole's thirty-two, the hole opens through to the far side.
+     *
+     * @param helper the gametest helper
+     */
+    public static void reachesThroughAThickWall(GameTestHelper helper) {
+        for (int x = 1; x <= 3; x++) {
+            for (int y = 1; y <= 3; y++) {
+                for (int z = WALL_NEAR_Z; z < WALL_NEAR_Z + THICK_WALL; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+                }
+            }
+        }
+        ServerPlayer caster = caster(helper);
+        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            helper.assertTrue(holeStruckAt(helper, STRUCK).isPresent(), "A hole thrown at a wall twenty blocks thick should open "
+                    + "through it");
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /** Asserts the hole struck at a block opened, its struck-face mouth covering a box of blocks this size. */
+    private static void assertMouthSpans(GameTestHelper helper, BlockPos struck, int x, int y, int z) {
+        java.util.Optional<OpenHoles.Hole> hole = holeStruckAt(helper, struck);
+        helper.assertTrue(hole.isPresent(), "A hole should stand open on the struck face at " + struck);
+        net.minecraft.world.phys.AABB mouth = hole.get().entry().blocks();
+        helper.assertTrue(mouth.getXsize() == x && mouth.getYsize() == y && mouth.getZsize() == z,
+                "The hole's mouth should span " + x + "x" + y + "x" + z + " blocks, spans " + mouth);
+    }
+
+    /** The open hole whose struck-face mouth covers a block, among the holes every test in the run opened. */
+    private static java.util.Optional<OpenHoles.Hole> holeStruckAt(GameTestHelper helper, BlockPos struck) {
+        BlockPos at = helper.absolutePos(struck);
+        return OpenHoles.open().stream().filter(hole -> hole.entry().covers(at)).findFirst();
+    }
+
+    /** The lower block of the slim wall, the throw's mark. */
+    private static final BlockPos LOW_IN_THE_SLIM_WALL = new BlockPos(2, 1, 2);
+    /** The floor's height, relative: two layers of stone below it, a cell open in the middle of the upper one. */
+    private static final int FLOOR_Y = 3;
+    /** Where the caster stands on the floor. */
+    private static final Vec3 ON_THE_FLOOR = new Vec3(2.5, FLOOR_Y + 1, 0.5);
+    /** Feet sunk into the 1x1 floor hole, the middle a tenth below the floor's face. */
+    private static final Vec3 SUNK_IN_THE_FLOOR = new Vec3(2.5, FLOOR_Y, 2.5);
+    /** Where feet come out, in the one-block cell beneath the floor. */
+    private static final Vec3 IN_THE_CELL_BELOW = new Vec3(2.5, FLOOR_Y - 1, 2.5);
+    /** A wall thicker than sixteen blocks and thinner than thirty-two. */
+    private static final int THICK_WALL = 20;
 
     /** Ticks a refused throw is watched for, longer than any flight in the bay. */
     private static final int SETTLE_TICKS = 30;
