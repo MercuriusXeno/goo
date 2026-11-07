@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
 import com.mercuriusxeno.goo.ability.quantum.PortalTether;
@@ -126,11 +127,16 @@ public final class PortalTests {
         assertTethered(helper, player, first);
         assertTethered(helper, player, second);
 
-        helper.runAfterDelay(STEP, () -> standAt(helper, player, A_BLOCK_OFF));
+        helper.runAfterDelay(STEP, () -> {
+            standAt(helper, player, A_BLOCK_OFF);
+            crossAsTheClientSays(player, first);
+        });
         helper.runAfterDelay(STEP + STEP, () -> {
             helper.assertTrue(player.position().distanceTo(helper.absoluteVec(A_BLOCK_OFF)) < OUT_OF,
-                    "Standing a block off the portal's face should carry no one, stands at " + player.position());
+                    "A client saying it crossed from a block off the face should carry no one, stands at "
+                            + player.position());
             standAt(helper, player, THROUGH_THE_FACE);
+            crossAsTheClientSays(player, first);
         });
         helper.runAfterDelay(STEP * 3, () -> {
             assertOutOf(helper, player, OUT_OF_THE_SECOND);
@@ -170,6 +176,12 @@ public final class PortalTests {
     private static void standAt(GameTestHelper helper, ServerPlayer player, Vec3 feet) {
         Vec3 at = helper.absoluteVec(feet);
         player.teleportTo(at.x, at.y, at.z);
+    }
+
+    /** What the server hears from a client whose eye crossed the gate where the player now stands. */
+    private static void crossAsTheClientSays(ServerPlayer player, Portal portal) {
+        GatePassage.announced(player, portal.gate(), player.position(), Vec3.ZERO, player.getYRot(),
+                player.getXRot());
     }
 
     private static void assertOutOf(GameTestHelper helper, ServerPlayer player, Vec3 feet) {

@@ -2,6 +2,9 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.quantum.OpenHoles;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -22,6 +25,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -102,11 +106,11 @@ public final class WormholeTests {
             assertAt(helper, caster, START, "The hole should carry no one the moment it lands");
             helper.assertTrue(helper.getLevel().getBlockState(helper.absolutePos(STRUCK)).is(Blocks.STONE),
                     "The struck wall should stand as it was");
-            standAt(helper, caster, THROUGH_THE_FACE);
+            crossAt(helper, caster, THROUGH_THE_FACE);
         });
         helper.runAfterDelay(LANDED + STEP, () -> {
             assertAt(helper, caster, OUT_PAST_THE_WALL, "Going through the struck face should come out past the wall");
-            standAt(helper, caster, BACK_THROUGH_THE_FAR_FACE);
+            crossAt(helper, caster, BACK_THROUGH_THE_FAR_FACE);
         });
         helper.runAfterDelay(LANDED + STEP + STEP, () -> {
             assertAt(helper, caster, BACK_BEFORE_THE_FACE, "Going back through the far mouth should come out before "
@@ -129,7 +133,7 @@ public final class WormholeTests {
         }
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
-        helper.runAfterDelay(LANDED, () -> standAt(helper, caster, THROUGH_THE_FACE));
+        helper.runAfterDelay(LANDED, () -> crossAt(helper, caster, THROUGH_THE_FACE));
         helper.runAfterDelay(LANDED + STEP, () -> {
             assertAt(helper, caster, OUT_PAST_THE_WALL, "Going through the struck face should come out into the 2x3 "
                     + "opening");
@@ -148,12 +152,27 @@ public final class WormholeTests {
         buildWall(helper);
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
-        helper.runAfterDelay(LANDED + LIFETIME, () -> standAt(helper, caster, THROUGH_THE_FACE));
+        helper.runAfterDelay(LANDED + LIFETIME, () -> crossAt(helper, caster, THROUGH_THE_FACE));
         helper.runAfterDelay(LANDED + LIFETIME + STEP, () -> {
             assertAt(helper, caster, THROUGH_THE_FACE, "A closed hole should carry no one");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
+    }
+
+    /**
+     * Stands the player's feet at a spot and has the server hear what a
+     * client says on the frame its eye crosses a gate there: it crossed the
+     * open hole's mouth, whichever one the server finds the eye behind.
+     */
+    private static void crossAt(GameTestHelper helper, ServerPlayer player, Vec3 feet) {
+        standAt(helper, player, feet);
+        for (OpenHoles.Hole hole : OpenHoles.open()) {
+            for (Gate mouth : List.of(hole.entry(), hole.exit())) {
+                GatePassage.announced(player, mouth, player.position(), Vec3.ZERO, player.getYRot(),
+                        player.getXRot());
+            }
+        }
     }
 
     private static void standAt(GameTestHelper helper, ServerPlayer player, Vec3 feet) {

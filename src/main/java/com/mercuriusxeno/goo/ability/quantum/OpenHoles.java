@@ -43,7 +43,7 @@ public final class OpenHoles {
     /**
      * @return the holes standing open
      */
-    static List<Hole> open() {
+    public static List<Hole> open() {
         return List.copyOf(OPEN);
     }
 

@@ -122,5 +122,6 @@ public final class GooNetworking {
                 WorkbenchRequestHandler::handle);
         r.playToServer(PortalChoosePayload.TYPE, PortalChoosePayload.STREAM_CODEC, PortalChoosePayload::handle);
         r.playToServer(PortalLinkPayload.TYPE, PortalLinkPayload.STREAM_CODEC, PortalLinkPayload::handle);
+        r.playToServer(GateCrossedPayload.TYPE, GateCrossedPayload.STREAM_CODEC, GateCrossedPayload::handle);
     }
 }

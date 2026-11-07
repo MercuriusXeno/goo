@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.mixin;
 
+import com.mercuriusxeno.goo.client.ability.ClientGatePassage;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.GameRenderer;
@@ -9,7 +10,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Draws the view through each visible linked portal before the frame's own
+ * Carries the local player through a gate its eye crossed, then draws the
+ * view through each visible linked portal, both before the frame's own
  * extraction, which then fills the level render state for the main camera
  * afresh.
  * portals-link-by-looking-through-portal-vision
@@ -26,6 +28,7 @@ public abstract class GameRendererPortalViewMixin {
      */
     @Inject(method = "extract", at = @At("HEAD"))
     private void goo$drawPortalViews(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
+        ClientGatePassage.crossBeforeFrame(deltaTracker);
         PortalView.drawBeforeExtract(deltaTracker, advanceGameTime);
     }
 }
