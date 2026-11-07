@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
+import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.quantum.PhasedBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -23,11 +24,13 @@ import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.function.Supplier;
@@ -47,6 +50,14 @@ public class GooBlocks {
     /** Cobblestone's hardness and blast resistance, which a statue mines like. */
     private static final float COBBLESTONE_HARDNESS = 2.0F;
     private static final float COBBLESTONE_RESISTANCE = 6.0F;
+    /** The hardness no hand breaks, bedrock's own. */
+    private static final float UNBREAKABLE = -1.0F;
+    /** Bedrock's blast resistance. */
+    private static final float UNBLASTABLE = 3_600_000.0F;
+    /** The faint light voidstone gives. */
+    private static final int VOIDSTONE_GLOW = 3;
+    /** The light the dimension door gives, enough to find it in the dark. */
+    private static final int DOOR_GLOW = 10;
 
     /**
      * Ability block: short-lived block a world ability runs its program from.
@@ -205,6 +216,26 @@ public class GooBlocks {
      * (decision portable-hole-phases-blocks-for-a-while). Nothing collides with
      * it or mines it, and it drops nothing.
      */
+    /**
+     * Voidstone: the unbreakable block at the center of each Outsider room,
+     * the one block there nothing can take away (decision
+     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
+     */
+    public static final DeferredBlock<Block> VOIDSTONE = BLOCKS.registerSimpleBlock("voidstone",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(UNBREAKABLE, UNBLASTABLE)
+                    .noLootTable().pushReaction(PushReaction.BLOCK).lightLevel(state -> VOIDSTONE_GLOW));
+
+    /**
+     * The dimension door standing in each Outsider room, which leads back
+     * where the player came in from (decision
+     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
+     */
+    public static final DeferredBlock<DimensionDoorBlock> DIMENSION_DOOR = BLOCKS.registerBlock(
+            "dimension_door", DimensionDoorBlock::new,
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).strength(UNBREAKABLE, UNBLASTABLE)
+                    .noCollision().noOcclusion().noLootTable().pushReaction(PushReaction.BLOCK)
+                    .lightLevel(state -> DOOR_GLOW));
+
     public static final DeferredBlock<PhasedBlock> PHASED_BLOCK = BLOCKS.registerBlock(
             "phased_block", PhasedBlock::new,
             () -> BlockBehaviour.Properties.of().noCollision().noOcclusion().strength(-1.0F, 3_600_000.0F)
