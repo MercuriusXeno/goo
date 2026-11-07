@@ -30,11 +30,12 @@ public interface OutsiderHost extends ChannelHost {
     void enterPocket(int cost);
 
     /**
-     * Feeds void the player carries into their room's platform, when they carry it.
+     * Feeds void the player carries into their room's platform, when they
+     * carry it: the current ring's cost spread over the ring time.
      *
-     * @param feed        the void fed (mB)
+     * @param ringTicks   the ticks every ring takes
      * @param base        the void a cell costs at the center (mB)
      * @param perDistance the void each block of Manhattan distance from the center adds (mB)
      */
-    void feedPlatform(int feed, int base, int perDistance);
+    void feedPlatform(int ringTicks, int base, int perDistance);
 }

@@ -175,7 +175,7 @@ class StepCodecTest {
             Map.entry("end", new EndStep(Expr.literal(1200))),
             Map.entry("astral_gate", new AstralGateStep(Expr.literal(1200))),
             Map.entry("pocket_open", new PocketOpenStep()),
-            Map.entry("outsider", new OutsiderStep(Expr.literal(20), Expr.literal(1000), Expr.literal(2),
+            Map.entry("outsider", new OutsiderStep(Expr.literal(20), Expr.literal(6), Expr.literal(40),
                     Expr.literal(10), Expr.literal(1))),
             Map.entry("meteor", new MeteorStep(Expr.literal(4), Expr.literal(60))),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),

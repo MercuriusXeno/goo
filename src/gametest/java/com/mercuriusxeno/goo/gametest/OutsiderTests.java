@@ -114,23 +114,27 @@ public final class OutsiderTests {
     }
 
     private static final String OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD = "outsider_platform_spirals_while_held_inside";
-    /** Ticks the caster keeps holding once inside. */
+    /** Ticks the caster keeps holding once inside: one ring time, as void_outsider.json's ring_ticks names. */
     private static final int HELD_INSIDE = 40;
-    /**
-     * Cells forty fed ticks grow: at 2 mB fed a tick, 80 mB, and each cell costing 10 plus its
-     * Manhattan distance from the center, the spiral's next cells at (2,-1), (2,0), (2,1), (2,2),
-     * (1,2) and (0,2) cost 13, 12, 13, 14, 13 and 12, 77 in all, and (-1,2)'s 13 more would pass 80.
-     */
-    private static final int CELLS_GROWN = 6;
+    /** The 5 by 5 the first grown ring completes: cells 0 to 24. */
+    private static final int RING_TWO_DONE = 25;
+    /** The first cell of the fourth ring, which one ring time held inside does not reach. */
+    private static final int RING_FOUR_START = 49;
     private static final int VOID_FOR_GROWTH = 20 * GooStacks.THOUSAND;
     private static final String SHOULD_GROW = "Cell %d at %s should be grown voidstone, %s stands there";
     private static final String SHOULD_WAIT = "Cell %d at %s should not be grown yet, %s stands there";
-    private static final String SHOULD_KEEP_COUNT = "The room should keep %d platform cells, keeps %d";
+    private static final String SHOULD_KEEP_COUNT = "The room should keep at least %d platform cells, keeps %d";
+
+    private static BlockPos cellOf(int room, int index) {
+        PlatformSpiral.Cell cell = PlatformSpiral.cellAt(index);
+        return OutsiderRooms.voidstoneOf(room).offset(cell.x(), 0, cell.z());
+    }
 
     /**
-     * A caster held on inside their room grows the platform one cell at a
-     * time along the spiral, each cell taking longer than the last, and the
-     * room keeps the count it reached.
+     * A caster held on inside their room for one ring time grows the whole
+     * first ring past the starting 3 by 3 in voidstone along the spiral, the
+     * feed rising with the ring so each ring takes about that long, and does
+     * not yet reach the fourth ring; the room keeps the count it reached.
      *
      * @param helper the gametest helper
      */
@@ -144,20 +148,17 @@ public final class OutsiderTests {
             helper.assertTrue(room != null && caster.level() == pocket,
                     String.format(SHOULD_ENTER, "", caster.position(), caster.getYRot(),
                             caster.level().dimension().identifier()));
-            int grownTo = PlatformSpiral.START_CELLS + CELLS_GROWN;
-            for (int index = PlatformSpiral.START_CELLS; index <= grownTo; index++) {
-                PlatformSpiral.Cell cell = PlatformSpiral.cellAt(index);
-                BlockPos at = OutsiderRooms.voidstoneOf(room).offset(cell.x(), 0, cell.z());
-                if (index < grownTo) {
-                    helper.assertTrue(pocket.getBlockState(at).is(GooBlocks.VOIDSTONE.get()),
-                            String.format(SHOULD_GROW, index, at, pocket.getBlockState(at)));
-                } else {
-                    helper.assertTrue(pocket.getBlockState(at).isAir(),
-                            String.format(SHOULD_WAIT, index, at, pocket.getBlockState(at)));
-                }
+            for (int index = PlatformSpiral.START_CELLS; index < RING_TWO_DONE; index++) {
+                BlockPos at = cellOf(room, index);
+                helper.assertTrue(pocket.getBlockState(at).is(GooBlocks.VOIDSTONE.get()),
+                        String.format(SHOULD_GROW, index, at, pocket.getBlockState(at)));
             }
+            BlockPos beyond = cellOf(room, RING_FOUR_START);
+            helper.assertTrue(pocket.getBlockState(beyond).isAir(),
+                    String.format(SHOULD_WAIT, RING_FOUR_START, beyond, pocket.getBlockState(beyond)));
             int kept = OutsiderRooms.platformCells(pocket, caster.getUUID());
-            helper.assertTrue(kept == grownTo, String.format(SHOULD_KEEP_COUNT, grownTo, kept));
+            helper.assertTrue(kept >= RING_TWO_DONE && kept < RING_FOUR_START,
+                    String.format(SHOULD_KEEP_COUNT, RING_TWO_DONE, kept));
             helper.succeed();
         });
     }

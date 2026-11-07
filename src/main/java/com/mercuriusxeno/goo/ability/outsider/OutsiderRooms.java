@@ -152,6 +152,21 @@ public final class OutsiderRooms {
     }
 
     /**
+     * The void a tick of the hold feeds a player's platform: its current
+     * ring's cost spread over the ring time.
+     *
+     * @param player      the player in their room
+     * @param ringTicks   the ticks every ring takes
+     * @param base        the void a cell costs at the center (mB)
+     * @param perDistance the void each block of Manhattan distance adds (mB)
+     * @return the feed (mB)
+     */
+    public static int feedOf(ServerPlayer player, int ringTicks, int base, int perDistance) {
+        int cells = VoidPockets.get(player.level()).platformOf(player.getUUID()).cells();
+        return (int) Math.min(Integer.MAX_VALUE, PlatformSpiral.feedFor(cells, base, perDistance, ringTicks));
+    }
+
+    /**
      * The cells a player's platform holds.
      *
      * @param level  any level of the server
@@ -163,10 +178,11 @@ public final class OutsiderRooms {
     }
 
     /**
-     * Feeds void into the platform of the room a player stands in: what
-     * was fed reaching the next cell's cost grows that cell along the
-     * spiral, one cell a feed at most, and what is left over carries to the
-     * cell after. A cell a player built into already counts as grown.
+     * Feeds void into the platform of the room a player stands in: as many
+     * cells grow along the spiral as what was fed covers, each at its own
+     * cost, and what is left over carries to the cell after. A cell a player
+     * built into already counts as grown. Only the first cell a feed grows
+     * chimes, so a fast ring rings once a tick.
      *
      * @param player   the player in their room
      * @param feed        the void fed (mB)
@@ -186,14 +202,17 @@ public final class OutsiderRooms {
         int cells = platform.cells();
         long fed = platform.fed() + feed;
         long cost = PlatformSpiral.costOf(cells, base, perDistance);
-        if (fed >= cost) {
+        boolean chimed = false;
+        while (fed >= cost) {
             BlockPos at = platformCellOf(room, cells);
             if (pocket.getBlockState(at).isAir()) {
                 pocket.setBlock(at, GooBlocks.VOIDSTONE.get().defaultBlockState(), Block.UPDATE_ALL);
             }
-            showGrowth(pocket, at, at.distManhattan(voidstoneOf(room)));
+            showGrowth(pocket, at, at.distManhattan(voidstoneOf(room)), !chimed);
+            chimed = true;
             cells++;
             fed -= cost;
+            cost = PlatformSpiral.costOf(cells, base, perDistance);
         }
         pockets.keepPlatform(player.getUUID(), new VoidPockets.Platform(cells, fed));
     }
@@ -205,13 +224,16 @@ public final class OutsiderRooms {
      * @param pocket   the pocket dimension
      * @param at       the grown cell
      * @param distance the cell's Manhattan distance from the center
+     * @param chimes   true to chime with the puff
      */
-    private static void showGrowth(ServerLevel pocket, BlockPos at, int distance) {
+    private static void showGrowth(ServerLevel pocket, BlockPos at, int distance, boolean chimes) {
         Vec3 top = Vec3.atCenterOf(at).add(0, HALF_BLOCK, 0);
         pocket.sendParticles(ParticleTypes.REVERSE_PORTAL, top.x, top.y, top.z, GROW_PARTICLES,
                 GROW_SPREAD, GROW_RISE, GROW_SPREAD, GROW_SPEED);
-        pocket.playSound(null, top.x, top.y, top.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS,
-                CHIME_VOLUME, Math.min(CHIME_TOP, CHIME_PITCH + distance * CHIME_RISE));
+        if (chimes) {
+            pocket.playSound(null, top.x, top.y, top.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS,
+                    CHIME_VOLUME, Math.min(CHIME_TOP, CHIME_PITCH + distance * CHIME_RISE));
+        }
     }
 
     /**
