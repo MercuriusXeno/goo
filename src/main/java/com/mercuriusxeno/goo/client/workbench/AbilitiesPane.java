@@ -11,6 +11,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +47,8 @@ final class AbilitiesPane {
     private static final String DESCRIPTION_HOVER = "goo-ability-description:";
     // The icon sits in its sprite row as an item sprite does.
     private static final int ICON_INSET = (RowLayout.SPRITE_ROW_HEIGHT - RowLayout.SPRITE_SIZE) / 2;
+    // Decision ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
+    private static final int COLUMNS = 4;
 
     private final AbilitiesTab tab;
     private final ManagerActions actions;
@@ -262,11 +266,57 @@ final class AbilitiesPane {
                             GroupsPane.Bounds from, ClickTargets targets) {
         drawHeading(graphics, font, ability, from.left(), from.top(), targets);
         int y = from.top() + RowLayout.SPRITE_ROW_HEIGHT + GAP;
-        for (AbilitiesTab.Leaf leaf : ability.leaves()) {
-            GroupsPane.Bounds leafRow = new GroupsPane.Bounds(from.left(), y, from.right(), from.bottom());
-            y += drawLeaf(graphics, font, ability, leaf, leafRow, targets) + GAP;
+        Map<String, List<AbilitiesTab.Leaf>> byMechanism = new LinkedHashMap<>();
+        ability.leaves().forEach(leaf -> byMechanism.computeIfAbsent(leaf.mechanism(), key -> new ArrayList<>())
+                .add(leaf));
+        for (Map.Entry<String, List<AbilitiesTab.Leaf>> mechanism : byMechanism.entrySet()) {
+            y = drawMechanism(graphics, font, ability, mechanism.getValue(), new GroupsPane.Bounds(from.left(), y,
+                    from.right(), from.bottom()), targets);
         }
         return y;
+    }
+
+    // The mechanism's sub-heading, then its params in four equal columns across the ability's width, a param needing
+    // more than one cell taking whole cells and a line wrapping once its four are spent; answers the y below it.
+    // Decisions ability-params-read-named-under-their-mechanism-and-hover-a-description,
+    // ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
+    private int drawMechanism(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
+                              List<AbilitiesTab.Leaf> leaves, GroupsPane.Bounds from, ClickTargets targets) {
+        graphics.text(font, AbilityWording.mechanismName(leaves.getFirst().mechanism(), translate), from.left(),
+                from.top(), Palette.FILE_HEADING);
+        int y = from.top() + ExpressionLines.TEXT_LINE_HEIGHT + GAP;
+        int cell = (from.right() - from.left()) / COLUMNS;
+        int column = 0;
+        int lineHeight = 0;
+        for (AbilitiesTab.Leaf leaf : leaves) {
+            int cells = cellsFor(font, ability, leaf, cell);
+            if (column + cells > COLUMNS) {
+                y += lineHeight + GAP;
+                column = 0;
+                lineHeight = 0;
+            }
+            int left = from.left() + column * cell;
+            GroupsPane.Bounds cellBounds = new GroupsPane.Bounds(left, y, left + cells * cell, from.bottom());
+            lineHeight = Math.max(lineHeight, drawLeaf(graphics, font, ability, leaf, cellBounds, targets));
+            column += cells;
+        }
+        return y + lineHeight + GAP;
+    }
+
+    // The whole cells a param takes: one where its label and box fit one, the next whole cells where they need more,
+    // the whole line while the builder stands open over it.
+    private int cellsFor(Font font, AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf, int cell) {
+        boolean editingLeaf = editing != null && editing.holds(ability, leaf);
+        if (editingLeaf && leaf.kind() == AbilitiesTab.Kind.COST && builder.isOpen()) {
+            return COLUMNS;
+        }
+        int needed = ControlFlow.INDENT + font.width(AbilityWording.label(leaf, translate)) + BuilderFrame.LABEL_GAP
+                + ExpressionLines.width(font, runsOf(ability, leaf, tab.valueOf(ability, leaf)))
+                + ButtonPainter.PADDING + ButtonPainter.PADDING + ButtonPainter.width(font, ReadValueButton.PENCIL);
+        if (editingLeaf) {
+            needed += GAP + ButtonPainter.width(font, CANCEL) + GAP + ButtonPainter.width(font, DONE);
+        }
+        return Math.clamp((needed + cell - 1) / Math.max(1, cell), 1, COLUMNS);
     }
 
     // The rail's room at the left edge, the ability's 16px icon as an item sprite sits in its row, its name bold
@@ -312,7 +362,11 @@ final class AbilitiesPane {
         boolean building = editingLeaf && leaf.kind() == AbilitiesTab.Kind.COST && builder.isOpen();
         String value = tab.valueOf(ability, leaf);
         List<ExpressionLines.Run> runs = runsOf(ability, leaf, value);
-        BuilderFrame.Row framed = new BuilderFrame.Row(row, leaf.path(), GooAmountGrid.NONE, false);
+        String label = AbilityWording.label(leaf, translate);
+        BuilderFrame.Row framed = new BuilderFrame.Row(row, label, GooAmountGrid.NONE, false);
+        // ability-params-read-named-under-their-mechanism-and-hover-a-description
+        targets.addHover(BuilderFrame.lay(font, framed).labelX(), row.top(), font.width(label), ButtonPainter.HEIGHT,
+                DESCRIPTION_HOVER + AbilityWording.descriptionKey(leaf.mechanism(), leaf.field()));
         BuilderFrame.Box box;
         if (building) {
             box = area -> builder.extract(graphics, font, area, area.top(), targets);

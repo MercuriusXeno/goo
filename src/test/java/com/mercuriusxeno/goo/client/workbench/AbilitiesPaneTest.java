@@ -299,6 +299,130 @@ class AbilitiesPaneTest {
         }
     }
 
+    /**
+     * Params read plain labels under a sub-heading naming their mechanism, each label hovering its description, and
+     * lay in four equal columns across the ability's width, a field needing more taking whole cells, a line wrapping
+     * when its four are spent (decisions ability-params-read-named-under-their-mechanism-and-hover-a-description,
+     * ability-params-lay-in-a-four-column-grid-spanning-whole-cells).
+     */
+    @Nested
+    class Grid {
+        private static final String RADIUS_DESCRIPTION = "Blocks the nova reaches from the player.";
+        private static final Map<String, String> LANG = Map.ofEntries(
+                Map.entry("goo.ability.mechanism.nova", "Nova"), Map.entry("goo.ability.mechanism.grab", "Grab"),
+                Map.entry("goo.ability.mechanism.cost", "Cost"),
+                Map.entry("goo.ability.param.cost.cost", "Price"),
+                Map.entry("goo.ability.param.nova.radius", "Radius"),
+                Map.entry("goo.ability.param.nova.radius.description", RADIUS_DESCRIPTION),
+                Map.entry("goo.ability.param.nova.amount", "Amount"), Map.entry("goo.ability.param.nova.damage", "Hurt"),
+                Map.entry("goo.ability.param.nova.push", "Push"), Map.entry("goo.ability.param.nova.hold", "Hold"),
+                Map.entry("goo.ability.param.grab.range", "Range"), Map.entry("goo.ability.param.grab.near", "Near"),
+                Map.entry("goo.ability.param.grab.far", "Far"),
+                Map.entry("goo.ability.param.grab.throw_speed", "Throw speed"));
+        private static final String GRID_MODEL = """
+                {"typeOrder": ["frost", "kinetic"], "abilities": [
+                  {"id": "goo:frost_nova", "gooType": "frost", "displayName": "frost_nova", "draft": false,
+                   "badge": "world", "order": 10, "leaves": [
+                    {"path": "cost", "value": "3 * minecraft:cobblestone", "kind": "COST", "mechanism": "cost",
+                     "field": "cost"},
+                    %s, %s, %s, %s, %s]},
+                  {"id": "goo:kinetic_grab", "gooType": "kinetic", "displayName": "kinetic_grab", "draft": false,
+                   "badge": "channeled", "order": 10, "leaves": [%s, %s, %s, %s]}]}
+                """.formatted(leaf("nova", "radius", 2), leaf("nova", "amount", 4), leaf("nova", "damage", 2),
+                leaf("nova", "push", 3), leaf("nova", "hold", 300), leaf("grab", "range", 16), leaf("grab", "near", 2),
+                leaf("grab", "far", 4), leaf("grab", "throw_speed", 1));
+        private static final int WIDTH = VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP - VIEW.left();
+        private static final int CELL = WIDTH / 4;
+
+        private static String leaf(String mechanism, String field, int value) {
+            return "{\"path\": \"behaviors/0/" + field + "\", \"value\": " + value + ", \"kind\": \"NUMBER\","
+                    + " \"mechanism\": \"" + mechanism + "\", \"field\": \"" + field + "\"}";
+        }
+
+        private static DrawnFrame drawn() {
+            AbilitiesTab tab = new AbilitiesTab();
+            tab.readModel(GRID_MODEL);
+            ManagerActions actions = mock(ManagerActions.class);
+            ItemIcons icons = mock(ItemIcons.class);
+            when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+            return draw(new AbilitiesPane(tab, actions, icons, new ExpressionBuilderPane(actions, icons, List::of,
+                    List::of), key -> LANG.getOrDefault(key, key), ref -> Map.of(), java.util.Set::of));
+        }
+
+        private static int cellLeft(int column) {
+            return VIEW.left() + column * CELL + ControlFlow.INDENT;
+        }
+
+        @Test
+        void paramsReadPlainLabelsUnderTheirMechanismAndNoPath() {
+            DrawnFrame frame = drawn();
+            assertTrue(frame.find("Radius").y() > frame.find("Nova").y(), "the heading stands below its params");
+            assertTrue(frame.texts().contains("Range"), frame.texts().toString());
+            assertTrue(frame.texts().stream().noneMatch(text -> text.contains("behaviors/")), frame.texts().toString());
+        }
+
+        @Test
+        void fourParamsLineUpAtTheFourCellLeftsAndTheFifthWraps() {
+            DrawnFrame frame = drawn();
+            List<String> four = List.of("Radius", "Amount", "Hurt", "Push");
+            for (int column = 0; column < four.size(); column++) {
+                assertEquals(cellLeft(column), frame.find(four.get(column)).x(), four.get(column));
+                assertEquals(frame.find("Radius").y(), frame.find(four.get(column)).y(), four.get(column));
+            }
+            assertEquals(cellLeft(0), frame.find("Hold").x());
+            assertTrue(frame.find("Hold").y() > frame.find("Radius").y(), "the fifth param stands on the first line");
+        }
+
+        @Test
+        void aSecondSectionsCellsStandAtTheSameLefts() {
+            DrawnFrame frame = drawn();
+            List<String> four = List.of("Range", "Near", "Far", "Throw speed");
+            for (int column = 0; column < four.size(); column++) {
+                assertEquals(cellLeft(column), frame.find(four.get(column)).x(), four.get(column));
+            }
+        }
+
+        @Test
+        void aCostWiderThanACellSpansWholeCells() {
+            DrawnFrame frame = drawn();
+            DrawnFrame.Text price = frame.find("Price");
+            DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")
+                    && Math.abs(text.y() - price.y()) <= ButtonPainter.HEIGHT).findFirst()
+                    .orElseThrow(() -> new AssertionError("no pencil on the cost's row"));
+            int right = frame.buttonAround(pencil)[2];
+            assertEquals(0, (right - VIEW.left()) % CELL, "the cost's box ends at " + right + ", off a cell boundary");
+            assertTrue((right - VIEW.left()) / CELL > 1, "the cost's box spans " + (right - VIEW.left()) / CELL);
+        }
+
+        @Test
+        void aLabelHoversItsDescription() {
+            DrawnFrame frame = drawn();
+            DrawnFrame.Text radius = frame.find("Radius");
+            String hoverKey = frame.targets.hoveredArea(radius.x() + 1, radius.y() + 1)
+                    .map(ClickTargets.HoveredArea::hoverKey).orElseThrow(() -> new AssertionError("no hover"));
+            assertEquals(java.util.Optional.of(RADIUS_DESCRIPTION),
+                    AbilitiesPane.descriptionFor(hoverKey, key -> LANG.getOrDefault(key, key)));
+        }
+
+        /**
+         * Every hover a drawn Abilities frame registers reads the pencil's Rename, a goo type's or an item's name, or
+         * an ability's or a param's description (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
+         */
+        @Test
+        void everyHoverIsAPencilANameOrADescription() {
+            DrawnFrame frame = drawn();
+            List<String> unexplained = frame.targets.hoverKeys().stream()
+                    .filter(key -> BuilderOverlays.tooltipFor(key).isEmpty() && GooTypeIcons.tooltipFor(key).isEmpty()
+                            && !key.equals(ItemIcons.hoverKey(key.substring(key.indexOf(':') + 1)))
+                            && AbilitiesPane.descriptionFor(key, k -> k).isEmpty())
+                    .toList();
+            assertEquals(List.of(), unexplained);
+            assertTrue(frame.targets.hoverKeys().stream().map(key -> AbilitiesPane.descriptionFor(key,
+                    k -> LANG.getOrDefault(k, k))).flatMap(java.util.Optional::stream).toList()
+                    .contains(RADIUS_DESCRIPTION));
+        }
+    }
+
     @Test
     void aCostItemHoldingTheTypeReadsNoLine() {
         DrawnFrame frame = draw(pane(Map.of("minecraft:cobblestone", Map.of("unstable", "250"))));
