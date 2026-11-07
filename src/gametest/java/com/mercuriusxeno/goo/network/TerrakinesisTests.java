@@ -312,9 +312,9 @@ public final class TerrakinesisTests {
 
     /**
      * Sets the slab in a hole of planks, which carry no rock goo: walled on
-     * the north and south up to the slab's top, and on the east and west along
-     * its bottom row, below the look and below the hold, so the hunk sits in a
-     * hole it must rise out of and the hold stands in open air.
+     * the north and south up to the slab's top, and on the west along its
+     * bottom row, below the look; the east, toward the hold, stays open, so the
+     * hold stands in open air and seats nothing.
      *
      * @param helper the gametest helper
      */
@@ -325,7 +325,6 @@ public final class TerrakinesisTests {
         }
         for (int z = SLAB_LOW_Z - 1; z <= SLAB_HIGH_Z + 1; z++) {
             helper.setBlock(new BlockPos(SLAB_X - 1, SLAB_LOW_Y, z), Blocks.OAK_PLANKS);
-            helper.setBlock(new BlockPos(SLAB_X + 1, SLAB_LOW_Y, z), Blocks.OAK_PLANKS);
         }
     }
 

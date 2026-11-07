@@ -117,6 +117,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.DIRECTION);
     /** The shatter time a whole hunk names. */
     public static final long WHOLE = -1;
+    /** How far a hold pushed into the ground leans toward a seat its shape fits, 1 all the way; tuned in playtesting. */
+    static final double SEAT_PULL = 1.0;
     /** How fast a torn hunk rises out of its hole, in blocks a tick. */
     static final double RISE_OUT_SPEED = 0.3;
     /** Whether the hunk was thrown, so it breaks on impact; a hunk let go is placed where it lands. */
@@ -314,7 +316,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             }
         }
         entityData.set(CLEAR_OF_HOLE, true);
-        return HoldEase.toward(position(), hold, HoldEase.TICK_SECONDS);
+        return HoldEase.toward(position(), seatedHold(hold), HoldEase.TICK_SECONDS);
     }
 
     /**
@@ -353,6 +355,27 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             return struck || resting ? Landing.STRIKE : Landing.FLY;
         }
         return resting ? Landing.PLACE : Landing.FLY;
+    }
+
+    /**
+     * Where the hold puts the hunk, seated: where the aim pushes it into the
+     * ground beside a hollow its shape fits (HoleFit), the hold leans toward
+     * that grid-aligned seat by {@link #SEAT_PULL}, so the chunk slots back
+     * where it came from; anywhere else the hold stands as the aim puts it.
+     * Both the server's hold and the holder's drawn glide read it.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @param hold where the aim puts the hunk
+     * @return where the hunk eases toward
+     */
+    public Vec3 seatedHold(Vec3 hold) {
+        if (!level().getBlockCollisions(null, makeBoundingBox(hold)).iterator().hasNext()) {
+            return hold;
+        }
+        List<BlockPos> shape = blocks.stream().map(HunkBlock::offset).toList();
+        return HoleFit.fitNear(BlockPos.containing(hold.x, hold.y + HALF, hold.z), shape,
+                        cell -> level().getBlockState(cell).canBeReplaced())
+                .map(seat -> hold.lerp(Vec3.atBottomCenterOf(seat), SEAT_PULL)).orElse(hold);
     }
 
     /**
