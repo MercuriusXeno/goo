@@ -17,6 +17,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -120,6 +121,18 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
      */
     double reachWith(@Nullable AttributeModifier telekinesisReach) {
         return telekinesisReach == null ? range : range + telekinesisReach.amount();
+    }
+
+    /**
+     * How far an ability's Grab reaches, so the glove aims no farther than it lifts.
+     *
+     * @param behaviors        the ability's behaviors
+     * @param telekinesisReach the modifier Telekinesis lays on the player's entity reach, or null where none stands
+     * @return the reach, in blocks, or empty where the ability holds no grab
+     */
+    public static OptionalDouble reachOf(List<Step> behaviors, @Nullable AttributeModifier telekinesisReach) {
+        return behaviors.stream().filter(GrabStep.class::isInstance).map(GrabStep.class::cast)
+                .mapToDouble(grab -> grab.reachWith(telekinesisReach)).findFirst();
     }
 
     /**

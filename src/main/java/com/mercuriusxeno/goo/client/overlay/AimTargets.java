@@ -46,16 +46,18 @@ final class AimTargets {
      * @param player      the local player
      * @param seed        the previous frame's aim-assist hit, the sticky seed
      * @param hint        the targeting mode from the selected ability
+     * @param range       how far the ray reaches, the selected ability's reach (GloveAim.aimRange)
      * @param partialTick the frame's partial tick
      * @return the target and the aim-assist hit behind it
      */
     static AimState.Resolution resolve(Player player, AimAssistResolver.@Nullable AimHit seed,
-                                       TargetingHint hint, float partialTick) {
+                                       TargetingHint hint, double range, float partialTick) {
         if (hint == TargetingHint.NONE) {
             return AimState.Resolution.NOTHING;
         }
         Vec3 eyePos = player.getEyePosition(partialTick);
-        Vec3 reach = eyePos.add(player.getViewVector(partialTick).scale(AimState.MAX_RANGE));
+        // decision grab-reaches-telekinesis-range: a grab marks no mob beyond what it lifts
+        Vec3 reach = eyePos.add(player.getViewVector(partialTick).scale(range));
         return resolveFor(hint, new AimSources() {
             @Override
             public AimAssistResolver.@Nullable AimHit entityHit() {
