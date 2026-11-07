@@ -97,10 +97,10 @@ class DeliveryTest {
 
         // shards-sling-then-morph-to-flechettes
         @Test
-        void crystalShardsChargesARainOfKnives() {
-            Delivery shards = AbilityJson.decode("crystal_shards").delivery();
-            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 24, 50, 8), shards.charge());
-            assertTrue(shards.charge().slings());
+        void crystalKnivesChargesARainOfKnives() {
+            Delivery knives = AbilityJson.decode("crystal_knives").delivery();
+            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 24, 50, 8), knives.charge());
+            assertTrue(knives.charge().slings());
         }
 
         // traveling-form-transforms-in-flight

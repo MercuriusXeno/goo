@@ -30,7 +30,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Throws a charged Shards release as a rain of glass knives: the glove arm
+ * Throws a charged Knives release as a rain of glass knives: the glove arm
  * flings out, the knives stream from the hand over the sweep, each into
  * its own slice of the cone with scattered pitch and speed, and each arcs
  * under gravity until it sticks in a block, strikes a mob, or is spent. A
