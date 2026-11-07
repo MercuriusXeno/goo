@@ -93,6 +93,25 @@ public final class ClientPortals {
                 .max(Comparator.comparingDouble(portal -> alignment(portal, eye, look)));
     }
 
+    /**
+     * The portal a look faces: the one nearest the look's line, within the
+     * pick cone, however far or walled off it stands, in the looker's level.
+     *
+     * @param among     the portals to pick from
+     * @param dimension the looker's level
+     * @param eye       the eye
+     * @param look      the unit look vector
+     * @return the portal, empty where none stands within the cone
+     */
+    public static Optional<Portal> facedOnLook(List<Portal> among, net.minecraft.resources.ResourceKey<
+            net.minecraft.world.level.Level> dimension, Vec3 eye, Vec3 look) {
+        double cosine = Math.cos(Math.toRadians(PICK_CONE_DEGREES));
+        return among.stream()
+                .filter(portal -> portal.block().dimension().equals(dimension))
+                .filter(portal -> alignment(portal, eye, look) >= cosine)
+                .max(Comparator.comparingDouble(portal -> alignment(portal, eye, look)));
+    }
+
     private static double alignment(Portal portal, Vec3 eye, Vec3 look) {
         Vec3 toward = portal.faceCenter().subtract(eye);
         double length = toward.length();

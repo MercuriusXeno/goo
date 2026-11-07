@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.PortalAim;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -15,6 +17,7 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -32,9 +35,10 @@ import java.util.Optional;
  * orange, and each open hole's mouths, blue on the struck side and orange on
  * the far side. A gate whose view drew this frame shows the far side flush
  * inside its oval under a rim of its color; one with no view shows its idle
- * swirl. While the player chooses a partner, every portal of theirs shows
- * its swirl through walls (portal vision), the one the look picks brightest.
- * Inside a view's own pass the gates draw their swirls, from that view's camera.
+ * swirl. With Portal in the glove, the portal being chosen from and, while
+ * the player sneaks, the one its look faces show their swirl through walls
+ * in place of their view, the faced one strobing. Inside a view's own pass
+ * only an inert gate draws, its swirl, from that view's camera.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
  */
@@ -48,10 +52,12 @@ public final class PortalFaces {
     private static final int OPAQUE = 255;
     /** The idle swirl's alpha: nearly solid, a little of the wall showing through its dark heart. */
     private static final int SWIRL_ALPHA = 235;
-    /** A portal's swirl through walls while choosing. */
-    private static final int VISION_ALPHA = 150;
-    /** The swirl the look picks while choosing. */
-    private static final int PICKED_ALPHA = 255;
+    /** The faintest a faced portal's strobe dims to. */
+    private static final float STROBE_LOW = 60F;
+    /** How fast a faced portal strobes, in radians a tick. */
+    private static final float STROBE_RATE = 0.6F;
+    /** Half a wave's swing, which lifts a sine from minus one to one into nothing to full. */
+    private static final float HALF_WAVE = 0.5F;
     /** How far off its blocks a gate's face stands, so the two never fight for depth. */
     private static final double FACE_LIFT = 0.01;
 
@@ -111,16 +117,63 @@ public final class PortalFaces {
         Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Optional<Portal> choosing = ClientPortals.choosing();
-        if (choosing.isPresent() && !PortalView.drawing()) {
-            drawVision(pose, buffers, camera, choosing.get(), player);
+        List<Drawn> gates = gatesIn(mc.level.dimension());
+        if (PortalView.drawing()) {
+            drawIdle(pose, buffers, camera, gates);
             return;
         }
-        List<Drawn> gates = gatesIn(mc.level.dimension());
-        if (!PortalView.drawing()) {
-            drawViews(pose, buffers, camera, gates);
-        }
+        List<Portal> worked = workedOn(player);
+        gates.removeIf(drawn -> worked.stream().anyMatch(portal -> portal.gate().equals(drawn.gate())));
+        drawViews(pose, buffers, camera, gates);
         drawIdle(pose, buffers, camera, gates);
+        drawWorked(pose, buffers, camera, worked, player);
+    }
+
+    /**
+     * The portals a right click with Portal in the glove works on, which
+     * light up to say so: the one being chosen from, and, while the player
+     * sneaks, the one its look faces.
+     *
+     * @param player the local player
+     * @return the portals, the chosen-from first
+     */
+    private static List<Portal> workedOn(LocalPlayer player) {
+        if (!PortalAim.selected(GloveAim.selectedAbilityId(player))) {
+            return List.of();
+        }
+        List<Portal> worked = new ArrayList<>(ClientPortals.choosing().stream().toList());
+        if (PortalAim.working(player)) {
+            PortalAim.faced(player).filter(faced -> !worked.contains(faced)).ifPresent(worked::add);
+        }
+        return worked;
+    }
+
+    /**
+     * Draws the portals a right click works on as their swirl in place of
+     * their view, seen through walls: the one being chosen from steady, the
+     * one the look faces while sneaking strobing.
+     *
+     * @param pose    the pose
+     * @param buffers the frame's buffers
+     * @param camera  the camera's position
+     * @param worked  the portals worked on
+     * @param player  the local player
+     */
+    private static void drawWorked(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            List<Portal> worked, LocalPlayer player) {
+        if (worked.isEmpty()) {
+            return;
+        }
+        Optional<Portal> faced = PortalAim.working(player) ? PortalAim.faced(player) : Optional.empty();
+        float time = player.tickCount + Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        int strobe = (int) Mth.lerp(HALF_WAVE + HALF_WAVE * Mth.sin(time * STROBE_RATE), STROBE_LOW, OPAQUE);
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_VISION_TYPE);
+        for (Portal portal : worked) {
+            int alpha = faced.isPresent() && faced.get().equals(portal) ? strobe : SWIRL_ALPHA;
+            emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
+                    ARGB.color(alpha, colorOf(portal, ClientPortals.link())));
+        }
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_VISION_TYPE);
     }
 
     /**
@@ -201,31 +254,6 @@ public final class PortalFaces {
     private static boolean inert(Gate gate) {
         return GatePassage.clientPairs().stream().noneMatch(pair -> pair.one().equals(gate)
                 || pair.other().equals(gate));
-    }
-
-    /**
-     * Draws every portal of the player's as its swirl through walls while
-     * they choose a partner, the one the look picks brightest.
-     *
-     * @param pose     the pose
-     * @param buffers  the frame's buffers
-     * @param camera   the camera's position
-     * @param choosing the portal chosen from
-     * @param player   the local player
-     */
-    private static void drawVision(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-            Portal choosing, LocalPlayer player) {
-        Optional<Portal> picked = ClientPortals.pickedOnLook(ClientPortals.portals(), choosing,
-                player.getEyePosition(), player.getLookAngle());
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_VISION_TYPE);
-        for (Portal portal : ClientPortals.portals()) {
-            if (portal.block().dimension().equals(player.level().dimension())) {
-                boolean bright = portal.equals(choosing) || picked.isPresent() && picked.get().equals(portal);
-                emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
-                        ARGB.color(bright ? PICKED_ALPHA : VISION_ALPHA, colorOf(portal, ClientPortals.link())));
-            }
-        }
-        buffers.endBatch(GooRenderTypes.GOO_PORTAL_VISION_TYPE);
     }
 
     /**

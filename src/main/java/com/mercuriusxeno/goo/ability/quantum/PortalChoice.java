@@ -40,18 +40,42 @@ public final class PortalChoice {
     }
 
     /**
-     * Places a portal for its caster.
+     * Places a portal for its caster: a first portal stands inert, and each
+     * after links to the one placed before it, the older the blue entry and
+     * the newer the orange exit, the pair they held before unlinked.
      *
      * @param level  the level the portal stands in
      * @param owner  the caster
      * @param portal the portal
      */
     public static void place(ServerLevel level, UUID owner, Portal portal) {
-        QuantumPortals.get(level).place(owner, portal);
-        ServerPlayer player = level.getServer().getPlayerList().getPlayer(owner);
-        if (player != null) {
-            sync(player);
+        QuantumPortals portals = QuantumPortals.get(level);
+        List<Portal> before = portals.portalsOf(owner);
+        portals.place(owner, portal);
+        if (!before.isEmpty() && !before.contains(portal)) {
+            linkPair(level, owner, before.getLast(), portal);
         }
+        syncEveryone(level.getServer());
+    }
+
+    /**
+     * Links two of a player's portals, the first the blue entry, moving the
+     * chunk tether from the pair unlinked to the pair linked.
+     *
+     * @param level the level
+     * @param owner the player
+     * @param entry the blue entry portal
+     * @param exit  the orange exit portal
+     */
+    private static void linkPair(ServerLevel level, UUID owner, Portal entry, Portal exit) {
+        QuantumPortals portals = QuantumPortals.get(level);
+        Optional<Portal> choosing = portals.choosing(owner);
+        portals.choose(owner, Optional.of(entry));
+        portals.link(owner, exit).ifPresent(relink -> {
+            relink.before().ifPresent(unlinked -> PortalTether.tie(level.getServer(), owner, unlinked, false));
+            PortalTether.tie(level.getServer(), owner, relink.now(), true);
+        });
+        portals.choose(owner, choosing.filter(held -> portals.portalsOf(owner).contains(held)));
     }
 
     /**
