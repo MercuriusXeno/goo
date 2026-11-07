@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Lets a diver through solid blocks: right after vanilla sets the player's
- * no-clip from spectator mode each tick, a diver inside, sinking into or
- * pushing into solid blocks takes it too, on the client that moves the
+ * no-clip from spectator mode each tick, a diver inside solid blocks or
+ * pressing into them takes it too, on the client that moves the
  * player and the server that checks the move alike, and no-clip keeps the
  * stone from suffocating it.
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
