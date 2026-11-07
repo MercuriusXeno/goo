@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.client.fade.Afterglow;
+import com.mercuriusxeno.goo.client.fade.Afterglows;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -15,13 +17,18 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Draws each prepaid brew effect's clock beside the status bars: a heart
  * brew's left of the health bar, any other brew's right of the food bar,
  * one row up for each further clock on that side, pulsing inside its last
- * thirty seconds. A glove effect shows no clock.
+ * thirty seconds, and fading over the second after its brew ends. A glove
+ * effect shows no clock.
  * brew-runs-the-crawl-prepaid-on-a-shown-clock
+ * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BrewClockHud {
@@ -39,6 +46,8 @@ public final class BrewClockHud {
     /** The gui's width halves at its centre. */
     private static final int HALVES = 2;
     private static final String NO_CLOCK = "";
+    /** Each clock's trace, read between frames so an ended brew's clock fades rather than vanishing. */
+    private static final Afterglows<Identifier, HeldEffects.Held> CLOCKS = new Afterglows<>();
 
     private BrewClockHud() {
     }
@@ -59,17 +68,50 @@ public final class BrewClockHud {
         if (player == null) {
             return;
         }
-        float guiTime = mc.gui.getGuiTicks() + deltaTracker.getGameTimeDeltaPartialTick(false);
-        ClockFrame frame = new ClockFrame(graphics, mc.font, player.level().getGameTime(), guiTime,
+        float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+        float guiTime = mc.gui.getGuiTicks() + partialTick;
+        long now = player.level().getGameTime();
+        ClockFrame frame = new ClockFrame(graphics, mc.font, now, guiTime,
                 graphics.guiWidth() / HALVES, graphics.guiHeight() - BAR_TOP_FROM_BOTTOM);
         int heartRow = 0;
         int otherRow = 0;
-        for (HeldEffects.Held effect : player.getData(GooAttachments.HELD_EFFECTS).held()) {
-            if (effect.prepaid()) {
-                boolean hearts = effect.changesHearts();
-                frame.paint(effect.expiresAt(), hearts, hearts ? heartRow++ : otherRow++);
-            }
+        for (Afterglow.Glow<HeldEffects.Held> clock : clocks(CLOCKS, player.getData(GooAttachments.HELD_EFFECTS).held(),
+                now + partialTick)) {
+            boolean hearts = clock.state().changesHearts();
+            frame.paint(clock, hearts ? heartRow++ : otherRow++);
         }
+    }
+
+    /**
+     * The clocks a frame paints: each prepaid effect standing, and each one
+     * ended inside the last second, fading.
+     * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
+     *
+     * @param glows the clocks' traces, kept between frames
+     * @param held  the effects standing on the player
+     * @param now   the game time, partial tick included
+     * @return each clock with the strength it draws at, in the order each first stood
+     */
+    static List<Afterglow.Glow<HeldEffects.Held>> clocks(Afterglows<Identifier, HeldEffects.Held> glows,
+                                                         List<HeldEffects.Held> held, float now) {
+        Map<Identifier, HeldEffects.Held> prepaid = new LinkedHashMap<>();
+        held.stream().filter(HeldEffects.Held::prepaid).forEach(effect -> prepaid.put(effect.ability(), effect));
+        return glows.read(prepaid, now);
+    }
+
+    /**
+     * The colour a clock's text draws in: red inside its last thirty seconds,
+     * pulsing while its effect stands and fading at the clock's strength once
+     * it has ended.
+     *
+     * @param clock   the clock
+     * @param now     the game time
+     * @param guiTime the gui time, fraction included
+     * @return the text colour, alpha in the top byte
+     */
+    static int clockColor(Afterglow.Glow<HeldEffects.Held> clock, long now, float guiTime) {
+        boolean warning = BrewClock.warns(clock.state().expiresAt(), now);
+        return color(warning, BrewClock.pulseAlpha(warning && clock.stands(), guiTime) * clock.strength());
     }
 
     /**
@@ -100,15 +142,14 @@ public final class BrewClockHud {
          * Paints one clock, left of the health bar for a heart brew and right
          * of the food bar for any other, stacking upward by row.
          *
-         * @param expiresAt the game time the brew ends at
-         * @param hearts    whether the brew lays a heart overlay
-         * @param row       the clock's row on its side, from the bottom
+         * @param clock the clock, standing or fading
+         * @param row   the clock's row on its side, from the bottom
          */
-        void paint(long expiresAt, boolean hearts, int row) {
-            String text = BrewClock.remaining(expiresAt, now).orElse(NO_CLOCK);
-            boolean warning = BrewClock.warns(expiresAt, now);
-            int x = hearts ? centre - BAR_HALF_WIDTH - GAP - font.width(text) : centre + BAR_HALF_WIDTH + GAP;
-            graphics.text(font, text, x, top - row * LINE_HEIGHT, color(warning, BrewClock.pulseAlpha(warning, guiTime)));
+        void paint(Afterglow.Glow<HeldEffects.Held> clock, int row) {
+            String text = BrewClock.remaining(clock.state().expiresAt(), now).orElse(NO_CLOCK);
+            int x = clock.state().changesHearts() ? centre - BAR_HALF_WIDTH - GAP - font.width(text)
+                    : centre + BAR_HALF_WIDTH + GAP;
+            graphics.text(font, text, x, top - row * LINE_HEIGHT, clockColor(clock, now, guiTime));
         }
     }
 

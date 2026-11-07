@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
 
@@ -118,15 +117,26 @@ final class RadialWheelRenderer {
      * @param radius    the wheel's outer radius
      * @param look        the fluid, edge and colors a petal draws with
      * @param partialTick the fraction of a tick since the last one, for the petals' ease
-     * @param active      the abilities whose effect the player holds, which pulse
+     * @param active      how strongly each ability's petal pulses, by id: one while the player holds its
+     *                    effect, falling over the second after it ends
      * @param gameTime    the game time, fraction included, which the pulse runs on
      * @param reagentSets the whole sets of a list of consumed items the inventory holds
      * @param standing    the effects standing on the player, whose upkeep the time counts subtract
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
-                 int centerX, int centerY, int radius, PetalLook look, float partialTick, Set<Identifier> active,
+                 int centerX, int centerY, int radius, PetalLook look, float partialTick, Map<Identifier, Float> active,
                  float gameTime, ToIntFunction<List<Identifier>> reagentSets, HeldEffects standing) {
+
+        /**
+         * How strongly an ability's petal pulses this frame.
+         *
+         * @param ability the ability's id
+         * @return one while its effect is held, falling after it ends, zero otherwise
+         */
+        float pulseOf(Identifier ability) {
+            return active.getOrDefault(ability, 0f);
+        }
 
         /**
          * A frame whose inventory reads every reagent as plentiful and holds no standing effect.
@@ -140,12 +150,12 @@ final class RadialWheelRenderer {
          * @param radius      the wheel's outer radius
          * @param look        the fluid, edge and colors a petal draws with
          * @param partialTick the fraction of a tick since the last one
-         * @param active      the abilities whose effect the player holds
+         * @param active      how strongly each ability's petal pulses, by id
          * @param gameTime    the game time, fraction included
          */
         Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types, List<List<OfferedAbility>> abilities,
               Map<ResourceKey<GooTypeDefinition>, Integer> available, int centerX, int centerY, int radius,
-              PetalLook look, float partialTick, Set<Identifier> active, float gameTime) {
+              PetalLook look, float partialTick, Map<Identifier, Float> active, float gameTime) {
             this(wheel, types, abilities, available, centerX, centerY, radius, look, partialTick, active, gameTime,
                     reagents -> Integer.MAX_VALUE, HeldEffects.NONE);
         }
@@ -166,7 +176,7 @@ final class RadialWheelRenderer {
         Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types, List<List<OfferedAbility>> abilities,
               Map<ResourceKey<GooTypeDefinition>, Integer> available, int centerX, int centerY, int radius,
               PetalLook look, float partialTick) {
-            this(wheel, types, abilities, available, centerX, centerY, radius, look, partialTick, Set.of(), 0f);
+            this(wheel, types, abilities, available, centerX, centerY, radius, look, partialTick, Map.of(), 0f);
         }
     }
 
@@ -349,9 +359,10 @@ final class RadialWheelRenderer {
      */
     static int typePetalTint(Frame frame, int type) {
         boolean selected = type == frame.wheel().selectedType();
-        boolean holdsEffect = frame.abilities().get(type).stream()
-                .anyMatch(offered -> frame.active().contains(offered.ability().id()));
-        return tint(selected, false, !selected && holdsEffect, frame.gameTime());
+        // brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends: the type settles as its ability does
+        float pulse = (float) frame.abilities().get(type).stream()
+                .mapToDouble(offered -> frame.pulseOf(offered.ability().id())).max().orElse(0.0);
+        return tint(selected, false, selected ? 0f : pulse, frame.gameTime());
     }
 
     /**
@@ -400,7 +411,7 @@ final class RadialWheelRenderer {
         boolean dimmed = offered.locked() || slotLabels.dimmed();
         // wheel-pulses-the-active-effect: a held effect's petal pulses
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
-                tint(hovered, dimmed, frame.active().contains(ability.id()), frame.gameTime()));
+                tint(hovered, dimmed, frame.pulseOf(ability.id()), frame.gameTime()));
         int[] restingTip = tipCenter(frame, petal);
         if (offered.locked()) {
             return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered),
@@ -911,15 +922,15 @@ final class RadialWheelRenderer {
      *
      * @param hovered  true for the hovered or selected wedge
      * @param disabled true when the player holds none of it, or cannot afford it
-     * @param active   true when the player holds the petal's effect
+     * @param pulse    how strongly the petal pulses: one while the player holds its effect, falling after it ends
      * @param gameTime the game time, fraction included
      * @return the packed ARGB tint
      */
-    static int tint(boolean hovered, boolean disabled, boolean active, float gameTime) {
-        if (hovered || disabled || !active) {
+    static int tint(boolean hovered, boolean disabled, float pulse, float gameTime) {
+        if (hovered || disabled || pulse <= 0f) {
             return computeOverlayTint(hovered, disabled);
         }
-        int alpha = PetalPulse.alpha(true, gameTime);
+        int alpha = PetalPulse.alpha(pulse, gameTime);
         float lift = (alpha - NORMAL_ALPHA) / (float) (HOVER_ALPHA - NORMAL_ALPHA);
         int shade = REST_SHADE + Math.round(lift * (ARGB.red(COLOR_WHITE) - REST_SHADE));
         return ARGB.color(alpha, shade, shade, shade);

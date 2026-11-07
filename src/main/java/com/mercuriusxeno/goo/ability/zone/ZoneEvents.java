@@ -34,9 +34,9 @@ public final class ZoneEvents {
     /** Rolls a warp tries before giving up for the tick, as chorus fruit does. */
     static final int WARP_TRIES = 16;
     /** Ticks between one shimmer refresh and the next. */
-    static final int SHIMMER_REFRESH_TICKS = 20;
+    public static final int SHIMMER_REFRESH_TICKS = 20;
     /** Ticks each refresh keeps the shimmer on, outlasting the refresh period. */
-    static final int SHIMMER_TICKS = 40;
+    public static final int SHIMMER_TICKS = 40;
     /** Ticks each warp's afterimage grows and fades over, the blink's own. */
     static final int AFTERIMAGE_LIFE_TICKS = 12;
     private static final double HALF = 0.5;

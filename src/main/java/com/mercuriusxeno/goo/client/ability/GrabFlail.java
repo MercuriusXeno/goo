@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.world.entity.Entity;
+import java.util.List;
 
 /**
  * Flails a held mob's limbs on this client: while it wears Grab's ailment,
@@ -34,8 +35,19 @@ public final class GrabFlail {
     }
 
     private static boolean grabbed(Entity entity) {
-        return MobAilments.CLIENT.ailmentsOf(entity.getId(), entity.level().getGameTime()).stream()
-                .anyMatch(worn -> worn.kind() == AilmentKind.GRABBED);
+        return flails(MobAilments.CLIENT.ailmentsOf(entity.getId(), entity.level().getGameTime()));
+    }
+
+    /**
+     * Whether an entity wearing these ailments flails: while Grab's ailment
+     * stands, not while its overlay fades after the release.
+     * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
+     *
+     * @param worn the ailments the entity wears
+     * @return true while a standing Grab holds it
+     */
+    static boolean flails(List<MobAilments.Worn> worn) {
+        return worn.stream().anyMatch(ailment -> ailment.kind() == AilmentKind.GRABBED && ailment.stands());
     }
 
     /**
