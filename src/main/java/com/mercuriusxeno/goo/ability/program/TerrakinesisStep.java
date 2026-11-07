@@ -1,12 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
-import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -34,7 +31,6 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -43,8 +39,8 @@ import java.util.stream.Stream;
  * Rock's Terrakinesis, run each tick of a held channel on the channeling
  * player, earth-bending: the first tick lifts a hunk out of the ground, the
  * block the look strikes within range and every block joined to it face to
- * face within the radius that carries rock goo value, charged their rock
- * value; every tick after holds the hunk on the look as Grab holds a body,
+ * face within the radius that carries rock goo value, charged the tear's
+ * fixed cost; every tick after holds the hunk on the look as Grab holds a body,
  * from the far distance with the look level drawn in to the near as it
  * pitches down. A left click while held hucks it at the throw speed
  * (GrabEvents.throwHeld), and the hunk crushes what it strikes.
@@ -64,8 +60,9 @@ import java.util.stream.Stream;
  * @param near       how far from the eye the hunk's middle hangs with the look pitched fully down
  * @param far        how far from the eye the hunk's middle hangs with the look level or above
  * @param throwSpeed the speed a huck launches the hunk at, in blocks per tick
+ * @param cost       the rock goo each tear costs, in mB, the same whatever the hunk holds
  */
-public record TerrakinesisStep(double range, double radius, double near, double far, double throwSpeed)
+public record TerrakinesisStep(double range, double radius, double near, double far, double throwSpeed, int cost)
         implements Step {
 
     private static final String NAME = "terrakinesis";
@@ -74,14 +71,18 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     private static final String FIELD_NEAR = "near";
     private static final String FIELD_FAR = "far";
     private static final String FIELD_THROW_SPEED = "throw_speed";
+    private static final String FIELD_COST = "cost";
+    /** The rock goo a tear costs where the ability names none: as much as a charge of Bore. */
+    private static final int DEFAULT_COST = 1000;
     /** The ticks a hold strains the ground before the hunk tears free: half a second. */
     public static final int WINDUP_TICKS = 10;
     /** Ticks between the wind-up's rumbles. */
-    static final int RUMBLE_EVERY = 3;
+    static final int RUMBLE_EVERY = 2;
     /** The first rumble's pitch, each one after rising by {@link #RUMBLE_RISE}. */
     private static final float RUMBLE_LOW = 0.5f;
     private static final float RUMBLE_RISE = 0.15f;
     private static final Identifier RUMBLE = Identifier.withDefaultNamespace("block.gravel.break");
+    private static final Identifier RUMBLE_UNDER = Identifier.withDefaultNamespace("block.deepslate.break");
     /** How far the held hunk keeps from its holder's body, in blocks. */
     private static final double HOLDER_CLEARANCE = 0.25;
     /** Each step the hold pushes the hunk out along the look while it overlaps its holder. */
@@ -120,7 +121,8 @@ public record TerrakinesisStep(double range, double radius, double near, double 
             Codec.DOUBLE.fieldOf(FIELD_RADIUS).forGetter(TerrakinesisStep::radius),
             Codec.DOUBLE.fieldOf(FIELD_NEAR).forGetter(TerrakinesisStep::near),
             Codec.DOUBLE.fieldOf(FIELD_FAR).forGetter(TerrakinesisStep::far),
-            Codec.DOUBLE.fieldOf(FIELD_THROW_SPEED).forGetter(TerrakinesisStep::throwSpeed)
+            Codec.DOUBLE.fieldOf(FIELD_THROW_SPEED).forGetter(TerrakinesisStep::throwSpeed),
+            Codec.INT.optionalFieldOf(FIELD_COST, DEFAULT_COST).forGetter(TerrakinesisStep::cost)
     ).apply(inst, TerrakinesisStep::new));
 
     /** The registered type. */
@@ -184,6 +186,9 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         BlockPos struck = rumble == null ? null : struckBlock(player);
         if (struck != null) {
             SoundPlays.play(player.level(), Vec3.atCenterOf(struck), rumble);
+            // Deepslate's heavier break under the gravel, so the strain carries.
+            SoundPlays.play(player.level(), Vec3.atCenterOf(struck), new SoundCue(RUMBLE_UNDER, SoundKind.BLOCKS,
+                    rumble.volume(), rumble.pitch()));
         }
     }
 
@@ -256,7 +261,7 @@ public record TerrakinesisStep(double range, double radius, double near, double 
             return null;
         }
         List<BlockPos> cells = hunkCells(struck, radius, cell -> liftable(level, cell));
-        if (!pay(player, rockValueOf(level, cells))) {
+        if (!pay(player, cost)) {
             return null;
         }
         List<BlockHunk.HunkBlock> blocks = new ArrayList<>(cells.size());
@@ -389,31 +394,19 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         return value != null && value.exact(GooTypes.ROCK).isPositive();
     }
 
-    private static GooFraction rockValueOf(ServerLevel level, List<BlockPos> cells) {
-        GooFraction total = GooFraction.ZERO;
-        for (BlockPos cell : cells) {
-            GooValue value = ValuedBlocks.valueAt(level, cell);
-            if (value != null) {
-                total = total.plus(value.exact(GooTypes.ROCK));
-            }
-        }
-        return total;
-    }
-
     /**
-     * Charges the hunk's rock value through the player's ledger, the
-     * remainder paying first.
+     * Charges the tear's fixed price in rock goo, the same whatever the hunk holds.
      *
      * @param player the lifting player
-     * @param cost   the hunk's exact rock value
+     * @param cost   the tear's price in mB
      * @return true where the player's rock goo paid it
      */
-    private static boolean pay(ServerPlayer player, GooFraction cost) {
-        int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.ROCK, 0);
-        IRemainderLedger ledger = GooCapabilities.remainderLedgerOf(player);
-        OptionalInt charged = ledger.debitExact(GooTypes.ROCK, cost, holdings);
-        charged.ifPresent(mb -> GooSourceScanner.deplete(player, GooTypes.ROCK, mb));
-        return charged.isPresent();
+    private static boolean pay(ServerPlayer player, int cost) {
+        if (!GooSourceScanner.hasEnough(player, GooTypes.ROCK, cost)) {
+            return false;
+        }
+        GooSourceScanner.deplete(player, GooTypes.ROCK, cost);
+        return true;
     }
 
     @Override

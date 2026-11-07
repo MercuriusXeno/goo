@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -155,7 +154,10 @@ public final class TerrakinesisTests {
                     "Clear of its hole, the hunk should come to hang " + FAR + " from the eye, hangs " + hangs);
             helper.assertTrue(BuiltInRegistries.SOUND_EVENT.containsKey(TerrakinesisStep.TEAR.sound()),
                     "The tear's sound " + TerrakinesisStep.TEAR.sound() + " should stand in the sound registry");
-            int expected = stoneRockValue(helper).exact(GooTypes.ROCK).times(slab.size()).ceiling();
+            // The tear costs its fixed price, whatever the hunk holds.
+            int expected = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_TERRAKINESIS).behaviors().stream()
+                    .filter(TerrakinesisStep.class::isInstance).map(TerrakinesisStep.class::cast).findFirst()
+                    .orElseThrow().cost();
             int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.ROCK, 0);
             helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
             leave(helper, player);
@@ -319,11 +321,6 @@ public final class TerrakinesisTests {
         return helper.getLevel().getEntitiesOfClass(BlockHunk.class, bay(helper));
     }
 
-    private static GooValue stoneRockValue(GameTestHelper helper) {
-        GooValue value = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.STONE));
-        helper.assertTrue(value != null, "Stone should carry a rock goo value");
-        return value;
-    }
 
     private static void leave(GameTestHelper helper, ServerPlayer player) {
         helper.getLevel().getServer().getPlayerList().remove(player);

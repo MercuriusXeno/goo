@@ -46,7 +46,7 @@ class GroundShakeTest {
     private static final double BORE_RANGE = 4;
     /** A hold long past any wind-up. */
     private static final int HELD_LONG = 100;
-    private static final TerrakinesisStep TERRAKINESIS = new TerrakinesisStep(6, 1.5, 2.5, 3.5, 1.5);
+    private static final TerrakinesisStep TERRAKINESIS = new TerrakinesisStep(6, 1.5, 2.5, 3.5, 1.5, 1000);
 
     private static ClientAbility ability(Step behavior) {
         return new ClientAbility(Identifier.parse("goo:rock_test"), "test", "", 0, List.of(), List.of(behavior), 0,

@@ -15,12 +15,18 @@ import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.PocketOpenStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -483,13 +489,49 @@ public final class AbilitySyncHandler {
             }
             // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
             if (cost == 0 && costFormula.isPresent()) {
-                return costFormula.get();
+                return formula().orElseThrow();
             }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
             if (!pricedDynamically() && paysWhileHeld()) {
                 return GooFormat.formatAmount((long) cost * TICKS_PER_SECOND / delivery.ticksPerCharge()) + PER_SECOND;
             }
             return GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost, trip));
+        }
+
+        /**
+         * The short formula the petal and the panel read, its number filled
+         * from the ability's own numbers so it stays true when one is tuned: a
+         * Spire's the rock value of a block of stone, live from the connection's
+         * goo values, a Terrakinesis's its fixed price a tear.
+         * dynamic-costs-keep-the-mb-quantity
+         *
+         * @return the formula filled, or empty for an ability naming none
+         */
+        public Optional<String> formula() {
+            return costFormula.map(format -> fillCostMechanics(format, formulaArguments()));
+        }
+
+        private List<String> formulaArguments() {
+            if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
+                return List.of(GooFormat.formatMixed(stoneRockValue(ClientGooValues.current())));
+            }
+            return terrakinesis().map(step -> List.of(GooFormat.formatAmount(step.cost()))).orElse(List.of());
+        }
+
+        /**
+         * The rock goo a block of stone is worth, what Spire charges for each block it raises.
+         *
+         * @param values the goo values
+         * @return the exact value, zero where stone has none
+         */
+        static GooFraction stoneRockValue(IGooValueLookup values) {
+            GooValue value = values.lookup(SPIRE_BLOCK);
+            return value == null ? GooFraction.ZERO : value.exact(GooTypes.ROCK);
+        }
+
+        private Optional<TerrakinesisStep> terrakinesis() {
+            return behaviors.stream().filter(TerrakinesisStep.class::isInstance).map(TerrakinesisStep.class::cast)
+                    .findFirst();
         }
 
         /**
@@ -556,7 +598,7 @@ public final class AbilitySyncHandler {
          * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or brew, "200 + 100/block" for a blink
          */
         public String petalLabel(int holdings, int reagentSets, StandingUpkeep standing) {
-            return costFormula.orElseGet(() -> costLabel()
+            return formula().orElseGet(() -> costLabel()
                     + AffordedCount.reckon(this, holdings, reagentSets, standing)
                     .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT));
         }
@@ -630,6 +672,20 @@ public final class AbilitySyncHandler {
             }
             if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
                 return List.of(GooFormat.formatMixed(lookup.valueOf(SPIRE_BLOCK)));
+            }
+            return stepPriceArguments();
+        }
+
+        /**
+         * The price a step names for itself: Terrakinesis its fixed price a tear,
+         * Pocket its void per slot; any other none.
+         *
+         * @return the arguments, formatted
+         */
+        private List<String> stepPriceArguments() {
+            Optional<TerrakinesisStep> terrakinesis = terrakinesis();
+            if (terrakinesis.isPresent()) {
+                return List.of(GooFormat.formatAmount(terrakinesis.get().cost()));
             }
             // pocket-is-a-void-reserving-container-with-scroll-and-search: Pocket reads its void per slot
             Optional<PocketOpenStep> pocket = behaviors.stream().filter(PocketOpenStep.class::isInstance)
