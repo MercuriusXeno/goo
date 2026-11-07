@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.ability.quantum;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
@@ -225,6 +227,20 @@ public class QuantumPortals extends SavedData {
      */
     public Optional<Portal> partnerOf(Portal portal) {
         return links.values().stream().flatMap(link -> link.otherEnd(portal).stream()).findFirst();
+    }
+
+    /**
+     * The portal covering a block's face, whoever placed it.
+     *
+     * @param block the block
+     * @param face  the face
+     * @return the portal, empty where none covers it
+     */
+    public Optional<Portal> portalAt(GlobalPos block, Direction face) {
+        return placed.values().stream().flatMap(List::stream)
+                .filter(portal -> portal.face() == face && portal.block().dimension().equals(block.dimension())
+                        && portal.covers(block.pos()))
+                .findFirst();
     }
 
     /**

@@ -1,12 +1,17 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.network.PortalsSyncPayload;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +29,10 @@ public final class PortalChoice {
     private static final float SOUND_VOLUME = 0.8f;
     private static final float CHOOSE_PITCH = 1.6f;
     private static final float LINK_PITCH = 1.2f;
+    private static final float BREAK_PITCH = 1.5f;
+    private static final int BREAK_PARTICLES = 24;
+    private static final double BREAK_SPREAD = 0.4;
+    private static final double BREAK_SPEED = 0.05;
 
     private PortalChoice() {
     }
@@ -72,6 +81,34 @@ public final class PortalChoice {
             sound(player, relink.now().exit().faceCenter(), LINK_PITCH);
         });
         sync(player);
+    }
+
+    /**
+     * Breaks the portal covering a hit block's face, as though it were a block
+     * over the wall: the portal goes, with its link and the link's tether,
+     * and the wall behind it stands.
+     *
+     * @param level the level hit in
+     * @param block the hit block
+     * @param face  the hit face
+     * @return true when a portal broke
+     */
+    public static boolean breakAt(ServerLevel level, BlockPos block, Direction face) {
+        QuantumPortals portals = QuantumPortals.get(level);
+        Optional<Portal> hit = portals.portalAt(GlobalPos.of(level.dimension(), block), face);
+        if (hit.isEmpty()) {
+            return false;
+        }
+        Map<UUID, QuantumPortals.Link> before = portals.links();
+        portals.fall(hit.get()).ifPresent(owner -> PortalTether.tie(level.getServer(), owner, before.get(owner),
+                false));
+        Vec3 at = hit.get().faceCenter();
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, at.x(), at.y(), at.z(), BREAK_PARTICLES, BREAK_SPREAD,
+                BREAK_SPREAD, BREAK_SPREAD, BREAK_SPEED);
+        level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(),
+                SoundSource.BLOCKS, SOUND_VOLUME, BREAK_PITCH);
+        level.getServer().getPlayerList().getPlayers().forEach(PortalChoice::sync);
+        return true;
     }
 
     /**
