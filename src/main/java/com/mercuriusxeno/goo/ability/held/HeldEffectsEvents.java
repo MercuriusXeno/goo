@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Holds a player's self + brew effects on the server: starts one when the
+ * Holds a player's durative effects on the server: starts one when the
  * glove's eat finishes or a brew is drunk, ends one when the player invokes
  * it again, and each tick draws every glove effect's upkeep from the
  * inventory, ending one the inventory can no longer pay and a brew's at its
@@ -83,7 +83,7 @@ public final class HeldEffectsEvents {
      *
      * @param player  the player
      * @param gooType the goo type its upkeep draws
-     * @param ability the self + brew ability
+     * @param ability the durative ability
      */
     public static void start(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
         HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, upkeepOf(player, ability),
@@ -117,7 +117,7 @@ public final class HeldEffectsEvents {
      * ability-cost-builds-as-a-one-type-by-type-value
      *
      * @param player  the player
-     * @param ability the self + brew ability
+     * @param ability the durative ability
      * @return the exact upkeep in mB a tick
      */
     private static GooFraction upkeepOf(ServerPlayer player, AbilityDefinition ability) {

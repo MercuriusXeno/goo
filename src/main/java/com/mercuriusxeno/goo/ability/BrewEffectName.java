@@ -50,7 +50,7 @@ public final class BrewEffectName {
      * @return the ability's key, or the type's own effect key for a type granting none
      */
     public static String nameKeyOf(ResourceKey<GooTypeDefinition> type, @Nullable String abilityNameKey) {
-        return abilityNameKey != null ? abilityNameKey : EFFECT_PREFIX + GooMobEffects.brewEffectName(type);
+        return abilityNameKey != null ? abilityNameKey : EFFECT_PREFIX + GooMobEffects.heldEffectName(type);
     }
 
     /**
@@ -66,7 +66,7 @@ public final class BrewEffectName {
     private static @Nullable String grantedAbilityNameKey(ResourceKey<GooTypeDefinition> type) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
-            AbilityDefinition granted = AbilityRegistry.of(server).brewAbilityFor(type);
+            AbilityDefinition granted = AbilityRegistry.of(server).durativeAbilityFor(type);
             return granted != null ? granted.displayName() : null;
         }
         return CONNECTION_NAMES.get().apply(type);

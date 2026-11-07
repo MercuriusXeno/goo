@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Held self + brew effects: each pays its upkeep per tick after its start tick, ends when it cannot pay or is ended, and a heart-changing start ends any other heart-changing effect (decision self-effects-trickle-until-ended). */
+/** Held durative effects: each pays its upkeep per tick after its start tick, ends when it cannot pay or is ended, and a heart-changing start ends any other heart-changing effect (decision self-effects-trickle-until-ended). */
 class HeldEffectsTest {
 
     private static final long STARTED = 100L;

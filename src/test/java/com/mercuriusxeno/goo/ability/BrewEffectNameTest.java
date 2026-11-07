@@ -53,7 +53,7 @@ class BrewEffectNameTest {
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void brewEffectReadsItsAbilitysNameOrItsPotionsWord(ResourceKey<GooTypeDefinition> type) {
-        AbilityDefinition granted = shipped.brewAbilityFor(type);
+        AbilityDefinition granted = shipped.durativeAbilityFor(type);
         String expected = granted != null ? translate(granted.displayName())
                 : translate("item.minecraft.potion.effect." + GooTypes.id(type) + "_goo").substring(POTION_PREFIX.length());
 

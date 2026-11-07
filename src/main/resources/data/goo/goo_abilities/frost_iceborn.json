@@ -2,7 +2,7 @@
   "gooType": "frost",
   "displayName": "goo.ability.frost.iceborn",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
-  "badge": "brew",
+  "badge": "durative",
   "order": 70,
   "upkeep": 1,
   "delivery": { "kind": "self" },

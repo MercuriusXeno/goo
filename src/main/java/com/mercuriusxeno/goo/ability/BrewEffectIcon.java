@@ -37,7 +37,7 @@ public final class BrewEffectIcon {
     public static @Nullable Identifier of(ResourceKey<GooTypeDefinition> type) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
-            return textureOf(AbilityRegistry.of(server).brewAbilityFor(type));
+            return textureOf(AbilityRegistry.of(server).durativeAbilityFor(type));
         }
         return CONNECTION_ICONS.get().apply(type);
     }

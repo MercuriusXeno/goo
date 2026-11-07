@@ -32,7 +32,7 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 /**
- * The self + brew effects a player holds. A glove effect stands from the
+ * The durative effects a player holds. A glove effect stands from the
  * eat that started it until the player invokes it again or the inventory can
  * no longer pay its upkeep, with no timer; a drunk brew's effect is prepaid,
  * paying nothing until its expiry ends it. A heart-changing effect starting

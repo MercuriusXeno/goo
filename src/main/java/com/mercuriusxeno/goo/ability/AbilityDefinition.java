@@ -57,7 +57,7 @@ import java.util.stream.Stream;
  * @param consumes    the items a throw takes from the thrower's inventory, one of each, beside its goo cost
  * @param onPrism     the steps a landing on a prism runs in place of the type's prism ability, empty for none
  * @param onBlocks    the steps a stream or a spore burst runs on each floor it reaches, empty for none
- * @param upkeep      what a held self + brew effect pays each tick it stands, priced as the cost is, zero for
+ * @param upkeep      what a held durative effect pays each tick it stands, priced as the cost is, zero for
  *                    every other ability (decision self-effects-trickle-until-ended)
  * @param downSound   the cue a held effect plays when it ends, empty for the shared ability-down cue
  *                    (decision held-effects-sound-up-and-down)
@@ -122,7 +122,7 @@ public record AbilityDefinition(
      * @param consumes      the items a throw takes, one of each
      * @param onPrism       the steps a landing on a prism runs, empty for none
      * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
-     * @param upkeep        the mB a held self + brew effect pays each tick it stands
+     * @param upkeep        the mB a held durative effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
      * @param distancePrice what a blink adds to the cost for the trip it makes
      * @param pose          the arm pose the glove arm takes in place of the swing
@@ -170,7 +170,7 @@ public record AbilityDefinition(
      * @param consumes      the items a throw takes, one of each
      * @param onPrism       the steps a landing on a prism runs, empty for none
      * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
-     * @param upkeep        the mB a held self + brew effect pays each tick it stands
+     * @param upkeep        the mB a held durative effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
      * @param distancePrice what a blink adds to the cost for the trip it makes
      * @param pose          the arm pose the glove arm takes in place of the swing
@@ -207,7 +207,7 @@ public record AbilityDefinition(
      * @param consumes      the items a throw takes, one of each
      * @param onPrism       the steps a landing on a prism runs, empty for none
      * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
-     * @param upkeep        the mB a held self + brew effect pays each tick it stands
+     * @param upkeep        the mB a held durative effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
      * @param distancePrice what a blink adds to the cost for the trip it makes
      * @param pose          the arm pose the glove arm takes in place of the swing
@@ -243,7 +243,7 @@ public record AbilityDefinition(
      * @param consumes      the items a throw takes, one of each
      * @param onPrism       the steps a landing on a prism runs, empty for none
      * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
-     * @param upkeep        the mB a held self + brew effect pays each tick it stands
+     * @param upkeep        the mB a held durative effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
      * @param distancePrice what a blink adds to the cost for the trip it makes
      */
@@ -277,7 +277,7 @@ public record AbilityDefinition(
      * @param consumes    the items a throw takes, one of each
      * @param onPrism     the steps a landing on a prism runs, empty for none
      * @param onBlocks    the steps a stream or a spore burst runs on each floor it reaches
-     * @param upkeep      the mB a held self + brew effect pays each tick it stands
+     * @param upkeep      the mB a held durative effect pays each tick it stands
      * @param downSound   the cue a held effect plays when it ends, empty for the shared cue
      */
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
@@ -290,7 +290,7 @@ public record AbilityDefinition(
     }
 
     /**
-     * An ability paying no upkeep, every ability but a held self + brew effect.
+     * An ability paying no upkeep, every ability but a held durative effect.
      *
      * @param id          the datapack resource identifier
      * @param gooType     the goo type this ability belongs to
@@ -334,7 +334,7 @@ public record AbilityDefinition(
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each
      * @param onPrism     the steps a landing on a prism runs, empty for none
-     * @param upkeep      the mB a held self + brew effect pays each tick it stands
+     * @param upkeep      the mB a held durative effect pays each tick it stands
      * @param downSound   the cue a held effect plays when it ends, empty for the shared cue
      */
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
@@ -465,7 +465,7 @@ public record AbilityDefinition(
     private static final String FIELD_DOWN_SOUND = "down_sound";
     /** The upkeep of an ability that holds nothing. */
     public static final int NO_UPKEEP = 0;
-    /** The cost of a held self + brew effect, which starts free and pays its upkeep after. */
+    /** The cost of a held durative effect, which starts free and pays its upkeep after. */
     private static final Expr NO_COST = Expr.literal(0);
     /** The upkeep the JSON writes where it names none. */
     private static final Expr NO_UPKEEP_WRITTEN = Expr.literal(NO_UPKEEP);
@@ -502,7 +502,7 @@ public record AbilityDefinition(
     private static final Codec<List<Identifier>> ITEM_IDS_CODEC = Identifier.CODEC.listOf();
 
     /**
-     * What a held self + brew effect's JSON names beside its program: its
+     * What a held durative effect's JSON names beside its program: its
      * upkeep and its down sound, read as one slot so the ability's codec
      * stays within its sixteen-field group.
      *

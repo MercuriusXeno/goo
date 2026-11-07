@@ -207,7 +207,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each, beside its goo cost
-     * @param upkeep      what a held self + brew effect pays each tick it stands
+     * @param upkeep      what a held durative effect pays each tick it stands
      * @param distancePrice what a blink adds to the cost for its trip
      * @param onPrism     the steps a landing on a prism runs, empty for none, which the wheel
      *                    marks with the prism badge (decision on-prism-reaction-wears-the-prism-badge)
@@ -244,7 +244,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -278,7 +278,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -310,7 +310,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -342,7 +342,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          */
@@ -371,7 +371,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          */
         public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
@@ -399,7 +399,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param area        the area the glove draws while right click is held
          * @param indicator   when the ability's indicator shows
          * @param consumes    the items a throw takes, one of each
-         * @param upkeep      the mB a held self + brew effect pays each tick it stands
+         * @param upkeep      the mB a held durative effect pays each tick it stands
          */
         public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
                      List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,

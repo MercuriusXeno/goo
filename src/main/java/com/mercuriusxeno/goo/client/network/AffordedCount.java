@@ -70,7 +70,7 @@ public record AffordedCount(long count, boolean timed) {
         if (ability.upkeep() > 0) {
             // active-brew-counts-its-time-left: a brew standing on the glove is in the standing upkeep already
             double own = standing.paying().contains(ability.id()) ? 0
-                    : standing.ownBrewUpkeep(ability.upkeep(), ability.extendsOthers());
+                    : standing.ownDurativeUpkeep(ability.upkeep(), ability.extendsOthers());
             return (long) (holdings / (own + standing.perTick()));
         }
         int ticksPerCharge = ability.delivery().ticksPerCharge();

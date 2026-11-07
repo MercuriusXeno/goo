@@ -107,7 +107,7 @@ public final class AbilitySyncHandler {
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each, beside its goo cost
-     * @param upkeepPrice what a held self + brew effect pays each tick it stands, priced as the cost is
+     * @param upkeepPrice what a held durative effect pays each tick it stands, priced as the cost is
      *                    (decision self-effects-trickle-until-ended)
      * @param distancePrice what a blink adds to the cost for its trip
      *                    (decision blink-lands-safely-costed-by-distance)
@@ -146,7 +146,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -181,7 +181,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -219,7 +219,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -250,7 +250,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -280,7 +280,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          */
@@ -309,7 +309,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          */
         public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
@@ -336,7 +336,7 @@ public final class AbilitySyncHandler {
          * @param area        the area the glove draws while right click is held
          * @param indicator   when the ability's indicator shows
          * @param consumes    the items a throw takes, one of each
-         * @param upkeep      the mB a held self + brew effect pays each tick it stands
+         * @param upkeep      the mB a held durative effect pays each tick it stands
          */
         public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
                              List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
@@ -542,7 +542,7 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * The mB a held self + brew effect pays each tick, priced as the cost is.
+         * The mB a held durative effect pays each tick, priced as the cost is.
          *
          * @return the upkeep in mB
          */

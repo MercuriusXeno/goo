@@ -46,8 +46,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * Gametests for the self delivery through the real throw path. A self
  * ability wearing the self badge runs on command: its cost at stack zero
  * drains and its programs run on the invoking player the tick it is invoked
- * (decision self-delivery-runs-on-player). A self + brew ability, one
- * wearing the brew badge, starts the player eating the glove, and drains
+ * (decision self-delivery-runs-on-player). A durative ability, one
+ * wearing the durative badge, starts the player eating the glove, and drains
  * and runs when the eat finishes; an eat let go before then runs nothing
  * and drains nothing (decision self-brew-goos-eat-before-the-effect). The
  * mock server player has no connection ticking it, so the eat tests tick it
@@ -126,7 +126,7 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_RUN_ON_COMMAND = "A self-badged ability should run on command, not eat";
     private static final String SHOULD_BLINK_EAST = "The player should move past %.1f and no farther than %.1f east the tick it blinks, moved %.3f";
     private static final String SHOULD_DRAIN_COST = "The cast should drain the stack-zero cost of %d mB, drained %d";
-    private static final String SHOULD_START_EATING = "Invoking a self + brew ability should start the player eating";
+    private static final String SHOULD_START_EATING = "Invoking a durative ability should start the player eating";
     private static final String SHOULD_LAY_NOTHING_MID_EAT = "Mid-eat no ember should stand, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING_MID_EAT = "Mid-eat no goo should drain, drained %d";
     private static final String SHOULD_LAY_EMBERS = "The finished eat should lay %d ember halves, laid %d";

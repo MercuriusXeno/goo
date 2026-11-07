@@ -7,7 +7,7 @@ import net.minecraft.world.effect.MobEffectCategory;
 
 /**
  * The effect a goo type's potion carries: its instance's duration is how long
- * the type's self + brew ability holds once drunk. The effect itself does
+ * the type's durative ability holds once drunk. The effect itself does
  * nothing each tick; {@link GooBrewEffectEvents} runs the ability when the
  * effect lands on a player, so a type whose brew ability ships later works
  * with no change here.

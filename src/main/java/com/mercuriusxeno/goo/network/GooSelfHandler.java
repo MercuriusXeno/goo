@@ -35,8 +35,8 @@ import java.util.OptionalInt;
 /**
  * Server side of a self delivery: nothing leaves the hand. A self ability
  * wearing the self badge runs on command: its cost at stack zero drains and
- * its programs run on the invoking player the tick it is invoked. A self +
- * brew ability, one wearing the brew badge, starts the player eating the
+ * its programs run on the invoking player the tick it is invoked. A durative
+ * ability, one wearing the durative badge, starts the player eating the
  * glove instead, and when the eat finishes its programs run and the effect is
  * held, paying its upkeep each tick after; an eat let go or interrupted
  * before then runs nothing and drains nothing, and the eat replaces the throw
@@ -55,7 +55,7 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Delivers a self ability: a self + brew ability starts the eat, a
+     * Delivers a self ability: a durative ability starts the eat, a
      * channel runs only through its held ticks and so nothing here
      * (decision flatten-disc-cursor-breaks-above-the-plane), every other
      * runs on command with the throw sound.
@@ -111,12 +111,12 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Starts the eat for a self + brew ability the player can afford, in the
+     * Starts the eat for a durative ability the player can afford, in the
      * hand holding the glove; a player short of a tick's upkeep starts no eat.
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
-     * @param ability the self + brew ability
+     * @param ability the durative ability
      */
     private static void beginEating(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
@@ -147,7 +147,7 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Starts a held self + brew effect with no one-shot drain and runs its
+     * Starts a held durative effect with no one-shot drain and runs its
      * programs on the player, when the player holds a tick's upkeep. The
      * effect is held before the programs run, so a heart-changing effect it
      * replaces clears before its own hearts lay.
@@ -155,7 +155,7 @@ public final class GooSelfHandler {
      *
      * @param player  the eating player
      * @param gooType the ability's goo type
-     * @param ability the self + brew ability
+     * @param ability the durative ability
      */
     private static void hold(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
@@ -263,7 +263,7 @@ public final class GooSelfHandler {
      * @param duration the brew's duration in ticks
      */
     public static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int duration) {
-        AbilityDefinition ability = AbilityRegistry.of(player.level()).brewAbilityFor(gooType);
+        AbilityDefinition ability = AbilityRegistry.of(player.level()).durativeAbilityFor(gooType);
         if (ability != null) {
             HeldEffectsEvents.startPrepaid(player, gooType, ability, duration);
             runOn(new PlayerHost(player.level(), player, OptionalInt.of(duration)), ability);

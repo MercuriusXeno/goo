@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
  * the key is held, the arm held in the ability's pose; release throws once
  * and plays the pose's release. A stream runs from the press instead,
  * streaming on every held tick with the arm held in its pose until the key
- * comes up. A self + brew press sends on the press too, while the use key is
+ * comes up. A durative press sends on the press too, while the use key is
  * still down, and then only waits for release: vanilla releases a used item
  * the tick the key comes up, so an eat started on release would be cancelled
  * the tick it began, and letting go mid-eat is what cancels it. A press
@@ -61,7 +61,7 @@ public final class GloveInputGate {
          * Whether the selected ability is eaten: it sends on the press and the
          * player eats while the key stays down.
          *
-         * @return true for a self + brew ability
+         * @return true for a durative ability
          */
         boolean eatsOnPress();
     }

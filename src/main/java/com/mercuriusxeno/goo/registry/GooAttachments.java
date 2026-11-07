@@ -121,7 +121,7 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The self + brew effects a player holds on the glove, each paying its
+     * The durative effects a player holds on the glove, each paying its
      * upkeep every tick until ended, saved with the player while any stands
      * and synced to the owning client.
      * self-effects-trickle-until-ended

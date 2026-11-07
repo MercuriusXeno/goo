@@ -33,7 +33,7 @@ public final class GooMobEffects {
      */
     public static final Map<ResourceKey<GooTypeDefinition>, DeferredHolder<MobEffect, MobEffect>> BREW_EFFECTS =
             Collections.unmodifiableMap(REGISTERED);
-    private static final String BREW_SUFFIX = "_brew";
+    private static final String HELD_SUFFIX = "_held";
 
     /**
      * Goo's spore poison, which the undead take as readily as the living
@@ -60,7 +60,7 @@ public final class GooMobEffects {
      */
     public static void register(IEventBus modEventBus) {
         for (ResourceKey<GooTypeDefinition> key : GooTypes.BUNDLED) {
-            REGISTERED.put(key, MOB_EFFECTS.register(brewEffectName(key), () -> brewEffectOf(key)));
+            REGISTERED.put(key, MOB_EFFECTS.register(heldEffectName(key), () -> brewEffectOf(key)));
         }
         MOB_EFFECTS.register(modEventBus);
     }
@@ -76,12 +76,12 @@ public final class GooMobEffects {
     }
 
     /**
-     * The brew effect's registry path: the type id and the brew suffix.
+     * The brew effect's registry path: the type id and the held suffix.
      *
      * @param key the bundled type's key
      * @return the effect path
      */
-    public static String brewEffectName(ResourceKey<GooTypeDefinition> key) {
-        return key.identifier().getPath() + BREW_SUFFIX;
+    public static String heldEffectName(ResourceKey<GooTypeDefinition> key) {
+        return key.identifier().getPath() + HELD_SUFFIX;
     }
 }

@@ -84,7 +84,7 @@ class AffordedCountTest {
 
         @Test
         void brewPayingOneATickReadsTwelveSeconds() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
             assertEquals("20/s | 12s", brew.petalLabel(250, NO_REAGENTS));
         }
     }
@@ -103,7 +103,7 @@ class AffordedCountTest {
 
         @Test
         void brewCountsReadInTheirLargestUnit() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
             assertEquals("1.5m", AffordedCount.reckon(brew, 1800, NO_REAGENTS).orElseThrow().label());
             assertEquals("12s", AffordedCount.reckon(brew, 250, NO_REAGENTS).orElseThrow().label());
         }
@@ -130,7 +130,7 @@ class AffordedCountTest {
 
         @Test
         void brewSubtractsTheStandingUpkeepAndHalvesItsOwnUnderAnExtender() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 2);
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 2);
             assertEquals("6s", count(brew, 250, StandingUpkeep.NONE));
             assertEquals("3s", count(brew, 250, new StandingUpkeep(2, false)));
             assertEquals("6s", count(brew, 250, new StandingUpkeep(1, true)));
@@ -147,7 +147,7 @@ class AffordedCountTest {
     class ActiveBrew {
 
         private static final long STARTED = 100L;
-        private final ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+        private final ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
 
         private HeldEffects.Held standingBrew() {
             return new HeldEffects.Held(brew.id(), GooTypes.BLAZE, 1, Set.of(), STARTED);

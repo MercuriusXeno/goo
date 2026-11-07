@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class AimIndicatorTest {
 
     @ParameterizedTest
-    @CsvSource({"MOB, ENTITY_OUTLINE", "WORLD, BLOCK_OUTLINE", "SELF, NONE", "BREW, NONE",
+    @CsvSource({"MOB, ENTITY_OUTLINE", "WORLD, BLOCK_OUTLINE", "SELF, NONE", "DURATIVE, NONE",
             "FREE, RETICULE", "CHANNELED, RETICULE", "PRISM, RETICULE"})
     void eachBadgeDrawsItsOwnMark(AbilityBadge badge, AimIndicator expected) {
         assertEquals(expected, AimIndicator.of(badge));
