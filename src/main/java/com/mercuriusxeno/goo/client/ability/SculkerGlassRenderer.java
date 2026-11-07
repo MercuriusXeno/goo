@@ -31,8 +31,8 @@ import java.util.List;
 /**
  * Draws Sculker's glass field: every block within the field's radius of the
  * local player's eyes draws its own model and texture, ghosted at the
- * field's strength for its distance, farthest first so the nearer glass
- * lies over it, depth tested so the diver's own body and every entity in
+ * field's strength for its distance, nearest first so only the nearest
+ * face shows at each point, depth tested so the diver's own body and every entity in
  * front of the glass shows over it. The stone around the diver shows faintly
  * as its own texture, and where two different blocks meet, air among them,
  * shows a little brighter, one face to each place so no seam shows: the
@@ -183,7 +183,8 @@ public final class SculkerGlassRenderer {
     }
 
     /**
-     * The blocks within the field that draw, farthest first.
+     * The blocks within the field that draw, nearest first, so with depth
+     * written the nearest face wins each point and no layers stack.
      *
      * @param mc   the client, its level loaded
      * @param eyes the player's eyes
@@ -199,7 +200,7 @@ public final class SculkerGlassRenderer {
                 field.add(cell.immutable());
             }
         }
-        field.sort(Comparator.comparingDouble((BlockPos cell) -> Vec3.atCenterOf(cell).distanceToSqr(eyes)).reversed());
+        field.sort(Comparator.comparingDouble((BlockPos cell) -> Vec3.atCenterOf(cell).distanceToSqr(eyes)));
         return field;
     }
 }
