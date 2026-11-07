@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepContext;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -170,7 +171,7 @@ public final class GooSelfHandler {
         ServerPlayer player = host.player();
         Optional<BlinkLanding> trip = TeleportStep.tripOf(ability.behaviors(), player, player.position(),
                 player.getLookAngle());
-        int cost = ability.distancePrice().priceOf(ability.cost(), trip);
+        int cost = ability.distancePrice().priceOf(ability.cost().in(GooValues.of(player.level())), trip);
         if (!affords(player, gooType, ability, cost)) {
             return false;
         }
@@ -281,7 +282,7 @@ public final class GooSelfHandler {
      */
     private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
-        return affords(player, gooType, ability, ability.cost());
+        return affords(player, gooType, ability, ability.cost().in(GooValues.of(player.level())));
     }
 
     /**
@@ -297,7 +298,8 @@ public final class GooSelfHandler {
     private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability, int cost) {
         // ability-json-names-its-reagent
-        if (GooSourceScanner.hasEnough(player, gooType, Math.max(cost, ability.upkeep()))
+        if (GooSourceScanner.hasEnough(player, gooType,
+                Math.max(cost, ability.upkeep().in(GooValues.of(player.level()))))
                 && ReagentScanner.holdsEvery(player, ability.consumes())) {
             return true;
         }

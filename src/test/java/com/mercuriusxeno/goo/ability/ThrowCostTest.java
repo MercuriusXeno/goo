@@ -4,7 +4,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.Identifier;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -15,9 +21,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Every ability prices a throw at the one integer its JSON names, the same at
@@ -49,7 +58,7 @@ class ThrowCostTest {
         int jsonCost = json.has("cost") ? json.get("cost").getAsInt() : 0;
         AbilityDefinition definition = AbilityJson.decode(file);
 
-        assertEquals(jsonCost, definition.cost(), definition.id().toString());
+        assertEquals(jsonCost, definition.cost().in(GooValueTable.EMPTY), definition.id().toString());
     }
 
     @ParameterizedTest
@@ -76,6 +85,46 @@ class ThrowCostTest {
         AbilityDefinition definition = AbilityDefinition.codecFor(AbilityJson.idOfResource(LURKER))
                 .parse(JsonOps.INSTANCE, json).getOrThrow();
 
-        assertEquals(750, definition.cost());
+        assertEquals(750, definition.cost().in(GooValueTable.EMPTY));
+    }
+
+    /**
+     * A cost naming an item prices it at the item's value in the ability's own goo type
+     * (decision ability-cost-builds-as-a-one-type-by-type-value).
+     */
+    @Nested
+    class ItemPriced {
+
+        private static final Identifier COBBLESTONE = Identifier.withDefaultNamespace("cobblestone");
+        private static final int COBBLESTONE_MB = 250;
+
+        private static AbilityDefinition lurkerCosting(String cost) throws IOException {
+            JsonElement json = read(LURKER);
+            json.getAsJsonObject().addProperty("cost", cost);
+            return AbilityDefinition.codecFor(AbilityJson.idOfResource(LURKER))
+                    .parse(JsonOps.INSTANCE, json).getOrThrow();
+        }
+
+        private static IGooValueLookup valuingCobblestone(GooValue value) {
+            IGooValueLookup values = mock(IGooValueLookup.class);
+            when(values.lookup(COBBLESTONE)).thenReturn(value);
+            return values;
+        }
+
+        @Test
+        void threeOfAnItemChargesThreeTimesItsValueInTheAbilitysType() throws IOException {
+            AbilityDefinition lurker = lurkerCosting("3 * minecraft:cobblestone");
+            IGooValueLookup values = valuingCobblestone(new GooValue(Map.of(lurker.gooType(), COBBLESTONE_MB)));
+
+            assertEquals(750, lurker.cost().in(values));
+        }
+
+        @Test
+        void anItemHoldingNoneOfTheAbilitysTypeChargesZero() throws IOException {
+            AbilityDefinition lurker = lurkerCosting("3 * minecraft:cobblestone");
+            IGooValueLookup values = valuingCobblestone(new GooValue(Map.of(GooTypes.ROCK, COBBLESTONE_MB)));
+
+            assertEquals(0, lurker.cost().in(values));
+        }
     }
 }

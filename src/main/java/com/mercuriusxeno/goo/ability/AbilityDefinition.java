@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.ability.program.FloorsStep;
 import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.PullStep;
 import com.mercuriusxeno.goo.ability.program.ReapStep;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
@@ -42,7 +43,8 @@ import java.util.stream.Stream;
  * @param displayName the translation key for the ability name
  * @param icon        the texture path for the radial menu icon
  * @param order       sort order within the type's ability list
- * @param cost        the mB a throw costs
+ * @param cost        what a throw costs: a number of mB, or an expression whose items read their value in the
+ *                    ability's own goo type (decision ability-cost-builds-as-a-one-type-by-type-value)
  * @param delivery    how the ability leaves the glove (decision delivery-block-in-ability-json)
  * @param behaviors   the step trees the ability runs, in order
  * @param tags        categorical tags (explosive, instant, trap, field-effect, etc.)
@@ -55,8 +57,8 @@ import java.util.stream.Stream;
  * @param consumes    the items a throw takes from the thrower's inventory, one of each, beside its goo cost
  * @param onPrism     the steps a landing on a prism runs in place of the type's prism ability, empty for none
  * @param onBlocks    the steps a stream or a spore burst runs on each floor it reaches, empty for none
- * @param upkeep      the mB a held self + brew effect pays each tick it stands, zero for every other ability
- *                    (decision self-effects-trickle-until-ended)
+ * @param upkeep      what a held self + brew effect pays each tick it stands, priced as the cost is, zero for
+ *                    every other ability (decision self-effects-trickle-until-ended)
  * @param downSound   the cue a held effect plays when it ends, empty for the shared ability-down cue
  *                    (decision held-effects-sound-up-and-down)
  * @param distancePrice what a blink adds to the cost for the trip it makes, none for every other ability
@@ -81,7 +83,7 @@ public record AbilityDefinition(
         String displayName,
         String icon,
         int order,
-        int cost,
+        AbilityPrice cost,
         Delivery delivery,
         List<Step> behaviors,
         List<String> tags,
@@ -92,7 +94,7 @@ public record AbilityDefinition(
         List<Identifier> consumes,
         List<Step> onPrism,
         List<Step> onBlocks,
-        int upkeep,
+        AbilityPrice upkeep,
         Optional<SoundCue> downSound,
         DistancePrice distancePrice,
         ArmPose pose,
@@ -134,9 +136,9 @@ public record AbilityDefinition(
                              List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
                              DistancePrice distancePrice, ArmPose pose, String description,
                              Optional<String> costMechanics) {
-        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice, pose, description,
-                costMechanics, Optional.empty());
+        this(id, gooType, displayName, icon, order, AbilityPrice.flat(cost), delivery, behaviors, tags, badge,
+                requires, area, indicator, consumes, onPrism, onBlocks, AbilityPrice.flat(upkeep), downSound,
+                distancePrice, pose, description, costMechanics, Optional.empty());
     }
 
     /**
@@ -464,7 +466,9 @@ public record AbilityDefinition(
     /** The upkeep of an ability that holds nothing. */
     public static final int NO_UPKEEP = 0;
     /** The cost of a held self + brew effect, which starts free and pays its upkeep after. */
-    private static final int NO_COST = 0;
+    private static final Expr NO_COST = Expr.literal(0);
+    /** The upkeep the JSON writes where it names none. */
+    private static final Expr NO_UPKEEP_WRITTEN = Expr.literal(NO_UPKEEP);
     private static final String FIELD_COST_MECHANICS = "cost_mechanics";
     private static final String FIELD_COST_FORMULA = "cost_formula";
     private static final String UNFORMULATED_DYNAMIC_PRICE =
@@ -473,7 +477,6 @@ public record AbilityDefinition(
     private static final String UNEXPLAINED_ZERO_COST =
             "An ability costing nothing up front must name " + FIELD_COST_MECHANICS
                     + ", the format key explaining how it charges";
-    private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
     /** Reads the radius a radius-bearing step reaches, each reader answering empty for any other step. */
     private static final List<Function<Step, Optional<Expr>>> RADIUS_READERS = List.of(
@@ -490,20 +493,23 @@ public record AbilityDefinition(
             AbilityDefinition::consumedBlocksRadius);
 
     /**
-     * Codec for the cost: one whole number of mB per throw (decision flat-cost-per-throw).
+     * Codec for a cost or an upkeep: one whole number of mB (decision flat-cost-per-throw), or an expression
+     * whose names are items (decision ability-cost-builds-as-a-one-type-by-type-value).
      */
-    private static final Codec<Integer> FLAT_COST_CODEC =
-            Codec.DOUBLE.comapFlatMap(AbilityDefinition::flatCost, Integer::doubleValue);
+    private static final Codec<Expr> PRICE_AMOUNT_CODEC = Expr.CODEC.validate(AbilityPrice::checked);
+
+    /** Codec for a list of item ids, the items an ability requires or consumes. */
+    private static final Codec<List<Identifier>> ITEM_IDS_CODEC = Identifier.CODEC.listOf();
 
     /**
      * What a held self + brew effect's JSON names beside its program: its
      * upkeep and its down sound, read as one slot so the ability's codec
      * stays within its sixteen-field group.
      *
-     * @param upkeep    the mB the effect pays each tick
+     * @param upkeep    what the effect pays each tick, as the JSON wrote it
      * @param downSound the cue it plays when it ends, empty for the shared one
      */
-    private record HeldTraits(int upkeep, Optional<SoundCue> downSound) {
+    private record HeldTraits(Expr upkeep, Optional<SoundCue> downSound) {
     }
 
     /**
@@ -526,21 +532,21 @@ public record AbilityDefinition(
      * its field limit: the flat cost, which a held effect leaves at zero and
      * names an upkeep in its place, and what a blink adds for its trip.
      *
-     * @param cost          the flat mB a throw costs
+     * @param cost          what a throw costs, as the JSON wrote it
      * @param distancePrice what a blink adds for its trip
      * @param costMechanics the format key explaining how the ability charges, empty for none
      * @param costFormula   the short formula a dynamic price reads on its petal, empty for none
      */
-    private record Price(int cost, DistancePrice distancePrice, Optional<String> costMechanics,
+    private record Price(Expr cost, DistancePrice distancePrice, Optional<String> costMechanics,
                          Optional<String> costFormula) {
 
         static Price of(AbilityDefinition def) {
-            return new Price(def.cost(), def.distancePrice(), def.costMechanics(), def.costFormula());
+            return new Price(def.cost().amount(), def.distancePrice(), def.costMechanics(), def.costFormula());
         }
     }
 
     private static final MapCodec<Price> PRICE_CODEC = RecordCodecBuilder.<Price>mapCodec(inst -> inst.group(
-            FLAT_COST_CODEC.optionalFieldOf(FIELD_COST, NO_COST).forGetter(Price::cost),
+            PRICE_AMOUNT_CODEC.optionalFieldOf(FIELD_COST, NO_COST).forGetter(Price::cost),
             DistancePrice.MAP_CODEC.forGetter(Price::distancePrice),
             // zero-cost-field-formats-the-cost-mechanics
             Codec.STRING.optionalFieldOf(FIELD_COST_MECHANICS).forGetter(Price::costMechanics),
@@ -549,7 +555,7 @@ public record AbilityDefinition(
     ).apply(inst, Price::new)).validate(AbilityDefinition::explainedPrice);
 
     private static final MapCodec<HeldTraits> HELD_TRAITS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            FLAT_COST_CODEC.optionalFieldOf(FIELD_UPKEEP, NO_UPKEEP).forGetter(HeldTraits::upkeep),
+            PRICE_AMOUNT_CODEC.optionalFieldOf(FIELD_UPKEEP, NO_UPKEEP_WRITTEN).forGetter(HeldTraits::upkeep),
             SoundCue.CODEC.optionalFieldOf(FIELD_DOWN_SOUND).forGetter(HeldTraits::downSound)
     ).apply(inst, HeldTraits::new));
 
@@ -594,7 +600,8 @@ public record AbilityDefinition(
      * @return the codec decoding that file into a definition with that id
      */
     public static Codec<AbilityDefinition> codecFor(Identifier id) {
-        return fileCodec(id).validate(AbilityDefinition::formulatedDynamicPrice);
+        return fileCodec(id).validate(AbilityDefinition::formulatedDynamicPrice)
+                .validate(AbilityDefinition::unambiguousPrices);
     }
 
     private static Codec<AbilityDefinition> fileCodec(Identifier id) {
@@ -608,28 +615,43 @@ public record AbilityDefinition(
                 // badge-marks-the-target-kind: required, so every ability declares its kind
                 AbilityBadge.CODEC.fieldOf(FIELD_BADGE).forGetter(AbilityDefinition::badge),
                 // ability-hidden-until-recipes-known
-                Identifier.CODEC.listOf().optionalFieldOf(FIELD_REQUIRES, List.of())
-                        .forGetter(AbilityDefinition::requires),
+                ITEM_IDS_CODEC.optionalFieldOf(FIELD_REQUIRES, List.of()).forGetter(AbilityDefinition::requires),
                 // right-click-held-previews-release-throws
                 AbilityArea.CODEC.optionalFieldOf(FIELD_AREA, AbilityArea.NONE).forGetter(AbilityDefinition::area),
                 // ripple-outline-is-the-blink-cursor
                 IndicatorShowing.CODEC.optionalFieldOf(FIELD_INDICATOR, IndicatorShowing.HELD)
                         .forGetter(AbilityDefinition::indicator),
                 // ability-json-names-its-reagent
-                Identifier.CODEC.listOf().optionalFieldOf(FIELD_CONSUMES, List.of())
-                        .forGetter(AbilityDefinition::consumes),
+                ITEM_IDS_CODEC.optionalFieldOf(FIELD_CONSUMES, List.of()).forGetter(AbilityDefinition::consumes),
                 // prism-hosts-the-combos, mycosis-spore-stream-buds-and-poisons
                 REACTIONS_CODEC.forGetter(def -> new Reactions(def.onPrism(), def.onBlocks())),
                 // self-effects-trickle-until-ended, held-effects-sound-up-and-down
-                HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep(), def.downSound())),
+                HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep().amount(), def.downSound())),
                 // ability-json-names-its-arm-pose
                 ArmPose.CODEC.optionalFieldOf(FIELD_POSE).forGetter(def -> Optional.of(def.pose()))
         ).apply(inst, (heading, price, delivery, steps, tags, badge, requires, area, shows, consumes, reactions,
                        held, pose) -> new AbilityDefinition(id, heading.gooType(), heading.displayName(),
-                        heading.icon(), heading.order(), price.cost(), delivery, steps, tags, badge, requires, area,
-                        shows, consumes, reactions.onPrism(), reactions.onBlocks(), held.upkeep(), held.downSound(),
+                        heading.icon(), heading.order(), AbilityPrice.of(price.cost(), heading.gooType()), delivery,
+                        steps, tags, badge, requires, area, shows, consumes, reactions.onPrism(),
+                        reactions.onBlocks(), AbilityPrice.of(held.upkeep(), heading.gooType()), held.downSound(),
                         price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())),
                         heading.descriptionKey(), price.costMechanics(), price.costFormula())));
+    }
+
+    /**
+     * Refuses a cost or an upkeep naming an id the ability's own program keeps as a counter.
+     * ability-cost-builds-as-a-one-type-by-type-value
+     *
+     * @param definition the ability as the JSON wrote it
+     * @return the ability, or an error naming the name
+     */
+    private static DataResult<AbilityDefinition> unambiguousPrices(AbilityDefinition definition) {
+        List<Step> program = Stream.of(definition.behaviors(), definition.onPrism(), definition.onBlocks())
+                .flatMap(List::stream).toList();
+        return ProgramBehavior.priceRefusal(definition.cost().amount(), program)
+                .or(() -> ProgramBehavior.priceRefusal(definition.upkeep().amount(), program))
+                .<DataResult<AbilityDefinition>>map(refusal -> DataResult.error(() -> refusal))
+                .orElseGet(() -> DataResult.success(definition));
     }
 
     /**
@@ -642,7 +664,7 @@ public record AbilityDefinition(
      * @return the ability, or an error naming the field
      */
     private static DataResult<AbilityDefinition> formulatedDynamicPrice(AbilityDefinition definition) {
-        boolean dynamic = definition.cost() == NO_COST && definition.upkeep() == NO_UPKEEP
+        boolean dynamic = definition.cost().isFree() && definition.upkeep().isFree()
                 && definition.costMechanics().isPresent();
         return dynamic && definition.costFormula().isEmpty()
                 ? DataResult.error(() -> UNFORMULATED_DYNAMIC_PRICE)
@@ -766,21 +788,8 @@ public record AbilityDefinition(
      * @return the price, or an error naming the field
      */
     private static DataResult<Price> explainedPrice(Price price) {
-        return price.cost() == NO_COST && price.costMechanics().isEmpty()
+        return AbilityPrice.isNothing(price.cost()) && price.costMechanics().isEmpty()
                 ? DataResult.error(() -> UNEXPLAINED_ZERO_COST)
                 : DataResult.success(price);
-    }
-
-    /**
-     * Accepts a cost that is one whole, non-negative number of mB and refuses any
-     * other, naming the cost it read.
-     *
-     * @param cost the cost as the JSON wrote it
-     * @return the cost, or an error naming it
-     */
-    private static DataResult<Integer> flatCost(double cost) {
-        return cost >= 0 && cost <= Integer.MAX_VALUE && cost == Math.rint(cost)
-                ? DataResult.success((int) cost)
-                : DataResult.error(() -> NOT_A_FLAT_COST.formatted(cost));
     }
 }

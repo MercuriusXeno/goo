@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,8 @@ class AbilitySyncPayloadTest {
     @ParameterizedTest
     @MethodSource("shippedGloveAbilities")
     void costRoundTripsThroughTheSyncCodec(AbilityDefinition definition) {
-        assertEquals(definition.cost(), roundTrip(definition).cost(), definition.id().toString());
+        assertEquals(definition.cost().in(GooValueTable.EMPTY), roundTrip(definition).cost().in(GooValueTable.EMPTY),
+                definition.id().toString());
     }
 
     /** The sync codec carries each badge kind to the client unchanged (decision badge-marks-the-target-kind). */

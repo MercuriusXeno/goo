@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -100,7 +101,7 @@ public final class MeteoTests {
         ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
         KnownRecipes.teachRequires(player, meteo);
         int held = astralHeld(player);
-        helper.assertTrue(held >= meteo.cost(), String.format(SUPPLY_REQUIRED, held, meteo.cost()));
+        helper.assertTrue(held >= meteo.cost().in(GooValueTable.EMPTY), String.format(SUPPLY_REQUIRED, held, meteo.cost().in(GooValueTable.EMPTY)));
 
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ASTRAL), NO_TARGET_ENTITY,
                 ground, Direction.UP.ordinal(), false, ASTRAL_METEO.toString(), player.getEyePosition()));

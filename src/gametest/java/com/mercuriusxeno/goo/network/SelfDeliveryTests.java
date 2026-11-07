@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
@@ -178,9 +179,9 @@ public final class SelfDeliveryTests {
         helper.assertFalse(using, SHOULD_RUN_ON_COMMAND);
         helper.assertTrue(moved > OLD_BLINK_RANGE && moved < BLINK_RANGE + MOVE_TOLERANCE,
                 String.format(SHOULD_BLINK_EAST, OLD_BLINK_RANGE, BLINK_RANGE, moved));
-        int pricedClear = blink.distancePrice().priceOf(blink.cost(),
+        int pricedClear = blink.distancePrice().priceOf(blink.cost().in(GooValueTable.EMPTY),
                 Optional.of(new BlinkLanding(Vec3.ZERO, moved, false)));
-        int pricedThroughWall = blink.distancePrice().priceOf(blink.cost(),
+        int pricedThroughWall = blink.distancePrice().priceOf(blink.cost().in(GooValueTable.EMPTY),
                 Optional.of(new BlinkLanding(Vec3.ZERO, moved, true)));
         helper.assertTrue(drained == pricedClear || drained == pricedThroughWall,
                 String.format(SHOULD_DRAIN_COST, pricedClear, drained));
@@ -238,7 +239,7 @@ public final class SelfDeliveryTests {
         helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE), SHOULD_BE_HELD);
         // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list shows the glove effect's time left
         MobEffectInstance shown = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.BLAZE));
-        int expectedTicks = heldAtEat / kindle.upkeep();
+        int expectedTicks = heldAtEat / kindle.upkeep().in(GooValueTable.EMPTY);
         boolean stillGlove = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
                 .noneMatch(HeldEffects.Held::prepaid);
         helper.assertTrue(shown != null && Math.abs(shown.getDuration() - expectedTicks) <= 1 && !shown.isVisible()
@@ -246,7 +247,7 @@ public final class SelfDeliveryTests {
         tickFor(helper, player, UPKEEP_TICKS);
         helper.runAfterDelay(UPKEEP_TICKS + 1, () -> {
             int drained = heldAtEat - held(player, GooTypes.BLAZE);
-            int expected = UPKEEP_TICKS * kindle.upkeep();
+            int expected = UPKEEP_TICKS * kindle.upkeep().in(GooValueTable.EMPTY);
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(drained == expected, String.format(SHOULD_PAY_UPKEEP, UPKEEP_TICKS, expected, drained));
             helper.succeed();
@@ -287,7 +288,7 @@ public final class SelfDeliveryTests {
     public static void kindleEndsWhenDry(GameTestHelper helper) {
         AbilityDefinition kindle = requireAbility(helper, BLAZE_KINDLE);
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
-        int paid = PAID_TICKS * kindle.upkeep();
+        int paid = PAID_TICKS * kindle.upkeep().in(GooValueTable.EMPTY);
         GooSourceScanner.deplete(player, GooTypes.BLAZE, held(player, GooTypes.BLAZE) - paid);
         tickFor(helper, player, PAID_TICKS - 1);
         // runnables sharing a delay run in no fixed order, so each checked tick ticks itself
@@ -522,7 +523,7 @@ public final class SelfDeliveryTests {
     public static void sightEndsWhenShroomRunsDry(GameTestHelper helper) {
         AbilityDefinition sight = requireAbility(helper, SHROOM_SIGHT);
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.SHROOM, SHROOM_SIGHT);
-        int paid = PAID_TICKS * sight.upkeep();
+        int paid = PAID_TICKS * sight.upkeep().in(GooValueTable.EMPTY);
         GooSourceScanner.deplete(player, GooTypes.SHROOM, held(player, GooTypes.SHROOM) - paid);
         tickFor(helper, player, PAID_TICKS - 1);
         helper.runAfterDelay(PAID_TICKS, () -> {

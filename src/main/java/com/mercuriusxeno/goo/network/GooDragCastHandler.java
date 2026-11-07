@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -95,8 +96,9 @@ public final class GooDragCastHandler {
     private static void open(ServerPlayer player, GooDragCastPayload payload, ResourceKey<GooTypeDefinition> gooType,
                              AbilityDefinition ability) {
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
-        double radius = DragSize.affordable(Math.max(DragSize.MIN_RADIUS, payload.radius()), ability.cost(), holdings);
-        int cost = DragSize.costAt(ability.cost(), radius);
+        int unitCost = ability.cost().in(GooValues.of(player.level()));
+        double radius = DragSize.affordable(Math.max(DragSize.MIN_RADIUS, payload.radius()), unitCost, holdings);
+        int cost = DragSize.costAt(unitCost, radius);
         if (!GooSourceScanner.hasEnough(player, gooType, cost)) {
             return;
         }

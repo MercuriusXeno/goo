@@ -5,6 +5,7 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -48,7 +49,7 @@ class AbilitySyncHandlerTest {
         int jsonCost = json.has("cost") ? json.get("cost").getAsInt() : 0;
         int jsonUpkeep = json.has("upkeep") ? json.get("upkeep").getAsInt() : 0;
         AbilityDefinition definition = AbilityJson.decode(file);
-        assertEquals(jsonCost, definition.cost(), definition.id() + " server cost");
+        assertEquals(jsonCost, definition.cost().in(GooValueTable.EMPTY), definition.id() + " server cost");
         for (AbilitySyncPayload.Entry entry : roundTrip(definition)) {
             ClientAbility client = ClientAbility.fromEntry(entry);
             assertEquals(jsonCost, client.cost(), definition.id() + " synced cost");

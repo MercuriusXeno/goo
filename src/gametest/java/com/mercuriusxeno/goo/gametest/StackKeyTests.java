@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -82,7 +83,7 @@ public final class StackKeyTests {
                 player.getEyePosition()));
         int spent = HELD_GOO * THOUSAND
                 - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.CRYSTAL, 0);
-        helper.assertTrue(spent == cloud.cost(), String.format(PRICED, cloud.cost(), spent));
+        helper.assertTrue(spent == cloud.cost().in(GooValueTable.EMPTY), String.format(PRICED, cloud.cost().in(GooValueTable.EMPTY), spent));
         helper.runAfterDelay(ARRIVAL_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class) == first, FIRST_CHANGED);

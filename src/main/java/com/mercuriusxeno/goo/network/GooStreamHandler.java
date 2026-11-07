@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -212,7 +213,8 @@ public final class GooStreamHandler {
         if (held == 0 || !paysReagents(player, ability, held)) {
             return 0;
         }
-        int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
+        int share = StreamHolds.shareAt(ability.cost().in(GooValues.of(player.level())),
+                ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;
         }

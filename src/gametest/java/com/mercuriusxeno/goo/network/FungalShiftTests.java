@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -98,7 +99,7 @@ public final class FungalShiftTests {
         int drained = heldBefore - held(player);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(standing.equals(helper.absolutePos(AIMED_POS)), String.format(SHOULD_STAND_ON, standing));
-        helper.assertTrue(drained == shift.cost(), String.format(SHOULD_DRAIN_COST, shift.cost(), drained));
+        helper.assertTrue(drained == shift.cost().in(GooValueTable.EMPTY), String.format(SHOULD_DRAIN_COST, shift.cost().in(GooValueTable.EMPTY), drained));
         helper.succeed();
     }
 
