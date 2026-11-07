@@ -102,11 +102,25 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     public static void stampAilments(Entity entity, EntityRenderState state) {
         long tick = entity.level().getGameTime();
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        List<StampedAilment> worn = MobAilments.CLIENT.ailmentsOf(entity.getId(), tick).stream()
+        List<StampedAilment> worn = drawn(MobAilments.CLIENT.ailmentsOf(entity.getId(), tick), partialTick);
+        state.setRenderData(AILMENTS, withCharmGlisten(worn, entity.hasData(GooAttachments.CHARMED)));
+    }
+
+    /**
+     * The overlays a frame draws of the ailments an entity wears, each at
+     * its strength this frame; an ailment drawing no overlay, as Grab's
+     * flail does, is left out.
+     *
+     * @param worn        the ailments the entity wears
+     * @param partialTick the fraction of the tick elapsed
+     * @return the overlays to draw
+     */
+    static List<StampedAilment> drawn(List<MobAilments.Worn> worn, float partialTick) {
+        return worn.stream()
+                .filter(ailment -> ailment.kind().drawsOverlay())
                 .map(ailment -> new StampedAilment(ailment.kind(),
                         MobAilments.strength(ailment.ticksLeft() - partialTick)))
                 .toList();
-        state.setRenderData(AILMENTS, withCharmGlisten(worn, entity.hasData(GooAttachments.CHARMED)));
     }
 
     /**

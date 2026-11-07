@@ -51,6 +51,14 @@ class AilmentKindTest {
         assertEquals(AilmentPattern.FROST, AilmentKind.FROZEN.pattern());
     }
 
+    /** Grab's ailment drives the held mob's flail and draws no overlay (decision kinetic-is-electric-blue-and-white). */
+    @Test
+    void grabDrawsNoOverlayAndEveryOtherAilmentDoes() {
+        for (AilmentKind kind : AilmentKind.values()) {
+            assertEquals(kind != AilmentKind.GRABBED, kind.drawsOverlay(), kind.name());
+        }
+    }
+
     private static boolean isGolden(int rgb) {
         int red = rgb >> 16 & 0xFF;
         int green = rgb >> 8 & 0xFF;

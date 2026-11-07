@@ -17,6 +17,8 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
+import com.mercuriusxeno.goo.client.fade.Afterglow;
+import com.mercuriusxeno.goo.client.fade.Afterglows;
 import net.minecraft.world.item.ItemStack;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -1493,11 +1495,11 @@ class RadialWheelRendererTest {
         private static final int BLAZE = 0;
         private static final float QUARTER_PERIOD = PetalPulse.PERIOD_TICKS / 4f;
 
-        private RadialWheelRenderer.Frame frame(Set<Identifier> active) {
+        private RadialWheelRenderer.Frame frame(Map<Identifier, Float> active) {
             return frame(active, 1000);
         }
 
-        private RadialWheelRenderer.Frame frame(Set<Identifier> active, int blazeHeld) {
+        private RadialWheelRenderer.Frame frame(Map<Identifier, Float> active, int blazeHeld) {
             List<ResourceKey<GooTypeDefinition>> types = List.of(GooTypes.BLAZE, GooTypes.LEAF);
             List<List<OfferedAbility>> abilities = List.of(
                     List.of(new OfferedAbility(new ClientAbility(BLAZE_KINDLE, "ability.goo.kindle", "", 0, List.of(),
@@ -1510,22 +1512,34 @@ class RadialWheelRendererTest {
 
         @Test
         void anUnexpandedTypeHoldingAnActiveAbilityPulses() {
-            int pulsing = RadialWheelRenderer.typePetalTint(frame(Set.of(BLAZE_KINDLE)), BLAZE);
+            int pulsing = RadialWheelRenderer.typePetalTint(frame(Map.of(BLAZE_KINDLE, 1f)), BLAZE);
             assertEquals(RadialWheelRenderer.HOVER_ALPHA, ARGB.alpha(pulsing));
             assertTrue(ARGB.red(pulsing) > ARGB.red(RadialWheelRenderer.computeOverlayTint(false, false)));
+        }
+
+        /** decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends */
+        @Test
+        void aTypeWhoseAbilityEndedHalfASecondAgoPulsesAtHalfTheSwing() {
+            Afterglows<Identifier, Identifier> glows = new Afterglows<>();
+            PetalPulse.pulses(glows, Set.of(BLAZE_KINDLE), 99.95f);
+            PetalPulse.pulses(glows, Set.of(), 100f);
+            Map<Identifier, Float> settling = PetalPulse.pulses(glows, Set.of(), 100f + Afterglow.FADE_TICKS / 2f);
+            int halfSwing = Math.round((RadialWheelRenderer.HOVER_ALPHA - RadialWheelRenderer.NORMAL_ALPHA) / 2f);
+            assertEquals(RadialWheelRenderer.NORMAL_ALPHA + halfSwing,
+                    ARGB.alpha(RadialWheelRenderer.typePetalTint(frame(settling), BLAZE)));
         }
 
         @Test
         void aTypeHoldingNoActiveEffectRests() {
             assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
-                    RadialWheelRenderer.typePetalTint(frame(Set.of()), BLAZE));
+                    RadialWheelRenderer.typePetalTint(frame(Map.of()), BLAZE));
         }
 
         /** decision wheel-shows-only-held-types-with-abilities: no shown type is unheld, so none dims. */
         @Test
         void aTypeHeldAtZeroRestsUndimmed() {
             assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
-                    RadialWheelRenderer.typePetalTint(frame(Set.of(), 0), BLAZE));
+                    RadialWheelRenderer.typePetalTint(frame(Map.of(), 0), BLAZE));
         }
     }
 
