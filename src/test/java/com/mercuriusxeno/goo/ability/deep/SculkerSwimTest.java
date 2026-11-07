@@ -4,15 +4,17 @@ import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A diver presses into stone along its heading, up with jump and down with
- * sneak, and nowhere with no key held; it swims along the look, jump
- * lifting it, steering a share of the way each tick
- * (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks).
+ * Sneak and jump together enter the dive, jumping clear of a top face leaves
+ * it and the brew's end ends it; sneak sinks over jump; the world's floor and
+ * ceiling stop a body leaving and never one coming back; and the swim drives
+ * along the look, steering a share of the way each tick
+ * (decisions dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks and
+ * sculker-swims-solid-blocks-and-surfaces-at-will).
  */
 class SculkerSwimTest {
 
@@ -20,26 +22,63 @@ class SculkerSwimTest {
     private static final double CLOSE = 1e-9;
 
     @Nested
-    class Pressing {
+    class Diving {
 
         private static final Input NONE = Input.EMPTY;
+        private static final Input JUMP = new Input(false, false, false, false, true, false, false);
+        private static final Input SNEAK_AND_JUMP = new Input(false, false, false, false, true, true, false);
 
         @Test
-        void forwardPressesAlongTheHeadingWhateverThePitch() {
-            Input forward = new Input(true, false, false, false, false, false, false);
-            Vec3 lookingDownSouth = new Vec3(0, -0.8, 0.6);
-            assertEquals(List.of(SOUTH), SculkerSwim.pressedDirections(forward, lookingDownSouth));
+        void sneakAndJumpTogetherEnterTheDive() {
+            assertTrue(SculkerSwim.nextDiving(false, true, SNEAK_AND_JUMP, false, true));
+            assertFalse(SculkerSwim.nextDiving(false, true, JUMP, false, true));
         }
 
         @Test
-        void jumpPressesUpAndSneakPressesDown() {
-            Input both = new Input(false, false, false, false, true, true, false);
-            assertEquals(List.of(new Vec3(0, 1, 0), new Vec3(0, -1, 0)), SculkerSwim.pressedDirections(both, SOUTH));
+        void jumpingClearOfATopFaceLeavesTheDive() {
+            assertFalse(SculkerSwim.nextDiving(true, true, JUMP, false, true));
         }
 
         @Test
-        void noKeyPressesNowhere() {
-            assertTrue(SculkerSwim.pressedDirections(NONE, SOUTH).isEmpty());
+        void aDiverInsideStoneOrOverOpenAirStaysInTheDive() {
+            assertTrue(SculkerSwim.nextDiving(true, true, JUMP, true, true));
+            assertTrue(SculkerSwim.nextDiving(true, true, JUMP, false, false));
+            assertTrue(SculkerSwim.nextDiving(true, true, NONE, false, true));
+        }
+
+        @Test
+        void theDiveEndsWithTheBrew() {
+            assertFalse(SculkerSwim.nextDiving(true, false, NONE, true, false));
+        }
+
+        @Test
+        void sneakSinksOverJumpAndJumpLifts() {
+            assertEquals(-1, SculkerSwim.riseOf(SNEAK_AND_JUMP));
+            assertEquals(1, SculkerSwim.riseOf(JUMP));
+            assertEquals(0, SculkerSwim.riseOf(NONE));
+        }
+    }
+
+    @Nested
+    class World {
+
+        private static final double FLOOR = -64;
+        private static final double CEILING = 320;
+
+        @Test
+        void aFallStopsAtTheFloor() {
+            assertEquals(-0.5, SculkerSwim.heldInTheWorld(-1, FLOOR + 0.5, FLOOR + 2.3, FLOOR, CEILING), CLOSE);
+        }
+
+        @Test
+        void aBodyBelowTheFloorRisesBackInAndFallsNoFurther() {
+            assertEquals(0.3, SculkerSwim.heldInTheWorld(0.3, FLOOR - 2, FLOOR - 0.2, FLOOR, CEILING), CLOSE);
+            assertEquals(0, SculkerSwim.heldInTheWorld(-0.3, FLOOR - 2, FLOOR - 0.2, FLOOR, CEILING), CLOSE);
+        }
+
+        @Test
+        void aRiseStopsAtTheCeiling() {
+            assertEquals(0.2, SculkerSwim.heldInTheWorld(1, CEILING - 2, CEILING - 0.2, FLOOR, CEILING), CLOSE);
         }
     }
 

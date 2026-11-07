@@ -184,7 +184,7 @@
   "goo.ability.deep.convoke": "Convoke",
   "goo.ability.deep.convoke.description": "A blob that sends a sculk ring out through the ground; every hostile mob the ring reaches turns and walks to the blob while it lasts, and other mobs pay it no mind.",
   "goo.ability.deep.sculker": "Sculker",
-  "goo.ability.deep.sculker.description": "Sense the world the way the deep does, open space as contours and stone as a dark sea you swim through; press into stone to enter it, sneaking down, jumping up or walking into a wall; bedrock still holds you.",
+  "goo.ability.deep.sculker.description": "Sense the world the way the deep does and swim through solid ground: sneak and jump together to dive in, swim with your movement keys, jump to rise and sneak to sink, and jump clear of a top face to stand on solid ground again. Stone never suffocates you while it lasts.",
   "goo.ability.ender.zone": "Zone",
   "goo.ability.ender.zone.description": "Curse a mob with teleportitis, preventing it from reaching you.",
   "goo.ability.ender.blink": "Blink",
