@@ -36,11 +36,16 @@ public final class SlimeCoatBounce {
     private static final float BOING_PITCH_PER_LAUNCH = 0.35f;
 
     /**
-     * The last launch each lander took off the coat and when. The client and
-     * the integrated server both bounce landers, each on its own thread, so
-     * every touch of it is synchronized.
+     * The last launch each lander took off the coat and when, the client's
+     * apart from the server's: in singleplayer a player's client and server
+     * twins share an entity id, which Entity.equals compares, and the server
+     * never sees jump held, so one shared memory hands the client the
+     * server's decayed launch each bounce and stalls the ramp. Each is
+     * synchronized, the client and the integrated server bouncing on their
+     * own threads.
      */
-    private static final Map<Object, Launched> LAST_LAUNCH = Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Object, Launched> CLIENT_LAUNCHES = Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Object, Launched> SERVER_LAUNCHES = Collections.synchronizedMap(new WeakHashMap<>());
 
     /**
      * A launch off the coat.
@@ -61,6 +66,11 @@ public final class SlimeCoatBounce {
          * @return what the lander is, the key its launches are remembered by
          */
         Object identity();
+
+        /**
+         * @return whether it lands on the client
+         */
+        boolean clientSide();
 
         /**
          * @return how fast it fell onto the coat, in blocks a tick
@@ -137,12 +147,13 @@ public final class SlimeCoatBounce {
      * @param lander the lander
      */
     static void bounce(Lander lander) {
-        Launched before = LAST_LAUNCH.get(lander.identity());
+        Map<Object, Launched> launches = lander.clientSide() ? CLIENT_LAUNCHES : SERVER_LAUNCHES;
+        Launched before = launches.get(lander.identity());
         // bounce-ramps-jump-height-while-jump-is-held: a lander back after a pause starts its ramp afresh
         double previous = before == null || lander.gameTime() - before.at() > FORGET_TICKS ? 0 : before.speed();
         double launch = launch(lander.fallSpeed(), previous, lander.jumpHeld(), lander.sneaking());
         lander.launch(launch);
-        LAST_LAUNCH.put(lander.identity(), new Launched(launch, lander.gameTime()));
+        launches.put(lander.identity(), new Launched(launch, lander.gameTime()));
         if (launch > 0) {
             lander.boing(launch);
         }
@@ -158,6 +169,11 @@ public final class SlimeCoatBounce {
         @Override
         public Object identity() {
             return entity;
+        }
+
+        @Override
+        public boolean clientSide() {
+            return entity.level().isClientSide();
         }
 
         @Override

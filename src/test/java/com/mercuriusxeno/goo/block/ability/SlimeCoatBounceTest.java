@@ -140,6 +140,22 @@ class SlimeCoatBounceTest {
         }
 
         @Test
+        void theClientsRampIgnoresTheServersTwinOfTheSamePlayer() {
+            // in singleplayer the client's and the server's player share an id, and Entity.equals reads the id
+            Object samePlayer = 7;
+            FakeLander client = new FakeLander(ARRIVING, true, false, 0, samePlayer, true);
+            FakeLander server = new FakeLander(ARRIVING, false, false, 0, samePlayer, false);
+            SlimeCoatBounce.bounce(client);
+            double clientLaunch = client.launched;
+            SlimeCoatBounce.bounce(server);
+
+            client.fall(ARRIVING, 1);
+            SlimeCoatBounce.bounce(client);
+
+            assertEquals(clientLaunch * SlimeCoatBounce.RAMP_PER_BOUNCE, client.launched, 1e-9);
+        }
+
+        @Test
         void aLanderBackAfterAPauseStartsItsRampAfresh() {
             FakeLander lander = new FakeLander(ARRIVING, true, false, 0);
             for (int bounce = 0; bounce < 50; bounce++) {
@@ -160,20 +176,34 @@ class SlimeCoatBounceTest {
         private double falling;
         private final boolean jumpHeld;
         private final boolean sneaking;
+        private final Object identity;
+        private final boolean clientSide;
         private long gameTime;
         private double launched;
         private int boings;
 
         FakeLander(double falling, boolean jumpHeld, boolean sneaking, long gameTime) {
+            this(falling, jumpHeld, sneaking, gameTime, null, false);
+        }
+
+        FakeLander(double falling, boolean jumpHeld, boolean sneaking, long gameTime, Object identity,
+                   boolean clientSide) {
             this.falling = falling;
             this.jumpHeld = jumpHeld;
             this.sneaking = sneaking;
             this.gameTime = gameTime;
+            this.identity = identity == null ? this : identity;
+            this.clientSide = clientSide;
         }
 
         @Override
         public Object identity() {
-            return this;
+            return identity;
+        }
+
+        @Override
+        public boolean clientSide() {
+            return clientSide;
         }
 
         void fall(double speed, long at) {
