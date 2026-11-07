@@ -141,6 +141,42 @@ class AbilitiesModelTest {
         }
     }
 
+    /**
+     * Each leaf names its mechanism, the step type holding it, the delivery's kind, or its own root field, and its
+     * field, its last segment, which its label and description read through
+     * (decision ability-params-read-named-under-their-mechanism-and-hover-a-description).
+     */
+    @Nested
+    class Mechanisms {
+        private Map<String, AbilitiesModel.Leaf> byPath() {
+            JsonObject delivered = sample();
+            delivered.getAsJsonObject("delivery").addProperty("ticks_per_charge", 20);
+            return AbilitiesModel.leaves(SAMPLE, delivered).stream()
+                    .collect(Collectors.toMap(AbilitiesModel.Leaf::path, leaf -> leaf));
+        }
+
+        @Test
+        void aStepsLeafReadsItsStepTypeAndField() {
+            AbilitiesModel.Leaf range = byPath().get("behaviors/1/range");
+            assertEquals("grab", range.mechanism());
+            assertEquals("range", range.field());
+            assertEquals("damage", byPath().get("behaviors/0/amount").mechanism());
+        }
+
+        @Test
+        void aDeliveryLeafReadsTheDeliverysKind() {
+            AbilitiesModel.Leaf ticks = byPath().get("delivery/ticks_per_charge");
+            assertEquals("self", ticks.mechanism());
+            assertEquals("ticks_per_charge", ticks.field());
+        }
+
+        @Test
+        void aRootLeafReadsItsOwnField() {
+            assertEquals("cost", byPath().get("cost").mechanism());
+            assertEquals("cost", byPath().get("cost").field());
+        }
+    }
+
     @Nested
     class Edits {
 

@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.StepType;
+import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -16,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * The Abilities tab's model with no server: every numeric leaf of each ability's own JSON by its path, a cost or an
@@ -41,6 +45,12 @@ public final class AbilitiesModel {
     private static final String DESCRIPTION = "description";
     private static final String ORDER = "order";
     private static final String TYPE_ORDER = "typeOrder";
+    private static final String DELIVERY = "delivery";
+    private static final String KIND_FIELD = "kind";
+    private static final String TYPE_FIELD = "type";
+    private static final String MECHANISM = "mechanism";
+    private static final String FIELD = "field";
+    private static final Pattern ARRAY_INDEX = Pattern.compile("\\d+");
     private static final String LEAVES = "leaves";
     private static final String PATH = "path";
     private static final String VALUE = "value";
@@ -68,11 +78,13 @@ public final class AbilitiesModel {
     /**
      * One numeric leaf.
      *
-     * @param path  its path from the file's root, segments joined by /, an array index a segment of digits
-     * @param value its value as the file writes it
-     * @param kind  what it takes
+     * @param path      its path from the file's root, segments joined by /, an array index a segment of digits
+     * @param value     its value as the file writes it
+     * @param kind      what it takes
+     * @param mechanism what it tunes: the step type holding it, the delivery's kind, or its own root field
+     * @param field     its own name, its path's last segment that is no array index
      */
-    public record Leaf(String path, JsonPrimitive value, Kind kind) {
+    public record Leaf(String path, JsonPrimitive value, Kind kind, String mechanism, String field) {
     }
 
     /**
@@ -83,10 +95,61 @@ public final class AbilitiesModel {
     public static List<Leaf> leaves(Identifier id, JsonObject file) {
         List<Leaf> leaves = new ArrayList<>();
         if (!file.has(COST)) {
-            leaves.add(new Leaf(COST, NO_COST, Kind.COST));
+            leaves.add(new Leaf(COST, NO_COST, Kind.COST, COST, COST));
         }
         walk(id, file, file, List.of(), leaves);
         return leaves;
+    }
+
+    /**
+     * The mechanism a leaf tunes, which its sub-heading names: the nearest step holding it, by its type; the
+     * delivery's kind for a delivery leaf; the root field itself for any other.
+     * ability-params-read-named-under-their-mechanism-and-hover-a-description
+     *
+     * @param file the ability's JSON
+     * @param path the leaf's path
+     * @return the mechanism's plain key
+     */
+    static String mechanismOf(JsonObject file, List<String> path) {
+        String first = path.getFirst();
+        if (DELIVERY.equals(first)) {
+            JsonElement kind = file.getAsJsonObject(DELIVERY).get(KIND_FIELD);
+            return kind != null && kind.isJsonPrimitive() ? kind.getAsString() : DELIVERY;
+        }
+        String mechanism = first;
+        JsonElement at = file;
+        for (String segment : path.subList(0, path.size() - 1)) {
+            at = at.isJsonArray() ? at.getAsJsonArray().get(Integer.parseInt(segment))
+                    : at.getAsJsonObject().get(segment);
+            mechanism = stepTypeOf(at).orElse(mechanism);
+        }
+        return mechanism;
+    }
+
+    private static Optional<String> stepTypeOf(JsonElement at) {
+        if (!at.isJsonObject()) {
+            return Optional.empty();
+        }
+        JsonElement type = at.getAsJsonObject().get(TYPE_FIELD);
+        return type != null && type.isJsonPrimitive() && stepNames().contains(type.getAsString())
+                ? Optional.of(type.getAsString()) : Optional.empty();
+    }
+
+    private static Set<String> stepNames() {
+        return StepTypes.all().stream().map(StepType::name).collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * @param path a leaf's path
+     * @return its last segment that is no array index
+     */
+    static String fieldOf(List<String> path) {
+        for (int index = path.size() - 1; index > 0; index--) {
+            if (!ARRAY_INDEX.matcher(path.get(index)).matches()) {
+                return path.get(index);
+            }
+        }
+        return path.getFirst();
     }
 
     private static void walk(Identifier id, JsonObject file, JsonElement at, List<String> path, List<Leaf> leaves) {
@@ -112,15 +175,16 @@ public final class AbilitiesModel {
 
     // A number is a leaf; a string is one where it parses as an expression and the codec takes a number in its place.
     private static Optional<Leaf> leafOf(Identifier id, JsonObject file, List<String> path, JsonPrimitive value) {
-        String joined = String.join(PATH_SEPARATOR, path);
+        Optional<Kind> kind;
         if (path.size() == 1 && COST_FIELDS.contains(path.getFirst())) {
-            return Optional.of(new Leaf(joined, value, Kind.COST));
+            kind = Optional.of(Kind.COST);
+        } else if (value.isNumber()) {
+            kind = Optional.of(numberKind(id, file, path, value));
+        } else {
+            kind = readsAsExpression(id, file, path, value) ? Optional.of(Kind.EXPRESSION) : Optional.empty();
         }
-        if (value.isNumber()) {
-            return Optional.of(new Leaf(joined, value, numberKind(id, file, path, value)));
-        }
-        return readsAsExpression(id, file, path, value) ? Optional.of(new Leaf(joined, value, Kind.EXPRESSION))
-                : Optional.empty();
+        return kind.map(taken -> new Leaf(String.join(PATH_SEPARATOR, path), value, taken, mechanismOf(file, path),
+                fieldOf(path)));
     }
 
     // A number takes an expression where the codec reads its own text as a string in its place.
@@ -227,6 +291,8 @@ public final class AbilitiesModel {
             each.addProperty(PATH, leaf.path());
             each.add(VALUE, leaf.value());
             each.addProperty(KIND, leaf.kind().name());
+            each.addProperty(MECHANISM, leaf.mechanism());
+            each.addProperty(FIELD, leaf.field());
             leaves.add(each);
         }
         ability.add(LEAVES, leaves);

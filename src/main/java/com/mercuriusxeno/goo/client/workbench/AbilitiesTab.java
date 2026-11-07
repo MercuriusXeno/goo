@@ -40,6 +40,9 @@ public final class AbilitiesTab {
     private static final String ORDER = "order";
     private static final String TYPE_ORDER = "typeOrder";
     private static final String ICON = "icon";
+    private static final String MECHANISM = "mechanism";
+    private static final String FIELD = "field";
+    private static final String PATH_SEPARATOR = "/";
     private static final String DESCRIPTION = "description";
     private static final String NOT_A_NUMBER = "This box takes a number alone.";
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(\\.\\d+)?");
@@ -66,11 +69,13 @@ public final class AbilitiesTab {
     /**
      * One numeric leaf of an ability.
      *
-     * @param path  its path in the ability's JSON
-     * @param value its value as the JSON writes it, a number's text or an expression
-     * @param kind  what it takes
+     * @param path      its path in the ability's JSON
+     * @param value     its value as the JSON writes it, a number's text or an expression
+     * @param kind      what it takes
+     * @param mechanism what it tunes, which its sub-heading names
+     * @param field     its own name, which its label reads through
      */
-    public record Leaf(String path, String value, Kind kind) {
+    public record Leaf(String path, String value, Kind kind, String mechanism, String field) {
     }
 
     /**
@@ -110,9 +115,7 @@ public final class AbilitiesTab {
             JsonObject ability = element.getAsJsonObject();
             List<Leaf> leaves = new ArrayList<>();
             for (JsonElement leaf : ability.getAsJsonArray(LEAVES)) {
-                JsonObject each = leaf.getAsJsonObject();
-                leaves.add(new Leaf(each.get(PATH).getAsString(), each.get(VALUE).getAsString(),
-                        Kind.valueOf(each.get(KIND).getAsString())));
+                leaves.add(leafOf(leaf.getAsJsonObject()));
             }
             JsonElement order = ability.get(ORDER);
             abilities.add(new Ability(ability.get(ID).getAsString(), stringOr(ability, GOO_TYPE),
@@ -124,6 +127,15 @@ public final class AbilitiesTab {
         if (types != null && types.isJsonArray()) {
             types.getAsJsonArray().forEach(type -> typeOrder.add(type.getAsString()));
         }
+    }
+
+    // A model carrying no mechanism reads the path's first segment, and no field its last.
+    private static Leaf leafOf(JsonObject leaf) {
+        String path = leaf.get(PATH).getAsString();
+        List<String> segments = List.of(path.split(PATH_SEPARATOR));
+        return new Leaf(path, leaf.get(VALUE).getAsString(), Kind.valueOf(leaf.get(KIND).getAsString()),
+                leaf.has(MECHANISM) ? leaf.get(MECHANISM).getAsString() : segments.getFirst(),
+                leaf.has(FIELD) ? leaf.get(FIELD).getAsString() : segments.getLast());
     }
 
     // The badge an ability's file names, the world badge where the model carries none it knows.
