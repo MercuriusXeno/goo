@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.outsider.PlatformSpiral;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -10,6 +11,11 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -48,6 +54,30 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_VOID_CATCHES_THE_FALLER, OutsiderTests::voidCatchesTheFaller);
         GooTestFunctions.registerTest(registrar, OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD,
                 OutsiderTests::platformSpiralsWhileHeldInside);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_POCKET_SHOWS_NO_SKY, OutsiderTests::pocketShowsNoSky);
+    }
+
+    private static final String OUTSIDER_POCKET_SHOWS_NO_SKY = "outsider_pocket_shows_no_sky";
+    private static final ResourceKey<Biome> POCKET_VOID = ResourceKey.create(Registries.BIOME,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "pocket_void"));
+    private static final String SHOULD_DRAW_NO_SKY = "The pocket should draw no skybox, so no sun, draws %s";
+    private static final String SHOULD_BE_VOID_BIOME = "The pocket's rooms should stand in goo:pocket_void, stand in %s";
+
+    /**
+     * The pocket dimension draws no skybox, so neither sun nor moon nor
+     * stars, and its rooms stand in a biome of black sky and fog: nothing
+     * above, around or below.
+     *
+     * @param helper the gametest helper
+     */
+    public static void pocketShowsNoSky(GameTestHelper helper) {
+        ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+        helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
+        helper.assertTrue(pocket.dimensionType().skybox() == DimensionType.Skybox.NONE,
+                String.format(SHOULD_DRAW_NO_SKY, pocket.dimensionType().skybox()));
+        Holder<Biome> biome = pocket.getBiome(OutsiderRooms.voidstoneOf(0));
+        helper.assertTrue(biome.is(POCKET_VOID), String.format(SHOULD_BE_VOID_BIOME, biome.getRegisteredName()));
+        helper.succeed();
     }
 
     private static final String OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD = "outsider_platform_spirals_while_held_inside";
