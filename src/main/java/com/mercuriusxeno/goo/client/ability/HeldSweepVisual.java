@@ -39,8 +39,8 @@ import java.util.function.ToIntFunction;
  * The caster's side of every held sweep, Scry's, Glitter's and Magnet's, as
  * a sonar return: each live pulse's front leaves the caster at the steady
  * pace as a faint skin in the casting goo type's color, every wall open to
- * air that a front hits lights through walls at the hit and fades over two
- * seconds, so the cave hangs lit behind the fronts; fronts overlap, and a
+ * air that a front hits lights through walls at the hit, holds for three
+ * seconds and fades over three more, so the cave hangs lit behind the fronts; fronts overlap, and a
  * front already out when the hold lets go runs on to its range.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
@@ -114,14 +114,19 @@ public final class HeldSweepVisual {
     }
 
     /**
-     * How brightly a wall shows a while after a front hit it: whole at the
-     * hit, falling to nothing over the linger.
+     * How brightly a wall shows a while after a front hit it: whole from the
+     * hit for three seconds, then falling slowly to nothing over the three
+     * seconds left of the linger.
      *
      * @param sinceHit ticks since the front hit it
      * @return the glow in [0, 1]
      */
     static float glowAt(double sinceHit) {
-        return (float) Math.clamp(1 - sinceHit / HeldSweepPace.LINGER_TICKS, 0, 1);
+        double fading = sinceHit - HeldSweepPace.FULL_TICKS;
+        if (fading <= 0) {
+            return 1f;
+        }
+        return (float) Math.clamp(1 - fading / (HeldSweepPace.LINGER_TICKS - HeldSweepPace.FULL_TICKS), 0, 1);
     }
 
     /**

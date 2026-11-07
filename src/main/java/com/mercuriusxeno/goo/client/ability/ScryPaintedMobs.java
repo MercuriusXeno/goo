@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * The mobs Scry's fronts have painted on the caster's client: each mob a
  * front crosses is outlined through walls in the sweep's color, as vanilla
- * outlines a glowing mob, for the linger the walls glow, and let go after
+ * outlines a glowing mob, for the six seconds the walls glow, and let go after
  * it; a front crossing it again paints it afresh (operator ruling
  * 2026-11-06: Scry paints and highlights mobs, a glowing outline through walls).
  * decision scry-sphere-reveals-faces-and-glistens-mobs

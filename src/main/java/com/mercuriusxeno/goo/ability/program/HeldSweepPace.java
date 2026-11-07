@@ -2,10 +2,11 @@ package com.mercuriusxeno.goo.ability.program;
 
 /**
  * The pace every held sweep shares: a press starts a pulse at once and a
- * hold starts another every half second, even while earlier fronts still
+ * hold starts another every second, even while earlier fronts still
  * travel; each front leaves the caster at one steady pace, 48 blocks a
  * second, so Scry's 96 blocks take about two seconds; and every wall a
- * front hits lights at the hit and fades over about two seconds behind it.
+ * front hits lights at the hit, holds full for three seconds and fades
+ * slowly over three more behind it (operator rulings 2026-11-06).
  * decision held-sweeps-share-one-fast-shell-visual
  *
  * @param range the radius each front reaches, in blocks
@@ -14,10 +15,12 @@ public record HeldSweepPace(double range) {
 
     /** Blocks a front travels each second. */
     public static final double BLOCKS_A_SECOND = 48;
-    /** Held ticks between one pulse and the next: half a second. */
-    public static final int PULSE_EVERY_TICKS = 10;
-    /** Ticks a wall a front hit stays lit, fading, behind the front: two seconds. */
-    public static final int LINGER_TICKS = 40;
+    /** Held ticks between one pulse and the next: a second. */
+    public static final int PULSE_EVERY_TICKS = 20;
+    /** Ticks a wall a front hit stays lit behind the front: six seconds. */
+    public static final int LINGER_TICKS = 120;
+    /** Ticks of the linger a hit wall holds full brightness before it fades: three seconds. */
+    public static final int FULL_TICKS = 60;
     private static final double TICKS_A_SECOND = 20;
 
     /**
@@ -31,7 +34,7 @@ public record HeldSweepPace(double range) {
 
     /**
      * Whether a tick of the hold starts a pulse: the press itself, then
-     * every tenth tick after it.
+     * every twentieth tick after it.
      *
      * @param held the hold's age, 1 on the press
      * @return true when the tick sends a new front

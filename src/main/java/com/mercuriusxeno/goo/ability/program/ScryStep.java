@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 
 /**
  * Astral's Scry: a press sends a pulse at once and a hold another every
- * half second, each front leaving where the caster stood at the held
+ * second, each front leaving where the caster stood at the held
  * sweeps' steady pace, fronts overlapping. The child steps run on every
  * living entity a front crosses, seen or behind walls, once for each
  * front. The caster's client is sent each live pulse each tick and lights

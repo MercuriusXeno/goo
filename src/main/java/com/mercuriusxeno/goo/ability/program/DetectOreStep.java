@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 
 /**
  * Glitter's and Magnet's ore sense: a press sends a pulse at once and a
- * hold another every half second, each front leaving where the caster
+ * hold another every second, each front leaving where the caster
  * stood at the held sweeps' steady pace, fronts overlapping. Each tick it
  * sends the caster every live pulse to draw through the held-sweep visual,
  * and walks only the band of blocks a front crossed, once for each spot a
