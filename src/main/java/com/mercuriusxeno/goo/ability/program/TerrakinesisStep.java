@@ -53,6 +53,11 @@ import java.util.stream.Stream;
  * own dust off each seam, the faces where it parted from the ground it left.
  * decision terrakinesis-tears-free-with-a-stone-tear-and-seam-dust
  *
+ * Before the tear the hold strains the ground for {@link #WINDUP_TICKS},
+ * rumbling ever higher at the struck block while the client shakes the cells
+ * it would lift; a release before then lifts nothing and charges nothing.
+ * decision terrakinesis-shakes-the-blocks-before-the-tear
+ *
  * @param range      how far the look reaches for a block to lift, in blocks
  * @param radius     how far from the struck block's center the hunk reaches, in blocks
  * @param near       how far from the eye the hunk's middle hangs with the look pitched fully down
@@ -68,6 +73,14 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     private static final String FIELD_NEAR = "near";
     private static final String FIELD_FAR = "far";
     private static final String FIELD_THROW_SPEED = "throw_speed";
+    /** The ticks a hold strains the ground before the hunk tears free: half a second. */
+    public static final int WINDUP_TICKS = 10;
+    /** Ticks between the wind-up's rumbles. */
+    static final int RUMBLE_EVERY = 3;
+    /** The first rumble's pitch, each one after rising by {@link #RUMBLE_RISE}. */
+    private static final float RUMBLE_LOW = 0.5f;
+    private static final float RUMBLE_RISE = 0.15f;
+    private static final Identifier RUMBLE = Identifier.withDefaultNamespace("block.gravel.break");
     /** The most blocks one hunk carries, whatever the radius. */
     static final int MOST_BLOCKS = 64;
     /** Chips each seam face throws as the hunk tears free, dense enough to read as torn earth. */
@@ -119,12 +132,66 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         Entity held = GrabEvents.heldBy(player);
         BlockHunk hunk = held instanceof BlockHunk lifted ? lifted : null;
         if (held == null) {
+            int holdTicks = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::held).orElse(WINDUP_TICKS);
+            if (windsUp(holdTicks)) {
+                rumble(player, holdTicks);
+                return true;
+            }
             hunk = lift(player);
         }
         if (hunk != null) {
             GrabEvents.hold(player, hunk, holdPoint(player, hunk), throwSpeed);
         }
         return true;
+    }
+
+    /**
+     * Whether a hold is still winding up: the hunk tears on the tick the
+     * wind-up completes and not before.
+     *
+     * @param holdTicks the hold's tick count, 1 on its first tick
+     * @return true while the ground still strains
+     */
+    public static boolean windsUp(int holdTicks) {
+        return holdTicks < WINDUP_TICKS;
+    }
+
+    /**
+     * The rumble a winding-up hold plays this tick: one every {@link #RUMBLE_EVERY}
+     * ticks from the first, each pitched higher than the last.
+     *
+     * @param holdTicks the hold's tick count, 1 on its first tick
+     * @return the rumble, or null on a quiet tick or past the wind-up
+     */
+    static @Nullable SoundCue rumbleAt(int holdTicks) {
+        if (!windsUp(holdTicks) || (holdTicks - 1) % RUMBLE_EVERY != 0) {
+            return null;
+        }
+        float pitch = RUMBLE_LOW + RUMBLE_RISE * ((holdTicks - 1) / RUMBLE_EVERY);
+        return new SoundCue(RUMBLE, SoundKind.BLOCKS, 1f, pitch);
+    }
+
+    private void rumble(ServerPlayer player, int holdTicks) {
+        SoundCue rumble = rumbleAt(holdTicks);
+        BlockPos struck = rumble == null ? null : struckBlock(player);
+        if (struck != null) {
+            SoundPlays.play(player.level(), Vec3.atCenterOf(struck), rumble);
+        }
+    }
+
+    /**
+     * The block the look strikes within range, where the hunk could lift it.
+     *
+     * @param player the channeling player
+     * @return the block, or null where the look strikes none the hunk lifts
+     */
+    private @Nullable BlockPos struckBlock(ServerPlayer player) {
+        ServerLevel level = player.level();
+        Vec3 eye = player.getEyePosition();
+        BlockHitResult hit = level.clip(new ClipContext(eye, eye.add(player.getLookAngle().scale(range)),
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.MISS || !liftable(level, hit.getBlockPos()) ? null
+                : hit.getBlockPos();
     }
 
     /**
@@ -149,13 +216,10 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      */
     private @Nullable BlockHunk lift(ServerPlayer player) {
         ServerLevel level = player.level();
-        Vec3 eye = player.getEyePosition();
-        BlockHitResult hit = level.clip(new ClipContext(eye, eye.add(player.getLookAngle().scale(range)),
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
-        if (hit.getType() == HitResult.Type.MISS || !liftable(level, hit.getBlockPos())) {
+        BlockPos struck = struckBlock(player);
+        if (struck == null) {
             return null;
         }
-        BlockPos struck = hit.getBlockPos();
         List<BlockPos> cells = hunkCells(struck, radius, cell -> liftable(level, cell));
         if (!pay(player, rockValueOf(level, cells))) {
             return null;
@@ -235,7 +299,7 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      * @param liftable whether the hunk lifts a cell
      * @return the cells, the struck block first
      */
-    static List<BlockPos> hunkCells(BlockPos struck, double radius, Predicate<BlockPos> liftable) {
+    public static List<BlockPos> hunkCells(BlockPos struck, double radius, Predicate<BlockPos> liftable) {
         Set<BlockPos> found = new LinkedHashSet<>();
         Deque<BlockPos> frontier = new ArrayDeque<>();
         found.add(struck);
@@ -269,10 +333,24 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      */
     private static boolean liftable(ServerLevel level, BlockPos cell) {
         BlockState state = level.getBlockState(cell);
-        if (state.isAir() || state.hasBlockEntity() || state.getDestroySpeed(level, cell) < 0) {
-            return false;
-        }
-        GooValue value = ValuedBlocks.valueAt(level, cell);
+        return liftableState(state, state.getDestroySpeed(level, cell), ValuedBlocks.valueAt(level, cell));
+    }
+
+    /**
+     * Whether the hunk lifts a block, read from what the server and the
+     * client both know of it, so the client shakes the cells the server lifts.
+     *
+     * @param state    the block
+     * @param hardness its hardness where it stands, negative for one no hand breaks
+     * @param value    its goo value, or null for none
+     * @return true where the hunk lifts it
+     */
+    public static boolean liftableState(BlockState state, float hardness, @Nullable GooValue value) {
+        boolean breakable = !state.isAir() && !state.hasBlockEntity() && hardness >= 0;
+        return breakable && carriesRock(value);
+    }
+
+    private static boolean carriesRock(@Nullable GooValue value) {
         return value != null && value.exact(GooTypes.ROCK).isPositive();
     }
 
