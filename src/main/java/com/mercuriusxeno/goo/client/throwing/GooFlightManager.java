@@ -198,6 +198,8 @@ public final class GooFlightManager {
          * Arc peak, fixed at the throw from start to throwEnd.
          */
         private final double peak;
+        /** The far leg's peak, past a gate. */
+        private final double farPeak;
         /** The gate the flight goes into, null for a flight on the near side. */
         private final @Nullable Gate gate;
         /** Where the flight meets the gate's face and comes out of the partner, null with no gate. */
@@ -231,7 +233,10 @@ public final class GooFlightManager {
             this.grannyArc = grannyArc;
             this.gate = hop == null ? null : gate;
             this.hop = gate == null ? null : hop;
-            this.peak = this.hop == null ? delivery.peak(start, throwEnd, grannyArc) : peakThrough(this.hop);
+            // aim-and-shots-carry-through-linked-gates: each leg through a gate arcs by its own length
+            this.peak = this.hop == null ? delivery.peak(start, throwEnd, grannyArc)
+                    : delivery.aimsStraight() ? 0 : ThrowArc.basePeak(start.distanceTo(this.hop.facePoint()));
+            this.farPeak = this.hop == null ? 0 : farPeakThrough(this.hop);
             this.ticksElapsed = 0;
         }
 
@@ -255,19 +260,18 @@ public final class GooFlightManager {
         }
 
         /**
-         * The peak of a flight through a gate, over its two legs' summed
+         * The peak of a flight's far leg through a gate, by the far leg's own
          * length, as the aim line draws it.
          *
          * @param passed the gate's hop
          * @return the peak height in blocks
          */
-        private double peakThrough(GateArc.Hop passed) {
+        private double farPeakThrough(GateArc.Hop passed) {
             if (delivery.aimsStraight()) {
                 return 0;
             }
             return grannyArc && delivery.grannyAllowed() ? ThrowArc.lobPeak(passed.partnerPoint(), throwEnd)
-                    : ThrowArc.basePeak(start.distanceTo(passed.facePoint())
-                            + passed.partnerPoint().distanceTo(throwEnd));
+                    : ThrowArc.basePeak(passed.partnerPoint().distanceTo(throwEnd));
         }
 
         /**
@@ -297,7 +301,7 @@ public final class GooFlightManager {
          */
         private Vec3 along(double t) {
             Vec3 end = getEnd();
-            return hop == null ? ThrowArc.arcPoint(start, end, t, peak) : GateArc.at(start, hop, end, peak, t);
+            return hop == null ? ThrowArc.arcPoint(start, end, t, peak) : GateArc.at(start, hop, end, peak, farPeak, t);
         }
 
         /**
