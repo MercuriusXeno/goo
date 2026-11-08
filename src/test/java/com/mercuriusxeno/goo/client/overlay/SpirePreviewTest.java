@@ -81,4 +81,14 @@ class SpirePreviewTest {
         assertEquals(java.util.List.of(new Vec3(10, y, 20), new Vec3(10, y, 23), new Vec3(12, y, 23),
                 new Vec3(12, y, 20), new Vec3(10, y, 20)), java.util.List.of(edge));
     }
+
+    @Test
+    void eachOuterFaceAlsoFacesInwardFromItsOutsideNeighbourSoTheGhostShowsFromWithin() {
+        Set<BlockPos> ghost = Set.copyOf(SpirePreview.ghostCells(FOOTPRINT));
+        BlockPos bottomCorner = new BlockPos(10, 65, 20);
+        assertEquals(Set.of(new SpirePreview.Face(bottomCorner.below(), Direction.UP),
+                        new SpirePreview.Face(bottomCorner.west(), Direction.EAST),
+                        new SpirePreview.Face(bottomCorner.north(), Direction.SOUTH)),
+                Set.copyOf(SpirePreview.inwardFaces(bottomCorner, ghost)));
+    }
 }

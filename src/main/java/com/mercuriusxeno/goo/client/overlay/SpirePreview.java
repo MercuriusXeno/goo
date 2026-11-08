@@ -59,6 +59,30 @@ final class SpirePreview {
     }
 
     /**
+     * One face of a block in a cell, by the side it faces.
+     *
+     * @param cell the cell the block stands in
+     * @param side the side the face faces
+     */
+    record Face(BlockPos cell, Direction side) {
+    }
+
+    /**
+     * The ghost's outer faces of a cell as seen from inside the ghost: each
+     * drawn as the face the outside neighbour would show, on the same plane
+     * but facing in, so a holder standing inside the footprint sees the ghost
+     * around them; from outside, culling hides these as it hides the outer
+     * faces from inside.
+     *
+     * @param cell  the ghost cell
+     * @param ghost every ghost cell
+     * @return the inward faces
+     */
+    static List<Face> inwardFaces(BlockPos cell, Set<BlockPos> ghost) {
+        return outerFaces(cell, ghost).stream().map(side -> new Face(cell.relative(side), side.getOpposite())).toList();
+    }
+
+    /**
      * The faces of a ghost cell no other ghost cell covers, the only ones the ghost draws.
      *
      * @param cell  the ghost cell
