@@ -90,9 +90,10 @@ public final class GrabEvents {
      * @param player    the pulling player
      * @param item      the item entity
      * @param pullSpeed the speed the item flies at, in blocks per tick
+     * @param toward    where the item flies for: the eye, or the eye as seen through a linked pair the way runs
      */
-    public static void pull(ServerPlayer player, ItemEntity item, double pullSpeed) {
-        Vec3 toEye = player.getEyePosition().subtract(item.position());
+    public static void pull(ServerPlayer player, ItemEntity item, double pullSpeed, Vec3 toward) {
+        Vec3 toEye = toward.subtract(item.position());
         // Capped at the distance left, so the last tick lands on the player rather than past it.
         item.setDeltaMovement(toEye.normalize().scale(Math.min(pullSpeed, toEye.length())));
         item.setNoPickUpDelay();

@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.held.Telekinesis;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -10,6 +12,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -79,11 +83,61 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
             held = sentTarget(player, context.hostAs(ChannelHost.class));
         }
         if (held instanceof ItemEntity item) {
-            GrabEvents.pull(player, item, pullSpeed);
+            GrabEvents.pull(player, item, pullSpeed, throughGates(player, item, item.position(),
+                    player.getEyePosition()));
         } else if (held != null) {
-            GrabEvents.hold(player, held, holdPoint(player, held), throwSpeed);
+            Vec3 lift = new Vec3(0, held.getBbHeight() * HALF, 0);
+            Vec3 middle = throughGates(player, held, held.getBoundingBox().getCenter(),
+                    holdPoint(player, held).add(lift));
+            GrabEvents.hold(player, held, middle.subtract(lift), throwSpeed);
         }
         return true;
+    }
+
+    /**
+     * Where a body Grab draws heads for: straight for the end where nothing
+     * stands between, else, where a linked pair offers a way, through the
+     * middle of the gate's opening, so the body crosses its face and the pair
+     * carries it out on the holder's side rather than dragging it at the
+     * walls between.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the holding player
+     * @param body   the drawn body
+     * @param from   where the body stands
+     * @param to     where Grab draws it
+     * @return where it heads this tick
+     */
+    private static Vec3 throughGates(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {
+        if (inSight(player, body, from, to)) {
+            return to;
+        }
+        return GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), from, to)
+                .map(GateRay.Route::headFor).orElse(to);
+    }
+
+    private static boolean inSight(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {
+        return player.level().clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                body)).getType() == HitResult.Type.MISS;
+    }
+
+    /**
+     * How far Grab reaches to a body: straight where nothing stands between,
+     * else along the shortest way through a linked pair where one runs.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the grabbing player
+     * @param body   the body
+     * @return the squared reach to its middle
+     */
+    private static double reachedSquared(ServerPlayer player, Entity body) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 middle = body.getBoundingBox().getCenter();
+        double straight = eye.distanceTo(middle);
+        double length = inSight(player, body, eye, middle) ? straight
+                : GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), eye, middle)
+                        .map(GateRay.Route::length).orElse(straight);
+        return length * length;
     }
 
     /**
@@ -170,8 +224,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         if (sent == null || sent == player) {
             return null;
         }
-        double distanceSquared = player.getEyePosition().distanceToSqr(sent.getBoundingBox().getCenter());
-        return takesSent(sent, distanceSquared, Telekinesis.entityReachLaid(player)) ? sent : null;
+        return takesSent(sent, reachedSquared(player, sent), Telekinesis.entityReachLaid(player)) ? sent : null;
     }
 
     @Override
