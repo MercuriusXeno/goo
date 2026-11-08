@@ -475,6 +475,9 @@ public final class PortalView {
             }
             mc.levelRenderer.renderLevel(game.resourcePool, delta, false, camera, camera.viewRotationMatrix,
                     viewFog(camera.fogData), camera.fogData.color, true, state.chunkSectionsToRender);
+            // aim-and-shots-carry-through-linked-gates: the view's own glow outlines, the aimed mob's among them,
+            // blend into the view as the frame's do after its level, before the frame's level clears them
+            mc.levelRenderer.doEntityOutline();
         } finally {
             mc.levelRenderer.cloudRenderer = frameClouds;
             mc.mainRenderTarget = frame;
