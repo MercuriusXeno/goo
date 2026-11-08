@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
@@ -42,8 +43,15 @@ public final class BlockTransformHandler {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                BlockTransforms.CLIENT.expose(payload.pos(), Block.stateById(payload.toward()), payload.share(),
-                        mc.level.getGameTime(), payload.tint());
+                BlockState toward = Block.stateById(payload.toward());
+                if (payload.tint() == BlockExposurePayload.MELTS_AWAY) {
+                    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: the client's copy shows the melt
+                    BlockTransforms.CLIENT.meltSwap(payload.pos(), toward, payload.share(),
+                            mc.level.getBlockState(payload.pos())).ifPresent(state ->
+                            mc.level.setBlock(payload.pos(), state, Block.UPDATE_ALL_IMMEDIATE));
+                }
+                BlockTransforms.CLIENT.expose(payload.pos(), toward, payload.share(), mc.level.getGameTime(),
+                        payload.tint());
             }
         });
     }

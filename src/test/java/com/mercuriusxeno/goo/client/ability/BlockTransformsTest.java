@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
@@ -89,43 +90,77 @@ class BlockTransformsTest {
         BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, air, 0.025f, START,
                 BlockTransforms.UNTINTED);
 
-        assertEquals(Optional.of(new BlockTransforms.Mingling(log, BlockTransforms.CHARRED)),
+        assertEquals(new BlockTransforms.Mingling(log, BlockTransforms.CHARRED, 1f - 0.025f),
                 BlockTransforms.minglingOf(firstTick, log));
     }
 
-    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: heating ice shows no face, never a charred one
-    @Test
-    void aMeltingExposureMinglesNothingInWhileItHeats() {
-        BlockState ice = mock(BlockState.class);
-        BlockState water = mock(BlockState.class);
-        BlockTransforms.Exposure heating = new BlockTransforms.Exposure(GRAVEL, water, 0.5f, START,
-                BlockTransforms.MELTS_AWAY);
+    /**
+     * A melt eats the block it was away by the share over what it melts into,
+     * the client's copy of the cell swapped from the first share and put back
+     * if the share cools to nothing
+     * (decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
+     */
+    @Nested
+    class Melting {
 
-        assertEquals(Optional.empty(), BlockTransforms.minglingOf(heating, ice));
-    }
+        private final BlockState ice = mock(BlockState.class);
+        private final BlockState water = mock(BlockState.class);
+        private final BlockTransforms transforms = new BlockTransforms();
 
-    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: melted ice is eaten away over its water as Melt does
-    @Test
-    void aStepOnAMeltingIceExposureEatsTheIceAwayUntinted() {
-        BlockState ice = mock(BlockState.class);
-        BlockState water = mock(BlockState.class);
-        BlockTransforms transforms = new BlockTransforms();
-        transforms.expose(GRAVEL, water, 0.9f, START, BlockTransforms.MELTS_AWAY);
-        transforms.start(GRAVEL, ice, START + 1);
-        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, ice, START + 1)), transforms.live(START + 1));
-        assertEquals(0, transforms.exposing(START + 1).size());
-    }
+        @Test
+        void aMeltingExposureEatsTheIceAwayByTheShare() {
+            BlockTransforms.Exposure heating = new BlockTransforms.Exposure(GRAVEL, water, 0.25f, START,
+                    BlockTransforms.MELTS_AWAY);
 
-    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: a melted snow layer is eaten away to nothing, uncharred
-    @Test
-    void aStepOnAMeltingSnowExposureEatsTheSnowAwayUntinted() {
-        BlockState snow = mock(BlockState.class);
-        BlockState air = mock(BlockState.class);
-        when(air.isAir()).thenReturn(true);
-        BlockTransforms transforms = new BlockTransforms();
-        transforms.expose(GRAVEL, air, 0.9f, START, BlockTransforms.MELTS_AWAY);
-        transforms.start(GRAVEL, snow, START + 1);
-        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, snow, START + 1)), transforms.live(START + 1));
+            assertEquals(new BlockTransforms.Mingling(ice, BlockTransforms.UNTINTED, 0.25f),
+                    BlockTransforms.minglingOf(heating, ice));
+        }
+
+        @Test
+        void aMeltingSnowLayerIsEatenAwayUncharred() {
+            BlockState snow = mock(BlockState.class);
+            BlockState air = mock(BlockState.class);
+            when(air.isAir()).thenReturn(true);
+            BlockTransforms.Exposure heating = new BlockTransforms.Exposure(GRAVEL, air, 0.25f, START,
+                    BlockTransforms.MELTS_AWAY);
+
+            assertEquals(new BlockTransforms.Mingling(snow, BlockTransforms.UNTINTED, 0.25f),
+                    BlockTransforms.minglingOf(heating, snow));
+        }
+
+        @Test
+        void theFirstMeltShareSwapsTheClientsCellToItsWater() {
+            assertEquals(Optional.of(water), transforms.meltSwap(GRAVEL, water, 0.025f, ice));
+            assertEquals(ice, transforms.standingAt(GRAVEL, water));
+            assertEquals(Optional.empty(), transforms.meltSwap(GRAVEL, water, 0.05f, water));
+        }
+
+        @Test
+        void aMeltCooledBackToNothingPutsTheIceBack() {
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+
+            assertEquals(Optional.of(ice), transforms.meltSwap(GRAVEL, water, 0f, water));
+            assertEquals(water, transforms.standingAt(GRAVEL, water));
+        }
+
+        @Test
+        void aMeltCooledBackLeavesACellTheServerChanged() {
+            BlockState stone = mock(BlockState.class);
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+
+            assertEquals(Optional.empty(), transforms.meltSwap(GRAVEL, water, 0f, stone));
+        }
+
+        @Test
+        void aMeltsStepPlaysNoSecondDissolve() {
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+            transforms.expose(GRAVEL, water, 0.97f, START, BlockTransforms.MELTS_AWAY);
+            transforms.start(GRAVEL, ice, START + 1);
+
+            assertEquals(List.of(), transforms.live(START + 1));
+            assertEquals(0, transforms.exposing(START + 1).size());
+            assertEquals(water, transforms.standingAt(GRAVEL, water));
+        }
     }
 
     @Test
@@ -134,7 +169,7 @@ class BlockTransformsTest {
         BlockState glass = mock(BlockState.class);
         BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, glass, 0.025f, START, MAROON);
 
-        assertEquals(Optional.of(new BlockTransforms.Mingling(glass, MAROON)),
+        assertEquals(new BlockTransforms.Mingling(glass, MAROON, 1f - 0.025f),
                 BlockTransforms.minglingOf(firstTick, sand));
     }
 
