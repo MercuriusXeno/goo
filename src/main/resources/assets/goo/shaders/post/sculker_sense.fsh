@@ -1,8 +1,8 @@
 #version 330
 
 // Sculker's warden senses: the world dims with its distance from the
-// diver, showing at 60% of its own look within 3 blocks, 30% at 5, 10% at
-// 6.5 and black by 8, the sky black with it. The whole vision eases in as
+// diver, showing at 60% of its own look within 2 blocks, 30% at 3.5, 10% at
+// 5 and black by 6, the sky black with it. The whole vision eases in as
 // the brew starts and out as it ends. The glass field and what the diver's
 // echoes lit draw over the world once this has dimmed it, so only what a
 // real echo touched lights up past the near world.
@@ -24,14 +24,14 @@ layout(std140) uniform SculkerConfig {
 out vec4 fragColor;
 
 // the world's brightness by its distance from the diver, a share of how it looks with no effect:
-// 60% within 3 blocks, 30% at 5, 10% at 6.5, black by 8
+// 60% within 2 blocks, 30% at 3.5, 10% at 5, black by 6
 const float BRIGHT_NEAR = 0.6;
 const float BRIGHT_ROOM = 0.3;
 const float BRIGHT_NEXT = 0.1;
-const float NEAR_REACH_BLOCKS = 3.0;
-const float ROOM_REACH = 5.0;
-const float NEXT_REACH = 6.5;
-const float DARK_REACH = 8.0;
+const float NEAR_REACH_BLOCKS = 2.0;
+const float ROOM_REACH = 3.5;
+const float NEXT_REACH = 5.0;
+const float DARK_REACH = 6.0;
 
 float brightnessAt(float distance) {
     if (distance <= NEAR_REACH_BLOCKS) {
