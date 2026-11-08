@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:spire_accepts_a_riding_players_moves",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

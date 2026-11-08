@@ -83,6 +83,7 @@ class AbilityPoseTableTest {
             Map.entry("rock_petrify", ArmPose.HELD_OUT),
             Map.entry("rock_spire", ArmPose.SWUNG),
             Map.entry("rock_stoneskin", ArmPose.HELD_UP),
+            Map.entry("rock_terrakinesis", ArmPose.HELD_OUT),
             Map.entry("shroom_colonize", ArmPose.SWUNG),
             Map.entry("shroom_fungal_shift", ArmPose.HELD_OUT),
             Map.entry("shroom_mycosis", ArmPose.HELD_OUT),
