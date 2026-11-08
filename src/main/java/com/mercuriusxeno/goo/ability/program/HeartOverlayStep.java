@@ -6,8 +6,8 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -15,9 +15,8 @@ import java.util.stream.Stream;
  * Lays a heart overlay over the host's target player's health bar and
  * finishes; a target that is not a player has no health bar to lay it on and
  * is left alone. Blaze Kindle is {@code heart_overlay kind=kindle} (decision
- * overlay-hearts-are-an-elemental-overshield). A drunk brew lays it for the
- * brew's duration; the glove lays it with no expiry, held until the player
- * ends it or runs dry.
+ * overlay-hearts-are-an-elemental-overshield). The glove lays it with no
+ * expiry, held until the player ends it or runs dry.
  * self-effects-trickle-until-ended
  *
  * Rock Stoneskin names {@code damage_taken}, the share of a physical hit its
@@ -63,18 +62,27 @@ public record HeartOverlayStep(HeartKind kind, float damageTaken) implements Ste
     @Override
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
-        if (host.target() instanceof Player player) {
+        if (takesEntity(host.target())) {
+            Player player = (Player) host.target();
             HeartOverlay standing = player.getData(GooAttachments.HEART_OVERLAY);
             long now = player.level().getGameTime();
-            OptionalInt brewDuration = host.brewDuration();
-            // brew-grants-the-self-ability-for-an-hour: the brew alone names a duration
-            HeartOverlay laid = brewDuration.isPresent()
-                    ? standing.apply(kind, brewDuration.getAsInt(), player.getHealth(), player.getMaxHealth(),
-                            damageTaken, now)
-                    : standing.hold(kind, player.getHealth(), player.getMaxHealth(), damageTaken, now);
-            player.setData(GooAttachments.HEART_OVERLAY, laid);
+            player.setData(GooAttachments.HEART_OVERLAY,
+                    standing.hold(kind, player.getHealth(), player.getMaxHealth(), damageTaken, now));
         }
         return true;
+    }
+
+
+    /**
+     * A heart overlay lies on a player.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity the candidate
+     * @return true where the step acts on it
+     */
+    @Override
+    public boolean takesEntity(Entity entity) {
+        return entity instanceof Player;
     }
 
     @Override

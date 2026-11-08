@@ -145,8 +145,10 @@ public final class GloveThrowSender {
         var connection = Minecraft.getInstance().getConnection();
         Vec3 origin = lineOrigin();
         if (connection != null) {
+            // decision outlined-target-is-the-one-pick: the tick names the entity the glove outlines
             connection.send(new ServerboundCustomPayloadPacket(
-                    held(GooTypes.id(gooType), abilityId, origin, heldAimPoint(player, abilityId))));
+                    held(GooTypes.id(gooType), abilityId, origin, heldAimPoint(player, abilityId))
+                            .targeting(outlinedEntityId())));
         }
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
         WindLines.blow(player, abilityId, selectedArea(abilityId), origin);
@@ -167,6 +169,16 @@ public final class GloveThrowSender {
         selectedDelivery(abilityId).sound().filter(StreamSound::loop).ifPresent(sound ->
                 FadingLoops.keepAliveAtListener(abilityId, sound.sound(), SoundSource.PLAYERS, sound.volume(),
                         sound.pitchFor(player.getRandom().nextFloat())));
+    }
+
+    /**
+     * The id of the entity the glove outlines this frame.
+     *
+     * @return the outlined entity's id, or NO_ENTITY where it outlines none
+     */
+    private static int outlinedEntityId() {
+        return AimTracker.currentTarget() instanceof TargetResult.EntityTarget outlined
+                ? outlined.entity().getId() : NO_ENTITY;
     }
 
     /**
@@ -299,7 +311,7 @@ public final class GloveThrowSender {
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks));
+        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed()));
         return true;
     }
 

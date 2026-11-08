@@ -4,10 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import org.jspecify.annotations.Nullable;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
@@ -66,11 +63,6 @@ public final class CanisterSlotLayout {
      * Precomputed for renderers that consume block-coord positions.
      */
     public static final float[][] SLOT_CENTERS_BLOCK = buildBlockCenters(SLOT_CENTERS);
-    /**
-     * Block-local centers for each overriding centers array, keyed by the array itself:
-     * an attachable hands back one stable array, so this holds one entry per override.
-     */
-    private static final Map<float[][], float[][]> BLOCK_CENTERS_BY_OVERRIDE = new ConcurrentHashMap<>();
 
     private CanisterSlotLayout() {
     }
@@ -84,40 +76,6 @@ public final class CanisterSlotLayout {
             };
         }
         return block;
-    }
-
-    /**
-     * The slot centers of the canister block at a position: the centers the
-     * attachable machine below names, else the fixed grid.
-     *
-     * @param level       the level
-     * @param canisterPos the canister block position
-     * @return pixel centers per slot index 0-8
-     */
-    public static float[][] centersAt(BlockGetter level, BlockPos canisterPos) {
-        return centersOf(level.getBlockEntity(canisterPos.below()));
-    }
-
-    /**
-     * The slot centers a canister block takes from what stands below it.
-     *
-     * @param below the block entity below, or null
-     * @return the attachable's centers, or the fixed grid
-     */
-    public static float[][] centersOf(@Nullable Object below) {
-        return below instanceof ICanisterAttachable attachable ? attachable.slotCenters() : SLOT_CENTERS;
-    }
-
-    /**
-     * Block-local centers ({@code centers / 16}) for renderers; the fixed grid's
-     * are precomputed, an override's are computed once and kept.
-     *
-     * @param centers pixel centers per slot
-     * @return block-local centers per slot
-     */
-    public static float[][] blockCenters(float[][] centers) {
-        return centers == SLOT_CENTERS ? SLOT_CENTERS_BLOCK
-                : BLOCK_CENTERS_BY_OVERRIDE.computeIfAbsent(centers, CanisterSlotLayout::buildBlockCenters);
     }
 
     /**

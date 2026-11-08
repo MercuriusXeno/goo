@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 class BrewEffectIconsTest {
 
-    private static final String BREW_BADGE = "brew";
-    private static final String ICON_PATH = "/assets/goo/textures/mob_effect/%s_brew.png";
+    private static final String BREW_BADGE = "durative";
+    private static final String ICON_PATH = "/assets/goo/textures/mob_effect/%s_held.png";
 
     @Test
     void everyBrewTypeShipsItsEffectIcon() {

@@ -2,20 +2,20 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
-import com.mercuriusxeno.goo.block.ability.BouncePadBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
-import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
+import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.quantum.PhasedBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -23,11 +23,13 @@ import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.function.Supplier;
@@ -47,6 +49,14 @@ public class GooBlocks {
     /** Cobblestone's hardness and blast resistance, which a statue mines like. */
     private static final float COBBLESTONE_HARDNESS = 2.0F;
     private static final float COBBLESTONE_RESISTANCE = 6.0F;
+    /** The hardness no hand breaks, bedrock's own. */
+    private static final float UNBREAKABLE = -1.0F;
+    /** Bedrock's blast resistance. */
+    private static final float UNBLASTABLE = 3_600_000.0F;
+    /** The faint light voidstone gives. */
+    private static final int VOIDSTONE_GLOW = 3;
+    /** The light the dimension door gives, enough to find it in the dark. */
+    private static final int DOOR_GLOW = 10;
 
     /**
      * Ability block: short-lived block a world ability runs its program from.
@@ -145,14 +155,20 @@ public class GooBlocks {
                     .replaceable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
-     * Bounce pad: the slime-like block Weird's Bounce leaves where it lands,
-     * gone after the time its ability names (decision weird-bounces-and-softens-harm).
+     * Slime coat: the thin green film Weird's Coat lays on a block's top,
+     * standing until destroyed and dropping nothing
+     * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
      */
-    public static final DeferredBlock<BouncePadBlock> BOUNCE_PAD = BLOCKS.registerBlock(
-            "bounce_pad", BouncePadBlock::new,
-            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.SLIME_BLOCK)
-                    .mapColor(MapColor.COLOR_MAGENTA)
-                    .noLootTable());
+    public static final DeferredBlock<SlimeCoatBlock> SLIME_COAT = BLOCKS.registerBlock(
+            "slime_coat", SlimeCoatBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.GRASS)
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
@@ -199,6 +215,26 @@ public class GooBlocks {
      * (decision portable-hole-phases-blocks-for-a-while). Nothing collides with
      * it or mines it, and it drops nothing.
      */
+    /**
+     * Voidstone: the unbreakable block at the center of each Outsider room,
+     * the one block there nothing can take away (decision
+     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
+     */
+    public static final DeferredBlock<Block> VOIDSTONE = BLOCKS.registerSimpleBlock("voidstone",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(UNBREAKABLE, UNBLASTABLE)
+                    .noLootTable().pushReaction(PushReaction.BLOCK).lightLevel(state -> VOIDSTONE_GLOW));
+
+    /**
+     * The dimension door standing in each Outsider room, which leads back
+     * where the player came in from (decision
+     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
+     */
+    public static final DeferredBlock<DimensionDoorBlock> DIMENSION_DOOR = BLOCKS.registerBlock(
+            "dimension_door", DimensionDoorBlock::new,
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).strength(UNBREAKABLE, UNBLASTABLE)
+                    .noCollision().noOcclusion().noLootTable().pushReaction(PushReaction.BLOCK)
+                    .lightLevel(state -> DOOR_GLOW));
+
     public static final DeferredBlock<PhasedBlock> PHASED_BLOCK = BLOCKS.registerBlock(
             "phased_block", PhasedBlock::new,
             () -> BlockBehaviour.Properties.of().noCollision().noOcclusion().strength(-1.0F, 3_600_000.0F)
@@ -254,11 +290,6 @@ public class GooBlocks {
             .noOcclusion();
     public static final DeferredBlock<VatBlock> VAT = BLOCKS.registerBlock("vat",
             VatBlock::new, VAT_PROPERTY_SUPPLIER);
-    private static final Supplier<BlockBehaviour.Properties> CRYSTALLIZER_PROPERTY_SUPPLIER = () -> BlockBehaviour.Properties.of()
-            .mapColor(MapColor.COLOR_PURPLE).strength(1.5F).sound(SoundType.AMETHYST).noOcclusion();
-    /** Phases goo into chrysm (decision crystallizer-emits-chrysm). */
-    public static final DeferredBlock<CrystallizerBlock> CRYSTALLIZER = BLOCKS.registerBlock("crystallizer",
-            CrystallizerBlock::new, CRYSTALLIZER_PROPERTY_SUPPLIER);
     private static final Supplier<BlockBehaviour.Properties> CANISTER_PROPERTY_SUPPLIER = () -> BlockBehaviour.Properties.of()
             .mapColor(MapColor.METAL).instabreak().sound(SoundType.METAL)
             .noOcclusion();

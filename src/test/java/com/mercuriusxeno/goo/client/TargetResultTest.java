@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * Every aim target carries the exact point aimed at, which the aim line ends
- * on, while a block's bullseye keeps its face's center (decisions
+ * Every aim target carries the exact point aimed at, which the throw flies to,
+ * while a block's bullseye keeps its face's center (decisions
  * aim-point-follows-the-cursor, aim-line-snaps-with-the-tile-highlight).
  */
 class TargetResultTest {

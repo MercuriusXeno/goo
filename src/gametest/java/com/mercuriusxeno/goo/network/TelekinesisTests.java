@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ServerboundAttackPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -24,10 +25,10 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for Kinetic's Telekinesis, drunk as its brew by a survival mock
+ * Gametests for Kinetic's Telekinesis, held on the glove by a survival mock
  * player: a block and a mob standing well past vanilla's reach are out of
- * it before the brew and are broken and hit after it, through vanilla's own
- * block break and attack handlers, the kinetic brew the one effect worn
+ * it before the hold and are broken and hit after it, through vanilla's own
+ * block break and attack handlers, the kinetic held effect the one effect worn
  * (decision telekinesis-enacts-at-extended-reach).
  */
 @RegistersGameTests
@@ -46,6 +47,7 @@ public final class TelekinesisTests {
     }
 
 
+    private static final Identifier KINETIC_TELEKINESIS = Identifier.parse("goo:kinetic_telekinesis");
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 0);
     /** Twelve blocks out: past survival's block reach and attack reach, inside them raised by Telekinesis's 8. */
     private static final BlockPos FAR_BLOCK = new BlockPos(0, 1, 12);
@@ -56,15 +58,15 @@ public final class TelekinesisTests {
     private static final double ATTACK_BUFFER = 3.0;
     private static final int HELD_GOO = 3;
     private static final int FIRST_SEQUENCE = 1;
-    private static final String SHOULD_START_OUT_OF_REACH = "The %s should stand past vanilla reach before the brew";
-    private static final String SHOULD_WEAR_ONE_EFFECT = "The kinetic brew should be the one effect worn, wears %s";
+    private static final String SHOULD_START_OUT_OF_REACH = "The %s should stand past vanilla reach before the hold";
+    private static final String SHOULD_WEAR_ONE_EFFECT = "The kinetic held effect should be the one effect worn, wears %s";
 
     private TelekinesisTests() {
     }
 
     /**
      * A slime block past vanilla's block reach breaks through the block
-     * break handler once the kinetic brew is drunk.
+     * break handler once Telekinesis is held on the glove.
      *
      * @param helper the gametest helper
      */
@@ -75,8 +77,8 @@ public final class TelekinesisTests {
         helper.assertFalse(player.isWithinBlockInteractionRange(far, BLOCK_BUFFER),
                 String.format(SHOULD_START_OUT_OF_REACH, "block"));
 
-        BrewEffectTests.drinkBrew(player, GooTypes.KINETIC);
-        String effects = oneKineticBrew(player);
+        HeartOverlayTests.invoke(player, GooTypes.KINETIC, KINETIC_TELEKINESIS);
+        String effects = oneKineticHeldEffect(player);
         player.gameMode.handleBlockBreakAction(far, ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK,
                 Direction.SOUTH, helper.getLevel().getMaxY(), FIRST_SEQUENCE);
 
@@ -88,7 +90,7 @@ public final class TelekinesisTests {
 
     /**
      * A zombie past vanilla's attack reach takes the hit through the attack
-     * handler once the kinetic brew is drunk.
+     * handler once Telekinesis is held on the glove.
      *
      * @param helper the gametest helper
      */
@@ -101,7 +103,7 @@ public final class TelekinesisTests {
         helper.assertFalse(player.isWithinAttackRange(player.getMainHandItem(), zombie.getBoundingBox(), ATTACK_BUFFER),
                 String.format(SHOULD_START_OUT_OF_REACH, "zombie"));
 
-        BrewEffectTests.drinkBrew(player, GooTypes.KINETIC);
+        HeartOverlayTests.invoke(player, GooTypes.KINETIC, KINETIC_TELEKINESIS);
         player.connection.handleAttack(new ServerboundAttackPacket(zombie.getId()));
 
         float healthAfter = zombie.getHealth();
@@ -111,8 +113,8 @@ public final class TelekinesisTests {
         helper.succeed();
     }
 
-    private static String oneKineticBrew(ServerPlayer player) {
-        MobEffectInstance worn = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.KINETIC));
+    private static String oneKineticHeldEffect(ServerPlayer player) {
+        MobEffectInstance worn = player.getEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.KINETIC));
         return worn != null && player.getActiveEffects().size() == 1 ? ""
                 : String.format(SHOULD_WEAR_ONE_EFFECT, player.getActiveEffects());
     }

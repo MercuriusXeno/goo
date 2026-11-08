@@ -2,9 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
-import com.mercuriusxeno.goo.ability.gate.AstralGateOpening;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
-import com.mercuriusxeno.goo.ability.gate.VoidPocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.PortableHole;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
@@ -62,7 +60,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        TimedBlockHost, PhaseBlocksHost, IgniteHost, MeltHost {
+        PhaseBlocksHost, IgniteHost, MeltHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -127,24 +125,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Opens Astral's gate over the block the blob struck, the one behind the cell.
-     * decision astral-visits-lunar-and-solar-dimensions
-     */
-    @Override
-    public boolean openAstralGate(int lifetime) {
-        return AstralGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
-    }
-
-    /**
-     * Opens Void's pocket gate over the block the blob struck, into the caster's room.
-     * decision void-opens-a-pocket-dimension
-     */
-    @Override
-    public boolean openVoidPocket(int lifetime) {
-        return VoidPocketOpening.open(level, cell.relative(face.getOpposite()), face, lifetime, caster);
-    }
-
-    /**
      * Calls a meteor down on the cell's center when the sky above the cell
      * is clear, fizzling there otherwise; a throw at a roofed target was
      * refused before it was paid for, so this fizzle meets a blob that
@@ -198,13 +178,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                     Vec3.atCenterOf(cell), cell, SlimeTransmuteStep.DEFAULT_MORPH_TICKS));
         }
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
-    }
-
-
-    @Override
-    public void placeForTicks(Block block, int ticks) {
-        level.setBlock(cell, block.defaultBlockState(), Block.UPDATE_ALL);
-        level.scheduleTick(cell, block, ticks);
     }
 
     @Override

@@ -48,7 +48,7 @@ public final class DragSize {
      * @param radius        the radius in blocks
      * @return the cost in mB
      */
-    public static int costAt(int referenceCost, double radius) {
+    public static int costAt(double referenceCost, double radius) {
         return (int) Math.ceil(referenceCost * Math.pow(radius / REFERENCE_RADIUS, CUBE));
     }
 
@@ -60,7 +60,7 @@ public final class DragSize {
      * @param radius        the radius dragged, in blocks
      * @return the formatted cost
      */
-    public static String priceLabel(int referenceCost, double radius) {
+    public static String priceLabel(double referenceCost, double radius) {
         return GooFormat.formatAmount(costAt(referenceCost, radius));
     }
 
@@ -74,9 +74,9 @@ public final class DragSize {
      * @param holdings      the mB the player holds of the ability's goo type
      * @return the whole radius, the smallest radius when the holdings pay for less, which the cast then cannot afford
      */
-    public static double affordable(double dragged, int referenceCost, int holdings) {
+    public static double affordable(double dragged, double referenceCost, int holdings) {
         double paidFor = referenceCost <= 0 ? dragged
-                : REFERENCE_RADIUS * Math.cbrt((double) holdings / referenceCost);
+                : REFERENCE_RADIUS * Math.cbrt(holdings / referenceCost);
         return Math.max(MIN_RADIUS, Math.floor(Math.min(dragged, paidFor) + WHOLE_SLACK));
     }
 }

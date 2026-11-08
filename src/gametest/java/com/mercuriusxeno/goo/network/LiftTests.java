@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -97,7 +98,7 @@ public final class LiftTests {
                 thrower.getEyePosition()));
         int spent = heldBefore - typhoonHeld(thrower);
         helper.getLevel().getServer().getPlayerList().remove(thrower);
-        helper.assertTrue(spent == updraft.cost(), String.format(SHOULD_CHARGE, updraft.cost(), spent));
+        helper.assertTrue(spent == updraft.cost().in(GooValueTable.EMPTY), String.format(SHOULD_CHARGE, updraft.cost().in(GooValueTable.EMPTY), spent));
 
         helper.succeedWhen(() -> {
             String combo = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class).getCombo();

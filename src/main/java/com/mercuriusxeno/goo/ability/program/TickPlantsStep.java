@@ -30,7 +30,7 @@ import java.util.stream.Stream;
  * growth-breeze-ticks-plants
  * every-ticked-plant-throws-the-sparkle
  */
-public record TickPlantsStep() implements Step {
+public record TickPlantsStep() implements TakesNoEntity {
 
     private static final String NAME = "tick_plants";
     private static final int SPARKLE_COUNT = 2;

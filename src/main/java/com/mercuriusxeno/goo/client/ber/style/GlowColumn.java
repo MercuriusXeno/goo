@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
+import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
@@ -32,8 +32,8 @@ final class GlowColumn {
     static final float HALO_LENGTH = 1.12f;
     private static final double PIXEL = 1.0 / 16.0;
     /** The column's base point in the stood pose, about which the halo swells. */
-    private static final Vec3 COLUMN_BASE = new Vec3(CrystalCluster.BASE_X * PIXEL, CrystalCluster.BASE_Y * PIXEL,
-            CrystalCluster.BASE_Z * PIXEL);
+    private static final Vec3 COLUMN_BASE = new Vec3(PrismColumn.BASE_X * PIXEL, PrismColumn.BASE_Y * PIXEL,
+            PrismColumn.BASE_Z * PIXEL);
 
     private GlowColumn() {
     }

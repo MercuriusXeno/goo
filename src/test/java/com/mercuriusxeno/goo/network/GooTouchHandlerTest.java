@@ -3,13 +3,14 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.data.GooFraction;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -26,7 +27,7 @@ class GooTouchHandlerTest {
     private static final double REACH = 3.0;
     private static final double WITHIN = REACH * REACH;
     private static final double BEYOND = (REACH + 0.1) * (REACH + 0.1);
-    private static final int COST = 1000;
+    private static final GooFraction COST = GooFraction.of(1000);
 
     @Nested
     class Rule {
@@ -81,7 +82,7 @@ class GooTouchHandlerTest {
 
             assertFalse(GooTouchHandler.landIfAffordable(COST, landing));
 
-            verify(landing, never()).deplete(anyInt());
+            verify(landing, never()).deplete(any());
             verify(landing, never()).strike();
         }
     }

@@ -115,15 +115,15 @@ public enum HostCapability {
      */
     PHASE_BLOCKS(PhaseBlocksHost.class),
     /**
-     * A struck surface Astral's gate can open over (decision
-     * astral-visits-lunar-and-solar-dimensions).
+     * A player whose Pocket can open (decision
+     * pocket-is-a-void-reserving-container-with-scroll-and-search).
      */
-    ASTRAL_GATE(GateHost.class),
+    POCKET(PocketHost.class),
     /**
-     * A struck surface Void's pocket gate can open over, for a caster the
-     * landing knows (decision void-opens-a-pocket-dimension).
+     * A channeling player who can be carried into their Outsider room
+     * (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
      */
-    VOID_POCKET(GateHost.class),
+    OUTSIDER(OutsiderHost.class),
     /**
      * A landing a meteor can be called down on (decision
      * meteo-needs-a-clear-sky).
@@ -160,21 +160,11 @@ public enum HostCapability {
      */
     RELAY(RelayHost.class),
     /**
-     * A host that can lengthen the timed effects standing on it (decision
-     * extender-multiplies-the-next-self-duration).
-     */
-    EXTEND_EFFECTS(EffectExtendHost.class),
-    /**
     /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
      */
     FROST(FrostHost.class),
-    /**
-     * A cell where a block stands for a set time (decision
-     * weird-bounces-and-softens-harm).
-     */
-    TIMED_BLOCK(TimedBlockHost.class),
     /**
      * A cell a born mob stands in, and the point the goo morphs into it
      * from (decision slime-creates-slimes-at-will).

@@ -25,7 +25,7 @@ class SculkerAbilityTest {
 
     private static final String SCULKER_JSON = "data/goo/goo_abilities/deep_sculker.json";
     private static final String SCULKER_ICON = "/assets/goo/textures/goo/ability/deep_sculker.png";
-    private static final String DEEP_BREW_ICON = "/assets/goo/textures/mob_effect/deep_brew.png";
+    private static final String DEEP_BREW_ICON = "/assets/goo/textures/mob_effect/deep_held.png";
 
     private static JsonObject sculker() throws IOException {
         try (InputStream in = SculkerAbilityTest.class.getClassLoader().getResourceAsStream(SCULKER_JSON)) {
@@ -38,7 +38,7 @@ class SculkerAbilityTest {
     void shipsAsTheSculkerBrew() throws IOException {
         JsonObject sculker = sculker();
         assertEquals("goo.ability.deep.sculker", sculker.get("displayName").getAsString());
-        assertEquals("brew", sculker.get("badge").getAsString());
+        assertEquals("durative", sculker.get("badge").getAsString());
     }
 
     @Test

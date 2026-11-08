@@ -96,11 +96,22 @@ class DeliveryTest {
         }
 
         // shards-sling-then-morph-to-flechettes
+        // knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
         @Test
-        void crystalShardsChargesARainOfKnives() {
-            Delivery shards = AbilityJson.decode("crystal_shards").delivery();
-            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 24, 50, 8), shards.charge());
-            assertTrue(shards.charge().slings());
+        void crystalKnivesChargesARainOfKnives() {
+            Delivery knives = AbilityJson.decode("crystal_knives").delivery();
+            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 27, 45, 8, 3, 5), knives.charge());
+            assertTrue(knives.charge().slings());
+        }
+
+        // knives-aims-a-spread-fan-not-a-blob-line
+        @Test
+        void knivesSlingsAFanAndAimsNoLineWhileABlobArcAndABeamAimALine() {
+            Delivery knives = AbilityJson.decode("crystal_knives").delivery();
+            assertTrue(knives.slingsAFan());
+            assertFalse(knives.aimsALine());
+            assertTrue(AbilityJson.decode("frost_orb").delivery().aimsALine());
+            assertTrue(AbilityJson.decode("glow_crystal").delivery().aimsALine());
         }
 
         // traveling-form-transforms-in-flight

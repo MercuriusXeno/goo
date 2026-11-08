@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -149,7 +150,7 @@ public final class UndeadTests {
         helper.assertTrue(undead != null, ABILITY_REQUIRED);
         ServerPlayer player = undeadAt(helper, OPEN_POS);
         int held = GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.NETHER, 0);
-        GooSourceScanner.deplete(player, GooTypes.NETHER, held - PAID_TICKS * undead.upkeep());
+        GooSourceScanner.deplete(player, GooTypes.NETHER, held - PAID_TICKS * undead.upkeep().in(GooValueTable.EMPTY));
         SelfDeliveryTests.tickFor(helper, player, PAID_TICKS - 1);
         helper.runAfterDelay(PAID_TICKS, () -> {
             player.doTick();

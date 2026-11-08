@@ -34,8 +34,8 @@ import java.util.UUID;
  * Runs a rallied mob for its caster until the rally fades: it walks to the
  * caster's nearest enemy and strikes it with the rally's damage on every
  * strike interval; when the rally fades its buffs come off. While the
- * drinker's brew holds, the rally re-runs around the drinker, and when the
- * brew ends every mob it rallied stands down.
+ * caster's held effect stands, the rally re-runs around the caster, and when
+ * the held effect ends every mob it rallied stands down.
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
  */
@@ -82,9 +82,9 @@ public final class RallyEvents {
     }
 
     /**
-     * Re-runs the rally of each held effect laying it on the drinker every
+     * Re-runs the rally of each held effect laying it on the holder every
      * refresh interval, so a peaceful mob coming within reach joins and a
-     * rallied mob's expiry stays past the next re-run while the brew holds.
+     * rallied mob's expiry stays past the next re-run while the held effect stands.
      * zoo-rally-holds-for-the-brew
      *
      * @param event the player tick event
@@ -117,18 +117,18 @@ public final class RallyEvents {
     }
 
     /**
-     * Takes the rally off every loaded mob a drinker rallied, the tick the
-     * brew laying it ends.
+     * Takes the rally off every loaded mob a holder rallied, the tick the
+     * held effect laying it ends.
      * zoo-rally-holds-for-the-brew
      *
-     * @param player the drinker
+     * @param player the holder
      */
     public static void standDown(ServerPlayer player) {
-        UUID drinker = player.getUUID();
+        UUID holder = player.getUUID();
         List<Mob> rallied = new ArrayList<>();
         for (Entity entity : player.level().getAllEntities()) {
             if (entity instanceof Mob mob && mob.hasData(GooAttachments.RALLIED)
-                    && mob.getData(GooAttachments.RALLIED).caster().equals(drinker)) {
+                    && mob.getData(GooAttachments.RALLIED).caster().equals(holder)) {
                 rallied.add(mob);
             }
         }
@@ -137,7 +137,7 @@ public final class RallyEvents {
 
     /**
      * Answers whether a rallied mob stands down: its rally has faded, or its
-     * caster is a drinker whose brew no longer lays the rally, ended by a
+     * caster is a player whose held effect no longer lays the rally, ended by a
      * route that cleared no mob, such as death, or while the mob lay unloaded.
      * zoo-rally-holds-for-the-brew
      *
@@ -160,7 +160,7 @@ public final class RallyEvents {
      * Runs the steps of an ability's program that rally, leaving the rest,
      * such as its roar, to the eat.
      *
-     * @param player  the drinker
+     * @param player  the holder
      * @param ability the held ability
      */
     private static void rerun(ServerPlayer player, Identifier ability) {

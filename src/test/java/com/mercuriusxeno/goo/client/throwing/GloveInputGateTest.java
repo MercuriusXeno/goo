@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -17,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * once and plays the pose's release only on a sent payload, swinging nothing
  * (decisions right-click-held-previews-release-throws, use-key-throw-swings-no-more), and a stream
  * runs from the press for as long as the key is held (decision stream-delivery-held-cone),
- * and a self + brew eat sends on the press while the key is still down
+ * and a durative eat sends on the press while the key is still down
  * (decision self-brew-goos-eat-before-the-effect).
  */
 class GloveInputGateTest {
@@ -89,6 +90,24 @@ class GloveInputGateTest {
     }
 
     @Nested
+    class AChannel {
+
+        // terrakinesis-shakes-the-blocks-before-the-tear: the wind-up's shake reads how long the channel has run
+        @Test
+        void aHeldChannelCountsEachTickItRunsAndForgetsThemOnRelease() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = new RecordingActions(true, true);
+            gate.arm();
+            for (int tick = 1; tick <= LONG_HOLD_TICKS; tick++) {
+                gate.tick(true, actions);
+                assertEquals(tick, gate.channelTicks(), "channel ticks on held tick " + tick);
+            }
+            gate.tick(false, actions);
+            assertEquals(0, gate.channelTicks());
+        }
+    }
+
+    @Nested
     class AThrow {
 
         // nova-ring-grows-with-the-hold
@@ -102,6 +121,20 @@ class GloveInputGateTest {
             }
             gate.tick(false, actions);
             assertEquals(5, actions.lastHeldTicks);
+        }
+
+        // knives-aims-a-spread-fan-not-a-blob-line
+        @Test
+        void eachPressRollsItsOwnScatterAndHoldsItThroughThePress() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = thrown();
+            gate.arm();
+            long first = gate.scatterSeed();
+            gate.tick(true, actions);
+            assertEquals(first, gate.scatterSeed());
+            gate.tick(false, actions);
+            gate.arm();
+            assertNotEquals(first, gate.scatterSeed());
         }
 
         @Test
@@ -261,7 +294,7 @@ class GloveInputGateTest {
     }
 
     /**
-     * A self + brew press starts the eat while the use key is still down, since
+     * A durative press starts the eat while the use key is still down, since
      * vanilla releases a used item the tick the key comes up, which would cancel
      * an eat started on release (decision self-brew-goos-eat-before-the-effect).
      */
@@ -269,7 +302,7 @@ class GloveInputGateTest {
     class AnEat {
 
         private RecordingActions eaten() {
-            return new RecordingActions(true, false, SelfEatRoute.eats(Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW));
+            return new RecordingActions(true, false, SelfEatRoute.eats(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
         }
 
         @Test
@@ -326,7 +359,7 @@ class GloveInputGateTest {
 
         @Test
         void aBrewOnASelfDeliveryRunsFromThePress() {
-            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW));
+            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
         }
 
         @Test

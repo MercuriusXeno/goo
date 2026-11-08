@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
@@ -17,6 +18,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -47,11 +49,13 @@ final class AimTargets {
      * @param seed        the previous frame's aim-assist hit, the sticky seed
      * @param hint        the targeting mode from the selected ability
      * @param range       how far the ray reaches, the selected ability's reach (GloveAim.aimRange)
+     * @param behaviors   the selected ability's steps, which name the entities the aim may outline
      * @param partialTick the frame's partial tick
      * @return the target and the aim-assist hit behind it
      */
     static AimState.Resolution resolve(Player player, AimAssistResolver.@Nullable AimHit seed,
-                                       TargetingHint hint, double range, float partialTick) {
+                                       TargetingHint hint, double range, List<Step> behaviors,
+                                       float partialTick) {
         if (hint == TargetingHint.NONE) {
             return AimState.Resolution.NOTHING;
         }
@@ -61,7 +65,7 @@ final class AimTargets {
         return resolveFor(hint, new AimSources() {
             @Override
             public AimAssistResolver.@Nullable AimHit entityHit() {
-                return AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed);
+                return AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed, behaviors);
             }
 
             @Override

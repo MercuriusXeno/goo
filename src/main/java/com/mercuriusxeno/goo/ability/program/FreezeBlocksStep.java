@@ -25,7 +25,7 @@ import java.util.stream.Stream;
  * @param radius  the sphere's radius in blocks, evaluated on the host
  * @param lasting whether water freezes to magicked ice that never thaws, rather than vanilla ice
  */
-public record FreezeBlocksStep(Expr radius, boolean lasting) implements Step {
+public record FreezeBlocksStep(Expr radius, boolean lasting) implements TakesNoEntity {
 
     private static final String NAME = "freeze_blocks";
     private static final String FIELD_RADIUS = "radius";

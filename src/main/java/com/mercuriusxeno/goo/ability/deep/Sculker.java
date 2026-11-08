@@ -59,18 +59,6 @@ public record Sculker(long expiresAt, boolean diving) {
     }
 
     /**
-     * A drunk brew: the dive stands for the brew's duration, or as long as
-     * it already stood where that is longer.
-     *
-     * @param ticks    the brew's duration
-     * @param gameTime the game time of the drink
-     * @return the dive after the drink
-     */
-    public Sculker brew(int ticks, long gameTime) {
-        return new Sculker(Math.max(expiresAt, gameTime + ticks), diving);
-    }
-
-    /**
      * The same brew with the player in or out of the dive.
      *
      * @param inTheDive whether the player is in the dive

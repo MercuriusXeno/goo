@@ -42,7 +42,7 @@ public final class StaleHeldEffectTests {
     }
 
     /**
-     * A player carrying a held effect for goo:deep_dive, with deep's brew
+     * A player carrying a held effect for goo:deep_dive, with deep's held
      * effect shown, ticks once and holds neither.
      *
      * @param helper the gametest helper
@@ -52,10 +52,10 @@ public final class StaleHeldEffectTests {
         HeldEffects stale = player.getData(GooAttachments.HELD_EFFECTS)
                 .start(new HeldEffects.Held(DEEP_DIVE, GooTypes.DEEP, 1, Set.of(), 0L)).after();
         player.setData(GooAttachments.HELD_EFFECTS, stale);
-        player.addEffect(new MobEffectInstance(GooMobEffects.BREW_EFFECTS.get(GooTypes.DEEP), MobEffectInstance.INFINITE_DURATION));
+        player.addEffect(new MobEffectInstance(GooMobEffects.HELD_EFFECTS.get(GooTypes.DEEP), MobEffectInstance.INFINITE_DURATION));
         player.doTick();
         boolean held = HeldEffectsEvents.holds(player, DEEP_DIVE);
-        boolean shown = player.hasEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.DEEP));
+        boolean shown = player.hasEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.DEEP));
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(!held && !shown, String.format(SHOULD_END, DEEP_DIVE, held, shown));
         helper.succeed();

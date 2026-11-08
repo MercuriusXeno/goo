@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.EldritchMonstrosity;
 import com.mercuriusxeno.goo.entity.FeedPile;
@@ -28,7 +29,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * leaves (decision black-hole-leaves-a-compression-sphere), the feed
  * Jelly's Feed lays (decision feed-blob-feeds-and-draws-mobs), and a quantum
  * swap body (decision swap-body-stands-until-reverted), and the Eldritch
- * Monstrosity living out of phase (decision monstrosities-harvest-under-quantum).
+ * Monstrosity living out of phase (decision monstrosities-harvest-under-quantum),
+ * and a hunk of blocks moving as one (decision spire-entity-izes-its-blocks-and-raises-them-smoothly).
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class GooEntities {
@@ -49,7 +51,9 @@ public final class GooEntities {
     private static final int SWAP_BODY_TRACKING_CHUNKS = 10;
     private static final int SWAP_BODY_UPDATE_TICKS = 2;
     private static final float METEOR_SIZE = 1.0f;
-    private static final int METEOR_TRACKING_CHUNKS = 10;
+    private static final float HUNK_CELL_SIZE = 1.0f;
+    private static final int HUNK_TRACKING_CHUNKS = 10;
+    private static final int METEOR_TRACKING_CHUNKS = 32;
     private static final float MONSTROSITY_WIDTH = 0.8f;
     private static final float MONSTROSITY_HEIGHT = 2.4f;
     private static final int MONSTROSITY_TRACKING_CHUNKS = 8;
@@ -102,6 +106,18 @@ public final class GooEntities {
             .sized(SPHERE_SIZE, SPHERE_SIZE)
             .clientTrackingRange(SPHERE_TRACKING_CHUNKS)
             .updateInterval(SPHERE_UPDATE_TICKS)
+            .noLootTable()
+            .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
+    /**
+     * A hunk of blocks lifted out of the world and carried as one, such as
+     * Spire's rising stone (decision spire-entity-izes-its-blocks-and-raises-them-smoothly).
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<BlockHunk>> BLOCK_HUNK =
+        ENTITIES.register("block_hunk", id -> EntityType.Builder.<BlockHunk>of(BlockHunk::new, MobCategory.MISC)
+            .sized(HUNK_CELL_SIZE, HUNK_CELL_SIZE)
+            .clientTrackingRange(HUNK_TRACKING_CHUNKS)
+            .updateInterval(1)
             .noLootTable()
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 

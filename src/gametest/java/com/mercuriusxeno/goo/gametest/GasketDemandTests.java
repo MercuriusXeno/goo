@@ -1,11 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.GooConstants;
-import com.mercuriusxeno.goo.block.canister.CanisterBlock;
-import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
-import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
-import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
-import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases;
 import com.mercuriusxeno.goo.block.gasket.GasketPushMath;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
@@ -25,31 +20,24 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.IntSupplier;
 import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Receivers on the gasket network state their demand and their partner sends it
  * (decision receivers-demand-and-links-relay): a container with nothing demanding
- * behind it asks the power law of its capacity, and a canister or vat between a source and a crystallizer asks its own rest plus the
- * crystallizer's pace upstream (decision relay-adds-dependent-ask-to-own).
+ * behind it asks the power law of its capacity, and a canister between a source and a vat asks its own rest plus the
+ * vat's ask upstream (decision relay-adds-dependent-ask-to-own).
  */
 @RegistersGameTests
 public final class GasketDemandTests {
     private static final String GASKET_DEMAND_VAT_FILLS_HUB = "gasket_demand_vat_fills_hub";
-    private static final String GASKET_DEMAND_CRYSTALLIZER_CHAIN = "gasket_demand_crystallizer_chain";
-    private static final String GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN = "gasket_demand_crystallizer_vat_chain";
     private static final String GASKET_DEMAND_HUB_SHARES = "gasket_demand_hub_shares";
 
     /**
@@ -59,8 +47,6 @@ public final class GasketDemandTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, GASKET_DEMAND_VAT_FILLS_HUB, GasketDemandTests::vatFillsHubAtItsRestingDemand);
-        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_CRYSTALLIZER_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughACanister);
-        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughAVat);
         GooTestFunctions.registerTest(registrar, GASKET_DEMAND_HUB_SHARES, GasketDemandTests::hubGivesEachCanisterItsOwnDemand);
     }
 
@@ -72,29 +58,16 @@ public final class GasketDemandTests {
     /** Enough that a canister's resting pull, about 4,200 mB a tick, cannot drain the vat within the run. */
     private static final int VAT_GOO = 1_000_000;
 
-    // --- Vat, canister, crystallizer chain (machine_bay: 5 wide, 3 deep) ---
+    // --- Vat, hub, vat chain (machine_bay: 5 wide, 3 deep) ---
 
-    private static final BlockPos CRYSTALLIZER_POS = new BlockPos(3, 1, 1);
-    private static final BlockPos MIDDLE_POS = new BlockPos(1, 1, 2);
-    private static final BlockPos CHAIN_VAT_POS = new BlockPos(1, 1, 0);
-    private static final int CATALYST_ROLE = 0;
-    private static final int INGREDIENT_ROLE = 1;
-    /** The knob position naming a budding chrysm. */
-    private static final int BUDDING_CHRYSM_KNOB = 2;
-    /** Past a chrysm, so the budding pace, 968 mB a tick, outruns the middle canister's taper rate of 64. */
-    private static final long SEEDED_CRYSTALLIZED = 100_000L;
-    /** The crystallizer's save key for what it has crystallized. */
-    private static final String TAG_CRYSTALLIZED = "Crystallized";
-    /** Crystal enough for the run: a tenth of the budding pace over 100 ticks is under 10,000 mB. */
-    private static final int CRYSTAL_HELD = 100_000;
-    private static final int MIDDLE_HELD = 1_000;
+    private static final BlockPos HUB_POS = new BlockPos(1, 1, 2);
+    private static final BlockPos SOURCE_VAT_POS = new BlockPos(1, 1, 0);
+    private static final BlockPos FED_VAT_POS = new BlockPos(3, 1, 1);
+    private static final int SOURCE_VAT_GOO = 2_000_000;
+    private static final int HUB_CANISTER_HELD = 1_000;
     /** The hub canister that rests, lower than the feeder so slot order would fill it first. */
     private static final int RESTING_HUB_SLOT = 0;
     private static final int FEEDING_HUB_SLOT = 3;
-    private static final int CHAIN_VAT_GOO = 2_000_000;
-    /** Whole 10 mB steps and a pace carried across ticks keep growth a little behind the pace owed. */
-    private static final double PACE_KEPT = 0.9;
-
     private GasketDemandTests() {
     }
 
@@ -136,173 +109,69 @@ public final class GasketDemandTests {
         });
     }
 
-    /**
-     * A vat feeding a canister that feeds a crystallizer's ingredient canister: the
-     * crystallizer takes its pace each tick through the middle canister, though the taper
-     * rate of that canister's level is far below the pace, and the canister fills on its own ask.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crystallizerDrawsItsPaceThroughACanister(GameTestHelper helper) {
-        VatBlockEntity source = placeVat(helper, CHAIN_VAT_POS);
-        source.insertGoo(GooTypes.ENDER, CHAIN_VAT_GOO);
-        helper.setBlock(MIDDLE_POS, GooBlocks.CANISTER.get());
-        CanisterBlockEntity middle = helper.getBlockEntity(MIDDLE_POS, CanisterBlockEntity.class);
-        UUID middleTop = UUID.randomUUID();
-        UUID middleBottom = UUID.randomUUID();
-        middle.insertCanister(CanisterBlock.CENTER_SLOT,
-                canister(GooTypes.ENDER, MIDDLE_HELD, middleTop, middleBottom), false);
-        GasketRegistry.get(helper.getLevel()).link(source.ensureGasketId(GasketRole.TRANSMITTER), middleTop);
-        source.setPartner(GasketRole.TRANSMITTER,
-                new GasketPartner(helper.absolutePos(MIDDLE_POS), CanisterBlock.CENTER_SLOT));
-        middle.setPartner(GasketRole.RECEIVER, CanisterBlock.CENTER_SLOT,
-                new GasketPartner(helper.absolutePos(CHAIN_VAT_POS), GooConstants.NO_SLOT));
-        assertCrystallizerDrawsThrough(helper, middleBottom, CanisterBlock.CENTER_SLOT,
-                outlet -> middle.setPartner(GasketRole.TRANSMITTER, CanisterBlock.CENTER_SLOT, outlet),
-                () -> middle.getSlotFluidContent(CanisterBlock.CENTER_SLOT).totalVolume());
-    }
-
-    /**
-     * A vat feeding a vat that feeds a crystallizer's ingredient canister: the middle vat
-     * asks its own rest plus the crystallizer's pace upstream, so the crystallizer takes its
-     * pace each tick and the middle vat fills.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crystallizerDrawsItsPaceThroughAVat(GameTestHelper helper) {
-        VatBlockEntity source = placeVat(helper, CHAIN_VAT_POS);
-        source.insertGoo(GooTypes.ENDER, CHAIN_VAT_GOO);
-        helper.setBlock(MIDDLE_POS, GooBlocks.VAT.get().defaultBlockState()
-                .setValue(VatBlock.GASKET_CAP, true).setValue(VatBlock.GASKET_BASE, true));
-        VatBlockEntity middle = helper.getBlockEntity(MIDDLE_POS, VatBlockEntity.class);
-        middle.insertGoo(GooTypes.ENDER, MIDDLE_HELD);
-        UUID middleIntake = middle.ensureGasketId(GasketRole.RECEIVER);
-        UUID middleOutlet = middle.ensureGasketId(GasketRole.TRANSMITTER);
-        GasketRegistry.get(helper.getLevel()).link(source.ensureGasketId(GasketRole.TRANSMITTER), middleIntake);
-        source.setPartner(GasketRole.TRANSMITTER, new GasketPartner(helper.absolutePos(MIDDLE_POS), GooConstants.NO_SLOT));
-        middle.setPartner(GasketRole.RECEIVER, new GasketPartner(helper.absolutePos(CHAIN_VAT_POS), GooConstants.NO_SLOT));
-        assertCrystallizerDrawsThrough(helper, middleOutlet, GooConstants.NO_SLOT,
-                outlet -> middle.setPartner(GasketRole.TRANSMITTER, outlet),
-                () -> middle.getContents().getVolume(GooTypes.ENDER));
-    }
 
     /**
      * A vat feeding a hub's intake, the hub holding two canisters of ender: the lower
-     * canister rests with room, and the higher one's bottom gasket feeds a crystallizer.
-     * The hub gives each canister the demand it states, so the crystallizer grows at its
-     * pace and the resting canister gains no more than its resting demand a tick.
+     * canister rests with room, and the higher one's bottom gasket feeds a second vat.
+     * The hub gives each canister the demand it states: the feeder, asking for the fed vat
+     * beside its own rest, takes more than the resting canister, which still takes its own
+     * and never more than its resting demand a tick.
+     * decision relay-adds-dependent-ask-to-own
      *
      * @param helper the gametest helper
      */
     public static void hubGivesEachCanisterItsOwnDemand(GameTestHelper helper) {
-        VatBlockEntity source = placeVat(helper, CHAIN_VAT_POS);
-        source.insertGoo(GooTypes.ENDER, CHAIN_VAT_GOO);
-        helper.setBlock(MIDDLE_POS, GooBlocks.HUB.get().defaultBlockState().setValue(HubBlock.HAS_GASKET, true));
-        HubBlockEntity hub = helper.getBlockEntity(MIDDLE_POS, HubBlockEntity.class);
+        VatBlockEntity source = placeVat(helper, SOURCE_VAT_POS);
+        source.insertGoo(GooTypes.ENDER, SOURCE_VAT_GOO);
+        helper.setBlock(HUB_POS, GooBlocks.HUB.get().defaultBlockState().setValue(HubBlock.HAS_GASKET, true));
+        HubBlockEntity hub = helper.getBlockEntity(HUB_POS, HubBlockEntity.class);
         UUID feederBottom = UUID.randomUUID();
-        hub.insertCanister(RESTING_HUB_SLOT, canister(GooTypes.ENDER, MIDDLE_HELD, null, null));
-        hub.insertCanister(FEEDING_HUB_SLOT, canister(GooTypes.ENDER, MIDDLE_HELD, null, feederBottom));
+        hub.insertCanister(RESTING_HUB_SLOT, canister(GooTypes.ENDER, HUB_CANISTER_HELD, null));
+        hub.insertCanister(FEEDING_HUB_SLOT, canister(GooTypes.ENDER, HUB_CANISTER_HELD, feederBottom));
         UUID intake = hub.ensureGasketId(GasketRole.RECEIVER);
         GasketRegistry.get(helper.getLevel()).link(source.ensureGasketId(GasketRole.TRANSMITTER), intake);
-        source.setPartner(GasketRole.TRANSMITTER, new GasketPartner(helper.absolutePos(MIDDLE_POS), GooConstants.NO_SLOT));
-        hub.setPartner(GasketRole.RECEIVER, new GasketPartner(helper.absolutePos(CHAIN_VAT_POS), GooConstants.NO_SLOT));
+        source.setPartner(GasketRole.TRANSMITTER, new GasketPartner(helper.absolutePos(HUB_POS), GooConstants.NO_SLOT));
+        hub.setPartner(GasketRole.RECEIVER, new GasketPartner(helper.absolutePos(SOURCE_VAT_POS), GooConstants.NO_SLOT));
+
+        helper.setBlock(FED_VAT_POS, GooBlocks.VAT.get().defaultBlockState().setValue(VatBlock.GASKET_CAP, true));
+        VatBlockEntity fed = helper.getBlockEntity(FED_VAT_POS, VatBlockEntity.class);
+        GasketRegistry.get(helper.getLevel()).link(feederBottom, fed.ensureGasketId(GasketRole.RECEIVER));
+        hub.setPartner(GasketRole.TRANSMITTER, FEEDING_HUB_SLOT,
+                new GasketPartner(helper.absolutePos(FED_VAT_POS), GooConstants.NO_SLOT));
+        fed.setPartner(GasketRole.RECEIVER, new GasketPartner(helper.absolutePos(HUB_POS), FEEDING_HUB_SLOT));
 
         int restingPull = GasketPushMath.taperRate(ContainerCapacity.canisterCapacity(0), GasketPushMath.GOO_EXPONENT);
-        AtomicInteger restingHeld = new AtomicInteger(MIDDLE_HELD);
+        AtomicInteger restingHeld = new AtomicInteger(HUB_CANISTER_HELD);
         helper.onEachTick(() -> {
             int now = hubSlotHolds(hub, RESTING_HUB_SLOT);
             int gained = now - restingHeld.getAndSet(now);
             helper.assertTrue(gained <= restingPull,
                     "The resting canister should gain at most its resting demand, " + restingPull + ", gained " + gained);
         });
-        assertCrystallizerDrawsThrough(helper, feederBottom, FEEDING_HUB_SLOT,
-                outlet -> hub.setPartner(GasketRole.TRANSMITTER, FEEDING_HUB_SLOT, outlet),
-                () -> hubSlotHolds(hub, FEEDING_HUB_SLOT));
+        helper.runAfterDelay(MEASURED_TICKS, () -> {
+            int fedHolds = fed.getContents().getVolume(GooTypes.ENDER);
+            helper.assertTrue(fedHolds > restingPull,
+                    "The fed vat should fill through the feeding canister past one resting pull, holds " + fedHolds);
+            int passedThroughFeeder = fedHolds + hubSlotHolds(hub, FEEDING_HUB_SLOT) - HUB_CANISTER_HELD;
+            int restingGained = hubSlotHolds(hub, RESTING_HUB_SLOT) - HUB_CANISTER_HELD;
+            helper.assertTrue(restingGained > 0, "The resting canister should still take its own demand");
+            helper.assertTrue(passedThroughFeeder > restingGained,
+                    "The feeder, asking for the fed vat beside itself, should take more than the resting canister: took "
+                            + passedThroughFeeder + " against " + restingGained);
+            helper.succeed();
+        });
     }
 
     private static int hubSlotHolds(HubBlockEntity hub, int slot) {
         return (int) hub.getFluidHandler().getAmountAsLong(slot);
     }
 
-    /**
-     * Stands the seeded crystallizer, links the middle link's outlet to its ingredient
-     * canister, and asserts over the run that the crystallizer grows at its pace while the
-     * middle link fills on its own ask. The source, then the middle link, then the crystallizer
-     * are placed, so each tick's flow runs down the chain in that order.
-     *
-     * @param helper       the gametest helper
-     * @param middleOutlet the middle link's transmitter gasket id
-     * @param middleSlot   the middle link's slot, or no slot for a vat
-     * @param linkOutlet   points the middle link's transmitter at a partner
-     * @param middleLevel  reads the middle link's ender
-     */
-    private static void assertCrystallizerDrawsThrough(GameTestHelper helper, UUID middleOutlet, int middleSlot,
-                                                       Consumer<GasketPartner> linkOutlet, IntSupplier middleLevel) {
-        CrystallizerBlockEntity crystallizer = placeSeededCrystallizer(helper);
-        CanisterBlockEntity crystallizerCanisters = helper.getBlockEntity(CRYSTALLIZER_POS.above(),
-                CanisterBlockEntity.class);
-        int ingredientSlot = crystallizer.canisterSlot(INGREDIENT_ROLE);
-        UUID ingredientTop = UUID.randomUUID();
-        crystallizerCanisters.insertCanister(crystallizer.canisterSlot(CATALYST_ROLE),
-                canister(GooTypes.CRYSTAL, CRYSTAL_HELD, null, null), false);
-        crystallizerCanisters.insertCanister(ingredientSlot, canister(GooTypes.ENDER, 0, ingredientTop, null), false);
-        GasketRegistry.get(helper.getLevel()).link(middleOutlet, ingredientTop);
-        linkOutlet.accept(new GasketPartner(helper.absolutePos(CRYSTALLIZER_POS.above()), ingredientSlot));
-        crystallizerCanisters.setPartner(GasketRole.RECEIVER, ingredientSlot,
-                new GasketPartner(helper.absolutePos(MIDDLE_POS), middleSlot));
-
-        helper.assertTrue(CrystallizerPhases.paceAllowance(SEEDED_CRYSTALLIZED) > GasketPushMath.taperRate(MIDDLE_HELD),
-                "The pace should outrun the taper rate of the middle link's level");
-        long seeded = crystallizer.crystallized();
-        double[] paceOwed = new double[1];
-        helper.onEachTick(() -> paceOwed[0] += CrystallizerPhases.paceAllowance(crystallizer.crystallized()));
-        helper.runAfterDelay(MEASURED_TICKS, () -> {
-            long grown = crystallizer.crystallized() - seeded;
-            helper.assertTrue(grown >= paceOwed[0] * PACE_KEPT,
-                    "The crystallizer should grow at its pace: grew " + grown + " of " + (long) paceOwed[0]);
-            int middleNow = middleLevel.getAsInt();
-            helper.assertTrue(middleNow > MIDDLE_HELD,
-                    "The middle link should fill past " + MIDDLE_HELD + " on its own ask, reads " + middleNow);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Places the crystallizer with its knob at budding chrysm, a canister block on its top, and
-     * reloads it from its saved data holding {@link #SEEDED_CRYSTALLIZED}, so its pace starts
-     * past a chrysm.
-     *
-     * @param helper the gametest helper
-     * @return the seeded crystallizer
-     */
-    private static CrystallizerBlockEntity placeSeededCrystallizer(GameTestHelper helper) {
-        helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get().defaultBlockState()
-                .setValue(CrystallizerBlock.FACING, Direction.NORTH).setValue(CrystallizerBlock.KNOB, BUDDING_CHRYSM_KNOB));
-        helper.setBlock(CRYSTALLIZER_POS.above(), GooBlocks.CANISTER.get());
-        ServerLevel level = helper.getLevel();
-        BlockEntity placed = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
-        CompoundTag saved = placed.saveWithFullMetadata(level.registryAccess());
-        saved.putLong(TAG_CRYSTALLIZED, SEEDED_CRYSTALLIZED);
-        level.removeBlockEntity(placed.getBlockPos());
-        BlockEntity seeded = BlockEntity.loadStatic(placed.getBlockPos(), placed.getBlockState(), saved,
-                level.registryAccess());
-        helper.assertTrue(seeded instanceof CrystallizerBlockEntity, "The crystallizer should reload");
-        level.setBlockEntity(seeded);
-        CrystallizerBlockEntity crystallizer = (CrystallizerBlockEntity) seeded;
-        helper.assertValueEqual(crystallizer.crystallized(), SEEDED_CRYSTALLIZED, "seeded crystallized");
-        return crystallizer;
-    }
-
-    private static ItemStack canister(ResourceKey<GooTypeDefinition> type, int volume,
-                                      @Nullable UUID topGasket, @Nullable UUID bottomGasket) {
+    private static ItemStack canister(ResourceKey<GooTypeDefinition> type, int volume, @Nullable UUID bottomGasket) {
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
         if (volume > 0) {
             CanisterItem.setFluidContent(canister, CanisterFluidContent.of(GooFluids.resource(type), volume));
         }
         CanisterMetadata meta = CanisterItem.getMetadata(canister);
-        if (topGasket != null) {
-            meta = meta.withTopGasketId(topGasket);
-        }
         if (bottomGasket != null) {
             meta = meta.withBottomGasketId(bottomGasket);
         }

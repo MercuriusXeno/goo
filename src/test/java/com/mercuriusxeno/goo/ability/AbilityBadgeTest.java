@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,7 +35,7 @@ class AbilityBadgeTest {
     private static final String TICKS_PER_CHARGE_FIELD = "ticks_per_charge";
 
     @ParameterizedTest
-    @CsvSource({"world, WORLD", "mob, MOB", "instant, SELF", "channeled, CHANNELED", "brew, BREW",
+    @CsvSource({"world, WORLD", "mob, MOB", "instant, SELF", "channeled, CHANNELED", "durative, DURATIVE",
             "free, FREE", "prism, PRISM"})
     void eachVocabularyWordParsesToItsBadge(String word, AbilityBadge expected) {
         assertEquals(expected, AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).getOrThrow());
@@ -48,7 +49,7 @@ class AbilityBadgeTest {
 
     /**
      * Each badge holds its own tier, ranked channeled, mob, world, free,
-     * prism, self, brew, at orders that reverse that rank if order alone
+     * prism, self, durative, at orders that reverse that rank if order alone
      * decided; a shared badge falls back to order (decision
      * fan-sorts-badge-then-order).
      */
@@ -57,7 +58,7 @@ class AbilityBadgeTest {
         record Ranked(String name, AbilityBadge badge, int order) {
         }
         List<Ranked> shuffled = List.of(
-                new Ranked("brew", AbilityBadge.BREW, -3),
+                new Ranked("durative", AbilityBadge.DURATIVE, -3),
                 new Ranked("world", AbilityBadge.WORLD, 3),
                 new Ranked("self", AbilityBadge.SELF, -2),
                 new Ranked("prism", AbilityBadge.PRISM, 1),
@@ -66,19 +67,23 @@ class AbilityBadgeTest {
                 new Ranked("channeled", AbilityBadge.CHANNELED, 6),
                 new Ranked("mob_early", AbilityBadge.MOB, 4));
 
-        assertEquals(List.of("channeled", "mob_early", "mob_late", "world", "free", "prism", "self", "brew"),
+        assertEquals(List.of("channeled", "mob_early", "mob_late", "world", "free", "prism", "self", "durative"),
                 shuffled.stream().sorted(AbilityBadge.fanOrder(Ranked::badge, Ranked::order)).map(Ranked::name).toList());
     }
 
+    /**
+     * The durative badge left the vocabulary for durative, so a JSON still spelling brew fails to load.
+     * decision clock-badge-marks-durative-abilities
+     */
     @ParameterizedTest
-    @CsvSource({"splash", "punch", "self"})
+    @CsvSource({"splash", "punch", "self", "brew"})
     void aWordOutsideTheVocabularyFailsToParse(String word) {
         assertTrue(AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).isError());
     }
 
     /**
      * The badges a shipped ability may wear, read from its own fields: channeled for a stream or for any delivery that charges or writes a hold's ticks
-     * per charge, brew for a self delivery paying upkeep, instant for any other self delivery,
+     * per charge, durative for a self delivery paying upkeep, instant for any other self delivery,
      * and for a thrown ability mob where it targets entities and world elsewhere. Free and
      * prism are carried by the badge alone, since no field marks them, so a thrown ability
      * wearing either passes on its badge.
@@ -92,7 +97,7 @@ class AbilityBadgeTest {
         return switch (definition.delivery().kind()) {
             case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);
             // self-effects-trickle-until-ended
-            case SELF -> EnumSet.of(definition.upkeep() > AbilityDefinition.NO_UPKEEP ? AbilityBadge.BREW
+            case SELF -> EnumSet.of(definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP ? AbilityBadge.DURATIVE
                     : holds ? AbilityBadge.CHANNELED : AbilityBadge.SELF);
             default -> holds ? EnumSet.of(AbilityBadge.CHANNELED)
                     : EnumSet.of(definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD,

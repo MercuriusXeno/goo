@@ -48,5 +48,59 @@
         "stream": false
       }
     ]
+  },
+  "effects.boing": {
+    "category": "blocks",
+    "subtitle": "subtitles.goo.boing",
+    "sounds": [
+      {
+        "name": "minecraft:mob/slime/small1",
+        "pitch": 1.4,
+        "attenuation_distance": 12,
+        "stream": false
+      },
+      {
+        "name": "minecraft:mob/slime/small2",
+        "pitch": 1.4,
+        "attenuation_distance": 12,
+        "stream": false
+      },
+      {
+        "name": "minecraft:mob/slime/small3",
+        "pitch": 1.4,
+        "attenuation_distance": 12,
+        "stream": false
+      },
+      {
+        "name": "minecraft:mob/slime/small4",
+        "pitch": 1.4,
+        "attenuation_distance": 12,
+        "stream": false
+      },
+      {
+        "name": "minecraft:mob/slime/small5",
+        "pitch": 1.4,
+        "attenuation_distance": 12,
+        "stream": false
+      }
+    ]
+  },
+  "effects.earth_rumble": {
+    "category": "blocks",
+    "subtitle": "subtitles.goo.earth_rumble",
+    "sounds": [
+      {
+        "name": "goo:effects/earth_rumble",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/earth_rumble2",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/earth_rumble3",
+        "stream": false
+      }
+    ]
   }
 }

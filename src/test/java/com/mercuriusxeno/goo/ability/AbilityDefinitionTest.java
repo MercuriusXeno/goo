@@ -1,10 +1,19 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.PrefabValues;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,10 +22,13 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Covers the area an ability's definition draws while right click is held: an
@@ -33,6 +45,8 @@ class AbilityDefinitionTest {
     private static final float LURKER_POWER = 2.5f;
     /** The widest radius Razor's field step writes. */
     private static final double RAZOR_RADIUS = 4.5;
+    /** The damage each knife Knives slings deals. */
+    private static final double KNIFE_DAMAGE = 2;
     private static final Pattern RADIUS_BEARING = Pattern.compile("\"radius\"|\"type\"\s*:\s*\"explode\"");
 
     // decision one-proving-ability-per-kind
@@ -55,6 +69,14 @@ class AbilityDefinitionTest {
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
     }
 
+    // decision knives-deal-two-each
+    @Test
+    void knivesDealsTwoAKnife() {
+        DamageStep damage = AbilityJson.decode("crystal_knives").behaviors().stream()
+                .filter(DamageStep.class::isInstance).map(DamageStep.class::cast).findFirst().orElseThrow();
+        assertEquals(KNIFE_DAMAGE, damage.amount().evaluate(Variables.NONE), TOLERANCE);
+    }
+
     @Test
     void spawnConsumesNoItemAndNeedsNoRecipe() {
         // ability-json-names-its-reagent
@@ -62,6 +84,74 @@ class AbilityDefinitionTest {
         AbilityDefinition spawn = AbilityJson.decode("zoo_spawn");
         assertEquals(List.of(), spawn.consumes());
         assertEquals(List.of(), spawn.requires());
+    }
+
+    /**
+     * A cost and an upkeep decode written as a number and as an expression alike, an item in the
+     * expression reading its value in the ability's own goo type
+     * (decision ability-cost-builds-as-a-one-type-by-type-value).
+     */
+    @Nested
+    class Costs {
+
+        private static final Identifier GLOWSTONE = Identifier.withDefaultNamespace("glowstone_dust");
+
+        private static AbilityDefinition costing(String cost, String upkeep) {
+            return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
+                    + " \"cost\": " + cost + ", \"upkeep\": " + upkeep + ", \"badge\": \"world\", \"behaviors\": [],"
+                    + " \"delivery\": {\"kind\": \"arc\"}}");
+        }
+
+        private static IGooValueLookup rockGlowstoneAt(int mb) {
+            IGooValueLookup values = mock(IGooValueLookup.class);
+            when(values.lookup(GLOWSTONE)).thenReturn(new GooValue(Map.of(GooTypes.ROCK, mb)));
+            return values;
+        }
+
+        @Test
+        void aNumberCostAndUpkeepEvaluateToThemselves() {
+            AbilityDefinition flat = costing("1000", "4");
+
+            assertEquals(1000, flat.cost().in(GooValueTable.EMPTY));
+            assertEquals(4, flat.upkeep().in(GooValueTable.EMPTY));
+        }
+
+        @Test
+        void anExpressionCostAndUpkeepEvaluateOverTheItemsTheyName() {
+            AbilityDefinition priced = costing("\"2 * minecraft:glowstone_dust + 100\"",
+                    "\"minecraft:glowstone_dust / 50\"");
+            IGooValueLookup values = rockGlowstoneAt(200);
+
+            assertEquals(500, priced.cost().in(values));
+            assertEquals(4, priced.upkeep().in(values));
+        }
+
+        @Test
+        void aCostNamingPrefabsReadsAScalarWholeAndATreeAtTheAbilitysType() {
+            AbilityDefinition priced = costing("\"2 * $base + $stone\"", "0");
+            IGooValueLookup values = mock(IGooValueLookup.class);
+            when(values.prefabs()).thenReturn(new PrefabValues(Map.of("base", GooFraction.of(300, 1)),
+                    Map.of("stone", new GooValue(Map.of(GooTypes.ROCK, 250, GooTypes.LEAF, 9)))));
+
+            assertEquals(850, priced.cost().in(values));
+        }
+
+        @Test
+        void aDecimalCostAndAFractionUpkeepPriceExactly() {
+            AbilityDefinition fractional = costing("12.5", "\"1 / 2\"");
+
+            assertEquals(GooFraction.of(25, 2), fractional.cost().exactIn(GooValueTable.EMPTY));
+            assertEquals(GooFraction.of(1, 2), fractional.upkeep().exactIn(GooValueTable.EMPTY));
+        }
+
+        @Test
+        void aCostOverFractionalPrefabsSumsExactly() {
+            AbilityDefinition priced = costing("\"3 * $third + $third / 2\"", "0");
+            IGooValueLookup values = mock(IGooValueLookup.class);
+            when(values.prefabs()).thenReturn(new PrefabValues(Map.of("third", GooFraction.of(1, 3)), Map.of()));
+
+            assertEquals(GooFraction.of(7, 6), priced.cost().exactIn(values));
+        }
     }
 
     /**
@@ -103,11 +193,19 @@ class AbilityDefinitionTest {
         }
 
         @Test
-        void shardsCastsFromTheShoulder() {
-            AbilityDefinition shards = AbilityJson.decode("crystal_shards");
-            assertEquals(ArmPose.SHOULDER_CAST, shards.pose());
-            assertEquals(ArmPoseKind.WIND_UP, shards.pose().holdFrame());
-            assertEquals(ArmPoseKind.FLING, shards.pose().releaseFrame());
+        void knivesCastsFromTheShoulder() {
+            AbilityDefinition knives = AbilityJson.decode("crystal_knives");
+            assertEquals(ArmPose.SHOULDER_CAST, knives.pose());
+            assertEquals(ArmPoseKind.WIND_UP, knives.pose().holdFrame());
+            assertEquals(ArmPoseKind.FLING, knives.pose().releaseFrame());
+        }
+
+        // crystal-shards-becomes-crystal-knives-everywhere
+        @Test
+        void knivesDecodesAsTheChanneledCrystalAbilityNamedKnives() {
+            AbilityDefinition knives = AbilityJson.decode("crystal_knives");
+            assertEquals("goo.ability.crystal.knives", knives.displayName());
+            assertEquals(AbilityBadge.CHANNELED, knives.badge());
         }
     }
 
@@ -161,7 +259,7 @@ class AbilityDefinitionTest {
 
         /** One proving example per kind: a thrown channel, a self, a brew and a stream. */
         @ParameterizedTest
-        @CsvSource({"crystal_shards, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
+        @CsvSource({"crystal_knives, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
                 "blaze_kindle, NONE, 0.0, 0.0", "blaze_flames, CONE, 6.0, 20.0"})
         void mobSelfBrewAndChanneledKeepTheirArea(String name, AbilityArea.Shape shape, double size, double angle) {
             assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());

@@ -62,13 +62,6 @@ class ShifterTest {
     class Clock {
 
         @Test
-        void aBrewStandsForItsHour() {
-            Shifter brewed = Shifter.NONE.brew(8f, HOUR, NOW);
-            assertTrue(brewed.standsAt(NOW + HOUR - 1));
-            assertFalse(brewed.standsAt(NOW + HOUR));
-        }
-
-        @Test
         void aHeldCastNeverFades() {
             assertEquals(Shifter.NEVER_EXPIRES, Shifter.NONE.hold(8f).expiresAt());
         }

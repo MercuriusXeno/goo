@@ -62,4 +62,17 @@ class ExplainerTextsTest {
                 + " what the audit reports as informational, not a passing/failing grade. Use it to make decisions"
                 + " about your values; you can't \"fail\" an audit.", ExplainerTexts.AUDIT);
     }
+
+    /**
+     * The Abilities tab's line is the operator's words from the idea abilities-tunable-from-the-workbench-priced-off-items.
+     */
+    @Test
+    void abilitiesTextIsTheOperatorsAbilitiesIdea() {
+        assertEquals("I want the abilities to be tunable from the workbench, because I want to base costs on items."
+                + " Every numeric param of every ability shows as an expression box; a cost is built like a by-type"
+                + " value that can only accept one type, the ability's own, so an item in it contributes its amount of"
+                + " that type. Save writes a draft per edited ability file, Promote renames the drafts over the live"
+                + " goo_abilities files in the world pack, and a dev client targets the source goo_abilities folder,"
+                + " as base_values does.", ExplainerTexts.forTab(ManagerTab.ABILITIES));
+    }
 }

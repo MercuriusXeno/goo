@@ -5,10 +5,9 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Extender's step: it marks the held effect as the extender, so on the glove
- * its pulse upkeep covers alternate ticks of every other held effect's; drunk
- * as the brew, it lengthens every timed effect standing on the player by the
- * brew's duration: {@code extender}.
+ * Extender's step: it marks the held effect as the extender, so its pulse
+ * upkeep covers alternate ticks of every other held effect's; the step itself
+ * acts on nothing: {@code extender}.
  * extender-multiplies-the-next-self-duration
  */
 public record ExtenderStep() implements Step {
@@ -32,7 +31,6 @@ public record ExtenderStep() implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.hostAs(EffectExtendHost.class).extendTimedEffects();
         return true;
     }
 
@@ -43,6 +41,6 @@ public record ExtenderStep() implements Step {
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.EXTEND_EFFECTS);
+        return Set.of();
     }
 }

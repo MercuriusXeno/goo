@@ -26,7 +26,7 @@ public final class GooValueSyncHandler {
     public static void handle(GooValueSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             ((GooValueConnection) context.listener())
-                    .receiveGooValues(GooValueTable.ofEffectiveValues(payload.values()));
+                    .receiveGooValues(GooValueTable.ofEffectiveValues(payload.values(), payload.prefabs()));
             if (Goo.LOGGER.isInfoEnabled()) { Goo.LOGGER.info(LOG_RECEIVED, payload.values().size()); }
         });
     }

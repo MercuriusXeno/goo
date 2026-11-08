@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.ability.kinetic;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisHolds;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
+import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.network.AilmentPayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -21,8 +23,10 @@ import org.jspecify.annotations.Nullable;
  * Runs Grab on the entities a player's channel holds: a held entity hangs
  * where the hold puts it, its AI and gravity suspended and its limbs
  * flailing, until the channel lets go a few ticks later or a left click
- * throws it along the look.
- * grab-holds-and-throws-a-physics-body
+ * throws it along the look. An item entity is pulled to the player instead
+ * of held.
+ * decision grab-holds-and-throws-a-physics-body
+ * decision grab-pulls-an-item-to-you-and-picks-it-up
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class GrabEvents {
@@ -31,9 +35,9 @@ public final class GrabEvents {
      * Ticks a held entity stays held past the last channel tick that reached
      * it, so the hold stands across a channel tick that arrives late.
      */
-    static final int HOLD_GRACE_TICKS = 3;
+    public static final int HOLD_GRACE_TICKS = 3;
     /** Ticks each channel tick's flail overlay lasts, past the grace so it never gaps. */
-    private static final int FLAIL_OVERLAY_TICKS = HOLD_GRACE_TICKS + 2;
+    public static final int FLAIL_OVERLAY_TICKS = HOLD_GRACE_TICKS + 2;
 
     private GrabEvents() {
     }
@@ -72,12 +76,27 @@ public final class GrabEvents {
         held.setDeltaMovement(Vec3.ZERO);
         held.fallDistance = 0;
         held.hurtMarked = true;
-        if (held instanceof ItemEntity item) {
-            // A held item drawn in close would otherwise fall into the holder's pickup.
-            item.setPickUpDelay(FLAIL_OVERLAY_TICKS);
-        }
         player.setData(GooAttachments.GRAB_HOLD, new GrabHold(held.getId(), throwSpeed, until, false));
         EntityVisuals.sendToWatchers(held, new AilmentPayload(held.getId(), AilmentKind.GRABBED, FLAIL_OVERLAY_TICKS));
+    }
+
+    /**
+     * Pulls an item entity toward a player's eye this channel tick, by its
+     * motion rather than its position, so the client interpolates the flight,
+     * and clears its pickup delay so the player's own tick picks it up on
+     * arrival. The item stands under no hold, so a left click throws nothing.
+     * decision grab-pulls-an-item-to-you-and-picks-it-up
+     *
+     * @param player    the pulling player
+     * @param item      the item entity
+     * @param pullSpeed the speed the item flies at, in blocks per tick
+     */
+    public static void pull(ServerPlayer player, ItemEntity item, double pullSpeed) {
+        Vec3 toEye = player.getEyePosition().subtract(item.position());
+        // Capped at the distance left, so the last tick lands on the player rather than past it.
+        item.setDeltaMovement(toEye.normalize().scale(Math.min(pullSpeed, toEye.length())));
+        item.setNoPickUpDelay();
+        item.hurtMarked = true;
     }
 
     private static void suspend(Entity held, long until) {
@@ -130,6 +149,11 @@ public final class GrabEvents {
         player.setData(GooAttachments.GRAB_HOLD,
                 GrabHold.spentUntil(player.level().getGameTime() + HOLD_GRACE_TICKS));
         release(held);
+        if (held instanceof BlockHunk hunk) {
+            // A thrown Terrakinesis chunk breaks where it strikes, and holds off the next grab while it flies.
+            hunk.markThrown();
+            TerrakinesisHolds.threw(player.getUUID(), player.level().getGameTime());
+        }
         held.setDeltaMovement(player.getLookAngle().scale(speed));
         held.hurtMarked = true;
         EntityVisuals.sendToWatchers(held, new AilmentPayload(held.getId(), AilmentKind.GRABBED, 0));

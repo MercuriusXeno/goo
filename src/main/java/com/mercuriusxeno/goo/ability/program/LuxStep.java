@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.world.entity.LivingEntity;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -11,7 +10,7 @@ import java.util.stream.Stream;
  * Grants the host's target Lux and finishes: night vision without
  * particles, and the glow glisten on the mob it looks at, while Lux stands.
  * Cast from the glove it stands as a held effect, paying its upkeep until
- * ended; drunk as a brew it stands for the brew's hour (decisions
+ * ended (decisions
  * lux-night-vision-without-particles, self-effects-trickle-until-ended).
  */
 public record LuxStep() implements Step {
@@ -38,10 +37,7 @@ public record LuxStep() implements Step {
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
         Lux standing = target.getData(GooAttachments.LUX);
-        OptionalInt brew = host.brewDuration();
-        target.setData(GooAttachments.LUX, brew.isPresent()
-                ? standing.brew(brew.getAsInt(), target.level().getGameTime())
-                : standing.hold());
+        target.setData(GooAttachments.LUX, standing.hold());
         return true;
     }
 

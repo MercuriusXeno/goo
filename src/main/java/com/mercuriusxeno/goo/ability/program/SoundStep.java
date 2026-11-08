@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * @param frame  the ticks after the step is reached before the sound plays, evaluated when the step runs
  */
 public record SoundStep(Identifier sound, FxAnchor at, SoundKind source, Expr volume, Expr pitch, Expr frame)
-        implements Step {
+        implements TakesNoEntity {
 
     private static final String NAME = "sound";
     private static final String FIELD_ID = "id";

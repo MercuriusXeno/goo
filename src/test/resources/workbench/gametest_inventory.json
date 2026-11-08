@@ -931,11 +931,6 @@
       "image": "minecraft/budding_amethyst.png"
     },
     {
-      "id": "goo:budding_chrysm",
-      "name": "Untyped Budding Chrysm",
-      "image": "goo/budding_chrysm.png"
-    },
-    {
       "id": "minecraft:bundle",
       "name": "Bundle",
       "image": "minecraft/bundle.png"
@@ -1264,11 +1259,6 @@
       "id": "minecraft:chorus_plant",
       "name": "Chorus Plant",
       "image": "minecraft/chorus_plant.png"
-    },
-    {
-      "id": "goo:chrysm",
-      "name": "Untyped Chrysm",
-      "image": "goo/chrysm.png"
     },
     {
       "id": "minecraft:clay",
@@ -1754,11 +1744,6 @@
       "id": "minecraft:crying_obsidian",
       "name": "Crying Obsidian",
       "image": "minecraft/crying_obsidian.png"
-    },
-    {
-      "id": "goo:crystallizer",
-      "name": "Crystallizer",
-      "image": "goo/crystallizer.png"
     },
     {
       "id": "minecraft:cut_copper",
@@ -2749,11 +2734,6 @@
       "id": "minecraft:flowering_azalea_leaves",
       "name": "Flowering Azalea Leaves",
       "image": "minecraft/flowering_azalea_leaves.png"
-    },
-    {
-      "id": "goo:flowering_chrysm",
-      "name": "Untyped Flowering Chrysm",
-      "image": "goo/flowering_chrysm.png"
     },
     {
       "id": "minecraft:fox_spawn_egg",
@@ -4139,11 +4119,6 @@
       "id": "minecraft:map",
       "name": "Empty Map",
       "image": "minecraft/map.png"
-    },
-    {
-      "id": "goo:materia",
-      "name": "Untyped Materia",
-      "image": "goo/materia.png"
     },
     {
       "id": "minecraft:medium_amethyst_bud",
@@ -13844,87 +13819,6 @@
         "D": {
           "alternatives": [
             "minecraft:blast_furnace"
-          ]
-        }
-      }
-    },
-    {
-      "id": "goo:crystallizer",
-      "type": "minecraft:crafting",
-      "output": "goo:crystallizer",
-      "count": 1,
-      "slots": [
-        {
-          "alternatives": [
-            "minecraft:gold_ingot"
-          ]
-        },
-        {
-          "alternatives": [
-            "minecraft:comparator"
-          ]
-        },
-        {
-          "alternatives": [
-            "minecraft:gold_ingot"
-          ]
-        },
-        {
-          "alternatives": [
-            "minecraft:netherite_scrap"
-          ]
-        },
-        {
-          "alternatives": [
-            "minecraft:amethyst_block"
-          ]
-        },
-        {
-          "alternatives": [
-            "minecraft:netherite_scrap"
-          ]
-        },
-        {
-          "alternatives": [
-            "minecraft:gold_ingot"
-          ]
-        },
-        {
-          "alternatives": [
-            "minecraft:gold_ingot"
-          ]
-        },
-        {
-          "alternatives": [
-            "minecraft:gold_ingot"
-          ]
-        }
-      ],
-      "containers": {},
-      "pattern": [
-        "ABA",
-        "CDC",
-        "AAA"
-      ],
-      "key": {
-        "A": {
-          "alternatives": [
-            "minecraft:gold_ingot"
-          ]
-        },
-        "B": {
-          "alternatives": [
-            "minecraft:comparator"
-          ]
-        },
-        "C": {
-          "alternatives": [
-            "minecraft:netherite_scrap"
-          ]
-        },
-        "D": {
-          "alternatives": [
-            "minecraft:amethyst_block"
           ]
         }
       }

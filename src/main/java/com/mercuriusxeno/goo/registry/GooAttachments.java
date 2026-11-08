@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisWindUp;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.quantum.SharedFate;
@@ -25,6 +26,7 @@ import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
@@ -84,7 +86,7 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The heart overlay a heart brew lays over a player's health bar, synced to
+     * The heart overlay a heart effect lays over a player's health bar, synced to
      * the owning client for the HUD and left behind at death (decision
      * overlay-hearts-are-an-elemental-overshield).
      */
@@ -108,6 +110,18 @@ public final class GooAttachments {
                             .build());
 
     /**
+     * The Terrakinesis wind-up the server runs for a player, synced to its
+     * owner so the client's ground shake follows every wind-up the server runs;
+     * never saved, since a wind-up lives only inside a hold.
+     * decision terrakinesis-shakes-the-blocks-before-the-tear
+     */
+    public static final Supplier<AttachmentType<TerrakinesisWindUp>> TERRAKINESIS_WIND_UP =
+            ATTACHMENT_TYPES.register("terrakinesis_wind_up",
+                    () -> AttachmentType.builder(() -> TerrakinesisWindUp.NONE)
+                            .sync(GooAttachments::syncsToOwner, TerrakinesisWindUp.STREAM_CODEC)
+                            .build());
+
+    /**
      * The gluttony Gluttony leaves on a player until it expires, with the
      * overheal and overhunger it banks, saved with the player while it stands
      * and synced to its owner, whose client lets a full glutton start eating.
@@ -121,7 +135,7 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The self + brew effects a player holds on the glove, each paying its
+     * The durative effects a player holds on the glove, each paying its
      * upkeep every tick until ended, saved with the player while any stands
      * and synced to the owning client.
      * self-effects-trickle-until-ended
@@ -432,10 +446,10 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The air control Airborn lays on a player, saved with the player while
-     * it stands and synced to the owning client, which steers it in midair,
-     * caps its fall and draws the rising wind.
-     * airborn-steerable-levitation-and-soft-falls
+     * The air control Float lays on a player while held, saved with the
+     * player while it stands and synced to the owning client, which steers it
+     * in midair, caps its fall and draws the rising wind.
+     * tailwind-and-airborn-merge-into-float
      */
     public static final Supplier<AttachmentType<Airborn>> AIRBORN =
             ATTACHMENT_TYPES.register("airborn",
@@ -456,6 +470,18 @@ public final class GooAttachments {
                             .sync(GooAttachments::syncsToOwner, Sculker.STREAM_CODEC)
                             .build());
 
+    /**
+     * The air Pneuma banks past a player's vanilla air meter and its airless
+     * immunity, saved with the player and synced to the owning client, which
+     * draws the reserve above the air bubbles.
+     * pneuma-overfills-the-air-meter-with-a-brief-airless-immunity
+     */
+    public static final Supplier<AttachmentType<Breath>> BREATH =
+            ATTACHMENT_TYPES.register("breath",
+                    () -> AttachmentType.builder(() -> Breath.NONE)
+                            .serialize(Breath.CODEC, Breath::stands)
+                            .sync(GooAttachments::syncsToOwner, Breath.STREAM_CODEC)
+                            .build());
     private GooAttachments() {
     }
 

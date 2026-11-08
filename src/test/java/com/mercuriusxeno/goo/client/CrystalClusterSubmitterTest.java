@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
+import com.mercuriusxeno.goo.block.ability.CrystalPrism;
+import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -9,11 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The crystal's faces tile the growing type's sprite by their place in the block, two
- * texels per model pixel, cut at the sprite's edges so the texture repeats rather than
- * clamps, and read one plane however rounding turns their normal (decision
- * crystallizer-emits-chrysm); a prism rounding into the materia marble keeps its
- * hexagon unrounded and is a sphere, its faces turned out, fully rounded (operator ruling).
+ * A prism's faces tile its type's sprite by their place in the block, two texels per
+ * model pixel, cut at the sprite's edges so the texture repeats rather than clamps, and
+ * read one plane however float rounding turns their normal.
  */
 class CrystalClusterSubmitterTest {
 
@@ -26,45 +25,13 @@ class CrystalClusterSubmitterTest {
     }
 
     @Test
-    void aFullyRoundedPrismIsASphereOnTheSpotWithItsFacesTurnedOut() {
-        double radius = CrystalCluster.ORB_RADIUS;
-        CrystalCluster.Prism marble = new CrystalCluster.Prism(0, 0, 2 * radius, radius, 1);
-        Vec3 center = new Vec3(CrystalCluster.BASE_X, CrystalCluster.BASE_Y + radius, CrystalCluster.BASE_Z);
-        for (Vec3[] face : CrystalClusterSubmitter.roundedFaces(marble)) {
-            Vec3 middle = Vec3.ZERO;
-            for (Vec3 corner : face) {
-                assertEquals(radius, corner.distanceTo(center), 1e-6, "a corner off the sphere");
-                middle = middle.add(corner.scale(1.0 / face.length));
-            }
-            assertTrue(CrystalClusterSubmitter.faceNormal(face).dot(middle.subtract(center)) > 0,
-                    "a face turned inward at " + middle);
-        }
-    }
-
-    @Test
-    void anUnroundedPrismMeshKeepsTheHexagonsCornersAndFlatSides() {
-        CrystalCluster.Prism prism = new CrystalCluster.Prism(0, 0, 12, 2.5, 0);
-        Vec3 axisAtBase = new Vec3(CrystalCluster.BASE_X, 0, CrystalCluster.BASE_Z);
-        double sideMiddle = 2.5 * Math.cos(Math.PI / 6);
-        for (Vec3[] face : CrystalClusterSubmitter.roundedFaces(prism)) {
-            for (Vec3 corner : face) {
-                double fromAxis = new Vec3(corner.x, 0, corner.z).distanceTo(axisAtBase);
-                assertTrue(fromAxis <= 2.5 + 1e-6, "a corner outside the hexagon at " + corner);
-                if (corner.y > CrystalCluster.BASE_Y + 1e-6 && corner.y < CrystalCluster.BASE_Y + 9 - 1e-6) {
-                    assertTrue(fromAxis >= sideMiddle - 1e-6, "a shaft corner inside the hexagon's sides at " + corner);
-                }
-            }
-        }
-    }
-
-    @Test
     void aFaceReadsItsPlaceInTheBlockAtTwoTexelsPerPixel() {
         List<List<CrystalClusterSubmitter.TexelPoint>> pieces =
                 CrystalClusterSubmitter.tilePieces(faceAtZ(4, 6, 20, 24), FACING_Z);
         assertEquals(1, pieces.size(), "a face within one tile stays whole");
         for (CrystalClusterSubmitter.TexelPoint point : pieces.getFirst()) {
             assertEquals(point.pos().x * 2, point.u(), EPSILON, "u reads x at two texels a pixel");
-            assertEquals((16 - (point.pos().y - CrystalCluster.BASE_Y)) * 2 - SPRITE, point.v(), EPSILON,
+            assertEquals((16 - (point.pos().y - PrismColumn.BASE_Y)) * 2 - SPRITE, point.v(), EPSILON,
                     "v reads the height down from the top at two texels a pixel, within one sprite");
         }
     }
@@ -104,8 +71,9 @@ class CrystalClusterSubmitterTest {
     }
 
     @Test
-    void everyPieceOfAGrownCrystalStaysOnTheSprite() {
-        for (CrystalCluster.Prism prism : CrystalCluster.prisms(1.0)) {
+    void everyPieceOfAnUprightOrTiltedPrismStaysOnTheSprite() {
+        for (CrystalPrism prism : List.of(PrismColumn.PRISM, new CrystalPrism(22.5, 45, 8.4, 2),
+                new CrystalPrism(45, 292.5, 6, 1.6))) {
             for (Vec3[] face : CrystalClusterSubmitter.prismFaces(prism)) {
                 for (List<CrystalClusterSubmitter.TexelPoint> piece
                         : CrystalClusterSubmitter.tilePieces(face, CrystalClusterSubmitter.faceNormal(face))) {

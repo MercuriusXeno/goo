@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  * @param block the block's registry id, resolved by the host when the step runs
  * @param state each state property, by name, to the value that resolves it
  */
-public record PlaceBlockStep(Identifier block, Map<String, StateValue> state) implements Step {
+public record PlaceBlockStep(Identifier block, Map<String, StateValue> state) implements TakesNoEntity {
 
     private static final String NAME = "place_block";
     private static final String FIELD_BLOCK = "block";
