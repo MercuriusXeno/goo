@@ -459,6 +459,21 @@ public final class DrinkRide {
     }
 
     /**
+     * How large a chunk flies at: whole in its place and as it leaves, then
+     * by what is left of its way, so the chunks taper into their blob.
+     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
+     *
+     * @param chunk the chunk
+     * @param blob  where its blob stands now
+     * @param now   the game time, with the partial tick
+     * @return 1 for its whole size, 0 at the blob
+     */
+    public static double shrinkOf(Chunk chunk, Vec3 blob, double now) {
+        double way = chunk.place().distanceTo(blob);
+        return way <= 0 ? 0 : Math.clamp(1 - distanceOf(chunk.release(), now) / way, 0, 1);
+    }
+
+    /**
      * @param chunk the chunk
      * @param glove the drinker's glove now
      * @param now   the game time, with the partial tick

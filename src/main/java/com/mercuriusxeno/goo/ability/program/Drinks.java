@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.entity.FormingGooBlob;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
@@ -17,18 +17,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -37,9 +33,9 @@ import java.util.UUID;
  * channel is held, each through its choreography. A picked block is paid for
  * at once and stands as itself while the square flies to it; when the square
  * lands, the melting stand-in takes its place and its chunks stream to the
- * drink's convergence point near the blocks it unmakes; when it is drained
- * the stand-in goes; and when its last chunk has had time to reach the point
- * its goo forms there as a goo item. Letting go of the use cuts none of it.
+ * forming goo blob nearest it; when it is drained the stand-in goes; and when
+ * its last chunk has had time to reach the blob its goo fills it. Letting go
+ * of the use cuts none of it.
  * decision unmake-waves-dissolve-by-crucible-cost
  * unmake-converges-near-the-unmade-blocks-into-a-goo-item
  */
@@ -47,7 +43,6 @@ public final class Drinks {
 
     /** Ticks a drink may go unheld before its hold has ended, past the stream's batching. */
     public static final int HOLD_GRACE_TICKS = 5;
-    private static final String UNCONVERGED = "a drink holds its convergence point from its first block on";
 
     /**
      * One block picked into the glove.
@@ -56,9 +51,10 @@ public final class Drinks {
      * @param picked the game time it was picked, the square leaving the hand
      * @param start  the game time the square lands and it starts to melt
      * @param end    the game time it is drained and the stand-in goes
-     * @param payAt  the game time its last chunk has reached the convergence point and its goo forms
+     * @param payAt  the game time its last chunk has reached its blob and its goo fills it
+     * @param blob   the forming goo blob its chunks converge on
      */
-    public record Siphon(GooValue value, long picked, long start, long end, long payAt) {
+    public record Siphon(GooValue value, long picked, long start, long end, long payAt, FormingGooBlob blob) {
     }
 
     /**
@@ -69,9 +65,6 @@ public final class Drinks {
         private final Map<BlockPos, Siphon> siphons = new LinkedHashMap<>();
         private final Set<BlockPos> begun = new HashSet<>();
         private final Set<BlockPos> drained = new HashSet<>();
-        /** The goo item of each type this drink formed at its convergence point, grown as more blocks arrive. */
-        private final Map<ResourceKey<GooTypeDefinition>, ItemEntity> formed = new HashMap<>();
-        private @Nullable Vec3 convergence;
         private long lastHeld;
 
         private Drink(ServerLevel level, long now) {
@@ -94,58 +87,7 @@ public final class Drinks {
          * @param siphon its goo and its times
          */
         public void start(BlockPos pos, Siphon siphon) {
-            convergeOn(pos);
             siphons.put(pos.immutable(), siphon);
-        }
-
-        /**
-         * The point this drink's chunks converge on with a block joining it,
-         * chosen with its first block and held while more join.
-         * unmake-converges-near-the-unmade-blocks-into-a-goo-item
-         *
-         * @param joining the block joining the drink
-         * @return the convergence point
-         */
-        public Vec3 convergeOn(BlockPos joining) {
-            Set<BlockPos> unmaking = new HashSet<>(siphons.keySet());
-            unmaking.add(joining.immutable());
-            convergence = convergencePoint(convergence, unmaking);
-            return convergence;
-        }
-
-        /**
-         * @return the point this drink's chunks converge on, or null before its first block
-         */
-        @Nullable Vec3 convergence() {
-            return convergence;
-        }
-
-        /**
-         * Forms a finished block's goo at the convergence point, growing the
-         * goo item of its type this drink already formed there, or making one
-         * where none stands.
-         * unmake-converges-near-the-unmade-blocks-into-a-goo-item
-         *
-         * @param goo the whole mB the block lands
-         */
-        void form(GooContents goo) {
-            Vec3 at = Objects.requireNonNull(convergence, UNCONVERGED);
-            goo.getAll().forEach((type, amount) -> {
-                ItemEntity item = formed.get(type);
-                if (item != null && item.isAlive()) {
-                    ItemStack grown = item.getItem().copy();
-                    GooItem.setVolume(grown, GooItem.getVolume(grown) + amount);
-                    item.setItem(grown);
-                    return;
-                }
-                ItemStack stack = GooStacks.createForOutput(type, amount);
-                if (!stack.isEmpty()) {
-                    ItemEntity made = new ItemEntity(level, at.x, at.y, at.z, stack, 0, 0, 0);
-                    made.setDefaultPickUpDelay();
-                    level.addFreshEntity(made);
-                    formed.put(type, made);
-                }
-            });
         }
 
         /**
@@ -210,13 +152,13 @@ public final class Drinks {
         }
 
         /**
-         * Ends each siphon whose last chunk has reached the convergence point.
+         * Ends each siphon whose last chunk has reached its blob.
          *
          * @param now the game time
-         * @return each such block's exact goo value
+         * @return each such siphon
          */
-        List<GooValue> payDue(long now) {
-            List<GooValue> paid = new ArrayList<>();
+        List<Siphon> payDue(long now) {
+            List<Siphon> paid = new ArrayList<>();
             Iterator<Map.Entry<BlockPos, Siphon>> due = siphons.entrySet().iterator();
             while (due.hasNext()) {
                 Map.Entry<BlockPos, Siphon> siphon = due.next();
@@ -224,7 +166,7 @@ public final class Drinks {
                     due.remove();
                     begun.remove(siphon.getKey());
                     drained.remove(siphon.getKey());
-                    paid.add(siphon.getValue().value());
+                    paid.add(siphon.getValue());
                 }
             }
             return paid;
@@ -243,7 +185,7 @@ public final class Drinks {
         List<DrinkPayload.Streaming> shown() {
             List<DrinkPayload.Streaming> streaming = new ArrayList<>();
             siphons.forEach((pos, siphon) -> streaming.add(new DrinkPayload.Streaming(pos, siphon.picked(),
-                    siphon.start(), siphon.end())));
+                    siphon.start(), siphon.end(), siphon.blob().resolve().getId())));
             return streaming;
         }
     }
@@ -275,7 +217,7 @@ public final class Drinks {
     /**
      * Moves every drink's blocks through their choreography this tick: squares
      * landing start melts, drained blocks lose their stand-ins, goo that has
-     * reached the hand is paid out; shows every open drink's blocks to its
+     * reached its blob fills it; shows every open drink's blocks to its
      * viewers, and forgets each whose hold has ended with nothing left on its way.
      *
      * @param server the server
@@ -289,34 +231,32 @@ public final class Drinks {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             drink.beginDue(now);
             drink.drainDue(now);
-            drink.payDue(now).forEach(value -> payOut(drink, entry.getKey(), player, value));
+            drink.payDue(now).forEach(siphon -> payOut(drink, entry.getKey(), player, siphon));
             if (!drink.heldAt(now) && !drink.streaming()) {
                 entries.remove();
             } else if (player != null && drink.streaming()) {
-                EntityVisuals.sendToWatchers(player, new DrinkPayload(player.getId(),
-                        Objects.requireNonNull(drink.convergence(), UNCONVERGED),
-                        drink.shown()));
+                EntityVisuals.sendToWatchers(player, new DrinkPayload(player.getId(), drink.shown()));
             }
         }
     }
 
     /**
-     * Forms a finished block's goo as a goo item at the drink's convergence
-     * point, its exact value credited through the drinker's ledger, the part
-     * under 1 mB kept on it: the ledger their remainder capability serves, or
-     * the one kept for them until they return once they have left.
+     * Fills a finished block's blob with its goo, its exact value credited
+     * through the drinker's ledger, the part under 1 mB kept on it: the ledger
+     * their remainder capability serves, or the one kept for them until they
+     * return once they have left.
      * decision every-producer-consumer-and-container-holds-a-remainder-buffer
      * unmake-converges-near-the-unmade-blocks-into-a-goo-item
      *
      * @param drink   the drink
      * @param drinker the drinking player's id
      * @param player  the drinking player, or null once they have left
-     * @param value   the finished block's exact goo value
+     * @param siphon  the finished block's siphon
      */
-    static void payOut(Drink drink, UUID drinker, @Nullable ServerPlayer player, GooValue value) {
+    static void payOut(Drink drink, UUID drinker, @Nullable ServerPlayer player, Siphon siphon) {
         IRemainderLedger ledger = player == null ? OfflineRemainders.get(drink.level()).ledgerOf(drinker)
                 : GooCapabilities.remainderLedgerOf(player);
-        drink.form(payoutThrough(value, ledger));
+        siphon.blob().feed(payoutThrough(siphon.value(), ledger));
     }
 
     /**
@@ -348,26 +288,6 @@ public final class Drinks {
      */
     static GooContents payoutThrough(GooValue value, IRemainderLedger ledger) {
         return new GooContents(ledger.creditAllExact(value.exactAll()));
-    }
-
-    /**
-     * The point an activation's chunks converge on and its goo item forms at:
-     * the one already chosen, held while blocks join, or else the middle of
-     * the unmaking block nearest the middle of them all.
-     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
-     *
-     * @param held     the point this activation already chose, or null before its first block
-     * @param unmaking the blocks this activation unmakes, at least one
-     * @return the convergence point
-     */
-    static Vec3 convergencePoint(@Nullable Vec3 held, Collection<BlockPos> unmaking) {
-        if (held != null) {
-            return held;
-        }
-        Vec3 middle = unmaking.stream().map(Vec3::atCenterOf).reduce(Vec3.ZERO, Vec3::add)
-                .scale(1.0 / unmaking.size());
-        return unmaking.stream().map(Vec3::atCenterOf)
-                .min(Comparator.comparingDouble(center -> center.distanceToSqr(middle))).orElseThrow();
     }
 
     /** Forgets every drink, as a server stop does. */

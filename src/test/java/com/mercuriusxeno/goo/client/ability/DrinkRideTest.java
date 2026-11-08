@@ -264,5 +264,17 @@ class DrinkRideTest {
             assertTrue(DrinkRide.done(chunk.place(), GLOVE, span));
             assertNull(DrinkRide.pointOf(chunk, GLOVE, chunk.release() + span / DrinkStream.FLOW + TICK));
         }
+
+        /** The stream of chunks tapers into its blob (decision unmake-converges-near-the-unmade-blocks-into-a-goo-item). */
+        @Test
+        void aChunkShrinksAsItNearsItsBlob() {
+            double span = chunk.place().distanceTo(GLOVE);
+            double halfway = chunk.release() + span / DrinkStream.FLOW / 2;
+            double nearly = chunk.release() + span / DrinkStream.FLOW * 0.9;
+
+            assertEquals(1, DrinkRide.shrinkOf(chunk, GLOVE, chunk.release()), ON_THE_LINE);
+            assertEquals(0.5, DrinkRide.shrinkOf(chunk, GLOVE, halfway), ON_THE_LINE);
+            assertEquals(0.1, DrinkRide.shrinkOf(chunk, GLOVE, nearly), ON_THE_LINE);
+        }
     }
 }

@@ -11,9 +11,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The blocks the client sees peeling into chunks, and each drink's
- * convergence point their chunks fly to: a peel is kept from the frame its
- * square lands until its last chunk can have reached the point.
+ * The blocks the client sees peeling into chunks, and where each forming goo
+ * blob their chunks fly to stands: a peel is kept from the frame its square
+ * lands until its last chunk can have reached its blob.
  * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
  * unmake-converges-near-the-unmade-blocks-into-a-goo-item
  */
@@ -66,13 +66,13 @@ public final class DrinkPeels {
     /**
      * One block peeling.
      *
-     * @param drinker the drinker whose convergence point its chunks fly to
+     * @param blob    the entity id of the forming goo blob its chunks fly to
      * @param pos     where it stood
      * @param breakup how it breaks up into chunks
      * @param faces   how each of its faces looks, by {@link Direction#get3DDataValue()}
-     * @param until   the game time its last chunk can have reached the point
+     * @param until   the game time its last chunk can have reached the blob
      */
-    public record Peel(int drinker, BlockPos pos, DrinkRide.Breakup breakup, FaceLook[] faces, double until) {
+    public record Peel(int blob, BlockPos pos, DrinkRide.Breakup breakup, FaceLook[] faces, double until) {
     }
 
     /**
@@ -83,26 +83,26 @@ public final class DrinkPeels {
     }
 
     /**
-     * @param drinker a drinker
-     * @param point   their drink's convergence point this frame
+     * @param blob  a forming goo blob's entity id
+     * @param point where it stands this frame
      */
-    public void destination(int drinker, Vec3 point) {
-        destinations.put(drinker, point);
+    public void destination(int blob, Vec3 point) {
+        destinations.put(blob, point);
     }
 
     /**
-     * @param drinker a drinker
-     * @return their drink's convergence point as last placed, or null while they drink nothing
+     * @param blob a forming goo blob's entity id
+     * @return where it last stood, or null while no drink streams to it
      */
-    public @Nullable Vec3 destinationOf(int drinker) {
-        return destinations.get(drinker);
+    public @Nullable Vec3 destinationOf(int blob) {
+        return destinations.get(blob);
     }
 
     /**
-     * @param drinkers the drinkers whose drinks still show; every other's point is let go
+     * @param blobs the blobs drinks still stream to; every other's point is let go
      */
-    public void keepDestinationsOf(Set<Integer> drinkers) {
-        destinations.keySet().retainAll(drinkers);
+    public void keepDestinationsOf(Set<Integer> blobs) {
+        destinations.keySet().retainAll(blobs);
     }
 
     /**

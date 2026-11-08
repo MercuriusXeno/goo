@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.SiphonRule;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.entity.FormingGooBlob;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -87,8 +88,13 @@ public final class UnmakeTests {
     /** How far above the aimed block a block stands outside the cone. */
     private static final int OUT_OF_THE_CONE = 3;
     private static final double DROP_REACH = 4;
-    /** How far across from the convergence point a goo item falling straight down from it stands. */
+    /** How far from the first block's middle the blob forming there hovers. */
     private static final double AT_THE_POINT = 0.5;
+    private static final String NOT_ONE_BLOB = "The two blocks' chunks should converge on one forming blob, found %d";
+    private static final String POPPED_IN = "The blob should form empty and grow as goo arrives";
+    private static final String WRONG_FILL = "The hovering blob should hold both blocks' goo %d mB, held %d";
+    private static final String ITEM_EARLY = "No goo item should stand while the blob still hovers";
+    private static final String BLOB_STAYED = "The blob should have become its goo item";
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_unmake";
     private static final String STANDS = "The wall's block at %s should be drunk within %d ticks";
     private static final String UNPAID = "The hold should burn exactly the unstable crucible's fuel plus its root per block";
@@ -97,7 +103,7 @@ public final class UnmakeTests {
     private static final String WALL_GONE = "The wall's block at %s, off the aim, should stand";
     private static final String NOT_ONE_ITEM = "The blocks' goo should form one goo item per type, formed %d holding %s";
     private static final String WRONG_ITEM = "The goo item should hold both blocks' goo %s, held %s";
-    private static final String OFF_THE_POINT = "The goo item at %s should form at the convergence point %s";
+    private static final String OFF_THE_POINT = "The blob at %s should hover where it formed, %s";
     private static final String INTO_THE_HAND = "The player's inventory should gain none of the goo, held %s";
     private static final String UNFINISHED = "A block that started streaming should go though the cursor leaves it";
     private static final String OUTSIDE_GONE = "A block outside the cone should stand";
@@ -148,10 +154,10 @@ public final class UnmakeTests {
 
     /**
      * A mock player holding exactly two blocks' fuel unmakes two cobblestones
-     * along the aim: their chunks converge on the nearer block, the first the
-     * drink picks, and one goo item per type forms there holding both blocks'
-     * goo, falling straight down from it, while the player's inventory gains
-     * none of it.
+     * along the aim: one goo blob forms empty at the nearer block, the first
+     * the drink picks, hovers there holding both blocks' goo once their chunks
+     * have reached it, then becomes one goo item per type holding all of it,
+     * while the player's inventory gains none of it.
      * unmake-converges-near-the-unmade-blocks-into-a-goo-item
      *
      * @param helper the gametest helper
@@ -169,33 +175,50 @@ public final class UnmakeTests {
         int drinkTicks = drinkTicks(helper);
         Vec3 point = Vec3.atCenterOf(helper.absolutePos(pair.getFirst()));
         int travel = SiphonRule.travelTicks(Vec3.atCenterOf(helper.absolutePos(AIMED_POS)).distanceTo(point));
+        Map<ResourceKey<GooTypeDefinition>, Integer> expected = new HashMap<>();
+        cobblestone.meltFloorAll().forEach((type, amount) -> expected.put(type, amount * pair.size()));
+        int expectedVolume = expected.values().stream().mapToInt(Integer::intValue).sum();
         GooStreamPayload tick = aimedAt(player, westFace(helper, AIMED_POS));
         for (int held = 1; held <= drinkTicks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
-        helper.runAfterDelay(drinkTicks + travel + 2L, () -> {
+        helper.runAfterDelay(SiphonRule.INJECT_TICKS, () -> {
+            List<FormingGooBlob> blobs = blobsNear(helper, AIMED_POS, DROP_REACH);
+            helper.assertTrue(blobs.size() == 1, String.format(NOT_ONE_BLOB, blobs.size()));
+            helper.assertTrue(GooStacks.volumeOf(blobs.getFirst().shown()) == 0, POPPED_IN);
+        });
+        long filled = drinkTicks + travel + 2L;
+        helper.runAfterDelay(filled, () -> {
+            List<FormingGooBlob> blobs = blobsNear(helper, AIMED_POS, DROP_REACH);
+            helper.assertTrue(blobs.size() == 1, String.format(NOT_ONE_BLOB, blobs.size()));
+            FormingGooBlob blob = blobs.getFirst();
+            int holding = GooStacks.volumeOf(blob.shown());
+            helper.assertTrue(holding == expectedVolume, String.format(WRONG_FILL, expectedVolume, holding));
+            helper.assertTrue(blob.position().distanceTo(point) <= AT_THE_POINT,
+                    String.format(OFF_THE_POINT, blob.position(), point));
+            helper.assertTrue(gooItemsNear(helper, AIMED_POS, DROP_REACH).isEmpty(), ITEM_EARLY);
+        });
+        helper.runAfterDelay(filled + FormingGooBlob.HOVER_TICKS + FormingGooBlob.SHRINK_TICKS + 2L, () -> {
             List<ItemEntity> items = gooItemsNear(helper, AIMED_POS, DROP_REACH);
             Map<ResourceKey<GooTypeDefinition>, Integer> held = heldGoo(player.getInventory());
             boolean fuelLeft = GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, 1);
             helper.getLevel().getServer().getPlayerList().remove(player);
-            Map<ResourceKey<GooTypeDefinition>, Integer> expected = new HashMap<>();
-            cobblestone.meltFloorAll().forEach((type, amount) -> expected.put(type, amount * pair.size()));
             Map<ResourceKey<GooTypeDefinition>, Integer> formed = new HashMap<>();
             items.forEach(item -> formed.merge(GooStacks.keyOf(item.getItem()), GooStacks.volumeOf(item.getItem()),
                     Integer::sum));
+            helper.assertTrue(blobsNear(helper, AIMED_POS, DROP_REACH).isEmpty(), BLOB_STAYED);
             helper.assertTrue(items.size() == expected.size(), String.format(NOT_ONE_ITEM, items.size(), formed));
             helper.assertTrue(new GooContents(expected).getAll().equals(formed),
                     String.format(WRONG_ITEM, expected, formed));
-            items.forEach(item -> helper.assertTrue(horizontalDistance(item.position(), point) <= AT_THE_POINT,
-                    String.format(OFF_THE_POINT, item.position(), point)));
             helper.assertTrue(held.isEmpty(), String.format(INTO_THE_HAND, held));
             helper.assertFalse(fuelLeft, UNPAID);
             helper.succeed();
         });
     }
 
-    private static double horizontalDistance(Vec3 from, Vec3 to) {
-        return Math.hypot(from.x - to.x, from.z - to.z);
+    private static List<FormingGooBlob> blobsNear(GameTestHelper helper, BlockPos around, double reach) {
+        return helper.getLevel().getEntitiesOfClass(FormingGooBlob.class,
+                new AABB(helper.absolutePos(around)).inflate(reach), FormingGooBlob::isAlive);
     }
 
     private static List<ItemEntity> gooItemsNear(GameTestHelper helper, BlockPos around, double reach) {
