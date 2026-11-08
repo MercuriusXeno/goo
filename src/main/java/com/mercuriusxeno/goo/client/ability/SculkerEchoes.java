@@ -15,8 +15,8 @@ import java.util.function.Predicate;
  * out of its source a quarter second apart, each sweeping eight blocks a
  * second, and every block face open to air that a ring crosses is lit, full
  * at the source and weaker the farther the ring has travelled, to nothing at
- * four blocks for an ordinary sound and six for the loudest, a louder sound
- * lighting stronger. Sounds that meet on a face add up, each sound once
+ * the end of the sound's range, sixteen blocks for an ordinary sound and
+ * farther for a louder one, a louder sound lighting stronger. Sounds that meet on a face add up, each sound once
  * however many of its rings cross it, to twice a full light at most, and a
  * face's light falls at a steady rate, a full light within three seconds,
  * so a face fades by how recently and how strongly it was lit. A face shows
@@ -36,10 +36,8 @@ public final class SculkerEchoes {
     static final int RINGS = 2;
     /** Ticks between one ring of a sound and its next, a quarter second. */
     static final int RING_GAP_TICKS = 5;
-    /** How far a sound of ordinary loudness ripples before it dies, in blocks. */
-    static final double RIPPLE_REACH = 4;
-    /** How far any ripple reaches at the most, however loud its sound. */
-    static final double LOUDEST_REACH = 6;
+    /** How far an ordinary sound carries, in blocks, as Minecraft attenuates it; a louder one carries farther. */
+    static final double ORDINARY_RANGE = 16;
     /** Ticks a full light takes to fall to nothing with no new sound, three seconds. */
     static final int FADE_TICKS = 60;
     /** The most light a face holds, however many sounds meet on it: twice a full light. */
@@ -149,18 +147,43 @@ public final class SculkerEchoes {
     }
 
     /**
-     * Sends a sound's rings out of its source a quarter second apart,
-     * reaching farther and lighting faces for longer the louder the sound.
+     * Sends a sound's rings out across the range Minecraft carries a sound
+     * of its loudness.
      *
      * @param at       where the sound played
      * @param tick     the game time it played
      * @param loudness the sound's loudness, 1 for an ordinary sound
      */
     public void hear(Vec3 at, long tick, float loudness) {
+        hear(at, tick, loudness, rangeFor(loudness));
+    }
+
+    /**
+     * How far Minecraft carries a sound of a loudness with its ordinary
+     * attenuation: sixteen blocks, times its loudness past ordinary.
+     *
+     * @param loudness the sound's loudness, 1 for an ordinary sound
+     * @return its range, in blocks
+     */
+    public static double rangeFor(float loudness) {
+        return ORDINARY_RANGE * Math.max(1f, loudness);
+    }
+
+    /**
+     * Sends a sound's rings out of its source a quarter second apart, across
+     * its whole range, their power falling evenly from full at the source to
+     * nothing at the range's end, a louder sound lighting stronger.
+     *
+     * @param at       where the sound played
+     * @param tick     the game time it played
+     * @param loudness the sound's loudness, 1 for an ordinary sound
+     * @param range    how far the sound carries, in blocks
+     */
+    public void hear(Vec3 at, long tick, float loudness, double range) {
         if (ripples.size() + RINGS > MOST_RIPPLES) {
             return;
         }
-        double reach = Math.min(LOUDEST_REACH, RIPPLE_REACH * share(loudness));
+        double reach = range;
         float strength = Math.min(MOST_LIGHT, share(loudness));
         for (int ring = 0; ring < RINGS; ring++) {
             ripples.add(new Ripple(at, tick + (long) ring * RING_GAP_TICKS, reach, strength, ring == 0));
