@@ -78,7 +78,7 @@ public final class GnatParticle extends SingleQuadParticle {
     public void tick() {
         if (prey != null) {
             Vec3 velocity = GnatSteering.steer(new Vec3(this.xd, this.yd, this.zd), new Vec3(this.x, this.y, this.z),
-                    prey.get(), this.age);
+                    prey.get());
             this.xd = velocity.x;
             this.yd = velocity.y;
             this.zd = velocity.z;

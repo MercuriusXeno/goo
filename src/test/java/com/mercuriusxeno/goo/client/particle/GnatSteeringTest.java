@@ -7,12 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A seeking gnat leaves the glove along the line the player fires, flies
- * straight down it for its first ticks, then veers tick over tick toward its
- * prey off the aim and closes on it, so it reads as homing rather than
- * auto-aim (decision decay-gnats-degrade-each-block-once). The flight is
- * stepped here as the particle steps it: steer by the gnat's age, then move
- * by the velocity.
+ * A seeking gnat leaves the glove along the line the player fires and is
+ * pulled toward its prey every tick, its momentum carrying it on along the
+ * aim, so its path slides off the aim and curves into the prey rather than
+ * snapping onto it, and it closes on the prey (decision
+ * decay-gnats-degrade-each-block-once). The flight is stepped here as the
+ * particle steps it: steer, then move by the velocity.
  */
 class GnatSteeringTest {
 
@@ -27,8 +27,6 @@ class GnatSteeringTest {
     private static final int FLIGHT_TICKS = 40;
     /** Within this of the prey's center a gnat has reached the mob it bites. */
     private static final double ON_THE_PREY = 0.5;
-    /** The first veering tick's turn stays under this, so the path bends rather than snapping onto the prey. */
-    private static final double MOST_FIRST_TURN_DEGREES = 20;
 
     @Nested
     class Launch {
@@ -50,44 +48,40 @@ class GnatSteeringTest {
         private final Vec3 downTheLine = GnatSteering.launch(AIM, 0, 0);
 
         @Test
-        void aGnatFliesStraightDownTheFiringLineForItsFirstTicks() {
+        void thePreyPullsTheGnatFromItsFirstTick() {
+            Vec3 pulled = GnatSteering.steer(downTheLine, GLOVE, PREY);
+            assertTrue(degreesBetween(pulled, PREY) < degreesBetween(downTheLine, PREY),
+                    "the first tick left the gnat heading " + degreesBetween(pulled, PREY) + " degrees off the prey");
+        }
+
+        @Test
+        void itsMomentumCarriesItOnAlongTheAimAtFirst() {
+            Vec3 pulled = GnatSteering.steer(downTheLine, GLOVE, PREY);
+            assertTrue(degreesBetween(pulled, AIM) < degreesBetween(pulled, PREY),
+                    "after one tick the gnat heads " + degreesBetween(pulled, AIM) + " degrees off the aim and "
+                            + degreesBetween(pulled, PREY) + " off the prey");
+        }
+
+        @Test
+        void itCurvesTowardItsPreyTickOverTick() {
             Vec3 at = GLOVE;
             Vec3 velocity = downTheLine;
-            for (int age = 0; age < GnatSteering.STRAIGHT_TICKS; age++) {
-                velocity = GnatSteering.steer(velocity, at, PREY, age);
-                at = at.add(velocity);
-                assertEquals(0, degreesBetween(AIM, velocity), DELTA, "age " + age + " turned off the line");
-            }
-        }
-
-        @Test
-        void thenItVeersTowardItsPreyTickOverTick() {
-            Vec3 at = downTheLine.scale(GnatSteering.STRAIGHT_TICKS);
-            Vec3 velocity = downTheLine;
             double offBy = degreesBetween(velocity, PREY.subtract(at));
-            for (int age = GnatSteering.STRAIGHT_TICKS; age < GnatSteering.STRAIGHT_TICKS + TURNING_TICKS; age++) {
-                velocity = GnatSteering.steer(velocity, at, PREY, age);
+            for (int tick = 0; tick < TURNING_TICKS; tick++) {
+                velocity = GnatSteering.steer(velocity, at, PREY);
                 at = at.add(velocity);
                 double now = degreesBetween(velocity, PREY.subtract(at));
-                assertTrue(now < offBy, "age " + age + " heads " + now + " degrees off the prey, was " + offBy);
+                assertTrue(now < offBy, "tick " + tick + " heads " + now + " degrees off the prey, was " + offBy);
                 offBy = now;
             }
-        }
-
-        @Test
-        void theFirstVeerBendsThePathRatherThanSnappingOntoThePrey() {
-            Vec3 at = downTheLine.scale(GnatSteering.STRAIGHT_TICKS);
-            Vec3 turned = GnatSteering.steer(downTheLine, at, PREY, GnatSteering.STRAIGHT_TICKS);
-            double turn = degreesBetween(downTheLine, turned);
-            assertTrue(turn > 0 && turn < MOST_FIRST_TURN_DEGREES, "the first veer turned " + turn + " degrees");
         }
 
         @Test
         void aGnatClosesOnItsPrey() {
             Vec3 at = GLOVE;
             Vec3 velocity = downTheLine;
-            for (int age = 0; age < FLIGHT_TICKS; age++) {
-                velocity = GnatSteering.steer(velocity, at, PREY, age);
+            for (int tick = 0; tick < FLIGHT_TICKS; tick++) {
+                velocity = GnatSteering.steer(velocity, at, PREY);
                 at = at.add(velocity);
             }
             assertTrue(at.distanceTo(PREY) < ON_THE_PREY, "after the flight the gnat rests at " + at);
