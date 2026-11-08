@@ -78,6 +78,28 @@ public final class GateArc {
     }
 
     /**
+     * The straight pieces a beam draws between its tail and its head, each
+     * a start and an end: one where both stand on one leg, two where the
+     * beam spans the gate, from the tail to the face and from the partner
+     * to the head.
+     *
+     * @param hand   the beam's start
+     * @param hop    the gate it passes
+     * @param target the beam's end
+     * @param tail   how far along the whole path the tail stands, from 0 to 1
+     * @param head   how far along the whole path the head stands, from 0 to 1
+     * @return the pieces
+     */
+    public static List<Vec3[]> beamPieces(Vec3 hand, Hop hop, Vec3 target, double tail, double head) {
+        Vec3 from = at(hand, hop, target, 0, tail);
+        Vec3 to = at(hand, hop, target, 0, head);
+        if (onNearLeg(hand, hop, target, tail) == onNearLeg(hand, hop, target, head)) {
+            return Collections.singletonList(new Vec3[] {from, to});
+        }
+        return List.of(new Vec3[] {from, hop.facePoint()}, new Vec3[] {hop.partnerPoint(), to});
+    }
+
+    /**
      * Whether a point along the whole arc stands on the near leg.
      *
      * @param hand   the arc's start

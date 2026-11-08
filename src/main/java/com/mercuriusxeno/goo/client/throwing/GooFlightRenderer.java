@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ability.ConeGeometry;
 import com.mercuriusxeno.goo.client.ability.PortalView;
+import com.mercuriusxeno.goo.throwing.GateArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -25,6 +26,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Renders goo flights as multi-layer animated projectiles.
@@ -481,6 +483,16 @@ public final class GooFlightRenderer {
         }
 
         float smoothTick = flight.ticksElapsed + ctx.partialTick;
+        GateArc.Hop hop = flight.hop();
+        if (hop != null) {
+            // aim-and-shots-carry-through-linked-gates: a beam through a gate draws into the face, out of the partner
+            List<Vec3[]> pieces = GateArc.beamPieces(start, hop, end, glowTailT(smoothTick, flight.travelTicks),
+                    glowHeadT(smoothTick, flight.travelTicks));
+            pieces.forEach(piece -> emitGlowPiece(ctx, piece[0], piece[1], flight.gooType));
+            Vec3[] last = pieces.get(pieces.size() - 1);
+            renderGlowHead(ctx, last[1], flight.gooType);
+            return;
+        }
         Vec3 headPos = glowHeadPos(start, end, smoothTick, flight.travelTicks);
         Vec3 tailPos = glowTailPos(start, end, smoothTick, flight.travelTicks);
 
@@ -519,8 +531,45 @@ public final class GooFlightRenderer {
      */
     private static Vec3 glowHeadPos(Vec3 start, Vec3 end,
                                     float smoothTick, int travel) {
-        float headT = Math.min(1f, smoothTick / travel);
-        return start.add(end.subtract(start).scale(headT));
+        return start.add(end.subtract(start).scale(glowHeadT(smoothTick, travel)));
+    }
+
+    /**
+     * How far along the beam's path the head stands.
+     *
+     * @param smoothTick interpolated elapsed ticks
+     * @param travel     ticks for the extend phase
+     * @return the head's share of the path, from 0 to 1
+     */
+    private static float glowHeadT(float smoothTick, int travel) {
+        return Math.min(1f, smoothTick / travel);
+    }
+
+    /**
+     * How far along the beam's path the tail stands: at the start while the
+     * beam extends, then chasing the head.
+     *
+     * @param smoothTick interpolated elapsed ticks
+     * @param travel     ticks for the extend phase
+     * @return the tail's share of the path, from 0 to 1
+     */
+    private static float glowTailT(float smoothTick, int travel) {
+        return smoothTick <= travel ? 0f : Math.min(1f, (smoothTick - travel) / travel);
+    }
+
+    /**
+     * Draws one straight piece of a glowing beam.
+     *
+     * @param ctx     the render context
+     * @param from    the piece's start
+     * @param to      the piece's end
+     * @param gooType the beamed goo type
+     */
+    private static void emitGlowPiece(FlightFrame ctx, Vec3 from, Vec3 to, ResourceKey<GooTypeDefinition> gooType) {
+        Vec3 piece = to.subtract(from);
+        if (piece.length() >= LENGTH_EPSILON) {
+            emitGlowBillboard(ctx, from, piece, gooType);
+        }
     }
 
     /**
