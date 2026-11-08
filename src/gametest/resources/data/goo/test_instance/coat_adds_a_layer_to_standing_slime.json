@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:coat_adds_a_layer_to_standing_slime",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

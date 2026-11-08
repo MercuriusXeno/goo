@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
+import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -19,6 +20,7 @@ import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -96,6 +98,22 @@ public final class WeirdTests {
     private static final String HURT_BY_SOFTENED = "A softened zombie's hit should leave the player's health full, has ";
     private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
     private static final String FADED_STILL_SOFT = "Once the wobble has faded, the zombie's hit should hurt the player";
+    private static final String SLIME_LEVELS_OUT = "slime_levels_out_beside_an_open_top";
+    private static final String SLIME_POURS_OFF_A_LEDGE = "slime_pours_off_a_ledge";
+    private static final String COAT_ADDS_A_LAYER = "coat_adds_a_layer_to_standing_slime";
+    /** Ticks the flow is given to settle, far past the handful of pours each test needs. */
+    private static final int FLOW_SETTLE_TICKS = 40;
+    private static final int FULL_CELL = 8;
+    private static final int HALF_CELL = 4;
+    /** The slime cell the flow tests fill, on a stone top in the bay's floor row. */
+    private static final BlockPos FLOW_CELL = new BlockPos(2, 1, 2);
+    /** The ledge cell's slime, on a stone pillar one block over the floor row. */
+    private static final BlockPos LEDGE_CELL = FLOW_CELL.above();
+    /** Where the ledge's layers land: the floor row's cell east of the pillar. */
+    private static final BlockPos BELOW_THE_LEDGE = FLOW_CELL.east();
+    /** Pitched down at the slime coat over the stone three blocks east, so the axis ray ends on it. */
+    private static final float AT_THE_SLIME = 9.4f;
+    private static final String LAYERS_WRONG = "Slime at %s should hold %d layers, holds %s";
 
     private WeirdTests() {
     }
@@ -115,6 +133,101 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, HELD_JUMPS_RAMP, WeirdTests::heldJumpsRampToTheCeiling);
         GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::coatSoftensTheMobItHits);
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
+        GooTestFunctions.registerTest(registrar, SLIME_LEVELS_OUT, WeirdTests::slimeLevelsOutBesideAnOpenTop);
+        GooTestFunctions.registerTest(registrar, SLIME_POURS_OFF_A_LEDGE, WeirdTests::slimePoursOffALedge);
+        GooTestFunctions.registerTest(registrar, COAT_ADDS_A_LAYER, WeirdTests::coatAddsALayerToStandingSlime);
+    }
+
+    /**
+     * Eight layers of slime set beside an open stone top, the pair walled in
+     * on every other side, level out to four and four.
+     * slime-is-a-layered-cell-that-levels-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimeLevelsOutBesideAnOpenTop(GameTestHelper helper) {
+        BlockPos open = FLOW_CELL.east();
+        stoneUnder(helper, FLOW_CELL);
+        stoneUnder(helper, open);
+        wallSidesBut(helper, FLOW_CELL, Direction.EAST);
+        wallSidesBut(helper, open, Direction.WEST);
+        helper.setBlock(open, Blocks.AIR);
+        helper.setBlock(FLOW_CELL, slimeOf(FULL_CELL));
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            assertLayers(helper, FLOW_CELL, HALF_CELL);
+            assertLayers(helper, open, HALF_CELL);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Four layers of slime on a stone pillar, open to the east over a drop
+     * of one block onto a walled stone top: the layers pour off the ledge
+     * onto that top, the pillar's cell keeping its last layer.
+     * slime-is-a-layered-cell-that-levels-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimePoursOffALedge(GameTestHelper helper) {
+        helper.setBlock(FLOW_CELL, Blocks.STONE);
+        wallSidesBut(helper, LEDGE_CELL, Direction.EAST);
+        helper.setBlock(LEDGE_CELL.east(), Blocks.AIR);
+        stoneUnder(helper, BELOW_THE_LEDGE);
+        wallSidesBut(helper, BELOW_THE_LEDGE, Direction.WEST);
+        helper.setBlock(BELOW_THE_LEDGE, Blocks.AIR);
+        helper.setBlock(LEDGE_CELL, slimeOf(HALF_CELL));
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            assertLayers(helper, LEDGE_CELL, 1);
+            assertLayers(helper, BELOW_THE_LEDGE, HALF_CELL - 1);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Coat's stream held over a cell already holding one layer of slime, its
+     * side neighbours holding a layer each so nothing pours, leaves that cell
+     * at two layers.
+     * slime-is-a-layered-cell-that-levels-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatAddsALayerToStandingSlime(GameTestHelper helper) {
+        ServerPlayer streamer = coaterOverStone(helper);
+        streamer.setXRot(AT_THE_SLIME);
+        BlockPos slimed = COATED_POS.above();
+        helper.setBlock(slimed, slimeOf(1));
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(COATED_POS.relative(side), Blocks.STONE);
+            helper.setBlock(slimed.relative(side), slimeOf(1));
+        }
+        holdCoatFor(helper, streamer, COAT_STEP_TICKS + COAT_SLACK_TICKS);
+        helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            assertLayers(helper, slimed, 2);
+            helper.succeed();
+        });
+    }
+
+    private static BlockState slimeOf(int layers) {
+        return GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(SlimeCoatBlock.LAYERS, layers);
+    }
+
+    private static void stoneUnder(GameTestHelper helper, BlockPos cell) {
+        helper.setBlock(cell.below(), Blocks.STONE);
+    }
+
+    private static void wallSidesBut(GameTestHelper helper, BlockPos cell, Direction open) {
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            if (side != open) {
+                helper.setBlock(cell.relative(side), Blocks.STONE);
+            }
+        }
+    }
+
+    private static void assertLayers(GameTestHelper helper, BlockPos cell, int layers) {
+        BlockState state = helper.getBlockState(cell);
+        Object held = state.is(GooBlocks.SLIME_COAT.get()) ? state.getValue(SlimeCoatBlock.LAYERS) : state;
+        helper.assertTrue(Integer.valueOf(layers).equals(held), String.format(LAYERS_WRONG, cell, layers, held));
     }
 
     /**
