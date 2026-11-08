@@ -22,9 +22,12 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  * Meteo's blob marking its target: where the blob landed it lies as a
  * splat of astral goo flat on the ground, a ragged blot with a few
  * droplets flung about it, through the wind-up and the fall, so it paints
- * where the meteor will strike until the strike swallows it (operator
- * rulings 2026-11-06: the blob stays, and a splat, not a floating shape).
+ * the hit point the meteor is called toward until the meteor lands
+ * (operator rulings 2026-11-06: the blob stays, and a splat, not a
+ * floating shape). Under cover the splat stays on the hit point while the
+ * meteor strikes the cover.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
+ * decision meteo-crashes-through-whatever-is-above
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class MeteorMarkers {
@@ -54,7 +57,7 @@ public final class MeteorMarkers {
     }
 
     /**
-     * Draws a splat at every meteor's target once the world has drawn.
+     * Draws a splat at every meteor's hit point once the world has drawn.
      *
      * @param event the level render stage event
      */
@@ -70,8 +73,8 @@ public final class MeteorMarkers {
         int color = ARGB.color(SPLAT_ALPHA, ClientGooTypes.color(GooTypes.ASTRAL));
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity instanceof Meteor meteor) {
-                Vec3 target = meteor.syncedTarget();
-                emitSplat(event.getPoseStack().last(), consumer, markerAt(target).subtract(camera), target, color);
+                Vec3 hitPoint = meteor.syncedMark();
+                emitSplat(event.getPoseStack().last(), consumer, markerAt(hitPoint).subtract(camera), hitPoint, color);
             }
         }
         buffers.endBatch(GooRenderTypes.METEOR_SCORCH_TYPE);
@@ -136,7 +139,7 @@ public final class MeteorMarkers {
      * Where the splat lies: on the ground at the bottom of the air cell the
      * blob landed in, just off it.
      *
-     * @param target the point the meteor strikes, the landing cell's center
+     * @param target the hit point the meteor is called toward, the landing cell's center
      * @return the splat's center
      */
     static Vec3 markerAt(Vec3 target) {
