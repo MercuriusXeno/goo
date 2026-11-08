@@ -118,6 +118,35 @@ class GatePassageTest {
                 + " blocks to step off it, rises " + rise);
     }
 
+    /** An arrow's width, its middle the point that crosses. */
+    private static final double ARROW_WIDTH = 0.5;
+    /** Three blocks before the near gate's face, square on its oval's middle. */
+    private static final Vec3 THREE_BEFORE = new Vec3(0.5, 1.5, -3.0);
+
+    /**
+     * A gate's blocks stand open to a body whose path this tick reaches the
+     * face within the oval, so a fast projectile's clip runs on into them
+     * (decision aim-and-shots-carry-through-linked-gates).
+     */
+    @Test
+    void aFastBodyWhosePathReachesTheOvalFindsTheBlocksOpen() {
+        assertTrue(GatePassage.opensToPath(NEAR, THREE_BEFORE, new Vec3(0, 0, 4.0), ARROW_WIDTH),
+                "A body three blocks before the face moving four a tick into the oval should find the gate open");
+    }
+
+    @Test
+    void aFastBodyWhosePathMissesTheOvalMeetsTheBlocks() {
+        org.junit.jupiter.api.Assertions.assertFalse(GatePassage.opensToPath(NEAR, THREE_BEFORE,
+                new Vec3(4.0, 0, 4.0), ARROW_WIDTH), "A body whose path meets the face aside of the oval should "
+                + "meet the gate's blocks");
+    }
+
+    @Test
+    void aBodyAtRestBeforeTheFaceFindsTheBlocksOpenAsBefore() {
+        assertTrue(GatePassage.opensToPath(NEAR, new Vec3(0.5, 1.5, -0.5), Vec3.ZERO, ARROW_WIDTH),
+                "A body at rest just before the face should find the gate open, as it always has");
+    }
+
     /** The far mouth's face, the plane z 3. */
     private static final double FAR_FACE_Z = 3.0;
 

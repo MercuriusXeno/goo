@@ -24,6 +24,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
@@ -58,6 +61,8 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, PLACE_CHOOSE_LINK_AND_CARRY, PortalTests::placeChooseLinkAndCarry);
         GooTestFunctions.registerTest(registrar, HIT_BREAKS_THE_PORTAL, PortalTests::hitBreaksThePortal);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_EVERY_CLIENT, PortalTests::linkReachesEveryClient);
+        GooTestFunctions.registerTest(registrar, ARROW_FLIES_THROUGH_A_LINKED_PAIR,
+                PortalTests::arrowFliesThroughALinkedPair);
         GooTestFunctions.registerTest(registrar, THROW_LANDS_THROUGH_A_LINKED_PAIR,
                 PortalTests::throwLandsThroughALinkedPair);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_A_PLAYER_CHANGING_DIMENSION,
@@ -578,6 +583,63 @@ public final class PortalTests {
         level.getServer().getPlayerList().remove(owner);
         level.getServer().getPlayerList().remove(onlooker);
         helper.succeed();
+    }
+
+    private static final String ARROW_FLIES_THROUGH_A_LINKED_PAIR = "portal_arrow_flies_through_a_linked_pair";
+    /** A bow's full draw, blocks a tick. */
+    private static final double ARROW_SPEED = 3.0;
+    /** The share of its speed an arrow keeps coming out of the partner, its drag a tick or two in the air allowed. */
+    private static final double KEPT_SPEED = 0.9;
+    /** Where the arrow is loosed: three blocks before the first frame's face, square on its oval. */
+    private static final Vec3 ARROW_FROM = new Vec3(1.5, 2.0, 5.0);
+
+    /**
+     * An arrow shot into a linked wall pair comes out of the partner on the
+     * far side, flying away from it with its speed kept, and stays out
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void arrowFliesThroughALinkedPair(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        standAt(helper, owner, Vec3.atBottomCenterOf(AWAY));
+        Portal entry = castAt(helper, owner, FIRST, Direction.SOUTH);
+        Portal exit = castAt(helper, owner, SECOND, Direction.NORTH);
+        PortalChoice.choose(owner, Optional.of(entry));
+        PortalChoice.link(owner, exit);
+        Vec3 from = helper.absoluteVec(ARROW_FROM);
+        Arrow arrow = new Arrow(level, from.x(), from.y(), from.z(), new ItemStack(Items.ARROW), null);
+        arrow.setDeltaMovement(0, 0, -ARROW_SPEED);
+        arrow.setNoGravity(true);
+        level.addFreshEntity(arrow);
+        Vec3 outward = exit.gate().face().getUnitVec3();
+        // The bay is short for an arrow, which crosses it in a few ticks, so the test reads the arrow the first
+        // tick it stands past the partner, then some ticks on, where it has flown on or struck the far wall.
+        int[] cameOutAt = {-1};
+        double[] speedOut = {0};
+        helper.onEachTick(() -> {
+            if (cameOutAt[0] < 0 && pastTheExit(arrow, exit)) {
+                cameOutAt[0] = (int) helper.getTick();
+                speedOut[0] = arrow.getDeltaMovement().dot(outward);
+                helper.assertTrue(speedOut[0] > ARROW_SPEED * KEPT_SPEED, "An arrow coming out of the partner should "
+                        + "fly away from it with its speed kept, flies " + arrow.getDeltaMovement());
+            }
+            if (cameOutAt[0] >= 0 && helper.getTick() >= cameOutAt[0] + STEP) {
+                helper.assertTrue(pastTheExit(arrow, exit), "An arrow out of the partner should stay out past it, "
+                        + "stands " + exit.gate().out(arrow.getBoundingBox().getCenter()) + " out of it");
+                arrow.discard();
+                level.getServer().getPlayerList().remove(owner);
+                helper.succeed();
+            }
+        });
+    }
+
+    /** Whether an arrow stands out past a frame's face, in front of its oval. */
+    private static boolean pastTheExit(Arrow arrow, Portal exit) {
+        Vec3 middle = arrow.getBoundingBox().getCenter();
+        Vec3 onTheFace = middle.subtract(exit.gate().face().getUnitVec3().scale(exit.gate().out(middle)));
+        return exit.gate().out(middle) > 0 && exit.gate().withinOval(onTheFace);
     }
 
     private static final String THROW_LANDS_THROUGH_A_LINKED_PAIR = "portal_throw_lands_through_a_linked_pair";
