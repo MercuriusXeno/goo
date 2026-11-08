@@ -59,7 +59,7 @@ public class Goo {
     }
 
     /**
-     * Registers data component, potion, particle, and creative tab registries.
+     * Registers data component, particle, and creative tab registries.
      *
      * @param modEventBus the mod event bus to register on
      */
@@ -68,7 +68,6 @@ public class Goo {
         GooAttachments.ATTACHMENT_TYPES.register(modEventBus);
         GooMenus.MENUS.register(modEventBus);
         GooMobEffects.register(modEventBus);
-        GooPotions.register(modEventBus);
         GooParticles.PARTICLE_TYPES.register(modEventBus);
         GooSounds.SOUND_EVENTS.register(modEventBus);
         GooCreativeTabs.TABS.register(modEventBus);

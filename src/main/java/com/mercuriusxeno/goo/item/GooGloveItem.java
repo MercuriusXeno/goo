@@ -37,8 +37,8 @@ import org.jspecify.annotations.Nullable;
  * Goo glove held in main/offhand. The glove menu key, G by default, opens
  * the radial to change selection while held and selects on release.
  * Right-click throws the selected goo type on the press, resolved on the
- * client off the use key. With a self + brew ability selected, one wearing
- * the brew badge on a self delivery, the glove is eaten:
+ * client off the use key. With a durative ability selected, one wearing
+ * the durative badge on a self delivery, the glove is eaten:
  * it reports the eat animation and vanilla's eat duration, plays the eat
  * sounds and crumbs while used, and runs the ability when the eat finishes
  * on the server.
@@ -175,7 +175,7 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * The eat animation while a self + brew ability is selected, none
+     * The eat animation while a durative ability is selected, none
      * otherwise. No level reaches this read, so the route comes from the
      * client's synced abilities; the server reports none and reads nothing
      * from it.
@@ -191,7 +191,7 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * Vanilla's eat duration while a self + brew ability is selected, zero
+     * Vanilla's eat duration while a durative ability is selected, zero
      * otherwise.
      * decision self-brew-goos-eat-before-the-effect
      *
@@ -206,7 +206,7 @@ public class GooGloveItem extends Item {
 
     /**
      * Plays the eat sounds and crumbs on vanilla's cadence while a self +
-     * brew ability is eaten.
+     * durative ability is eaten.
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param level          the world
@@ -224,7 +224,7 @@ public class GooGloveItem extends Item {
 
     /**
      * Finishes the eat: the last crumbs and sound on both sides, and on the
-     * server the selected self + brew ability drains and runs.
+     * server the selected durative ability drains and runs.
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param stack the glove stack
@@ -264,7 +264,7 @@ public class GooGloveItem extends Item {
      *
      * @param stack the glove stack
      * @param level the world
-     * @return true for a selected ability wearing the brew badge on a self delivery
+     * @return true for a selected ability wearing the durative badge on a self delivery
      */
     private static boolean selectionEats(ItemStack stack, Level level) {
         GloveSelection selection = getSelection(stack);

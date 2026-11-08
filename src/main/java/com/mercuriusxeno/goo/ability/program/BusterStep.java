@@ -12,8 +12,7 @@ import java.util.stream.Stream;
  * effect stands, each melee hit the player lands strikes every living thing
  * within the radius of the struck one, and each block the player breaks
  * breaks the 3x3x3 around it no harder than itself. Cast from the glove it
- * stands on the unstable upkeep until ended; drunk as a brew it stands for
- * the brew's hour, and the held effect's end clears it.
+ * stands on the unstable upkeep until ended, and the held effect's end clears it.
  * buster-makes-tools-and-attacks-aoe
  *
  * @param radius how far from the struck entity, in blocks, a hit's blast reaches

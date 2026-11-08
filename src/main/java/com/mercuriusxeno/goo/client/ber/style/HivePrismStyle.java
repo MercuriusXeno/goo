@@ -10,7 +10,7 @@ import net.minecraft.util.ARGB;
 
 /**
  * Nether's hive combo: the prism's quartz column, tinted the maroon of the
- * decaying swarm that crystallized into it; the swarm around it is
+ * decaying swarm that set into it; the swarm around it is
  * {@link HiveSwarm}'s (decision hive-prism-pillar-eats-the-living).
  */
 public final class HivePrismStyle implements PrismComboStyle {

@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The eat route is decided by badge and delivery kind alone: every shipped
- * ability wearing the brew badge on a self delivery eats and no other does,
+ * ability wearing the durative badge on a self delivery eats and no other does,
  * a made-up brew ability eats with no further change, a self-badged self
  * ability runs on command, the glove reports the eat animation and
  * vanilla's eat duration only for an eaten ability, and the finish runs the
@@ -31,7 +31,7 @@ class SelfEatRouteTest {
 
     private static AbilityDefinition madeUpBrewAbility() {
         return new AbilityDefinition(MADE_UP, GooTypes.LEAF, MADE_UP.toString(), "", 0, A_COST,
-                SELF, List.of(), List.of(), AbilityBadge.BREW, List.of());
+                SELF, List.of(), List.of(), AbilityBadge.DURATIVE, List.of());
     }
 
     @Nested
@@ -44,7 +44,7 @@ class SelfEatRouteTest {
             for (Path file : files) {
                 AbilityDefinition ability = AbilityJson.decode(file);
                 boolean brewOnSelf = ability.delivery().kind() == DeliveryKind.SELF
-                        && ability.badge() == AbilityBadge.BREW;
+                        && ability.badge() == AbilityBadge.DURATIVE;
                 assertEquals(brewOnSelf, SelfEatRoute.eats(ability.delivery(), ability.badge()),
                         ability.id() + " should eat exactly when it wears brew on a self delivery");
             }
@@ -77,7 +77,7 @@ class SelfEatRouteTest {
         @ParameterizedTest
         @EnumSource(value = DeliveryKind.class, names = "SELF", mode = EnumSource.Mode.EXCLUDE)
         void aBrewBadgeOnAnyOtherDeliveryEatsNothing(DeliveryKind kind) {
-            assertFalse(SelfEatRoute.eats(Delivery.of(kind), AbilityBadge.BREW));
+            assertFalse(SelfEatRoute.eats(Delivery.of(kind), AbilityBadge.DURATIVE));
         }
 
         @Test
@@ -86,18 +86,18 @@ class SelfEatRouteTest {
         }
     }
 
-    /** An invoke of a held self + brew ability ends it rather than eating (decision self-effects-trickle-until-ended). */
+    /** An invoke of a held durative ability ends it rather than eating (decision self-effects-trickle-until-ended). */
     @Nested
     class EndHeld {
 
         @Test
         void aHeldBrewTakesTheEndRoute() {
-            assertTrue(SelfEatRoute.endsHeld(SELF, AbilityBadge.BREW, true));
+            assertTrue(SelfEatRoute.endsHeld(SELF, AbilityBadge.DURATIVE, true));
         }
 
         @Test
         void aBrewNotHeldEats() {
-            assertFalse(SelfEatRoute.endsHeld(SELF, AbilityBadge.BREW, false));
+            assertFalse(SelfEatRoute.endsHeld(SELF, AbilityBadge.DURATIVE, false));
         }
 
         @Test
@@ -112,7 +112,7 @@ class SelfEatRouteTest {
 
         @Test
         void anEatenAbilityReportsTheEatForVanillasDuration() {
-            boolean eats = SelfEatRoute.eats(SELF, AbilityBadge.BREW);
+            boolean eats = SelfEatRoute.eats(SELF, AbilityBadge.DURATIVE);
 
             assertEquals(ItemUseAnimation.EAT, SelfEatRoute.animation(eats));
             assertEquals(SelfEatRoute.EAT_TICKS, SelfEatRoute.useDuration(eats));

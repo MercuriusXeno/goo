@@ -5,7 +5,7 @@ import net.minecraft.resources.Identifier;
 
 /**
  * The texture an ability's icon draws from, which the radial, the crosshair panel and the
- * ability's brew effect all draw: the icon the JSON names, else the convention path.
+ * ability's held effect all draw: the icon the JSON names, else the convention path.
  * decision every-brew-effect-draws-its-abilitys-icon
  */
 public final class AbilityIconTexture {

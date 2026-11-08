@@ -8,7 +8,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
 /**
- * The flight a player holds under Float, typhoon's brew, until the game time
+ * The flight a player holds under Float, typhoon's held effect, until the game time
  * it ends at: the speed it flies along its look and strafes at, the speed jump
  * and sneak climb and descend at, the share of the way its velocity turns
  * toward the input each tick, the slowed fall, how much higher it jumps, and

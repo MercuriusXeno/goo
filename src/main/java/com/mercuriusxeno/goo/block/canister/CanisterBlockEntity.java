@@ -175,13 +175,13 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     /**
-     * The slot centers this canister block lays its canisters out at: the
-     * attachable machine's below it, else the fixed grid.
+     * The slot centers this canister block lays its canisters out at: the fixed grid,
+     * wherever it stands.
      *
      * @return pixel centers per slot
      */
     public float[][] slotCenters() {
-        return level == null ? CanisterSlotLayout.SLOT_CENTERS : CanisterSlotLayout.centersAt(level, worldPosition);
+        return CanisterSlotLayout.SLOT_CENTERS;
     }
 
     /**

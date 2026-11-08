@@ -69,16 +69,4 @@ public record Sight(float factor, long expiresAt) {
         return new Sight(castFactor, NEVER_EXPIRES);
     }
 
-    /**
-     * A drunk brew: the sight stands for the brew's duration, or as long as
-     * it already stood where that is longer.
-     *
-     * @param brewFactor the brew's range factor
-     * @param ticks      the brew's duration
-     * @param gameTime   the game time of the drink
-     * @return the sight after the drink
-     */
-    public Sight brew(float brewFactor, int ticks, long gameTime) {
-        return new Sight(brewFactor, Math.max(expiresAt, gameTime + ticks));
-    }
 }

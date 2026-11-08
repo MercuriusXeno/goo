@@ -4,14 +4,12 @@ import com.mercuriusxeno.goo.ability.xeno.Eldritch;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.world.entity.LivingEntity;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
  * Makes the host's target eldritch and finishes. Cast from the glove the
- * state stands as a held effect until ended; drunk as a brew it stands for
- * the brew's hour.
+ * state stands as a held effect until ended.
  * eldritch-sight-reveals-the-out-of-phase
  */
 public record EldritchStep() implements Step {
@@ -38,10 +36,7 @@ public record EldritchStep() implements Step {
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
         Eldritch standing = target.getData(GooAttachments.ELDRITCH);
-        OptionalInt brew = host.brewDuration();
-        target.setData(GooAttachments.ELDRITCH, brew.isPresent()
-                ? standing.brew(brew.getAsInt(), target.level().getGameTime())
-                : standing.hold());
+        target.setData(GooAttachments.ELDRITCH, standing.hold());
         return true;
     }
 
