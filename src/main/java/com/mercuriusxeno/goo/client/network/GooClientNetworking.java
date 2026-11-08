@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
+import com.mercuriusxeno.goo.client.ability.ClientGateCarry;
 import com.mercuriusxeno.goo.client.ability.ClientHoles;
 import com.mercuriusxeno.goo.client.ability.ClientPortals;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
@@ -25,6 +26,7 @@ import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.DrinkPayload;
+import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
@@ -90,6 +92,7 @@ public final class GooClientNetworking {
         event.register(WorkbenchReplyPayload.TYPE, ValuesManagerHandlers::handleReply);
         event.register(PortalsSyncPayload.TYPE, ClientPortals::handle);
         event.register(HolesSyncPayload.TYPE, ClientHoles::handle);
+        event.register(GateCarriedPayload.TYPE, ClientGateCarry::handle);
         event.register(PartnerChunkPayload.TYPE, PartnerView::handle);
         event.register(PartnerChunksDropPayload.TYPE, PartnerView::handleDrop);
         event.register(PocketContentsPayload.TYPE, PocketScreens::handleContents);
