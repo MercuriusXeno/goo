@@ -1,9 +1,9 @@
 #version 330
 
-// Broil's heat wave: the view ripples like air over a fire, strongest at
-// the crosshair the cone runs along and fading toward the screen's edge,
-// with a faint warm cast where it is strongest.
-// decision broil-heat-wave-ring-cooks-ahead
+// Flames' heat wave: the view shimmers like air over a fire inside a small
+// box around the point the flame reaches, strongest at its center and gone
+// at its edge, with a faint warm cast where it is strongest.
+// decision heat-wave-shrinks-to-a-local-shimmer
 
 uniform sampler2D InSampler;
 
@@ -15,27 +15,33 @@ layout(std140) uniform SamplerInfo {
 };
 
 layout(std140) uniform HeatConfig {
-    // (seconds, strength, reachUv, aspect): strength 0 passes the view through
+    // (seconds, strength, unused, unused): strength 0 passes the view through
     vec4 HeatParams;
+    // (centerU, centerV, halfWidthUv, halfHeightUv): the box the shimmer fills
+    vec4 HeatRegion;
 };
 
 out vec4 fragColor;
 
 const vec3 WARM = vec3(1.0, 0.45, 0.1);
 const float WARM_SHARE = 0.08;
+// how far into the box, from its center, the shimmer holds full before fading
+const float FULL_INSIDE = 0.35;
 
 void main() {
     float seconds = HeatParams.x;
     float strength = HeatParams.y;
-    float reach = HeatParams.z;
-    float aspect = HeatParams.w;
-    if (strength <= 0.0) {
+    vec2 halfSize = HeatRegion.zw;
+    if (strength <= 0.0 || halfSize.x <= 0.0 || halfSize.y <= 0.0) {
         fragColor = texture(InSampler, texCoord);
         return;
     }
-    vec2 fromCenter = texCoord - vec2(0.5);
-    float dist = length(vec2(fromCenter.x * aspect, fromCenter.y));
-    float mask = 1.0 - smoothstep(0.0, reach, dist);
+    float dist = length((texCoord - HeatRegion.xy) / halfSize);
+    if (dist >= 1.0) {
+        fragColor = texture(InSampler, texCoord);
+        return;
+    }
+    float mask = 1.0 - smoothstep(FULL_INSIDE, 1.0, dist);
 
     // two rising bands of waves crossing, so the ripple never reads as one sine
     vec2 ripple = vec2(
