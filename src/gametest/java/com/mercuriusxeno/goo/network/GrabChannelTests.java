@@ -3,6 +3,12 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Blocks;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -70,6 +76,8 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabHoldsTheSentPigOffTheLook);
         GooTestFunctions.registerTest(registrar, GRAB_REFUSES_A_SENT_PLAYER, GrabChannelTests::grabRefusesASentPlayer);
         GooTestFunctions.registerTest(registrar, GRAB_REFUSES_A_SENT_BOSS, GrabChannelTests::grabRefusesASentBoss);
+        GooTestFunctions.registerTest(registrar, GRAB_DRAWS_A_PIG_BACK_THROUGH_A_PORTAL,
+                GrabChannelTests::grabDrawsAPigBackThroughAPortal);
     }
 
 
@@ -329,6 +337,54 @@ public final class GrabChannelTests {
         WitherBoss wither = helper.spawn(EntityType.WITHER, OFF_THE_LOOK_POS);
         wither.setNoAi(true);
         refusesTheSent(helper, player, wither, wither::discard);
+    }
+
+    private static final String GRAB_DRAWS_A_PIG_BACK_THROUGH_A_PORTAL = "grab_draws_a_pig_back_through_a_portal";
+    /** The wall between the player and the pig, its west face the plane x 6. */
+    private static final int WALL_X = 6;
+    /** The near portal's lower block, on the wall's west face before the player. */
+    private static final BlockPos NEAR_PORTAL = new BlockPos(WALL_X, 1, 2);
+    /** The far portal's lower block, on the wall's east face two blocks north. */
+    private static final BlockPos FAR_PORTAL = new BlockPos(WALL_X, 1, 0);
+    /** The pig, east of the wall before the far portal, walled off from the player's eye. */
+    private static final BlockPos PAST_THE_WALL = new BlockPos(WALL_X + 2, 1, 0);
+    /** Channel ticks enough to draw the pig to the far portal, through it, and in. */
+    private static final int THROUGH_TICKS = 10;
+
+    /**
+     * A pig behind a wall, sent as the target through a linked pair whose
+     * near portal the player faces, is drawn back through the pair to hang on
+     * the player's side, rather than dragged at the wall between
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabDrawsAPigBackThroughAPortal(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        for (int z = -1; z <= 3; z++) {
+            for (int y = 1; y <= 3; y++) {
+                helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.STONE);
+            }
+        }
+        ServerLevel level = helper.getLevel();
+        Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PORTAL)), Direction.WEST,
+                Direction.UP);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
+                Direction.UP);
+        PortalChoice.place(level, player.getUUID(), near);
+        PortalChoice.place(level, player.getUUID(), far);
+        Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
+        holdFor(helper, player, pig, THROUGH_TICKS);
+        helper.runAfterDelay(THROUGH_TICKS + 1, () -> {
+            helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig behind the wall should be held through the "
+                    + "pair, held " + GrabEvents.heldBy(player));
+            helper.assertTrue(pig.getX() < helper.absolutePos(NEAR_PORTAL).getX(), "The pig should be drawn back "
+                    + "through the pair to the player's side of the wall, stands at " + helper.relativeVec(pig.position())
+                    );
+            PortalChoice.breakAt(level, near.block().pos(), near.face());
+            PortalChoice.breakAt(level, far.block().pos(), far.face());
+            leave(helper, player);
+        });
     }
 
     private static void refusesTheSent(GameTestHelper helper, ServerPlayer player, Entity sent, Runnable cleanUp) {

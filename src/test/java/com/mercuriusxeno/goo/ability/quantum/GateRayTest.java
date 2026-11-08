@@ -73,6 +73,34 @@ class GateRayTest {
                 OVERWORLD, from, to), "A ray into a gate that stands in no pair, an inert portal, should stop there");
     }
 
+    /**
+     * A held body on a pair's far side reaches the holder through the pair:
+     * it heads for the middle of the far gate's opening, past its face, so it
+     * fits through and the pair carries it out to the holder's side
+     * (decision aim-and-shots-carry-through-linked-gates).
+     */
+    @Test
+    void aBodyPastAPairHeadsThroughTheMiddleOfItsOpening() {
+        Vec3 held = new Vec3(0.5, 1.5, 7.0);
+        Vec3 holdPoint = new Vec3(0.5, 1.5, -3.0);
+        GateRay.Route route = GateRay.shortestRoute(List.of(new GatePassage.Pair(NEAR, FAR)), held, holdPoint)
+                .orElseThrow(() -> new AssertionError("A body before the far gate should reach the hold point through "
+                        + "the pair"));
+        assertEquals(FAR, route.in(), "The body should go into the gate on its own side");
+        Vec3 heading = route.headFor();
+        assertTrue(FAR.out(heading) < 0, "The body should head past the far gate's face, heads for " + heading);
+        assertTrue(FAR.withinOval(heading.add(FAR.face().getUnitVec3().scale(-FAR.out(heading)))),
+                "The body should head through the middle of the gate's opening, heads for " + heading);
+        assertEquals(held.distanceTo(FAR.center()) + NEAR.center().distanceTo(holdPoint), route.length(), CLOSE,
+                "The way should measure both legs");
+    }
+
+    @Test
+    void noPairNoRoute() {
+        assertEquals(Optional.empty(), GateRay.shortestRoute(List.of(), new Vec3(0.5, 1.5, 7.0),
+                new Vec3(0.5, 1.5, -3.0)), "With no pair there should be no way through one");
+    }
+
     private static void assertContinues(GateRay.Crossing crossing, Gate near, Gate far, Vec3 facePoint, Vec3 from,
             Vec3 to) {
         assertEquals(near, crossing.near(), "the gate the ray went into");

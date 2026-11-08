@@ -18,6 +18,9 @@ import java.util.OptionalDouble;
  */
 public final class GateRay {
 
+    /** How far past a gate's face a body heading through it aims, so it crosses the face. */
+    private static final double PAST_THE_FACE = 1.0;
+
     private GateRay() {
     }
 
@@ -56,6 +59,51 @@ public final class GateRay {
             }
         }
         return nearest;
+    }
+
+    /**
+     * A way from one point to another through a linked pair.
+     *
+     * @param in     the gate the way goes into, before the start
+     * @param out    its partner the way comes out of, before the end
+     * @param length the way's length, start to the gate's face and the partner's face to the end
+     */
+    public record Route(Gate in, Gate out, double length) {
+
+        /**
+         * Where to head from the start to go through the pair: the middle of
+         * the gate's opening, a block past its face, so a body fits through
+         * the opening whatever height it was drawn at, crosses the face, and
+         * the pair carries it out of its partner toward the end.
+         *
+         * @return the point to head for, on the start's side of the pair
+         */
+        public Vec3 headFor() {
+            return in.center().subtract(in.face().getUnitVec3().scale(PAST_THE_FACE));
+        }
+    }
+
+    /**
+     * The shortest way from one point to another through a linked pair.
+     *
+     * @param pairs the linked pairs
+     * @param from  the start
+     * @param to    the end
+     * @return the way, empty where no pair stands before both
+     */
+    public static Optional<Route> shortestRoute(List<GatePassage.Pair> pairs, Vec3 from, Vec3 to) {
+        Optional<Route> shortest = Optional.empty();
+        for (GatePassage.Pair pair : pairs) {
+            for (GatePassage.Pair way : List.of(pair, new GatePassage.Pair(pair.other(), pair.one()))) {
+                if (way.one().out(from) > 0 && way.other().out(to) > 0) {
+                    double length = from.distanceTo(way.one().center()) + way.other().center().distanceTo(to);
+                    if (shortest.isEmpty() || length < shortest.get().length()) {
+                        shortest = Optional.of(new Route(way.one(), way.other(), length));
+                    }
+                }
+            }
+        }
+        return shortest;
     }
 
     /**
