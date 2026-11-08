@@ -78,6 +78,8 @@ public final class GrabChannelTests {
         GooTestFunctions.registerTest(registrar, GRAB_REFUSES_A_SENT_BOSS, GrabChannelTests::grabRefusesASentBoss);
         GooTestFunctions.registerTest(registrar, GRAB_DRAWS_A_PIG_BACK_THROUGH_A_PORTAL,
                 GrabChannelTests::grabDrawsAPigBackThroughAPortal);
+        GooTestFunctions.registerTest(registrar, GRAB_DRAWS_THROUGH_A_PORTAL_IN_STEADY_STEPS,
+                GrabChannelTests::grabDrawsThroughAPortalInSteadySteps);
     }
 
 
@@ -381,6 +383,64 @@ public final class GrabChannelTests {
             helper.assertTrue(pig.getX() < helper.absolutePos(NEAR_PORTAL).getX(), "The pig should be drawn back "
                     + "through the pair to the player's side of the wall, stands at " + helper.relativeVec(pig.position())
                     );
+            PortalChoice.breakAt(level, near.block().pos(), near.face());
+            PortalChoice.breakAt(level, far.block().pos(), far.face());
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_DRAWS_THROUGH_A_PORTAL_IN_STEADY_STEPS =
+            "grab_draws_through_a_portal_in_steady_steps";
+    /** The farthest a drawn body moves in one tick on its way to a portal: Grab's pull speed, with slack. */
+    private static final double STEADY_STEP = 1.05;
+
+    /**
+     * A pig drawn back through a pair moves to the far portal in steps no
+     * longer than Grab's pull speed, carrying that motion, rather than one
+     * jump the client never shows arriving, so it is seen to slide into the
+     * portal and on out of its partner
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabDrawsThroughAPortalInSteadySteps(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        for (int z = -1; z <= 3; z++) {
+            for (int y = 1; y <= 3; y++) {
+                helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.STONE);
+            }
+        }
+        ServerLevel level = helper.getLevel();
+        Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PORTAL)), Direction.WEST,
+                Direction.UP);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
+                Direction.UP);
+        PortalChoice.place(level, player.getUUID(), near);
+        PortalChoice.place(level, player.getUUID(), far);
+        Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
+        double wall = helper.absolutePos(NEAR_PORTAL).getX();
+        java.util.List<Vec3> path = new java.util.ArrayList<>();
+        path.add(pig.position());
+        for (int held = 1; held <= THROUGH_TICKS; held++) {
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(player, holdTick(player, pig));
+                path.add(pig.position());
+            });
+        }
+        helper.runAfterDelay(THROUGH_TICKS + 1, () -> {
+            // The far portal's face is the wall's east face; a body east of it has yet to go through.
+            double farFace = wall + 1;
+            long beforeThePortal = path.stream().filter(feet -> feet.x() > farFace).count();
+            helper.assertTrue(beforeThePortal > 1, "The pig should be seen drawn toward the portal over more than "
+                    + "one tick, not jumped into it, along " + path.stream().map(helper::relativeVec).toList());
+            for (int at = 1; at < path.size(); at++) {
+                double step = path.get(at).distanceTo(path.get(at - 1));
+                helper.assertTrue(path.get(at).x() <= farFace || step <= STEADY_STEP,
+                        "On its way to the portal the pig should move in steady steps, moved " + step + " on tick "
+                                + at + " along " + path.stream().map(helper::relativeVec).toList());
+            }
+            helper.assertTrue(pig.getX() < wall, "The pig should come through to the player's side, stands at "
+                    + helper.relativeVec(pig.position()));
             PortalChoice.breakAt(level, near.block().pos(), near.face());
             PortalChoice.breakAt(level, far.block().pos(), far.face());
             leave(helper, player);
