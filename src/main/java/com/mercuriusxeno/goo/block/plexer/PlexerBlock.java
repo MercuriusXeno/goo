@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.block.CutawayShapeHelper;
 import com.mercuriusxeno.goo.block.FacingRedstoneMachineBlock;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.CanisterPlacementResolver;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -12,6 +13,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -114,9 +116,11 @@ public class PlexerBlock extends FacingRedstoneMachineBlock {
     }
 
     /**
-     * A right-click with an item in hand opens the known items menu, unless a held canister's own
-     * use takes the click to place itself beside the cutaway.
+     * A right-click with an item in hand opens the known items menu, unless a held canister places
+     * itself: the block asks the placement resolver the canister's use and the green preview ask, so
+     * the lines and the click agree.
      * decision right-click-on-the-plexer-opens-the-known-items-menu
+     * decision canister-placement-wins-over-the-menu
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -133,7 +137,8 @@ public class PlexerBlock extends FacingRedstoneMachineBlock {
             @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
         boolean canister = stack.getItem() instanceof CanisterItem;
         PlexerClickRule.Held held = canister ? PlexerClickRule.Held.CANISTER : PlexerClickRule.Held.ITEM;
-        boolean canisterTakesClick = canister && !CutawayInteractionHelper.isCutawayClick(state, pos, hitResult);
+        boolean canisterTakesClick = canister && CanisterPlacementResolver.resolve(
+                new BlockPlaceContext(player, hand, stack, hitResult), player.isSecondaryUseActive()) != null;
         if (PlexerClickRule.resolve(held, canisterTakesClick) == PlexerClickRule.Click.PASS) {
             return InteractionResult.PASS;
         }

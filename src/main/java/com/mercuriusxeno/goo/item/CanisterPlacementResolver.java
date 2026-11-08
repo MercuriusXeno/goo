@@ -109,7 +109,7 @@ public final class CanisterPlacementResolver {
         if (aimed instanceof ICanisterHolder holder && holder.takesCanisterAt(hit, false)) {
             return true;
         }
-        if (aimed instanceof ICutawayMachine machine && machine.isCutawayHit(hit)) {
+        if (aimed instanceof ICutawayMachine machine && machine.cutawayTakesClicks() && machine.isCutawayHit(hit)) {
             return true;
         }
         return aimed instanceof ICanisterClickTaker taker && taker.takesCanisterClick(canister);
