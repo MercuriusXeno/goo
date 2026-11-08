@@ -144,6 +144,21 @@ public final class BlockTransforms {
     }
 
     /**
+     * Whether the client keeps a melting cell's swap past a block state the
+     * server verified there: it does when that state is only the block the
+     * cell was, which vanilla resends after every use packet aimed at or
+     * beside the cell, and lets any other state through.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param pos      the block
+     * @param verified the state the server sent for it
+     * @return true to drop the server's state and keep the melt drawn
+     */
+    public boolean keepsMelt(BlockPos pos, BlockState verified) {
+        return meltingFrom.get(pos) == verified;
+    }
+
+    /**
      * The block a position draws as standing: the block it was for one
      * melting away, whose cell the client has already swapped, or the
      * client's block there.
