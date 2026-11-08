@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
 import com.mercuriusxeno.goo.ability.quantum.Wormhole;
-import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -152,20 +151,13 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Calls a meteor down on the cell's center when the sky above the cell
-     * is clear, fizzling there otherwise; a throw at a roofed target was
-     * refused before it was paid for, so this fizzle meets a blob that
-     * landed somewhere other than it was aimed.
-     * decision meteo-needs-a-clear-sky
+     * Calls a meteor down toward the cell's center, crashing into whatever
+     * stands above it.
+     * decision meteo-crashes-through-whatever-is-above
      */
     @Override
-    public boolean callMeteor(float power, int fallTicks) {
-        if (!MeteorSky.clearAbove(level, cell)) {
-            MeteorSky.fizzle(level, cell);
-            return false;
-        }
+    public void callMeteor(float power, int fallTicks) {
         Meteor.call(level, Vec3.atCenterOf(cell), power, fallTicks);
-        return true;
     }
 
     /**
