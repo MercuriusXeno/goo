@@ -10,6 +10,8 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import org.junit.jupiter.api.Test;
@@ -49,7 +51,17 @@ class AbilitySyncPayloadTest {
     @ParameterizedTest
     @MethodSource("shippedGloveAbilities")
     void costRoundTripsThroughTheSyncCodec(AbilityDefinition definition) {
-        assertEquals(definition.cost(), roundTrip(definition).cost(), definition.id().toString());
+        assertEquals(definition.cost().in(GooValueTable.EMPTY), roundTrip(definition).cost().in(GooValueTable.EMPTY),
+                definition.id().toString());
+    }
+
+    /** A cost of 12 1/2 reaches the client whole, never rounded (decision goo-is-an-int-and-only-the-remainder-is-a-fraction). */
+    @Test
+    void aFractionalCostReachesTheClientExact() {
+        String json = AbilityJson.read("crystal_knives").replaceFirst("\"cost\": \\d+", "\"cost\": 12.5");
+        AbilityDefinition definition = AbilityJson.decodeText("crystal_knives", json);
+
+        assertEquals(GooFraction.of(25, 2), roundTrip(definition).cost().exactIn(GooValueTable.EMPTY));
     }
 
     /** The sync codec carries each badge kind to the client unchanged (decision badge-marks-the-target-kind). */

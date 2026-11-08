@@ -166,7 +166,7 @@ public final class IcebornEvents {
 
     /**
      * Thaws every frozen heart at once and ends Iceborn: the held effect
-     * ends, which clears its hearts, and a drunk brew's effect goes with it.
+     * ends, which clears its hearts, and its held effect goes with it.
      *
      * @param player the player fire reached
      */
@@ -175,7 +175,7 @@ public final class IcebornEvents {
         if (HeldEffectsEvents.holds(player, ICEBORN)) {
             HeldEffectsEvents.end(player, ICEBORN);
         }
-        player.removeEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.FROST));
+        player.removeEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.FROST));
     }
 
     /**

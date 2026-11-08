@@ -14,7 +14,11 @@ import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
+import com.mercuriusxeno.goo.ability.zone.ShifterEvents;
 import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -33,16 +37,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Holds a player's self + brew effects on the server: starts one when the
- * glove's eat finishes or a brew is drunk, ends one when the player invokes
- * it again, and each tick draws every glove effect's upkeep from the
- * inventory, ending one the inventory can no longer pay and a brew's at its
- * expiry. Ending an effect clears the state its program laid, and its goo
- * type's brew effect with it. While a glove effect stands, the type's brew
- * effect stands too, its time the ticks the player's goo pays for, so the
- * effect list shows the effect and how long it has left.
+ * Holds a player's durative effects on the server: starts one when the
+ * glove's eat finishes, ends one when the player invokes it again, and each
+ * tick draws every effect's upkeep from the inventory, ending one the
+ * inventory can no longer pay. Ending an effect clears the state its program
+ * laid, and its goo type's held mob effect with it. While an effect stands,
+ * the type's held mob effect stands too, its time the ticks the player's goo
+ * pays for, so the effect list shows the effect and how long it has left.
  * self-effects-trickle-until-ended
- * brew-runs-the-crawl-prepaid-on-a-shown-clock
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class HeldEffectsEvents {
@@ -55,20 +57,8 @@ public final class HeldEffectsEvents {
     private static final boolean NOT_AMBIENT = false;
     private static final boolean NO_PARTICLES = false;
     private static final boolean SHOWS_ICON = true;
-    /** True while a glove effect's time is being laid, so the brew it lays is not taken for a drink. */
-    private static boolean mirroring;
 
     private HeldEffectsEvents() {
-    }
-
-    /**
-     * Answers whether a brew effect landing now is a glove effect's time,
-     * laid here, rather than a brew drunk.
-     *
-     * @return true while a glove effect's time is being laid
-     */
-    public static boolean mirroring() {
-        return mirroring;
     }
 
     /**
@@ -79,33 +69,26 @@ public final class HeldEffectsEvents {
      *
      * @param player  the player
      * @param gooType the goo type its upkeep draws
-     * @param ability the self + brew ability
+     * @param ability the durative ability
      */
     public static void start(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
-        HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, ability.upkeep(),
-                LaidState.laidBy(ability.behaviors()), player.level().getGameTime(), HeldEffects.NEVER_EXPIRES,
-                downSoundOf(ability));
+        HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, upkeepOf(player, ability),
+                LaidState.laidBy(ability.behaviors()), player.level().getGameTime(), downSoundOf(ability));
         apply(player, player.getData(GooAttachments.HELD_EFFECTS).start(started));
         showTimeLeft(player, player.getData(GooAttachments.HELD_EFFECTS));
     }
 
+
     /**
-     * Starts a drunk brew's effect prepaid: the same held effect the glove
-     * starts, paying no upkeep and ending at the brew's expiry. The caller
-     * runs the program after, as for the glove.
-     * brew-runs-the-crawl-prepaid-on-a-shown-clock
+     * The upkeep a held effect stands on, its items priced in the server's goo values as it starts.
+     * ability-cost-builds-as-a-one-type-by-type-value
      *
-     * @param player   the drinking player
-     * @param gooType  the brew's goo type
-     * @param ability  the type's brew ability
-     * @param duration the brew's duration in ticks
+     * @param player  the player
+     * @param ability the durative ability
+     * @return the exact upkeep in mB a tick
      */
-    public static void startPrepaid(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-                                    AbilityDefinition ability, int duration) {
-        long now = player.level().getGameTime();
-        HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, ability.upkeep(),
-                LaidState.laidBy(ability.behaviors()), now, now + duration, downSoundOf(ability));
-        apply(player, player.getData(GooAttachments.HELD_EFFECTS).start(started));
+    private static GooFraction upkeepOf(ServerPlayer player, AbilityDefinition ability) {
+        return ability.upkeep().exactIn(GooValues.of(player.level()));
     }
 
     /**
@@ -145,22 +128,26 @@ public final class HeldEffectsEvents {
         if (held.isEmpty()) {
             return;
         }
+        GooRemainders remainders = player.getData(GooAttachments.REMAINDERS);
         HeldEffects.Ticked ticked = held.tick(type -> GooSourceScanner.aggregateAvailable(player)
-                .getOrDefault(type, 0), player.level().getGameTime());
+                .getOrDefault(type, 0), remainders, player.level().getGameTime());
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> draw : ticked.drawn().entrySet()) {
             GooSourceScanner.deplete(player, draw.getKey(), draw.getValue());
+        }
+        // goo-is-an-int-and-only-the-remainder-is-a-fraction: a fractional upkeep banks its part under 1 mB
+        if (!ticked.remainders().equals(remainders)) {
+            player.setData(GooAttachments.REMAINDERS, ticked.remainders());
         }
         HeldEffects after = apply(player, new HeldEffects.Changed(ticked.after(), ticked.ended()));
         showTimeLeft(player, after);
     }
 
     /**
-     * Lays each glove effect's goo type's brew effect for the ticks the
+     * Lays each held effect's goo type's held mob effect for the ticks the
      * player's goo pays for, with its icon and no particles, so the effect
      * list shows it and its time left. The time counts down on its own as the
      * upkeep drains, and is laid again when spent or gained goo moves it more
      * than a second.
-     * brew-runs-the-crawl-prepaid-on-a-shown-clock
      *
      * @param player the player
      * @param held   the effects standing
@@ -169,22 +156,17 @@ public final class HeldEffectsEvents {
         Map<ResourceKey<GooTypeDefinition>, Integer> left = held.ticksLeft(type ->
                 GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0));
         left.forEach((type, ticks) -> {
-            Holder<MobEffect> brew = GooMobEffects.BREW_EFFECTS.get(type);
-            MobEffectInstance standing = player.getEffect(brew);
+            Holder<MobEffect> shownEffect = GooMobEffects.HELD_EFFECTS.get(type);
+            MobEffectInstance standing = player.getEffect(shownEffect);
             int shown = shownDuration(ticks);
             if (standing != null && (standing.getDuration() == shown
                     || shown != MobEffectInstance.INFINITE_DURATION
                     && Math.abs(standing.getDuration() - shown) <= RESYNC_TICKS)) {
                 return;
             }
-            mirroring = true;
-            try {
-                player.removeEffect(brew);
-                player.addEffect(new MobEffectInstance(brew, shown, NO_AMPLIFIER, NOT_AMBIENT, NO_PARTICLES,
-                        SHOWS_ICON));
-            } finally {
-                mirroring = false;
-            }
+            player.removeEffect(shownEffect);
+            player.addEffect(new MobEffectInstance(shownEffect, shown, NO_AMPLIFIER, NOT_AMBIENT, NO_PARTICLES,
+                    SHOWS_ICON));
         });
     }
 
@@ -234,8 +216,7 @@ public final class HeldEffectsEvents {
             clearBodyStates(player, effect.lays());
             clearMindStates(player, effect.lays());
             clearMotionStates(player, effect.lays());
-            // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
-            player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
+            player.removeEffect(GooMobEffects.HELD_EFFECTS.get(effect.gooType()));
         }
     }
 
@@ -291,7 +272,7 @@ public final class HeldEffectsEvents {
             player.setData(GooAttachments.AIRBORN, Airborn.NONE);
         }
         if (lays.contains(LaidState.RALLY)) {
-            // zoo-rally-holds-for-the-brew: every mob the drinker rallied stands down with the brew
+            // zoo-rally-holds-for-the-brew: every mob the player rallied stands down with the held effect
             RallyEvents.standDown(player);
         }
     }
@@ -321,6 +302,7 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.SHIFTER)) {
             // shifter-blinks-along-the-cursor-on-hit: the shifter ends with its held effect
             player.setData(GooAttachments.SHIFTER, Shifter.NONE);
+            ShifterEvents.clearShimmer(player);
         }
         if (lays.contains(LaidState.LUX)) {
             // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect

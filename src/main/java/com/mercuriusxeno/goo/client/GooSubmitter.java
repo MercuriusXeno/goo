@@ -25,6 +25,7 @@ import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.client.fluid.FluidTintSource;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -90,6 +91,31 @@ public final class GooSubmitter {
      */
     public static RenderType translucentOn(Identifier texture) {
         return RenderTypes.entityTranslucent(texture);
+    }
+
+    /**
+     * Returns the render type a living body draws with on its own texture,
+     * as LivingEntityRenderer picks it: translucent while visible,
+     * see-through for an invisible teammate, an outline alone for a glowing
+     * invisible body, and none for any other invisible one. The glove arm
+     * layer draws the cut glove arm with it, as the body around it draws
+     * (decision diagnose-and-correct-the-arm-through-the-glove).
+     *
+     * @param texture           the body's texture
+     * @param invisible         whether the body is invisible
+     * @param invisibleToPlayer whether the viewer cannot see through the invisibility
+     * @param glowing           whether the body glows
+     * @return the render type, or null where the body draws nothing
+     */
+    public static @Nullable RenderType livingBodyOn(Identifier texture, boolean invisible, boolean invisibleToPlayer,
+            boolean glowing) {
+        if (!invisible) {
+            return RenderTypes.entityTranslucent(texture);
+        }
+        if (!invisibleToPlayer) {
+            return RenderTypes.entityTranslucentCullItemTarget(texture);
+        }
+        return glowing ? RenderTypes.outline(texture) : null;
     }
 
     /**

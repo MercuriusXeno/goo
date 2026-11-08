@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -51,6 +52,7 @@ public final class FungalShiftTests {
 
 
     private static final Identifier FUNGAL_SHIFT = Identifier.parse("goo:shroom_fungal_shift");
+    private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
     /** The light bay's west edge, on its floor. */
     private static final BlockPos STAND_POS = new BlockPos(0, 0, 8);
     /** Fifteen blocks east of the player, within the shift's range of sixteen. */
@@ -98,7 +100,7 @@ public final class FungalShiftTests {
         int drained = heldBefore - held(player);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(standing.equals(helper.absolutePos(AIMED_POS)), String.format(SHOULD_STAND_ON, standing));
-        helper.assertTrue(drained == shift.cost(), String.format(SHOULD_DRAIN_COST, shift.cost(), drained));
+        helper.assertTrue(drained == shift.cost().in(GooValueTable.EMPTY), String.format(SHOULD_DRAIN_COST, shift.cost().in(GooValueTable.EMPTY), drained));
         helper.succeed();
     }
 
@@ -147,7 +149,7 @@ public final class FungalShiftTests {
     /**
      * A mushroom block seventy blocks straight up, past the shift's base
      * range of sixty-four: aimed at without sight the player stays put, and
-     * under the shroom brew's sight the player shifts onto it.
+     * under Sight held on the glove the player shifts onto it.
      *
      * @param helper the gametest helper
      */
@@ -160,7 +162,7 @@ public final class FungalShiftTests {
 
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
         double movedWithoutSight = player.position().distanceTo(before);
-        BrewEffectTests.drinkBrew(player, GooTypes.SHROOM);
+        HeartOverlayTests.invoke(player, GooTypes.SHROOM, SHROOM_SIGHT);
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
 
         BlockPos standing = player.blockPosition();
@@ -190,7 +192,7 @@ public final class FungalShiftTests {
 
     /**
      * A red mushroom stands behind a stone wall: aimed at without sight the
-     * player stays put, and under the shroom brew's sight the aim passes
+     * player stays put, and under Sight held on the glove the aim passes
      * through the wall and the player shifts onto it.
      *
      * @param helper the gametest helper
@@ -205,7 +207,7 @@ public final class FungalShiftTests {
 
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
         double movedWithoutSight = player.position().distanceTo(before);
-        BrewEffectTests.drinkBrew(player, GooTypes.SHROOM);
+        HeartOverlayTests.invoke(player, GooTypes.SHROOM, SHROOM_SIGHT);
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
 
         BlockPos standing = player.blockPosition();

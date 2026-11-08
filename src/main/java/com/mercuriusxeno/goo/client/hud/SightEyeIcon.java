@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.BrewEffectIcon;
+import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.client.overlay.FungusNearby;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.gui.Gui;
@@ -45,7 +45,7 @@ public final class SightEyeIcon implements IClientMobEffectExtensions {
     private static final List<Identifier> FRAMES = List.of(eye("eye_shut"), eye("eye_third"),
             eye("eye_two_thirds"), eye("eye_open"));
 
-    /** The shroom effect's icon, which BrewEffectIcons registers. */
+    /** The shroom effect's icon, which HeldEffectIcons registers. */
     SightEyeIcon() {
     }
 
@@ -82,16 +82,16 @@ public final class SightEyeIcon implements IClientMobEffectExtensions {
      * since the eye answers a fungus near the player in the world and the inventory hides it.
      * shroom-hud-eye-stays-and-its-inventory-icon-is-sights
      *
-     * @return Sight's icon texture, or null while no brew ability is synced for shroom
+     * @return Sight's icon texture, or null while no durative ability is synced for shroom
      */
     @Nullable Identifier inventoryIconTexture() {
-        return BrewEffectIcon.of(GooTypes.SHROOM);
+        return HeldEffectIcon.of(GooTypes.SHROOM);
     }
 
     @Override
     public boolean renderInventoryIcon(MobEffectInstance instance, AbstractContainerScreen<?> screen,
                                        GuiGraphicsExtractor graphics, int x, int y, int blitOffset) {
-        return BrewEffectIcons.drawInventoryIcon(graphics, inventoryIconTexture(), x, y);
+        return HeldEffectIcons.drawInventoryIcon(graphics, inventoryIconTexture(), x, y);
     }
 
     @Override

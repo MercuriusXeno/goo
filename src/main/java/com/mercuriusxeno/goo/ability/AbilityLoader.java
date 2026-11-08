@@ -37,8 +37,8 @@ public final class AbilityLoader
             Identifier.fromNamespaceAndPath(Goo.MODID, DIRECTORY);
 
     private static final String LOG_LOADED = "Loaded {} goo abilities";
-    private static final String LOG_LACKING_BREW = "Goo types with no self + brew ability yet: {}";
-    private static final String SECOND_BREW = "Goo type %s carries two self + brew abilities, %s and %s; it may carry one";
+    private static final String LOG_LACKING_DURATIVE = "Goo types with no durative ability yet: {}";
+    private static final String SECOND_DURATIVE = "Goo type %s carries two durative abilities, %s and %s; it may carry one";
 
     private static final FileToIdConverter LISTER = FileToIdConverter.json(DIRECTORY);
 
@@ -62,9 +62,9 @@ public final class AbilityLoader
     @Override
     protected void apply(Map<Identifier, AbilityDefinition> prepared,
                          ResourceManager manager, ProfilerFiller profiler) {
-        List<ResourceKey<GooTypeDefinition>> lacking = typesLackingABrew(prepared, GooTypes.BUNDLED);
+        List<ResourceKey<GooTypeDefinition>> lacking = typesLackingADurative(prepared, GooTypes.BUNDLED);
         if (!lacking.isEmpty() && Goo.LOGGER.isWarnEnabled()) {
-            Goo.LOGGER.warn(LOG_LACKING_BREW, lacking.stream().map(key -> key.identifier().toString()).toList());
+            Goo.LOGGER.warn(LOG_LACKING_DURATIVE, lacking.stream().map(key -> key.identifier().toString()).toList());
         }
         source.holdAbilityRegistry(new AbilityRegistry(prepared));
         if (Goo.LOGGER.isInfoEnabled()) {
@@ -73,29 +73,29 @@ public final class AbilityLoader
     }
 
     /**
-     * Holds each goo type to one self + brew ability: a type carrying a second
+     * Holds each goo type to one durative ability: a type carrying a second
      * fails the load naming both, and the types given that carry none are
-     * answered, so a load can name the types still lacking a brew.
+     * answered, so a load can name the types still lacking one.
      * decision every-type-ships-one-brew-ability
      *
      * @param abilities the loaded abilities
-     * @param types     the types expected to carry a brew
-     * @return the expected types carrying no brew ability, in the order given
-     * @throws ProgramLoadException when a type carries two brew abilities
+     * @param types     the types expected to carry a durative ability
+     * @return the expected types carrying no durative ability, in the order given
+     * @throws ProgramLoadException when a type carries two durative abilities
      */
-    static List<ResourceKey<GooTypeDefinition>> typesLackingABrew(Map<Identifier, AbilityDefinition> abilities,
+    static List<ResourceKey<GooTypeDefinition>> typesLackingADurative(Map<Identifier, AbilityDefinition> abilities,
                                                                   List<ResourceKey<GooTypeDefinition>> types) {
-        Map<ResourceKey<GooTypeDefinition>, Identifier> brewOf = new HashMap<>();
+        Map<ResourceKey<GooTypeDefinition>, Identifier> durativeOf = new HashMap<>();
         abilities.values().stream()
                 .filter(def -> SelfEatRoute.eats(def.delivery(), def.badge()))
                 .sorted(Comparator.comparing(AbilityDefinition::id))
                 .forEach(def -> {
-                    Identifier first = brewOf.putIfAbsent(def.gooType(), def.id());
+                    Identifier first = durativeOf.putIfAbsent(def.gooType(), def.id());
                     if (first != null) {
                         throw new ProgramLoadException(
-                                String.format(SECOND_BREW, def.gooType().identifier(), first, def.id()));
+                                String.format(SECOND_DURATIVE, def.gooType().identifier(), first, def.id()));
                     }
                 });
-        return types.stream().filter(type -> !brewOf.containsKey(type)).toList();
+        return types.stream().filter(type -> !durativeOf.containsKey(type)).toList();
     }
 }

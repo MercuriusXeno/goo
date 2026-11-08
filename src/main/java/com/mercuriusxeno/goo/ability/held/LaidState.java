@@ -60,7 +60,7 @@ public enum LaidState {
     ANCIENT,
     /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
     PHASE,
-    /** Zoo's Rally over the peaceful mobs around the drinker (decision zoo-rally-holds-for-the-brew). */
+    /** Zoo's Rally over the peaceful mobs around the holder (decision zoo-rally-holds-for-the-brew). */
     RALLY;
 
     /** Codec for the saved state. */

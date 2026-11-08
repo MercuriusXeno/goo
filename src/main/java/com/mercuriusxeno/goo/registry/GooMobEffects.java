@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.GooBrewEffect;
+import com.mercuriusxeno.goo.ability.GooHeldEffect;
 import com.mercuriusxeno.goo.ability.bio.BioToxinEffect;
 import com.mercuriusxeno.goo.ability.spray.MycosisEffect;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -17,10 +17,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Registers one brew effect per bundled goo type, the effect that type's
- * potion carries. Registration happens in {@link #register}, not at class
- * load, so the names read without a registry bootstrap.
- * decision brew-grants-the-self-ability-for-an-hour
+ * Registers one held effect per bundled goo type, the effect-list entry its
+ * durative ability shows while held. Registration happens in {@link #register},
+ * not at class load, so the names read without a registry bootstrap.
+ * self-effects-trickle-until-ended
  */
 public final class GooMobEffects {
 
@@ -29,11 +29,11 @@ public final class GooMobEffects {
     private static final Map<ResourceKey<GooTypeDefinition>, DeferredHolder<MobEffect, MobEffect>> REGISTERED =
             new LinkedHashMap<>();
     /**
-     * The brew effect of each bundled type, filled by {@link #register}.
+     * The held effect of each bundled type, filled by {@link #register}.
      */
-    public static final Map<ResourceKey<GooTypeDefinition>, DeferredHolder<MobEffect, MobEffect>> BREW_EFFECTS =
+    public static final Map<ResourceKey<GooTypeDefinition>, DeferredHolder<MobEffect, MobEffect>> HELD_EFFECTS =
             Collections.unmodifiableMap(REGISTERED);
-    private static final String BREW_SUFFIX = "_brew";
+    private static final String HELD_SUFFIX = "_held";
 
     /**
      * Goo's spore poison, which the undead take as readily as the living
@@ -53,35 +53,35 @@ public final class GooMobEffects {
     }
 
     /**
-     * Registers one brew effect per bundled type and subscribes the deferred
-     * register to the mod event bus. Called once from Goo, before GooPotions.
+     * Registers one held effect per bundled type and subscribes the deferred
+     * register to the mod event bus. Called once from Goo.
      *
      * @param modEventBus the mod event bus
      */
     public static void register(IEventBus modEventBus) {
         for (ResourceKey<GooTypeDefinition> key : GooTypes.BUNDLED) {
-            REGISTERED.put(key, MOB_EFFECTS.register(brewEffectName(key), () -> brewEffectOf(key)));
+            REGISTERED.put(key, MOB_EFFECTS.register(heldEffectName(key), () -> heldEffectOf(key)));
         }
         MOB_EFFECTS.register(modEventBus);
     }
 
     /**
-     * A type's brew effect.
+     * A type's held effect.
      *
      * @param key the bundled type's key
      * @return the effect
      */
-    static MobEffect brewEffectOf(ResourceKey<GooTypeDefinition> key) {
-        return new GooBrewEffect(key);
+    static MobEffect heldEffectOf(ResourceKey<GooTypeDefinition> key) {
+        return new GooHeldEffect(key);
     }
 
     /**
-     * The brew effect's registry path: the type id and the brew suffix.
+     * The held effect's registry path: the type id and the held suffix.
      *
      * @param key the bundled type's key
      * @return the effect path
      */
-    public static String brewEffectName(ResourceKey<GooTypeDefinition> key) {
-        return key.identifier().getPath() + BREW_SUFFIX;
+    public static String heldEffectName(ResourceKey<GooTypeDefinition> key) {
+        return key.identifier().getPath() + HELD_SUFFIX;
     }
 }

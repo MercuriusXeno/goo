@@ -100,6 +100,24 @@ class ProgramHostLoadTest {
         assertTrue(refusal.getMessage().contains("ticking"), refusal.getMessage());
     }
 
+    /**
+     * A cost reads a namespaced name as an item's price while a step reads it as a counter, so a cost naming a
+     * counter its own program keeps refuses at load naming it (decision ability-cost-builds-as-a-one-type-by-type-value).
+     */
+    @Test
+    void costNamingACounterTheProgramKeepsRefusesNamingTheName() {
+        Identifier ritual = Identifier.fromNamespaceAndPath("goo", "ritual");
+        List<Step> counting = List.of(new TargetStep(List.of(),
+                List.of(new CounterStep(ritual, Optional.of(Expr.literal(1)), Optional.empty()))));
+
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.checkPrice(expr("3 * goo:ritual"), counting));
+
+        assertTrue(refusal.getMessage().contains("goo:ritual"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains("counter"), refusal.getMessage());
+        assertDoesNotThrow(() -> ProgramBehavior.checkPrice(expr("3 * minecraft:cobblestone"), counting));
+    }
+
     @Test
     void unboundVariableRefusesAtLoadNamingVariableAndHost() {
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,

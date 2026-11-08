@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityIconTexture;
+import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
@@ -103,14 +104,15 @@ public final class AbilitySyncHandler {
      * @param order       the sort order
      * @param tags        categorical tags for targeting and display
      * @param behaviors   the ability's step program, whose params the marker's renderers read
-     * @param cost        the mB a throw costs, the same at every stack count
+     * @param costPrice   what a throw costs, the same at every stack count, its items priced in the client's
+     *                    synced goo values when read (decision ability-cost-builds-as-a-one-type-by-type-value)
      * @param delivery    how the ability leaves the glove
      * @param badge       the target kind the radial marks on the icon
      * @param requires    the items the player must know before its radial petal unlocks
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each, beside its goo cost
-     * @param upkeep      the mB a held self + brew effect pays each tick it stands
+     * @param upkeepPrice what a held durative effect pays each tick it stands, priced as the cost is
      *                    (decision self-effects-trickle-until-ended)
      * @param distancePrice what a blink adds to the cost for its trip
      *                    (decision blink-lands-safely-costed-by-distance)
@@ -127,11 +129,46 @@ public final class AbilitySyncHandler {
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
-                                List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
-                                List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                                List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                                List<Step> onPrism, ArmPose pose, String description,
+                                List<Step> behaviors, AbilityPrice costPrice, Delivery delivery,
+                                AbilityBadge badge, List<Identifier> requires, AbilityArea area,
+                                IndicatorShowing indicator, List<Identifier> consumes, AbilityPrice upkeepPrice,
+                                DistancePrice distancePrice, List<Step> onPrism, ArmPose pose, String description,
                                 Optional<String> costMechanics, Optional<String> costFormula) {
+
+        /**
+         * A client ability whose cost and upkeep are whole numbers of mB.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param cost          the mB a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeep        the mB a held durative effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+         * @param costFormula   the short formula a dynamically priced ability's petal reads, empty for none
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                             Optional<String> costFormula) {
+            this(id, displayName, icon, order, tags, behaviors, AbilityPrice.flat(cost), delivery, badge, requires,
+                    area, indicator, consumes, AbilityPrice.flat(upkeep), distancePrice, onPrism, pose, description,
+                    costMechanics, costFormula);
+        }
 
         /**
          * A client ability naming no cost formula.
@@ -149,7 +186,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -187,7 +224,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -218,7 +255,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
@@ -248,7 +285,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          * @param onPrism       the steps a landing on a prism runs, empty for none
          */
@@ -277,7 +314,7 @@ public final class AbilitySyncHandler {
          * @param area          the area the glove draws while right click is held
          * @param indicator     when the ability's indicator shows
          * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
          */
         public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
@@ -304,7 +341,7 @@ public final class AbilitySyncHandler {
          * @param area        the area the glove draws while right click is held
          * @param indicator   when the ability's indicator shows
          * @param consumes    the items a throw takes, one of each
-         * @param upkeep      the mB a held self + brew effect pays each tick it stands
+         * @param upkeep      the mB a held durative effect pays each tick it stands
          */
         public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
                              List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
@@ -484,18 +521,38 @@ public final class AbilitySyncHandler {
          * @return the cost, formatted
          */
         public String costLabel(Optional<BlinkLanding> trip) {
-            if (upkeep > 0) {
+            if (upkeep() > 0) {
                 return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
             }
             // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
-            if (cost == 0 && costFormula.isPresent()) {
+            if (costPrice.isFree() && costFormula.isPresent()) {
                 return formula().orElseThrow();
             }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
             if (!pricedDynamically() && paysWhileHeld()) {
-                return GooFormat.formatAmount((long) cost * TICKS_PER_SECOND / delivery.ticksPerCharge()) + PER_SECOND;
+                return GooFormat.formatAmount((long) cost() * TICKS_PER_SECOND / delivery.ticksPerCharge())
+                        + PER_SECOND;
             }
-            return GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost, trip));
+            return GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost(), trip));
+        }
+
+        /**
+         * The mB a throw costs, its items priced in the client's synced goo values now.
+         * ability-cost-builds-as-a-one-type-by-type-value
+         *
+         * @return the cost in mB
+         */
+        public int cost() {
+            return costPrice.in(ClientGooValues::current);
+        }
+
+        /**
+         * The mB a held durative effect pays each tick, priced as the cost is.
+         *
+         * @return the upkeep in mB
+         */
+        public int upkeep() {
+            return upkeepPrice.in(ClientGooValues::current);
         }
 
         /**
@@ -555,13 +612,13 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * Whether the ability pays as it is held, so the holdings sustain it for seconds: a brew's
+         * Whether the ability pays as it is held, so the holdings sustain it for seconds: a durative ability's
          * upkeep, or a stream's or channel's cost each ticksPerCharge.
          *
-         * @return true for a brew, a stream or a channel
+         * @return true for a durative ability, a stream or a channel
          */
         public boolean paysWhileHeld() {
-            return upkeep > 0 || HeldRoute.runsWhileHeld(delivery, badge);
+            return !upkeepPrice.isFree() || HeldRoute.runsWhileHeld(delivery, badge);
         }
 
         /**
@@ -595,7 +652,7 @@ public final class AbilitySyncHandler {
          * @param holdings    the mB the player holds of the ability's type across the inventory
          * @param reagentSets the whole sets of the ability's consumed items the inventory holds
          * @param standing    the upkeep already standing on the ability's type
-         * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or brew, "200 + 100/block" for a blink
+         * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or durative ability, "200 + 100/block" for a blink
          */
         public String petalLabel(int holdings, int reagentSets, StandingUpkeep standing) {
             return formula().orElseGet(() -> costLabel()
@@ -624,11 +681,11 @@ public final class AbilitySyncHandler {
          * @return the amount in mB
          */
         public int price() {
-            return upkeep > 0 ? upkeepPerSecond() : cost;
+            return upkeep() > 0 ? upkeepPerSecond() : cost();
         }
 
         private int upkeepPerSecond() {
-            return upkeep * TICKS_PER_SECOND;
+            return upkeep() * TICKS_PER_SECOND;
         }
 
         /**
@@ -655,14 +712,14 @@ public final class AbilitySyncHandler {
 
         /**
          * The numbers a cost-mechanics format fills from, in the order its kind reads them:
-         * a brew its upkeep a second; a blink its per-block price, its wall price and its
+         * a durative ability its upkeep a second; a blink its per-block price, its wall price and its
          * oculus percent; a Spire stone's goo value per block; Pocket its void per slot; any other none.
          *
          * @param lookup the goo values the numbers read from
          * @return the arguments, formatted
          */
         private List<String> costMechanicsArguments(CostMechanicsLookup lookup) {
-            if (upkeep > 0) {
+            if (upkeep() > 0) {
                 return List.of(GooFormat.formatAmount(upkeepPerSecond()));
             }
             if (distancePrice.perBlock() > 0 || distancePrice.wallCost() > 0) {

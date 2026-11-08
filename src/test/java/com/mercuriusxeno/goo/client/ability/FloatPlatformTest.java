@@ -67,8 +67,16 @@ class FloatPlatformTest {
         @Test
         void thePlatformDimsOverTheFloatsLastTicks() {
             int full = FloatPlatform.squareAlpha(0.5, LONG_BEFORE_THE_END);
-            int dimming = FloatPlatform.squareAlpha(0.5, MobAilments.FADE_TICKS / 2f);
+            int dimming = FloatPlatform.squareAlpha(0.5, FloatPlatform.FADE_TICKS / 2f);
             assertTrue(dimming > 0 && dimming < full, "full " + full + ", dimming " + dimming);
+        }
+
+        /** The platform keeps its own half-second fade rather than the ailment overlays' fade after the end. */
+        @Test
+        void thePlatformStandsWholeUntilItsLastHalfSecond() {
+            assertEquals(10, FloatPlatform.FADE_TICKS);
+            assertEquals(FloatPlatform.squareAlpha(0.5, LONG_BEFORE_THE_END),
+                    FloatPlatform.squareAlpha(0.5, FloatPlatform.FADE_TICKS));
         }
 
         @Test

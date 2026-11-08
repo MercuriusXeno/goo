@@ -42,6 +42,8 @@ public final class FloatPlatform {
     private static final float PEAK_ALPHA = 220f;
     private static final double HALF = 0.5;
     private static final double SIGHT_RANGE = 48.0;
+    /** Game ticks the platform fades over at the float's end: its own, apart from the ailment overlays' fade. */
+    static final float FADE_TICKS = 10f;
 
     private FloatPlatform() {
     }
@@ -102,7 +104,8 @@ public final class FloatPlatform {
      * @return the alpha, 0 to 255
      */
     static int squareAlpha(double share, float ticksLeft) {
-        return Math.round(PEAK_ALPHA * MobAilments.strength(ticksLeft) * SignalRings.opacity(share));
+        float fading = Math.clamp(ticksLeft / FADE_TICKS, 0f, 1f);
+        return Math.round(PEAK_ALPHA * fading * SignalRings.opacity(share));
     }
 
     /**

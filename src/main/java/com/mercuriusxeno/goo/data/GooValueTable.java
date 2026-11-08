@@ -24,9 +24,10 @@ public final class GooValueTable implements IGooValueLookup {
     private final Set<Identifier> baseValueIds;
     private final Set<Identifier> deniedItems;
     private final Set<Identifier> restrictedItems;
+    private final PrefabValues prefabs;
 
     /**
-     * Copies the given values into a table no later change reaches.
+     * Copies the given values into a table no later change reaches, holding no prefab.
      *
      * @param effectiveValues the effective value of each valued item
      * @param baseValueIds    the items holding a hand-keyed base value
@@ -35,10 +36,26 @@ public final class GooValueTable implements IGooValueLookup {
      */
     public GooValueTable(Map<Identifier, GooValue> effectiveValues, Collection<Identifier> baseValueIds,
                          Collection<Identifier> deniedItems, Collection<Identifier> restrictedItems) {
+        this(effectiveValues, baseValueIds, deniedItems, restrictedItems, PrefabValues.EMPTY);
+    }
+
+    /**
+     * Copies the given values into a table no later change reaches.
+     *
+     * @param effectiveValues the effective value of each valued item
+     * @param baseValueIds    the items holding a hand-keyed base value
+     * @param deniedItems     the items denied a value
+     * @param restrictedItems the items the plexer may not reconstitute
+     * @param prefabs         each prefab's resolved value
+     */
+    public GooValueTable(Map<Identifier, GooValue> effectiveValues, Collection<Identifier> baseValueIds,
+                         Collection<Identifier> deniedItems, Collection<Identifier> restrictedItems,
+                         PrefabValues prefabs) {
         this.effectiveValues = Map.copyOf(effectiveValues);
         this.baseValueIds = Set.copyOf(baseValueIds);
         this.deniedItems = Set.copyOf(deniedItems);
         this.restrictedItems = Set.copyOf(restrictedItems);
+        this.prefabs = prefabs;
     }
 
     /**
@@ -48,7 +65,26 @@ public final class GooValueTable implements IGooValueLookup {
      * @return the table
      */
     public static GooValueTable ofEffectiveValues(Map<Identifier, GooValue> effectiveValues) {
-        return new GooValueTable(effectiveValues, Set.of(), Set.of(), Set.of());
+        return ofEffectiveValues(effectiveValues, PrefabValues.EMPTY);
+    }
+
+    /**
+     * A table of effective values and prefabs, the form a client receives in a sync.
+     *
+     * @param effectiveValues the effective value of each valued item
+     * @param prefabs         each prefab's resolved value
+     * @return the table
+     */
+    public static GooValueTable ofEffectiveValues(Map<Identifier, GooValue> effectiveValues, PrefabValues prefabs) {
+        return new GooValueTable(effectiveValues, Set.of(), Set.of(), Set.of(), prefabs);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public PrefabValues prefabs() {
+        return prefabs;
     }
 
     /**

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 
 /**
  * The step runtime: runs a step list against a
@@ -28,6 +29,8 @@ public final class ProgramBehavior {
     private static final String TAG_PROGRAM_TICKS = "ProgramTicks";
     private static final String ERR_CAPABILITY = "Step '%s' needs %s, which the %s host does not provide";
     private static final String ERR_VARIABLE = "Step '%s' reads '%s', which the %s host does not bind";
+    private static final String ERR_PRICE_READS_COUNTER = "Ability cost reads '%s' as an item, but its program keeps"
+            + " '%1$s' as a counter; name an item the program counts not";
 
     private final List<Step> steps;
     /** The sounds a framed sound step holds until their tick. ability-json-names-its-choreography */
@@ -92,6 +95,45 @@ public final class ProgramBehavior {
      */
     public static boolean serves(List<Step> steps, HostKind kind) {
         return refusal(steps, kind).isEmpty();
+    }
+
+    /**
+     * Refuses a cost or upkeep naming an id its own program keeps as a counter: the price reads the name as an
+     * item's value and the program as a counter, so the ability would charge neither the author meant.
+     * ability-cost-builds-as-a-one-type-by-type-value
+     *
+     * @param price the cost or upkeep expression
+     * @param steps every step list the ability runs
+     * @throws ProgramLoadException naming the name
+     */
+    public static void checkPrice(Expr price, List<Step> steps) {
+        priceRefusal(price, steps).ifPresent(message -> {
+            throw new ProgramLoadException(message);
+        });
+    }
+
+    /**
+     * Why a price cannot stand beside a program, the check {@link #checkPrice} refuses on.
+     *
+     * @param price the cost or upkeep expression
+     * @param steps every step list the ability runs
+     * @return the refusal naming the name both read, or empty when none is
+     */
+    public static Optional<String> priceRefusal(Expr price, List<Step> steps) {
+        Set<String> counters = new TreeSet<>();
+        steps.stream().flatMap(ProgramBehavior::withDescendants).forEach(step -> {
+            if (step instanceof CounterStep counter) {
+                counters.add(counter.id().toString());
+            }
+            step.expressions().flatMap(expr -> expr.variables().stream()).filter(HostVariables::isCounter)
+                    .forEach(counters::add);
+        });
+        return new TreeSet<>(price.variables()).stream().filter(counters::contains).findFirst()
+                .map(name -> String.format(ERR_PRICE_READS_COUNTER, name));
+    }
+
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(ProgramBehavior::withDescendants));
     }
 
     /**

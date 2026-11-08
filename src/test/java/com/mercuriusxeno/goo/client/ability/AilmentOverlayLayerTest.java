@@ -175,4 +175,13 @@ class AilmentOverlayLayerTest {
         assertTrue(holds(vertexSource(), "Position\\s*\\+\\s*normalize\\(Normal\\)\\s*\\*\\s*OVERLAY_INFLATE"),
                 "the overlay sits on the skin and fights it for depth");
     }
+
+    /** A held mob flails with no overlay over it (decision kinetic-is-electric-blue-and-white). */
+    @Test
+    void aGrabbedMobWearsNoOverlayBesideItsOtherAilments() {
+        List<MobAilments.Worn> worn = List.of(new MobAilments.Worn(AilmentKind.HEX, 40),
+                new MobAilments.Worn(AilmentKind.GRABBED, 4));
+        assertEquals(List.of(AilmentKind.HEX),
+                AilmentOverlayLayer.drawn(worn, 0f).stream().map(AilmentOverlayLayer.StampedAilment::kind).toList());
+    }
 }

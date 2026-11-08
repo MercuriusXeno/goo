@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -113,7 +114,7 @@ public final class FreeAimTests {
         GooThrowHandler.execute(player, throwAt(player, player.getEyePosition().add(0, SKY_REACH, 0)));
         int spent = before - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.UNSTABLE, 0);
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(spent == ability.cost(), String.format(SKY_REFUSED, spent, ability.cost()));
+        helper.assertTrue(spent == ability.cost().in(GooValueTable.EMPTY), String.format(SKY_REFUSED, spent, ability.cost().in(GooValueTable.EMPTY)));
         helper.succeed();
     }
 }

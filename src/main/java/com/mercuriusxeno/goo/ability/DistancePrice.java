@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -26,7 +27,6 @@ public record DistancePrice(int perBlock, int wallCost, int nodePercent) {
     public static final int WHOLE_PERCENT = 100;
     /** The price of an ability whose cost reads no trip. */
     public static final DistancePrice NONE = new DistancePrice(0, 0);
-    private static final double PERCENT = 100.0;
     private static final String FIELD_NODE_PERCENT = "node_percent";
 
     /**
@@ -70,9 +70,16 @@ public record DistancePrice(int perBlock, int wallCost, int nodePercent) {
      * @return the cost in mB
      */
     public int price(int base, BlinkLanding landing) {
+        return exactPrice(GooFraction.of(base), landing).ceiling();
+    }
+
+    // The trip's exact cost: the base, the whole blocks and the wall added; an oculus's share rounds up, so every
+    // blink to the oculus costs the same.
+    private GooFraction exactPrice(GooFraction base, BlinkLanding landing) {
         int travel = (int) Math.ceil(perBlock * landing.distance());
-        int whole = base + travel + (landing.throughWall() ? wallCost : 0);
-        return landing.node().isPresent() ? (int) Math.ceil(whole * nodePercent / PERCENT) : whole;
+        GooFraction whole = base.plus(GooFraction.of(travel + (landing.throughWall() ? wallCost : 0)));
+        return landing.node().isPresent()
+                ? GooFraction.of(whole.times(nodePercent).dividedBy(WHOLE_PERCENT).ceiling()) : whole;
     }
 
     /**
@@ -84,5 +91,17 @@ public record DistancePrice(int perBlock, int wallCost, int nodePercent) {
      */
     public int priceOf(int base, Optional<BlinkLanding> landing) {
         return landing.map(trip -> price(base, trip)).orElse(base);
+    }
+
+    /**
+     * The exact cost of a trip where one resolves, the exact flat cost where none does; the payer's remainder takes
+     * the part under a mB (decision goo-is-an-int-and-only-the-remainder-is-a-fraction).
+     *
+     * @param base    the ability's exact cost
+     * @param landing the trip, empty when the ability makes none
+     * @return the exact cost in mB
+     */
+    public GooFraction exactPriceOf(GooFraction base, Optional<BlinkLanding> landing) {
+        return landing.map(trip -> exactPrice(base, trip)).orElse(base);
     }
 }

@@ -4,14 +4,14 @@ import net.minecraft.world.item.ItemUseAnimation;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The eat route a self + brew ability takes: one wearing the brew badge on a
+ * The eat route a durative ability takes: one wearing the durative badge on a
  * self delivery starts the player eating the glove, and the program runs and
  * the effect is held when the eat finishes, so letting go or switching items
  * before then runs nothing and drains nothing. Invoking one already held
  * ends it instead of eating again. A self ability wearing the
  * self badge runs on command. The route is decided by badge and delivery
  * kind alone, never by ability name, so an ability added later wearing the
- * brew badge on a self delivery eats with no further change. Every read here
+ * durative badge on a self delivery eats with no further change. Every read here
  * takes no level, so a unit test reaches it whole.
  * decision self-brew-goos-eat-before-the-effect
  * decision self-effects-trickle-until-ended
@@ -31,10 +31,10 @@ public final class SelfEatRoute {
      *
      * @param delivery the ability's delivery, or null where the glove holds no selection
      * @param badge    the ability's badge, or null where the glove holds no selection
-     * @return true for the brew badge on a self delivery
+     * @return true for the durative badge on a self delivery
      */
     public static boolean eats(@Nullable Delivery delivery, @Nullable AbilityBadge badge) {
-        return delivery != null && delivery.kind() == DeliveryKind.SELF && badge == AbilityBadge.BREW;
+        return delivery != null && delivery.kind() == DeliveryKind.SELF && badge == AbilityBadge.DURATIVE;
     }
 
     /**

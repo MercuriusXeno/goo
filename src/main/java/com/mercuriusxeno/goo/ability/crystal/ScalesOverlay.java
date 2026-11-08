@@ -18,7 +18,7 @@ import java.util.UUID;
 
 /**
  * Crystal Scales on a player's model: while the player's crystal hearts
- * stand, from the glove or the brew, every watcher draws the diamond-blue
+ * stand on the glove, every watcher draws the diamond-blue
  * faceted overlay over the player, a pattern apart from Stasis's
  * glint; it clears once the crystal hearts are gone.
  * decision scales-crystal-hearts-diamond-blue-overlay
@@ -40,20 +40,24 @@ public final class ScalesOverlay {
 
     /**
      * Refreshes the overlay of each player wearing crystal hearts, and clears
-     * it from a player whose crystal hearts are gone.
+     * it from a player the tick their crystal hearts are gone, so its fade
+     * starts at the end.
+     * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
      *
      * @param event the player tick event
      */
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || player.tickCount % OVERLAY_REFRESH_TICKS != 0) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        if (wearsScales(player)) {
+        if (!wearsScales(player)) {
+            if (SCALED.remove(player.getUUID())) {
+                send(player, OVERLAY_CLEARED);
+            }
+        } else if (player.tickCount % OVERLAY_REFRESH_TICKS == 0) {
             SCALED.add(player.getUUID());
             send(player, OVERLAY_TICKS);
-        } else if (SCALED.remove(player.getUUID())) {
-            send(player, OVERLAY_CLEARED);
         }
     }
 
