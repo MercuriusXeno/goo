@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.SiphonRule;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,17 +18,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ClientDrinksTest {
 
     private static final int PLAYER = 7;
+    private static final int BLOB = 11;
     private static final long START = 100;
     private static final long PICKED = START - SiphonRule.INJECT_TICKS;
     private static final long END = 134;
     private static final long LATER_END = 184;
 
     private static DrinkPayload drink(DrinkPayload.Streaming... streaming) {
-        return new DrinkPayload(PLAYER, Vec3.ZERO, List.of(streaming));
+        return new DrinkPayload(PLAYER, List.of(streaming));
     }
 
     private static DrinkPayload.Streaming streaming(BlockPos pos, long end) {
-        return new DrinkPayload.Streaming(pos, PICKED, START, end);
+        return new DrinkPayload.Streaming(pos, PICKED, START, end, BLOB);
     }
 
     @Test
@@ -60,8 +60,8 @@ class ClientDrinksTest {
         ClientDrinks drinks = new ClientDrinks();
         drinks.show(drink(streaming(BlockPos.ZERO, END)));
 
-        DrinkLayout first = drinks.live(START, id -> false).getFirst().layout();
-        DrinkLayout next = drinks.live(START + 1, id -> false).getFirst().layout();
+        DrinkLayout first = drinks.live(START, id -> false).getFirst().layoutFor(BLOB);
+        DrinkLayout next = drinks.live(START + 1, id -> false).getFirst().layoutFor(BLOB);
 
         assertSame(first, next);
     }

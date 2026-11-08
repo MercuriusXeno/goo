@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.pocket.PocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.entity.FormingGooBlob;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -272,8 +273,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         long now = level.getGameTime();
         long start = now + SiphonRule.INJECT_TICKS;
         long end = start + ticks;
-        long payAt = end + SiphonRule.travelTicks(Vec3.atCenterOf(pos).distanceTo(drink.convergeOn(pos)));
-        drink.start(pos, new Drinks.Siphon(value, now, start, end, payAt));
+        // unmake-converges-near-the-unmade-blocks-into-a-goo-item
+        FormingGooBlob blob = FormingGooBlob.gatherNear(level, Vec3.atCenterOf(pos));
+        long payAt = end + SiphonRule.travelTicks(Vec3.atCenterOf(pos).distanceTo(blob.position()));
+        blob.expect(payAt);
+        drink.start(pos, new Drinks.Siphon(value, now, start, end, payAt, blob));
     }
 
     private Drinks drinks() {

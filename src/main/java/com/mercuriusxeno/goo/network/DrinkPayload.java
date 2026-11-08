@@ -6,7 +6,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,12 +15,10 @@ import java.util.List;
  * drink this tick, sent to everyone watching them.
  * decision unmake-waves-dissolve-by-crucible-cost
  *
- * @param playerId    the player's entity id
- * @param convergence the point the blocks' chunks converge on and their goo item forms at
- *                    (decision unmake-converges-near-the-unmade-blocks-into-a-goo-item)
- * @param streaming   the blocks on their way to it
+ * @param playerId  the player's entity id
+ * @param streaming the blocks on their way to their blobs
  */
-public record DrinkPayload(int playerId, Vec3 convergence, List<Streaming> streaming) implements CustomPacketPayload {
+public record DrinkPayload(int playerId, List<Streaming> streaming) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<DrinkPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "drink"));
@@ -31,14 +28,16 @@ public record DrinkPayload(int playerId, Vec3 convergence, List<Streaming> strea
             StreamCodec.of(DrinkPayload::encode, DrinkPayload::decode);
 
     /**
-     * One block on its way into the glove.
+     * One block on its way to the goo blob its chunks converge on.
      *
      * @param pos    the block
      * @param picked the game time it was picked, the square leaving the hand for it
      * @param start  the game time the square lands and it starts streaming
      * @param end    the game time it is drained and gone
+     * @param blob   the entity id of the forming goo blob its chunks converge on
+     *               (decision unmake-converges-near-the-unmade-blocks-into-a-goo-item)
      */
-    public record Streaming(BlockPos pos, long picked, long start, long end) {
+    public record Streaming(BlockPos pos, long picked, long start, long end, int blob) {
     }
 
     @Override
@@ -48,24 +47,24 @@ public record DrinkPayload(int playerId, Vec3 convergence, List<Streaming> strea
 
     private static void encode(FriendlyByteBuf buf, DrinkPayload payload) {
         buf.writeVarInt(payload.playerId);
-        Vec3.STREAM_CODEC.encode(buf, payload.convergence);
         buf.writeVarInt(payload.streaming.size());
         for (Streaming streaming : payload.streaming) {
             buf.writeBlockPos(streaming.pos());
             buf.writeVarLong(streaming.picked());
             buf.writeVarLong(streaming.start());
             buf.writeVarLong(streaming.end());
+            buf.writeVarInt(streaming.blob());
         }
     }
 
     private static DrinkPayload decode(FriendlyByteBuf buf) {
         int playerId = buf.readVarInt();
-        Vec3 convergence = Vec3.STREAM_CODEC.decode(buf);
         int count = buf.readVarInt();
         List<Streaming> streaming = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            streaming.add(new Streaming(buf.readBlockPos(), buf.readVarLong(), buf.readVarLong(), buf.readVarLong()));
+            streaming.add(new Streaming(buf.readBlockPos(), buf.readVarLong(), buf.readVarLong(), buf.readVarLong(),
+                    buf.readVarInt()));
         }
-        return new DrinkPayload(playerId, convergence, streaming);
+        return new DrinkPayload(playerId, streaming);
     }
 }
