@@ -1,28 +1,13 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.client.ItemSubmitCollector;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.model.Model;
-import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.block.MovingBlockRenderState;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.renderer.entity.state.EntityRenderState;
-import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.world.phys.Vec3;
-import org.joml.Quaternionf;
-import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +19,7 @@ import java.util.function.Function;
  * item's quads as custom geometry on a render type of its choosing and drops every
  * other feature an item model can submit.
  */
-abstract class ItemQuadCollector implements SubmitNodeCollector {
+abstract class ItemQuadCollector extends ItemSubmitCollector {
 
     /** Untinted sentinel - ARGB white means no tint modification. */
     static final int NO_TINT = -1;
@@ -150,64 +135,5 @@ abstract class ItemQuadCollector implements SubmitNodeCollector {
             return tintLayers[tintIndex];
         }
         return NO_TINT;
-    }
-
-    /**
-     * Returns this collector since item rendering does not use ordering.
-     */
-    @Override
-    public OrderedSubmitNodeCollector order(int order) {
-        return this;
-    }
-
-    @Override
-    public void submitShadow(PoseStack p, float r, List<EntityRenderState.ShadowPiece> s) {
-    }
-
-    @Override
-    public void submitNameTag(PoseStack p, @Nullable Vec3 a, int o, Component n,
-                              boolean s, int l, double d, CameraRenderState c) {
-    }
-
-    @Override
-    public void submitText(PoseStack p, float x, float y, FormattedCharSequence s,
-                           boolean d, Font.DisplayMode m, int l, int c, int bg, int o) {
-    }
-
-    @Override
-    public void submitFlame(PoseStack p, EntityRenderState s, Quaternionf r) {
-    }
-
-    @Override
-    public void submitLeash(PoseStack p, EntityRenderState.LeashState s) {
-    }
-
-    @Override
-    public <S> void submitModel(Model<? super S> m, S s, PoseStack p, RenderType r,
-                                int l, int o, int t, @Nullable TextureAtlasSprite sp, int oc,
-                                ModelFeatureRenderer.@Nullable CrumblingOverlay c) {
-    }
-
-    @Override
-    public void submitModelPart(ModelPart m, PoseStack p, RenderType r, int l, int o,
-                                @Nullable TextureAtlasSprite sp, boolean sh, boolean f, int t,
-                                ModelFeatureRenderer.@Nullable CrumblingOverlay c, int oc) {
-    }
-
-    @Override
-    public void submitMovingBlock(PoseStack p, MovingBlockRenderState s) {
-    }
-
-    @Override
-    public void submitBlockModel(PoseStack p, RenderType r,
-                                 List<BlockStateModelPart> parts, int[] t, int l, int o, int oc) {
-    }
-
-    @Override
-    public void submitBreakingBlockModel(PoseStack p, BlockStateModel m, long s, int pr) {
-    }
-
-    @Override
-    public void submitParticleGroup(ParticleGroupRenderer r) {
     }
 }
