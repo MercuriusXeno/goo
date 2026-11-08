@@ -152,6 +152,23 @@ class BlockTransformsTest {
         }
 
         @Test
+        void theServerResendingTheIceItWasLeavesTheMeltDrawn() {
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+
+            assertEquals(true, transforms.keepsMelt(GRAVEL, ice));
+        }
+
+        @Test
+        void anyOtherServerStateAtAMeltingCellGoesThrough() {
+            BlockState stone = mock(BlockState.class);
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+
+            assertEquals(false, transforms.keepsMelt(GRAVEL, water));
+            assertEquals(false, transforms.keepsMelt(GRAVEL, stone));
+            assertEquals(false, transforms.keepsMelt(GRAVEL.above(), ice));
+        }
+
+        @Test
         void aMeltsStepPlaysNoSecondDissolve() {
             transforms.meltSwap(GRAVEL, water, 0.025f, ice);
             transforms.expose(GRAVEL, water, 0.97f, START, BlockTransforms.MELTS_AWAY);
