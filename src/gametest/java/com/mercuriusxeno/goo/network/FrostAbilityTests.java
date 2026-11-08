@@ -52,6 +52,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class FrostAbilityTests {
     private static final String NOVA_HELD_REACHES_BOTH = "nova_held_reaches_both_zombies";
     private static final String NOVA_TAPPED_REACHES_NEAR = "nova_tapped_reaches_only_the_near";
+    private static final String NOVA_FREEZES_WATER_AND_LAVA = "nova_freezes_water_and_lava_in_its_ring";
     private static final String COLD_BREAKS_GRASS = "cold_breaks_grass_and_freezes_faster";
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
     private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
@@ -71,6 +72,8 @@ public final class FrostAbilityTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, NOVA_HELD_REACHES_BOTH, FrostAbilityTests::novaHeldReachesBothZombies);
         GooTestFunctions.registerTest(registrar, NOVA_TAPPED_REACHES_NEAR, FrostAbilityTests::novaTappedReachesOnlyTheNear);
+        GooTestFunctions.registerTest(registrar, NOVA_FREEZES_WATER_AND_LAVA,
+                FrostAbilityTests::novaFreezesWaterAndLavaInItsRing);
         GooTestFunctions.registerTest(registrar, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksGrassAndFreezesFaster);
         GooTestFunctions.registerTest(registrar, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
         GooTestFunctions.registerTest(registrar, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
@@ -100,6 +103,16 @@ public final class FrostAbilityTests {
     private static final float FULL_HOLD_FLOOR = 0.7f;
     private static final float NO_HOLD_CEILING = 0.25f;
     private static final int SETTLE_TICKS = 1;
+    /** A third of frost_nova.json's charge: its ring reaches 2 + 6 / 3, four blocks. */
+    private static final int THIRD_HOLD_TICKS = 10;
+    /** Still water and lava in the floor about two and a half blocks from the caster, inside the third-held ring. */
+    private static final BlockPos NOVA_WATER_POS = new BlockPos(3, 0, 1);
+    private static final BlockPos NOVA_LAVA_POS = new BlockPos(1, 0, 3);
+    /** Still water in the floor's far corner, about six blocks from the caster, past the third-held ring. */
+    private static final BlockPos NOVA_FAR_WATER_POS = new BlockPos(5, 0, 5);
+    private static final String SHOULD_ICE_IN_THE_RING = "Nova's ring should freeze the water it reaches to ice";
+    private static final String SHOULD_OBSIDIAN_IN_THE_RING = "Nova's ring should freeze the lava it reaches to obsidian";
+    private static final String SHOULD_LEAVE_WATER_PAST_THE_RING = "Nova's ring should leave the water past it standing";
     private static final Identifier FROST_COLD = Identifier.parse("goo:frost_cold");
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     /** Grass three blocks east of the streamer, inside Cold's cone below the look. */
@@ -262,6 +275,29 @@ public final class FrostAbilityTests {
             helper.assertTrue(nearGauge > 0f && nearGauge < NO_HOLD_CEILING,
                     String.format(SHOULD_FREEZE_LIGHTLY, nearGauge));
             helper.assertTrue(farGauge == 0f, String.format(SHOULD_NOT_REACH, farGauge));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Nova held a third of its charge freezes the still water in its ring to
+     * ice and the still lava to obsidian, and leaves the water past its ring
+     * standing (decision nova-ring-and-cold-cone-freeze-water-and-lava).
+     *
+     * @param helper the gametest helper
+     */
+    public static void novaFreezesWaterAndLavaInItsRing(GameTestHelper helper) {
+        helper.setBlock(NOVA_WATER_POS, Blocks.WATER);
+        helper.setBlock(NOVA_LAVA_POS, Blocks.LAVA);
+        helper.setBlock(NOVA_FAR_WATER_POS, Blocks.WATER);
+        ServerPlayer caster = caster(helper);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            release(caster, THIRD_HOLD_TICKS);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(helper.getBlockState(NOVA_WATER_POS).is(Blocks.ICE), SHOULD_ICE_IN_THE_RING);
+            helper.assertTrue(helper.getBlockState(NOVA_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN_IN_THE_RING);
+            helper.assertTrue(helper.getBlockState(NOVA_FAR_WATER_POS).is(Blocks.WATER),
+                    SHOULD_LEAVE_WATER_PAST_THE_RING);
             helper.succeed();
         });
     }
