@@ -51,6 +51,8 @@ public final class SunbeamChannelTests {
     private static final String SUNBEAM_HITS_THE_AIMED_ZOMBIE = "sunbeam_hits_the_aimed_zombie";
     private static final String SUNBEAM_IMPACT_FIRES_AT_THE_HIT = "sunbeam_impact_fires_at_the_hit";
     private static final String SUNBEAM_CONVERTS_A_BARE_PRISM = "sunbeam_converts_a_bare_prism";
+    private static final String SUNBEAM_STRIKES_A_BARE_PRISM_FROM_A_DIAGONAL =
+            "sunbeam_strikes_a_bare_prism_from_a_diagonal";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -63,6 +65,8 @@ public final class SunbeamChannelTests {
         GooTestFunctions.registerTest(registrar, SUNBEAM_HITS_THE_AIMED_ZOMBIE, SunbeamChannelTests::sunbeamHitsTheAimedZombie);
         GooTestFunctions.registerTest(registrar, SUNBEAM_IMPACT_FIRES_AT_THE_HIT, SunbeamChannelTests::sunbeamImpactFiresAtTheHit);
         GooTestFunctions.registerTest(registrar, SUNBEAM_CONVERTS_A_BARE_PRISM, SunbeamChannelTests::sunbeamConvertsABarePrism);
+        GooTestFunctions.registerTest(registrar, SUNBEAM_STRIKES_A_BARE_PRISM_FROM_A_DIAGONAL,
+                SunbeamChannelTests::sunbeamStrikesABarePrismFromADiagonal);
     }
 
 
@@ -291,6 +295,53 @@ public final class SunbeamChannelTests {
             helper.assertTrue(SUNBEAM.toString().equals(combo), String.format(NOT_CONVERTED, combo));
             helper.succeed();
         });
+    }
+
+    /** Where a player stands off the prism's diagonal, two cells out on both axes. */
+    private static final BlockPos DIAGONAL_POS = new BlockPos(2, 1, 1);
+    /** How far inside the prism's outline an aimed point sits, as the crosshair's pick lands just on it. */
+    private static final double INSIDE_THE_OUTLINE = 1e-3;
+    private static final int OUTLINE_SAMPLES = 5;
+    private static final String MISSED_THE_PRISM = "Sunbeam aimed at %s on the prism's outline from a diagonal struck %s";
+
+    /**
+     * A mock player stands off a bare prism's diagonal and aims at points
+     * across the prism's outline, as the crosshair's pick hands the hold:
+     * every aim strikes the prism, so a hold from any angle charges it.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param helper the gametest helper
+     */
+    public static void sunbeamStrikesABarePrismFromADiagonal(GameTestHelper helper) {
+        helper.setBlock(PRISM_POS.below(), Blocks.STONE);
+        helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
+        ServerPlayer player = standWithGlove(helper, DIAGONAL_POS);
+        AbilityDefinition sunbeam = AbilityRegistry.of(helper.getLevel()).getAbility(SUNBEAM);
+        com.mercuriusxeno.goo.ability.program.RayStep ray = sunbeam.behaviors().stream()
+                .filter(com.mercuriusxeno.goo.ability.program.RayStep.class::isInstance)
+                .map(com.mercuriusxeno.goo.ability.program.RayStep.class::cast).findFirst().orElseThrow();
+        BlockPos prism = helper.absolutePos(PRISM_POS);
+        net.minecraft.world.phys.AABB outline = helper.getLevel().getBlockState(prism)
+                .getShape(helper.getLevel(), prism).bounds().move(prism).deflate(INSIDE_THE_OUTLINE);
+        Vec3 eye = player.getEyePosition();
+        List<String> misses = new java.util.ArrayList<>();
+        for (int x = 0; x < OUTLINE_SAMPLES; x++) {
+            for (int y = 0; y < OUTLINE_SAMPLES; y++) {
+                for (int z = 0; z < OUTLINE_SAMPLES; z++) {
+                    Vec3 aim = new Vec3(outline.minX + outline.getXsize() * x / (OUTLINE_SAMPLES - 1),
+                            outline.minY + outline.getYsize() * y / (OUTLINE_SAMPLES - 1),
+                            outline.minZ + outline.getZsize() * z / (OUTLINE_SAMPLES - 1));
+                    java.util.Optional<BlockPos> struck = ray.struckBlock(helper.getLevel(), player, eye, aim);
+                    if (!struck.equals(java.util.Optional.of(prism))) {
+                        misses.add(String.format(MISSED_THE_PRISM, aim, struck));
+                    }
+                }
+            }
+        }
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(misses.isEmpty(), misses.size() + " of " + OUTLINE_SAMPLES * OUTLINE_SAMPLES
+                * OUTLINE_SAMPLES + " aims missed; first: " + (misses.isEmpty() ? "" : misses.getFirst()));
+        helper.succeed();
     }
 
     /**
