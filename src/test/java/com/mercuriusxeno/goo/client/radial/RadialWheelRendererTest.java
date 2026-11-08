@@ -396,8 +396,9 @@ class RadialWheelRendererTest {
     }
 
     /**
-     * Where an ability wears two badges, the prism badge draws first, so behind, centered above its partner, the two
-     * overlapping by a texel or two, and the cursor names each from its center.
+     * Where an ability wears two badges, the prism badge draws first, so behind, fanned up and right of its partner,
+     * which covers only the prism badge's bottom-left corner, at most two pixels each way, and the cursor names each
+     * from its center.
      * decision prism-badge-sits-behind-and-above-barely-overlapping
      * decision hovering-a-badge-names-its-kind
      */
@@ -429,7 +430,7 @@ class RadialWheelRendererTest {
         }
 
         @Test
-        void prismBadgeCentersAboveItsPartnerOverlappingItByATexelOrTwo() {
+        void prismBadgeFansUpAndRightWithOnlyItsBottomLeftCornerCovered() {
             RadialWheelRenderer.ItemRect prism = prism().rect();
             RadialWheelRenderer.ItemRect partner = partner().rect();
             int across = Math.min(prism.left() + prism.size(), partner.left() + partner.size())
@@ -437,10 +438,15 @@ class RadialWheelRendererTest {
             int down = Math.min(prism.top() + prism.size(), partner.top() + partner.size())
                     - Math.max(prism.top(), partner.top());
             assertAll(
+                    () -> assertTrue(centerOf(prism)[0] > centerOf(partner)[0],
+                            "prism center x " + centerOf(prism)[0] + ", partner's " + centerOf(partner)[0]),
                     () -> assertTrue(centerOf(prism)[1] < centerOf(partner)[1],
                             "prism center y " + centerOf(prism)[1] + ", partner's " + centerOf(partner)[1]),
-                    () -> assertTrue(across > 0 && down >= 1 && down <= MOST_OVERLAP,
-                            "overlap " + across + " across, " + down + " down"));
+                    () -> assertTrue(across >= 1 && across <= MOST_OVERLAP && down >= 1 && down <= MOST_OVERLAP,
+                            "overlap " + across + " across, " + down + " down"),
+                    () -> assertEquals(List.of(prism.left(), prism.top() + prism.size()),
+                            List.of(partner.left() + partner.size() - across, partner.top() + down),
+                            "the covered part is the prism badge's bottom-left corner"));
         }
 
         @Test
