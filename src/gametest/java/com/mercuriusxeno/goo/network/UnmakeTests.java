@@ -43,9 +43,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * range drinks the column the narrow cone covers, deep but not wide, all
  * together over the unstable crucible's own time for a cobblestone after the
  * square's flight, burning the crucible's fuel plus its root for each block,
- * the wall about it standing, and the blocks' full goo goes into the
- * player's inventory once its travel back is done, not at the drain; a
- * player with no space gets it at their feet; a block that started goes
+ * the wall about it standing; the blocks' goo converges into one goo item
+ * near them, never into the player's inventory; a block that started goes
  * until it is done though the cursor leaves it or the use is let go, standing
  * as itself until the square lands, while one outside the cone stands; and a
  * mob at the cursor is left alone.
@@ -57,7 +56,7 @@ public final class UnmakeTests {
     private static final String UNMAKE_FINISHES_WHAT_IT_STARTS = "unmake_finishes_what_it_starts";
     private static final String UNMAKE_FINISHES_AFTER_RELEASE = "unmake_finishes_after_release";
     private static final String UNMAKE_LEAVES_MOBS_ALONE = "unmake_leaves_mobs_alone";
-    private static final String UNMAKE_OVERFLOW_DROPS_AT_FEET = "unmake_overflow_drops_at_feet";
+    private static final String UNMAKE_CONVERGES_INTO_ONE_GOO_ITEM = "unmake_converges_into_one_goo_item";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -69,7 +68,8 @@ public final class UnmakeTests {
         GooTestFunctions.registerTest(registrar, UNMAKE_FINISHES_WHAT_IT_STARTS, UnmakeTests::unmakeFinishesWhatItStarts);
         GooTestFunctions.registerTest(registrar, UNMAKE_FINISHES_AFTER_RELEASE, UnmakeTests::unmakeFinishesAfterRelease);
         GooTestFunctions.registerTest(registrar, UNMAKE_LEAVES_MOBS_ALONE, UnmakeTests::unmakeLeavesMobsAlone);
-        GooTestFunctions.registerTest(registrar, UNMAKE_OVERFLOW_DROPS_AT_FEET, UnmakeTests::unmakeOverflowDropsAtFeet);
+        GooTestFunctions.registerTest(registrar, UNMAKE_CONVERGES_INTO_ONE_GOO_ITEM,
+                UnmakeTests::unmakeConvergesTwoBlocksIntoOneGooItem);
     }
 
 
@@ -87,22 +87,18 @@ public final class UnmakeTests {
     /** How far above the aimed block a block stands outside the cone. */
     private static final int OUT_OF_THE_CONE = 3;
     private static final double DROP_REACH = 4;
-    /** A full stack of dirt, what fills the inventory. */
-    private static final int DIRT_STACK = 64;
-    /** How near the player's feet the goo that had no space lands. */
-    private static final double AT_THE_FEET = 0.5;
+    /** How far across from the convergence point a goo item falling straight down from it stands. */
+    private static final double AT_THE_POINT = 0.5;
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_unmake";
     private static final String STANDS = "The wall's block at %s should be drunk within %d ticks";
     private static final String UNPAID = "The hold should burn exactly the unstable crucible's fuel plus its root per block";
-    private static final String PAID_EARLY = "The goo should not be in hand before its travel back, held %s";
     private static final String SQUARE_EARLY = "A picked block should stand as itself while the square flies";
     private static final String SQUARE_LATE = "A picked block should be the melting stand-in once the square lands";
     private static final String WALL_GONE = "The wall's block at %s, off the aim, should stand";
-    private static final String WRONG_YIELD = "The inventory should hold %s, held %s";
-    private static final String DROPPED = "With space in the inventory nothing should drop, dropped %s";
-    private static final String NOT_AT_FEET =
-            "The goo with no space should drop at the player's feet as %s, dropped %s, the inventory holding %s";
-    private static final String STILL_CREATIVE = "The channeler should be a survival player, whose inventory fills";
+    private static final String NOT_ONE_ITEM = "The blocks' goo should form one goo item per type, formed %d holding %s";
+    private static final String WRONG_ITEM = "The goo item should hold both blocks' goo %s, held %s";
+    private static final String OFF_THE_POINT = "The goo item at %s should form at the convergence point %s";
+    private static final String INTO_THE_HAND = "The player's inventory should gain none of the goo, held %s";
     private static final String UNFINISHED = "A block that started streaming should go though the cursor leaves it";
     private static final String OUTSIDE_GONE = "A block outside the cone should stand";
     private static final String RELEASED = "A block that started streaming should go though the use is let go";
@@ -115,8 +111,7 @@ public final class UnmakeTests {
      * A mock player holding exactly three blocks' fuel holds Unmake down a
      * cobblestone column three deep along the aim, through the middle of a
      * cobblestone wall: the column is drunk front to back, the wall about it
-     * stands, the fuel is spent, and the three blocks' full goo is in the
-     * player's inventory with nothing dropped.
+     * stands, and the fuel is spent.
      *
      * @param helper the gametest helper
      */
@@ -133,67 +128,79 @@ public final class UnmakeTests {
         ServerPlayer player = channeler(helper, COLUMN_BLOCKS * fuel);
         KnownRecipes.teachRequires(player, unmake);
         int drinkTicks = drinkTicks(helper);
-        int travel = travelTicks(helper, player, column);
         GooStreamPayload tick = aimedAt(player, westFace(helper, AIMED_POS));
         for (int held = 1; held <= drinkTicks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
         helper.runAfterDelay(drinkTicks + 1L, () -> {
+            boolean fuelLeft = GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, 1);
+            helper.getLevel().getServer().getPlayerList().remove(player);
             for (BlockPos pos : column) {
                 helper.assertTrue(helper.getBlockState(pos).isAir(), String.format(STANDS, pos, drinkTicks));
             }
             for (BlockPos pos : wall) {
                 helper.assertTrue(helper.getBlockState(pos).is(Blocks.COBBLESTONE), String.format(WALL_GONE, pos));
             }
-            helper.assertFalse(GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, 1), UNPAID);
-            Map<ResourceKey<GooTypeDefinition>, Integer> held = heldGoo(player.getInventory());
-            helper.assertTrue(held.isEmpty(), String.format(PAID_EARLY, held));
-        });
-        helper.runAfterDelay(drinkTicks + travel + 2L, () -> {
-            Map<ResourceKey<GooTypeDefinition>, Integer> expected = new HashMap<>();
-            cobblestone.meltFloorAll().forEach((type, amount) -> expected.put(type, amount * COLUMN_BLOCKS));
-            Map<ResourceKey<GooTypeDefinition>, Integer> held = heldGoo(player.getInventory());
-            Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper, AIMED_POS, DROP_REACH);
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(new GooContents(expected).getAll().equals(held), String.format(WRONG_YIELD, expected,
-                    held));
-            helper.assertTrue(dropped.isEmpty(), String.format(DROPPED, dropped));
+            helper.assertFalse(fuelLeft, UNPAID);
             helper.succeed();
         });
     }
 
     /**
-     * A mock player with no space in their inventory drinks one cobblestone:
-     * its full goo drops at their feet, measured about the stand they were
-     * given, since a mock survival player's own position drifts after the drop.
+     * A mock player holding exactly two blocks' fuel unmakes two cobblestones
+     * along the aim: their chunks converge on the nearer block, the first the
+     * drink picks, and one goo item per type forms there holding both blocks'
+     * goo, falling straight down from it, while the player's inventory gains
+     * none of it.
+     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
      *
      * @param helper the gametest helper
      */
-    public static void unmakeOverflowDropsAtFeet(GameTestHelper helper) {
+    public static void unmakeConvergesTwoBlocksIntoOneGooItem(GameTestHelper helper) {
         AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
         helper.assertTrue(unmake != null, ABILITY_REQUIRED);
-        helper.setBlock(AIMED_POS, Blocks.COBBLESTONE);
+        List<BlockPos> pair = List.of(AIMED_POS.west(), AIMED_POS);
+        pair.forEach(pos -> helper.setBlock(pos, Blocks.COBBLESTONE));
         GooValue cobblestone = GooValues.of(helper.getLevel()).lookup(new ItemStack(Blocks.COBBLESTONE));
-        ServerPlayer player = channeler(helper, GooStacks.THOUSAND);
+        int fuel = SiphonRule.fuelFor(cobblestone.meltFloorTotal(), GooConfig.UNSTABLE_MELT_EXPONENT.get(),
+                GooConfig.UNSTABLE_TICKS_PER_MB.get());
+        ServerPlayer player = channeler(helper, pair.size() * fuel);
         KnownRecipes.teachRequires(player, unmake);
-        fillTheInventory(player.getInventory());
         int drinkTicks = drinkTicks(helper);
-        int travel = travelTicks(helper, player, List.of(AIMED_POS));
+        Vec3 point = Vec3.atCenterOf(helper.absolutePos(pair.getFirst()));
+        int travel = SiphonRule.travelTicks(Vec3.atCenterOf(helper.absolutePos(AIMED_POS)).distanceTo(point));
         GooStreamPayload tick = aimedAt(player, westFace(helper, AIMED_POS));
         for (int held = 1; held <= drinkTicks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
         helper.runAfterDelay(drinkTicks + travel + 2L, () -> {
-            Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper, STAND_POS, AT_THE_FEET + 1);
+            List<ItemEntity> items = gooItemsNear(helper, AIMED_POS, DROP_REACH);
             Map<ResourceKey<GooTypeDefinition>, Integer> held = heldGoo(player.getInventory());
-            boolean creative = player.hasInfiniteMaterials();
+            boolean fuelLeft = GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, 1);
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(helper.getBlockState(AIMED_POS).isAir(), String.format(STANDS, AIMED_POS, drinkTicks));
-            helper.assertFalse(creative, STILL_CREATIVE);
-            Map<ResourceKey<GooTypeDefinition>, Integer> expected = cobblestone.meltPayout().getAll();
-            helper.assertTrue(expected.equals(dropped), String.format(NOT_AT_FEET, expected, dropped, held));
+            Map<ResourceKey<GooTypeDefinition>, Integer> expected = new HashMap<>();
+            cobblestone.meltFloorAll().forEach((type, amount) -> expected.put(type, amount * pair.size()));
+            Map<ResourceKey<GooTypeDefinition>, Integer> formed = new HashMap<>();
+            items.forEach(item -> formed.merge(GooStacks.keyOf(item.getItem()), GooStacks.volumeOf(item.getItem()),
+                    Integer::sum));
+            helper.assertTrue(items.size() == expected.size(), String.format(NOT_ONE_ITEM, items.size(), formed));
+            helper.assertTrue(new GooContents(expected).getAll().equals(formed),
+                    String.format(WRONG_ITEM, expected, formed));
+            items.forEach(item -> helper.assertTrue(horizontalDistance(item.position(), point) <= AT_THE_POINT,
+                    String.format(OFF_THE_POINT, item.position(), point)));
+            helper.assertTrue(held.isEmpty(), String.format(INTO_THE_HAND, held));
+            helper.assertFalse(fuelLeft, UNPAID);
             helper.succeed();
         });
+    }
+
+    private static double horizontalDistance(Vec3 from, Vec3 to) {
+        return Math.hypot(from.x - to.x, from.z - to.z);
+    }
+
+    private static List<ItemEntity> gooItemsNear(GameTestHelper helper, BlockPos around, double reach) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(around))
+                .inflate(reach), item -> GooStacks.keyOf(item.getItem()) != null);
     }
 
     /**
@@ -292,34 +299,6 @@ public final class UnmakeTests {
     }
 
     /**
-     * @param helper the gametest helper
-     * @param player the drinking player
-     * @param blocks the blocks drunk
-     * @return the longest travel the server allows any of their goo back to the hand
-     */
-    private static int travelTicks(GameTestHelper helper, ServerPlayer player, List<BlockPos> blocks) {
-        int longest = 0;
-        for (BlockPos pos : blocks) {
-            longest = Math.max(longest, SiphonRule.travelTicks(Vec3.atCenterOf(helper.absolutePos(pos))
-                    .distanceTo(player.getEyePosition())));
-        }
-        return longest;
-    }
-
-    /**
-     * Fills every empty slot of an inventory with dirt, so nothing more fits.
-     *
-     * @param inventory the inventory
-     */
-    private static void fillTheInventory(Inventory inventory) {
-        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-            if (inventory.getItem(slot).isEmpty()) {
-                inventory.setItem(slot, new ItemStack(Blocks.DIRT, DIRT_STACK));
-            }
-        }
-    }
-
-    /**
      * @return the eight blocks of the 3x3 wall about the aimed block, square to the look, the aimed block left out
      */
     private static List<BlockPos> wall() {
@@ -365,19 +344,6 @@ public final class UnmakeTests {
             }
         }
         return held;
-    }
-
-    private static Map<ResourceKey<GooTypeDefinition>, Integer> droppedGoo(GameTestHelper helper, BlockPos around,
-                                                                         double reach) {
-        AABB box = new AABB(helper.absolutePos(around)).inflate(reach);
-        Map<ResourceKey<GooTypeDefinition>, Integer> dropped = new HashMap<>();
-        for (ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, box)) {
-            ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(item.getItem());
-            if (type != null) {
-                dropped.merge(type, GooStacks.volumeOf(item.getItem()), Integer::sum);
-            }
-        }
-        return dropped;
     }
 
     /**

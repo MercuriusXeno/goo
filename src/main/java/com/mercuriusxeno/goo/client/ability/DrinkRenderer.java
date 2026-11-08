@@ -38,9 +38,9 @@ import java.util.Set;
  * them, the layout walk placed against the drinker's glove and aim, and the
  * streams that walk gives, kept so the next frame knows where liquid still
  * flows and the drink stays live until its last stream is spent, and keeps
- * each drinker's glove for their chunks to fly to. The frame a block's
- * square lands, the block stands as solid chunks of its own faces that peel
- * away to the hand over the drain, so it is never seen vanishing.
+ * each drink's convergence point for its chunks to fly to. The frame a
+ * block's square lands, the block stands as solid chunks of its own faces
+ * that peel away to the point over the drain, so it is never seen vanishing.
  * decision unmake-waves-dissolve-by-crucible-cost
  * decision diagnose-then-fix-unmake-seam-and-ribbing
  * decision unmake-drink-is-a-stream-of-break-particles
@@ -73,12 +73,12 @@ public final class DrinkRenderer {
     /**
      * What a frame builds a drink against.
      *
-     * @param glove the drinker's glove, in the world
-     * @param pull  the unit direction the trunk flows as it enters the hand
+     * @param point the drink's convergence point, where its streams end, in the world
+     * @param pull  the unit direction the trunk flows as it enters the point
      * @param aim   the drinker's aim line, which picks the spine
      * @param ticks the game time including the partial tick
      */
-    private record Frame(Vec3 glove, Vec3 pull, DrinkLayout.Aim aim, double ticks) {
+    private record Frame(Vec3 point, Vec3 pull, DrinkLayout.Aim aim, double ticks) {
     }
 
     /**
@@ -97,14 +97,14 @@ public final class DrinkRenderer {
         double ticks = level.getGameTime() + partialTick;
         List<ClientDrinks.Drink> drinks = ClientDrinks.CLIENT.live(ticks, SHOWING::contains);
         forgetAllBut(drinks);
-        CameraRenderState sight = event.getLevelRenderState().cameraRenderState;
         for (ClientDrinks.Drink drink : drinks) {
             Entity drinker = level.getEntity(drink.playerId());
             if (drinker != null) {
                 Vec3 look = drinker.getViewVector(partialTick);
                 Vec3 pull = drink.layout().pullToward(look, ticks);
                 DrinkLayout.Aim aim = new DrinkLayout.Aim(drinker.getEyePosition(partialTick), look);
-                streamsOf(level, drink, new Frame(gloveOf(mc, drinker, partialTick, sight), pull, aim, ticks));
+                // unmake-converges-near-the-unmade-blocks-into-a-goo-item
+                streamsOf(level, drink, new Frame(drink.convergence(), pull, aim, ticks));
             }
         }
     }
@@ -115,7 +115,7 @@ public final class DrinkRenderer {
         LAST.keySet().retainAll(drinkers);
         SHOWING.retainAll(drinkers);
         LANDINGS.keySet().retainAll(drinkers);
-        DrinkPeels.CLIENT.keepGlovesOf(drinkers);
+        DrinkPeels.CLIENT.keepDestinationsOf(drinkers);
     }
 
     /**
@@ -179,12 +179,12 @@ public final class DrinkRenderer {
         Map<BlockPos, BlockState> states = new HashMap<>();
         List<DrinkTree.Block> blocks = blocksOf(level, drink, states);
         Map<BlockPos, DrinkTree.Stream> last = LAST.getOrDefault(drink.playerId(), Map.of());
-        drink.layout().place(states.keySet(), frame.glove(), frame.aim(), frame.ticks(),
+        drink.layout().place(states.keySet(), frame.point(), frame.aim(), frame.ticks(),
                 DrinkTree.flowingOf(last, states.keySet()));
         Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
         boolean flowing = false;
         DrinkLandings landings = LANDINGS.computeIfAbsent(drink.playerId(), ignored -> new DrinkLandings());
-        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
+        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.point(), frame.pull(),
                 frame.ticks())) {
             built.put(stream.block().pos(), stream);
             flowing |= !stream.spent();
@@ -193,7 +193,7 @@ public final class DrinkRenderer {
             }
         }
         LAST.put(drink.playerId(), built);
-        DrinkPeels.CLIENT.glove(drink.playerId(), frame.glove());
+        DrinkPeels.CLIENT.destination(drink.playerId(), frame.point());
         showing(drink.playerId(), flowing);
     }
 
