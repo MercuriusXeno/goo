@@ -33,11 +33,32 @@ public final class TendrilVignette {
     private static final float MIST_BREATH = 0.15f;
     private static final float MIST_BREATH_SPEED = 0.05f;
     /** The chance each tick a new tendril sprouts. */
-    static final float SPROUT_CHANCE = 0.15f;
+    static final float SPROUT_CHANCE = 0.6f;
     /** How far apart along one edge two tendrils root at the least, as a share of the edge. */
-    static final float ROOT_GAP = 0.12f;
+    static final float ROOT_GAP = 0.04f;
     /** The most tendrils standing at once. */
-    static final int MOST_TENDRILS = 40;
+    static final int MOST_TENDRILS = 48;
+    /** The evenly spaced slots along each edge a tendril roots in, one tendril to a slot. */
+    static final int SLOTS_PER_EDGE = 12;
+    /** How far a tendril roots off its slot's middle at most, as a share of the edge. */
+    static final float SLOT_JITTER = 0.25f / SLOTS_PER_EDGE;
+    /** The rounded lobes of soft growth along each edge, evenly spaced. */
+    static final int LOBES_PER_EDGE = 16;
+    /** How far a lobe sits off its place at most, as a share of the edge. */
+    static final float LOBE_JITTER = 0.2f / LOBES_PER_EDGE;
+    /** The smallest and largest lobe, its reach in from the edge as a share of the screen's shorter side. */
+    static final float SMALLEST_LOBE = 0.035f;
+    static final float LARGEST_LOBE = 0.065f;
+    /** How much a lobe breathes, as a share of its reach, and how fast. */
+    private static final float LOBE_BREATH = 0.12f;
+    private static final float SLOWEST_LOBE_BREATH = 0.03f;
+    private static final float FASTEST_LOBE_BREATH = 0.07f;
+    /** A lobe's soft halo, as a share past its own reach, and the halo's and the core's alpha. */
+    private static final float HALO_SHARE = 1.4f;
+    private static final float HALO_ALPHA = 0.16f;
+    private static final float CORE_ALPHA = 0.42f;
+    /** The rows a lobe draws in, as pixels. */
+    private static final int LOBE_ROW = 2;
     /** The shortest and longest a tendril reaches, as a share of the screen's shorter side. */
     private static final float SHORTEST = 0.02f;
     private static final float LONGEST = 0.06f;
@@ -59,14 +80,14 @@ public final class TendrilVignette {
     /** The ticks a newly grown stretch takes to fade in, and a dying one to fade out. */
     private static final float STRETCH_FADE_TICKS = 8f;
     /** The tries a sprout takes to find a root clear of every other on its edge. */
-    private static final int ROOT_TRIES = 4;
+    private static final int ROOT_TRIES = 8;
     /** How far a tendril sways at its tip at the most, as a share of the screen's shorter side. */
-    private static final float MOST_SWAY = 0.015f;
-    private static final float SLOWEST_SWAY_SPEED = 0.05f;
-    private static final float FASTEST_SWAY_SPEED = 0.2f;
+    private static final float MOST_SWAY = 0.012f;
+    private static final float SLOWEST_SWAY_SPEED = 0.03f;
+    private static final float FASTEST_SWAY_SPEED = 0.1f;
     /** The share of tendrils that root thick, and that fork. */
     private static final float THICK_SHARE = 0.35f;
-    private static final float FORK_SHARE = 0.6f;
+    private static final float FORK_SHARE = 0.3f;
     /** How long a fork reaches, as a share of the tendril beyond where it leaves. */
     private static final float FORK_LENGTH = 0.6f;
     private static final int TENDRIL_STEPS = 36;
@@ -74,11 +95,11 @@ public final class TendrilVignette {
     /** Where along a tendril it may fork, from and to, in steps. */
     private static final int FORK_FROM = TENDRIL_STEPS / 4;
     private static final int FORK_TO = TENDRIL_STEPS * 3 / 4;
-    private static final int TENDRIL_DOT = 1;
-    private static final int THICK_DOT = 2;
+    private static final int TENDRIL_DOT = 2;
+    private static final int THICK_DOT = 3;
     /** The share of a thick tendril, root outward, drawn thick. */
-    private static final float THICK_REACH = 0.4f;
-    private static final float TENDRIL_ALPHA = 0.4f;
+    private static final float THICK_REACH = 0.5f;
+    private static final float TENDRIL_ALPHA = 0.5f;
     /** The most ticks one frame catches up on, so a pause does not sprout a crowd at once. */
     private static final int MOST_CATCH_UP_TICKS = 20;
     private static final int EDGES = 4;
@@ -89,6 +110,9 @@ public final class TendrilVignette {
     private static final float NO_TIME = Float.NaN;
     /** The share of its heading a path keeps, turned back, when it meets its slant. */
     private static final float HALF_TURN = 0.5f;
+    private static final float HALF = 0.5f;
+    /** A spread runs both ways off its middle, twice its half. */
+    private static final float BOTH_WAYS = 2f;
     /** A tendril's fork step where it forks none. */
     private static final int NO_FORK = -1;
     /** The smoothstep's cubic terms, 3s² - 2s³, easing a tendril's growth in and out. */
@@ -97,13 +121,70 @@ public final class TendrilVignette {
 
     private final SplittableRandom random;
     private final List<Tendril> live = new ArrayList<>();
+    private final List<Lobe> fringe;
     private float lastTime = NO_TIME;
 
     /**
-     * @param seed the seed this vignette's tendrils sprout from
+     * @param seed the seed this vignette's tendrils sprout from and its fringe is laid from
      */
     public TendrilVignette(long seed) {
         this.random = new SplittableRandom(seed);
+        this.fringe = layFringe(new SplittableRandom(~seed));
+    }
+
+    /**
+     * One rounded lobe of the soft growth along an edge.
+     *
+     * @param edge          zero top, one bottom, two left, three right
+     * @param along         where along the edge it sits, zero to one
+     * @param radius        how far in it reaches, as a share of the screen's shorter side
+     * @param breathSpeed   how fast it breathes, radians a tick
+     * @param breathPhase   its breath's phase in radians
+     */
+    record Lobe(int edge, float along, float radius, float breathSpeed, float breathPhase) {
+    }
+
+    /**
+     * Lays the fringe: the same number of rounded lobes along every edge,
+     * evenly spaced, each a little off its place and its own size, so the
+     * edges fill with soft growth that never reads as a pattern.
+     *
+     * @param laying the random the fringe is laid from
+     * @return every lobe, edge by edge, in order along each
+     */
+    private static List<Lobe> layFringe(SplittableRandom laying) {
+        List<Lobe> lobes = new ArrayList<>();
+        for (int edge = 0; edge < EDGES; edge++) {
+            for (int place = 0; place < LOBES_PER_EDGE; place++) {
+                float middle = (place + HALF) / LOBES_PER_EDGE;
+                lobes.add(new Lobe(edge, middle + spread(laying, LOBE_JITTER),
+                        SMALLEST_LOBE + laying.nextFloat() * (LARGEST_LOBE - SMALLEST_LOBE),
+                        SLOWEST_LOBE_BREATH + laying.nextFloat() * (FASTEST_LOBE_BREATH - SLOWEST_LOBE_BREATH),
+                        laying.nextFloat() * Mth.TWO_PI));
+            }
+        }
+        return List.copyOf(lobes);
+    }
+
+    private static float spread(SplittableRandom laying, float most) {
+        return (laying.nextFloat() - HALF) * BOTH_WAYS * most;
+    }
+
+    /**
+     * @return the fringe's lobes, edge by edge
+     */
+    List<Lobe> fringe() {
+        return fringe;
+    }
+
+    /**
+     * The slot a root along an edge falls in.
+     *
+     * @param along where along the edge, zero to one
+     * @return the slot, zero to one short of the slots per edge
+     */
+    static int slotOf(float along) {
+        return Mth.clamp((int) Math.floor(along * SLOTS_PER_EDGE), 0, SLOTS_PER_EDGE - 1);
     }
 
     /**
@@ -213,25 +294,26 @@ public final class TendrilVignette {
     }
 
     /**
-     * Sprouts a new tendril, every trait of it rolled at random, at a root
-     * clear of every other tendril on its edge; where a few tries find none,
-     * no tendril sprouts this time.
+     * Sprouts a new tendril, every trait of it rolled at random, in an empty
+     * slot along an edge, a little off the slot's middle; where a few tries
+     * find every slot they pick taken, no tendril sprouts this time.
      *
      * @param bornAt the game time it sprouts
      */
     private void sprout(float bornAt) {
-        int edge = random.nextInt(EDGES);
         for (int attempt = 0; attempt < ROOT_TRIES; attempt++) {
-            float along = random.nextFloat();
-            if (rootIsClear(edge, along)) {
+            int edge = random.nextInt(EDGES);
+            int slot = random.nextInt(SLOTS_PER_EDGE);
+            if (slotIsFree(edge, slot)) {
+                float along = (slot + HALF) / SLOTS_PER_EDGE + spread(random, SLOT_JITTER);
                 live.add(rolled(edge, along, bornAt));
                 return;
             }
         }
     }
 
-    private boolean rootIsClear(int edge, float along) {
-        return live.stream().noneMatch(other -> other.edge() == edge && Math.abs(other.along() - along) < ROOT_GAP);
+    private boolean slotIsFree(int edge, int slot) {
+        return live.stream().noneMatch(other -> other.edge() == edge && slotOf(other.along()) == slot);
     }
 
     private Tendril rolled(int edge, float along, float bornAt) {
@@ -287,6 +369,7 @@ public final class TendrilVignette {
             return;
         }
         drawMist(graphics, time, strength, look.mistRgb());
+        drawFringe(graphics, time, strength, look.mistRgb());
         Brush brush = new Brush(graphics, new Screen(graphics.guiWidth(), graphics.guiHeight()), time, strength,
                 look.tendrilRgb());
         live.forEach(brush::draw);
@@ -304,6 +387,47 @@ public final class TendrilVignette {
             float alpha = MIST_RIM_ALPHA * toward * toward * breath * strength;
             int color = ARGB.color(Math.round(Mth.clamp(alpha, 0f, 1f) * OPAQUE), mistRgb);
             drawRing(graphics, outer, inner, width, height, color);
+        }
+    }
+
+    /**
+     * Draws the fringe: each lobe a soft rounded mound of growth breathing
+     * in from its edge, a faint halo under a denser core.
+     *
+     * @param graphics the GUI graphics
+     * @param time     the game time with the frame's partial tick
+     * @param strength how fully the vignette stands
+     * @param rgb      the growth's color
+     */
+    private void drawFringe(GuiGraphicsExtractor graphics, float time, float strength, int rgb) {
+        Screen screen = new Screen(graphics.guiWidth(), graphics.guiHeight());
+        float shorter = Math.min(screen.width(), screen.height());
+        int halo = ARGB.color(Math.round(HALO_ALPHA * strength * OPAQUE), rgb);
+        int core = ARGB.color(Math.round(CORE_ALPHA * strength * OPAQUE), rgb);
+        for (Lobe lobe : fringe) {
+            float breath = 1f + LOBE_BREATH * Mth.sin(time * lobe.breathSpeed() + lobe.breathPhase());
+            float reach = lobe.radius() * shorter * breath;
+            drawLobe(graphics, screen, lobe, reach * HALO_SHARE, halo);
+            drawLobe(graphics, screen, lobe, reach, core);
+        }
+    }
+
+    /**
+     * Draws one rounded mound in from an edge, row by row.
+     *
+     * @param graphics the GUI graphics
+     * @param screen   the screen's size
+     * @param lobe     the lobe
+     * @param reach    how far in it reaches, in pixels
+     * @param color    its color
+     */
+    private static void drawLobe(GuiGraphicsExtractor graphics, Screen screen, Lobe lobe, float reach, int color) {
+        for (int inward = 0; inward < reach; inward += LOBE_ROW) {
+            float half = (float) Math.sqrt(reach * reach - (float) inward * inward);
+            int[] from = screen.from(lobe.edge(), lobe.along(), inward, -half);
+            int[] to = screen.from(lobe.edge(), lobe.along(), inward + LOBE_ROW, half);
+            graphics.fill(Math.min(from[0], to[0]), Math.min(from[1], to[1]), Math.max(from[0], to[0]),
+                    Math.max(from[1], to[1]), color);
         }
     }
 
