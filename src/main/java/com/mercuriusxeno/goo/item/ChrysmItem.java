@@ -11,7 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Chrysm, crystallized goo at a fixed tier (decision chrysm-tiers-fixed-and-stackable):
+ * Chrysm, goo set solid at a fixed tier (decision chrysm-tiers-fixed-and-stackable):
  * stackable, its type in the GOO_TYPE component and its volume fixed by its
  * {@link ChrysmTier}, so it carries no GOO_VOLUME.
  */

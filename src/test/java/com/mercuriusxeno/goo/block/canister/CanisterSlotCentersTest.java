@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
  */
 class CanisterSlotCentersTest {
 
-    /** The grid with slot 0 moved to (4, 4) and slot 2 to (12, 4), as a crystallizer facing south lays it out. */
+    /** The grid with slot 0 moved to (4, 4) and slot 2 to (12, 4), as an attachable may lay it out. */
     private static final float[][] MOVED = {
         {4, 4}, {8, 3}, {12, 4}, {3, 8}, {8, 8}, {13, 8}, {3, 13}, {8, 13}, {13, 13}};
 
