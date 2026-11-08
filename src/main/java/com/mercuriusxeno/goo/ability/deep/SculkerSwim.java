@@ -33,7 +33,7 @@ import java.util.List;
 public final class SculkerSwim {
 
     /** The speed the swim drives toward under full input, in blocks per tick. */
-    static final double SWIM_SPEED = 0.3;
+    static final double SWIM_SPEED = 0.36;
     /** The share of the way the swim turns toward the driven speed each tick. */
     static final double SWIM_STEER = 0.25;
     /** How far the box shrinks before asking whether it is inside a solid block, so a body resting on a face is not. */

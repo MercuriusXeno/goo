@@ -17,7 +17,7 @@ import org.lwjgl.system.MemoryStack;
 
 /**
  * Sculker's warden senses: while the brew stands the world dims through
- * {@code goo:sculker_sense} with its distance from the diver, black by 8
+ * {@code goo:sculker_sense} with its distance from the diver, black by 6
  * blocks, so past the near world only what a real echo touched shows.
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  * decision sculker-shows-blocks-translucent-close-up
