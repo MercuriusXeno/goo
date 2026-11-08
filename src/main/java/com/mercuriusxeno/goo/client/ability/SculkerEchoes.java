@@ -19,8 +19,8 @@ import java.util.function.Predicate;
  * farther for a louder one, a louder sound lighting stronger. Sounds that meet on a face add up, each sound once
  * however many of its rings cross it, to twice a full light at most, and a
  * face's light falls at a steady rate, a full light within three seconds,
- * so a face fades by how recently and how strongly it was lit. A face shows
- * bright as a ring crosses it, then faintly as its light falls. A mob that
+ * so a block fades by how recently and how strongly it was lit: it glows as
+ * bright as the sound was as it reached it and decays from there. A mob that
  * makes a sound outlines for three seconds, longer for a louder one up to
  * six. What is heard draws fainter the farther the player stands from it,
  * down to a fifth at the edge of render distance and not at all past it;
@@ -43,10 +43,6 @@ public final class SculkerEchoes {
     static final int FADE_TICKS = 60;
     /** The most light a face holds, however many sounds meet on it: twice a full light. */
     static final float MOST_LIGHT = 2f;
-    /** Ticks a face shows bright after a ring crosses it, before it sinks to its wake. */
-    static final float RING_TICKS = 3f;
-    /** How brightly a face glows in a ring's wake, as a share of the ring's own glow. */
-    static final float WAKE_SHARE = 0.3f;
     /** Ticks a mob that made a sound of ordinary loudness stays outlined, three seconds. */
     static final int OUTLINE_TICKS = 60;
     /** The longest any mob stays outlined, however loud its sound, six seconds. */
@@ -79,28 +75,27 @@ public final class SculkerEchoes {
     }
 
     /**
-     * How a face stands lit: the light it held when a ring last crossed it,
-     * which falls at a steady rate from then, and the strength of that ring.
+     * How a block stands lit: the light it held when a ring last reached it,
+     * which falls at a steady rate from then.
      *
-     * @param litAt the game time a ring last crossed it
+     * @param litAt the game time a ring last reached it
      * @param light the light it held then, up to twice a full light
-     * @param flash how strongly that ring lit it, which it shows bright for a moment
      */
-    public record Lit(long litAt, float light, float flash) {
+    public record Lit(long litAt, float light) {
 
         /**
          * @param now the game time
-         * @return the light left on the face, falling a full light every three seconds, 0 once faded
+         * @return the light left on the block, falling a full light every three seconds, 0 once faded
          */
         float levelAt(long now) {
             return Math.max(0f, light - (float) (now - litAt) / FADE_TICKS);
         }
 
         /**
-         * @return the game time the face has faded out by, its ring's flash and its light both
+         * @return the game time the block has faded out by
          */
         long fadedAt() {
-            return litAt + Math.max((long) Math.ceil(RING_TICKS), (long) Math.ceil(light * FADE_TICKS));
+            return litAt + (long) Math.ceil(light * FADE_TICKS);
         }
     }
 
@@ -111,8 +106,8 @@ public final class SculkerEchoes {
      * @param startTick the game time it sets out
      * @param reach     how far it sweeps before it dies, where its light has fallen to nothing
      * @param strength  how strongly it lights a face at the source
-     * @param adds      whether it adds its light to the faces it crosses; a sound's first ring does,
-     *                  its later rings only flash, so each sound counts once
+     * @param adds      whether it adds its light to the blocks it crosses; a sound's first ring does
+     *                  and its later rings do not, so each sound counts once
      */
     record Ripple(Vec3 source, long startTick, double reach, float strength, boolean adds) {
 
@@ -261,11 +256,11 @@ public final class SculkerEchoes {
     }
 
     /**
-     * Lights a face a ring crossed: a sound's first ring adds its light to
-     * what is left there, up to twice a full light, and every ring flashes
-     * it; a face lit again takes its place as the newest.
+     * Lights a block a ring crossed: a sound's first ring adds its light to
+     * what is left there, up to twice a full light, and its later rings
+     * leave it as it stands.
      *
-     * @param face  the face the ring crossed
+     * @param face  the block the ring crossed
      * @param now   the game time
      * @param light the ring's light there
      * @param adds  whether the ring adds its light
@@ -274,7 +269,7 @@ public final class SculkerEchoes {
         Lit standing = remembered.remove(face);
         float left = standing == null ? 0f : standing.levelAt(now);
         float held = adds ? Math.min(MOST_LIGHT, left + light) : left;
-        remembered.put(face, new Lit(now, held, light));
+        remembered.put(face, new Lit(now, held));
     }
 
     /**
@@ -312,17 +307,17 @@ public final class SculkerEchoes {
     }
 
     /**
-     * How brightly a lit face glows now: as strongly as the ring lit it as
-     * the ring crosses it, sinking over a few ticks to its faint wake, which
-     * falls with the light left on it.
+     * How brightly a lit block glows now: as bright as the light left on it,
+     * so it starts as bright as the sound was as it reached it and decays
+     * steadily from there, a block holding more than a full light glowing
+     * full until it falls back below one.
      *
      * @param lit its lighting
      * @param now the game time
-     * @return the glow, 1 on the ring, 0 once faded
+     * @return the glow, zero to one
      */
     public static float glowAt(Lit lit, long now) {
-        float ring = lit.flash() * Math.max(0f, 1f - (now - lit.litAt()) / RING_TICKS);
-        return Math.max(ring, WAKE_SHARE * Math.min(1f, lit.levelAt(now)));
+        return Math.min(1f, lit.levelAt(now));
     }
 
     /**
