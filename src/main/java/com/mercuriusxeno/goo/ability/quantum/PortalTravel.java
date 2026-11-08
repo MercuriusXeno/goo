@@ -3,8 +3,10 @@ package com.mercuriusxeno.goo.ability.quantum;
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +39,34 @@ public final class PortalTravel {
                 portals.fall(fallen(server, link.entry()) ? link.entry() : link.exit());
                 PortalChoice.syncEveryone(server);
             }
+        }
+    }
+
+    /**
+     * Tells a player gone to another dimension the links standing there, so
+     * it sees through them; the sync holds only its own dimension's links.
+     * linked-partner-chunks-stream-to-any-viewer
+     *
+     * @param event the dimension change
+     */
+    @SubscribeEvent
+    public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            PortalChoice.sync(player);
+        }
+    }
+
+    /**
+     * Tells a respawned player the links standing where it respawned, which
+     * may be another dimension than it died in.
+     * linked-partner-chunks-stream-to-any-viewer
+     *
+     * @param event the respawn
+     */
+    @SubscribeEvent
+    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            PortalChoice.sync(player);
         }
     }
 

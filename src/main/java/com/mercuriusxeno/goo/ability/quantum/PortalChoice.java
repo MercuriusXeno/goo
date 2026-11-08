@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A player's portals as they place, choose and link them: a Portal cast
@@ -35,6 +36,8 @@ public final class PortalChoice {
     private static final int BREAK_PARTICLES = 24;
     private static final double BREAK_SPREAD = 0.4;
     private static final double BREAK_SPEED = 0.05;
+    /** The portal sync last told each player's client. */
+    private static final Map<UUID, PortalsSyncPayload> LAST_SENT = new ConcurrentHashMap<>();
 
     private PortalChoice() {
     }
@@ -146,10 +149,22 @@ public final class PortalChoice {
      */
     public static void sync(ServerPlayer player) {
         PortalsSyncPayload payload = syncFor(player);
+        LAST_SENT.put(player.getUUID(), payload);
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         if (player.connection.hasChannel(payload)) {
             PacketDistributor.sendToPlayer(player, payload);
         }
+    }
+
+    /**
+     * The portal sync last told a player's client, whether or not its
+     * connection carried it, so a gametest's player shows what it was told.
+     *
+     * @param player the player
+     * @return the last sync, empty where none was told
+     */
+    public static Optional<PortalsSyncPayload> lastSentTo(ServerPlayer player) {
+        return Optional.ofNullable(LAST_SENT.get(player.getUUID()));
     }
 
     /**

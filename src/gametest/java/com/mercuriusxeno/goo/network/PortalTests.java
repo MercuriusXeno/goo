@@ -24,12 +24,14 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -54,6 +56,8 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, PLACE_CHOOSE_LINK_AND_CARRY, PortalTests::placeChooseLinkAndCarry);
         GooTestFunctions.registerTest(registrar, HIT_BREAKS_THE_PORTAL, PortalTests::hitBreaksThePortal);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_EVERY_CLIENT, PortalTests::linkReachesEveryClient);
+        GooTestFunctions.registerTest(registrar, LINK_REACHES_A_PLAYER_CHANGING_DIMENSION,
+                PortalTests::linkReachesAPlayerChangingDimension);
         GooTestFunctions.registerTest(registrar, PLACING_LINKS_TO_THE_LAST_PLACED,
                 PortalTests::placingLinksToTheLastPlaced);
         GooTestFunctions.registerTest(registrar, NOT_IN_A_WALL_WHILE_PASSING, PortalTests::passingBodyIsNotInAWall);
@@ -565,6 +569,52 @@ public final class PortalTests {
         level.getServer().getPlayerList().remove(owner);
         level.getServer().getPlayerList().remove(onlooker);
         helper.succeed();
+    }
+
+    private static final String LINK_REACHES_A_PLAYER_CHANGING_DIMENSION =
+            "portal_link_reaches_a_player_changing_dimension";
+    /** Where in the Nether the pair stands, apart from every other test. */
+    private static final BlockPos NETHER_PAIR = new BlockPos(-1024, 70, -1024);
+    /** How far apart the Nether pair stands. */
+    private static final int NETHER_APART = 4;
+
+    /**
+     * A pair linked in the Nether: a player in the Overworld is told no link
+     * there, and once it goes to the Nether the portal sync it is told
+     * carries that link, so it sees through it there
+     * (decision linked-partner-chunks-stream-to-any-viewer).
+     *
+     * @param helper the gametest helper
+     */
+    public static void linkReachesAPlayerChangingDimension(GameTestHelper helper) {
+        ServerLevel nether = helper.getLevel().getServer().getLevel(Level.NETHER);
+        ServerPlayer onlooker = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        UUID owner = UUID.randomUUID();
+        Portal entry = netherFrame(nether, NETHER_PAIR);
+        Portal exit = netherFrame(nether, NETHER_PAIR.east(NETHER_APART));
+        PortalChoice.place(nether, owner, entry);
+        PortalChoice.place(nether, owner, exit);
+        QuantumPortals.Link link = new QuantumPortals.Link(entry, exit);
+        helper.assertFalse(PortalChoice.lastSentTo(onlooker).map(sync -> sync.links().contains(link)).orElse(false),
+                "A player in the Overworld should be told no link in the Nether");
+        Vec3 there = Vec3.atBottomCenterOf(NETHER_PAIR.south(2));
+        // Read in the same tick as the move, before another test's link resyncs every player.
+        onlooker.teleportTo(nether, there.x(), there.y(), there.z(), Set.of(), 0F, 0F, false);
+        boolean told = PortalChoice.lastSentTo(onlooker).map(sync -> sync.links().contains(link)).orElse(false);
+        Optional<List<QuantumPortals.Link>> links = PortalChoice.lastSentTo(onlooker).map(PortalsSyncPayload::links);
+        PortalChoice.breakAt(nether, entry.block().pos(), entry.face());
+        PortalChoice.breakAt(nether, exit.block().pos(), exit.face());
+        helper.getLevel().getServer().getPlayerList().remove(onlooker);
+        helper.assertTrue(told, "A player gone to the Nether should be told the link there, told " + links);
+        helper.succeed();
+    }
+
+    private static Portal netherFrame(ServerLevel nether, BlockPos block) {
+        nether.setBlockAndUpdate(block, Blocks.STONE.defaultBlockState());
+        nether.setBlockAndUpdate(block.above(), Blocks.STONE.defaultBlockState());
+        nether.setBlockAndUpdate(block.south(), Blocks.AIR.defaultBlockState());
+        nether.setBlockAndUpdate(block.above().south(), Blocks.AIR.defaultBlockState());
+        return new Portal(GlobalPos.of(nether.dimension(), block), Direction.SOUTH, Direction.UP);
     }
 
     private static final String HIT_BREAKS_THE_PORTAL = "portal_breaks_when_hit_and_the_wall_stands";
