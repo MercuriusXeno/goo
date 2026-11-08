@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:spire_carries_a_rider_up_with_the_stone",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}
