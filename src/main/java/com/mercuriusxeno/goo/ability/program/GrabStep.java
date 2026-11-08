@@ -17,6 +17,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -83,37 +84,43 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
             held = sentTarget(player, context.hostAs(ChannelHost.class));
         }
         if (held instanceof ItemEntity item) {
-            GrabEvents.pull(player, item, pullSpeed, throughGates(player, item, item.position(),
-                    player.getEyePosition()));
+            Vec3 eye = player.getEyePosition();
+            GrabEvents.pull(player, item, pullSpeed, throughGates(player, item, item.position(), eye).orElse(eye));
         } else if (held != null) {
+            Vec3 middle = held.getBoundingBox().getCenter();
             Vec3 lift = new Vec3(0, held.getBbHeight() * HALF, 0);
-            Vec3 middle = throughGates(player, held, held.getBoundingBox().getCenter(),
-                    holdPoint(player, held).add(lift));
-            GrabEvents.hold(player, held, middle.subtract(lift), throwSpeed);
+            Vec3 hold = holdPoint(player, held);
+            Optional<Vec3> gate = throughGates(player, held, middle, hold.add(lift));
+            if (gate.isPresent()) {
+                Vec3 toGate = gate.get().subtract(middle);
+                GrabEvents.drawToward(player, held, toGate.normalize().scale(Math.min(pullSpeed, toGate.length())),
+                        throwSpeed);
+            } else {
+                GrabEvents.hold(player, held, hold, throwSpeed);
+            }
         }
         return true;
     }
 
     /**
-     * Where a body Grab draws heads for: straight for the end where nothing
-     * stands between, else, where a linked pair offers a way, through the
-     * middle of the gate's opening, so the body crosses its face and the pair
-     * carries it out on the holder's side rather than dragging it at the
-     * walls between.
+     * Where a body Grab draws heads for where walls stand between it and the
+     * end and a linked pair offers a way: through the middle of the gate's
+     * opening, so the body crosses its face and the pair carries it out on
+     * the holder's side rather than dragging it at the walls between.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param player the holding player
      * @param body   the drawn body
      * @param from   where the body stands
      * @param to     where Grab draws it
-     * @return where it heads this tick
+     * @return where it heads through a gate, empty where it heads straight for the end
      */
-    private static Vec3 throughGates(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {
+    private static Optional<Vec3> throughGates(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {
         if (inSight(player, body, from, to)) {
-            return to;
+            return Optional.empty();
         }
         return GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), from, to)
-                .map(GateRay.Route::headFor).orElse(to);
+                .map(GateRay.Route::headFor);
     }
 
     private static boolean inSight(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {

@@ -69,11 +69,32 @@ public final class GrabEvents {
      * @param throwSpeed the speed a throw launches it at, in blocks per tick
      */
     public static void hold(ServerPlayer player, Entity held, Vec3 at, double throwSpeed) {
+        moveHeld(player, held, at.subtract(held.position()), Vec3.ZERO, throwSpeed);
+    }
+
+    /**
+     * Draws a held entity one step toward a linked gate this channel tick,
+     * carrying the step as its motion, so the client is seen to slide it into
+     * the gate and the pair carries it on out of the partner along that
+     * motion, rather than jumping it into the gate in one tick the client
+     * never shows arriving.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player     the holding player
+     * @param held       the held entity
+     * @param step       this tick's step toward the gate, no longer than Grab's pull speed
+     * @param throwSpeed the speed a throw launches it at, in blocks per tick
+     */
+    public static void drawToward(ServerPlayer player, Entity held, Vec3 step, double throwSpeed) {
+        moveHeld(player, held, step, step, throwSpeed);
+    }
+
+    private static void moveHeld(ServerPlayer player, Entity held, Vec3 step, Vec3 motion, double throwSpeed) {
         long until = player.level().getGameTime() + HOLD_GRACE_TICKS;
         suspend(held, until);
         // Moved rather than placed, so the held body collides with the blocks it is pulled against.
-        held.move(MoverType.SELF, at.subtract(held.position()));
-        held.setDeltaMovement(Vec3.ZERO);
+        held.move(MoverType.SELF, step);
+        held.setDeltaMovement(motion);
         held.fallDistance = 0;
         held.hurtMarked = true;
         player.setData(GooAttachments.GRAB_HOLD, new GrabHold(held.getId(), throwSpeed, until, false));
