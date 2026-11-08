@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -90,6 +91,32 @@ class BlockTransformsTest {
 
         assertEquals(new BlockTransforms.Mingling(log, BlockTransforms.CHARRED),
                 BlockTransforms.minglingOf(firstTick, log));
+    }
+
+    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: water draws no model, so ice mingles as air does
+    @Test
+    void anExposureTowardWaterMinglesTheStandingIceCharredFromItsFirstShare() {
+        BlockState ice = mock(BlockState.class);
+        BlockState water = mock(BlockState.class);
+        when(water.getRenderShape()).thenReturn(RenderShape.INVISIBLE);
+        BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, water, 0.025f, START,
+                BlockTransforms.UNTINTED);
+
+        assertEquals(new BlockTransforms.Mingling(ice, BlockTransforms.CHARRED),
+                BlockTransforms.minglingOf(firstTick, ice));
+    }
+
+    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: melted ice dissolves through the noise into its water
+    @Test
+    void aStepOnAnExposureTowardWaterDissolvesFromTheCharredFace() {
+        BlockState ice = mock(BlockState.class);
+        BlockState water = mock(BlockState.class);
+        when(water.getRenderShape()).thenReturn(RenderShape.INVISIBLE);
+        BlockTransforms transforms = new BlockTransforms();
+        transforms.expose(GRAVEL, water, 0.9f, START, BlockTransforms.UNTINTED);
+        transforms.start(GRAVEL, ice, START + 1);
+        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, ice, START + 1, BlockTransforms.CHARRED)),
+                transforms.live(START + 1));
     }
 
     @Test
