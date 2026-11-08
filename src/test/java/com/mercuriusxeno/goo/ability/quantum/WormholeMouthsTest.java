@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A hole's mouth is the 3x3 centred where the blob struck, and where that
- * does not fit, the largest smaller mouth inside that same 3x3, the most
- * centred first, whether or not it covers the struck block itself
+ * does not fit, the largest smaller mouth inside that same 3x3, the lower of
+ * two the same size first, whether or not it covers the struck block itself
  * (decision hole-closes-the-space-to-an-opening-ahead).
  */
 class WormholeMouthsTest {
@@ -42,6 +42,30 @@ class WormholeMouthsTest {
                         "Every mouth should stand inside the 3x3 centred on the struck block, " + mouth + " does not");
             }
         }
+    }
+
+    /**
+     * The mouths run largest first, and of two the same size the lower
+     * first, so a hole opens the one largest mouth the space holds, the
+     * lowest where two that large fit.
+     */
+    @Test
+    void mouthsRunLargestFirstAndTheLowerOfTwoTheSameSizeFirst() {
+        List<List<BlockPos>> mouths = Wormhole.mouthsOver(STRUCK, ACROSS);
+        for (int at = 1; at < mouths.size(); at++) {
+            List<BlockPos> before = mouths.get(at - 1);
+            List<BlockPos> after = mouths.get(at);
+            assertTrue(before.size() >= after.size(), "A larger mouth should come first, " + before + " before "
+                    + after);
+            if (before.size() == after.size()) {
+                assertTrue(heightOf(before) <= heightOf(after), "Of two mouths the same size the lower should come "
+                        + "first, " + before + " before " + after);
+            }
+        }
+    }
+
+    private static double heightOf(List<BlockPos> mouth) {
+        return mouth.stream().mapToInt(BlockPos::getY).average().orElseThrow();
     }
 
     @Test
