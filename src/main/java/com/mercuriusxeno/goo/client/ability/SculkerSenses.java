@@ -8,7 +8,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
@@ -17,7 +16,10 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
+import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,14 +28,13 @@ import java.util.Map;
  * What a Sculker senses, while its brew stands. Every sound heard sends its
  * rings out across the block faces open to air near its source, whose
  * blocks SculkerEchoRenderer draws tinted sculk teal ({@link SculkerEchoes}).
- * A mob that makes a sound shows the sculk outline for about a second,
- * fading, and leaves the echoing silhouette of the shared afterimage; all of
- * it draws fainter the farther it stands, down to a fifth at the edge of
- * render distance. The diver also hears the sounds the server carries to it
+ * A mob that makes a sound shows a soft blurred sculk-teal glow around its
+ * body, through walls, for its outline's time, fading; all of it draws
+ * fainter the farther it stands, down to a fifth at the edge of render
+ * distance. The diver also hears the sounds the server carries to it
  * from anywhere within render distance. The brew's end
  * forgets it all.
  * decision sculker-sight-persists-where-echoes-have-touched
- * decision afterimage-is-one-shared-effect
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerSenses {
@@ -42,17 +43,11 @@ public final class SculkerSenses {
     public static final int SCULK_RGB = 0x1ED8D2;
     /** How near a sound's source an entity must stand for the sound to be its own. */
     private static final double SOUND_OWNER_REACH = 1.5;
-    /** Ticks between one silhouette an entity leaves and the next. */
-    private static final int SILHOUETTE_GAP_TICKS = 10;
-    /** Ticks each silhouette takes to grow and fade. */
-    private static final int SILHOUETTE_LIFE_TICKS = 16;
     private static final int BLOCKS_PER_CHUNK = 16;
 
     private static final SculkerEchoes ECHOES = new SculkerEchoes();
     /** Each mob heard making a sound, by entity id. */
     private static final Map<Integer, Heard> HEARD = new HashMap<>();
-    /** Each heard entity's id and the game time it last left a silhouette. */
-    private static final Map<Integer, Long> SILHOUETTE_AT = new HashMap<>();
 
     private SculkerSenses() {
     }
@@ -71,24 +66,42 @@ public final class SculkerSenses {
     }
 
     /**
-     * Whether an entity draws its outline for the local Sculker now.
+     * Draws the soft glow around every mob heard making a sound, while its
+     * outline lasts, over the finished level.
      *
-     * @param entity the entity drawn
-     * @return true for a mob heard making a sound whose outline has not faded, within render distance
+     * @param event the level render stage event
      */
-    public static boolean outlines(Entity entity) {
-        return outlineStrength(entity) > 0;
+    @SubscribeEvent
+    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || HEARD.isEmpty()) {
+            return;
+        }
+        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        List<AfterimageRenderer.SoftOutline> outlines = new ArrayList<>();
+        for (int id : HEARD.keySet()) {
+            AfterimageRenderer.SoftOutline outline = softOutlineOf(mc, id, partialTick);
+            if (outline != null) {
+                outlines.add(outline);
+            }
+        }
+        AfterimageRenderer.drawSoftOutlines(event, outlines, SCULK_RGB);
     }
 
     /**
-     * The color an entity's outline draws in: sculk teal, as strong as what
-     * is left of its outline times how near it stands.
+     * A heard mob's soft outline this frame.
      *
-     * @param entity the entity drawn
-     * @return the outline's color
+     * @param mc          the client, its level loaded
+     * @param id          the mob's entity id
+     * @param partialTick the frame's partial tick
+     * @return its outline, or null where the mob is gone or its outline has faded
      */
-    public static int outlineColor(Entity entity) {
-        return ARGB.scaleRGB(SCULK_RGB, outlineStrength(entity));
+    private static AfterimageRenderer.@Nullable SoftOutline softOutlineOf(Minecraft mc, int id, float partialTick) {
+        Entity mob = mc.level.getEntity(id);
+        float strength = mob == null ? 0f : outlineStrength(mob) * SculkerVision.presence();
+        EntityRenderState snapshot = strength > 0f ? EntitySnapshots.of(mc, id) : null;
+        return snapshot == null ? null
+                : new AfterimageRenderer.SoftOutline(snapshot, mob.getPosition(partialTick), strength);
     }
 
     private static float outlineStrength(Entity entity) {
@@ -124,13 +137,11 @@ public final class SculkerSenses {
         if (player == null || level == null || !SculkerSwim.dives(player)) {
             ECHOES.clear();
             HEARD.clear();
-            SILHOUETTE_AT.clear();
             return;
         }
         long now = level.getGameTime();
         ECHOES.advance(now, pos -> level.getBlockState(pos).isAir());
         HEARD.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null || now >= heard.getValue().fadedAt());
-        SILHOUETTE_AT.keySet().retainAll(HEARD.keySet());
     }
 
     /**
@@ -176,8 +187,7 @@ public final class SculkerSenses {
     public static void hear(Vec3 at, float loudness) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || !SculkerSwim.dives(player)
-                || SculkerEchoes.strengthAt(at.distanceTo(player.position()), sightReach()) <= 0) {
+        if (!hearsAt(mc, at)) {
             return;
         }
         long now = mc.level.getGameTime();
@@ -186,33 +196,23 @@ public final class SculkerSenses {
                 LivingEntity.class::isInstance);
         int ticks = SculkerEchoes.outlineTicksFor(loudness);
         for (Entity mob : mobs) {
-            hearMob(mc, player, mob, now, ticks);
+            HEARD.merge(mob.getId(), new Heard(now, ticks),
+                    (old, fresh) -> fresh.fadedAt() >= old.fadedAt() ? fresh : old);
         }
     }
 
     /**
-     * Outlines a mob heard making a sound and leaves its echoing silhouette,
-     * no oftener than the silhouette gap, dimmer the farther it stands.
+     * Whether the local Sculker hears a sound at a point: its brew stands
+     * and the point lies within render distance.
      *
-     * @param mc     the client
-     * @param player the local player
-     * @param mob    the mob heard
-     * @param now    the game time
-     * @param ticks  how long its outline lasts
+     * @param mc the client
+     * @param at where the sound played
+     * @return true where the sound is heard
      */
-    private static void hearMob(Minecraft mc, LocalPlayer player, Entity mob, long now, int ticks) {
-        HEARD.merge(mob.getId(), new Heard(now, ticks), (old, fresh) -> fresh.fadedAt() >= old.fadedAt() ? fresh : old);
-        Long last = SILHOUETTE_AT.get(mob.getId());
-        if (last != null && now - last < SILHOUETTE_GAP_TICKS) {
-            return;
-        }
-        SILHOUETTE_AT.put(mob.getId(), now);
-        EntityRenderState snapshot = EntitySnapshots.of(mc, mob.getId());
-        if (snapshot != null) {
-            float strength = SculkerEchoes.strengthAt(mob.distanceTo(player), sightReach());
-            Afterimages.CLIENT.add(snapshot, mob.position(), ARGB.scaleRGB(SCULK_RGB, strength), now,
-                    SILHOUETTE_LIFE_TICKS);
-        }
+    private static boolean hearsAt(Minecraft mc, Vec3 at) {
+        LocalPlayer player = mc.player;
+        return player != null && mc.level != null && SculkerSwim.dives(player)
+                && SculkerEchoes.strengthAt(at.distanceTo(player.position()), sightReach()) > 0;
     }
 
     /**

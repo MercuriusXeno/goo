@@ -1173,6 +1173,21 @@ public final class GooRenderTypes {
             .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
             .build();
 
+    /**
+     * Sculker's soft outline pipeline (decision sculker-sight-persists-where-echoes-have-touched):
+     * a fullscreen pass over the ripple buffer's red channel through
+     * {@code goo_soft_outline.fsh}, painting a blurred glow out from each heard
+     * body's edge in the color ColorModulator carries, blended over the frame.
+     */
+    public static final RenderPipeline GOO_SOFT_OUTLINE = RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_soft_outline"))
+            .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_soft_outline"))
+            .withSampler("InSampler")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+            .build();
+
     /** The one render type on the ailment overlay pipeline, its glint texture bound. */
     public static final RenderType GOO_AILMENT_OVERLAY_TYPE = RenderType.create(
             "goo_ailment_overlay",
@@ -1366,6 +1381,7 @@ public final class GooRenderTypes {
     private static void registerOverlayPipelines(RegisterRenderPipelinesEvent event) {
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
+        event.registerPipeline(GOO_SOFT_OUTLINE);
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GLOW_BEAM);
