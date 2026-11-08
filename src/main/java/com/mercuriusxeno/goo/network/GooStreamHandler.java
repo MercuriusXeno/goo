@@ -261,23 +261,11 @@ public final class GooStreamHandler {
         Vec3 apex = coneApex(player, origin);
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id());
-        // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
-        // fly from the hand, a mob-first swarm's curving onto the mob it bites or into the block it paints
-        BlockHitResult crosshair = crosshairHit(player, delivery.range());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         List<Integer> healed = new ArrayList<>();
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
-            List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
-            if (ability.hasTag(AbilityTags.MOB_FIRST)) {
-                SwarmStrike.send(player, apex, aimFrom(apex, crosshair.getLocation(), axis), delivery, struck,
-                        crosshair);
-                struck = SwarmStrike.reached(player, apex, struck, held);
-            } else {
-                Vec3 target = crosshair.getLocation();
-                sprayParticles(level, apex, aimFrom(apex, target, axis), delivery,
-                        Math.min(delivery.range(), apex.distanceTo(target)));
-            }
+            List<LivingEntity> struck = sprayAndStrike(cast, apex, axis, ability, held);
             for (LivingEntity living : struck) {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
                         entitySteps, cast));
@@ -285,6 +273,38 @@ public final class GooStreamHandler {
             sprayFloors(player, apex, axis, ability);
         }
         strikeCaster(cast, ability, apex, entitySteps, healed);
+    }
+
+    /**
+     * Runs the stream's block pass, shows its motes, and answers the living
+     * its entity pass strikes this tick: a mob-first stream's swarm converges
+     * on the mob it chases or the block under the crosshair, biting the mob
+     * once its gnats arrive; any other stream sprays its particle onto the
+     * point the crosshair lands on.
+     *
+     * @param cast    the tick's cast
+     * @param apex    the cone's apex, the glove hand
+     * @param axis    the look
+     * @param ability the stream ability
+     * @param held    the hold's tick count
+     * @return the living the entity pass strikes
+     */
+    private static List<LivingEntity> sprayAndStrike(CastOn cast, Vec3 apex, Vec3 axis, AbilityDefinition ability,
+                                                     int held) {
+        ServerPlayer player = cast.player();
+        Delivery delivery = ability.delivery();
+        // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
+        // fly from the hand, a mob-first swarm's converging on the mob it chases or the block it paints
+        BlockHitResult crosshair = crosshairHit(player, delivery.range());
+        Vec3 aim = aimFrom(apex, crosshair.getLocation(), axis);
+        List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
+        if (ability.hasTag(AbilityTags.MOB_FIRST)) {
+            SwarmStrike.send(player, apex, aim, delivery, struck, crosshair);
+            return SwarmStrike.reached(player, apex, struck, held);
+        }
+        sprayParticles(cast.level(), apex, aim, delivery,
+                Math.min(delivery.range(), apex.distanceTo(crosshair.getLocation())));
+        return struck;
     }
 
     /**
