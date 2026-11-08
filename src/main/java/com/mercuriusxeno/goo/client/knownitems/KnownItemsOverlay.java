@@ -3,8 +3,10 @@ package com.mercuriusxeno.goo.client.knownitems;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.network.GhostItemPickPayload;
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -30,6 +32,8 @@ import java.util.Locale;
 public final class KnownItemsOverlay extends Screen {
 
     private static final double HALF = 0.5;
+    /** The close button's face, a red X. */
+    private static final String CLOSE_MARK = "X";
     private static final int ROW_UP = -1;
     private static final int ROW_DOWN = 1;
 
@@ -64,6 +68,17 @@ public final class KnownItemsOverlay extends Screen {
                 KnownItemsKey.MAPPING.isDown()));
     }
 
+    /**
+     * Places the close button, a red X in the top right corner; Escape closes as well.
+     */
+    @Override
+    protected void init() {
+        KnownItemsOverlayRenderer.Box close = KnownItemsOverlayRenderer.closeButton(width);
+        addRenderableWidget(Button.builder(Component.literal(CLOSE_MARK).withStyle(ChatFormatting.RED), button -> onClose())
+                .bounds(close.left(), close.top(), close.size(), close.size())
+                .build());
+    }
+
     @Override
     public boolean isPauseScreen() {
         return false;
@@ -75,7 +90,7 @@ public final class KnownItemsOverlay extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float frameDelta) {
         drawn = KnownItemsOverlayRenderer.render(graphics, font, new KnownItemsOverlayRenderer.Frame(width, height,
-                KnownItemsListing.filter(ordered, search.text(), locale), search.text(), firstRow));
+                KnownItemsListing.filter(ordered, search.text(), locale), search.text(), firstRow, mouseX, mouseY));
         firstRow = drawn.scroll().firstRow();
         KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn.icons(), mouseX, mouseY);
     }

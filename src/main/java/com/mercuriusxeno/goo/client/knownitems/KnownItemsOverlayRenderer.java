@@ -11,9 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Draws the known items overlay: one darkening fill over the whole frame, a title, a bordered search
- * bar, one item icon per shown item in a centered grid, a scroll bar when the rows overflow and a hint
- * naming how to close, no panel and no button, and names the item the cursor rests on.
+ * Draws the known items overlay left to right, top to bottom: one darkening fill over the whole frame,
+ * the title in the top left corner with a wide bordered search bar beside it, then one item icon per
+ * shown item in a grid from the left margin, the hovered cell lighter inside a border, and a scroll bar
+ * when the rows overflow; names the item the cursor rests on. The close button is the overlay's widget.
  * decision menu-is-a-darkening-overlay-not-a-screen
  * decision g-opens-the-known-items-menu-empty-handed
  */
@@ -26,9 +27,11 @@ public final class KnownItemsOverlayRenderer {
     /** The side of an item icon. */
     static final int ICON = 16;
     /** The space kept clear between the grid and the frame's edges. */
-    static final int MARGIN = 24;
-    /** A span's two sides, which a centered span's slack splits between. */
+    static final int MARGIN = 8;
+    /** A span's two sides. */
     private static final int SIDES = 2;
+    /** The gap between a cell's edge and its icon. */
+    static final int INSET = (CELL - ICON) / SIDES;
     /** The scroll bar's width. */
     static final int BAR_WIDTH = 6;
     /** The search bar's box color, a flat fill a shade off the darkening. */
@@ -38,9 +41,9 @@ public final class KnownItemsOverlayRenderer {
     /** The caret drawn after the typed text. */
     static final String CARET = "_";
     /** The search bar's height. */
-    static final int SEARCH_HEIGHT = 12;
+    static final int SEARCH_HEIGHT = 16;
     /** The search text's inset from the bar's top-left corner. */
-    static final int SEARCH_INSET = 2;
+    static final int SEARCH_INSET = 4;
     /** The gap between the search bar and the grid, and between the grid and the scroll bar. */
     static final int GAP = 4;
     /** The scroll bar's track color. */
@@ -49,7 +52,7 @@ public final class KnownItemsOverlayRenderer {
     static final int THUMB = 0xFF808080;
     /** The search bar's border color, light against the darkening so the bar reads as a field. */
     static final int SEARCH_BORDER = 0xFFA0A0A0;
-    /** The placeholder's and the close hint's color, dimmer than typed text. */
+    /** The placeholder's color, dimmer than typed text. */
     static final int HINT_TEXT = 0xFF808080;
     /** The title's color. */
     static final int TITLE_TEXT = 0xFFFFFFFF;
@@ -57,10 +60,10 @@ public final class KnownItemsOverlayRenderer {
     static final String TITLE_KEY = "goo.known_items.title";
     /** The translation key of the empty search bar's placeholder. */
     static final String PLACEHOLDER_KEY = "goo.known_items.search";
-    /** The translation key of the hint naming how to close the overlay. */
-    static final String CLOSE_HINT_KEY = "goo.known_items.close_hint";
-    /** The height a line of text takes, the title's and the hint's. */
-    static final int LINE_HEIGHT = 12;
+    /** The hovered cell's border color. */
+    static final int HOVER_BORDER = 0xFFE0E0E0;
+    /** The hovered cell's fill, lighter than the darkening around it. */
+    static final int HOVER_CELL = 0x60FFFFFF;
 
     private KnownItemsOverlayRenderer() {}
 
@@ -83,14 +86,14 @@ public final class KnownItemsOverlayRenderer {
     public record ItemIcon(KnownItem item, int left, int top) {
 
         /**
-         * Whether a point lies on the icon.
+         * Whether a point lies on the icon's cell, the icon and the gap around it.
          *
          * @param x the point's x
          * @param y the point's y
-         * @return true inside the icon's square
+         * @return true inside the cell
          */
         public boolean contains(double x, double y) {
-            return x >= left && x < left + ICON && y >= top && y < top + ICON;
+            return x >= left - INSET && x < left - INSET + CELL && y >= top - INSET && y < top - INSET + CELL;
         }
     }
 
@@ -102,8 +105,31 @@ public final class KnownItemsOverlayRenderer {
      * @param items    the known items in the order they draw, already filtered by the query
      * @param query    the text typed in the search bar
      * @param firstRow the grid row the scroll asks to show first
+     * @param cursorX  the cursor's x, whose cell draws hovered
+     * @param cursorY  the cursor's y
      */
-    public record Frame(int width, int height, List<KnownItem> items, String query, int firstRow) {
+    public record Frame(int width, int height, List<KnownItem> items, String query, int firstRow,
+                        int cursorX, int cursorY) {
+    }
+
+    /**
+     * A square on the frame.
+     *
+     * @param left the square's left edge
+     * @param top  the square's top edge
+     * @param size the square's side
+     */
+    public record Box(int left, int top, int size) {
+    }
+
+    /**
+     * Where the close button stands: the top right corner, inside the margin.
+     *
+     * @param width the frame's width
+     * @return the button's square
+     */
+    public static Box closeButton(int width) {
+        return new Box(width - MARGIN - SEARCH_HEIGHT, MARGIN, SEARCH_HEIGHT);
     }
 
     /**
@@ -139,28 +165,40 @@ public final class KnownItemsOverlayRenderer {
         Grid grid = Grid.of(frame);
         // The title marks the overlay as a menu without a panel around it.
         Component title = Component.translatable(TITLE_KEY);
-        graphics.text(font, title, (frame.width() - font.width(title)) / SIDES, MARGIN, TITLE_TEXT);
-        drawSearchBar(graphics, font, grid, frame.query());
+        graphics.text(font, title, MARGIN, MARGIN + SEARCH_INSET, TITLE_TEXT);
+        drawSearchBar(graphics, font, MARGIN + font.width(title) + SIDES * GAP,
+                closeButton(frame.width()).left() - GAP, frame.query());
         int count = frame.items().size();
         ScrollModel scroll = ScrollModel.of((count + grid.columns() - 1) / grid.columns(), grid.rowsVisible(),
                 frame.firstRow());
-        int inset = (CELL - ICON) / SIDES;
         int first = scroll.firstRow() * grid.columns();
         int end = Math.min(count, first + grid.rowsVisible() * grid.columns());
         List<ItemIcon> icons = new ArrayList<>(end - first);
         for (int i = first; i < end; i++) {
             int shown = i - first;
-            ItemIcon icon = new ItemIcon(frame.items().get(i), grid.left() + shown % grid.columns() * CELL + inset,
-                    grid.top() + shown / grid.columns() * CELL + inset);
+            ItemIcon icon = new ItemIcon(frame.items().get(i), grid.left() + shown % grid.columns() * CELL + INSET,
+                    grid.top() + shown / grid.columns() * CELL + INSET);
+            if (icon.contains(frame.cursorX(), frame.cursorY())) {
+                drawHoveredCell(graphics, icon);
+            }
             graphics.item(icon.item().stack(), icon.left(), icon.top());
             icons.add(icon);
         }
         Track track = scroll.scrolls() ? drawScrollBar(graphics, grid, scroll) : null;
-        Component hint = Component.translatable(CLOSE_HINT_KEY);
-        int shownRows = Math.clamp(scroll.rowCount(), 1, grid.rowsVisible());
-        graphics.text(font, hint, (frame.width() - font.width(hint)) / SIDES, grid.top() + shownRows * CELL + GAP,
-                HINT_TEXT);
         return new Drawn(icons, scroll, track);
+    }
+
+    /**
+     * Draws the hovered item's cell lighter inside a one-pixel light border, under its icon.
+     *
+     * @param graphics the GUI graphics extractor
+     * @param icon     the hovered icon
+     */
+    private static void drawHoveredCell(GuiGraphicsExtractor graphics, ItemIcon icon) {
+        int left = icon.left() - INSET;
+        int top = icon.top() - INSET;
+        graphics.fill(left, top, left + CELL, top + CELL, HOVER_BORDER);
+        graphics.fill(left + 1, top + 1, left + CELL - 1, top + CELL - 1, HOVER_CELL);
     }
 
     /**
@@ -169,15 +207,16 @@ public final class KnownItemsOverlayRenderer {
      *
      * @param graphics the GUI graphics extractor
      * @param font     the font the text draws in
-     * @param grid     the grid the bar spans
+     * @param left     the bar's left edge, inside its border
+     * @param right    the bar's right edge, inside its border
      * @param query    the text typed so far
      */
-    private static void drawSearchBar(GuiGraphicsExtractor graphics, Font font, Grid grid, String query) {
-        int bottom = grid.searchTop() + SEARCH_HEIGHT;
-        graphics.fill(grid.left() - 1, grid.searchTop() - 1, grid.right() + 1, bottom + 1, SEARCH_BORDER);
-        graphics.fill(grid.left(), grid.searchTop(), grid.right(), bottom, SEARCH_BAR);
-        int textX = grid.left() + SEARCH_INSET;
-        int textY = grid.searchTop() + SEARCH_INSET;
+    private static void drawSearchBar(GuiGraphicsExtractor graphics, Font font, int left, int right, String query) {
+        int bottom = MARGIN + SEARCH_HEIGHT;
+        graphics.fill(left - 1, MARGIN - 1, right + 1, bottom + 1, SEARCH_BORDER);
+        graphics.fill(left, MARGIN, right, bottom, SEARCH_BAR);
+        int textX = left + SEARCH_INSET;
+        int textY = MARGIN + SEARCH_INSET;
         if (query.isEmpty()) {
             graphics.text(font, Component.translatable(PLACEHOLDER_KEY), textX, textY, HINT_TEXT);
         } else {
@@ -195,25 +234,20 @@ public final class KnownItemsOverlayRenderer {
     }
 
     /**
-     * The grid's place in the frame: as many columns as fit inside the margins, centered, under the
-     * title and the search bar, with as many rows as fit above the close hint and the bottom margin.
+     * The grid's place in the frame: from the left margin under the top row, as many columns as the
+     * width holds beside the scroll bar, and as many rows as fit above the bottom margin.
      *
      * @param columns     the grid's columns
      * @param left        the grid's left edge
-     * @param searchTop   the search bar's top edge, inside its border
      * @param top         the grid's top edge
      * @param rowsVisible the rows the frame shows at once
      */
-    record Grid(int columns, int left, int searchTop, int top, int rowsVisible) {
+    record Grid(int columns, int left, int top, int rowsVisible) {
 
         static Grid of(Frame frame) {
-            int count = frame.items().size();
-            int columns = Math.clamp((frame.width() - SIDES * MARGIN - GAP - BAR_WIDTH) / CELL, 1,
-                    Math.max(1, count));
-            int searchTop = MARGIN + LINE_HEIGHT;
-            int top = searchTop + SEARCH_HEIGHT + 1 + GAP;
-            return new Grid(columns, (frame.width() - columns * CELL) / SIDES, searchTop, top,
-                    Math.max(1, (frame.height() - top - GAP - LINE_HEIGHT - MARGIN) / CELL));
+            int columns = Math.max(1, (frame.width() - SIDES * MARGIN - GAP - BAR_WIDTH) / CELL);
+            int top = MARGIN + SEARCH_HEIGHT + 1 + SIDES * GAP;
+            return new Grid(columns, MARGIN, top, Math.max(1, (frame.height() - top - MARGIN) / CELL));
         }
 
         int right() {

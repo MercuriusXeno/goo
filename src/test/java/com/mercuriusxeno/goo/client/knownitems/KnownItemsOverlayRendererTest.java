@@ -62,31 +62,38 @@ class KnownItemsOverlayRendererTest {
         return calls(graphics).stream().filter(call -> call.getMethod().getName().equals(method)).toList();
     }
 
+    /** A cursor off the frame, resting on nothing. */
+    private static final int NOWHERE = -100;
+
     private static Drawn render(GuiGraphicsExtractor graphics, List<KnownItem> shown, String query, int firstRow) {
+        return renderAt(graphics, shown, query, firstRow, NOWHERE, NOWHERE);
+    }
+
+    private static Drawn renderAt(GuiGraphicsExtractor graphics, List<KnownItem> shown, String query, int firstRow,
+                                  int cursorX, int cursorY) {
         return KnownItemsOverlayRenderer.render(graphics, mock(Font.class),
-                new KnownItemsOverlayRenderer.Frame(WIDTH, HEIGHT, shown, query, firstRow));
+                new KnownItemsOverlayRenderer.Frame(WIDTH, HEIGHT, shown, query, firstRow, cursorX, cursorY));
     }
 
     @Nested
     class Frame {
         @Test
-        void frameIsTheDarkeningTheSearchBarOneIconPerItemAndTheHoveredName() {
-            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-            Font font = mock(Font.class);
-            List<ItemIcon> icons = render(graphics, items, "", 0).icons();
-            ItemIcon dirt = icons.get(1);
+        void frameIsTheDarkeningTheTopRowOneIconPerItemTheHoveredCellAndTheHoveredName() {
+            ItemIcon dirt = render(mock(GuiGraphicsExtractor.class), items, "", 0).icons().get(1);
             int cursorX = dirt.left() + 1;
             int cursorY = dirt.top() + 1;
+            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            Font font = mock(Font.class);
+            List<ItemIcon> icons = renderAt(graphics, items, "", 0, cursorX, cursorY).icons();
             KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, icons, cursorX, cursorY);
 
-            assertEquals(List.of("fill", "text", "fill", "fill", "text", "item", "item", "item", "text",
+            assertEquals(List.of("fill", "text", "fill", "fill", "text", "item", "fill", "fill", "item", "item",
                     "setTooltipForNextFrame"), methods(graphics));
             Invocation darken = calls(graphics).getFirst();
             assertEquals(List.of(0, 0, WIDTH, HEIGHT, KnownItemsOverlayRenderer.DARKEN), List.of(darken.getArguments()));
             List<Invocation> texts = callsOf(graphics, "text");
             assertEquals(Component.translatable(KnownItemsOverlayRenderer.TITLE_KEY), texts.get(0).getArgument(1));
             assertEquals(Component.translatable(KnownItemsOverlayRenderer.PLACEHOLDER_KEY), texts.get(1).getArgument(1));
-            assertEquals(Component.translatable(KnownItemsOverlayRenderer.CLOSE_HINT_KEY), texts.get(2).getArgument(1));
             assertEquals(items.stream().map(KnownItem::stack).toList(),
                     callsOf(graphics, "item").stream().map(call -> call.getArgument(0)).toList());
             Invocation name = calls(graphics).getLast();
@@ -94,15 +101,57 @@ class KnownItemsOverlayRendererTest {
         }
 
         @Test
-        void titleDrawsAboveTheSearchBarAndTheHintUnderTheGrid() {
+        void hoveredCellDrawsLighterInsideABorderJustBeforeItsItem() {
+            ItemIcon dirt = render(mock(GuiGraphicsExtractor.class), items, "", 0).icons().get(1);
+            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            renderAt(graphics, items, "", 0, dirt.left() + 1, dirt.top() + 1);
+
+            List<Invocation> fills = callsOf(graphics, "fill");
+            Invocation border = fills.get(fills.size() - 2);
+            Invocation cell = fills.getLast();
+            assertEquals(KnownItemsOverlayRenderer.HOVER_BORDER, (int) border.getArgument(4));
+            assertEquals(KnownItemsOverlayRenderer.HOVER_CELL, (int) cell.getArgument(4));
+            assertEquals(List.of((int) border.getArgument(0) + 1, (int) border.getArgument(1) + 1,
+                    (int) border.getArgument(2) - 1, (int) border.getArgument(3) - 1),
+                    List.of(cell.getArgument(0), cell.getArgument(1), cell.getArgument(2), cell.getArgument(3)),
+                    "the border should frame the cell one pixel wide");
+            assertTrue((int) border.getArgument(0) <= dirt.left() && (int) border.getArgument(2) >= dirt.left()
+                    + KnownItemsOverlayRenderer.ICON, "the cell should hold the hovered icon");
+        }
+
+        @Test
+        void titleSitsTopLeftAndTheGridStartsAtTheLeftMarginUnderTheTopRow() {
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             List<ItemIcon> icons = render(graphics, items, "", 0).icons();
-            List<Invocation> texts = callsOf(graphics, "text");
-            int barTop = callsOf(graphics, "fill").get(1).getArgument(1);
-            int gridBottom = icons.stream().mapToInt(icon -> icon.top() + KnownItemsOverlayRenderer.ICON).max()
-                    .orElseThrow();
-            assertTrue((int) texts.get(0).getArgument(3) < barTop, "the title should draw above the search bar");
-            assertTrue((int) texts.get(2).getArgument(3) >= gridBottom, "the hint should draw under the grid");
+            Invocation title = callsOf(graphics, "text").getFirst();
+            Invocation searchBorder = callsOf(graphics, "fill").get(1);
+            assertEquals(KnownItemsOverlayRenderer.MARGIN, (int) title.getArgument(2));
+            assertTrue((int) title.getArgument(3) < (int) searchBorder.getArgument(3),
+                    "the title should share the top row with the search bar");
+            int inset = (KnownItemsOverlayRenderer.CELL - KnownItemsOverlayRenderer.ICON) / 2;
+            assertEquals(KnownItemsOverlayRenderer.MARGIN + inset, icons.getFirst().left());
+            assertTrue(icons.getFirst().top() > (int) searchBorder.getArgument(3), "the grid should start under the top row");
+            assertEquals(icons.getFirst().top(), icons.getLast().top(), "a short list should fill its first row left to right");
+        }
+
+        @Test
+        void searchBarRunsFromBesideTheTitleToBeforeTheCloseButton() {
+            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            render(graphics, items, "", 0);
+            Invocation searchBorder = callsOf(graphics, "fill").get(1);
+            KnownItemsOverlayRenderer.Box close = KnownItemsOverlayRenderer.closeButton(WIDTH);
+            assertTrue((int) searchBorder.getArgument(0) > KnownItemsOverlayRenderer.MARGIN,
+                    "the search bar should start right of the title");
+            assertTrue((int) searchBorder.getArgument(2) < close.left(), "the search bar should end before the close button");
+            assertTrue((int) searchBorder.getArgument(2) - (int) searchBorder.getArgument(0) > WIDTH / 2,
+                    "the search bar should span most of the top row");
+        }
+
+        @Test
+        void closeButtonSitsInTheTopRightCorner() {
+            KnownItemsOverlayRenderer.Box close = KnownItemsOverlayRenderer.closeButton(WIDTH);
+            assertEquals(WIDTH - KnownItemsOverlayRenderer.MARGIN, close.left() + close.size());
+            assertEquals(KnownItemsOverlayRenderer.MARGIN, close.top());
         }
     }
 
