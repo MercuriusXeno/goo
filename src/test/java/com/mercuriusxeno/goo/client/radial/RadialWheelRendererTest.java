@@ -367,6 +367,32 @@ class RadialWheelRendererTest {
             })));
         }
 
+        /**
+         * No badge, with or without the prism badge, meets any line of the ability's words placed round the same
+         * tip: a two-line name, each line the longest word any shipped ability's English name holds, and the widest
+         * shipped cost label, each line measured by the vanilla font's glyph advances.
+         * decision badges-halve-and-sit-up-right-and-closer
+         */
+        @Test
+        void noBadgeMeetsAnyLineOfTheAbilitysWords() throws IOException {
+            JsonObject lang = ShortNames.englishLang();
+            Component word = Component.literal(shippedAbilities().stream()
+                    .flatMap(ability -> Arrays.stream(lang.get(ability.displayName()).getAsString().split("\\s+")))
+                    .max(Comparator.comparingInt(String::length)).orElseThrow());
+            List<RadialWheelRenderer.PlacedLine> words = RadialWheelRenderer.placeWords(List.of(word, word),
+                    Component.literal(PetalWords.WIDEST_COST), CENTER, PetalWords::vanillaWidth,
+                    PetalWords.LINE_HEIGHT);
+            assertAll(clusters().stream().flatMap(cluster -> cluster.badges().stream()).flatMap(badge -> words.stream()
+                    .map(line -> (Executable) () -> {
+                        RadialWheelRenderer.ItemRect square = badge.rect();
+                        double[] box = line.box();
+                        assertFalse(square.left() < box[2] && box[0] < square.left() + square.size()
+                                        && square.top() < box[3] && box[1] < square.top() + square.size(),
+                                badge.badge() + " " + square + " meets \"" + line.text().getString() + "\" "
+                                        + Arrays.toString(box));
+                    })));
+        }
+
         @Test
         void iconAndBadgesCenterTogetherOnThePoint() {
             assertAll(clusters().stream().map(cluster -> (Executable) () -> {
