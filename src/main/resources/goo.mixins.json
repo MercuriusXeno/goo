@@ -25,6 +25,7 @@
   ],
   "client": [
     "ClientLevelGooValuesMixin",
+    "CloudRendererSculkerMixin",
     "ClientPacketListenerGooMixin",
     "EntitySculkerOutlineColorMixin",
     "LevelRendererSculkerCullMixin",
