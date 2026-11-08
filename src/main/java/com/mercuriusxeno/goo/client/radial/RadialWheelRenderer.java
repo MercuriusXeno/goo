@@ -18,6 +18,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemStack;
+import org.joml.Matrix3x2fStack;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,6 +62,16 @@ final class RadialWheelRenderer {
     static final int ABILITY_ICON_SIZE = 16;
     private static final int ABILITY_ICON_OFFSET = ABILITY_ICON_SIZE / 2;
     private static final int LABEL_GAP = 1;
+    /**
+     * The scale an ability's name draws at on the wheel.
+     * decision ability-name-shrinks-some-and-other-text-more
+     */
+    static final float NAME_SCALE = 0.75f;
+    /**
+     * The scale the rest of an ability petal's words, its cost, draw at.
+     * decision ability-name-shrinks-some-and-other-text-more
+     */
+    static final float DETAIL_SCALE = 0.5f;
     /** The side of the square an item icon draws in. */
     static final int ITEM_ICON_SIZE = 16;
     /** How far apart, center to center, neighboring item icons in a locked petal's cluster stand. */
@@ -733,6 +744,79 @@ final class RadialWheelRenderer {
     }
 
     /**
+     * Draws a line of words at a scale, centered on a point, inside its dark
+     * border, scaled about the line's top center so the border shrinks with it.
+     * decision ability-name-shrinks-some-and-other-text-more
+     *
+     * @param graphics the GUI graphics extractor
+     * @param font     the font
+     * @param line     the placed line
+     * @param color    the words' color
+     */
+    private static void outlinedText(GuiGraphicsExtractor graphics, Font font, PlacedLine line, int color) {
+        Matrix3x2fStack pose = graphics.pose();
+        pose.pushMatrix();
+        pose.translate(line.centerX(), (float) line.top());
+        pose.scale(line.scale());
+        outlinedText(graphics, font, line.text(), 0, 0, color);
+        pose.popMatrix();
+    }
+
+    /**
+     * One line of an ability petal's words as it lands on screen.
+     *
+     * @param text      the words
+     * @param centerX   the x the line centers on
+     * @param top       the line's top
+     * @param scale     the scale it draws at
+     * @param fullWidth its width at full size, its border excluded
+     * @param fullLine  the font's line height at full size
+     */
+    record PlacedLine(Component text, int centerX, double top, float scale, int fullWidth, int fullLine) {
+
+        /**
+         * The screen box the line and its border cover.
+         *
+         * @return left, top, right and bottom
+         */
+        double[] box() {
+            double halfWidth = (fullWidth / (double) HALF + OUTLINE_WIDTH) * scale;
+            double border = OUTLINE_WIDTH * scale;
+            return new double[]{centerX - halfWidth, top - border, centerX + halfWidth, top + fullLine * scale + border};
+        }
+    }
+
+    /**
+     * Places an ability's words around its resting tip: the name's lines at
+     * {@link #NAME_SCALE} stacked directly above the icon, the cost at
+     * {@link #DETAIL_SCALE} directly below it.
+     * decision abilities-replace-the-hovered-type
+     * decision ability-name-shrinks-some-and-other-text-more
+     *
+     * @param name       the name's lines
+     * @param cost       the cost, or null for none
+     * @param restingTip the point the icon rests on
+     * @param widthOf    each line's width at full size
+     * @param lineHeight the font's line height at full size
+     * @return the lines, the name's from the top, then the cost's
+     */
+    static List<PlacedLine> placeWords(List<Component> name, @Nullable Component cost, int[] restingTip,
+                                       ToIntFunction<Component> widthOf, int lineHeight) {
+        List<PlacedLine> lines = new ArrayList<>(name.size() + 1);
+        double nameLine = lineHeight * (double) NAME_SCALE;
+        double top = restingTip[1] - ABILITY_ICON_OFFSET - LABEL_GAP - name.size() * nameLine;
+        for (Component line : name) {
+            lines.add(new PlacedLine(line, restingTip[0], top, NAME_SCALE, widthOf.applyAsInt(line), lineHeight));
+            top += nameLine;
+        }
+        if (cost != null) {
+            lines.add(new PlacedLine(cost, restingTip[0], restingTip[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
+                    DETAIL_SCALE, widthOf.applyAsInt(cost), lineHeight));
+        }
+        return lines;
+    }
+
+    /**
      * Draws an ability's name centered directly above its icon and its cost
      * centered directly below it, on screen.
      * decision abilities-replace-the-hovered-type
@@ -743,15 +827,9 @@ final class RadialWheelRenderer {
      * @param words    the ability's words and their icon
      */
     private static void drawWords(GuiGraphicsExtractor graphics, Font font, Frame frame, Words words) {
-        int x = words.restingTip()[0];
-        int nameY = words.restingTip()[1] - ABILITY_ICON_OFFSET - LABEL_GAP - words.name().size() * font.lineHeight;
-        for (Component line : words.name()) {
-            outlinedText(graphics, font, line, x, nameY, words.color());
-            nameY += font.lineHeight;
-        }
-        if (words.cost() != null) {
-            outlinedText(graphics, font, words.cost(), x, words.restingTip()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
-                    words.color());
+        for (PlacedLine line : placeWords(words.name(), words.cost(), words.restingTip(), font::width,
+                font.lineHeight)) {
+            outlinedText(graphics, font, line, words.color());
         }
         // icons-slide-in-from-behind-the-tip: each item shows only under its petal's face
         for (ItemIcon icon : words.required()) {

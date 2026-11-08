@@ -76,6 +76,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.when;
@@ -327,6 +330,109 @@ class RadialWheelRendererTest {
         }
     }
 
+    /**
+     * An ability's name draws a little under full size and its cost smaller still, so across the widest fan the mod
+     * ships, opened at any angle on the wheel a 1080p screen draws at GUI scale 3 and at 4, no two neighboring
+     * petals' words meet: every shipped fan in the order the wheel fans it, each petal reading its English name and
+     * the widest shipped cost label, each line measured by the vanilla font's glyph advances.
+     * decision ability-name-shrinks-some-and-other-text-more
+     */
+    @Nested
+    class PetalWords {
+
+        private static final int TYPES = 16;
+        private static final int CENTER = 500;
+        /** The vanilla font's advance for most glyphs: five pixels of ink and one of spacing. */
+        private static final int GLYPH_ADVANCE = 6;
+        /** The vanilla font's narrowest advance, a one-pixel glyph such as i. */
+        private static final int NARROWEST_ADVANCE = 2;
+        private static final int LINE_HEIGHT = 9;
+        /** The widest cost label a shipped petal reads: blink's formula. */
+        private static final String WIDEST_COST = "200 + 100/block";
+        private static final String ABILITY_KEY_PREFIX = "goo.ability.";
+        /** A 1080p screen's GUI width at GUI scale 3, and at GUI scale 4. */
+        private static final int SCALE_THREE_WIDTH = 640;
+        private static final int SCALE_FOUR_WIDTH = 480;
+
+        @Test
+        void nameDrawsUnderFullSizeAndTheCostSmallerStill() {
+            assertAll(
+                    () -> assertTrue(RadialWheelRenderer.NAME_SCALE < 1f, "name scale " + RadialWheelRenderer.NAME_SCALE),
+                    () -> assertTrue(RadialWheelRenderer.DETAIL_SCALE < RadialWheelRenderer.NAME_SCALE,
+                            "cost scale " + RadialWheelRenderer.DETAIL_SCALE));
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
+        void neighboringPetalsWordsNeverMeetInAnyShippedFan(int guiWidth) throws IOException {
+            int radius = (int) RadialWheel.outerRadius(guiWidth, guiWidth * 9 / 16);
+            JsonObject lang = ShortNames.englishLang();
+            Component cost = Component.literal(WIDEST_COST);
+            List<Executable> checks = new ArrayList<>();
+            for (Map.Entry<String, List<ClientAbility>> fan : shippedFans().entrySet()) {
+                List<List<Component>> names = fan.getValue().stream().map(ability -> RadialWheelRenderer
+                        .splitNameLines(lang.get(ability.displayName()).getAsString())).toList();
+                for (int open = 0; open < TYPES; open++) {
+                    RadialWheel wheel = openedWheel(TYPES, names.size(), open, radius);
+                    RadialWheelRenderer.Frame frame = new RadialWheelRenderer.Frame(wheel, List.of(), List.of(),
+                            Map.of(), CENTER, CENTER, radius, mock(PetalLook.class), 0.0f);
+                    int opened = open;
+                    List<List<RadialWheelRenderer.PlacedLine>> words = wheel.displayedLayout(0.0f).stream()
+                            .filter(petal -> petal.isAbility() && petal.type() == opened)
+                            .sorted(Comparator.comparingInt(RadialWheel.PetalArc::ability))
+                            .map(petal -> RadialWheelRenderer.placeWords(names.get(petal.ability()), cost,
+                                    RadialWheelRenderer.tipCenter(frame, petal),
+                                    PetalWords::vanillaWidth, LINE_HEIGHT))
+                            .toList();
+                    for (int ability = 0; ability + 1 < words.size(); ability++) {
+                        List<RadialWheelRenderer.PlacedLine> here = words.get(ability);
+                        List<RadialWheelRenderer.PlacedLine> next = words.get(ability + 1);
+                        String where = fan.getKey() + " opened at slot " + open + ": "
+                                + fan.getValue().get(ability).displayName() + " and "
+                                + fan.getValue().get(ability + 1).displayName();
+                        checks.add(() -> assertFalse(anyMeet(here, next), where));
+                    }
+                }
+            }
+            assertFalse(checks.isEmpty(), "no neighboring petals checked");
+            assertAll(checks);
+        }
+
+        private static boolean anyMeet(List<RadialWheelRenderer.PlacedLine> one,
+                                       List<RadialWheelRenderer.PlacedLine> other) {
+            return one.stream().anyMatch(line -> other.stream().anyMatch(across -> meet(line.box(), across.box())));
+        }
+
+        private static boolean meet(double[] one, double[] other) {
+            return one[0] < other[2] && other[0] < one[2] && one[1] < other[3] && other[1] < one[3];
+        }
+
+        /** Each shipped type's abilities in fan order, by the type named in their display key. */
+        private static Map<String, List<ClientAbility>> shippedFans() {
+            return shippedAbilities().stream()
+                    .sorted(AbilityBadge.fanOrder(ClientAbility::badge, ClientAbility::order))
+                    .collect(Collectors.groupingBy(ability -> ability.displayName()
+                            .substring(ABILITY_KEY_PREFIX.length()).split("\\.")[0]));
+        }
+
+        /** A line's width in the vanilla font: each glyph's advance, its pixel of spacing included. */
+        private static int vanillaWidth(Component line) {
+            return line.getString().chars().map(PetalWords::advance).sum();
+        }
+
+        /** One glyph's advance in the vanilla font's ASCII sheet; any glyph it lacks reads as wide as most. */
+        private static int advance(int glyph) {
+            return switch (glyph) {
+                case 'i', '!', '.', ',', ':', ';', '|', '\'' -> NARROWEST_ADVANCE;
+                case 'l', '`' -> NARROWEST_ADVANCE + 1;
+                case 'I', 't', '[', ']', ' ' -> NARROWEST_ADVANCE + 2;
+                case 'f', 'k', '<', '>', '(', ')', '{', '}', '*', '"' -> GLYPH_ADVANCE - 1;
+                case '@', '~' -> GLYPH_ADVANCE + 1;
+                default -> GLYPH_ADVANCE;
+            };
+        }
+    }
+
     /** The fan reads each ability's first-throw cost and the type's holdings (decision radial-shows-first-throw-cost-and-holdings). */
     @Nested
     class CostAndHoldings {
@@ -440,6 +546,8 @@ class RadialWheelRendererTest {
         private static final int LINE_HEIGHT = 9;
         /** A type icon's side, as the renderer draws it. */
         private static final int TYPE_ICON_SIZE = 12;
+        /** How many poses deep the frame's matrix stack nests: the panel's push, then a scaled word's. */
+        private static final int POSE_DEPTH = 4;
         /** Where a text call's ARGB color sits among its arguments. */
         private static final int TEXT_COLOR_ARGUMENT = 4;
         /** Where a blit's ARGB color sits among its arguments. */
@@ -479,8 +587,30 @@ class RadialWheelRendererTest {
             }
         };
 
-        /** One line of words the frame drew in its own color: where it centered, its top and what. */
-        private record DrawnText(int x, int y, Component text) {
+        /**
+         * One line of words the frame drew, read through the pose it drew under: the screen x it centered on, its
+         * screen top, what, its color and the scale it drew at.
+         */
+        private record DrawnText(double x, double y, Component text, int color, float scale) {
+        }
+
+        /** Every line each rendered frame drew, in draw order, by the graphics it drew to. */
+        private final Map<GuiGraphicsExtractor, List<DrawnText>> drawnTexts = new java.util.IdentityHashMap<>();
+
+        /**
+         * Records each line a mocked graphics draws, its place carried through the pose it draws under, so a
+         * scaled line reads back where it lands on screen.
+         */
+        private void recordTexts(GuiGraphicsExtractor graphics, Matrix3x2fStack pose) {
+            List<DrawnText> drawn = new ArrayList<>();
+            drawnTexts.put(graphics, drawn);
+            doAnswer(call -> {
+                org.joml.Vector2f center = pose.transformPosition((int) call.getArgument(2) + WORD_WIDTH / 2f,
+                        (int) call.getArgument(3), new org.joml.Vector2f());
+                drawn.add(new DrawnText(center.x, center.y, call.getArgument(1), call.getArgument(TEXT_COLOR_ARGUMENT),
+                        pose.m00()));
+                return null;
+            }).when(graphics).text(any(Font.class), any(Component.class), anyInt(), anyInt(), anyInt(), anyBoolean());
         }
 
         private final List<ResourceKey<GooTypeDefinition>> types = IntStream.range(0, TYPES)
@@ -563,7 +693,9 @@ class RadialWheelRendererTest {
                             .toList())
                     .toList();
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-            when(graphics.pose()).thenReturn(new Matrix3x2fStack(1));
+            Matrix3x2fStack pose = new Matrix3x2fStack(POSE_DEPTH);
+            when(graphics.pose()).thenReturn(pose);
+            recordTexts(graphics, pose);
             Font font = mock(Font.class);
             when(font.width(any(FormattedText.class))).thenReturn(WORD_WIDTH);
             RadialWheelRenderer.Hoverables hoverables = RadialWheelRenderer.render(graphics, font,
@@ -701,15 +833,9 @@ class RadialWheelRendererTest {
             return wordsDrawn(renderFrame(wheel), color -> color != RadialWheelRenderer.OUTLINE_COLOR);
         }
 
-        /** The text calls a frame made in the colors a test asks for, each read back to its center. */
-        private static List<DrawnText> wordsDrawn(GuiGraphicsExtractor graphics,
-                                                  java.util.function.IntPredicate color) {
-            return mockingDetails(graphics).getInvocations().stream()
-                    .filter(call -> call.getMethod().getName().equals("text")
-                            && color.test(call.getArgument(TEXT_COLOR_ARGUMENT)))
-                    .map(call -> new DrawnText((int) call.getArgument(2) + WORD_WIDTH / 2, call.getArgument(3),
-                            call.getArgument(1)))
-                    .toList();
+        /** The lines a frame drew in the colors a test asks for, each read back to its center on screen. */
+        private List<DrawnText> wordsDrawn(GuiGraphicsExtractor graphics, java.util.function.IntPredicate color) {
+            return drawnTexts.get(graphics).stream().filter(text -> color.test(text.color())).toList();
         }
 
         /** decision abilities-replace-the-hovered-type */
@@ -718,16 +844,18 @@ class RadialWheelRendererTest {
             GuiGraphicsExtractor graphics = renderFrame(restingOnOpenType(RADIUS));
             List<DrawnText> lines = wordsDrawn(graphics, color -> color != RadialWheelRenderer.OUTLINE_COLOR);
             List<DrawnText> border = wordsDrawn(graphics, color -> color == RadialWheelRenderer.OUTLINE_COLOR);
+            double slack = 1e-3;
 
             assertFalse(lines.isEmpty());
             assertAll(lines.stream().map(line -> (Executable) () -> {
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dy = -1; dy <= 1; dy++) {
-                        int x = line.x() + dx;
-                        int y = line.y() + dy;
+                        double x = line.x() + dx * line.scale();
+                        double y = line.y() + dy * line.scale();
                         boolean expected = dx != 0 || dy != 0;
-                        assertEquals(expected, border.stream().anyMatch(edge -> edge.x() == x && edge.y() == y
-                                && edge.text().equals(line.text())), line + " border at " + dx + "," + dy);
+                        assertEquals(expected, border.stream().anyMatch(edge -> Math.abs(edge.x() - x) < slack
+                                && Math.abs(edge.y() - y) < slack && edge.text().equals(line.text())),
+                                line + " border at " + dx + "," + dy);
                     }
                 }
             }));
@@ -854,7 +982,8 @@ class RadialWheelRendererTest {
                         List<DrawnText> words = texts.stream().filter(text -> text.x() == iconX
                                 && Math.abs(text.y() - iconY) <= half + 2 * LINE_HEIGHT).toList();
                         assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
-                        assertTrue(words.getFirst().y() + LINE_HEIGHT <= iconY - half, petal + " name above");
+                        assertTrue(words.getFirst().y() + LINE_HEIGHT * words.getFirst().scale() <= iconY - half,
+                                petal + " name above");
                         assertTrue(words.getLast().y() >= iconY + half, petal + " cost below");
                     }));
         }
