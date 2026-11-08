@@ -8,6 +8,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -69,6 +70,28 @@ public final class SculkerVision {
      */
     public static float presence() {
         return presence;
+    }
+
+    /**
+     * The cloud color under the vision: its alpha fades as the vision eases
+     * in, so the clouds go dark with the rest of the far world.
+     *
+     * @param color    the clouds' own color, ARGB
+     * @param presence how fully the vision stands, 0 to 1
+     * @return the color the clouds draw in
+     */
+    public static int cloudColor(int color, float presence) {
+        return ARGB.color(Math.round(ARGB.alpha(color) * (1f - presence)), color);
+    }
+
+    /**
+     * Whether the clouds draw not at all, the vision standing full.
+     *
+     * @param presence how fully the vision stands, 0 to 1
+     * @return true once the vision has all but fully eased in
+     */
+    public static boolean hidesClouds(float presence) {
+        return presence > 1f - GONE;
     }
 
     /**
