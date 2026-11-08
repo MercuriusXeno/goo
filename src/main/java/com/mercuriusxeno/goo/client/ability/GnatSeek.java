@@ -13,9 +13,10 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Plays a tick of Decay's bite on the client: gnats leave the glove slow and
- * sprayed wide around the aim, then speed up and steer every tick toward the
- * mob the swarm bites, so their paths curve onto it and follow it as it moves
+ * Plays a tick of Decay's bite on the client: gnats leave the glove along the
+ * line the player fires, fly straight down it for their first ticks, then
+ * veer toward the mob the swarm bites, so their paths curve off the aim onto
+ * it and follow it as it moves
  * (decision decay-gnats-degrade-each-block-once).
  */
 public final class GnatSeek {
