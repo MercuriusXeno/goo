@@ -58,6 +58,10 @@ class KnownItemsOverlayRendererTest {
         return calls(graphics).stream().map(call -> call.getMethod().getName()).toList();
     }
 
+    private static int[] rect(Invocation fill) {
+        return new int[] {fill.getArgument(0), fill.getArgument(1), fill.getArgument(2), fill.getArgument(3)};
+    }
+
     private static List<Invocation> callsOf(GuiGraphicsExtractor graphics, String method) {
         return calls(graphics).stream().filter(call -> call.getMethod().getName().equals(method)).toList();
     }
@@ -87,7 +91,8 @@ class KnownItemsOverlayRendererTest {
             List<ItemIcon> icons = renderAt(graphics, items, "", 0, cursorX, cursorY).icons();
             KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, icons, cursorX, cursorY);
 
-            assertEquals(List.of("fill", "text", "fill", "fill", "text", "item", "fill", "fill", "item", "item",
+            assertEquals(List.of("fill", "text", "fill", "fill", "text", "item", "fill", "fill", "fill", "fill", "fill",
+                    "item", "item",
                     "setTooltipForNextFrame"), methods(graphics));
             Invocation darken = calls(graphics).getFirst();
             assertEquals(List.of(0, 0, WIDTH, HEIGHT, KnownItemsOverlayRenderer.DARKEN), List.of(darken.getArguments()));
@@ -101,22 +106,32 @@ class KnownItemsOverlayRendererTest {
         }
 
         @Test
-        void hoveredCellDrawsLighterInsideABorderJustBeforeItsItem() {
+        void hoveredCellDrawsLighterInsideABorderRingJustBeforeItsItem() {
             ItemIcon dirt = render(mock(GuiGraphicsExtractor.class), items, "", 0).icons().get(1);
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             renderAt(graphics, items, "", 0, dirt.left() + 1, dirt.top() + 1);
 
             List<Invocation> fills = callsOf(graphics, "fill");
-            Invocation border = fills.get(fills.size() - 2);
+            List<int[]> ring = fills.stream()
+                    .filter(fill -> (int) fill.getArgument(4) == KnownItemsOverlayRenderer.HOVER_BORDER)
+                    .map(KnownItemsOverlayRendererTest::rect).toList();
             Invocation cell = fills.getLast();
-            assertEquals(KnownItemsOverlayRenderer.HOVER_BORDER, (int) border.getArgument(4));
             assertEquals(KnownItemsOverlayRenderer.HOVER_CELL, (int) cell.getArgument(4));
-            assertEquals(List.of((int) border.getArgument(0) + 1, (int) border.getArgument(1) + 1,
-                    (int) border.getArgument(2) - 1, (int) border.getArgument(3) - 1),
-                    List.of(cell.getArgument(0), cell.getArgument(1), cell.getArgument(2), cell.getArgument(3)),
-                    "the border should frame the cell one pixel wide");
-            assertTrue((int) border.getArgument(0) <= dirt.left() && (int) border.getArgument(2) >= dirt.left()
-                    + KnownItemsOverlayRenderer.ICON, "the cell should hold the hovered icon");
+            int[] inside = rect(cell);
+            int[] outer = {inside[0] - 1, inside[1] - 1, inside[2] + 1, inside[3] + 1};
+            assertTrue(outer[0] <= dirt.left() && outer[2] >= dirt.left() + KnownItemsOverlayRenderer.ICON,
+                    "the cell should hold the hovered icon");
+            for (int x = outer[0]; x < outer[2]; x++) {
+                for (int y = outer[1]; y < outer[3]; y++) {
+                    boolean onEdge = x == outer[0] || y == outer[1] || x == outer[2] - 1 || y == outer[3] - 1;
+                    int px = x;
+                    int py = y;
+                    long covering = ring.stream().filter(r -> px >= r[0] && px < r[2] && py >= r[1] && py < r[3])
+                            .count();
+                    assertEquals(onEdge ? 1 : 0, covering, "the border should cover the edge pixel " + x + "," + y
+                            + " once and leave the inside to the lighter fill over the darkening");
+                }
+            }
         }
 
         @Test
