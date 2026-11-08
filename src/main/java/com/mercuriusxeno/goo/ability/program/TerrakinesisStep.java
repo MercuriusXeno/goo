@@ -148,6 +148,7 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         if (hunk != null) {
             GrabEvents.hold(player, hunk, hunk.holdStep(holdPoint(player, hunk)), throwSpeed);
             hunk.holdBy(player);
+            standOnTop(player, hunk);
         }
         return true;
     }
@@ -241,13 +242,12 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     }
 
     /**
-     * Where a held hunk goes for a look, on the server and on the holder's
-     * client alike: at Grab's hold distance on the look, close in front, or,
-     * where the look strikes a surface short of that, resting on it
-     * (BlockHunk.restOnTheLook), so it follows the look down a wall's face and
-     * into a hole; then
-     * pushed out the way the holder faces until it clears the holder, so it
-     * never sits in the holder's own body, even looking straight down.
+     * Where a held hunk goes for a look: at Grab's hold distance on the look,
+     * so pulling the look down pulls the hunk down with it, the world's
+     * blocks alone holding it on the ground where it meets them; then pushed
+     * out the way the holder faces until it stands clear of the holder's body
+     * and the column under it, so it never sits in the holder, even looking
+     * straight down.
      *
      * @param hunk      the held hunk
      * @param eye       the holder's eye
@@ -260,13 +260,16 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     public Vec3 heldAt(BlockHunk hunk, Vec3 eye, Vec3 look, float pitch, float yaw, AABB holderBox) {
         AABB shape = hunk.getBoundingBox().move(hunk.position().reverse());
         Vec3 hold = holdPosition(eye, look, pitch, shape, holderBox);
-        Vec3 rest = hunk.restOnTheLook(eye, look, hold, eye.distanceTo(hold.add(shape.getCenter())));
-        Vec3 away = Vec3.directionFromRotation(0, yaw);
-        AABB clearOf = holderBox.inflate(HOLDER_CLEARANCE);
-        for (double pushed = 0; shape.move(rest).intersects(clearOf) && pushed < MOST_PUSH; pushed += PUSH_STEP) {
-            rest = rest.add(away.scale(PUSH_STEP));
+        if (hunk.pulledDownOverItsSlot(hold)) {
+            // Its own slot takes it even where the holder stands in it; the holder is lifted onto it.
+            return hold;
         }
-        return rest;
+        Vec3 away = Vec3.directionFromRotation(0, yaw);
+        AABB clearOf = holderBox.inflate(HOLDER_CLEARANCE).expandTowards(0, -MOST_PUSH, 0);
+        for (double pushed = 0; shape.move(hold).intersects(clearOf) && pushed < MOST_PUSH; pushed += PUSH_STEP) {
+            hold = hold.add(away.scale(PUSH_STEP));
+        }
+        return hold;
     }
 
     /**
@@ -303,13 +306,30 @@ public record TerrakinesisStep(double range, double radius, double near, double 
      * @param player the channeling player
      * @return the lifted hunk, or null where the look strikes no rock-valued block or the goo falls short
      */
+    /**
+     * Lifts the holder onto a held hunk that has come to stand in them, as
+     * one eased back into the slot they stand in does, so they stand on it
+     * rather than in it.
+     *
+     * @param player the holder
+     * @param hunk   the held hunk
+     */
+    private static void standOnTop(ServerPlayer player, BlockHunk hunk) {
+        AABB body = player.getBoundingBox();
+        hunk.cellsAt(hunk.position()).stream().filter(cell -> cell.intersects(body)).mapToDouble(cell -> cell.maxY)
+                .max().ifPresent(top -> player.teleportTo(player.getX(), top, player.getZ()));
+    }
+
     private @Nullable BlockHunk lift(ServerPlayer player) {
         ServerLevel level = player.level();
         BlockPos struck = struckBlock(player);
         if (struck == null) {
             return null;
         }
-        List<BlockPos> cells = hunkCells(struck, radius, cell -> liftable(level, cell));
+        AABB underfoot = player.getBoundingBox().expandTowards(0, -radius - 1, 0);
+        // Never the ground the holder stands on, so the hunk never rises through them.
+        List<BlockPos> cells = hunkCells(struck, radius, cell -> liftable(level, cell)
+                && !new AABB(cell).intersects(underfoot));
         if (!pay(player, cost)) {
             return null;
         }
