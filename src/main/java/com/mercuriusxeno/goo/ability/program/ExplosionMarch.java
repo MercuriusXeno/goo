@@ -5,8 +5,10 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The rays a Goo explosion marches, apart from the level so the march is a
@@ -19,8 +21,10 @@ import java.util.Set;
  */
 public final class ExplosionMarch {
 
-    private static final int RAY_GRID = 16;
-    private static final int RAY_GRID_EDGE = RAY_GRID - 1;
+    /** Vanilla's ray grid, the least any explosion marches. */
+    private static final int VANILLA_RAY_GRID = 16;
+    /** The widest gap, in blocks, between neighboring rays where they cross the reach. */
+    private static final double RAY_GAP_AT_REACH = 0.5;
     private static final float STEP = 0.3F;
     private static final float BLEED_PER_STEP = 0.225F;
     private static final float TOLL_BASE = 0.3F;
@@ -30,7 +34,7 @@ public final class ExplosionMarch {
     private static final double GRID_SPAN = 2.0;
     /** A point past the reach by more than a cell's diagonal lies in no cell whose center the reach holds. */
     private static final double CELL_DIAGONAL = Math.sqrt(3.0);
-    private static final List<Vec3> RAY_DIRECTIONS = rayDirections();
+    private static final Map<Integer, List<Vec3>> RAY_DIRECTIONS = new ConcurrentHashMap<>();
 
     private ExplosionMarch() {
     }
@@ -101,41 +105,55 @@ public final class ExplosionMarch {
      */
     public static Set<BlockPos> markedCells(Vec3 center, float power, double reach, ResistanceLookup lookup) {
         Set<BlockPos> marked = new HashSet<>();
-        for (Vec3 direction : RAY_DIRECTIONS) {
+        for (Vec3 direction : RAY_DIRECTIONS.computeIfAbsent(rayGridFor(reach), ExplosionMarch::rayDirections)) {
             marchRay(center, direction, power, reach, lookup, marked);
         }
         return marked;
     }
 
     /**
-     * Vanilla's ray set: the unit vectors toward every cell on the outer
-     * shell of a 16x16x16 grid centered on the explosion.
+     * The ray grid an explosion of this reach marches: vanilla's 16, or finer
+     * where vanilla's rays would cross the reach more than half a block apart
+     * and leave cells between them standing.
+     * blast-fills-its-drawn-radius
      *
+     * @param reach the explosion's reach in blocks
+     * @return the cells along each edge of the grid whose shell the rays point at
+     */
+    static int rayGridFor(double reach) {
+        int edge = (int) Math.ceil((reach + 1) * GRID_SPAN / RAY_GAP_AT_REACH);
+        return Math.max(VANILLA_RAY_GRID, edge + 1);
+    }
+
+    /**
+     * The unit vectors toward every cell on the outer shell of a grid
+     * centered on the explosion, vanilla's ray set at a grid of 16.
+     *
+     * @param grid the cells along each edge of the grid
      * @return the ray directions
      */
-    private static List<Vec3> rayDirections() {
+    private static List<Vec3> rayDirections(int grid) {
         List<Vec3> directions = new ArrayList<>();
-        for (int cell = 0; cell < RAY_GRID * RAY_GRID * RAY_GRID; cell++) {
-            int x = cell / (RAY_GRID * RAY_GRID);
-            int y = cell / RAY_GRID % RAY_GRID;
-            int z = cell % RAY_GRID;
-            if (isOnShell(x, y, z)) {
-                directions.add(new Vec3(gridToUnit(x), gridToUnit(y), gridToUnit(z)).normalize());
+        int edge = grid - 1;
+        for (int x = 0; x < grid; x++) {
+            for (int y = 0; y < grid; y++) {
+                for (int z = 0; z < grid; z++) {
+                    if (isOnEdge(x, edge) || isOnEdge(y, edge) || isOnEdge(z, edge)) {
+                        directions.add(new Vec3(gridToUnit(x, edge), gridToUnit(y, edge), gridToUnit(z, edge))
+                                .normalize());
+                    }
+                }
             }
         }
         return List.copyOf(directions);
     }
 
-    private static boolean isOnShell(int x, int y, int z) {
-        return isOnEdge(x) || isOnEdge(y) || isOnEdge(z);
+    private static boolean isOnEdge(int coordinate, int edge) {
+        return coordinate == 0 || coordinate == edge;
     }
 
-    private static boolean isOnEdge(int coordinate) {
-        return coordinate == 0 || coordinate == RAY_GRID_EDGE;
-    }
-
-    private static double gridToUnit(int coordinate) {
-        return coordinate / (double) RAY_GRID_EDGE * GRID_SPAN - 1.0;
+    private static double gridToUnit(int coordinate, int edge) {
+        return coordinate / (double) edge * GRID_SPAN - 1.0;
     }
 
     private static void marchRay(Vec3 center, Vec3 direction, float power, double reach,
