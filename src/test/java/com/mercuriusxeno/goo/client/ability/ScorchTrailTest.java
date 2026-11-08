@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -11,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Sunbeam's scorch trail takes each spot the ray burns, ages every mark on
  * the game clock and drops it once the fade time has passed
- * (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades).
+ * (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades), and
+ * draws a mark only where the block it burns on stands.
  */
 class ScorchTrailTest {
 
@@ -76,6 +78,37 @@ class ScorchTrailTest {
             trail.expire(START + ScorchTrail.FADE_TICKS + 1);
             assertTrue(trail.marks().stream().allMatch(mark -> mark.bornAt() > START));
             assertEquals(later, trail.marks().getLast().point());
+        }
+    }
+
+    @Nested
+    class Standing {
+
+        /** The block SPOT's mark burns on: the one under its upward face. */
+        private static final BlockPos UNDER_THE_SPOT = new BlockPos(4, 63, -3);
+        private static final int GAP_WIDTH = 2;
+
+        @Test
+        void aMarkDrawsWhileItsBlockStands() {
+            ScorchTrail trail = burntOnceAt(START);
+            assertEquals(trail.marks(), trail.marksOnBlocks(UNDER_THE_SPOT::equals));
+        }
+
+        @Test
+        void aMarkWhoseBlockIsGoneDrawsNot() {
+            ScorchTrail trail = burntOnceAt(START);
+            assertEquals(List.of(), trail.marksOnBlocks(pos -> false));
+        }
+
+        @Test
+        void aRakeAcrossAGapDrawsNoMarkOverTheGap() {
+            ScorchTrail trail = burntOnceAt(START);
+            trail.burn(SPOT.add(GAP_WIDTH, 0, 0), Direction.UP, START + 1);
+            BlockPos gap = UNDER_THE_SPOT.east();
+            List<ScorchTrail.Mark> drawn = trail.marksOnBlocks(pos -> !pos.equals(gap));
+            assertTrue(drawn.stream().noneMatch(mark -> mark.block().equals(gap)), "a mark drawn over the gap");
+            assertTrue(drawn.stream().anyMatch(mark -> mark.block().equals(UNDER_THE_SPOT)));
+            assertTrue(drawn.stream().anyMatch(mark -> mark.block().equals(gap.east())));
         }
     }
 

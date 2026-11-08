@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * One caster's sunbeam scorch: a mark dropped each time the struck spot moves
@@ -25,6 +27,8 @@ final class ScorchTrail {
     private static final double LONGEST_BRIDGE = 3;
     /** Two points this close along a face's axis sit on one plane. */
     private static final double SAME_PLANE = 1e-3;
+    /** How far into its face a mark reaches to find the block it burns on, in blocks. */
+    private static final double INTO_THE_FACE = 1e-3;
 
     private final Deque<Mark> marks = new ArrayDeque<>();
 
@@ -45,6 +49,15 @@ final class ScorchTrail {
          */
         double heat(double now) {
             return Math.clamp(1 - (now - bornAt) / FADE_TICKS, 0, 1);
+        }
+
+        /**
+         * The block the mark burns on: the one just behind its face.
+         *
+         * @return the block's position
+         */
+        BlockPos block() {
+            return BlockPos.containing(point.subtract(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(INTO_THE_FACE)));
         }
     }
 
@@ -109,6 +122,16 @@ final class ScorchTrail {
      */
     List<Mark> marks() {
         return List.copyOf(marks);
+    }
+
+    /**
+     * The marks still showing whose block still stands, oldest first.
+     *
+     * @param blockStands whether a block stands at a position
+     * @return the marks to draw
+     */
+    List<Mark> marksOnBlocks(Predicate<BlockPos> blockStands) {
+        return marks.stream().filter(mark -> blockStands.test(mark.block())).toList();
     }
 
     /**
