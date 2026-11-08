@@ -50,15 +50,16 @@ class GooRenderTypesTest {
     }
 
     /**
-     * Sunbeam's scorch blends premultiplied, so its glow adds light onto the
-     * face it lies on, the block showing through, while its char darkens it;
-     * a plain translucent blend painted the glow over the face like a decal.
+     * Sunbeam's scorch draws its char translucent, darkening the face, and its
+     * glow in a pass of its own added onto the face, the block showing through.
      * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
      */
     @Test
     void sunbeamsScorchAddsItsGlowOntoTheFace() {
-        assertEquals(Optional.of(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA),
+        assertEquals(Optional.of(BlendFunction.TRANSLUCENT),
                 GooRenderTypes.SUNBEAM_SCORCH.getColorTargetState().blendFunction());
+        assertEquals(Optional.of(BlendFunction.ADDITIVE),
+                GooRenderTypes.SUNBEAM_SCORCH_GLOW.getColorTargetState().blendFunction());
     }
 
     /** Meteo's rock writes depth, so its near faces hide its far ones rather than drawing back to front. */
