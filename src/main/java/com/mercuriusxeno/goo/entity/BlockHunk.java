@@ -24,7 +24,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -32,10 +31,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -153,7 +149,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     /** Whether a held hunk has risen clear of its hole, so the holder's client glides it to the look. */
     private static final EntityDataAccessor<Boolean> CLEAR_OF_HOLE =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
-    /** Whether a held hunk has been carried half a block or more off its hole, so its hole no longer counts as solid. */
+    /** Whether a held hunk's middle has been carried off its hole's footprint, so its hole no longer stands shut to it. */
     private static final EntityDataAccessor<Boolean> CARRIED_AWAY =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
     /** The player holding a lifted hunk, so their own client draws it on their look. */
@@ -361,8 +357,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Whether the hunk has been carried half a block or more off its hole,
-     * so its own hole no longer counts as solid to the look or the hold.
+     * Whether the hunk's middle has been carried off its hole's footprint,
+     * so its own hole no longer stands shut to it.
      *
      * @return true once carried away
      */
@@ -371,73 +367,28 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Whether the hunk stands half a block or more across from its hole, so
-     * it no longer lines up with it: it can only drop into its own hole lined
-     * up, so from there its hole opens again to an aim back within half a block.
+     * Whether the hunk's middle stands off its hole's footprint, seen from
+     * above: until it does, its own hole stays shut to it, so a chunk lifted
+     * and held over where it came from never drops back in; once it has, its
+     * hole opens to it pulled back down over it.
      *
      * @param position the hunk's position
-     * @return true once it stands half a block or more off its hole
+     * @return true once its middle is off the hole
      */
     private boolean offHome(Vec3 position) {
-        Vec3 home = Vec3.atBottomCenterOf(this.home);
-        return Math.max(Math.abs(position.x - home.x), Math.abs(position.z - home.z)) >= HALF;
+        return !overTheHole(position);
     }
 
     /**
-     * Where the hold puts the hunk once the look meets the world: resting
-     * against the face the look strikes within reach, so it sits on the
-     * ground looked at and never sinks into it; its own hole counts as
-     * solid until it has been carried half a block off it, so a hunk just
-     * lifted sits on its hole rather than slipping back in. With nothing
-     * struck within reach, the hold stands.
-     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     * Whether the hunk's middle at a position stands over its hole, seen from above.
      *
-     * @param eye  the holder's eye
-     * @param look the holder's unit look
-     * @param hold  where the hold distance puts the hunk
-     * @param reach how far the look reaches to set the hunk on a surface, out to the hold
-     * @return the hunk's position
+     * @param position the hunk's position
+     * @return true while its middle is over one of its hole's cells
      */
-    public Vec3 restOnTheLook(Vec3 eye, Vec3 look, Vec3 hold, double reach) {
-        AABB shape = getBoundingBox().move(position().reverse());
-        Vec3 end = eye.add(look.scale(reach));
-        BlockHitResult struck = level().clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, CollisionContext.empty()));
-        if (!carriedAway()) {
-            struck = nearer(eye, struck, AABB.clip(cellsAt(Vec3.atBottomCenterOf(home)), eye, end, BlockPos.ZERO));
-        }
-        return struck.getType() == HitResult.Type.MISS ? hold
-                : restAgainst(struck.getLocation(), struck.getDirection(), shape);
-    }
-
-    private static BlockHitResult nearer(Vec3 eye, BlockHitResult struck, @Nullable BlockHitResult other) {
-        if (other == null) {
-            return struck;
-        }
-        boolean otherFirst = struck.getType() == HitResult.Type.MISS
-                || eye.distanceToSqr(other.getLocation()) < eye.distanceToSqr(struck.getLocation());
-        return otherFirst ? other : struck;
-    }
-
-    /**
-     * Where a hunk rests against a face at a point: its box's side facing the
-     * face on the point, centered on it.
-     *
-     * @param point the point struck
-     * @param face  the face struck
-     * @param shape the hunk's box, relative to its position
-     * @return the hunk's position
-     */
-    static Vec3 restAgainst(Vec3 point, Direction face, AABB shape) {
-        return point.subtract(restingOffset(face, shape, Direction.Axis.X),
-                restingOffset(face, shape, Direction.Axis.Y), restingOffset(face, shape, Direction.Axis.Z));
-    }
-
-    private static double restingOffset(Direction face, AABB shape, Direction.Axis axis) {
-        if (face.getAxis() != axis) {
-            return shape.getCenter().get(axis);
-        }
-        return face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? shape.min(axis) : shape.max(axis);
+    private boolean overTheHole(Vec3 position) {
+        Vec3 middle = position.add(getBoundingBox().move(position().reverse()).getCenter());
+        return cellsAt(Vec3.atBottomCenterOf(home)).stream().anyMatch(cell -> middle.x >= cell.minX
+                && middle.x <= cell.maxX && middle.z >= cell.minZ && middle.z <= cell.maxZ);
     }
 
     /**
@@ -454,7 +405,15 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         Vec3 target = seatedHold(hold);
         Vec3 eased = HoldEase.toward(from, target, seconds);
         Optional<Vec3> seat = seatFor(hold);
-        return seat.isPresent() && eased.distanceTo(seat.get()) < SNAP_TO_SEAT ? seat.get() : eased;
+        if (seat.isEmpty()) {
+            return eased;
+        }
+        if (eased.distanceTo(seat.get()) < SNAP_TO_SEAT) {
+            return seat.get();
+        }
+        // Within a hair of the seat's column it lines up exactly, so the rim cannot catch it on the way in.
+        Vec3 across = new Vec3(seat.get().x - eased.x, 0, seat.get().z - eased.z);
+        return across.length() < SNAP_TO_SEAT ? new Vec3(seat.get().x, eased.y, seat.get().z) : eased;
     }
 
     /**
@@ -566,12 +525,36 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @return the seat's position, or empty where the hold is clear of the ground or no seat fits
      */
     private Optional<Vec3> seatFor(Vec3 hold) {
+        if (pulledDownOverItsSlot(hold)) {
+            return Optional.of(Vec3.atBottomCenterOf(home));
+        }
         boolean pushedIn = cellsAt(hold).stream()
                 .anyMatch(cell -> level().getBlockCollisions(null, cell).iterator().hasNext());
         if (!pushedIn) {
             return Optional.empty();
         }
-        return HoleFit.fitNear(originCellOf(hold), shape(), this::open).map(Vec3::atBottomCenterOf);
+        // Its own hole stays shut while it is still being lifted out, so it never drops straight back in.
+        return HoleFit.fitNear(originCellOf(hold), shape(), this::open)
+                .filter(seat -> carriedAway() || !seat.equals(home)).map(Vec3::atBottomCenterOf);
+    }
+
+    /**
+     * Whether the hold, once the hunk has been carried off its hole, puts the
+     * hunk's middle over the hole, seen from above, and its bottom below the
+     * hole's rim, however deep, with every cell of its slot still open: pulled down over its slot, the hunk goes back in. For a
+     * hole a block wide, over it is within half a block of its column.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @param hold where the look puts the hunk
+     * @return true where the hunk's own slot takes it
+     */
+    public boolean pulledDownOverItsSlot(Vec3 hold) {
+        AABB shape = getBoundingBox().move(position().reverse());
+        double rim = cellsAt(Vec3.atBottomCenterOf(home)).stream().mapToDouble(cell -> cell.maxY).max()
+                .orElse(Double.NEGATIVE_INFINITY);
+        boolean pulledDown = hold.y + shape.minY < rim;
+        boolean slotOpen = shape().stream().allMatch(offset -> open(home.offset(offset)));
+        return carriedAway() && overTheHole(hold) && pulledDown && slotOpen;
     }
 
     private List<BlockPos> shape() {
