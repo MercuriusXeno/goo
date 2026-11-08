@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -8,13 +9,13 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import java.util.Map;
-import java.util.UUID;
+import java.util.List;
+import java.util.stream.Stream;
 
 /**
- * Keeps linked portals standing on their walls: a portal whose block is gone
- * falls, taking its link and the link's tether with it. Going through a
- * linked portal is GatePassage's.
+ * Keeps portals standing where they may stand: a portal whose block is gone,
+ * or before which a block fills its face, breaks, taking its link and the
+ * link's tether with it. Going through a linked portal is GatePassage's.
  * portals-link-by-looking-through-portal-vision
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -24,7 +25,8 @@ public final class PortalTravel {
     }
 
     /**
-     * Drops each link whose portal's block is gone.
+     * Breaks each portal, linked or not, that its place no longer holds, as a
+     * hit breaks it, its link and the link's tether with it.
      *
      * @param event the post-tick event
      */
@@ -32,13 +34,12 @@ public final class PortalTravel {
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
         QuantumPortals portals = QuantumPortals.get(server.overworld());
-        for (Map.Entry<UUID, QuantumPortals.Link> owned : portals.links().entrySet()) {
-            QuantumPortals.Link link = owned.getValue();
-            if (fallen(server, link.entry()) || fallen(server, link.exit())) {
-                PortalTether.tie(server, owned.getKey(), link, false);
-                portals.fall(fallen(server, link.entry()) ? link.entry() : link.exit());
-                PortalChoice.syncEveryone(server);
-            }
+        List<Portal> fallen = Stream.concat(
+                portals.owners().stream().flatMap(owner -> portals.portalsOf(owner).stream()),
+                portals.links().values().stream().flatMap(link -> Stream.of(link.entry(), link.exit())))
+                .distinct().filter(portal -> fallen(server, portal)).toList();
+        for (Portal portal : fallen) {
+            PortalChoice.breakAt(server.getLevel(portal.block().dimension()), portal.block().pos(), portal.face());
         }
     }
 
@@ -82,15 +83,27 @@ public final class PortalTravel {
     }
 
     /**
-     * Whether a portal's block is gone, read only where its chunk is loaded.
+     * Whether a portal's place no longer holds it, read only where its chunk
+     * is loaded: a block it stands on is gone, or a block a body cannot pass
+     * fills a cell it faces, where no portal could be placed.
      *
      * @param server the server
      * @param portal the portal
-     * @return true for a portal whose block no longer stands
+     * @return true for a portal that falls
      */
     static boolean fallen(MinecraftServer server, Portal portal) {
         ServerLevel level = server.getLevel(portal.block().dimension());
-        return level == null || level.isLoaded(portal.block().pos())
-                && (level.getBlockState(portal.block().pos()).isAir() || level.getBlockState(portal.second()).isAir());
+        if (level == null) {
+            return false;
+        }
+        if (!level.isLoaded(portal.block().pos())) {
+            return false;
+        }
+        return Stream.of(portal.block().pos(), portal.second()).anyMatch(pos -> level.getBlockState(pos).isAir()
+                || displaced(level, pos.relative(portal.face())));
+    }
+
+    private static boolean displaced(ServerLevel level, BlockPos front) {
+        return !level.getBlockState(front).getCollisionShape(level, front).isEmpty();
     }
 }
