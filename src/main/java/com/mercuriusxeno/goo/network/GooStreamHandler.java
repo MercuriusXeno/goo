@@ -41,7 +41,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
@@ -263,15 +262,21 @@ public final class GooStreamHandler {
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id());
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
-        // fly from the hand onto the point the crosshair lands on
-        Vec3 target = crosshairTarget(player, delivery.range());
+        // fly from the hand, a mob-first swarm's into what it strikes
+        BlockHitResult crosshair = crosshairHit(player, delivery.range());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         List<Integer> healed = new ArrayList<>();
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
-            sprayParticles(level, apex, aimFrom(apex, target, axis), delivery,
-                    Math.min(delivery.range(), apex.distanceTo(target)));
-            for (LivingEntity living : runPasses(cast, apex, axis, ability, delivery, held)) {
+            List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
+            if (ability.hasTag(AbilityTags.MOB_FIRST)) {
+                sprayInto(level, apex, SwarmMotes.moteTarget(struck, crosshair), delivery);
+            } else {
+                Vec3 target = crosshair.getLocation();
+                sprayParticles(level, apex, aimFrom(apex, target, axis), delivery,
+                        Math.min(delivery.range(), apex.distanceTo(target)));
+            }
+            for (LivingEntity living : struck) {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
                         entitySteps, cast));
             }
@@ -315,19 +320,18 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Where the crosshair lands within a stream's reach: the face of the first
-     * block the player's look meets, or the end of the reach along the look.
+     * Where the crosshair lands within a stream's reach: the first block the
+     * player's look meets, or a miss at the end of the reach along the look.
      *
      * @param player the streaming player
      * @param range  the stream's reach in blocks
-     * @return the point
+     * @return the hit, its location the struck face's point or the reach's end
      */
-    private static Vec3 crosshairTarget(ServerPlayer player, double range) {
+    private static BlockHitResult crosshairHit(ServerPlayer player, double range) {
         Vec3 eye = player.getEyePosition();
         Vec3 end = eye.add(player.getLookAngle().scale(range));
-        BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
+        return player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
-        return hit.getType() == HitResult.Type.BLOCK ? hit.getLocation() : end;
     }
 
     /**
@@ -490,10 +494,29 @@ public final class GooStreamHandler {
     }
 
     /**
+     * Launches the delivery's particle from the glove, each mote coming to
+     * rest at its own point inside the target, so a mob-first stream's swarm
+     * converges on the mob it bites or the block it paints
+     * (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param level    the server level
+     * @param apex     the glove hand
+     * @param target   the box the motes fly into
+     * @param delivery the stream delivery
+     */
+    private static void sprayInto(ServerLevel level, Vec3 apex, AABB target, Delivery delivery) {
+        delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
+            for (Vec3 flight : SwarmMotes.moteFlights(apex, target, PARTICLES_PER_TICK, level.getRandom())) {
+                level.sendParticles(particle, apex.x, apex.y, apex.z, ALONG_THE_VECTOR, flight.x, flight.y,
+                        flight.z, LAUNCH_SPEED_PER_BLOCK);
+            }
+        });
+    }
+
+    /**
      * Launches the delivery's particle from the glove, each mote flying out
      * along its own heading inside the cone and coming to rest as far off as
-     * the crosshair lands (decisions mycosis-spore-stream-buds-and-poisons,
-     * decay-gnats-degrade-each-block-once).
+     * the crosshair lands (decision mycosis-spore-stream-buds-and-poisons).
      *
      * @param level    the server level
      * @param apex     the cone's apex
