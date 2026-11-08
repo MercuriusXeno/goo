@@ -100,10 +100,30 @@ public final class SunbeamVisual {
         RAYS.entrySet().removeIf(entry -> level.getEntity(entry.getKey()) == null
                 || now - entry.getValue().arrivedAt() > LINGER_TICKS);
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         float scroll = Mth.frac(-(now + partialTick) * SCROLL_PER_TICK);
+        List<Vec3> cores = drawRays(mc, level, event.getPoseStack(), consumer, partialTick, scroll);
+        buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
+        drawCores(event.getPoseStack(), buffers, cores);
+    }
+
+    /**
+     * Draws every ray still showing, each run into the core of a prism that
+     * refracts it.
+     * decision diagnose-and-correct-the-sunbeam-prism-depth
+     *
+     * @param mc          the client
+     * @param level       the level
+     * @param poseStack   the pose stack
+     * @param consumer    the beam's vertex consumer
+     * @param partialTick the frame's partial tick
+     * @param scroll      the texture's scroll offset
+     * @return each core's middle, camera-relative
+     */
+    private static List<Vec3> drawRays(Minecraft mc, ClientLevel level, PoseStack poseStack, VertexConsumer consumer,
+                                       float partialTick, float scroll) {
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
         List<Vec3> cores = new ArrayList<>();
         for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
             Entity caster = Objects.requireNonNull(level.getEntity(entry.getKey()));
@@ -113,11 +133,10 @@ public final class SunbeamVisual {
             if (!gathered.equals(struck)) {
                 cores.add(gathered.subtract(camera));
             }
-            drawRay(event.getPoseStack(), consumer, hand.subtract(camera), gathered.subtract(camera),
-                    entry.getValue(), camera, scroll);
+            drawRay(poseStack, consumer, hand.subtract(camera), gathered.subtract(camera), entry.getValue(),
+                    camera, scroll);
         }
-        buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
-        drawCores(event.getPoseStack(), buffers, cores);
+        return cores;
     }
 
     /**

@@ -54,14 +54,26 @@ public final class GlowReflectorStyle implements PrismComboStyle {
             }
         }
         if (!state.links.isEmpty()) {
-            // diagnose-and-correct-the-sunbeam-prism-depth: every rail leaves from a soft core inside the prism
-            float width = DIMMEST_WIDTH + (1f - DIMMEST_WIDTH) * share;
-            poseStack.pushPose();
-            poseStack.translate(center.x, center.y, center.z);
-            nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
-                    (pose, buffer) -> GlowCore.emit(pose, buffer, width, share));
-            poseStack.popPose();
+            submitCore(poseStack, nodeCollector, share);
         }
+    }
+
+    /**
+     * Draws the soft core of light every rail leaves from, at the prism's
+     * middle after its column, scaled and dimmed with the rails.
+     * decision diagnose-and-correct-the-sunbeam-prism-depth
+     *
+     * @param poseStack     the pose at the prism's cell corner
+     * @param nodeCollector the submit collector
+     * @param share         the network's light as a share of the brightest
+     */
+    private static void submitCore(PoseStack poseStack, SubmitNodeCollector nodeCollector, float share) {
+        float width = DIMMEST_WIDTH + (1f - DIMMEST_WIDTH) * share;
+        poseStack.pushPose();
+        poseStack.translate(HALF, HALF, HALF);
+        nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
+                (pose, buffer) -> GlowCore.emit(pose, buffer, width, share));
+        poseStack.popPose();
     }
 
     @Override
