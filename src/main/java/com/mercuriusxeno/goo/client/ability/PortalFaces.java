@@ -88,21 +88,19 @@ public final class PortalFaces {
      *
      * @param gate a portal's frame or a hole's mouth
      * @param rgb  its color, 0xRRGGBB
-     * @param hole whether it is a hole's mouth, drawn see-through with a torn edge and grown open
+     * @param hole whether it is a hole's mouth, drawn see-through with a torn edge
      */
     record Drawn(Gate gate, int rgb, boolean hole) {
 
         /**
          * @param camera the camera's position
-         * @return the blocks the gate covers, camera-relative, a hole's mouth shrunk as it grows open
+         * @return the blocks the gate covers, camera-relative, shrunk as it grows open
          */
         AABB drawnBox(Vec3 camera) {
             AABB box = gate.blocks().move(camera.reverse());
-            if (!hole) {
-                return box;
-            }
-            float grown = ClientHoles.grownOpen(gate, Minecraft.getInstance().getDeltaTracker()
-                    .getGameTimeDeltaPartialTick(false));
+            float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            // a portal, as a hole's mouth, grows in from nothing to its size as it is placed
+            float grown = hole ? ClientHoles.grownOpen(gate, partialTick) : ClientPortals.grownOpen(gate, partialTick);
             Direction.Axis normal = gate.face().getAxis();
             return AABB.ofSize(box.getCenter(), box.getXsize() * (normal == Direction.Axis.X ? 1 : grown),
                     box.getYsize() * (normal == Direction.Axis.Y ? 1 : grown),
