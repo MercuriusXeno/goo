@@ -88,9 +88,9 @@ public final class DecayStreamTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
     private static final String SHOULD_BITE = "Decay's swarm should bite the zombie in its cone";
     private static final String SHOULD_BITE_THROUGH_I_FRAMES =
-            "Decay's swarm bit %.2f health, one 4-point bite each half second of i-frames gives %.2f";
+            "Decay's swarm bit %.2f health, one 2-point bite each half second of i-frames gives %.2f";
     /** nether_decay.json's bite. */
-    private static final float BITE = 4f;
+    private static final float BITE = 2f;
     /** Vanilla's i-frames: a mob hit takes no hit of the same size again for half a second. */
     private static final int I_FRAME_TICKS = 10;
     private static final float HEALTH_SLACK = 0.01f;
@@ -212,7 +212,7 @@ public final class DecayStreamTests {
         hold(helper, player, 1, FINISH_TICKS);
         helper.runAfterDelay(FINISH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            // decay-gnats-degrade-each-block-once: the swarm bites 4 a bite, as often as the zombie's i-frames allow
+            // decay-gnats-degrade-each-block-once: the swarm bites 2 a bite, as often as the zombie's i-frames allow
             float bitten = zombie.getMaxHealth() - zombie.getHealth();
             float expected = BITE * bitesWithin(FINISH_TICKS);
             helper.assertTrue(Math.abs(bitten - expected) < HEALTH_SLACK,

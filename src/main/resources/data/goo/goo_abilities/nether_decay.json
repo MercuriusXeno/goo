@@ -8,7 +8,7 @@
     "sound": { "id": "goo:effects.gnat_buzz", "every": 30, "volume": 0.12, "pitch": 1.95, "pitch_spread": 0.05, "loop": true } },
   "behaviors": [
     { "type": "degrade", "map": "goo:decay", "ticks": 15 },
-    { "type": "damage", "amount": 4, "source": "magic", "knockback": false, "i_frames": true },
+    { "type": "damage", "amount": 2, "source": "magic", "knockback": false, "i_frames": true },
     { "type": "particles", "id": "goo:gnat", "at": "target", "count": 3, "spread": 0.5, "speed": 0.05 }
   ],
   "on_prism": [
