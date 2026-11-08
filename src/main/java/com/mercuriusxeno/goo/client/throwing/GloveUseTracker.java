@@ -167,18 +167,45 @@ public final class GloveUseTracker {
     }
 
     /**
-     * Cancels the offhand's turn at a right click while a main-hand glove
-     * press is live, which the glove's PASS would otherwise hand it.
+     * Cancels the use key's turn, for either hand, while a glove press is
+     * live, so a held channel uses no block and swings no hand; with no
+     * press live the click passes to vanilla untouched.
      *
      * @param event the use-key interaction for one hand
      */
     @SubscribeEvent
     public static void onUseKeyInteraction(InputEvent.InteractionKeyMappingTriggered event) {
-        if (event.isUseItem() && event.getHand() == InteractionHand.OFF_HAND
-                && PRESS.isArmed() && pressHand == InteractionHand.MAIN_HAND) {
+        cancelUseKey(event, PRESS.isArmed());
+    }
+
+    /**
+     * Applies the cancel verdict to one use-key interaction.
+     * decision diagnose-and-correct-block-use-during-a-held-channel
+     * decision use-animation-only-when-goo-throws
+     * decision use-key-throw-swings-no-more
+     *
+     * @param event the use-key interaction for one hand
+     * @param armed whether a glove press is live
+     */
+    static void cancelUseKey(InputEvent.InteractionKeyMappingTriggered event, boolean armed) {
+        if (cancelsUseKey(event.isUseItem(), armed)) {
+            // The glove's use answers PASS, so vanilla never enters its using state and startUseItem
+            // fires again every few ticks the use key stays down, using the aimed block before the
+            // glove each time; cancelling the event stops startUseItem whole, for both hands.
             event.setSwingHand(false);
             event.setCanceled(true);
         }
+    }
+
+    /**
+     * Whether a use-key interaction is cancelled.
+     *
+     * @param useItem whether the interaction is the use key's
+     * @param armed   whether a glove press is live
+     * @return true to cancel it
+     */
+    static boolean cancelsUseKey(boolean useItem, boolean armed) {
+        return useItem && armed;
     }
 
     /**
