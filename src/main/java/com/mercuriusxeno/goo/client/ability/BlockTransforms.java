@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +27,9 @@ public final class BlockTransforms {
 
     /** The tint of a state drawn in its own colors. */
     static final int UNTINTED = -1;
+
+    /** The mark of a block melting away, drawn nothing while it heats and eaten away once it steps. */
+    static final int MELTS_AWAY = BlockExposurePayload.MELTS_AWAY;
 
     /**
      * The charred brown a block cooking into an item mingles its own face
@@ -88,33 +91,25 @@ public final class BlockTransforms {
     }
 
     /**
-     * Whether a state draws no block model to mingle in: air, or a fluid
-     * such as the water ice melts into.
-     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
-     *
-     * @param state the state a block becomes
-     * @return true where the mingle has no model of it to draw
-     */
-    static boolean drawsNoModel(BlockState state) {
-        return state.isAir() || state.getRenderShape() == RenderShape.INVISIBLE;
-    }
-
-    /**
      * What an exposure mingles in over its block: the state it becomes, or,
-     * where it becomes a state with no model, air or a fluid, the block
-     * standing there in its charred face, so a block cooking into an item or
-     * melting transitions from its first share as one cooking into a block
-     * does (decisions blocks-that-cook-into-items-cook-like-blocks,
-     * flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
+     * where it cooks away to air, the block standing there in its charred
+     * face, so a block cooking into an item transitions from its first share
+     * as one cooking into a block does
+     * (decision blocks-that-cook-into-items-cook-like-blocks); a block
+     * melting away mingles nothing in while it heats
+     * (decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
      *
      * @param exposure the block's exposure
      * @param standing the block standing at its position
-     * @return the state and tint drawn
+     * @return the state and tint drawn, empty for a block melting away
      */
-    static Mingling minglingOf(Exposure exposure, BlockState standing) {
-        return drawsNoModel(exposure.toward())
+    static Optional<Mingling> minglingOf(Exposure exposure, BlockState standing) {
+        if (exposure.tint() == MELTS_AWAY) {
+            return Optional.empty();
+        }
+        return Optional.of(exposure.toward().isAir()
                 ? new Mingling(standing, CHARRED)
-                : new Mingling(exposure.toward(), exposure.tint());
+                : new Mingling(exposure.toward(), exposure.tint()));
     }
 
     /**
@@ -164,9 +159,9 @@ public final class BlockTransforms {
      * so the face it built up carries straight into the step; a block whose
      * untinted exposure built the transition plays no second dissolve, its
      * built block held whole over it a few ticks so the old block never
-     * shows before the client's chunk redraws; a block cooked away to air or
-     * melted into water dissolves from the charred face its exposure built; any other
-     * dissolves from the state it was.
+     * shows before the client's chunk redraws; a block cooked away to air
+     * dissolves from the charred face its exposure built; a block melted
+     * away, and any other, dissolves from the state it was.
      *
      * @param pos   the block
      * @param from  the state it was
@@ -179,9 +174,10 @@ public final class BlockTransforms {
         if (built != null && built.tint() >= 0) {
             // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
             playing.add(new Transform(pos.immutable(), built.toward(), start, built.tint()));
-        } else if (built == null) {
+        } else if (built == null || built.tint() == MELTS_AWAY) {
+            // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: a melted block is eaten away as Melt's stone is
             playing.add(new Transform(pos.immutable(), from, start));
-        } else if (drawsNoModel(built.toward())) {
+        } else if (built.toward().isAir()) {
             // blocks-that-cook-into-items-cook-like-blocks: the charred face it built dissolves away
             playing.add(new Transform(pos.immutable(), from, start, CHARRED));
         } else {
