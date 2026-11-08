@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.SiphonRule;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +25,7 @@ class ClientDrinksTest {
     private static final long LATER_END = 184;
 
     private static DrinkPayload drink(DrinkPayload.Streaming... streaming) {
-        return new DrinkPayload(PLAYER, List.of(streaming));
+        return new DrinkPayload(PLAYER, Vec3.ZERO, List.of(streaming));
     }
 
     private static DrinkPayload.Streaming streaming(BlockPos pos, long end) {

@@ -272,7 +272,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         long now = level.getGameTime();
         long start = now + SiphonRule.INJECT_TICKS;
         long end = start + ticks;
-        long payAt = end + SiphonRule.travelTicks(Vec3.atCenterOf(pos).distanceTo(player.getEyePosition()));
+        long payAt = end + SiphonRule.travelTicks(Vec3.atCenterOf(pos).distanceTo(drink.convergeOn(pos)));
         drink.start(pos, new Drinks.Siphon(value, now, start, end, payAt));
     }
 

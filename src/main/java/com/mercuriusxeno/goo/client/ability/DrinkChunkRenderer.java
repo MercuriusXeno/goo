@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Draws every peeling block's chunks as solid boxes of the block's own
  * faces, a standing chunk lit as its block stood and a flying one by the
- * brighter of that and the light at the glove, never by the light inside a
+ * brighter of that and the light at the point, never by the light inside a
  * solid block it passes through, which read black where streams crossed;
  * all in one submission a frame: a cell's face draws only where it
  * bounds its chunk and no standing chunk covers it, so a whole block costs
@@ -99,17 +99,17 @@ public final class DrinkChunkRenderer {
      * @param now  the game time, with the partial tick
      */
     private static void drawPeel(Draw draw, DrinkPeels.Peel peel, double now) {
-        Vec3 glove = DrinkPeels.CLIENT.gloveOf(peel.drinker());
+        Vec3 point = DrinkPeels.CLIENT.destinationOf(peel.drinker());
         List<DrinkRide.Chunk> chunks = peel.breakup().chunks();
         boolean[] standing = DrinkRide.standingOf(chunks, now);
         int standingLight = LevelRenderer.getLightCoords(draw.level(), peel.pos());
-        int flyingLight = glove == null ? standingLight : DrinkPeels.brighterOf(standingLight,
-                LevelRenderer.getLightCoords(draw.level(), BlockPos.containing(glove)));
+        int flyingLight = point == null ? standingLight : DrinkPeels.brighterOf(standingLight,
+                LevelRenderer.getLightCoords(draw.level(), BlockPos.containing(point)));
         Vec3[] shifts = new Vec3[chunks.size()];
         int[] lights = new int[chunks.size()];
         for (int index = 0; index < chunks.size(); index++) {
             DrinkRide.Chunk chunk = chunks.get(index);
-            Vec3 at = standing[index] ? chunk.place() : flightOf(chunk, glove, now);
+            Vec3 at = standing[index] ? chunk.place() : flightOf(chunk, point, now);
             if (at != null) {
                 shifts[index] = at.subtract(chunk.place()).subtract(draw.camera());
                 lights[index] = standing[index] ? standingLight : flyingLight;
@@ -120,12 +120,12 @@ public final class DrinkChunkRenderer {
 
     /**
      * @param chunk a chunk that has left its block
-     * @param glove the drinker's glove, or null while it goes unplaced
+     * @param point the drink's convergence point, or null while it goes unplaced
      * @param now   the game time, with the partial tick
-     * @return where its middle flies, or null once it reached the glove or while the glove goes unplaced
+     * @return where its middle flies, or null once it reached the point or while the point goes unplaced
      */
-    private static @Nullable Vec3 flightOf(DrinkRide.Chunk chunk, @Nullable Vec3 glove, double now) {
-        return glove == null ? null : DrinkRide.pointOf(chunk, glove, now);
+    private static @Nullable Vec3 flightOf(DrinkRide.Chunk chunk, @Nullable Vec3 point, double now) {
+        return point == null ? null : DrinkRide.pointOf(chunk, point, now);
     }
 
     /**

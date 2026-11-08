@@ -11,10 +11,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The blocks the client sees peeling into chunks, and each drinker's glove
- * their chunks fly to: a peel is kept from the frame its square lands until
- * its last chunk can have reached the hand.
+ * The blocks the client sees peeling into chunks, and each drink's
+ * convergence point their chunks fly to: a peel is kept from the frame its
+ * square lands until its last chunk can have reached the point.
  * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
+ * unmake-converges-near-the-unmade-blocks-into-a-goo-item
  */
 public final class DrinkPeels {
 
@@ -26,7 +27,7 @@ public final class DrinkPeels {
     private static final int LIGHT_SHIFT = 16;
 
     private final List<Peel> peels = new ArrayList<>();
-    private final Map<Integer, Vec3> gloves = new HashMap<>();
+    private final Map<Integer, Vec3> destinations = new HashMap<>();
 
     /**
      * How one face of a block looks, worked out once as it begins to peel.
@@ -65,11 +66,11 @@ public final class DrinkPeels {
     /**
      * One block peeling.
      *
-     * @param drinker the drinker whose glove its chunks fly to
+     * @param drinker the drinker whose convergence point its chunks fly to
      * @param pos     where it stood
      * @param breakup how it breaks up into chunks
      * @param faces   how each of its faces looks, by {@link Direction#get3DDataValue()}
-     * @param until   the game time its last chunk can have reached the hand
+     * @param until   the game time its last chunk can have reached the point
      */
     public record Peel(int drinker, BlockPos pos, DrinkRide.Breakup breakup, FaceLook[] faces, double until) {
     }
@@ -83,25 +84,25 @@ public final class DrinkPeels {
 
     /**
      * @param drinker a drinker
-     * @param glove   their glove as placed this frame
+     * @param point   their drink's convergence point this frame
      */
-    public void glove(int drinker, Vec3 glove) {
-        gloves.put(drinker, glove);
+    public void destination(int drinker, Vec3 point) {
+        destinations.put(drinker, point);
     }
 
     /**
      * @param drinker a drinker
-     * @return their glove as last placed, or null while they drink nothing
+     * @return their drink's convergence point as last placed, or null while they drink nothing
      */
-    public @Nullable Vec3 gloveOf(int drinker) {
-        return gloves.get(drinker);
+    public @Nullable Vec3 destinationOf(int drinker) {
+        return destinations.get(drinker);
     }
 
     /**
-     * @param drinkers the drinkers whose drinks still show; every other's glove is let go
+     * @param drinkers the drinkers whose drinks still show; every other's point is let go
      */
-    public void keepGlovesOf(Set<Integer> drinkers) {
-        gloves.keySet().retainAll(drinkers);
+    public void keepDestinationsOf(Set<Integer> drinkers) {
+        destinations.keySet().retainAll(drinkers);
     }
 
     /**
