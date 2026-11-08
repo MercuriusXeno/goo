@@ -130,8 +130,8 @@ public enum HostCapability {
      */
     OUTSIDER(OutsiderHost.class),
     /**
-     * A landing a meteor can be called down on (decision
-     * meteo-needs-a-clear-sky).
+     * A landing a meteor can be called down toward (decision
+     * meteo-crashes-through-whatever-is-above).
      */
     METEOR(MeteorHost.class),
     /**

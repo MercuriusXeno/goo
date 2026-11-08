@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
@@ -173,7 +172,25 @@ final class PaintedHold {
     }
 
     /**
-     * Builds every painted block one tick toward the block it becomes.
+     * The step a painted block takes once full, whether the hold fills it or
+     * it finishes alone (decision blocks-that-cook-into-items-cook-like-blocks).
+     */
+    @FunctionalInterface
+    interface CellFinish {
+
+        /**
+         * Steps one block.
+         *
+         * @param pos  the block
+         * @param raw  the block painted there
+         * @param into the block it becomes
+         */
+        void finish(BlockPos pos, Block raw, Block into);
+    }
+
+    /**
+     * Builds every painted block one tick toward the block it becomes, which
+     * it turns into once full.
      *
      * @param host  the channel host
      * @param next  the block a block becomes, empty where it becomes none
@@ -183,23 +200,24 @@ final class PaintedHold {
      */
     static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
                              OptionalInt tint) {
-        buildPainted(host, next, marks, rate, tint, (pos, raw) -> { });
+        buildPainted(host, next, marks, rate, tint,
+                (pos, raw, into) -> host.transformBlock(pos, into.defaultBlockState()));
     }
 
     /**
      * Builds every painted block one tick toward the block it becomes,
-     * telling the caller each block the hold steps. A block stepping to air
-     * is never left to finish alone, since only the hold tells the caller.
+     * stepping each through the finish the caller names, the hold's own step
+     * and a block left to finish alone alike.
      *
-     * @param host    the channel host
-     * @param next    the block a block becomes, empty where it becomes none
-     * @param marks   the hold's marks
-     * @param rate    the share one tick builds
-     * @param tint    the RGB the clients tint the mingled block by, empty for none
-     * @param stepped told the position and the block it was, each time the hold steps a block
+     * @param host   the channel host
+     * @param next   the block a block becomes, empty where it becomes none
+     * @param marks  the hold's marks
+     * @param rate   the share one tick builds
+     * @param tint   the RGB the clients tint the mingled block by, empty for none
+     * @param finish the step a full block takes
      */
     static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
-                             OptionalInt tint, BiConsumer<BlockPos, Block> stepped) {
+                             OptionalInt tint, CellFinish finish) {
         for (Map.Entry<BlockPos, Block> painted : Map.copyOf(marks.painted()).entrySet()) {
             BlockPos pos = painted.getKey();
             Block raw = painted.getValue();
@@ -208,25 +226,25 @@ final class PaintedHold {
                 marks.noteStepped(pos);
             } else if (!host.finishingAlone(pos)) {
                 next.apply(raw).ifPresentOrElse(into -> {
-                    if (build(host, pos, into, rate, tint)) {
+                    if (build(host, pos, into, rate, tint, () -> finish.finish(pos, raw, into))) {
                         marks.noteStepped(pos);
-                        stepped.accept(pos, raw);
                     }
                 }, () -> marks.unpaint(pos));
             }
         }
     }
 
-    private static boolean build(ChannelHost host, BlockPos pos, Block into, float rate, OptionalInt tint) {
+    private static boolean build(ChannelHost host, BlockPos pos, Block into, float rate, OptionalInt tint,
+                                 Runnable step) {
         float share = tint.isPresent()
                 ? host.exposeBlock(pos, into.defaultBlockState(), rate, tint.getAsInt())
                 : host.exposeBlock(pos, into.defaultBlockState(), rate);
         if (share >= 1f) {
-            host.transformBlock(pos, into.defaultBlockState());
+            step.run();
             return true;
         }
-        if (share > FINISHES_ALONE && !into.defaultBlockState().isAir()) {
-            host.finishBlockAlone(pos, rate);
+        if (share > FINISHES_ALONE) {
+            host.finishBlockAlone(pos, rate, step);
         }
         return false;
     }

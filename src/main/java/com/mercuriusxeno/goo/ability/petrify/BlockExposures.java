@@ -57,9 +57,26 @@ public final class BlockExposures {
      * @param tint        the RGB the client tints the mingled block by, {@link #UNTINTED} for none
      * @param from        the block the cell held when the exposure began, which it finishes alone only while
      *                    the cell still holds; null in a share no level built
+     * @param finish      the step the block takes once a share left to finish fills, null to become
+     *                    {@code toward}
      */
     record Exposure(BlockState toward, float share, long lastExposed, float finishRate, int tint,
-                    @Nullable Block from) {
+                    @Nullable Block from, @Nullable Runnable finish) {
+
+        /**
+         * An exposure that becomes its {@code toward} state once full.
+         *
+         * @param toward      the state the block becomes at a full share
+         * @param share       the share built
+         * @param lastExposed the game time something last built it
+         * @param finishRate  the share it builds each tick on its own once left to finish
+         * @param tint        the RGB the client tints the mingled block by
+         * @param from        the block the cell held when the exposure began
+         */
+        Exposure(BlockState toward, float share, long lastExposed, float finishRate, int tint,
+                 @Nullable Block from) {
+            this(toward, share, lastExposed, finishRate, tint, from, null);
+        }
 
         /**
          * An exposure no level built, holding no starting block.
@@ -183,17 +200,19 @@ public final class BlockExposures {
 
     /**
      * Leaves a block's built share to finish on its own: from now it builds
-     * the rate each tick, whatever reaches it, and steps once full
-     * (decision decay-gnats-degrade-each-block-once).
+     * the rate each tick, whatever reaches it, and steps through its finish
+     * once full (decisions decay-gnats-degrade-each-block-once,
+     * blocks-that-cook-into-items-cook-like-blocks).
      *
-     * @param level the server level
-     * @param pos   the block
-     * @param rate  the share it builds each tick
+     * @param level  the server level
+     * @param pos    the block
+     * @param rate   the share it builds each tick
+     * @param finish the step the block takes once full
      */
-    public void finishAlone(ServerLevel level, BlockPos pos, float rate) {
+    public void finishAlone(ServerLevel level, BlockPos pos, float rate, Runnable finish) {
         exposures.computeIfPresent(new Exposed(level.dimension(), pos.immutable()),
                 (key, exposure) -> new Exposure(exposure.toward(), exposure.share(), exposure.lastExposed(), rate,
-                        exposure.tint(), exposure.from()));
+                        exposure.tint(), exposure.from(), finish));
     }
 
     /**
@@ -252,7 +271,7 @@ public final class BlockExposures {
         }
         BlockPos pos = entry.getKey().pos();
         if (after != null && after.share() >= 1f) {
-            finish(level, pos, after.toward(), after.from());
+            finish(level, pos, after);
             return false;
         }
         send(level, pos, exposure.toward(), after == null ? 0f : after.share(), exposure.tint());
@@ -269,14 +288,19 @@ public final class BlockExposures {
      * over finishes as any block does
      * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
      *
-     * @param level  the server level
-     * @param pos    the block
-     * @param toward the state it becomes
-     * @param from   the block the cell held when the exposure began
+     * @param level    the server level
+     * @param pos      the block
+     * @param finished the filled share, carrying the block it began on and the step it takes
      */
-    private static void finish(ServerLevel level, BlockPos pos, BlockState toward, @Nullable Block from) {
-        if (level.getBlockState(pos).is(from)) {
-            BlockBreakHost.transform(level, pos, toward);
+    private static void finish(ServerLevel level, BlockPos pos, Exposure finished) {
+        if (!level.getBlockState(pos).is(finished.from())) {
+            return;
+        }
+        Runnable step = finished.finish();
+        if (step != null) {
+            step.run();
+        } else {
+            BlockBreakHost.transform(level, pos, finished.toward());
         }
     }
 
@@ -291,7 +315,8 @@ public final class BlockExposures {
     static Exposure decayed(Exposure exposure, long now) {
         if (exposure.finishing()) {
             return new Exposure(exposure.toward(), Math.min(1f, exposure.share() + exposure.finishRate()),
-                    exposure.lastExposed(), exposure.finishRate(), exposure.tint(), exposure.from());
+                    exposure.lastExposed(), exposure.finishRate(), exposure.tint(), exposure.from(),
+                    exposure.finish());
         }
         if (now - exposure.lastExposed() <= DECAY_DELAY_TICKS) {
             return exposure;

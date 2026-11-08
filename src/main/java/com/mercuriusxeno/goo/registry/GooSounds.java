@@ -41,9 +41,6 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> GNAT_BUZZ =
         SOUND_EVENTS.register("effects.gnat_buzz", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.GNAT_BUZZ));
 
-    /** Broil's held heat hum (decision broil-heat-wave-ring-cooks-ahead). */
-    public static final DeferredHolder<SoundEvent, SoundEvent> HEAT_HUM =
-        SOUND_EVENTS.register("effects.heat_hum", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HEAT_HUM));
 
     /** The slime coat's boing, each bounce (decision bounce-ramps-jump-height-while-jump-is-held). */
     public static final DeferredHolder<SoundEvent, SoundEvent> BOING =
