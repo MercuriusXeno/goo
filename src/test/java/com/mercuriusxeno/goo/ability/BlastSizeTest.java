@@ -67,13 +67,13 @@ class BlastSizeTest {
     }
 
     /**
-     * A large blast clears every stone cell well inside its ring, rather than
-     * leaving the striations its rays miss once they spread past a block apart
-     * (decision blast-fills-its-drawn-radius).
+     * A blast of any size breaks every stone cell whose center lies within
+     * its ring and none past it, rather than leaving the striations its rays
+     * miss once they spread past a block apart (decision blast-fills-its-drawn-radius).
      */
     @ParameterizedTest
-    @ValueSource(ints = {6, 12, 20})
-    void aLargeBlastLeavesNoStoneStandingInsideItsRing(int size) {
+    @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
+    void aBlastBreaksEveryStoneCellInsideItsRingAndNonePast(int size) {
         Variables sized = HostVariables.sized(size);
         double reach = blast().reachAt(sized);
         Set<BlockPos> broken = ExplosionMarch.markedCells(CENTER, blast().power().evaluateFloat(sized), reach,
@@ -82,11 +82,14 @@ class BlastSizeTest {
         List<BlockPos> standing = new ArrayList<>();
         int span = size + 1;
         for (BlockPos cell : BlockPos.betweenClosed(ORIGIN.offset(-span, -span, -span), ORIGIN.offset(span, span, span))) {
-            if (Vec3.atCenterOf(cell).distanceTo(CENTER) <= reach - 1 && !broken.contains(cell)) {
+            if (Vec3.atCenterOf(cell).distanceTo(CENTER) <= reach && !broken.contains(cell)) {
                 standing.add(cell.immutable());
             }
         }
+        List<BlockPos> past = broken.stream().filter(cell -> Vec3.atCenterOf(cell).distanceTo(CENTER) > reach)
+                .toList();
         assertTrue(standing.isEmpty(), standing.size() + " stone cells stand inside the ring, first "
                 + standing.stream().limit(5).map(BlockPos::toShortString).toList());
+        assertTrue(past.isEmpty(), past.size() + " cells broke past the ring");
     }
 }
