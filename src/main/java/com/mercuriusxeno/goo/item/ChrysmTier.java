@@ -17,7 +17,7 @@ public enum ChrysmTier {
     FLOWERING_CHRYSM("flowering_chrysm", 32_000_000L),
     MATERIA("materia", 1_000_000_000L);
 
-    /** The crystal spent crystallizing a chrysm is a tenth of its goo. */
+    /** A chrysm is worth a tenth of its goo again in crystal goo. */
     private static final long CRYSTAL_DIVISOR = 10L;
     private static final String ITEM_KEY_PREFIX = "item." + Goo.MODID + ".";
 
@@ -45,7 +45,7 @@ public enum ChrysmTier {
 
     /**
      * The goo one item of this tier is worth and melts back into: its volume of its
-     * type and the crystal goo spent to crystallize it, a tenth of that volume, so
+     * type and the crystal goo it carries beside it, a tenth of that volume, so
      * storing goo as chrysm loses no crystal (decision chrysm-melts-back-to-its-goo).
      *
      * @param type the goo type the chrysm carries

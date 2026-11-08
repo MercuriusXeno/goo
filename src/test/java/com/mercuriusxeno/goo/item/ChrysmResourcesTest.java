@@ -9,30 +9,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Each chrysm tier's item definition draws the quartz crystal at its own tier through
- * the goo:chrysm_crystal special model, and its name has a lang entry (decision
- * chrysm-tiers-fixed-and-stackable).
+ * Each chrysm tier's name has a lang entry (decision chrysm-tiers-fixed-and-stackable).
  * Reads the resources through the classpath.
  */
 class ChrysmResourcesTest {
-
-    private static final String GOO_NAMESPACE = "goo:";
-
-    @ParameterizedTest
-    @EnumSource(ChrysmTier.class)
-    void itemDefinitionDrawsTheCrystalAtItsTier(ChrysmTier tier) throws Exception {
-        JsonObject definition = readJson("/assets/goo/items/" + tier.registryPath() + ".json").getAsJsonObject("model");
-        assertEquals("minecraft:special", definition.get("type").getAsString());
-        JsonObject special = definition.getAsJsonObject("model");
-        assertEquals("goo:chrysm_crystal", special.get("type").getAsString());
-        assertEquals(tier.registryPath(), special.get("tier").getAsString());
-        String base = definition.get("base").getAsString();
-        assertTrue(base.startsWith(GOO_NAMESPACE), base + " should be a goo model");
-        readJson("/assets/goo/models/" + base.substring(GOO_NAMESPACE.length()) + ".json");
-    }
 
     @ParameterizedTest
     @EnumSource(ChrysmTier.class)

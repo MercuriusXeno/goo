@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -10,18 +9,25 @@ import org.joml.Vector3f;
 
 /**
  * The plain prism's column, shared by its model and its voxel shape: one six-sided,
- * flat-faced {@link CrystalCluster.Prism} half a block wide with a pointed tip,
+ * flat-faced {@link CrystalPrism} half a block wide with a pointed tip,
  * standing on the center of the face the prism landed on and pointing into the cell.
  * decision prism-is-one-pointed-quartz-column
  */
 public final class PrismColumn {
 
+    /**
+     * The point a prism's crystals stand on, in model pixels, which {@link #placement} moves onto the
+     * landing face's center; its values keep the geometry the prism has always drawn at.
+     */
+    public static final double BASE_X = 8;
+    public static final double BASE_Y = 16;
+    public static final double BASE_Z = 11;
     /** The hexagon's corner radius in model pixels: 8 pixels across its corners, half a block. */
     public static final double RADIUS = 4;
     /** The column's length to its point in model pixels; the last quarter is the point. */
     public static final double LENGTH = 14;
-    /** The one upright column, in model pixels on {@link CrystalCluster}'s base point along +y. */
-    public static final CrystalCluster.Prism PRISM = new CrystalCluster.Prism(0, 0, LENGTH, RADIUS);
+    /** The one upright column, in model pixels on the base point along +y. */
+    public static final CrystalPrism PRISM = new CrystalPrism(0, 0, LENGTH, RADIUS);
 
     private static final float PIXELS_PER_BLOCK = 16f;
     private static final float HALF = 0.5f;
@@ -32,7 +38,7 @@ public final class PrismColumn {
     }
 
     /**
-     * The turn that stands the column, drawn on {@link CrystalCluster}'s base point along
+     * The turn that stands the column, drawn on the base point along
      * +y in block units, on the center of the landing face pointing along {@code facing}.
      *
      * @param facing the prism's facing, the face it landed on being the opposite one
@@ -44,8 +50,8 @@ public final class PrismColumn {
         Quaternionf upToFacing = new Quaternionf().rotationTo(0, 1, 0,
                 facing.getStepX(), facing.getStepY(), facing.getStepZ());
         return new Matrix4f().translation(landing).rotate(upToFacing).translate(
-                (float) -CrystalCluster.BASE_X / PIXELS_PER_BLOCK, (float) -CrystalCluster.BASE_Y / PIXELS_PER_BLOCK,
-                (float) -CrystalCluster.BASE_Z / PIXELS_PER_BLOCK);
+                (float) -BASE_X / PIXELS_PER_BLOCK, (float) -BASE_Y / PIXELS_PER_BLOCK,
+                (float) -BASE_Z / PIXELS_PER_BLOCK);
     }
 
     /**
@@ -76,9 +82,9 @@ public final class PrismColumn {
             for (double y : new double[] {bottom, top}) {
                 for (double z : new double[] {-halfFlats, halfFlats}) {
                     Vector3f corner = placement.transformPosition(new Vector3f(
-                            (float) ((CrystalCluster.BASE_X + x) / PIXELS_PER_BLOCK),
-                            (float) ((CrystalCluster.BASE_Y + y) / PIXELS_PER_BLOCK),
-                            (float) ((CrystalCluster.BASE_Z + z) / PIXELS_PER_BLOCK)));
+                            (float) ((BASE_X + x) / PIXELS_PER_BLOCK),
+                            (float) ((BASE_Y + y) / PIXELS_PER_BLOCK),
+                            (float) ((BASE_Z + z) / PIXELS_PER_BLOCK)));
                     low.min(corner);
                     high.max(corner);
                 }
