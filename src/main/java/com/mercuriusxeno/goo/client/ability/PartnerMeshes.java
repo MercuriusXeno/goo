@@ -20,6 +20,8 @@ import net.minecraft.client.renderer.block.BlockQuadOutput;
 import net.minecraft.client.renderer.block.FluidRenderer;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.chunk.VisGraph;
+import net.minecraft.client.renderer.chunk.VisibilitySet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.data.AtlasIds;
@@ -42,12 +44,15 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.Set;
 
 /**
  * Draws the streamed far side of a linked pair inside the portal pass: each
  * section the streamed view holds is tesselated once as it arrives, the way
- * the game's own section compiler lays out a section, and drawn in every
- * view through a portal whose partner the ClientLevel does not hold.
+ * the game's own section compiler lays out a section, its faces' sight of
+ * one another read as the game reads it, and drawn in every view through a
+ * portal whose partner the ClientLevel does not hold wherever the far side's
+ * own section graph, walked from the partner's mouth, reaches it.
  * linked-partner-chunks-stream-to-any-viewer
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -61,10 +66,19 @@ public final class PartnerMeshes {
     private static final String TRANSFORMS = "DynamicTransforms";
     private static final String BLOCK_ATLAS_SAMPLER = "Sampler0";
     private static final String LIGHTMAP_SAMPLER = "Sampler2";
+    /** An air section, every face seeing through to every other. */
+    private static final VisibilitySet OPEN = new VisibilitySet();
 
-    /** One section's tesselated layers, each with the memory it lives in. */
+    static {
+        OPEN.setAll(true);
+    }
+
+    /**
+     * One section's tesselated layers, each with the memory it lives in, and
+     * which of its faces see through to which.
+     */
     private record Built(SectionPos section, Map<ChunkSectionLayer, MeshData> meshes,
-            Map<ChunkSectionLayer, ByteBufferBuilder> memory) {
+            Map<ChunkSectionLayer, ByteBufferBuilder> memory, VisibilitySet visibility) {
         void close() {
             meshes.values().forEach(MeshData::close);
             memory.values().forEach(ByteBufferBuilder::close);
@@ -73,6 +87,8 @@ public final class PartnerMeshes {
 
     /** Each streamed chunk's sections as last tesselated, keyed by the sections array they were read from. */
     private static final Map<ChunkPos, Map<LevelChunkSection[], java.util.List<Built>>> BUILT = new HashMap<>();
+    /** Each streamed chunk's sections, air ones too, with which of their faces see through to which. */
+    private static final Map<ChunkPos, Map<SectionPos, VisibilitySet>> GRAPH = new HashMap<>();
 
     private PartnerMeshes() {
     }
@@ -90,9 +106,13 @@ public final class PartnerMeshes {
         rebuild(PartnerView.CLIENT);
         Matrix4f view = new Matrix4f(RenderSystem.getModelViewMatrix()).mul(event.getPoseStack().last().pose());
         Vec3 camera = PortalView.cameraPosition();
+        Map<SectionPos, VisibilitySet> held = new HashMap<>();
+        GRAPH.values().forEach(held::putAll);
+        Set<SectionPos> seen = PartnerSectionGraph.visible(PortalView.partnerMouth(), held, PortalView::frustumHolds);
         for (ChunkSectionLayer layer : ChunkSectionLayer.values()) {
             for (Map<LevelChunkSection[], java.util.List<Built>> chunk : BUILT.values()) {
-                chunk.values().forEach(sections -> sections.forEach(built -> draw(built, layer, view, camera)));
+                chunk.values().forEach(sections -> sections.stream().filter(built -> seen.contains(built.section()))
+                        .forEach(built -> draw(built, layer, view, camera)));
             }
         }
     }
@@ -110,6 +130,7 @@ public final class PartnerMeshes {
             LevelChunkSection[] now = view.sectionsOf(entry.getKey());
             if (!entry.getValue().containsKey(now)) {
                 entry.getValue().values().forEach(sections -> sections.forEach(Built::close));
+                GRAPH.remove(entry.getKey());
                 it.remove();
             }
         }
@@ -118,14 +139,21 @@ public final class PartnerMeshes {
             if (!BUILT.containsKey(pos) && built++ < CHUNKS_PER_FRAME) {
                 LevelChunkSection[] sections = view.sectionsOf(pos);
                 java.util.List<Built> meshes = new java.util.ArrayList<>();
+                Map<SectionPos, VisibilitySet> graph = new HashMap<>();
                 for (int index = 0; index < sections.length; index++) {
-                    if (!sections[index].hasOnlyAir()) {
-                        meshes.add(tesselate(view, SectionPos.of(pos, view.minSectionY() + index)));
+                    SectionPos section = SectionPos.of(pos, view.minSectionY() + index);
+                    if (sections[index].hasOnlyAir()) {
+                        graph.put(section, OPEN);
+                    } else {
+                        Built mesh = tesselate(view, section);
+                        meshes.add(mesh);
+                        graph.put(section, mesh.visibility());
                     }
                 }
                 Map<LevelChunkSection[], java.util.List<Built>> keyed = new java.util.IdentityHashMap<>();
                 keyed.put(sections, meshes);
                 BUILT.put(pos, keyed);
+                GRAPH.put(pos, graph);
             }
         }
     }
@@ -149,11 +177,15 @@ public final class PartnerMeshes {
         BlockQuadOutput quadOut = (x, y, z, quad, instance) ->
                 builderFor(builders, memory, quad.materialInfo().layer()).putBlockBakedQuad(x, y, z, quad, instance);
         BlockPos origin = section.origin();
+        VisGraph sight = new VisGraph();
         for (BlockPos pos : BlockPos.betweenClosed(origin, origin.offset(SectionPos.SECTION_MAX_INDEX,
                 SectionPos.SECTION_MAX_INDEX, SectionPos.SECTION_MAX_INDEX))) {
             BlockState state = view.getBlockState(pos);
             if (state.isAir()) {
                 continue;
+            }
+            if (state.isSolidRender()) {
+                sight.setOpaque(pos);
             }
             if (!state.getFluidState().isEmpty()) {
                 fluids.tesselate(view, pos, fluidOut, state, state.getFluidState());
@@ -171,7 +203,7 @@ public final class PartnerMeshes {
                 meshes.put(layer, mesh);
             }
         });
-        return new Built(section, meshes, memory);
+        return new Built(section, meshes, memory, sight.resolve());
     }
 
     private static VertexConsumer builderFor(Map<ChunkSectionLayer, BufferBuilder> builders,
@@ -240,5 +272,6 @@ public final class PartnerMeshes {
         PartnerView.CLIENT.clear();
         BUILT.values().forEach(chunk -> chunk.values().forEach(sections -> sections.forEach(Built::close)));
         BUILT.clear();
+        GRAPH.clear();
     }
 }
