@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -25,20 +26,35 @@ public final class SwarmMotes {
      * settle on, which it leaves the glove at and the bite waits on.
      */
     public static final double GNAT_SPEED = PULL * DRAG / (1 - DRAG);
+    /** How far off the struck face the gnats converge, so they settle on it rather than inside the block. */
+    public static final double FACE_LIFT = 0.05;
 
     private SwarmMotes() {
     }
 
     /**
-     * The box the gnats converge on this tick.
+     * The box the gnats converge on this tick: the struck face of the block
+     * under the crosshair, lifted just off it. A point inside the block would
+     * draw a gnat on a line that strikes the face short of the block.
      *
      * @param crosshair the block the crosshair lands on, or a miss at the stream's reach
-     * @return the crosshair block's cell, else the point at the stream's reach
+     * @return a thin slab over the struck face, else the point at the stream's reach
      */
     static AABB moteTarget(BlockHitResult crosshair) {
-        if (crosshair.getType() == HitResult.Type.BLOCK) {
-            return new AABB(crosshair.getBlockPos());
+        if (crosshair.getType() != HitResult.Type.BLOCK) {
+            return new AABB(crosshair.getLocation(), crosshair.getLocation());
         }
-        return new AABB(crosshair.getLocation(), crosshair.getLocation());
+        AABB cell = new AABB(crosshair.getBlockPos());
+        Direction face = crosshair.getDirection();
+        Direction.Axis axis = face.getAxis();
+        double plane = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? cell.max(axis) : cell.min(axis);
+        double lifted = plane + face.getAxisDirection().getStep() * FACE_LIFT;
+        double low = Math.min(plane, lifted);
+        double high = Math.max(plane, lifted);
+        return switch (axis) {
+            case X -> new AABB(low, cell.minY, cell.minZ, high, cell.maxY, cell.maxZ);
+            case Y -> new AABB(cell.minX, low, cell.minZ, cell.maxX, high, cell.maxZ);
+            case Z -> new AABB(cell.minX, cell.minY, low, cell.maxX, cell.maxY, high);
+        };
     }
 }
