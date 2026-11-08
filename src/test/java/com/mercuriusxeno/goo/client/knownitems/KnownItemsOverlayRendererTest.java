@@ -13,8 +13,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.invocation.Invocation;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -53,8 +55,21 @@ class KnownItemsOverlayRendererTest {
         return List.copyOf(mockingDetails(graphics).getInvocations());
     }
 
+    private static boolean cancelGlyph(Invocation call) {
+        return call.getMethod().getName().equals("fill")
+                && (int) call.getArgument(4) == KnownItemsOverlayRenderer.CANCEL_RED;
+    }
+
+    /** The colors a frame filled in, the Cancel glyph's own fills left out. */
+    private static List<Integer> fillColors(GuiGraphicsExtractor graphics) {
+        return callsOf(graphics, "fill").stream().filter(fill -> !cancelGlyph(fill))
+                .map(fill -> (Integer) fill.getArgument(4)).toList();
+    }
+
+    /** The draws a frame made, the Cancel glyph's own fills left out. */
     private static List<String> methods(GuiGraphicsExtractor graphics) {
-        return calls(graphics).stream().map(call -> call.getMethod().getName()).toList();
+        return calls(graphics).stream().filter(call -> !cancelGlyph(call)).map(call -> call.getMethod().getName())
+                .toList();
     }
 
     private static int[] rect(Invocation fill) {
@@ -87,8 +102,8 @@ class KnownItemsOverlayRendererTest {
             int cursorY = dirt.top() + 1;
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             Font font = mock(Font.class);
-            List<ItemIcon> icons = renderAt(graphics, items, "", 0, cursorX, cursorY).icons();
-            KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, icons, cursorX, cursorY);
+            Drawn drawn = renderAt(graphics, items, "", 0, cursorX, cursorY);
+            KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, cursorX, cursorY);
 
             assertEquals(List.of("fill", "text", "fill", "fill", "text", "item", "fill", "fill", "fill", "fill", "fill",
                     "item", "item",
@@ -143,7 +158,8 @@ class KnownItemsOverlayRendererTest {
             assertTrue((int) title.getArgument(3) < (int) searchBorder.getArgument(3),
                     "the title should share the top row with the search bar");
             int inset = (KnownItemsOverlayRenderer.CELL - KnownItemsOverlayRenderer.ICON) / 2;
-            assertEquals(KnownItemsOverlayRenderer.MARGIN + inset, icons.getFirst().left());
+            assertEquals(KnownItemsOverlayRenderer.MARGIN + KnownItemsOverlayRenderer.CELL + inset, icons.getFirst().left(),
+                    "the first item should sit in the second cell, after Cancel");
             assertTrue(icons.getFirst().top() > (int) searchBorder.getArgument(3), "the grid should start under the top row");
             assertEquals(icons.getFirst().top(), icons.getLast().top(), "a short list should fill its first row left to right");
         }
@@ -202,10 +218,9 @@ class KnownItemsOverlayRendererTest {
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             Drawn drawn = render(graphics, longList, "", 0);
 
-            List<Invocation> fills = callsOf(graphics, "fill");
             assertEquals(List.of(KnownItemsOverlayRenderer.DARKEN, KnownItemsOverlayRenderer.SEARCH_BORDER,
                     KnownItemsOverlayRenderer.SEARCH_BAR, KnownItemsOverlayRenderer.TRACK, KnownItemsOverlayRenderer.THUMB),
-                    fills.stream().map(fill -> (Object) fill.getArgument(4)).toList());
+                    fillColors(graphics));
             assertNotNull(drawn.track());
             int gridRight = drawn.icons().stream().mapToInt(icon -> icon.left() + KnownItemsOverlayRenderer.ICON)
                     .max().orElseThrow();
@@ -219,33 +234,102 @@ class KnownItemsOverlayRendererTest {
             Drawn drawn = render(graphics, items, "", 0);
             assertNull(drawn.track());
             assertEquals(List.of(KnownItemsOverlayRenderer.DARKEN, KnownItemsOverlayRenderer.SEARCH_BORDER,
-                    KnownItemsOverlayRenderer.SEARCH_BAR),
-                    callsOf(graphics, "fill").stream().map(fill -> (Object) fill.getArgument(4)).toList());
+                    KnownItemsOverlayRenderer.SEARCH_BAR), fillColors(graphics));
         }
 
         @Test
         void oneStepDownDrawsTheSecondRowFirst() {
             Drawn top = render(mock(GuiGraphicsExtractor.class), longList, "", 0);
-            int columns = (int) top.icons().stream().filter(icon -> icon.top() == top.icons().getFirst().top()).count();
+            // Cancel takes the first row's first cell, so that row shows one item fewer than the columns.
+            int columns = 1 + (int) top.icons().stream().filter(icon -> icon.top() == top.icons().getFirst().top())
+                    .count();
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             render(graphics, longList, "", top.scroll().scrolledBy(1).firstRow());
-            assertSame(longList.get(columns).stack(), callsOf(graphics, "item").getFirst().getArgument(0));
+            assertSame(longList.get(columns - 1).stack(), callsOf(graphics, "item").getFirst().getArgument(0));
         }
     }
 
     @Nested
     class Click {
-        private final List<ItemIcon> icons = render(mock(GuiGraphicsExtractor.class), items, "", 0).icons();
+        private final Drawn drawn = render(mock(GuiGraphicsExtractor.class), items, "", 0);
 
         @Test
         void clickOnAnIconPicksThatItem() {
-            ItemIcon sand = icons.get(2);
-            assertEquals(SAND, KnownItemsOverlayRenderer.pickAt(icons, sand.left() + 1, sand.top() + 1));
+            ItemIcon sand = drawn.icons().get(2);
+            assertEquals(new KnownItemsOverlayRenderer.Pick(Optional.of(SAND)),
+                    KnownItemsOverlayRenderer.pickAt(drawn, sand.left() + 1, sand.top() + 1));
         }
 
         @Test
-        void clickOnNoIconPicksNothing() {
-            assertNull(KnownItemsOverlayRenderer.pickAt(icons, 0, 0));
+        void clickOnNoCellPicksNothing() {
+            assertNull(KnownItemsOverlayRenderer.pickAt(drawn, 0, 0));
+        }
+
+        @Test
+        void clickOnCancelPicksTheClear() {
+            KnownItemsOverlayRenderer.Box cancel = drawn.cancel();
+            assertNotNull(cancel);
+            assertEquals(KnownItemsOverlayRenderer.Pick.CLEAR,
+                    KnownItemsOverlayRenderer.pickAt(drawn, cancel.left() + 1, cancel.top() + 1));
+        }
+    }
+
+    @Nested
+    class Cancel {
+        private void assertCancelHeadsTheGrid(List<KnownItem> shown, String query) {
+            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            Drawn drawn = render(graphics, shown, query, 0);
+            KnownItemsOverlayRenderer.Box cancel = drawn.cancel();
+            assertNotNull(cancel, "Cancel should draw for query \"" + query + "\"");
+            assertEquals(KnownItemsOverlayRenderer.MARGIN, cancel.left(), "Cancel should take the first column");
+            assertTrue(drawn.icons().stream().allMatch(icon -> icon.top() > cancel.top()
+                    || icon.left() > cancel.left() + KnownItemsOverlayRenderer.CELL - 1),
+                    "every item should follow Cancel");
+            List<Invocation> glyph = calls(graphics).stream().filter(KnownItemsOverlayRendererTest::cancelGlyph).toList();
+            assertFalse(glyph.isEmpty(), "the Cancel glyph should draw");
+            assertTrue(glyph.stream().map(KnownItemsOverlayRendererTest::rect).allMatch(r -> r[0] >= cancel.left()
+                    && r[2] <= cancel.left() + cancel.size() && r[1] >= cancel.top()
+                    && r[3] <= cancel.top() + cancel.size()), "the glyph should draw inside the Cancel cell");
+        }
+
+        @Test
+        void cancelHeadsTheGridWithAnEmptyQuery() {
+            assertCancelHeadsTheGrid(items, "");
+        }
+
+        @Test
+        void cancelHeadsTheGridWhenTheQueryMatchesNoItem() {
+            assertCancelHeadsTheGrid(KnownItemsListing.filter(items, "zzz", Locale.ENGLISH), "zzz");
+        }
+
+        @Test
+        void cursorOnCancelDrawsItsCellHoveredAndNamesIt() {
+            KnownItemsOverlayRenderer.Box cancel = render(mock(GuiGraphicsExtractor.class), items, "", 0).cancel();
+            assertNotNull(cancel);
+            int cursorX = cancel.left() + 1;
+            int cursorY = cancel.top() + 1;
+            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            Font font = mock(Font.class);
+            Drawn drawn = renderAt(graphics, items, "", 0, cursorX, cursorY);
+            KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, cursorX, cursorY);
+
+            assertTrue(callsOf(graphics, "fill").stream()
+                    .anyMatch(fill -> (int) fill.getArgument(4) == KnownItemsOverlayRenderer.HOVER_CELL
+                            && (int) fill.getArgument(0) == cancel.left() + 1), "Cancel's cell should draw hovered");
+            Invocation name = calls(graphics).getLast();
+            assertEquals(List.of(font, Component.translatable(KnownItemsOverlayRenderer.CANCEL_KEY), cursorX, cursorY),
+                    List.of(name.getArguments()));
+        }
+
+        @Test
+        void glyphIsARingSlashedFromTopLeftToBottomRight() {
+            assertTrue(KnownItemsOverlayRenderer.cancelPixel(6.5, 0), "the ring");
+            assertTrue(KnownItemsOverlayRenderer.cancelPixel(0, -6.5), "the ring");
+            assertTrue(KnownItemsOverlayRenderer.cancelPixel(-3, -3), "the slash's top left");
+            assertTrue(KnownItemsOverlayRenderer.cancelPixel(3, 3), "the slash's bottom right");
+            assertFalse(KnownItemsOverlayRenderer.cancelPixel(3, -3), "inside the ring, off the slash");
+            assertFalse(KnownItemsOverlayRenderer.cancelPixel(-3, 3), "inside the ring, off the slash");
+            assertFalse(KnownItemsOverlayRenderer.cancelPixel(7.9, 0), "outside the ring");
         }
     }
 }

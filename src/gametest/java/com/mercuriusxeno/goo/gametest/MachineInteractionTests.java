@@ -50,6 +50,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.Optional;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -65,6 +66,7 @@ public final class MachineInteractionTests {
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
     private static final String IX_PLEXER_PICK_SETS_TARGET = "ix_plexer_pick_sets_target";
+    private static final String IX_PLEXER_PICK_CLEARS_TARGET = "ix_plexer_pick_clears_target";
     private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
     private static final String IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN = "ix_plexer_fizzles_until_lab_learn";
     private static final String IX_GHOST_ENTITY_NEVER_JOINS = "ix_ghost_entity_never_joins";
@@ -87,6 +89,7 @@ public final class MachineInteractionTests {
         GooTestFunctions.registerTest(registrar, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         GooTestFunctions.registerTest(registrar, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_PICK_SETS_TARGET, MachineInteractionTests::plexerPickSetsTarget);
+        GooTestFunctions.registerTest(registrar, IX_PLEXER_PICK_CLEARS_TARGET, MachineInteractionTests::plexerPickClearsTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN, MachineInteractionTests::plexerFizzlesOnAKitPlayerUntilLabLearn);
         GooTestFunctions.registerTest(registrar, IX_GHOST_ENTITY_NEVER_JOINS, MachineInteractionTests::ghostItemEntityNeverJoins);
@@ -291,6 +294,28 @@ public final class MachineInteractionTests {
     }
 
     /**
+     * Plexer: the menu's Cancel pick, an empty item, empties a plexer's target
+     * (decision cancel-cell-clears-the-plexer-target).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void plexerPickClearsTarget(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
+        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
+        plexer.setTargetItem(new ItemStack(Items.STONE));
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
+        try {
+            PlexerTargetPickHandler.pick(player, helper.absolutePos(BE_POS), Optional.empty());
+            helper.assertTrue(plexer.getTargetItem().isEmpty(), "A Cancel pick should empty the plexer's target");
+        } finally {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
+        helper.succeed();
+    }
+
+    /**
      * Sends the plexer at the test's position a menu pick of an item, as its menu does.
      *
      * @param helper the gametest helper
@@ -298,7 +323,7 @@ public final class MachineInteractionTests {
      * @param item   the item picked
      */
     private static void pick(GameTestHelper helper, ServerPlayer player, Item item) {
-        PlexerTargetPickHandler.pick(player, helper.absolutePos(BE_POS), PlayerKnowledge.idOf(item));
+        PlexerTargetPickHandler.pick(player, helper.absolutePos(BE_POS), Optional.of(PlayerKnowledge.idOf(item)));
     }
 
     /**
