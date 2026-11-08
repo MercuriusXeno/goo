@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ber.style;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ability.GlowBeamMesh;
+import com.mercuriusxeno.goo.client.ability.GlowCore;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -51,6 +52,15 @@ public final class GlowReflectorStyle implements PrismComboStyle {
                         (pose, buffer) -> emitBeam(pose, buffer, length, share, scroll));
                 poseStack.popPose();
             }
+        }
+        if (!state.links.isEmpty()) {
+            // diagnose-and-correct-the-sunbeam-prism-depth: every rail leaves from a soft core inside the prism
+            float width = DIMMEST_WIDTH + (1f - DIMMEST_WIDTH) * share;
+            poseStack.pushPose();
+            poseStack.translate(center.x, center.y, center.z);
+            nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
+                    (pose, buffer) -> GlowCore.emit(pose, buffer, width, share));
+            poseStack.popPose();
         }
     }
 

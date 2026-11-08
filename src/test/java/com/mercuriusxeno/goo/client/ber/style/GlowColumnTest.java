@@ -100,6 +100,23 @@ class GlowColumnTest {
                 collector));
     }
 
+    /** A reflector's core shows at every linked prism, the end that draws the rail and the end that does not. */
+    @Test
+    void aLinkedReflectorDrawsItsCoreAfterItsColumn() {
+        for (double along : new double[] {RAIL_LENGTH, -RAIL_LENGTH}) {
+            PrismRenderState state = new PrismRenderState();
+            state.look = LOOK;
+            state.links = List.of(new Vec3(along, 0, 0));
+            state.linkLight = BRIGHTEST;
+            SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
+            OrderedSubmitNodeCollector later = mock(OrderedSubmitNodeCollector.class);
+            when(collector.order(GlowColumn.BEAM_ORDER)).thenReturn(later);
+            new GlowReflectorStyle().submit(state, new PoseStack(), collector);
+            verify(later, atLeastOnce()).submitCustomGeometry(any(PoseStack.class), eq(GooRenderTypes.GLOW_SHELL_TYPE),
+                    any());
+        }
+    }
+
     private static void assertBeamsSubmittedAfterTheColumn(Consumer<SubmitNodeCollector> submit) {
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
         OrderedSubmitNodeCollector later = mock(OrderedSubmitNodeCollector.class);
