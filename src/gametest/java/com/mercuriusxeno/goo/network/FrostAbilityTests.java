@@ -144,6 +144,11 @@ public final class FrostAbilityTests {
     /** Two still water blocks in the floor under the Orb's path. */
     private static final BlockPos POOL_NEAR = new BlockPos(2, 0, 2);
     private static final BlockPos POOL_FAR = new BlockPos(3, 0, 2);
+    /**
+     * Still water in the floor's west corner beside the throw's start: about four blocks from the
+     * roll, past a sphere of 3 and inside one of 6, and over six from where the Orb ends by the east wall.
+     */
+    private static final BlockPos ORB_WIDE_WATER_POS = new BlockPos(0, 0, 6);
     /** A zombie off the Orb's path near the bay's east wall, inside the end nova's reach. */
     private static final BlockPos ORB_BYSTANDER_POS = new BlockPos(5, 1, 4);
     /** A zombie standing in the Orb's path, which ends it. */
@@ -161,6 +166,7 @@ public final class FrostAbilityTests {
     /** The struck zombie's freeze, nine tenths of its health, short a tick of thaw. */
     private static final float STRUCK_FLOOR = 0.85f;
     private static final String SHOULD_ICE_THE_POOL = "The Orb should freeze the pool under its path to ice";
+    private static final String SHOULD_ICE_WIDE = "The Orb's sphere of 6 should freeze the water four blocks beside its roll";
     private static final String SHOULD_FREEZE_BYSTANDER = "The Orb's end nova should freeze the zombie by the wall hard, stands %s";
     private static final String SHOULD_FREEZE_BLOCKER = "The zombie the Orb struck should be nearly frozen solid, stands %s";
     private static final String SHOULD_END = "The Orb should be gone once it ends";
@@ -384,13 +390,15 @@ public final class FrostAbilityTests {
 
     /**
      * The Orb thrown along the bay over a pool and past a zombie freezes the
-     * pool to ice and the zombie as it rolls by.
+     * pool to ice and the zombie as it rolls by, and its sphere of 6 freezes
+     * the water four blocks beside its roll (decision orb-freeze-sphere-matches-its-nova).
      *
      * @param helper the gametest helper
      */
     public static void orbFreezesPathAndPool(GameTestHelper helper) {
         helper.setBlock(POOL_NEAR, Blocks.WATER);
         helper.setBlock(POOL_FAR, Blocks.WATER);
+        helper.setBlock(ORB_WIDE_WATER_POS, Blocks.WATER);
         helper.setBlock(ORB_BYSTANDER_POS.below(), Blocks.STONE);
         Mob bystander = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ORB_BYSTANDER_POS);
         ServerPlayer thrower = orbThrower(helper);
@@ -400,6 +408,7 @@ public final class FrostAbilityTests {
             helper.getLevel().getServer().getPlayerList().remove(thrower);
             helper.assertTrue(helper.getBlockState(POOL_NEAR).is(Blocks.ICE)
                     && helper.getBlockState(POOL_FAR).is(Blocks.ICE), SHOULD_ICE_THE_POOL);
+            helper.assertTrue(helper.getBlockState(ORB_WIDE_WATER_POS).is(Blocks.ICE), SHOULD_ICE_WIDE);
             helper.assertTrue(gauge > END_NOVA_FLOOR, String.format(SHOULD_FREEZE_BYSTANDER, gauge));
             helper.assertTrue(noRollingGoo(helper), SHOULD_END);
             helper.succeed();
