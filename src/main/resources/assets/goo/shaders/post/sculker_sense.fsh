@@ -1,14 +1,11 @@
 #version 330
 
-// Sculker's warden senses: the world dims with its distance from the diver and is heard rather than seen.
-// Where depth breaks, at the edges of open space, a sculk-teal contour
-// draws, brightened by echo rings sweeping out from the diver. The world
-// shows at 60% of its own look within 3 blocks, 30% at 5, 10% at 6.5 and
-// sinks into inky black by 8,
-// and sculk tendrils curl in from the screen's edge. The whole vision
-// eases in as the brew starts and out as it ends. Solid space is a dim sea.
-// The glass field and what the diver's echoes lit draw over the world once
-// this has dimmed it, so they show at their own strength.
+// Sculker's warden senses: the world dims with its distance from the
+// diver, showing at 60% of its own look within 3 blocks, 30% at 5, 10% at
+// 6.5 and black by 8, the sky black with it. The whole vision eases in as
+// the brew starts and out as it ends. The glass field and what the diver's
+// echoes lit draw over the world once this has dimmed it, so only what a
+// real echo touched lights up past the near world.
 // decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
 // decision sculker-sight-persists-where-echoes-have-touched
 
@@ -17,22 +14,15 @@ uniform sampler2D InDepthSampler;
 
 in vec2 texCoord;
 
-layout(std140) uniform SamplerInfo {
-    vec2 OutSize;
-    vec2 InSize;
-};
-
 layout(std140) uniform SculkerConfig {
-    // (seconds, nearReach, far, near): nearReach in blocks where the scene still shows
+    // (unused, unused, far, near): the camera's far and near planes
     vec4 SculkerParams;
-    // (presence, unused, dimReach, unused): presence 0 passes the view through,
-    // dimReach in blocks where the world has all but gone dark
+    // (presence, unused, unused, unused): presence 0 passes the view through
     vec4 SculkerLook;
 };
 
 out vec4 fragColor;
 
-const vec3 SCULK = vec3(0.06, 0.78, 0.82);
 // the world's brightness by its distance from the diver, a share of how it looks with no effect:
 // 60% within 3 blocks, 30% at 5, 10% at 6.5, black by 8
 const float BRIGHT_NEAR = 0.6;
@@ -42,10 +32,6 @@ const float NEAR_REACH_BLOCKS = 3.0;
 const float ROOM_REACH = 5.0;
 const float NEXT_REACH = 6.5;
 const float DARK_REACH = 8.0;
-const float EDGE_GAIN = 14.0;
-const float ECHO_SPEED = 12.0;
-const float ECHO_SPACING = 24.0;
-const float ECHO_WIDTH = 2.5;
 
 float brightnessAt(float distance) {
     if (distance <= NEAR_REACH_BLOCKS) {
@@ -66,31 +52,11 @@ float linearDepth(vec2 uv, float near, float far) {
 }
 
 void main() {
-    float seconds = SculkerParams.x;
-    float nearReach = SculkerParams.y;
     float far = SculkerParams.z;
     float near = SculkerParams.w;
     float presence = SculkerLook.x;
-    float dimReach = SculkerLook.z;
-    vec2 texel = 1.0 / OutSize;
     vec3 scene = texture(InSampler, texCoord).rgb;
-
-    float center = linearDepth(texCoord, near, far);
-    float east = linearDepth(texCoord + vec2(texel.x, 0.0), near, far);
-    float west = linearDepth(texCoord - vec2(texel.x, 0.0), near, far);
-    float north = linearDepth(texCoord + vec2(0.0, texel.y), near, far);
-    float south = linearDepth(texCoord - vec2(0.0, texel.y), near, far);
-    float breakAcross = abs(east + west - 2.0 * center) + abs(north + south - 2.0 * center);
-    float contour = clamp(breakAcross / max(center, near) * EDGE_GAIN, 0.0, 1.0);
-
-    float sky = step(far * 0.99, center);
-    float echoAt = mod(center - seconds * ECHO_SPEED, ECHO_SPACING);
-    float echo = 1.0 - smoothstep(0.0, ECHO_WIDTH, min(echoAt, ECHO_SPACING - echoAt));
-    float fade = 1.0 - smoothstep(dimReach * 0.5, dimReach * 1.5, center);
-
-    vec3 dark = scene * brightnessAt(center) * (1.0 - sky);
-    vec3 heard = SCULK * contour * (0.45 + 0.55 * echo) * fade * (1.0 - sky);
-    vec3 sensed = dark + heard;
-
-    fragColor = vec4(mix(scene, sensed, presence), 1.0);
+    float distance = linearDepth(texCoord, near, far);
+    vec3 dimmed = scene * brightnessAt(distance);
+    fragColor = vec4(mix(scene, dimmed, presence), 1.0);
 }
