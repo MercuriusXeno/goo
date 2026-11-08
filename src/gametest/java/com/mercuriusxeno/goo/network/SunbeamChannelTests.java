@@ -51,6 +51,7 @@ public final class SunbeamChannelTests {
     private static final String SUNBEAM_HITS_THE_AIMED_ZOMBIE = "sunbeam_hits_the_aimed_zombie";
     private static final String SUNBEAM_IMPACT_FIRES_AT_THE_HIT = "sunbeam_impact_fires_at_the_hit";
     private static final String SUNBEAM_CONVERTS_A_BARE_PRISM = "sunbeam_converts_a_bare_prism";
+    private static final String SUNBEAM_WARMS_A_BARE_PRISM_AS_IT_CHARGES = "sunbeam_warms_a_bare_prism_as_it_charges";
     private static final String SUNBEAM_STRIKES_A_BARE_PRISM_FROM_A_DIAGONAL =
             "sunbeam_strikes_a_bare_prism_from_a_diagonal";
 
@@ -65,6 +66,8 @@ public final class SunbeamChannelTests {
         GooTestFunctions.registerTest(registrar, SUNBEAM_HITS_THE_AIMED_ZOMBIE, SunbeamChannelTests::sunbeamHitsTheAimedZombie);
         GooTestFunctions.registerTest(registrar, SUNBEAM_IMPACT_FIRES_AT_THE_HIT, SunbeamChannelTests::sunbeamImpactFiresAtTheHit);
         GooTestFunctions.registerTest(registrar, SUNBEAM_CONVERTS_A_BARE_PRISM, SunbeamChannelTests::sunbeamConvertsABarePrism);
+        GooTestFunctions.registerTest(registrar, SUNBEAM_WARMS_A_BARE_PRISM_AS_IT_CHARGES,
+                SunbeamChannelTests::sunbeamWarmsABarePrismAsItCharges);
         GooTestFunctions.registerTest(registrar, SUNBEAM_STRIKES_A_BARE_PRISM_FROM_A_DIAGONAL,
                 SunbeamChannelTests::sunbeamStrikesABarePrismFromADiagonal);
     }
@@ -293,6 +296,37 @@ public final class SunbeamChannelTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             String combo = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class).getCombo();
             helper.assertTrue(SUNBEAM.toString().equals(combo), String.format(NOT_CONVERTED, combo));
+            helper.succeed();
+        });
+    }
+
+    private static final String NOT_WARMING = "Half a charge of Sunbeam should warm the bare prism toward its combo, "
+            + "its share stood at %s";
+
+    /**
+     * A mock player holds Sunbeam on a bare prism for half a charge: the
+     * prism warms toward the reflector it is becoming, its exposure share
+     * rising with the charge, so the conversion shows rather than jumps.
+     * prism-conversion-creeps-over-the-hold
+     *
+     * @param helper the gametest helper
+     */
+    public static void sunbeamWarmsABarePrismAsItCharges(GameTestHelper helper) {
+        helper.setBlock(PRISM_POS.below(), Blocks.STONE);
+        helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
+        ServerPlayer player = standWithGlove(helper, STAND_POS);
+        int half = AbilityRegistry.of(helper.getLevel()).getAbility(SUNBEAM).delivery().ticksPerCharge() / 2;
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(),
+                player.getEyePosition(), Vec3.atCenterOf(helper.absolutePos(PRISM_POS)),
+                helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
+        for (int held = 1; held <= half; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(half + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            float share = com.mercuriusxeno.goo.registry.GooServerState.of(helper.getLevel().getServer())
+                    .blockExposures().shareAt(helper.getLevel(), helper.absolutePos(PRISM_POS));
+            helper.assertTrue(share > 0f, String.format(NOT_WARMING, share));
             helper.succeed();
         });
     }
