@@ -197,8 +197,14 @@ public final class KnownItemsOverlayRenderer {
     private static void drawHoveredCell(GuiGraphicsExtractor graphics, ItemIcon icon) {
         int left = icon.left() - INSET;
         int top = icon.top() - INSET;
-        graphics.fill(left, top, left + CELL, top + CELL, HOVER_BORDER);
-        graphics.fill(left + 1, top + 1, left + CELL - 1, top + CELL - 1, HOVER_CELL);
+        int right = left + CELL;
+        int bottom = top + CELL;
+        // The border is a ring, so the lighter fill blends over the darkening rather than over the border.
+        graphics.fill(left, top, right, top + 1, HOVER_BORDER);
+        graphics.fill(left, bottom - 1, right, bottom, HOVER_BORDER);
+        graphics.fill(left, top + 1, left + 1, bottom - 1, HOVER_BORDER);
+        graphics.fill(right - 1, top + 1, right, bottom - 1, HOVER_BORDER);
+        graphics.fill(left + 1, top + 1, right - 1, bottom - 1, HOVER_CELL);
     }
 
     /**
