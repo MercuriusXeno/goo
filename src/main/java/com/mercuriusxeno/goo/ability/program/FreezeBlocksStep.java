@@ -20,8 +20,8 @@ import java.util.stream.Stream;
  * center: water becomes ice, magicked ice that never thaws where the step
  * lasts, and lava becomes obsidian, and the fire in the sphere goes out. The
  * Orb freezes what it passes with ice that may melt
- * (decision orb-carries-a-swirling-nova), and Nova's ring freezes what it
- * reaches the same way (decision nova-ring-and-cold-cone-freeze-water-and-lava).
+ * (decision orb-carries-a-swirling-nova), and Nova's ring and Cold's cone
+ * freeze what they reach the same way (decision nova-ring-and-cold-cone-freeze-water-and-lava).
  *
  * @param radius  the sphere's radius in blocks, evaluated on the host
  * @param lasting whether water freezes to magicked ice that never thaws, rather than vanilla ice
