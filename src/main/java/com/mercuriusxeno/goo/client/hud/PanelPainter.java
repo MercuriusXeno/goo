@@ -21,6 +21,8 @@ import net.minecraft.util.ARGB;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4fc;
+import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -365,13 +367,13 @@ public final class PanelPainter {
     private static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
                                 PanelRow row, RowOrigin origin) {
         float x = origin.x();
-        RowGeometry geometry = rowGeometry(origin.y(), row.icon() != null, DIGIT_GLYPH_HEIGHT);
+        RowGeometry geometry = rowGeometry(origin.y(), row.hasIcon(), DIGIT_GLYPH_HEIGHT);
         int iconColor = fadeColor(InWorldHud.OPAQUE_WHITE, origin.opacity());
         Identifier icon = row.icon();
         Identifier secondIcon = row.secondIcon();
         if (icon != null) {
-            GooRenderUtil.UvRect uv = row.iconUv() == null ? WHOLE_TEXTURE : row.iconUv();
-            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(icon, uv, iconColor), x, geometry.iconTop());
+            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(icon, WHOLE_TEXTURE, iconColor),
+                    x, geometry.iconTop());
         }
         if (icon != null && secondIcon != null) {
             drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(secondIcon, WHOLE_TEXTURE, iconColor),
@@ -384,6 +386,19 @@ public final class PanelPainter {
             drawSegment(poseStack, font, buffers, row.seeThrough(), faded, textX, geometry.textTop());
             textX += font.width(segment.text());
         }
+    }
+
+    /**
+     * Answers whether the camera stands on the side of the panel its text reads from: the
+     * panel's local +z, turned into camera-relative space, points back toward the camera.
+     *
+     * @param panelPose the panel's pose, camera-relative with the camera at the origin
+     * @return true when the panel's front faces the camera
+     */
+    public static boolean frontFacesCamera(Matrix4fc panelPose) {
+        Vector3f origin = panelPose.transformPosition(new Vector3f());
+        Vector3f front = panelPose.transformDirection(new Vector3f(0f, 0f, 1f));
+        return front.dot(origin) < 0f;
     }
 
     /**
@@ -444,6 +459,35 @@ public final class PanelPainter {
             drawRow(poseStack, font, buffers, rows.get(i), new RowOrigin(left + spot.x(), top + spot.y(), opacity));
         }
         buffers.endBatch();
+        drawItemModels(poseStack, buffers, layout, rows, new RowOrigin(left, top, opacity));
+    }
+
+    /**
+     * Draws each item row's model in its icon slot, after the background's depth stands,
+     * each flushed under the GUI's item lights.
+     * decision all-huds-draw-an-items-model-as-the-inventory-does
+     *
+     * @param poseStack the pose stack for rendering
+     * @param buffers   the buffer source, flushed of the panel's other draws
+     * @param layout    the panel size and where each row stands
+     * @param rows      the rows top to bottom
+     * @param panel     the panel's top left and the fade every part draws at
+     */
+    private static void drawItemModels(PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+                                       PanelLayout layout, List<PanelRow> rows, RowOrigin panel) {
+        // the item's render type draws both sides, where the background and text cull from behind
+        if (!frontFacesCamera(poseStack.last().pose())) {
+            return;
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            Identifier item = rows.get(i).iconItem();
+            if (item != null) {
+                RowSpot spot = layout.spots().get(i);
+                float iconTop = rowGeometry(panel.y() + spot.y(), true, DIGIT_GLYPH_HEIGHT).iconTop();
+                PanelItemModel.draw(poseStack, buffers, item,
+                        new PanelItemModel.IconSlot(panel.x() + spot.x(), iconTop, panel.opacity()));
+            }
+        }
     }
 
     /**
