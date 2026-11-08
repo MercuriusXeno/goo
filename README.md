@@ -8,9 +8,9 @@ Most items have a goo breakdown, derived from base values through their recipes,
 
 Light a **Crucible** with flint and steel, then drop or toss items in to melt them into goo. Store goo in **Canisters**, up to nine to a block; in **Hubs**, which route goo into eight canisters; and in **Vats**, which grow with the Void goo they hold. Link **Choral Gaskets** in pairs with a **Choral Tuner** to pipe goo between machines at any distance.
 
-Grow goo into **Chrysm** in a **Crystallizer**, mix goo in a **Reactor**, and reconstitute items in a **Plexer**: set the target item, fit canisters of the right goo to its top, and pulse it with redstone.
+Mix goo in a **Reactor**, and reconstitute items in a **Plexer**: set the target item, fit canisters of the right goo to its top, and pulse it with redstone.
 
-Each goo type has its own **abilities**, up to six per type. Hold a **Goo Glove**, press G to pick a type and ability from the radial, and right-click to throw, beam, stream or self-cast it. Abilities unlock as you learn certain items. Brew a type's Chrysm into an Awkward Potion at a vanilla brewing stand to get that type's goo potion.
+Each goo type has its own **abilities**, up to six per type. Hold a **Goo Glove**, press G to pick a type and ability from the radial, and right-click to throw, beam, stream or self-cast it. Abilities unlock as you learn certain items.
 
 ## Building
 

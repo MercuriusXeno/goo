@@ -9,11 +9,9 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.data.RemainderLedger;
-import com.mercuriusxeno.goo.item.ChrysmItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
-import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -121,37 +119,6 @@ final class CrucibleInsertion {
      * @param stacks   the stacks the melt queue takes, every item of them carrying the goo it pays
      */
     record MeltArrival(int fitting, GooContents arriving, List<ValuedStack> stacks) {
-    }
-
-    /**
-     * Melts in the whole chrysm of a stack whose value fits the pool, each worth
-     * its tier's volume of its type and its crystal (decision chrysm-melts-back-to-its-goo).
-     *
-     * @param be     the crucible block entity
-     * @param stack  the chrysm stack
-     * @param chrysm the stack's chrysm item
-     * @return the number of chrysm melted in, from zero to the stack's count
-     */
-    static int insertChrysm(CrucibleBlockEntity be, ItemStack stack, ChrysmItem chrysm) {
-        ResourceKey<GooTypeDefinition> type = stack.get(GooDataComponents.GOO_TYPE.get());
-        if (type == null) {
-            return 0;
-        }
-        GooContents perUnit = chrysm.tier().contentsOf(type);
-        int fitting = CrucibleCapacity.wholeUnitsThatFit(poolContents(be), perUnit, stack.getCount());
-        if (fitting <= 0) {
-            return 0;
-        }
-        GooContents arriving = GooContents.EMPTY;
-        for (var entry : perUnit.getAll().entrySet()) {
-            arriving = arriving.withAdded(entry.getKey(), Math.multiplyExact(fitting, entry.getValue()));
-        }
-        Identifier id = BuiltInRegistries.ITEM.getKey(chrysm);
-        if (!mergeIntoPool(be, arriving, List.of(new ValuedStack(id, fitting, perUnit)))) {
-            return 0;
-        }
-        be.syncToClients();
-        return fitting;
     }
 
     /**
