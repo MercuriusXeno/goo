@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.client.ability.ClientGateCarry;
 import com.mercuriusxeno.goo.client.ability.ClientHoles;
 import com.mercuriusxeno.goo.client.ability.ClientPortals;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
+import com.mercuriusxeno.goo.client.ability.GnatSeek;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
@@ -29,6 +30,7 @@ import com.mercuriusxeno.goo.network.DrinkPayload;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
+import com.mercuriusxeno.goo.network.GnatSeekPayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.HeaterFlamePayload;
@@ -128,6 +130,7 @@ public final class GooClientNetworking {
         event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
+        event.register(GnatSeekPayload.TYPE, GnatSeek::handle);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
     }
 
