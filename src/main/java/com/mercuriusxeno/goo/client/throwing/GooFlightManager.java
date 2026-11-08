@@ -284,6 +284,15 @@ public final class GooFlightManager {
             return Optional.of(gate);
         }
 
+        /**
+         * Where the flight meets the gate's face and comes out of the partner.
+         *
+         * @return the hop, null for a flight on the near side
+         */
+        public GateArc.@Nullable Hop hop() {
+            return hop;
+        }
+
         private float progress(float partialTick) {
             return Math.min(1.0f, (ticksElapsed + partialTick) / travelTicks);
         }
