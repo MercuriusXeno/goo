@@ -34,6 +34,14 @@ final class GlowColumn {
     static final float HALO_WIDTH = 1.3f;
     /** How much longer the halo stands than the column. */
     static final float HALO_LENGTH = 1.12f;
+    /**
+     * The submit order a glow beam draws in. Translucent geometry in one order
+     * draws per render type in no fixed order, so a beam sharing the column's
+     * order 0 could draw first and the column cover it; the later order draws
+     * every beam after every column.
+     * decision diagnose-and-correct-the-sunbeam-prism-depth
+     */
+    static final int BEAM_ORDER = 1;
     private static final double PIXEL = 1.0 / 16.0;
     /** The column's base point in the stood pose, about which the halo swells. */
     private static final Vec3 COLUMN_BASE = new Vec3(PrismColumn.BASE_X * PIXEL, PrismColumn.BASE_Y * PIXEL,

@@ -46,7 +46,8 @@ public final class GlowReflectorStyle implements PrismComboStyle {
                 poseStack.translate(center.x, center.y, center.z);
                 poseStack.mulPose(GlowBeamMesh.alongBeam(link));
                 float length = (float) link.length();
-                nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
+                nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
+                        GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
                         (pose, buffer) -> emitBeam(pose, buffer, length, share, scroll));
                 poseStack.popPose();
             }

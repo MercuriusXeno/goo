@@ -6,19 +6,27 @@ import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
+import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * The glow column a Sunbeam-converted reflector draws: no face of it lies on
@@ -31,6 +39,8 @@ class GlowColumnTest {
 
     private static final double EPSILON = 1e-6;
     private static final double HALFWAY = 0.5;
+    private static final double RAIL_LENGTH = 4;
+    private static final int BRIGHTEST = 15;
     private static final CrystalClusterSubmitter.Look LOOK =
             new CrystalClusterSubmitter.Look(new GooRenderUtil.UvRect(0f, 0f, 1f, 1f), GlowColumn.TINT);
 
@@ -65,6 +75,43 @@ class GlowColumnTest {
                     "the column draws through " + type + ", which writes depth and hides the ray behind it");
         }
         assertTrue(types.size() > 1, "the column and its halo should both draw");
+    }
+
+    /**
+     * Translucent geometry in one submit order draws per render type in no
+     * fixed order, so a beam sharing the column's order may draw first and
+     * the column cover it; each beam submits at a later order.
+     */
+    @Test
+    void theReflectorsRailBeamDrawsAfterItsColumn() {
+        PrismRenderState state = new PrismRenderState();
+        state.look = LOOK;
+        state.links = List.of(new Vec3(RAIL_LENGTH, 0, 0));
+        state.linkLight = BRIGHTEST;
+        assertBeamsSubmittedAfterTheColumn(collector -> new GlowReflectorStyle().submit(state, new PoseStack(),
+                collector));
+    }
+
+    @Test
+    void theBeaconsBeamDrawsAfterItsColumn() {
+        PrismRenderState state = new PrismRenderState();
+        state.look = LOOK;
+        assertBeamsSubmittedAfterTheColumn(collector -> new GlowBeaconStyle().submit(state, new PoseStack(),
+                collector));
+    }
+
+    private static void assertBeamsSubmittedAfterTheColumn(Consumer<SubmitNodeCollector> submit) {
+        SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
+        OrderedSubmitNodeCollector later = mock(OrderedSubmitNodeCollector.class);
+        when(collector.order(anyInt())).thenReturn(later);
+        RenderType beam = GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION);
+        submit.accept(collector);
+        verify(collector, never()).submitCustomGeometry(any(PoseStack.class), eq(beam), any());
+        verify(later, atLeastOnce()).submitCustomGeometry(any(PoseStack.class), eq(beam), any());
+        ArgumentCaptor<Integer> order = ArgumentCaptor.forClass(Integer.class);
+        verify(collector, atLeastOnce()).order(order.capture());
+        assertTrue(order.getAllValues().stream().allMatch(value -> value > 0),
+                "a beam should submit after the column's order 0, at " + order.getAllValues());
     }
 
     /** A face lies on the landing face when every corner sits at the column's base height. */
