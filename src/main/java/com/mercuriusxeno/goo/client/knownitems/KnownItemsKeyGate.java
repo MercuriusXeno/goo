@@ -3,8 +3,9 @@ package com.mercuriusxeno.goo.client.knownitems;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * The known items key as a pure decision: G with an empty main hand, no glove held and no screen
- * open opens the known items overlay, and a held glove leaves the press to the glove's radial.
+ * The known items key as a pure decision: G with an empty main hand, no glove held, no screen
+ * open and at least one item known opens the known items overlay, and a held glove leaves the press
+ * to the glove's radial.
  * decision g-opens-the-known-items-menu-empty-handed
  * decision menu-places-a-ghost-item-in-the-empty-hand
  */
@@ -23,9 +24,11 @@ public final class KnownItemsKeyGate {
      * @param mainHandEmpty whether the main hand holds nothing
      * @param gloveHeld     whether either hand holds a glove
      * @param screenOpen    whether a screen is open
+     * @param knowsAnyItem  whether the player knows at least one item
      * @return true when the press opens the overlay
      */
-    public static boolean pressOpensOverlay(boolean mainHandEmpty, boolean gloveHeld, boolean screenOpen) {
-        return mainHandEmpty && !gloveHeld && !screenOpen;
+    public static boolean pressOpensOverlay(boolean mainHandEmpty, boolean gloveHeld, boolean screenOpen,
+                                            boolean knowsAnyItem) {
+        return mainHandEmpty && !gloveHeld && !screenOpen && knowsAnyItem;
     }
 }

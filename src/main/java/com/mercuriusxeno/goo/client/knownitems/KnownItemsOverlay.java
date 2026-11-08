@@ -32,11 +32,10 @@ public final class KnownItemsOverlay extends Screen {
     private static final double HALF = 0.5;
     private static final int ROW_UP = -1;
     private static final int ROW_DOWN = 1;
-    private static final int ONE_CODE_POINT_BACK = -1;
 
     private final List<KnownItemsOverlayRenderer.KnownItem> ordered;
     private final Locale locale;
-    private String query = "";
+    private final SearchInput search = new SearchInput();
     private int firstRow;
     private KnownItemsOverlayRenderer.@Nullable Drawn drawn;
     private boolean draggingThumb;
@@ -72,7 +71,7 @@ public final class KnownItemsOverlay extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float frameDelta) {
         drawn = KnownItemsOverlayRenderer.render(graphics, font, new KnownItemsOverlayRenderer.Frame(width, height,
-                KnownItemsListing.filter(ordered, query, locale), query, firstRow));
+                KnownItemsListing.filter(ordered, search.text(), locale), search.text(), firstRow));
         firstRow = drawn.scroll().firstRow();
         KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn.icons(), mouseX, mouseY);
     }
@@ -137,29 +136,42 @@ public final class KnownItemsOverlay extends Screen {
     }
 
     /**
-     * Types into the search bar, which shows the grid from its first row again.
+     * Types into the search bar, which shows the grid from its first row again; the G that opened
+     * the overlay types nothing.
      */
     @Override
     public boolean charTyped(CharacterEvent event) {
-        if (!event.isAllowedChatCharacter()) {
+        if (!event.isAllowedChatCharacter() || !search.type(event.codepointAsString())) {
             return false;
         }
-        query += event.codepointAsString();
         firstRow = 0;
         return true;
     }
 
     /**
-     * Backspace erases the search bar's last character; every other key, Escape among them, acts as
-     * a screen's would.
+     * Backspace erases the search bar's last character, and the opening G's key repeats are swallowed;
+     * every other key, Escape among them, acts as a screen's would.
      */
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (event.key() == InputConstants.KEY_BACKSPACE && !query.isEmpty()) {
-            query = query.substring(0, query.offsetByCodePoints(query.length(), ONE_CODE_POINT_BACK));
+        if (search.openingKeyHeld() && KnownItemsKey.MAPPING.matches(event)) {
+            return true;
+        }
+        if (event.key() == InputConstants.KEY_BACKSPACE && search.eraseLast()) {
             firstRow = 0;
             return true;
         }
         return super.keyPressed(event);
+    }
+
+    /**
+     * Releasing the G that opened the overlay lets typing reach the search bar.
+     */
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        if (KnownItemsKey.MAPPING.matches(event)) {
+            search.releaseOpeningKey();
+        }
+        return super.keyReleased(event);
     }
 }

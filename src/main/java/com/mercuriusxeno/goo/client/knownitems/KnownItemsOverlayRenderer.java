@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.knownitems;
 import com.mercuriusxeno.goo.network.GhostItemPickPayload;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
@@ -10,8 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Draws the known items overlay: one darkening fill over the whole frame and one item icon per known
- * item in a centered grid, nothing else, and names the item the cursor rests on.
+ * Draws the known items overlay: one darkening fill over the whole frame, a title, a bordered search
+ * bar, one item icon per shown item in a centered grid, a scroll bar when the rows overflow and a hint
+ * naming how to close, no panel and no button, and names the item the cursor rests on.
  * decision menu-is-a-darkening-overlay-not-a-screen
  * decision g-opens-the-known-items-menu-empty-handed
  */
@@ -45,6 +47,20 @@ public final class KnownItemsOverlayRenderer {
     static final int TRACK = 0xFF202020;
     /** The scroll bar's thumb color. */
     static final int THUMB = 0xFF808080;
+    /** The search bar's border color, light against the darkening so the bar reads as a field. */
+    static final int SEARCH_BORDER = 0xFFA0A0A0;
+    /** The placeholder's and the close hint's color, dimmer than typed text. */
+    static final int HINT_TEXT = 0xFF808080;
+    /** The title's color. */
+    static final int TITLE_TEXT = 0xFFFFFFFF;
+    /** The translation key of the overlay's title. */
+    static final String TITLE_KEY = "goo.known_items.title";
+    /** The translation key of the empty search bar's placeholder. */
+    static final String PLACEHOLDER_KEY = "goo.known_items.search";
+    /** The translation key of the hint naming how to close the overlay. */
+    static final String CLOSE_HINT_KEY = "goo.known_items.close_hint";
+    /** The height a line of text takes, the title's and the hint's. */
+    static final int LINE_HEIGHT = 12;
 
     private KnownItemsOverlayRenderer() {}
 
@@ -121,8 +137,10 @@ public final class KnownItemsOverlayRenderer {
     public static Drawn render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
         graphics.fill(0, 0, frame.width(), frame.height(), DARKEN);
         Grid grid = Grid.of(frame);
-        graphics.fill(grid.left(), MARGIN, grid.right(), MARGIN + SEARCH_HEIGHT, SEARCH_BAR);
-        graphics.text(font, frame.query() + CARET, grid.left() + SEARCH_INSET, MARGIN + SEARCH_INSET, SEARCH_TEXT);
+        // The title marks the overlay as a menu without a panel around it.
+        Component title = Component.translatable(TITLE_KEY);
+        graphics.text(font, title, (frame.width() - font.width(title)) / SIDES, MARGIN, TITLE_TEXT);
+        drawSearchBar(graphics, font, grid, frame.query());
         int count = frame.items().size();
         ScrollModel scroll = ScrollModel.of((count + grid.columns() - 1) / grid.columns(), grid.rowsVisible(),
                 frame.firstRow());
@@ -138,7 +156,33 @@ public final class KnownItemsOverlayRenderer {
             icons.add(icon);
         }
         Track track = scroll.scrolls() ? drawScrollBar(graphics, grid, scroll) : null;
+        Component hint = Component.translatable(CLOSE_HINT_KEY);
+        int shownRows = Math.clamp(scroll.rowCount(), 1, grid.rowsVisible());
+        graphics.text(font, hint, (frame.width() - font.width(hint)) / SIDES, grid.top() + shownRows * CELL + GAP,
+                HINT_TEXT);
         return new Drawn(icons, scroll, track);
+    }
+
+    /**
+     * Draws the search bar as a dark box inside a one-pixel light border, holding the typed text and a
+     * caret, or a dim placeholder while nothing is typed.
+     *
+     * @param graphics the GUI graphics extractor
+     * @param font     the font the text draws in
+     * @param grid     the grid the bar spans
+     * @param query    the text typed so far
+     */
+    private static void drawSearchBar(GuiGraphicsExtractor graphics, Font font, Grid grid, String query) {
+        int bottom = grid.searchTop() + SEARCH_HEIGHT;
+        graphics.fill(grid.left() - 1, grid.searchTop() - 1, grid.right() + 1, bottom + 1, SEARCH_BORDER);
+        graphics.fill(grid.left(), grid.searchTop(), grid.right(), bottom, SEARCH_BAR);
+        int textX = grid.left() + SEARCH_INSET;
+        int textY = grid.searchTop() + SEARCH_INSET;
+        if (query.isEmpty()) {
+            graphics.text(font, Component.translatable(PLACEHOLDER_KEY), textX, textY, HINT_TEXT);
+        } else {
+            graphics.text(font, query + CARET, textX, textY, SEARCH_TEXT);
+        }
     }
 
     private static Track drawScrollBar(GuiGraphicsExtractor graphics, Grid grid, ScrollModel scroll) {
@@ -152,22 +196,24 @@ public final class KnownItemsOverlayRenderer {
 
     /**
      * The grid's place in the frame: as many columns as fit inside the margins, centered, under the
-     * search bar, with as many rows as fit above the bottom margin.
+     * title and the search bar, with as many rows as fit above the close hint and the bottom margin.
      *
      * @param columns     the grid's columns
      * @param left        the grid's left edge
+     * @param searchTop   the search bar's top edge, inside its border
      * @param top         the grid's top edge
      * @param rowsVisible the rows the frame shows at once
      */
-    record Grid(int columns, int left, int top, int rowsVisible) {
+    record Grid(int columns, int left, int searchTop, int top, int rowsVisible) {
 
         static Grid of(Frame frame) {
             int count = frame.items().size();
             int columns = Math.clamp((frame.width() - SIDES * MARGIN - GAP - BAR_WIDTH) / CELL, 1,
                     Math.max(1, count));
-            int top = MARGIN + SEARCH_HEIGHT + GAP;
-            return new Grid(columns, (frame.width() - columns * CELL) / SIDES, top,
-                    Math.max(1, (frame.height() - top - MARGIN) / CELL));
+            int searchTop = MARGIN + LINE_HEIGHT;
+            int top = searchTop + SEARCH_HEIGHT + 1 + GAP;
+            return new Grid(columns, (frame.width() - columns * CELL) / SIDES, searchTop, top,
+                    Math.max(1, (frame.height() - top - GAP - LINE_HEIGHT - MARGIN) / CELL));
         }
 
         int right() {
