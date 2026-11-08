@@ -39,10 +39,13 @@ public class FormingGooBlob extends Entity {
 
     /** Blocks an unmade block's chunks travel to a blob at most, and blobs draw together within. */
     public static final double REACH = 3.0;
-    /** Ticks a blob hovers after the last goo it waits on arrives, before it shrinks. */
-    public static final int HOVER_TICKS = 20;
+    /**
+     * Ticks a blob hovers after the last goo it waits on arrives, before it
+     * shrinks: a moment, so it becomes the goo item about as its stream ends.
+     */
+    public static final int HOVER_TICKS = 2;
     /** Ticks a blob takes to shrink to a goo item's size. */
-    public static final int SHRINK_TICKS = 10;
+    public static final int SHRINK_TICKS = 6;
     /** Blocks a blob drifts toward its nearest neighbor each tick. */
     static final double DRIFT_PER_TICK = 0.04;
     /** Blocks apart at which two drifting blobs become one. */
@@ -53,7 +56,7 @@ public class FormingGooBlob extends Entity {
     /** How much larger than a goo item a blob holding a thousand mB draws. */
     static final double FILL_GROWTH = 1;
     /** The share of the way to its size a blob's drawn size closes each tick, so it grows and shrinks smoothly. */
-    private static final float EASE_PER_TICK = 0.3f;
+    private static final float EASE_PER_TICK = 0.4f;
 
     private static final String TAG_HELD = "Held";
     private static final String TAG_HOLD_UNTIL = "HoldUntil";
