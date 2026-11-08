@@ -23,12 +23,12 @@
                     {
                         "name": "SculkerParams",
                         "type": "vec4",
-                        "value": [ 0.0, 6.0, 256.0, 0.05 ]
+                        "value": [ 0.0, 0.0, 256.0, 0.05 ]
                     },
                     {
                         "name": "SculkerLook",
                         "type": "vec4",
-                        "value": [ 0.0, 1.0, 40.0, 0.0 ]
+                        "value": [ 0.0, 0.0, 0.0, 0.0 ]
                     }
                 ]
             }

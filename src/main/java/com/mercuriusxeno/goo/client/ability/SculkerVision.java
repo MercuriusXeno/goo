@@ -16,10 +16,9 @@ import org.joml.Vector4f;
 import org.lwjgl.system.MemoryStack;
 
 /**
- * Dive's warden senses: while the dive stands the view goes dark through
- * {@code goo:sculker_sense}, open space drawn as sculk contours swept by echo
- * rings, the scene's own colors faint near the diver and solid space a dark
- * sea past them.
+ * Sculker's warden senses: while the brew stands the world dims through
+ * {@code goo:sculker_sense} with its distance from the diver, black by 8
+ * blocks, so past the near world only what a real echo touched shows.
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  * decision sculker-shows-blocks-translucent-close-up
  *
@@ -38,18 +37,13 @@ public final class SculkerVision {
     private static final String SCULKER_CONFIG_BLOCK = "SculkerConfig";
     /** Std140 size of {@code SculkerConfig}: two vec4s. */
     private static final int SCULKER_CONFIG_SIZE = 32;
-    /** How far from the diver, in blocks, the world has dimmed almost to nothing. */
-    private static final float DIM_REACH = 40f;
     /** The share of the gap to full or no presence the vision closes each tick, about a second and a half to settle. */
     static final float EASE_PER_TICK = 0.05f;
     /** Below this presence the vision is gone and its chain stops running. */
     static final float GONE = 0.01f;
-    /** How far from the diver, in blocks, the scene's own colors still show: the glass field's radius. */
-    private static final float NEAR_REACH = (float) SculkerGlass.FIELD_RADIUS;
     private static final float BLOCKS_PER_CHUNK = 16f;
     /** The camera's far plane past its render distance, as {@code Camera} sets it up. */
     private static final float FAR_PER_RENDER_BLOCK = 4f;
-    private static final float TICKS_PER_SECOND = 20f;
     /** The frames an unused render target is kept for, as the game renderer keeps its own. */
     private static final int FRAMES_TO_KEEP_TARGETS = 3;
 
@@ -117,12 +111,10 @@ public final class SculkerVision {
             presence = stands ? presence : 0f;
             return;
         }
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        float seconds = ((mc.level.getGameTime() % Integer.MAX_VALUE) + partialTick) / TICKS_PER_SECOND;
         float far = Math.max(mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK * FAR_PER_RENDER_BLOCK,
                 mc.options.cloudRange().get() * BLOCKS_PER_CHUNK);
-        SCULKER_PARAMS.set(seconds, NEAR_REACH, far, Camera.PROJECTION_Z_NEAR);
-        SCULKER_LOOK.set(presence, 0f, DIM_REACH, 0f);
+        SCULKER_PARAMS.set(0f, 0f, far, Camera.PROJECTION_Z_NEAR);
+        SCULKER_LOOK.set(presence, 0f, 0f, 0f);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             Std140Builder builder = Std140Builder.onStack(stack, SCULKER_CONFIG_SIZE);
             builder.putVec4(SCULKER_PARAMS);
