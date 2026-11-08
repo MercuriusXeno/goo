@@ -1,11 +1,14 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -18,6 +21,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -33,11 +37,13 @@ import java.util.Optional;
  * block under it unchanged and showing through, drips running down that
  * block's sides at the slime's open edges. Each deposit adds a layer, and a
  * cell taller than a side neighbour pours a layer a tick into it, and off a
- * ledge downward, until level. It stands until something destroys it and
- * drops nothing. It is Bounce's pad too: what lands on it at any height
- * takes no fall damage and bounces, ramping while jump is held.
+ * ledge downward, until level. It stands until something destroys it, then
+ * drops the weird goo its layers cost. It is Bounce's pad too: what lands
+ * on it at any height takes no fall damage and bounces, ramping while jump
+ * is held.
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
  * slime-is-a-layered-cell-that-levels-out
+ * breaking-slime-drops-weird-goo-worth-its-layers
  * bounce-ramps-jump-height-while-jump-is-held
  */
 public class SlimeCoatBlock extends Block {
@@ -54,6 +60,13 @@ public class SlimeCoatBlock extends Block {
     public static final IntegerProperty LAYERS = BlockStateProperties.LAYERS;
     /** The most coat layers one cell holds: a whole block of slime. */
     public static final int MAX_LAYERS = 8;
+    /**
+     * The weird goo one coat layer costs and a broken cell gives back per
+     * layer, in mb; Coat's and Bounce's costs in their JSONs equal the
+     * layers they lay times this.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     */
+    public static final int MB_PER_LAYER = 12;
     /** Ticks between one pour and the next, as a fluid spreads. */
     static final int FLOW_TICKS = 2;
     private static final Map<Direction, BooleanProperty> DRIPS = Map.of(Direction.NORTH, NORTH,
@@ -89,6 +102,27 @@ public class SlimeCoatBlock extends Block {
      */
     static VoxelShape layerBox(int layers) {
         return Shapes.box(0, 0, 0, 1, (double) layers / MAX_LAYERS, 1);
+    }
+
+    /**
+     * The weird goo a broken cell gives back: what its layers cost.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     *
+     * @param layers the coat layers the cell held
+     * @return the goo in mb
+     */
+    static int reclaimed(int layers) {
+        return layers * MB_PER_LAYER;
+    }
+
+    /**
+     * Gives back the weird goo the cell's layers cost, as the glow crystal
+     * gives back its goo, whatever breaks the cell.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     */
+    @Override
+    protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
+        return List.of(GooStacks.createForOutput(GooTypes.WEIRD, reclaimed(state.getValue(LAYERS))));
     }
 
     /**

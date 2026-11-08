@@ -22,14 +22,17 @@ import static org.mockito.Mockito.when;
 
 /**
  * The slime coat as a layered cell: it stands its layers' eighths of a block
- * high and draws a model per layer count, and neighbouring coats read as one
- * film, a coat hiding its face toward another coat as a slime block does
- * toward a slime block (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
- * slime-is-a-layered-cell-that-levels-out).
+ * high and draws a model per layer count, a broken cell gives back the goo
+ * its layers cost, and neighbouring coats read as one film, a coat hiding
+ * its face toward another coat as a slime block does toward a slime block
+ * (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
+ * slime-is-a-layered-cell-that-levels-out, breaking-slime-drops-weird-goo-worth-its-layers).
  */
 class SlimeCoatBlockTest {
 
     private static final String BLOCKSTATE_JSON = "/assets/goo/blockstates/slime_coat.json";
+    private static final String COAT_JSON = "/data/goo/goo_abilities/weird_coat.json";
+    private static final String BOUNCE_JSON = "/data/goo/goo_abilities/weird_bounce.json";
 
     @Nested
     class Faces {
@@ -83,10 +86,54 @@ class SlimeCoatBlockTest {
         }
 
         private static JsonObject blockstateJson() throws IOException {
-            try (InputStream in = SlimeCoatBlockTest.class.getResourceAsStream(BLOCKSTATE_JSON)) {
-                assertTrue(in != null, BLOCKSTATE_JSON + " is not on the classpath");
-                return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            return classpathJson(BLOCKSTATE_JSON);
+        }
+    }
+
+    @Nested
+    class Reclaim {
+
+        @Test
+        void oneLayerReclaimsTheGooOneLayerCosts() {
+            assertEquals(SlimeCoatBlock.MB_PER_LAYER, SlimeCoatBlock.reclaimed(1));
+        }
+
+        @Test
+        void eightLayersReclaimEightLayersOfGoo() {
+            assertEquals(8 * SlimeCoatBlock.MB_PER_LAYER, SlimeCoatBlock.reclaimed(8));
+        }
+
+        @Test
+        void aLayerCostsBetweenSixAndTwentyFourMb() {
+            assertTrue(SlimeCoatBlock.MB_PER_LAYER >= 6 && SlimeCoatBlock.MB_PER_LAYER <= 24,
+                    "a coat layer costs " + SlimeCoatBlock.MB_PER_LAYER + " mb");
+        }
+
+        @Test
+        void coatsStreamCostsOneLayer() throws IOException {
+            assertEquals(SlimeCoatBlock.MB_PER_LAYER, classpathJson(COAT_JSON).get("cost").getAsInt());
+        }
+
+        @Test
+        void bouncesThrowCostsTheLayersItLays() throws IOException {
+            JsonObject bounce = classpathJson(BOUNCE_JSON);
+            int layers = 0;
+            for (JsonElement behavior : bounce.getAsJsonArray("behaviors")) {
+                JsonObject step = behavior.getAsJsonObject();
+                if ("coat".equals(step.get("type").getAsString())) {
+                    layers = step.get("layers").getAsInt();
+                }
             }
+
+            assertTrue(layers > 0, "weird_bounce.json's coat step names no layers");
+            assertEquals(layers * SlimeCoatBlock.MB_PER_LAYER, bounce.get("cost").getAsInt());
+        }
+    }
+
+    private static JsonObject classpathJson(String path) throws IOException {
+        try (InputStream in = SlimeCoatBlockTest.class.getResourceAsStream(path)) {
+            assertTrue(in != null, path + " is not on the classpath");
+            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
         }
     }
 }
