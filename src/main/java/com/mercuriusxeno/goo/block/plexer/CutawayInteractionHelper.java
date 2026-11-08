@@ -6,8 +6,6 @@ import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
-import com.mercuriusxeno.goo.item.GhostItem;
-import com.mercuriusxeno.goo.item.GhostItemTargeting;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -47,39 +45,20 @@ public final class CutawayInteractionHelper {
 
     private CutawayInteractionHelper() { }
 
-    /** Returns true if the interaction missed the cutaway and should pass through.
-     *
-     * @param stack     the held item
-     * @param state     the block state
-     * @param pos       the block position
-     * @param hitResult the ray trace hit result
-     * @return true if the interaction should pass
-     */
-    public static boolean shouldPassItemInteraction(ItemStack stack, BlockState state,
-            BlockPos pos, BlockHitResult hitResult) {
-        return !isCutawayClick(state, pos, hitResult);
-    }
-
     /** Sets the plexer's target item; the plexer panel names it, so no message goes to the player.
      * Any item the plexer cannot take, one with no goo value or one the player has not
      * learned, puffs smoke and fizzles instead (decision plexer-messages-go-and-refusal-fizzles).
-     * A held ghost targets the item it stands for, so the knowledge gate and the fizzle read
-     * that item; a plain use discards the ghost and a sneak use keeps it.
-     * decision ghost-item-targets-the-plexer-sneak-keeps-throw-deletes
+     * The plexer menu's pick is the one caller; no held item targets the plexer
+     * (decision ghost-item-and-g-key-retire).
      *
      * @param plexer the plexer block entity
-     * @param player the interacting player
-     * @param stack  the held stack, an item or a ghost
+     * @param player the picking player, whose knowledge gates the target
+     * @param target the picked item
      * @return SUCCESS interaction result
      */
-    public static InteractionResult applyTargetItem(PlexerBlockEntity plexer, Player player, ItemStack stack) {
-        Identifier represented = GhostItem.represented(stack);
-        ItemStack target = represented == null ? stack : GhostItem.representedStack(stack);
-        KnownItems known = PlayerKnowledge.of(player);
-        GhostItemTargeting.GhostUse use = GhostItemTargeting.resolve(PlayerKnowledge.idOf(stack.getItem()),
-                represented, player.isSecondaryUseActive(),
-                id -> !plexer.isValidTarget(target) || refusesTarget(id, known));
-        if (use.refused()) {
+    public static InteractionResult applyTargetItem(PlexerBlockEntity plexer, Player player, ItemStack target) {
+        if (!plexer.isValidTarget(target)
+                || refusesTarget(PlayerKnowledge.idOf(target.getItem()), PlayerKnowledge.of(player))) {
             if (plexer.getLevel() instanceof ServerLevel level) {
                 BlockPos pos = plexer.getBlockPos();
                 PlexerRefusalCue.playAt(level, pos,
@@ -88,9 +67,6 @@ public final class CutawayInteractionHelper {
             return InteractionResult.SUCCESS;
         }
         plexer.setTargetItem(cleanCopy(target));
-        if (use.emptiesHand()) {
-            stack.setCount(0);
-        }
         return InteractionResult.SUCCESS;
     }
 
