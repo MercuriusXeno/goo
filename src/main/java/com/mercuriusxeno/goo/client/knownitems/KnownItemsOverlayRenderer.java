@@ -198,6 +198,24 @@ public final class KnownItemsOverlayRenderer {
         int slots = frame.items().size() + 1;
         ScrollModel scroll = ScrollModel.of((slots + grid.columns() - 1) / grid.columns(), grid.rowsVisible(),
                 frame.firstRow());
+        Drawn drawn = drawGrid(graphics, frame, grid, scroll, slots);
+        Track track = scroll.scrolls() ? drawScrollBar(graphics, grid, scroll) : null;
+        return new Drawn(drawn.icons(), drawn.cancel(), scroll, track);
+    }
+
+    /**
+     * Draws the grid's shown slots from the scroll's first row: Cancel in slot 0, an item in each other,
+     * the cell under the cursor hovered.
+     *
+     * @param graphics the GUI graphics extractor
+     * @param frame    what the frame draws
+     * @param grid     the grid's place in the frame
+     * @param scroll   the grid's scroll
+     * @param slots    the grid's slots, Cancel and every item
+     * @return the icons and the Cancel cell drawn, the scroll as given and no track
+     */
+    private static Drawn drawGrid(GuiGraphicsExtractor graphics, Frame frame, Grid grid, ScrollModel scroll,
+                                  int slots) {
         int first = scroll.firstRow() * grid.columns();
         int end = Math.min(slots, first + grid.rowsVisible() * grid.columns());
         List<ItemIcon> icons = new ArrayList<>(end - first);
@@ -218,8 +236,7 @@ public final class KnownItemsOverlayRenderer {
                 icons.add(icon);
             }
         }
-        Track track = scroll.scrolls() ? drawScrollBar(graphics, grid, scroll) : null;
-        return new Drawn(icons, cancel, scroll, track);
+        return new Drawn(icons, cancel, scroll, null);
     }
 
     private static boolean inCell(Box cell, double x, double y) {
@@ -234,18 +251,29 @@ public final class KnownItemsOverlayRenderer {
      * @param cell     the Cancel cell
      */
     private static void drawCancel(GuiGraphicsExtractor graphics, Box cell) {
-        int left = cell.left() + INSET;
-        int top = cell.top() + INSET;
-        double center = ICON / (double) SIDES;
         for (int row = 0; row < ICON; row++) {
-            int runStart = NO_RUN;
-            for (int column = 0; column <= ICON; column++) {
-                boolean red = column < ICON
-                        && cancelPixel(column + PIXEL_CENTER - center, row + PIXEL_CENTER - center);
-                if (red && runStart == NO_RUN) {
+            drawCancelRow(graphics, cell.left() + INSET, cell.top() + INSET + row, row);
+        }
+    }
+
+    /**
+     * Draws one row of the Cancel glyph, one fill per run of red pixels.
+     *
+     * @param graphics the GUI graphics extractor
+     * @param left     the icon square's left edge
+     * @param y        the row's y on the frame
+     * @param row      the row within the icon square
+     */
+    private static void drawCancelRow(GuiGraphicsExtractor graphics, int left, int y, int row) {
+        double center = ICON / (double) SIDES;
+        int runStart = NO_RUN;
+        for (int column = 0; column <= ICON; column++) {
+            boolean red = column < ICON && cancelPixel(column + PIXEL_CENTER - center, row + PIXEL_CENTER - center);
+            if (red == (runStart == NO_RUN)) {
+                if (red) {
                     runStart = column;
-                } else if (!red && runStart != NO_RUN) {
-                    graphics.fill(left + runStart, top + row, left + column, top + row + 1, CANCEL_RED);
+                } else {
+                    graphics.fill(left + runStart, y, left + column, y + 1, CANCEL_RED);
                     runStart = NO_RUN;
                 }
             }

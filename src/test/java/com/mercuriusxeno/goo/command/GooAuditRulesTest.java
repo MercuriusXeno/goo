@@ -30,7 +30,7 @@ class GooAuditRulesTest {
             {
                 "_constants": {"base": 4},
                 "stick": {"leaf": "$base"},
-                "ghost_item": {"leaf": 1}
+                "phantom_item": {"leaf": 1}
             }
             """;
 
@@ -139,6 +139,6 @@ class GooAuditRulesTest {
                 .filter(section -> "PHANTOM IDS".equals(section.get("section").getAsString())).findFirst()
                 .orElseThrow();
         assertEquals(1, phantoms.getAsJsonArray("flags").size());
-        assertTrue(phantoms.getAsJsonArray("flags").get(0).getAsString().contains("minecraft:ghost_item"));
+        assertTrue(phantoms.getAsJsonArray("flags").get(0).getAsString().contains("minecraft:phantom_item"));
     }
 }

@@ -117,8 +117,6 @@ public final class GooClientSetup {
      */
     private static final String RENDERER_CANISTER = "canister_goo";
     private static final String RENDERER_GOO_LABEL = "goo_label";
-    /** Item model type key for the ghost item. */
-    private static final String MODEL_GHOST_ITEM = "ghost_item";
     /**
      * Special renderer key for vat goo.
      */
@@ -289,17 +287,6 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerItemTintSources(RegisterColorHandlersEvent.ItemTintSources event) {
         event.register(Identifier.fromNamespaceAndPath(Goo.MODID, GooTypeItemTint.PATH), GooTypeItemTint.MAP_CODEC);
-    }
-
-    /**
-     * Registers the ghost item's model type, which draws the item the ghost stands for.
-     * decision ghost-is-one-item-type-whose-entity-self-destroys
-     *
-     * @param event the event instance
-     */
-    @SubscribeEvent
-    public static void registerItemModels(RegisterItemModelsEvent event) {
-        event.register(Identifier.fromNamespaceAndPath(Goo.MODID, MODEL_GHOST_ITEM), GhostItemModel.Unbaked.MAP_CODEC);
     }
 
     /**

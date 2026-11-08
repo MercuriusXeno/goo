@@ -1,54 +1,22 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
 /**
- * The known items search bar's text. The press of G that opened the overlay is still down as it
- * opens, and its key repeats would type into the bar, so typing waits until that key is released.
+ * The known items search bar's text.
  * decision menu-lists-known-items-alphabetically-with-search-and-scroll
- * decision g-opens-the-known-items-menu-empty-handed
  */
 public final class SearchInput {
 
     private static final int ONE_CODE_POINT_BACK = -1;
 
     private final StringBuilder typed = new StringBuilder();
-    private boolean openingKeyHeld;
 
     /**
-     * Starts an empty search bar.
-     *
-     * @param openingKeyHeld whether the key that opened the overlay is still down as it opens; a quick
-     *                       tap is released before the overlay opens, and the overlay never sees that release
-     */
-    public SearchInput(boolean openingKeyHeld) {
-        this.openingKeyHeld = openingKeyHeld;
-    }
-
-    /**
-     * Types characters into the bar once the opening key is up.
+     * Types characters into the bar.
      *
      * @param chars the characters typed
-     * @return true when the characters went into the bar
      */
-    public boolean type(String chars) {
-        if (openingKeyHeld) {
-            return false;
-        }
+    public void type(String chars) {
         typed.append(chars);
-        return true;
-    }
-
-    /** Marks the key that opened the overlay as released, so typing reaches the bar. */
-    public void releaseOpeningKey() {
-        openingKeyHeld = false;
-    }
-
-    /**
-     * Whether the key that opened the overlay is still down.
-     *
-     * @return true until its release
-     */
-    public boolean openingKeyHeld() {
-        return openingKeyHeld;
     }
 
     /**

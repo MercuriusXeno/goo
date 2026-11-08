@@ -9,7 +9,6 @@
   "key.category.goo.glove": "Goo",
   "key.goo.glove_menu": "Goo glove menu",
   "key.goo.goo_values": "Goo values",
-  "key.goo.known_items": "Known items",
   "goo.known_items.title": "Known Items",
   "goo.known_items.search": "Search",
   "goo.known_items.cancel": "Cancel",
@@ -98,7 +97,6 @@
   "effect.goo.bio_toxin": "Bio Toxin",
 
   "item.goo.partially_melted_item": "Partially Melted Item",
-  "item.goo.ghost_item": "Ghost Item",
 
   "item.goo.choral_tuner": "Choral Tuner",
   "goo.tuner.naming_header": "Canister Label:",
