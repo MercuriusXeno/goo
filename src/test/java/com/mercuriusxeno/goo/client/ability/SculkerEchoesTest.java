@@ -17,7 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * at four blocks for an ordinary sound and six for the loudest; sounds that
  * meet on a face add up, once per sound, to twice a full light at most, and
  * a face's light falls at a steady rate, one ordinary sound's within three
- * seconds; a face shows bright as a ring crosses it and faintly after; a mob
+ * seconds; a block glows as bright as the sound was as it reached it and
+ * decays from there; a mob
  * that makes a sound outlines for three seconds, six at the loudest; what is
  * heard draws fainter the farther it stands, down to a fifth at the edge of
  * render distance, and the brew's end forgets it
@@ -230,30 +231,29 @@ class SculkerEchoesTest {
 
         @Test
         void aFullLightFadesOutOverThreeSeconds() {
-            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 1f, 1f);
+            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 1f);
             assertEquals(0.5f, lit.levelAt(HEARD_AT + 30), CLOSE);
             assertEquals(0f, lit.levelAt(HEARD_AT + 60), CLOSE);
         }
 
         @Test
         void aDoubledLightLastsTwiceAsLong() {
-            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 2f, 1f);
+            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 2f);
             assertEquals(1f, lit.levelAt(HEARD_AT + 60), CLOSE);
             assertEquals(0f, lit.levelAt(HEARD_AT + 120), CLOSE);
         }
 
         @Test
-        void aFaceShowsBrightAsTheRingCrossesItThenFaintlyInItsWake() {
-            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 1f, 1f);
-            float onTheRing = SculkerEchoes.glowAt(lit, HEARD_AT);
-            float inTheWake = SculkerEchoes.glowAt(lit, HEARD_AT + QUARTER_SECOND);
-            assertEquals(1f, onTheRing, CLOSE);
-            assertTrue(inTheWake > 0 && inTheWake < onTheRing / 2, "the wake should glow faintly, it glows " + inTheWake);
+        void aBlockGlowsAsBrightAsTheSoundHitItThenDecaysFromThere() {
+            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 0.6f);
+            assertEquals(0.6f, SculkerEchoes.glowAt(lit, HEARD_AT), CLOSE);
+            assertEquals(0.3f, SculkerEchoes.glowAt(lit, HEARD_AT + 18), 1e-5);
+            assertEquals(0f, SculkerEchoes.glowAt(lit, HEARD_AT + 36), CLOSE);
         }
 
         @Test
         void theWakeIsGoneOnceTheFaceHasFaded() {
-            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 1f, 1f);
+            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 1f);
             assertEquals(0f, SculkerEchoes.glowAt(lit, HEARD_AT + 60), CLOSE);
         }
     }
@@ -283,7 +283,7 @@ class SculkerEchoesTest {
 
         @Test
         void aFacesStrengthIsItsDistanceTimesItsGlow() {
-            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 1f, 1f);
+            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, 1f);
             assertEquals(1f, SculkerEchoes.strength(UNDER_THE_SOUND, lit, AT_THE_SOUND, HEARD_AT, RENDER_REACH), 0.01);
         }
     }
