@@ -141,13 +141,14 @@ class RadialWheelRendererTest {
             assertEquals(Component.translatable("goo.ability.hex.charm"), RadialWheelRenderer.buildLabel(entity));
         }
 
+        /** decision badges-halve-and-sit-up-right-and-closer */
         @Test
-        void everyBadgeKindDrawsFromA16x16SpriteUnderGooBadge() {
+        void everyBadgeKindDrawsFromAn8x8SpriteUnderGooBadge() {
             assertAll(Arrays.stream(AbilityBadge.values()).map(badge -> (Executable) () -> {
                 Identifier sprite = RadialWheelRenderer.badgeIcon(badge);
                 assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID,
                         "textures/goo/badge/" + badge.getSerializedName() + ".png"), sprite);
-                assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
+                assertEquals(List.of(RadialWheelRenderer.BADGE_SIZE, RadialWheelRenderer.BADGE_SIZE),
                         pngDimensions(ASSETS_ROOT + sprite.getNamespace() + "/" + sprite.getPath()), badge.name());
             }));
         }
@@ -327,6 +328,49 @@ class RadialWheelRendererTest {
         void oneWordNameStaysOneLine() {
             assertEquals(List.of("Stasis"), RadialWheelRenderer.splitNameLines("Stasis").stream()
                     .map(Component::getString).toList());
+        }
+    }
+
+    /**
+     * A badge draws at half the icon's side, up and right of the icon, covering its top-right corner by a texel or
+     * two along each side, so it reads attached rather than beside.
+     * decision badges-halve-and-sit-up-right-and-closer
+     */
+    @Nested
+    class BadgeBox {
+
+        private static final int[] ICON_CENTER = {200, 120};
+        private static final int HALF_BADGE_SIDE = 8;
+
+        private final RadialWheelRenderer.ItemRect icon = new RadialWheelRenderer.ItemRect(
+                ICON_CENTER[0] - RadialWheelRenderer.ABILITY_ICON_SIZE / 2,
+                ICON_CENTER[1] - RadialWheelRenderer.ABILITY_ICON_SIZE / 2, RadialWheelRenderer.ABILITY_ICON_SIZE);
+        private final RadialWheelRenderer.ItemRect badge = RadialWheelRenderer.badgeBox(ICON_CENTER);
+
+        @Test
+        void badgeIsEightPixelsSquare() {
+            assertEquals(HALF_BADGE_SIDE, badge.size());
+        }
+
+        @Test
+        void badgeCentersAboveAndRightOfTheIcon() {
+            double badgeX = badge.left() + badge.size() / 2.0;
+            double badgeY = badge.top() + badge.size() / 2.0;
+            assertAll(
+                    () -> assertTrue(badgeX > ICON_CENTER[0], "badge center x " + badgeX),
+                    () -> assertTrue(badgeY < ICON_CENTER[1], "badge center y " + badgeY));
+        }
+
+        @Test
+        void badgeCoversTheIconsTopRightCornerByOneOrTwoTexels() {
+            int across = Math.min(icon.left() + icon.size(), badge.left() + badge.size())
+                    - Math.max(icon.left(), badge.left());
+            int down = Math.min(icon.top() + icon.size(), badge.top() + badge.size()) - Math.max(icon.top(), badge.top());
+            assertAll(
+                    () -> assertTrue(across >= 1 && across <= 2, "overlap across " + across),
+                    () -> assertTrue(down >= 1 && down <= 2, "overlap down " + down),
+                    () -> assertEquals(icon.left() + icon.size(), badge.left() + across, "on the icon's right edge"),
+                    () -> assertEquals(icon.top(), badge.top() + badge.size() - down, "on the icon's top edge"));
         }
     }
 
@@ -723,11 +767,15 @@ class RadialWheelRendererTest {
             RadialWheel.PetalArc petal = wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .findFirst().orElseThrow();
             int[] icon = RadialWheelRenderer.contentCenter(frameOf(wheel, List.of()), petal);
-            int[] own = RadialWheelRenderer.badgeBeside(icon);
+            int[] own = RadialWheelRenderer.badgeOnCorner(icon);
             int[] prism = RadialWheelRenderer.prismBadgeUnder(own);
-            int quarter = RadialWheelRenderer.ABILITY_ICON_SIZE / 4;
-            int[] onOwn = {own[0] + quarter, own[1] - quarter};
-            int[] onPrismBelowOwn = {prism[0], own[1] + RadialWheelRenderer.ABILITY_ICON_SIZE / 2 + quarter};
+            int badgeHalf = RadialWheelRenderer.BADGE_SIZE / 2;
+            int iconHalf = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
+            int[] onOwn = {own[0] + badgeHalf / 2, own[1] - badgeHalf / 2};
+            int[] onPrismBelowOwn = aPointShowing(new RadialWheelRenderer.ItemRect(prism[0] - badgeHalf,
+                    prism[1] - badgeHalf, RadialWheelRenderer.BADGE_SIZE), List.of(RadialWheelRenderer.badgeBox(icon),
+                    new RadialWheelRenderer.ItemRect(icon[0] - iconHalf, icon[1] - iconHalf,
+                            RadialWheelRenderer.ABILITY_ICON_SIZE)));
             Component world = Component.translatable("goo.badge." + AbilityBadge.WORLD.getSerializedName());
             Component prismName = Component.translatable("goo.badge." + AbilityBadge.PRISM.getSerializedName());
 
@@ -740,6 +788,21 @@ class RadialWheelRendererTest {
                             petal.ability(), RADIUS, icon)), "petal face"),
                     () -> assertEquals(List.of(), tooltipsSet(renderFrame(wheel, NO_ABILITY,
                             NO_ABILITY, RADIUS, onPrismBelowOwn)), "no prism badge drawn"));
+        }
+
+        /** A pixel of a square that none of the squares drawn over it covers. */
+        private static int[] aPointShowing(RadialWheelRenderer.ItemRect square,
+                                           List<RadialWheelRenderer.ItemRect> covers) {
+            for (int y = square.top(); y < square.top() + square.size(); y++) {
+                for (int x = square.left(); x < square.left() + square.size(); x++) {
+                    int px = x;
+                    int py = y;
+                    if (covers.stream().noneMatch(cover -> cover.contains(px, py))) {
+                        return new int[]{x, y};
+                    }
+                }
+            }
+            throw new AssertionError(square + " lies wholly under " + covers);
         }
 
         private RadialWheelRenderer.Frame frameOf(RadialWheel wheel, List<List<OfferedAbility>> abilities) {
@@ -977,8 +1040,9 @@ class RadialWheelRendererTest {
                         PetalRenderState badgeState = submitted.get(submitted.indexOf(iconState) + 1);
                         assertTrue(badgeState.textureSetup() == badge, petal + " badge follows");
                         float[] badgeBox = boxOf(badgeState);
-                        assertEquals(iconX + half, Math.round(badgeBox[0]), petal + " badge's left edge");
-                        assertEquals(iconY - half, Math.round(badgeBox[1]), petal + " badge's row");
+                        RadialWheelRenderer.ItemRect expected = RadialWheelRenderer.badgeBox(new int[]{iconX, iconY});
+                        assertEquals(expected.left(), Math.round(badgeBox[0]), petal + " badge's left edge");
+                        assertEquals(expected.top(), Math.round(badgeBox[1]), petal + " badge's top edge");
                         List<DrawnText> words = texts.stream().filter(text -> text.x() == iconX
                                 && Math.abs(text.y() - iconY) <= half + 2 * LINE_HEIGHT).toList();
                         assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
@@ -1003,7 +1067,7 @@ class RadialWheelRendererTest {
             List<PetalRenderState> submitted = submittedArguments(
                     renderFrame(wheel, NO_ABILITY, EVERY_ABILITY, radius), "submitGuiElementRenderState",
                     PetalRenderState.class);
-            int size = RadialWheelRenderer.ABILITY_ICON_SIZE;
+            int size = RadialWheelRenderer.BADGE_SIZE;
             int left = RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT;
             int down = RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN;
             TextureSetup prismBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.PRISM));

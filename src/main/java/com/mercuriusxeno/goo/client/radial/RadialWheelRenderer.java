@@ -61,6 +61,18 @@ final class RadialWheelRenderer {
     /** ability-icons-read-16x16 */
     static final int ABILITY_ICON_SIZE = 16;
     private static final int ABILITY_ICON_OFFSET = ABILITY_ICON_SIZE / 2;
+    /**
+     * A badge's side, drawn from an 8x8 source.
+     * decision badges-halve-and-sit-up-right-and-closer
+     */
+    static final int BADGE_SIZE = 8;
+    /**
+     * How many pixels of the icon's top-right corner a badge covers along each side, so it reads attached.
+     * decision badges-halve-and-sit-up-right-and-closer
+     */
+    private static final int BADGE_OVERLAP = 2;
+    /** How far the own badge's center sits right of, and above, its icon's center. */
+    private static final int BADGE_REACH = ABILITY_ICON_OFFSET - BADGE_OVERLAP + BADGE_SIZE / 2;
     private static final int LABEL_GAP = 1;
     /**
      * The scale an ability's name draws at on the wheel.
@@ -83,12 +95,12 @@ final class RadialWheelRenderer {
     private static final int HALF = 2;
     /**
      * How far past the petal's outer radius a closed petal's icon centers:
-     * the reach from the icon's center to the badge's far corner, one icon
-     * right and half an icon up, plus a pixel, so no pixel of either lies
-     * inside the petal; the prism badge tucked under the badge reaches no further.
+     * the reach from the icon's center to the badge's far corner, up and
+     * right of the icon, plus a pixel, so no pixel of either lies inside the
+     * petal; the prism badge tucked beside the badge reaches no further.
      * decision icons-slide-in-from-behind-the-tip
      */
-    static final double ENTRY_REACH = Math.hypot(ABILITY_ICON_SIZE + ABILITY_ICON_OFFSET, ABILITY_ICON_OFFSET) + 1;
+    static final double ENTRY_REACH = Math.hypot(BADGE_REACH + BADGE_SIZE / 2, BADGE_REACH + BADGE_SIZE / 2) + 1;
     /**
      * How far left of the ability's own badge, toward the icon, the prism
      * badge sits, so it peeks out from under the own badge: left rather than
@@ -477,12 +489,23 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * A 16x16 screen square one item icon or badge draws in.
+     * A screen square one item icon, ability icon or badge draws in.
      *
      * @param left the square's left edge
      * @param top  the square's top edge
+     * @param size the square's side
      */
-    record ItemRect(int left, int top) {
+    record ItemRect(int left, int top, int size) {
+
+        /**
+         * An item icon's square, {@link #ITEM_ICON_SIZE} on a side.
+         *
+         * @param left the square's left edge
+         * @param top  the square's top edge
+         */
+        ItemRect(int left, int top) {
+            this(left, top, ITEM_ICON_SIZE);
+        }
 
         /**
          * Whether a screen point falls inside the square.
@@ -492,7 +515,7 @@ final class RadialWheelRenderer {
          * @return true when the point is on the square
          */
         boolean contains(double x, double y) {
-            return x >= left && x < left + ITEM_ICON_SIZE && y >= top && y < top + ITEM_ICON_SIZE;
+            return x >= left && x < left + size && y >= top && y < top + size;
         }
     }
 
@@ -618,15 +641,16 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Draws the ability's icon, then its badge untinted directly to the icon's
-     * right, where the words never clip it and it never covers the icon. An
-     * ability carrying an on_prism reaction first draws the prism badge a
-     * little off the own badge, so the icon and the own badge cover part of it
-     * and it peeks out from underneath; each is cut at the petal's border so only
-     * the part under its face shows.
+     * Draws the ability's icon, then its badge untinted on the icon's top-right
+     * corner, covering a corner of the icon's square where the drawing seldom
+     * reaches. An ability carrying an on_prism reaction first draws the prism
+     * badge a little off the own badge, so the icon and the own badge cover
+     * part of it and it peeks out from underneath; each is cut at the petal's
+     * border so only the part under its face shows.
      * badge-marks-the-target-kind
      * decision on-prism-reaction-wears-the-prism-badge
      * decision icons-slide-in-from-behind-the-tip
+     * decision badges-halve-and-sit-up-right-and-closer
      *
      * @param graphics the GUI graphics extractor
      * @param frame    what the frame draws from
@@ -638,33 +662,45 @@ final class RadialWheelRenderer {
     private static List<BadgeIcon> blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame,
                                                    RadialWheel.PetalArc petal, ClientAbility ability, int color) {
         int[] slot = contentCenter(frame, petal);
-        int[] badgeSlot = badgeBeside(slot);
+        int[] badgeSlot = badgeOnCorner(slot);
         PetalMask.Petal shape = petal.shape();
-        ItemRect ownSquare = squareAround(badgeSlot);
+        ItemRect ownSquare = badgeBox(slot);
         List<BadgeIcon> badges = new ArrayList<>(List.of(new BadgeIcon(ability.badge(), ownSquare, List.of())));
         if (ability.reactsToPrisms()) {
             int[] prismSlot = prismBadgeUnder(badgeSlot);
             // the operator's ruling: the prism badge sits underneath the own badge, to the side a hair
             PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(AbilityBadge.PRISM)),
-                    prismSlot, ABILITY_ICON_SIZE, COLOR_WHITE);
-            badges.add(new BadgeIcon(AbilityBadge.PRISM, squareAround(prismSlot),
-                    List.of(squareAround(slot), ownSquare)));
+                    prismSlot, BADGE_SIZE, COLOR_WHITE);
+            badges.add(new BadgeIcon(AbilityBadge.PRISM, squareAround(prismSlot, BADGE_SIZE),
+                    List.of(squareAround(slot, ABILITY_ICON_SIZE), ownSquare)));
         }
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)), slot,
                 ABILITY_ICON_SIZE, color);
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(ability.badge())),
-                badgeSlot, ABILITY_ICON_SIZE, COLOR_WHITE);
+                badgeSlot, BADGE_SIZE, COLOR_WHITE);
         return badges;
     }
 
     /**
-     * The 16x16 square a sprite centered on a point draws in.
+     * The square a sprite centered on a point draws in.
      *
      * @param center the sprite's center
+     * @param size   the sprite's side
      * @return its square
      */
-    private static ItemRect squareAround(int[] center) {
-        return new ItemRect(center[0] - ABILITY_ICON_OFFSET, center[1] - ABILITY_ICON_OFFSET);
+    private static ItemRect squareAround(int[] center, int size) {
+        return new ItemRect(center[0] - size / HALF, center[1] - size / HALF, size);
+    }
+
+    /**
+     * The square an ability's own badge draws in beside its icon.
+     * decision badges-halve-and-sit-up-right-and-closer
+     *
+     * @param iconCenter the icon's center
+     * @return the badge's square
+     */
+    static ItemRect badgeBox(int[] iconCenter) {
+        return squareAround(badgeOnCorner(iconCenter), BADGE_SIZE);
     }
 
     /**
@@ -680,15 +716,17 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The point a badge centers on: one icon's width right of the sprite
-     * before it, on its row, so the badge sits beside that sprite edge to edge.
+     * The point an ability's own badge centers on: up and right of its icon,
+     * the badge covering {@link #BADGE_OVERLAP} pixels of the icon's top-right
+     * corner along each side.
      * badge-marks-the-target-kind
+     * decision badges-halve-and-sit-up-right-and-closer
      *
-     * @param iconCenter the center of the sprite the badge follows
+     * @param iconCenter the icon's center
      * @return the badge's center
      */
-    static int[] badgeBeside(int[] iconCenter) {
-        return new int[]{iconCenter[0] + ABILITY_ICON_SIZE, iconCenter[1]};
+    static int[] badgeOnCorner(int[] iconCenter) {
+        return new int[]{iconCenter[0] + BADGE_REACH, iconCenter[1] - BADGE_REACH};
     }
 
     /**
