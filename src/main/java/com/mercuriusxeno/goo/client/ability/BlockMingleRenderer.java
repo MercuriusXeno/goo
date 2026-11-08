@@ -87,8 +87,8 @@ public final class BlockMingleRenderer {
         // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
         for (BlockTransforms.Exposure exposure : exposing) {
             BlockTransforms.Mingling mingling = BlockTransforms.minglingOf(exposure,
-                    level.getBlockState(exposure.pos()));
-            mingles.add(new Mingle(exposure.pos(), mingling.state(), 1f - exposure.share(),
+                    BlockTransforms.CLIENT.standingAt(exposure.pos(), level.getBlockState(exposure.pos())));
+            mingles.add(new Mingle(exposure.pos(), mingling.state(), mingling.dissolved(),
                     mingleColor(mingling.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
         }
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
