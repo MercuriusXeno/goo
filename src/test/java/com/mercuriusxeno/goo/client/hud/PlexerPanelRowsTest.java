@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -24,32 +23,35 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  */
 class PlexerPanelRowsTest {
 
-    private static final Identifier ATLAS = Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/items.png");
-    private static final GooRenderUtil.UvRect DIAMOND_UV = new GooRenderUtil.UvRect(0.25f, 0.5f, 0.375f, 0.625f);
+    private static final Identifier OAK_LOG = Identifier.fromNamespaceAndPath("minecraft", "oak_log");
+    private static final Identifier CARPET = Identifier.fromNamespaceAndPath("minecraft", "white_carpet");
 
+    /**
+     * The name row carries the target item itself as its icon, so the painter draws its model
+     * as the inventory does rather than one flat sprite (decision all-huds-draw-an-items-model-as-the-inventory-does).
+     */
     @Test
-    void targetReadsAsOneRowOfItsIconBesideItsName() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Diamond", new CruciblePanelRows.ItemIcon(ATLAS, DIAMOND_UV), null);
+    void targetReadsAsOneRowOfItsItemBesideItsName() {
+        List<PanelRow> rows = PlexerPanelRows.rows("Oak Log", OAK_LOG, null);
 
         assertEquals(1, rows.size());
         PanelRow row = rows.getFirst();
-        assertEquals(ATLAS, row.icon());
-        assertEquals(DIAMOND_UV, row.iconUv());
-        assertEquals(List.of(new PanelRow.TextSegment("Diamond", PanelPainter.TEXT_COLOR)), row.segments());
+        assertEquals(OAK_LOG, row.iconItem());
+        assertNull(row.icon());
+        assertEquals(List.of(new PanelRow.TextSegment("Oak Log", PanelPainter.TEXT_COLOR)), row.segments());
     }
 
+    /** The item leading the name row takes one icon's width and its gap before the name. */
     @Test
-    void targetWithoutAnIconReadsItsNameAlone() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Diamond", null, null);
+    void targetItemMeasuresOneIconBeforeItsName() {
+        PanelRow row = PlexerPanelRows.rows("Oak Log", OAK_LOG, null).getFirst();
 
-        assertEquals(1, rows.size());
-        assertNull(rows.getFirst().icon());
-        assertEquals("Diamond", rows.getFirst().segments().getFirst().text());
+        assertEquals(PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP + 7 * 6, row.width(text -> text.length() * 6));
     }
 
     @Test
     void targetReadsItsExactCostAsAMixedNumberInEachType() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", null,
+        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", CARPET,
                 fraction(GooTypes.LEAF, 64, 3, GooTypes.ROCK, 1, 3));
 
         assertEquals(3, rows.size());
@@ -75,7 +77,7 @@ class PlexerPanelRowsTest {
         GooValue value = mock(GooValue.class);
         when(value.exactAll()).thenReturn(byTypeId);
 
-        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", null, value);
+        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", CARPET, value);
 
         assertEquals(List.of(GooTypes.ROCK, GooTypes.BLAZE, GooTypes.GLOW, GooTypes.LEAF).stream()
                 .map(PanelPainter::gooIcon).toList(), rows.subList(1, rows.size()).stream().map(PanelRow::icon)

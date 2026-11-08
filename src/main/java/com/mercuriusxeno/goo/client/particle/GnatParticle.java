@@ -6,12 +6,15 @@ import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Supplier;
 
 /**
  * A gnat in Decay's swarm: it flies out with the speed the server sprayed
  * it with, then darts in a new direction every tick as it slows, so the
- * cone fills with a buzzing maroon cloud rather than a jet; it hangs
+ * cone fills with a buzzing maroon cloud rather than a jet; a seeking gnat
+ * keeps its speed instead and steers onto its prey every tick; it hangs
  * weightless and fades out over two seconds or so
  * (decision decay-gnats-degrade-each-block-once).
  */
@@ -33,6 +36,8 @@ public final class GnatParticle extends SingleQuadParticle {
     private static final float DARK_GREEN = 0.06f;
     private static final float DARK_BLUE = 0.11f;
     private static final double HALF = 0.5;
+
+    private @Nullable Supplier<Vec3> prey;
 
     private GnatParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,
                          SpriteSet sprites) {
@@ -56,9 +61,28 @@ public final class GnatParticle extends SingleQuadParticle {
         this.alpha = START_ALPHA;
     }
 
-    /** Darts the gnat a little off its heading and fades it over its life. */
+    /**
+     * Sets the gnat seeking: it keeps its speed rather than slowing, and
+     * steers every tick toward its prey where the supplier says it stands
+     * then (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param prey where the gnat's prey stands, read every tick
+     */
+    public void seek(Supplier<Vec3> prey) {
+        this.prey = prey;
+        this.friction = 1f;
+    }
+
+    /** Steers a seeking gnat, darts the gnat a little off its heading and fades it over its life. */
     @Override
     public void tick() {
+        if (prey != null) {
+            Vec3 velocity = GnatSteering.steer(new Vec3(this.xd, this.yd, this.zd), new Vec3(this.x, this.y, this.z),
+                    prey.get());
+            this.xd = velocity.x;
+            this.yd = velocity.y;
+            this.zd = velocity.z;
+        }
         RandomSource random = this.random;
         this.xd += (random.nextDouble() - HALF) * DART_SPAN;
         this.yd += (random.nextDouble() - HALF) * DART_SPAN;

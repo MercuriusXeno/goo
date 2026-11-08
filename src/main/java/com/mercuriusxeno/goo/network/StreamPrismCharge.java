@@ -144,8 +144,8 @@ final class StreamPrismCharge {
             return false;
         }
         Delivery delivery = ability.delivery();
-        return !GooStreamHandler.nearestMob(GooStreamHandler.livingInCone(player.level(), player, apex,
-                player.getLookAngle(), delivery), apex).isEmpty();
+        return !GooStreamHandler.mostAlignedMob(GooStreamHandler.livingInCone(player.level(), player, apex,
+                player.getLookAngle(), delivery), player.getEyePosition(), player.getLookAngle()).isEmpty();
     }
 
     /**
