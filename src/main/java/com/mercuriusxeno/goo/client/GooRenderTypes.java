@@ -41,6 +41,13 @@ public final class GooRenderTypes {
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
     /** Fragments fainter than this are cut, as vanilla's translucent entity cuts them. */
     private static final float ALPHA_CUTOUT = 0.1f;
+    /**
+     * The depth bias vanilla's block-breaking cracks draw with, pulling a
+     * layer drawn in the same plane as the world's own faces in front of
+     * them so the two never fight.
+     */
+    private static final float DECAL_BIAS_SCALE = -1.0f;
+    private static final float DECAL_BIAS_CONSTANT = -10.0f;
     private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
     /** Must match goo_fluid_surface.fsh: the sampler the frame's mingle table binds to. */
     private static final String MINGLE_TABLE_SAMPLER = "MingleTable";
@@ -122,7 +129,8 @@ public final class GooRenderTypes {
             .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
             .withSampler("Sampler1")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+                    DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT))
             .withCull(false)
             .build();
 
