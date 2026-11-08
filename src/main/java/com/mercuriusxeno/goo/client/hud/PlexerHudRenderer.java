@@ -100,8 +100,7 @@ public final class PlexerHudRenderer {
                                    ItemStack target) {
         PanelPainter.paint(poseStack, camera,
                 PlexerPanelTarget.placement(pos, facing, ANIMATOR.pitch(), ANIMATOR.opacity()),
-                PlexerPanelRows.rows(target.getHoverName().getString(),
-                        ItemParticleIcons.of(PlayerKnowledge.idOf(target.getItem())),
+                PlexerPanelRows.rows(target.getHoverName().getString(), PlayerKnowledge.idOf(target.getItem()),
                         ClientGooValues.current().lookup(PlayerKnowledge.idOf(target.getItem()))));
     }
 }

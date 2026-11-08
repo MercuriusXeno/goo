@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.block.ValuedStack;
 import com.mercuriusxeno.goo.block.crucible.CrucibleHeat;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
 import com.mercuriusxeno.goo.block.crucible.FuelGrade;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -105,12 +104,13 @@ class CruciblePanelRowsTest {
         return row.segments().stream().map(PanelRow.TextSegment::text).collect(Collectors.joining());
     }
 
-    /** A 16 mB diamond one tick into its 4-tick clock ahead of a waiting log reads its icon, "25%" and a dim "+1". */
+    /**
+     * A 16 mB diamond one tick into its 4-tick clock ahead of a waiting log reads the diamond itself as its icon,
+     * "25%" and a dim "+1" (decision all-huds-draw-an-items-model-as-the-inventory-does).
+     */
     @Test
-    void meltRowShowsHeadIconFractionAndWaitingCount() {
+    void meltRowShowsHeadItemFractionAndWaitingCount() {
         Identifier diamond = Identifier.fromNamespaceAndPath("minecraft", "diamond");
-        Identifier atlas = Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/items.png");
-        GooRenderUtil.UvRect diamondUv = new GooRenderUtil.UvRect(0.25f, 0.5f, 0.375f, 0.625f);
         CrucibleMeltQueue queue = new CrucibleMeltQueue();
         GooContents diamondUnit = GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, 16);
         queue.appendAll(List.of(new ValuedStack(diamond, 1, diamondUnit),
@@ -118,11 +118,10 @@ class CruciblePanelRowsTest {
                         GooContents.EMPTY.withAdded(GooTypes.LEAF, 40))));
         queue.advanceNext(GooConfig.DEFAULT_UNSTABLE_MELT_EXPONENT, diamondUnit, (type, amount, simulate) -> amount);
 
-        PanelRow row = CruciblePanelRows.meltRow(queue.head(), queue.waiting().size(),
-                item -> item.equals(diamond) ? new CruciblePanelRows.ItemIcon(atlas, diamondUv) : null);
+        PanelRow row = CruciblePanelRows.meltRow(queue.head(), queue.waiting().size());
 
-        assertEquals(atlas, row.icon());
-        assertEquals(diamondUv, row.iconUv());
+        assertEquals(diamond, row.iconItem());
+        assertNull(row.icon());
         assertEquals("25% +1", textOf(row));
         assertEquals(PanelPainter.TEXT_COLOR, row.segments().getFirst().color());
         assertEquals(0xFF888888, row.segments().getLast().color());
@@ -131,7 +130,7 @@ class CruciblePanelRowsTest {
     /** An empty queue paints no melting row. */
     @Test
     void emptyQueuePaintsNoMeltRow() {
-        assertNull(CruciblePanelRows.meltRow(null, 0, item -> null));
+        assertNull(CruciblePanelRows.meltRow(null, 0));
     }
 
     /** A type full in both the reservoir and the pool reads their long sum. */

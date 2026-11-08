@@ -2,23 +2,20 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 
 /**
- * Supplies the crucible HUD panel's rows: the melting item's row, one "reservoir / total"
- * row per goo type, then a heat row per fuel holding heat or stock
+ * Supplies the crucible HUD panel's rows: the melting item's row led by its model, one
+ * "reservoir / total" row per goo type, then a heat row per fuel holding heat or stock
  * (decisions one-panel-painter-takes-rows, heat-row-reads-seconds, pool-keeps-stacks-in-order).
  */
 final class CruciblePanelRows {
@@ -50,7 +47,7 @@ final class CruciblePanelRows {
      */
     static List<PanelRow> rows(CrucibleBlockEntity be) {
         List<PanelRow> rows = new ArrayList<>();
-        PanelRow melting = meltRow(be.meltHead(), be.meltWaiting().size(), ItemParticleIcons::of);
+        PanelRow melting = meltRow(be.meltHead(), be.meltWaiting().size());
         if (melting != null) {
             rows.add(melting);
         }
@@ -59,16 +56,14 @@ final class CruciblePanelRows {
     }
 
     /**
-     * Builds the melting item's row: its icon, how far it has dissolved in percent,
+     * Builds the melting item's row: its model, how far it has dissolved in percent,
      * then a dim count of the stacks waiting behind it.
      *
      * @param head    the stack dissolving, or null when nothing melts
      * @param waiting the number of stacks waiting behind the head
-     * @param iconOf  resolves an item id to its icon, or null when it has none
      * @return the row, or null when nothing melts
      */
-    static @Nullable PanelRow meltRow(CrucibleMeltQueue.@Nullable Entry head, int waiting,
-                                      Function<Identifier, @Nullable ItemIcon> iconOf) {
+    static @Nullable PanelRow meltRow(CrucibleMeltQueue.@Nullable Entry head, int waiting) {
         if (head == null) {
             return null;
         }
@@ -78,20 +73,7 @@ final class CruciblePanelRows {
         if (waiting > 0) {
             segments.add(new PanelRow.TextSegment(WAITING_PREFIX + waiting, SEPARATOR_COLOR));
         }
-        ItemIcon icon = iconOf.apply(head.item());
-        if (icon == null) {
-            return new PanelRow(null, segments, false);
-        }
-        return new PanelRow(icon.texture(), segments, false, null, null, icon.uv());
-    }
-
-    /**
-     * An item's icon: the atlas holding its sprite and the sprite's region of it.
-     *
-     * @param texture the atlas texture
-     * @param uv      the sprite's region of the atlas
-     */
-    record ItemIcon(Identifier texture, GooRenderUtil.UvRect uv) {
+        return PanelRow.itemRow(head.item(), segments);
     }
 
     /**
