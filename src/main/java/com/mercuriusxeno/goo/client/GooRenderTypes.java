@@ -416,6 +416,26 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
+    /**
+     * A glow prism's column and halo (decision diagnose-and-correct-the-sunbeam-prism-depth):
+     * vanilla's translucent entity draw with depth write off, so the beams
+     * drawn after it, Sunbeam's ray among them, show in front of the column
+     * rather than fail the depth it would write.
+     */
+    public static final RenderPipeline GLOW_COLUMN = RenderPipelines.ENTITY_TRANSLUCENT.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_column"))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The glow column render type, on the block atlas. */
+    public static final RenderType GLOW_COLUMN_TYPE = RenderType.create("goo_glow_column",
+            RenderSetup.builder(GLOW_COLUMN)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/atlas/blocks.png"))
+                    .useLightmap()
+                    .useOverlay()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
     /** Per-texture memoized render types on the glow beam pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GLOW_BEAM_FACTORY =
             net.minecraft.util.Util.memoize(texture -> RenderType.create(
@@ -1319,6 +1339,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GLOW_BEAM);
+        event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber.style;
 
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
@@ -16,9 +17,12 @@ import net.minecraft.world.phys.Vec3;
  * like the column itself, the column again swollen a little and drawn
  * faintly, so the prism reads as glow's whichever combo it holds; its beams
  * tell the beacon from the reflector (operator rulings 2026-10-09), and the
- * reflector's column folds into four sides as its combo takes.
+ * reflector's column folds into four sides as its combo takes. The column
+ * and its halo write no depth, so a beam drawn after them, Sunbeam's ray
+ * refracting off a reflector among them, shows in front of the column.
  * decisions bulb-one-model-max-light-beacon-combo, reflector-rails-carry-the-brightest-light
  * relay-and-metronome-read-apart-at-rest
+ * decision diagnose-and-correct-the-sunbeam-prism-depth
  */
 final class GlowColumn {
 
@@ -56,12 +60,12 @@ final class GlowColumn {
         PrismCrystal.standOnLandingFace(poseStack, state.facing);
         int light = GooSubmitter.fullbrightLight();
         double fold = OculusStyle.transformationShare(state.gameTime, state.comboSince);
-        PrismCrystal.submitColumn(poseStack, nodeCollector, sides, fold,
+        PrismCrystal.submitColumn(poseStack, nodeCollector, GooRenderTypes.GLOW_COLUMN_TYPE, sides, fold,
                 new CrystalClusterSubmitter.Look(look.uv(), TINT), light);
         poseStack.translate(COLUMN_BASE.x, COLUMN_BASE.y, COLUMN_BASE.z);
         poseStack.scale(HALO_WIDTH, HALO_LENGTH, HALO_WIDTH);
         poseStack.translate(-COLUMN_BASE.x, -COLUMN_BASE.y, -COLUMN_BASE.z);
-        PrismCrystal.submitColumn(poseStack, nodeCollector, sides, fold,
+        PrismCrystal.submitColumn(poseStack, nodeCollector, GooRenderTypes.GLOW_COLUMN_TYPE, sides, fold,
                 new CrystalClusterSubmitter.Look(look.uv(), HALO), light);
         poseStack.popPose();
     }
