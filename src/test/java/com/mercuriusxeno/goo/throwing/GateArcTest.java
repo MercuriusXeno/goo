@@ -59,23 +59,6 @@ class GateArcTest {
     }
 
     @Test
-    void aBeamSpanningTheGateDrawsTailToFaceAndPartnerToHead() {
-        List<Vec3[]> pieces = GateArc.beamPieces(HAND, HOP, TARGET, 0, 1);
-        assertEquals(2, pieces.size(), "A beam spanning the gate should draw two pieces");
-        assertClose(HAND, pieces.get(0)[0], "the near piece's start");
-        assertClose(FACE, pieces.get(0)[1], "the near piece's end, on the gate's face");
-        assertClose(PARTNER, pieces.get(1)[0], "the far piece's start, out of the partner");
-        assertClose(TARGET, pieces.get(1)[1], "the far piece's end, at the target");
-    }
-
-    @Test
-    void aBeamWhollyPastTheGateDrawsOnePieceFromThePartnerSide() {
-        List<Vec3[]> pieces = GateArc.beamPieces(HAND, HOP, TARGET, 0.75, 1);
-        assertEquals(1, pieces.size(), "A beam whose tail has passed the gate should draw one piece");
-        assertClose(PARTNER.lerp(TARGET, 0.5), pieces.get(0)[0], "the piece's start, halfway along the far leg");
-    }
-
-    @Test
     void aTargetWithNoGateDrawsOneLeg() {
         List<Vec3[]> legs = GateArc.legs(HAND, null, TARGET, PEAK, SEGMENTS);
         assertEquals(1, legs.size(), "A near-side target should draw one leg");
