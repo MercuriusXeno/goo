@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.gluttony.GluttonyEvents;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
@@ -114,7 +116,8 @@ public final class HeldEffectsEvents {
 
     /**
      * Draws each held effect's upkeep on the server, ending one the
-     * inventory can no longer pay. A heart effect whose shields are all
+     * inventory can no longer pay, and first ending one whose ability is no
+     * longer known. A heart effect whose shields are all
      * broken stays held, its crawl regrowing them.
      *
      * @param event the player tick event
@@ -128,6 +131,9 @@ public final class HeldEffectsEvents {
         if (held.isEmpty()) {
             return;
         }
+        // dive-is-renamed-sculker: an effect saved under an ability no longer shipped ends rather than standing on
+        AbilityRegistry registry = AbilityRegistry.of(player.level());
+        held = apply(player, held.endUnknown(ability -> registry.getAbility(ability) != null));
         GooRemainders remainders = player.getData(GooAttachments.REMAINDERS);
         HeldEffects.Ticked ticked = held.tick(type -> GooSourceScanner.aggregateAvailable(player)
                 .getOrDefault(type, 0), remainders, player.level().getGameTime());
@@ -313,7 +319,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the player state an ability's own step laid on the player's
-     * draws, reach and senses: a lifetap, Telekinesis's reach, the eldritch state.
+     * draws, reach and senses: a lifetap, Telekinesis's reach, the eldritch state, the dive.
      *
      * @param player the player
      * @param lays   the state the effect laid
@@ -334,6 +340,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.ELDRITCH)) {
             // eldritch-sight-reveals-the-out-of-phase: the eldritch state ends with its held effect
             EldritchEvents.end(player);
+        }
+        if (lays.contains(LaidState.SCULKER)) {
+            // dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks: the swim and the vision end with its held effect
+            player.setData(GooAttachments.SCULKER, Sculker.NONE);
         }
     }
 }

@@ -185,7 +185,7 @@ class AffordedCountTest {
     @Nested
     class Dynamic {
 
-        private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink", "deep_churn",
+        private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
                 "nether_black_hole", "unstable_explode", "rock_spire", "unstable_unmake", "yore_age");
 
         @Test
