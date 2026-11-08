@@ -42,23 +42,24 @@ public final class TendrilVignette {
     static final int SLOTS_PER_EDGE = 12;
     /** How far a tendril roots off its slot's middle at most, as a share of the edge. */
     static final float SLOT_JITTER = 0.25f / SLOTS_PER_EDGE;
-    /** The rounded lobes of soft growth along each edge, evenly spaced. */
-    static final int LOBES_PER_EDGE = 16;
-    /** How far a lobe sits off its place at most, as a share of the edge. */
-    static final float LOBE_JITTER = 0.2f / LOBES_PER_EDGE;
-    /** The smallest and largest lobe, its reach in from the edge as a share of the screen's shorter side. */
-    static final float SMALLEST_LOBE = 0.035f;
-    static final float LARGEST_LOBE = 0.065f;
-    /** How much a lobe breathes, as a share of its reach, and how fast. */
-    private static final float LOBE_BREATH = 0.12f;
-    private static final float SLOWEST_LOBE_BREATH = 0.03f;
-    private static final float FASTEST_LOBE_BREATH = 0.07f;
-    /** A lobe's soft halo, as a share past its own reach, and the halo's and the core's alpha. */
-    private static final float HALO_SHARE = 1.4f;
-    private static final float HALO_ALPHA = 0.16f;
-    private static final float CORE_ALPHA = 0.42f;
-    /** The rows a lobe draws in, as pixels. */
-    private static final int LOBE_ROW = 2;
+    /** How far in the fringe reaches at rest, as a share of the screen's shorter side. */
+    static final float FRINGE_BASE = 0.03f;
+    /** The sine waves summed along each edge to undulate the fringe's inner edge. */
+    static final int WAVES_PER_EDGE = 4;
+    /** The shortest and longest wave, as a share of its edge. */
+    private static final float SHORTEST_WAVE = 0.12f;
+    private static final float LONGEST_WAVE = 0.45f;
+    /** The most any one wave lifts or lowers the fringe, as a share of the screen's shorter side. */
+    private static final float MOST_SWELL = 0.006f;
+    /** The deepest the fringe can reach, its rest plus every wave cresting at once. */
+    static final float DEEPEST_FRINGE = FRINGE_BASE + WAVES_PER_EDGE * MOST_SWELL;
+    /** How fast a wave drifts along its edge, radians a tick at the most. */
+    private static final float FASTEST_DRIFT = 0.04f;
+    /** The fringe's layers, each a share of its reach and drawn at its own alpha, softest outermost. */
+    private static final float[] LAYER_REACH = {1.5f, 1.0f, 0.6f};
+    private static final float[] LAYER_ALPHA = {0.10f, 0.16f, 0.22f};
+    /** The width of each strip the fringe draws in, in pixels. */
+    private static final int STRIP = 3;
     /** The shortest and longest a tendril reaches, as a share of the screen's shorter side. */
     private static final float SHORTEST = 0.02f;
     private static final float LONGEST = 0.06f;
@@ -121,11 +122,11 @@ public final class TendrilVignette {
 
     private final SplittableRandom random;
     private final List<Tendril> live = new ArrayList<>();
-    private final List<Lobe> fringe;
+    private final List<Wave> fringe;
     private float lastTime = NO_TIME;
 
     /**
-     * @param seed the seed this vignette's tendrils sprout from and its fringe is laid from
+     * @param seed the seed this vignette's tendrils sprout from and its fringe's waves are laid from
      */
     public TendrilVignette(long seed) {
         this.random = new SplittableRandom(seed);
@@ -133,37 +134,35 @@ public final class TendrilVignette {
     }
 
     /**
-     * One rounded lobe of the soft growth along an edge.
+     * One sine wave undulating the fringe along an edge.
      *
-     * @param edge          zero top, one bottom, two left, three right
-     * @param along         where along the edge it sits, zero to one
-     * @param radius        how far in it reaches, as a share of the screen's shorter side
-     * @param breathSpeed   how fast it breathes, radians a tick
-     * @param breathPhase   its breath's phase in radians
+     * @param edge   zero top, one bottom, two left, three right
+     * @param length its wavelength, as a share of its edge
+     * @param swell  how far it lifts or lowers the fringe, as a share of the screen's shorter side
+     * @param drift  how fast it drifts along its edge, radians a tick
+     * @param phase  its phase in radians
      */
-    record Lobe(int edge, float along, float radius, float breathSpeed, float breathPhase) {
+    record Wave(int edge, float length, float swell, float drift, float phase) {
     }
 
     /**
-     * Lays the fringe: the same number of rounded lobes along every edge,
-     * evenly spaced, each a little off its place and its own size, so the
-     * edges fill with soft growth that never reads as a pattern.
+     * Lays the fringe: a few sine waves along every edge, each its own
+     * length, swell and drift, so their sum undulates slowly and never
+     * reads as a pattern.
      *
      * @param laying the random the fringe is laid from
-     * @return every lobe, edge by edge, in order along each
+     * @return every wave, edge by edge
      */
-    private static List<Lobe> layFringe(SplittableRandom laying) {
-        List<Lobe> lobes = new ArrayList<>();
+    private static List<Wave> layFringe(SplittableRandom laying) {
+        List<Wave> waves = new ArrayList<>();
         for (int edge = 0; edge < EDGES; edge++) {
-            for (int place = 0; place < LOBES_PER_EDGE; place++) {
-                float middle = (place + HALF) / LOBES_PER_EDGE;
-                lobes.add(new Lobe(edge, middle + spread(laying, LOBE_JITTER),
-                        SMALLEST_LOBE + laying.nextFloat() * (LARGEST_LOBE - SMALLEST_LOBE),
-                        SLOWEST_LOBE_BREATH + laying.nextFloat() * (FASTEST_LOBE_BREATH - SLOWEST_LOBE_BREATH),
+            for (int wave = 0; wave < WAVES_PER_EDGE; wave++) {
+                waves.add(new Wave(edge, SHORTEST_WAVE + laying.nextFloat() * (LONGEST_WAVE - SHORTEST_WAVE),
+                        laying.nextFloat() * MOST_SWELL, spread(laying, FASTEST_DRIFT),
                         laying.nextFloat() * Mth.TWO_PI));
             }
         }
-        return List.copyOf(lobes);
+        return List.copyOf(waves);
     }
 
     private static float spread(SplittableRandom laying, float most) {
@@ -171,10 +170,22 @@ public final class TendrilVignette {
     }
 
     /**
-     * @return the fringe's lobes, edge by edge
+     * How far in the fringe reaches at a point along an edge and a time: its
+     * rest plus every wave on that edge.
+     *
+     * @param edge  zero top, one bottom, two left, three right
+     * @param along where along the edge, zero to one
+     * @param time  the game time
+     * @return its reach in, as a share of the screen's shorter side
      */
-    List<Lobe> fringe() {
-        return fringe;
+    float fringeDepth(int edge, float along, float time) {
+        float depth = FRINGE_BASE;
+        for (Wave wave : fringe) {
+            if (wave.edge() == edge) {
+                depth += wave.swell() * Mth.sin(along / wave.length() * Mth.TWO_PI + wave.phase() + time * wave.drift());
+            }
+        }
+        return depth;
     }
 
     /**
@@ -391,8 +402,9 @@ public final class TendrilVignette {
     }
 
     /**
-     * Draws the fringe: each lobe a soft rounded mound of growth breathing
-     * in from its edge, a faint halo under a denser core.
+     * Draws the fringe: a soft band along every edge, strip by strip, its
+     * inner edge undulating with the edge's waves, in layers from a faint
+     * outer reach to a denser core.
      *
      * @param graphics the GUI graphics
      * @param time     the game time with the frame's partial tick
@@ -402,30 +414,30 @@ public final class TendrilVignette {
     private void drawFringe(GuiGraphicsExtractor graphics, float time, float strength, int rgb) {
         Screen screen = new Screen(graphics.guiWidth(), graphics.guiHeight());
         float shorter = Math.min(screen.width(), screen.height());
-        int halo = ARGB.color(Math.round(HALO_ALPHA * strength * OPAQUE), rgb);
-        int core = ARGB.color(Math.round(CORE_ALPHA * strength * OPAQUE), rgb);
-        for (Lobe lobe : fringe) {
-            float breath = 1f + LOBE_BREATH * Mth.sin(time * lobe.breathSpeed() + lobe.breathPhase());
-            float reach = lobe.radius() * shorter * breath;
-            drawLobe(graphics, screen, lobe, reach * HALO_SHARE, halo);
-            drawLobe(graphics, screen, lobe, reach, core);
+        for (int layer = 0; layer < LAYER_REACH.length; layer++) {
+            int color = ARGB.color(Math.round(LAYER_ALPHA[layer] * strength * OPAQUE), rgb);
+            for (int edge = 0; edge < EDGES; edge++) {
+                drawBand(graphics, screen, edge, shorter * LAYER_REACH[layer], time, color);
+            }
         }
     }
 
     /**
-     * Draws one rounded mound in from an edge, row by row.
+     * Draws one layer of the fringe along one edge, strip by strip.
      *
      * @param graphics the GUI graphics
      * @param screen   the screen's size
-     * @param lobe     the lobe
-     * @param reach    how far in it reaches, in pixels
-     * @param color    its color
+     * @param edge     the edge
+     * @param scale    the layer's reach for a fringe depth of one, in pixels
+     * @param time     the game time with the frame's partial tick
+     * @param color    the layer's color
      */
-    private static void drawLobe(GuiGraphicsExtractor graphics, Screen screen, Lobe lobe, float reach, int color) {
-        for (int inward = 0; inward < reach; inward += LOBE_ROW) {
-            float half = (float) Math.sqrt(reach * reach - (float) inward * inward);
-            int[] from = screen.from(lobe.edge(), lobe.along(), inward, -half);
-            int[] to = screen.from(lobe.edge(), lobe.along(), inward + LOBE_ROW, half);
+    private void drawBand(GuiGraphicsExtractor graphics, Screen screen, int edge, float scale, float time, int color) {
+        int span = edge == EDGE_TOP || edge == EDGE_BOTTOM ? screen.width() : screen.height();
+        for (int at = 0; at < span; at += STRIP) {
+            float depth = fringeDepth(edge, (at + HALF * STRIP) / span, time) * scale;
+            int[] from = screen.from(edge, 0f, 0f, at);
+            int[] to = screen.from(edge, 0f, depth, at + STRIP);
             graphics.fill(Math.min(from[0], to[0]), Math.min(from[1], to[1]), Math.max(from[0], to[0]),
                     Math.max(from[1], to[1]), color);
         }
