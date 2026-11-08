@@ -1,12 +1,20 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import java.util.Optional;
+import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -90,6 +98,56 @@ class FlamesStepTest {
     @Test
     void aPulseEveryTickPulsesEachTick() {
         assertTrue(FlamesStep.pulsesOn(2, 1));
+    }
+
+    /**
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     */
+    @Nested
+    class HeatedBlock {
+
+        private final Block ice = mock(Block.class);
+        private final Block water = mock(Block.class);
+        private final Block air = mock(Block.class);
+        private final Block sand = mock(Block.class);
+        private final Item sandItem = mock(Item.class);
+        private final Block glass = mock(Block.class);
+        private final BlockItem glassItem = mock(BlockItem.class);
+        private final BlockCooking.Meltables meltables =
+                new BlockCooking.Meltables(ice, mock(Block.class), mock(Block.class), water, air);
+        private final Function<Block, Optional<Block>> heats;
+
+        HeatedBlock() {
+            when(ice.asItem()).thenReturn(mock(Item.class));
+            when(sand.asItem()).thenReturn(sandItem);
+            when(glassItem.getBlock()).thenReturn(glass);
+            heats = FlamesStep.heatedInto(meltables, false,
+                    item -> item == sandItem ? Optional.of(glassItem) : Optional.empty(), air);
+        }
+
+        @Test
+        void iceInTheFlameBecomesWater() {
+            assertEquals(Optional.of(water), heats.apply(ice));
+        }
+
+        @Test
+        void sandInTheFlameBecomesItsFurnaceResult() {
+            assertEquals(Optional.of(glass), heats.apply(sand));
+        }
+
+        @Test
+        void aMeltedBlockBecomesItsMeltAndRestsNoItem() {
+            BlockBreakHost host = mock(BlockBreakHost.class);
+            BlockPos pos = new BlockPos(3, 1, 2);
+            BlockState waterState = mock(BlockState.class);
+            when(water.defaultBlockState()).thenReturn(waterState);
+
+            FlamesStep.finishHeated(host, pos, ice, water, raw -> BlockCooking.meltedBlock(raw, meltables, false),
+                    item -> Optional.empty(), mock(BlockState.class));
+
+            verify(host).transformBlock(pos, waterState);
+            verify(host, never()).restItem(any(), any());
+        }
     }
 
     @Test

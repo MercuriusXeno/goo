@@ -8,12 +8,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -32,10 +34,11 @@ import java.util.stream.Stream;
  * invulnerability window. A fire-immune thing is left alone, and no fire
  * block is placed. Each held tick the flame also heats what the player looks
  * at: foliage under the crosshair burns away, and a block under the crosshair
- * with a furnace result is painted and cooks in place once it has built the
- * JSON's ticks of heat, through the one finish every cooked block takes.
+ * that melts or has a furnace result is painted and melts or cooks in place
+ * once it has built the JSON's ticks of heat.
  * flames-burns-by-a-spray-of-rays
  * decision flames-absorbs-broil-and-cooks-blocks
+ * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
  *
  * @param damage      the fire damage each burn deals, evaluated when it runs
  * @param every       the held ticks between burns
@@ -89,16 +92,24 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
 
     /**
      * Heats the block under the crosshair, burning foliage away and painting
-     * a block with a furnace result, then builds every block the hold painted
-     * toward its result, each finishing through the one cooking finish.
+     * a block that melts or has a furnace result, then builds every block the
+     * hold painted toward its melt or result, each finishing through
+     * {@link #finishHeated}. Whether water evaporates is read at the eye, the
+     * painted blocks standing within the stream's reach of it.
      * decision flames-absorbs-broil-and-cooks-blocks
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
      *
      * @param host the channel host
      * @param aim  the stream's aim
      */
     private void cookLookedAt(ChannelHost host, ChannelAim aim) {
         Function<Item, Optional<ItemStack>> results = BlockCooking.resultsIn(host.level());
-        Function<Block, Optional<Block>> cooks = raw -> BlockCooking.cookedBlock(raw,
+        boolean waterEvaporates = host.level().environmentAttributes()
+                .getValue(EnvironmentAttributes.WATER_EVAPORATES, BlockPos.containing(host.eye()));
+        BlockCooking.Meltables meltables = new BlockCooking.Meltables(Blocks.ICE, Blocks.FROSTED_ICE, Blocks.SNOW,
+                Blocks.WATER, Blocks.AIR);
+        Function<Block, Optional<Block>> melts = raw -> BlockCooking.meltedBlock(raw, meltables, waterEvaporates);
+        Function<Block, Optional<Block>> cooks = heatedInto(meltables, waterEvaporates,
                 item -> results.apply(item).map(ItemStack::getItem), Blocks.AIR);
         HoldMarks marks = host.holdMarks();
         PaintedHold.lookedAtBlock(host, aim).ifPresent(looked -> {
@@ -109,8 +120,49 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
             }
         });
         PaintedHold.buildPainted(host, cooks, marks, 1f / cookTicks, OptionalInt.empty(),
-                (pos, raw, into) -> results.apply(raw.asItem()).ifPresent(result -> BlockCooking.finishCooked(host,
-                        pos, result.copy(), Blocks.AIR.defaultBlockState())));
+                (pos, raw, into) -> finishHeated(host, pos, raw, into, melts, results,
+                        Blocks.AIR.defaultBlockState()));
+    }
+
+    /**
+     * The block a block in the flame becomes: its melt where it melts, its
+     * furnace result otherwise.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param meltables       the blocks that melt and what they melt into
+     * @param waterEvaporates whether the dimension evaporates water
+     * @param smelt           the furnace result of an item, empty where no recipe smelts it
+     * @param emptied         the block left where a block cooks into an item, air in play
+     * @return the block each block becomes, empty where it neither melts nor cooks
+     */
+    static Function<Block, Optional<Block>> heatedInto(BlockCooking.Meltables meltables, boolean waterEvaporates,
+                                                       Function<Item, Optional<Item>> smelt, Block emptied) {
+        return raw -> BlockCooking.meltedBlock(raw, meltables, waterEvaporates)
+                .or(() -> BlockCooking.cookedBlock(raw, smelt, emptied));
+    }
+
+    /**
+     * Finishes a block the flame filled: a melting block becomes its melt
+     * with no item rested, and any other takes the one cooking finish.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param host    the host the block heats under
+     * @param pos     the block
+     * @param raw     the block painted there
+     * @param into    the block it becomes
+     * @param melts   the block a block melts into, empty where it does not melt
+     * @param results the furnace result of an item, empty where no recipe smelts it
+     * @param emptied the state left where a block cooks into an item, air in play
+     */
+    static void finishHeated(BlockBreakHost host, BlockPos pos, Block raw, Block into,
+                             Function<Block, Optional<Block>> melts, Function<Item, Optional<ItemStack>> results,
+                             BlockState emptied) {
+        if (melts.apply(raw).isPresent()) {
+            host.transformBlock(pos, into.defaultBlockState());
+        } else {
+            results.apply(raw.asItem()).ifPresent(result ->
+                    BlockCooking.finishCooked(host, pos, result.copy(), emptied));
+        }
     }
 
     /**
