@@ -6,12 +6,14 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -33,7 +35,10 @@ public final class AimTracker {
     }
 
     /**
-     * Frame start: resolves the aim from the look the frame draws.
+     * Frame start: resolves the aim along the camera's ray. The frame's
+     * camera update runs before this event, so the camera holds the eye
+     * height it eases toward a crouch, the one the frame draws.
+     * decision aim-ray-starts-at-the-camera
      *
      * @param event the event instance
      */
@@ -47,11 +52,12 @@ public final class AimTracker {
         }
         ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(player);
         int entityOutline = selectedType != null ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        double range = GloveAim.aimRange(player, AimState.MAX_RANGE);
+        Camera camera = mc.gameRenderer.getMainCamera();
+        AimTargets.AimRay ray = AimTargets.AimRay.along(camera.position(), new Vec3(camera.forwardVector()),
+                GloveAim.aimRange(player, AimState.MAX_RANGE));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);
-        STATE.update(seed -> AimTargets.resolve(player, seed, GloveAim.targetingHint(player), range, behaviors,
-                partialTick), entityOutline);
+        STATE.update(seed -> AimTargets.resolve(player, ray, seed, GloveAim.targetingHint(player), behaviors),
+                entityOutline);
     }
 
     /**
