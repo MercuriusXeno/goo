@@ -24,6 +24,7 @@
   "client": [
     "ClientLevelGooValuesMixin",
     "ClientPacketListenerGooMixin",
+    "ClientPacketListenerGateCarryMixin",
     "GameRendererPortalViewMixin",
     "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
