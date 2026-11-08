@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.FlattenStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -13,6 +14,7 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -260,18 +262,43 @@ public final class GroundShake {
 
     /**
      * Whether an ability shakes the ground while right click holds it: a bore
-     * or a flatten the whole hold, a Terrakinesis only while it winds up,
-     * until the hunk tears free.
+     * or a flatten the whole hold, a Terrakinesis only while the wind-up the
+     * server runs is under way, until the hunk tears free.
      *
      * @param ability   the selected ability's synced copy, or null when none
      * @param useHeld   whether right click holds a live press
-     * @param heldTicks the ticks the press has held
+     * @param heldTicks the ticks the press has held, or for a Terrakinesis the
+     *                  server's wind-up tick, 0 while none runs
      * @return true while the ground shakes
      */
     static boolean shakes(@Nullable ClientAbility ability, boolean useHeld, int heldTicks) {
-        return useHeld && ability != null && ability.behaviors().stream()
-                .anyMatch(step -> step instanceof BoreStep || step instanceof FlattenStep
-                        || step instanceof TerrakinesisStep && TerrakinesisStep.windsUp(heldTicks));
+        return useHeld && ability != null && ability.behaviors().stream().anyMatch(step -> stepShakes(step, heldTicks));
+    }
+
+    private static boolean stepShakes(Step step, int heldTicks) {
+        if (step instanceof TerrakinesisStep) {
+            return heldTicks > 0 && TerrakinesisStep.windsUp(heldTicks);
+        }
+        return step instanceof BoreStep || step instanceof FlattenStep;
+    }
+
+    private static @Nullable TerrakinesisStep terrakinesisOf(@Nullable ClientAbility ability) {
+        return ability == null ? null : ability.behaviors().stream().filter(TerrakinesisStep.class::isInstance)
+                .map(TerrakinesisStep.class::cast).findFirst().orElse(null);
+    }
+
+    /**
+     * The ticks the shake runs by: a Terrakinesis by the wind-up the server
+     * runs, which restarts within a hold after a miss or a throw, every other
+     * ability by the press.
+     *
+     * @param player       the local player
+     * @param terrakinesis the selected Terrakinesis, or null
+     * @return the tick count
+     */
+    private static int shakeTicks(LocalPlayer player, @Nullable TerrakinesisStep terrakinesis) {
+        return terrakinesis == null ? GloveUseTracker.channelTicks()
+                : player.getData(GooAttachments.TERRAKINESIS_WIND_UP).tickAt(player.level().getGameTime());
     }
 
     /**
@@ -284,12 +311,11 @@ public final class GroundShake {
     private static @Nullable Zone runningZone(LocalPlayer player, float partialTick) {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        if (!shakes(ability, GloveUseTracker.runsHeld(player), GloveUseTracker.channelTicks())) {
+        TerrakinesisStep terrakinesis = terrakinesisOf(ability);
+        if (!shakes(ability, GloveUseTracker.runsHeld(player), shakeTicks(player, terrakinesis))) {
             return null;
         }
         Vec3 eye = player.getEyePosition(partialTick);
-        TerrakinesisStep terrakinesis = ability.behaviors().stream().filter(TerrakinesisStep.class::isInstance)
-                .map(TerrakinesisStep.class::cast).findFirst().orElse(null);
         if (terrakinesis != null) {
             return terrakinesisZone(player, terrakinesis, eye, partialTick);
         }

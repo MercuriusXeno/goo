@@ -48,6 +48,18 @@ public final class TerrakinesisHolds {
     }
 
     /**
+     * The wind-up a player has running, as their client is told it: none
+     * from the tear on, while a hunk is held, or while a throw cools down.
+     *
+     * @param player the player's id
+     * @return the wind-up, or {@link TerrakinesisWindUp#NONE}
+     */
+    public static TerrakinesisWindUp windUpOf(UUID player) {
+        WindUp running = WIND_UPS.get(player);
+        return running == null ? TerrakinesisWindUp.NONE : new TerrakinesisWindUp(running.start());
+    }
+
+    /**
      * Ends a player's wind-up, as their chunk comes up.
      *
      * @param player the player's id

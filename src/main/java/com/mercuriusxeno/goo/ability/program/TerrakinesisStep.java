@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -145,12 +146,27 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         if (held == null) {
             hunk = windUpOrGrab(player);
         }
+        publishWindUp(player);
         if (hunk != null) {
             GrabEvents.hold(player, hunk, hunk.holdStep(holdPoint(player, hunk)), throwSpeed);
             hunk.holdBy(player);
             standOnTop(player, hunk);
         }
         return true;
+    }
+
+    /**
+     * Tells the holder's client the wind-up the server runs, where it changed,
+     * so its ground shake follows every wind-up and none while a hunk is held.
+     * decision terrakinesis-shakes-the-blocks-before-the-tear
+     *
+     * @param player the channeling player
+     */
+    private static void publishWindUp(ServerPlayer player) {
+        TerrakinesisWindUp running = TerrakinesisHolds.windUpOf(player.getUUID());
+        if (!running.equals(player.getData(GooAttachments.TERRAKINESIS_WIND_UP))) {
+            player.setData(GooAttachments.TERRAKINESIS_WIND_UP, running);
+        }
     }
 
     /**
