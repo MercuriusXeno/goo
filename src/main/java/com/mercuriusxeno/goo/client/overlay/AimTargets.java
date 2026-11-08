@@ -26,7 +26,7 @@ import java.util.function.Supplier;
  * the selected ability's badge names: a mob ability aims through the aim
  * assist, a world one at the block face the reticle meets, a free or
  * channeled one at the ray's point. It runs
- * once per client tick for {@link AimState} (decision
+ * once per frame for {@link AimState} (decision
  * render-context-is-the-one-emitter).
  */
 final class AimTargets {
@@ -42,47 +42,94 @@ final class AimTargets {
     }
 
     /**
-     * Resolves the aim for the given hint from the player's eye and look as
-     * the frame draws them (decision aim-target-follows-client-aim).
+     * The aim ray: where it starts and where it ends at range.
      *
-     * @param player      the local player
-     * @param seed        the previous frame's aim-assist hit, the sticky seed
-     * @param hint        the targeting mode from the selected ability
-     * @param range       how far the ray reaches, the selected ability's reach (GloveAim.aimRange)
-     * @param behaviors   the selected ability's steps, which name the entities the aim may outline
-     * @param partialTick the frame's partial tick
+     * @param origin the ray's start, the camera as the frame draws it
+     * @param reach  the ray's end at range
+     */
+    record AimRay(Vec3 origin, Vec3 reach) {
+
+        /**
+         * The ray from an origin along a look, out to range.
+         * decision grab-reaches-telekinesis-range: a grab marks no mob beyond what it lifts
+         *
+         * @param origin the ray's start
+         * @param look   the unit look vector
+         * @param range  how far the ray reaches, the selected ability's reach (GloveAim.aimRange)
+         * @return the ray
+         */
+        static AimRay along(Vec3 origin, Vec3 look, double range) {
+            return new AimRay(origin, origin.add(look.scale(range)));
+        }
+    }
+
+    /**
+     * Clips a ray segment against the world's blocks.
+     */
+    @FunctionalInterface
+    interface BlockClip {
+        /**
+         * Clips the segment.
+         *
+         * @param from the segment's start
+         * @param to   the segment's end
+         * @return the clip result
+         */
+        BlockHitResult clip(Vec3 from, Vec3 to);
+    }
+
+    /**
+     * Resolves the aim for the given hint along the ray the caller passes,
+     * the camera's as the frame draws it, so the reticule eases with the view
+     * as the vanilla crosshair does.
+     * decision aim-target-follows-client-aim
+     * decision aim-ray-starts-at-the-camera
+     *
+     * @param player    the local player
+     * @param ray       the aim ray from the camera
+     * @param seed      the previous frame's aim-assist hit, the sticky seed
+     * @param hint      the targeting mode from the selected ability
+     * @param behaviors the selected ability's steps, which name the entities the aim may outline
      * @return the target and the aim-assist hit behind it
      */
-    static AimState.Resolution resolve(Player player, AimAssistResolver.@Nullable AimHit seed,
-                                       TargetingHint hint, double range, List<Step> behaviors,
-                                       float partialTick) {
+    static AimState.Resolution resolve(Player player, AimRay ray, AimAssistResolver.@Nullable AimHit seed,
+                                       TargetingHint hint, List<Step> behaviors) {
         if (hint == TargetingHint.NONE) {
             return AimState.Resolution.NOTHING;
         }
-        Vec3 eyePos = player.getEyePosition(partialTick);
-        // decision grab-reaches-telekinesis-range: a grab marks no mob beyond what it lifts
-        Vec3 reach = eyePos.add(player.getViewVector(partialTick).scale(range));
+        BlockClip clip = (from, to) -> clipBlocks(player, from, to);
         return resolveFor(hint, new AimSources() {
             @Override
             public AimAssistResolver.@Nullable AimHit entityHit() {
-                return AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed, behaviors);
+                return AimAssistResolver.findClosestAimHit(player, ray.origin(), ray.reach(), seed, behaviors);
             }
 
             @Override
             public TargetResult blockTarget() {
-                return resolveBlockTarget(player, eyePos, reach);
+                return resolveBlockTarget(player.level(), ray, clip);
             }
 
             @Override
             public TargetResult pointTarget() {
-                return pointOf(clipBlocks(player, eyePos, reach), reach);
+                return pointAlong(ray, clip);
             }
 
             @Override
             public Vec3 entityPoint(Entity entity) {
-                return pointOnEntity(entity.getBoundingBox(), eyePos, reach);
+                return pointOnEntity(entity.getBoundingBox(), ray.origin(), ray.reach());
             }
         });
+    }
+
+    /**
+     * The point a ray aims: where it meets a block, or its end at range.
+     *
+     * @param ray  the aim ray
+     * @param clip the block clip
+     * @return the point target
+     */
+    static TargetResult pointAlong(AimRay ray, BlockClip clip) {
+        return pointOf(clip.clip(ray.origin(), ray.reach()), ray.reach());
     }
 
     /**
@@ -91,7 +138,7 @@ final class AimTargets {
      * aim-point-follows-the-cursor
      *
      * @param box   the entity's bounding box
-     * @param from  the ray's start, the eye
+     * @param from  the ray's start, the camera
      * @param reach the ray's end at range
      * @return the aimed point on the entity
      */
@@ -192,13 +239,13 @@ final class AimTargets {
      * Clips the ray against block outlines and fluid sources.
      *
      * @param player the local player
-     * @param eyePos the eye position
-     * @param reach  the ray's end at range
+     * @param from   the ray's start
+     * @param to     the ray's end at range
      * @return the clip result
      */
-    private static BlockHitResult clipBlocks(Player player, Vec3 eyePos, Vec3 reach) {
+    private static BlockHitResult clipBlocks(Player player, Vec3 from, Vec3 to) {
         return player.level().clip(new ClipContext(
-                eyePos, reach, ClipContext.Block.OUTLINE, ClipContext.Fluid.SOURCE_ONLY, player));
+                from, to, ClipContext.Block.OUTLINE, ClipContext.Fluid.SOURCE_ONLY, player));
     }
 
     /**
@@ -206,17 +253,17 @@ final class AimTargets {
      * On a miss, projects to max range along the look vector so the
      * arc always renders toward the aimed direction.
      *
-     * @param player the local player
-     * @param eyePos the eye position
-     * @param reach  the maximum reach endpoint
+     * @param level the current level
+     * @param ray   the aim ray
+     * @param clip  the block clip
      * @return the resolved block target, or max-range projection on miss
      */
-    private static TargetResult resolveBlockTarget(Player player, Vec3 eyePos, Vec3 reach) {
-        BlockHitResult hit = clipBlocks(player, eyePos, reach);
+    private static TargetResult resolveBlockTarget(Level level, AimRay ray, BlockClip clip) {
+        BlockHitResult hit = clip.clip(ray.origin(), ray.reach());
         if (hit.getType() != HitResult.Type.BLOCK) {
-            return projectToGround(player.level(), reach);
+            return projectToGround(level, ray.reach());
         }
-        return classifyBlockHit(player.level(), hit);
+        return classifyBlockHit(level, hit);
     }
 
     /**
