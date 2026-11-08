@@ -478,16 +478,15 @@ class RadialWheelRendererTest {
     }
 
     /**
-     * An ability's name draws a little under full size and its cost smaller still, so across the widest fan the mod
-     * ships, opened at any angle on the wheel a 1080p screen draws at GUI scale 3 and at 4, no two neighboring
-     * petals' words meet: every shipped fan in the order the wheel fans it, each petal reading its English name and
-     * the widest shipped cost label, each line measured by the vanilla font's glyph advances.
+     * An ability's name draws a little under full size and its cost smaller still, so in every shipped fan, on a wheel
+     * showing any number of the shipped types and opened at any slot, at the radius a 1080p screen draws at GUI scale
+     * 3 and at 4, no two of the fan's petals' words meet: each petal reads its English name and the widest cost label
+     * its ability shows, each line measured by the vanilla font's glyph advances.
      * decision ability-name-shrinks-some-and-other-text-more
      */
     @Nested
     class PetalWords {
 
-        private static final int TYPES = 16;
         private static final int CENTER = 500;
         /** The vanilla font's advance for most glyphs: five pixels of ink and one of spacing. */
         private static final int GLYPH_ADVANCE = 6;
@@ -497,6 +496,12 @@ class RadialWheelRendererTest {
         /** The widest cost label a shipped petal reads: blink's formula. */
         private static final String WIDEST_COST = "200 + 100/block";
         private static final String ABILITY_KEY_PREFIX = "goo.ability.";
+        /** How many samples of holdings each power of ten takes. */
+        private static final int STEPS_PER_DECADE = 10;
+        /** The most holdings a petal's label is read at, in mB: a billion. */
+        private static final int MOST_HOLDINGS = 1_000_000_000;
+        /** How many samples reach from one mB to {@link #MOST_HOLDINGS}. */
+        private static final int HOLDING_STEPS = 9 * STEPS_PER_DECADE;
         /** A 1080p screen's GUI width at GUI scale 3, and at GUI scale 4. */
         private static final int SCALE_THREE_WIDTH = 640;
         private static final int SCALE_FOUR_WIDTH = 480;
@@ -511,38 +516,47 @@ class RadialWheelRendererTest {
 
         @ParameterizedTest
         @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
-        void neighboringPetalsWordsNeverMeetInAnyShippedFan(int guiWidth) throws IOException {
+        void noTwoPetalsWordsMeetInAnyShippedFanAtAnyWheelTheShippedTypesCanShow(int guiWidth) throws IOException {
             int radius = (int) RadialWheel.outerRadius(guiWidth, guiWidth * 9 / 16);
             JsonObject lang = ShortNames.englishLang();
-            Component cost = Component.literal(WIDEST_COST);
-            List<Executable> checks = new ArrayList<>();
-            for (Map.Entry<String, List<ClientAbility>> fan : shippedFans().entrySet()) {
+            Map<String, List<ClientAbility>> fans = shippedFans();
+            List<String> meetings = new ArrayList<>();
+            int pairs = 0;
+            for (Map.Entry<String, List<ClientAbility>> fan : fans.entrySet()) {
                 List<List<Component>> names = fan.getValue().stream().map(ability -> RadialWheelRenderer
                         .splitNameLines(lang.get(ability.displayName()).getAsString())).toList();
-                for (int open = 0; open < TYPES; open++) {
-                    RadialWheel wheel = openedWheel(TYPES, names.size(), open, radius);
-                    RadialWheelRenderer.Frame frame = new RadialWheelRenderer.Frame(wheel, List.of(), List.of(),
-                            Map.of(), CENTER, CENTER, radius, mock(PetalLook.class), 0.0f);
-                    int opened = open;
-                    List<List<RadialWheelRenderer.PlacedLine>> words = wheel.displayedLayout(0.0f).stream()
-                            .filter(petal -> petal.isAbility() && petal.type() == opened)
-                            .sorted(Comparator.comparingInt(RadialWheel.PetalArc::ability))
-                            .map(petal -> RadialWheelRenderer.placeWords(names.get(petal.ability()), cost,
-                                    RadialWheelRenderer.tipCenter(frame, petal),
-                                    PetalWords::vanillaWidth, LINE_HEIGHT))
-                            .toList();
-                    for (int ability = 0; ability + 1 < words.size(); ability++) {
-                        List<RadialWheelRenderer.PlacedLine> here = words.get(ability);
-                        List<RadialWheelRenderer.PlacedLine> next = words.get(ability + 1);
-                        String where = fan.getKey() + " opened at slot " + open + ": "
-                                + fan.getValue().get(ability).displayName() + " and "
-                                + fan.getValue().get(ability + 1).displayName();
-                        checks.add(() -> assertEquals(List.of(), meetings(here, next), where));
+                List<Component> costs = fan.getValue().stream().map(PetalWords::widestLabel).toList();
+                for (int types = 1; types <= fans.size(); types++) {
+                    for (int open = 0; open < types; open++) {
+                        List<List<RadialWheelRenderer.PlacedLine>> words = fanWords(types, open, radius, names, costs);
+                        for (int one = 0; one < words.size(); one++) {
+                            for (int other = one + 1; other < words.size(); other++) {
+                                pairs++;
+                                for (String meeting : meetings(words.get(one), words.get(other))) {
+                                    meetings.add(fan.getKey() + " on a " + types + "-type wheel opened at slot " + open
+                                            + ", petals " + one + " and " + other + ": " + meeting);
+                                }
+                            }
+                        }
                     }
                 }
             }
-            assertFalse(checks.isEmpty(), "no neighboring petals checked");
-            assertAll(checks);
+            assertTrue(pairs > 0, "no pair of petals checked");
+            assertEquals(List.of(), meetings);
+        }
+
+        /** Each petal's placed words in one open fan, in fan order. */
+        private List<List<RadialWheelRenderer.PlacedLine>> fanWords(int types, int open, int radius,
+                                                                    List<List<Component>> names, List<Component> costs) {
+            RadialWheel wheel = openedWheel(types, names.size(), open, radius);
+            RadialWheelRenderer.Frame frame = new RadialWheelRenderer.Frame(wheel, List.of(), List.of(), Map.of(),
+                    CENTER, CENTER, radius, mock(PetalLook.class), 0.0f);
+            return wheel.displayedLayout(0.0f).stream()
+                    .filter(petal -> petal.isAbility() && petal.type() == open)
+                    .sorted(Comparator.comparingInt(RadialWheel.PetalArc::ability))
+                    .map(petal -> RadialWheelRenderer.placeWords(names.get(petal.ability()), costs.get(petal.ability()),
+                            RadialWheelRenderer.tipCenter(frame, petal), PetalWords::vanillaWidth, LINE_HEIGHT))
+                    .toList();
         }
 
         /** Each pair of lines, one from each petal, whose boxes meet, as the two lines' words. */
@@ -558,10 +572,31 @@ class RadialWheelRendererTest {
 
         /** Each shipped type's abilities in fan order, by the type named in their display key. */
         private static Map<String, List<ClientAbility>> shippedFans() {
-            return shippedAbilities().stream()
+            return AbilityJson.files().stream()
+                    .map(AbilityJson::decode)
+                    .map(definition -> ClientAbility.fromEntry(com.mercuriusxeno.goo.network.AbilitySyncPayload
+                            .gloveEntries(definition.gooType(), List.of(definition)).getFirst()))
                     .sorted(AbilityBadge.fanOrder(ClientAbility::badge, ClientAbility::order))
                     .collect(Collectors.groupingBy(ability -> ability.displayName()
                             .substring(ABILITY_KEY_PREFIX.length()).split("\\.")[0]));
+        }
+
+        /**
+         * The widest cost line an ability's petal reads, by the vanilla font: its petal label over holdings from
+         * none to {@link #MOST_HOLDINGS}, sampled ten to a decade with each power of ten less one, every reagent
+         * plentiful and no upkeep standing, so every count width the amount and duration formats print is met.
+         */
+        private static Component widestLabel(ClientAbility ability) {
+            List<Integer> holdings = new ArrayList<>(List.of(0));
+            for (int step = 0; step <= HOLDING_STEPS; step++) {
+                int sampled = (int) Math.round(Math.pow(10, step / (double) STEPS_PER_DECADE));
+                holdings.add(sampled);
+                holdings.add(sampled - 1);
+            }
+            return holdings.stream()
+                    .map(held -> Component.literal(ability.petalLabel(held, Integer.MAX_VALUE,
+                            com.mercuriusxeno.goo.client.network.StandingUpkeep.NONE)))
+                    .max(Comparator.comparingInt(PetalWords::vanillaWidth)).orElseThrow();
         }
 
         /** A line's width in the vanilla font: each glyph's advance, its pixel of spacing included. */
