@@ -83,9 +83,12 @@ public final class WeirdTests {
     private static final BlockPos OPEN_SKY_FLOOR = new BlockPos(2, 6, 2);
     /** Ticks a jumping pig bounces on the coat, room for a dozen bounces at the ceiling. */
     private static final int RAMP_TICKS = 600;
-    /** The height a ramp at the ceiling peaks above the coat: about fourteen blocks. */
+    /** The height a ramp at the ceiling peaks above the coat: fourteen blocks. */
     private static final double CEILING_PEAK = 14;
-    private static final String RAMP_STALLED = "A pig holding jump on the coat should peak %.0f blocks up, peaks were %s";
+    /** How far the highest peak may stand from CEILING_PEAK, sampled once a tick over the coat's film. */
+    private static final double CEILING_TOLERANCE = 0.5;
+    private static final String RAMP_STALLED = "A pig holding jump on the coat should peak %.0f blocks up within %.1f,"
+            + " peaks were %s";
     private static final String SLIME_BLOB_MAKES_A_SLIME = "slime_blob_makes_a_slime";
     /** SpawnSlimeStep's morph: the ticks the blob takes to become the slime. */
     private static final int SLIME_MORPH_TICKS = 16;
@@ -188,8 +191,9 @@ public final class WeirdTests {
 
     /**
      * A pig holding jump on a slime coat bounces higher each landing until it
-     * peaks near the ceiling, about fifteen blocks over the coat.
+     * peaks at the ceiling, fourteen blocks over the coat.
      * bounce-ramps-jump-height-while-jump-is-held
+     * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
      *
      * @param helper the gametest helper
      */
@@ -215,7 +219,8 @@ public final class WeirdTests {
         }
         helper.runAfterDelay(RAMP_TICKS + 1, () -> {
             double highest = peaks.stream().mapToDouble(Double::doubleValue).max().orElse(0);
-            helper.assertTrue(highest >= CEILING_PEAK, String.format(RAMP_STALLED, CEILING_PEAK, peaks));
+            helper.assertTrue(Math.abs(highest - CEILING_PEAK) <= CEILING_TOLERANCE,
+                    String.format(RAMP_STALLED, CEILING_PEAK, CEILING_TOLERANCE, peaks));
             helper.succeed();
         });
     }
