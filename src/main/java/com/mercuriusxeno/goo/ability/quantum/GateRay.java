@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
+import com.mercuriusxeno.goo.throwing.GateArc;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -55,6 +56,39 @@ public final class GateRay {
             }
         }
         return nearest;
+    }
+
+    /**
+     * The partner a gate is linked to among the pairs.
+     *
+     * @param pairs the linked pairs
+     * @param gate  the gate
+     * @return its partner, empty where it stands in no pair
+     */
+    public static Optional<Gate> partnerIn(List<GatePassage.Pair> pairs, Gate gate) {
+        for (GatePassage.Pair pair : pairs) {
+            if (pair.one().equals(gate)) {
+                return Optional.of(pair.other());
+            }
+            if (pair.other().equals(gate)) {
+                return Optional.of(pair.one());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The hop a path makes through a gate: its point on the gate's face, and
+     * the partner's matching point.
+     *
+     * @param pairs     the linked pairs
+     * @param gate      the gate the path goes into
+     * @param facePoint where it meets the gate's face
+     * @return the hop, empty where the gate stands in no pair
+     */
+    public static Optional<GateArc.Hop> hopThrough(List<GatePassage.Pair> pairs, Gate gate, Vec3 facePoint) {
+        return partnerIn(pairs, gate).map(far -> new GateArc.Hop(facePoint,
+                PortalTransform.between(gate, far).point(facePoint)));
     }
 
     /**
