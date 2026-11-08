@@ -10,6 +10,8 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -62,5 +64,29 @@ class BlastSizeTest {
             assertTrue(broken.contains(ORIGIN.relative(direction, size)), direction.getName());
             assertFalse(broken.contains(ORIGIN.relative(direction, size + 1)), direction.getName());
         }
+    }
+
+    /**
+     * A large blast clears every stone cell well inside its ring, rather than
+     * leaving the striations its rays miss once they spread past a block apart
+     * (decision blast-fills-its-drawn-radius).
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {6, 12, 20})
+    void aLargeBlastLeavesNoStoneStandingInsideItsRing(int size) {
+        Variables sized = HostVariables.sized(size);
+        double reach = blast().reachAt(sized);
+        Set<BlockPos> broken = ExplosionMarch.markedCells(CENTER, blast().power().evaluateFloat(sized), reach,
+                pos -> Optional.of(STONE));
+
+        List<BlockPos> standing = new ArrayList<>();
+        int span = size + 1;
+        for (BlockPos cell : BlockPos.betweenClosed(ORIGIN.offset(-span, -span, -span), ORIGIN.offset(span, span, span))) {
+            if (Vec3.atCenterOf(cell).distanceTo(CENTER) <= reach - 1 && !broken.contains(cell)) {
+                standing.add(cell.immutable());
+            }
+        }
+        assertTrue(standing.isEmpty(), standing.size() + " stone cells stand inside the ring, first "
+                + standing.stream().limit(5).map(BlockPos::toShortString).toList());
     }
 }
