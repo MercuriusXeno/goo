@@ -18,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -52,7 +54,7 @@ class ProgramHostLoadTest {
 
         program.tick(host);
 
-        verify(host).explode(8f, ExplosionMode.NONE);
+        verify(host).explode(eq(8f), anyDouble(), eq(ExplosionMode.NONE));
         assertFalse(program.isActive());
     }
 
@@ -64,7 +66,7 @@ class ProgramHostLoadTest {
 
         program.tick(host);
 
-        verify(host).explode(10f, ExplosionMode.NONE);
+        verify(host).explode(eq(10f), anyDouble(), eq(ExplosionMode.NONE));
     }
 
     @Test

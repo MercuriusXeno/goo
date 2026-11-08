@@ -25,7 +25,7 @@ class DrinkStreamTest {
     private static final long START = 100;
     private static final long END = 134;
     private static final DrinkPayload.Streaming BLOCK = new DrinkPayload.Streaming(BlockPos.ZERO,
-            START - SiphonRule.INJECT_TICKS, START, END);
+            START - SiphonRule.INJECT_TICKS, START, END, 0);
     private static final Vec3 FROM = new Vec3(7, 2.5, 3.5);
     private static final Vec3 TO = new Vec3(1.5, 2.2, 3.1);
     private static final long SEED = 42;

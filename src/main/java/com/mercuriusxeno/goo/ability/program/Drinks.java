@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.entity.FormingGooBlob;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.DrinkPayload;
@@ -31,11 +32,12 @@ import java.util.UUID;
  * Every player's Unmake drink: the blocks picked into the glove while the
  * channel is held, each through its choreography. A picked block is paid for
  * at once and stands as itself while the square flies to it; when the square
- * lands, the melting stand-in takes its place and it streams in; when it is
- * drained the stand-in goes; and when its tail has had time to reach the
- * hand its goo goes into the player's inventory, dropping at their feet only
- * what has no space. Letting go of the use cuts none of it.
+ * lands, the melting stand-in takes its place and its chunks stream to the
+ * forming goo blob nearest it; when it is drained the stand-in goes; and when
+ * its last chunk has had time to reach the blob its goo fills it. Letting go
+ * of the use cuts none of it.
  * decision unmake-waves-dissolve-by-crucible-cost
+ * unmake-converges-near-the-unmade-blocks-into-a-goo-item
  */
 public final class Drinks {
 
@@ -49,9 +51,10 @@ public final class Drinks {
      * @param picked the game time it was picked, the square leaving the hand
      * @param start  the game time the square lands and it starts to melt
      * @param end    the game time it is drained and the stand-in goes
-     * @param payAt  the game time its tail has reached the hand and its goo is paid
+     * @param payAt  the game time its last chunk has reached its blob and its goo fills it
+     * @param blob   the forming goo blob its chunks converge on
      */
-    public record Siphon(GooValue value, long picked, long start, long end, long payAt) {
+    public record Siphon(GooValue value, long picked, long start, long end, long payAt, FormingGooBlob blob) {
     }
 
     /**
@@ -149,13 +152,13 @@ public final class Drinks {
         }
 
         /**
-         * Ends each siphon whose goo has reached the hand.
+         * Ends each siphon whose last chunk has reached its blob.
          *
          * @param now the game time
-         * @return each such block with its exact goo value
+         * @return each such siphon
          */
-        Map<BlockPos, GooValue> payDue(long now) {
-            Map<BlockPos, GooValue> paid = new LinkedHashMap<>();
+        List<Siphon> payDue(long now) {
+            List<Siphon> paid = new ArrayList<>();
             Iterator<Map.Entry<BlockPos, Siphon>> due = siphons.entrySet().iterator();
             while (due.hasNext()) {
                 Map.Entry<BlockPos, Siphon> siphon = due.next();
@@ -163,7 +166,7 @@ public final class Drinks {
                     due.remove();
                     begun.remove(siphon.getKey());
                     drained.remove(siphon.getKey());
-                    paid.put(siphon.getKey(), siphon.getValue().value());
+                    paid.add(siphon.getValue());
                 }
             }
             return paid;
@@ -182,7 +185,7 @@ public final class Drinks {
         List<DrinkPayload.Streaming> shown() {
             List<DrinkPayload.Streaming> streaming = new ArrayList<>();
             siphons.forEach((pos, siphon) -> streaming.add(new DrinkPayload.Streaming(pos, siphon.picked(),
-                    siphon.start(), siphon.end())));
+                    siphon.start(), siphon.end(), siphon.blob().resolve().getId())));
             return streaming;
         }
     }
@@ -214,7 +217,7 @@ public final class Drinks {
     /**
      * Moves every drink's blocks through their choreography this tick: squares
      * landing start melts, drained blocks lose their stand-ins, goo that has
-     * reached the hand is paid out; shows every open drink's blocks to its
+     * reached its blob fills it; shows every open drink's blocks to its
      * viewers, and forgets each whose hold has ended with nothing left on its way.
      *
      * @param server the server
@@ -228,7 +231,7 @@ public final class Drinks {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             drink.beginDue(now);
             drink.drainDue(now);
-            drink.payDue(now).forEach((pos, value) -> payOut(drink.level(), entry.getKey(), player, pos, value));
+            drink.payDue(now).forEach(siphon -> payOut(drink, entry.getKey(), player, siphon));
             if (!drink.heldAt(now) && !drink.streaming()) {
                 entries.remove();
             } else if (player != null && drink.streaming()) {
@@ -238,25 +241,22 @@ public final class Drinks {
     }
 
     /**
-     * Pays a finished block's goo into the player's inventory, its exact value
-     * credited through the ledger their remainder capability serves, dropping at
-     * their feet only what has no space; a player who has left has the whole mB drop
-     * where the block stood and the part under 1 mB kept for them until they return.
+     * Fills a finished block's blob with its goo, its exact value credited
+     * through the drinker's ledger, the part under 1 mB kept on it: the ledger
+     * their remainder capability serves, or the one kept for them until they
+     * return once they have left.
      * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
      *
-     * @param level    the level
-     * @param drinker  the drinking player's id
-     * @param player   the drinking player, or null once they have left
-     * @param pos      the finished block
-     * @param value    its exact goo value
+     * @param drink   the drink
+     * @param drinker the drinking player's id
+     * @param player  the drinking player, or null once they have left
+     * @param siphon  the finished block's siphon
      */
-    static void payOut(ServerLevel level, UUID drinker, @Nullable ServerPlayer player, BlockPos pos,
-                       GooValue value) {
-        if (player == null) {
-            GooStacks.dropAll(payoutThrough(value, OfflineRemainders.get(level).ledgerOf(drinker)), level, pos);
-            return;
-        }
-        give(level, player, payoutThrough(value, GooCapabilities.remainderLedgerOf(player)));
+    static void payOut(Drink drink, UUID drinker, @Nullable ServerPlayer player, Siphon siphon) {
+        IRemainderLedger ledger = player == null ? OfflineRemainders.get(drink.level()).ledgerOf(drinker)
+                : GooCapabilities.remainderLedgerOf(player);
+        siphon.blob().feed(payoutThrough(siphon.value(), ledger));
     }
 
     /**

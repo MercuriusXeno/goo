@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.unstable;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,5 +37,28 @@ class BusterEventsTest {
     @Test
     void anUnbreakableBlockStandsWhateverWasBroken() {
         assertFalse(BusterEvents.breaksBeside(BEDROCK, OBSIDIAN));
+    }
+
+    /** A sneaking player's hits and breaks stay single (decision buster-sleeps-while-sneaking). */
+    @Nested
+    class SpreadGate {
+
+        private static final float RADIUS = 1f;
+        private static final float NOT_BUSTING = 0f;
+
+        @Test
+        void aSneakingBusterSpreadsNothing() {
+            assertFalse(BusterEvents.spreads(RADIUS, true));
+        }
+
+        @Test
+        void aStandingBusterSpreads() {
+            assertTrue(BusterEvents.spreads(RADIUS, false));
+        }
+
+        @Test
+        void aPlayerAtNoRadiusSpreadsNothing() {
+            assertFalse(BusterEvents.spreads(NOT_BUSTING, false));
+        }
     }
 }
