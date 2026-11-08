@@ -11,7 +11,17 @@ public final class SearchInput {
     private static final int ONE_CODE_POINT_BACK = -1;
 
     private final StringBuilder typed = new StringBuilder();
-    private boolean openingKeyHeld = true;
+    private boolean openingKeyHeld;
+
+    /**
+     * Starts an empty search bar.
+     *
+     * @param openingKeyHeld whether the key that opened the overlay is still down as it opens; a quick
+     *                       tap is released before the overlay opens, and the overlay never sees that release
+     */
+    public SearchInput(boolean openingKeyHeld) {
+        this.openingKeyHeld = openingKeyHeld;
+    }
 
     /**
      * Types characters into the bar once the opening key is up.
