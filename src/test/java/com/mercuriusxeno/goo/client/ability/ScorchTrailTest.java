@@ -20,6 +20,8 @@ class ScorchTrailTest {
     private static final Vec3 SPOT = new Vec3(4.5, 64.0, -2.5);
     private static final double START = 1000;
     private static final double TOLERANCE = 1e-9;
+    /** Ticks between a beam's last frame and its next start, a short release and press again. */
+    private static final double RESTARTED_AFTER = 10;
 
     private static ScorchTrail burntOnceAt(double now) {
         ScorchTrail trail = new ScorchTrail();
@@ -125,6 +127,14 @@ class ScorchTrailTest {
                         + TOLERANCE, "a gap between marks " + (i - 1) + " and " + i);
             }
             assertEquals(SPOT.add(1, 0, 0), marks.getLast().point());
+        }
+
+        /** A beam stopped and started again leaves two spots, not a streak joining them. */
+        @Test
+        void aBeamStartedAgainBridgesNothingToTheLastStop() {
+            ScorchTrail trail = burntOnceAt(START);
+            trail.burn(SPOT.add(1, 0, 0), Direction.UP, START + RESTARTED_AFTER);
+            assertEquals(2, trail.marks().size());
         }
 
         @Test

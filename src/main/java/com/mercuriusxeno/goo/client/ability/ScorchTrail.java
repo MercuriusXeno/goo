@@ -25,6 +25,11 @@ final class ScorchTrail {
     static final double MARK_SPACING = 0.12;
     /** Past this jump along one face the ray left the face between frames, so nothing bridges it. */
     private static final double LONGEST_BRIDGE = 3;
+    /**
+     * Past this many ticks since the newest mark burnt, the beam stopped and
+     * started again rather than raked, so nothing bridges the two spots.
+     */
+    static final double LONGEST_PAUSE = 2;
     /** Two points this close along a face's axis sit on one plane. */
     private static final double SAME_PLANE = 1e-3;
     /** How far into its face a mark reaches to find the block it burns on, in blocks. */
@@ -71,7 +76,7 @@ final class ScorchTrail {
     void burn(Vec3 point, Direction face, double now) {
         Mark newest = marks.peekLast();
         double gap = newest == null ? Double.MAX_VALUE : newest.point().distanceTo(point);
-        if (!onOnePlane(newest, point, face) || gap > LONGEST_BRIDGE) {
+        if (!onOnePlane(newest, point, face) || gap > LONGEST_BRIDGE || now - newest.bornAt() > LONGEST_PAUSE) {
             marks.addLast(new Mark(point, face, now));
         } else if (gap < MARK_SPACING) {
             marks.pollLast();
