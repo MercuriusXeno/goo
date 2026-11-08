@@ -68,7 +68,7 @@ public record AffordedCount(long count, boolean timed) {
      */
     private static long ticksSustained(ClientAbility ability, int holdings, StandingUpkeep standing) {
         if (ability.upkeep() > 0) {
-            // active-brew-counts-its-time-left: a durative ability standing on the glove is in the standing upkeep already
+            // time-counts-net-standing-upkeep: a durative ability standing on the glove is in the standing upkeep already
             double own = standing.paying().contains(ability.id()) ? 0
                     : standing.ownDurativeUpkeep(ability.upkeep(), ability.extendsOthers());
             return (long) (holdings / (own + standing.perTick()));

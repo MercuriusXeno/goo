@@ -138,6 +138,9 @@ public final class SelfDeliveryTests {
             "The effect list should show held Kindle with %d ticks left and no particles, held as a glove effect: %s";
     private static final String SHOULD_END_HELD = "Invoking held Kindle again should end it, held reads %s";
     private static final String SHOULD_CLEAR_OVERLAY = "An ended Kindle should clear its embers, %d halves stand";
+    private static final String SHOULD_MIRROR_WHILE_HELD = "Held Kindle should stand in the effect list";
+    private static final String SHOULD_LEAVE_THE_EFFECT_LIST =
+            "An ended Kindle should leave the effect list, the blaze held effect reads %s";
     private static final String SHOULD_NOT_EAT_AGAIN = "Invoking held Kindle again should start no eat";
     private static final String SHOULD_STAND_PAID = "Kindle should stand while its upkeep is paid, tick %d";
     private static final String SHOULD_END_DRY = "Kindle should end on the tick the inventory cannot pay, held reads %s";
@@ -262,16 +265,21 @@ public final class SelfDeliveryTests {
     public static void kindleInvokedAgainEnds(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
         helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE), SHOULD_BE_HELD);
+        MobEffectInstance shownWhileHeld = player.getEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.BLAZE));
 
         invoke(player, GooTypes.BLAZE, BLAZE_KINDLE);
 
         boolean using = player.isUsingItem();
         HeldEffects heldAfter = player.getData(GooAttachments.HELD_EFFECTS);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        MobEffectInstance shownAfter = player.getEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.BLAZE));
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertFalse(using, SHOULD_NOT_EAT_AGAIN);
         helper.assertTrue(heldAfter.isEmpty(), String.format(SHOULD_END_HELD, heldAfter));
         helper.assertTrue(overlay == HeartOverlay.NONE, String.format(SHOULD_CLEAR_OVERLAY, overlay.shieldHalves()));
+        // brew-drink-path-leaves-the-mod: the effect list mirrors the hold, so the mirror leaves when the hold ends
+        helper.assertTrue(shownWhileHeld != null, SHOULD_MIRROR_WHILE_HELD);
+        helper.assertTrue(shownAfter == null, String.format(SHOULD_LEAVE_THE_EFFECT_LIST, shownAfter));
         helper.succeed();
     }
 
