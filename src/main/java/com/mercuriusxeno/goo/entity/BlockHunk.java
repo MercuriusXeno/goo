@@ -22,8 +22,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -1050,8 +1048,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     /**
      * One tick of a shattering hunk: each block whose crumble has ended drops
-     * as the block itself, as silk touch would drop it, and the hunk ends once
-     * its last block has.
+     * its loot as Blast's break drops it, mined with no tool and no silk touch,
+     * and the hunk ends once its last block has.
+     * decision diagnose-and-correct-the-hunks-silk-touch-drops
      *
      * @param level the server level
      */
@@ -1068,10 +1067,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
                 continue;
             }
             dropped[index] = true;
-            HunkBlock block = blocks.get(index);
-            if (block.state().getBlock().asItem() != Items.AIR) {
-                Block.popResource(level, cellOf(block), new ItemStack(block.state().getBlock()));
-            }
+            BlockPos cell = cellOf(blocks.get(index));
+            Block.getDrops(blocks.get(index).state(), level, cell, null)
+                    .forEach(stack -> Block.popResource(level, cell, stack));
         }
         if (!whole) {
             discard();

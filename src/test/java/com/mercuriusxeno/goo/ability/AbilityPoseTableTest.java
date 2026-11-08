@@ -20,7 +20,6 @@ class AbilityPoseTableTest {
     private static final Map<String, ArmPose> RULED = Map.ofEntries(
             Map.entry("astral_meteo", ArmPose.SWUNG),
             Map.entry("astral_scry", ArmPose.HELD_UP),
-            Map.entry("blaze_broil", ArmPose.HELD_OUT),
             Map.entry("blaze_flames", ArmPose.HELD_OUT),
             Map.entry("blaze_ignite", ArmPose.SWUNG),
             Map.entry("blaze_kindle", ArmPose.HELD_UP),
