@@ -8,6 +8,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -130,14 +131,30 @@ public interface BlockBreakHost extends StepHost {
     }
 
     /**
-     * Leaves a block's built share to finish its step on its own
-     * (decision decay-gnats-degrade-each-block-once).
+     * Leaves a block's built share to finish its step on its own, stepping
+     * through the finish the hold would have run
+     * (decisions decay-gnats-degrade-each-block-once, blocks-that-cook-into-items-cook-like-blocks).
      *
-     * @param pos  the block
-     * @param rate the share it builds each tick
+     * @param pos    the block
+     * @param rate   the share it builds each tick
+     * @param finish the step the block takes once full
      */
-    default void finishBlockAlone(BlockPos pos, float rate) {
-        GooServerState.of(level().getServer()).blockExposures().finishAlone(level(), pos, rate);
+    default void finishBlockAlone(BlockPos pos, float rate, Runnable finish) {
+        GooServerState.of(level().getServer()).blockExposures().finishAlone(level(), pos, rate, finish);
+    }
+
+    /**
+     * Leaves an item at rest at a point, unthrown, where a cooked block's
+     * result stands in the cell it emptied
+     * (decision blocks-that-cook-into-items-cook-like-blocks).
+     *
+     * @param at    the point
+     * @param stack the item
+     */
+    default void restItem(Vec3 at, ItemStack stack) {
+        ItemEntity item = new ItemEntity(level(), at.x, at.y, at.z, stack, 0, 0, 0);
+        item.setDefaultPickUpDelay();
+        level().addFreshEntity(item);
     }
 
     /**
