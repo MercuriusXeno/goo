@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -151,6 +152,46 @@ class AimTargetsTest {
             Vec3 point = AimTargets.pointOnEntity(box, new Vec3(0, 65, 0), new Vec3(64, 65, 0));
 
             assertEquals(box.getCenter(), point);
+        }
+    }
+
+    /**
+     * The ray starts at the origin the caller passes, the camera as the frame
+     * draws it, so the point eases with the camera's eye height (decision
+     * aim-ray-starts-at-the-camera).
+     */
+    @Nested
+    class TheRay {
+
+        private static final double WALL_X = 5;
+        private static final Vec3 LOOK = new Vec3(1, -0.2, 0).normalize();
+        private static final double LOOK_DROP_AT_THE_WALL = -1.0;
+        private static final double RANGE = 64;
+
+        /** A flat wall at x = 5 facing the ray: the clip meets it where the segment crosses that plane. */
+        private static BlockHitResult clipAgainstTheWall(Vec3 from, Vec3 to) {
+            double fraction = (WALL_X - from.x) / (to.x - from.x);
+            Vec3 met = from.add(to.subtract(from).scale(fraction));
+            return new BlockHitResult(met, Direction.WEST, BlockPos.containing(met), false);
+        }
+
+        private static double aimedHeightFrom(double originHeight) {
+            AimTargets.AimRay ray = AimTargets.AimRay.along(new Vec3(0, originHeight, 0), LOOK, RANGE);
+            return AimTargets.pointAlong(ray, TheRay::clipAgainstTheWall).resolveEndpoint().y;
+        }
+
+        @Test
+        void originsDifferingInHeightAimPointsDifferingByThatHeight() {
+            double standing = aimedHeightFrom(1.62);
+            double crouching = aimedHeightFrom(1.27);
+
+            assertEquals(0.35, standing - crouching, 1e-6);
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = {1.62, 1.47, 1.395})
+        void anEasingOriginMovesThePointByTheSameEase(double originHeight) {
+            assertEquals(originHeight + LOOK_DROP_AT_THE_WALL, aimedHeightFrom(originHeight), 1e-6);
         }
     }
 }
