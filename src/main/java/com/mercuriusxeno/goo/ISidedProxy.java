@@ -1,7 +1,11 @@
 package com.mercuriusxeno.goo;
 
+import com.mercuriusxeno.goo.entity.BlockHunk;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -59,5 +63,30 @@ public interface ISidedProxy {
      */
     default boolean syncedAbilityEats(String abilityId) {
         return false;
+    }
+
+    /**
+     * Begins drawing a hunk the client has seen strike something come apart
+     * block by block. Server: does nothing, since only the client draws it
+     * (decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity).
+     *
+     * @param hunk the shattering hunk
+     */
+    default void hunkShattered(BlockHunk hunk) {
+    }
+
+    /**
+     * Keeps a client loop sounding one more tick at a point, starting it when
+     * none sounds for the key; a loop left unfed fades out. Server: does
+     * nothing, since only the client plays sound
+     * (decision spire-rumbles-like-a-dull-earthquake).
+     *
+     * @param key    what the loop belongs to
+     * @param sound  the looped sound's id
+     * @param source the mixer channel it plays on
+     * @param volume the volume it swells to
+     * @param at     where it plays
+     */
+    default void keepLoopAlive(Object key, Identifier sound, SoundSource source, float volume, Vec3 at) {
     }
 }
