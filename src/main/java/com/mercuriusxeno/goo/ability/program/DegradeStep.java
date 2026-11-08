@@ -7,14 +7,18 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.Block;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
  * Nether decay's block step, run each held tick of the stream: the gnat
- * swarm paints every block it reaches, and every block the hold has painted
+ * swarm paints the one block under the crosshair (decision
+ * decay-paints-the-one-block-under-the-crosshair), and every block the hold has painted
  * builds exposure toward its degraded block in the map the JSON names while
  * the hold lasts, whether or not the aim is still on it, stepping once it
  * has built the JSON's ticks. A painted block past nine tenths of its step is left to
@@ -61,12 +65,27 @@ public record DegradeStep(Identifier map, int ticks) implements TakesNoEntity {
         host.channelAim().ifPresent(aim -> steps.ifPresent(found -> {
             HoldMarks marks = host.holdMarks();
             if (aim.reaching()) {
-                PaintedHold.paintReach(host, aim, found::next, marks);
+                paintAimed(host, aim, found::next, marks);
             }
             // the operator's ruling on Decay: its overlay wears the nether family's dark maroon
             PaintedHold.buildPainted(host, found::next, marks, 1f / ticks, OptionalInt.of(NETHER_MAROON));
         }));
         return true;
+    }
+
+    /**
+     * Paints the block under the crosshair where it faces air and has a block to become.
+     *
+     * @param host  the channel host
+     * @param aim   the stream's aim, its reach along the look
+     * @param next  the block a block becomes, empty where it becomes none
+     * @param marks the hold's marks
+     */
+    static void paintAimed(ChannelHost host, ChannelAim aim, Function<Block, Optional<Block>> next,
+                           HoldMarks marks) {
+        // decay-paints-the-one-block-under-the-crosshair
+        PaintedHold.lookedAtBlock(host, aim).ifPresent(looked -> PaintedHold.paintSeen(host, List.of(looked), next,
+                marks));
     }
 
     @Override
