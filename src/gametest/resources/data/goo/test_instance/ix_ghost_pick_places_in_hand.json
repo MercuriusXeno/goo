@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:ix_ghost_pick_places_in_hand",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 5,
+  "setup_ticks": 0,
+  "required": true
+}

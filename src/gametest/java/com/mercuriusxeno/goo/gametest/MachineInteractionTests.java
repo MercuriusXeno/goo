@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GhostItem;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.lab.LabKit;
+import com.mercuriusxeno.goo.network.GhostItemPickHandler;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -69,6 +70,7 @@ public final class MachineInteractionTests {
     private static final String IX_PLEXER_GHOST_TARGET = "ix_ghost_targets_the_plexer";
     private static final String IX_GHOST_ENTITY_NEVER_JOINS = "ix_ghost_entity_never_joins";
     private static final String IX_GHOST_STANDS_FOR_ITS_ITEM = "ix_ghost_stands_for_its_item";
+    private static final String IX_GHOST_PICK_PLACES_IN_HAND = "ix_ghost_pick_places_in_hand";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -92,6 +94,7 @@ public final class MachineInteractionTests {
         GooTestFunctions.registerTest(registrar, IX_PLEXER_GHOST_TARGET, MachineInteractionTests::plexerTargetsAGhostItem);
         GooTestFunctions.registerTest(registrar, IX_GHOST_ENTITY_NEVER_JOINS, MachineInteractionTests::ghostItemEntityNeverJoins);
         GooTestFunctions.registerTest(registrar, IX_GHOST_STANDS_FOR_ITS_ITEM, MachineInteractionTests::ghostItemStandsForItsItem);
+        GooTestFunctions.registerTest(registrar, IX_GHOST_PICK_PLACES_IN_HAND, MachineInteractionTests::ghostPickPlacesInTheEmptyHand);
         GooTestFunctions.registerTest(registrar, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
@@ -374,6 +377,29 @@ public final class MachineInteractionTests {
                 "A ghost of stone should read " + stoneName + ", read " + ghost.getHoverName().getString());
         helper.assertTrue(GhostItem.represented(new ItemStack(Items.STONE)) == null,
                 "A plain stone stack should stand for nothing");
+        helper.succeed();
+    }
+
+    /**
+     * A known items pick of stone by a player who knows stone places a ghost of stone in their
+     * empty main hand (decision menu-places-a-ghost-item-in-the-empty-hand).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void ghostPickPlacesInTheEmptyHand(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        Identifier stone = PlayerKnowledge.idOf(Items.STONE);
+        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(stone));
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        try {
+            GhostItemPickHandler.place(player, stone);
+            helper.assertTrue(stone.equals(GhostItem.represented(player.getMainHandItem())),
+                    "A pick of stone should place a ghost of stone in the main hand, held "
+                            + player.getMainHandItem());
+        } finally {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
         helper.succeed();
     }
 
