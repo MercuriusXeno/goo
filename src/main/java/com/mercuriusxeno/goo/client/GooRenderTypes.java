@@ -465,12 +465,26 @@ public final class GooRenderTypes {
      * wins the face's own depth without standing off it.
      */
     public static final RenderPipeline SUNBEAM_SCORCH = shaderPairPipeline("sunbeam_scorch", "sunbeam_scorch",
-            BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
             new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT));
 
     /** RenderType that draws Sunbeam's scorch. */
     public static final RenderType SUNBEAM_SCORCH_TYPE = burnoutType(SUNBEAM_SCORCH);
+
+    /**
+     * Sunbeam's scorch glow (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
+     * the scorch's shaders in their glow pass, added onto the world after
+     * every mark's char, so overlapping marks' glows sum into one streak.
+     */
+    public static final RenderPipeline SUNBEAM_SCORCH_GLOW = SUNBEAM_SCORCH.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sunbeam_scorch_glow"))
+            .withShaderDefine("GLOW_PASS")
+            .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
+            .build();
+
+    /** RenderType that draws Sunbeam's scorch glow. */
+    public static final RenderType SUNBEAM_SCORCH_GLOW_TYPE = burnoutType(SUNBEAM_SCORCH_GLOW);
 
     /**
      * Nether black-hole accretion-disk pipeline: third render pass that
@@ -1341,6 +1355,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);
+        event.registerPipeline(SUNBEAM_SCORCH_GLOW);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
         event.registerPipeline(METEOR_SCORCH);
