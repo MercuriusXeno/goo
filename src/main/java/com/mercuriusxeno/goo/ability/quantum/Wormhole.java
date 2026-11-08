@@ -31,6 +31,8 @@ public final class Wormhole {
     /** The mouth sizes a hole tries, largest first, each as its two spans across the face. */
     private static final int[][] MOUTH_SIZES = {{3, 3}, {3, 2}, {2, 3}, {2, 2}, {3, 1}, {1, 3}, {2, 1}, {1, 2},
         {1, 1}};
+    /** How far each way across the face the 3x3 centred on the struck block reaches. */
+    private static final int CENTRED_REACH = 1;
     /** A crawling body's height, the least room a hole needs past the wall. */
     private static final double CRAWL_HEIGHT = 0.6;
     /** Points on the ring a wormhole's mouth or a collapse draws. */
@@ -173,10 +175,11 @@ public final class Wormhole {
     }
 
     /**
-     * Every mouth shape over a struck block, largest first: 3x3, then 3x2 and
-     * 2x3, 2x2, 3x1 and 1x3, 2x1 and 1x2, then 1x1, each placed every way
-     * that covers the struck block: on a wall the struck block at the top
-     * first, so the mouth opens down from it, else the most centred first.
+     * Every mouth shape a struck block can open, largest first: 3x3, then
+     * 3x2 and 2x3, 2x2, 3x1 and 1x3, 2x1 and 1x2, then 1x1, each placed every
+     * way inside the 3x3 centred on the struck block, the most centred first,
+     * so a hole opens where the blob struck and a smaller one finds its room
+     * within that 3x3 whether or not it covers the struck block itself.
      *
      * @param struck the struck block
      * @param across the two positive directions across the face
@@ -185,22 +188,16 @@ public final class Wormhole {
     static List<List<BlockPos>> mouthsOver(BlockPos struck, Direction[] across) {
         List<List<BlockPos>> mouths = new ArrayList<>();
         for (int[] size : MOUTH_SIZES) {
-            List<int[]> placings = new ArrayList<>();
-            for (int first = 0; first < size[0]; first++) {
-                for (int second = 0; second < size[1]; second++) {
-                    placings.add(new int[] {first, second});
+            List<int[]> lows = new ArrayList<>();
+            for (int first = -CENTRED_REACH; first <= CENTRED_REACH + 1 - size[0]; first++) {
+                for (int second = -CENTRED_REACH; second <= CENTRED_REACH + 1 - size[1]; second++) {
+                    lows.add(new int[] {first, second});
                 }
             }
-            // On a wall a mouth opens down from the struck block, as a portal does, so one thrown level with the
-            // eye opens before the thrower rather than above; across, and on a floor or ceiling, it centres.
-            java.util.Comparator<int[]> centred = java.util.Comparator.comparingDouble(placing ->
-                    Math.abs(placing[0] - (size[0] - 1) * HALF) + Math.abs(placing[1] - (size[1] - 1) * HALF));
-            placings.sort(across[0] == Direction.UP
-                    ? java.util.Comparator.<int[]>comparingInt(placing -> -placing[0]).thenComparing(centred)
-                    : centred);
-            for (int[] placing : placings) {
-                mouths.add(rectangle(struck, across, -placing[0], size[0] - 1 - placing[0], -placing[1],
-                        size[1] - 1 - placing[1]));
+            lows.sort(java.util.Comparator.comparingDouble(low -> Math.abs(low[0] + (size[0] - 1) * HALF)
+                    + Math.abs(low[1] + (size[1] - 1) * HALF)));
+            for (int[] low : lows) {
+                mouths.add(rectangle(struck, across, low[0], low[0] + size[0] - 1, low[1], low[1] + size[1] - 1));
             }
         }
         return mouths;
