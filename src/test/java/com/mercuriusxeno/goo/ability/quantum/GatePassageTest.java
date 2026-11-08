@@ -99,6 +99,25 @@ class GatePassageTest {
                 + "down should come out of a wall portal still looking down, pitched " + landing.pitch());
     }
 
+    /** The air time coming up out of a floor gate should give, in blocks risen. */
+    private static final double ESCAPE_RISE = 2.0;
+    /** A living body's gravity a tick, and the drag its upward speed keeps. */
+    private static final double GRAVITY = 0.08;
+    private static final double DRAG = 0.98;
+
+    @Test
+    void comingUpOutOfAFloorGateLiftsABodyClearOfIt() {
+        Vec3 eye = new Vec3(0.5, 1.5, -0.03);
+        GatePassage.Landing landing = GatePassage.landingThrough(NEAR, FLOOR, new GatePassage.Held(eye, 1.62), 1.8,
+                new Vec3(0, 0, 0.1), 0F, 0F);
+        double rise = 0;
+        for (double speed = landing.motion().y(); speed > 0; speed = (speed - GRAVITY) * DRAG) {
+            rise += speed;
+        }
+        assertTrue(rise >= ESCAPE_RISE, "A body coming up out of a floor gate should rise at least " + ESCAPE_RISE
+                + " blocks to step off it, rises " + rise);
+    }
+
     /** The far mouth's face, the plane z 3. */
     private static final double FAR_FACE_Z = 3.0;
 
