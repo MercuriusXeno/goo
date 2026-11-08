@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that every bundled goo type ships the assets a registered type needs:
  * each texture its JSON names, its type icon, its four item models, its
- * goo_fluid_types entry, and its type, potion and brew names in the lang file.
+ * goo_fluid_types entry, and its type name in the lang file.
  */
 class GooTypeAssetsTest {
 
@@ -67,13 +67,10 @@ class GooTypeAssetsTest {
 
     @ParameterizedTest
     @MethodSource("bundledKeys")
-    void langNamesTheTypeAndItsPotion(ResourceKey<GooTypeDefinition> key) throws IOException {
+    void langNamesTheType(ResourceKey<GooTypeDefinition> key) throws IOException {
         JsonObject lang = readJson(LANG_JSON).getAsJsonObject();
-        String id = GooTypes.id(key);
-        for (String langKey : List.of(GooTypeNames.translationKey(key),
-                "item.minecraft.potion.effect." + id + "_goo")) {
-            assertTrue(lang.has(langKey), "lang lacks " + langKey);
-        }
+        String langKey = GooTypeNames.translationKey(key);
+        assertTrue(lang.has(langKey), "lang lacks " + langKey);
     }
 
     private static void assertShipped(String path) throws IOException {

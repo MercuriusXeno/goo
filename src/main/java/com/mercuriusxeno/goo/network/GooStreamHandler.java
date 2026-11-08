@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -137,7 +138,8 @@ public final class GooStreamHandler {
     private static void runHeldTick(ServerPlayer player, GooStreamPayload payload,
                                     ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability, int held) {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
-            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
+            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held, true,
+                    payload.targetEntityId()), ability);
             StreamPrismCharge.chargeByRay(player, payload.aimPoint(), gooType, ability);
         } else if (!StreamPrismCharge.charges(player, payload.origin(), gooType, ability)) {
             strikeCone(player, payload.origin(), ability, held);
@@ -212,7 +214,8 @@ public final class GooStreamHandler {
         if (held == 0 || !paysReagents(player, ability, held)) {
             return 0;
         }
-        int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
+        int share = StreamHolds.shareAt(ability.cost().exactIn(GooValues.of(player.level())),
+                ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;
         }

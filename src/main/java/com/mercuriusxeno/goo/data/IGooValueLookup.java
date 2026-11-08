@@ -72,6 +72,16 @@ public interface IGooValueLookup {
     }
 
     /**
+     * Returns each prefab's resolved value, which an ability's cost reads a prefab through
+     * (decision ability-cost-builds-as-a-one-type-by-type-value).
+     *
+     * @return the prefabs' values, empty for a lookup holding none
+     */
+    default PrefabValues prefabs() {
+        return PrefabValues.EMPTY;
+    }
+
+    /**
      * Returns true if the item has a hand-keyed base value (not derived from recipes).
      *
      * @param itemId the item's registry ID

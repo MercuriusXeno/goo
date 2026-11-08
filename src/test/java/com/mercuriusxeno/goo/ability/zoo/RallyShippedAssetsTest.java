@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class RallyShippedAssetsTest {
 
     private static final String RALLY_ICON = "/assets/goo/textures/goo/ability/zoo_rally.png";
-    private static final String ZOO_BREW_ICON = "/assets/goo/textures/mob_effect/zoo_brew.png";
+    private static final String ZOO_BREW_ICON = "/assets/goo/textures/mob_effect/zoo_held.png";
     private static final int SIDE = 16;
 
     @Test

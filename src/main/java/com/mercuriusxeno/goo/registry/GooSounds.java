@@ -45,5 +45,14 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> HEAT_HUM =
         SOUND_EVENTS.register("effects.heat_hum", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HEAT_HUM));
 
+    /** The slime coat's boing, each bounce (decision bounce-ramps-jump-height-while-jump-is-held). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> BOING =
+        SOUND_EVENTS.register("effects.boing", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.BOING));
+
+    /** Spire's rising rumble (decision spire-rumbles-like-a-dull-earthquake). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> EARTH_RUMBLE =
+        SOUND_EVENTS.register("effects.earth_rumble",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.EARTH_RUMBLE));
+
     private GooSounds() {}
 }

@@ -35,9 +35,9 @@ public final class LuxEvents {
     /** How far the gaze reaches, in blocks (operator ruling 2026-10-09). */
     static final double GAZE_REACH = 32;
     /** Ticks between glisten sends to the mob under the crosshair. */
-    static final int GAZE_EVERY = 5;
+    public static final int GAZE_EVERY = 5;
     /** How long a gaze glisten lasts, a little past the next send so it never blinks. */
-    static final int GAZE_GLISTEN_TICKS = 10;
+    public static final int GAZE_GLISTEN_TICKS = 10;
 
     private LuxEvents() {
     }

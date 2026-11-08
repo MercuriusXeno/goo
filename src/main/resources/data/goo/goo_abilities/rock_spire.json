@@ -5,7 +5,7 @@
   "badge": "world",
   "order": 40,
   "cost": 0,
-  "cost_formula": "value/block",
+  "cost_formula": "%s/m³",
   "requires": ["minecraft:gravel", "minecraft:sand"],
   "delivery": { "kind": "arc" },
   "behaviors": [

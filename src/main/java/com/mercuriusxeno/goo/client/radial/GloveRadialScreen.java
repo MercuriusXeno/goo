@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.radial;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
+import com.mercuriusxeno.goo.client.fade.Afterglows;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
@@ -54,6 +55,8 @@ public final class GloveRadialScreen extends Screen {
     private final List<List<OfferedAbility>> abilities;
     private final Map<ResourceKey<GooTypeDefinition>, Integer> available;
     private final RadialWheel wheel;
+    /** The petals' pulse traces, kept while this wheel stands open, so a reopened wheel remembers no old end. */
+    private final Afterglows<Identifier, Identifier> pulseGlows = new Afterglows<>();
 
     private GloveRadialScreen(Map<ResourceKey<GooTypeDefinition>, Integer> available) {
         super(Component.empty());
@@ -89,16 +92,20 @@ public final class GloveRadialScreen extends Screen {
     }
 
     /**
-     * The abilities whose effect the local player holds, read from the
-     * synced held effects, which the wheel pulses.
+     * How strongly each ability's petal pulses, read from the synced held
+     * effects: each held ability whole, and each one ended while the wheel
+     * stood open settling over the second after.
      * wheel-pulses-the-active-effect
+     * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
      *
-     * @return the held abilities' ids, empty with no player
+     * @param gameTime the game time, fraction included
+     * @return each pulsing ability's strength by id, empty with no player
      */
-    private static Set<Identifier> activeAbilities() {
-        return standingEffects().held().stream()
+    private Map<Identifier, Float> activeAbilities(float gameTime) {
+        Set<Identifier> held = standingEffects().held().stream()
                 .map(HeldEffects.Held::ability)
                 .collect(Collectors.toUnmodifiableSet());
+        return PetalPulse.pulses(pulseGlows, held, gameTime);
     }
 
     /**
@@ -173,8 +180,9 @@ public final class GloveRadialScreen extends Screen {
         float partialTick = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         RadialWheelRenderer.Hoverables drawn = RadialWheelRenderer.render(graphics, font,
                 new RadialWheelRenderer.Frame(wheel, types, abilities, available,
-                        width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick, activeAbilities(),
-                        gameTime(partialTick), GloveRadialScreen::reagentSetsHeld, standingEffects()));
+                        width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick,
+                        activeAbilities(gameTime(partialTick)), gameTime(partialTick),
+                        GloveRadialScreen::reagentSetsHeld, standingEffects()));
         RadialWheelRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
     }
 

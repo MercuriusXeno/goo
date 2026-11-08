@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.program.Step;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -19,7 +20,7 @@ import java.util.Optional;
  * Target resolution with two-pass aim assist (exact raytrace + cone scan)
  * and sticky retention to prevent flicker at cone edges.
  *
- * <p>Handles living entities; a standing ability block is never an aim
+ * <p>Handles the entities the selected ability's steps take; a standing ability block is never an aim
  * target, so a throw at one lands beside it (decision
  * splat-runs-the-program-no-fuse).
  */
@@ -90,7 +91,7 @@ final class AimAssistResolver {
     }
 
     /**
-     * Finds the best aim hit (a living entity) using a
+     * Finds the best aim hit (an entity the ability takes) using a
      * two-pass approach plus sticky retention on the previous hit.
      *
      * <ol>
@@ -107,13 +108,14 @@ final class AimAssistResolver {
      * @param player   the interacting player
      * @param from     the ray start (eye position)
      * @param to       the ray end (eye + look * range)
-     * @param previous the previous frame's hit, or null
+     * @param previous  the previous frame's hit, or null
+     * @param behaviors the selected ability's steps, which name what may be hit
      * @return the best hit, or null if none in range/cone
      */
     static @Nullable AimHit findClosestAimHit(Player player, Vec3 from, Vec3 to,
-                                              @Nullable AimHit previous) {
+                                              @Nullable AimHit previous, List<Step> behaviors) {
         Vec3 lookDir = to.subtract(from).normalize();
-        List<Entity> entities = gatherCandidates(player, from, to);
+        List<Entity> entities = gatherCandidates(player, from, to, behaviors);
         List<AimHit> candidates = asHits(entities);
         AimHit exact = findExactHit(candidates, player, from, to);
         if (exact != null) {
@@ -128,17 +130,30 @@ final class AimAssistResolver {
     }
 
     /**
-     * Gathers living, pickable entities within the aim-assist cone's bounding volume.
+     * Gathers the candidates within the aim-assist cone's bounding volume.
      *
-     * @param player the aiming player (excluded from results)
-     * @param from   ray start (eye position)
-     * @param to     ray end (eye + look * range)
+     * @param player    the aiming player (excluded from results)
+     * @param from      ray start (eye position)
+     * @param to        ray end (eye + look * range)
+     * @param behaviors the selected ability's steps
      * @return candidate entities in the inflated search box
      */
-    private static List<Entity> gatherCandidates(Player player, Vec3 from, Vec3 to) {
+    private static List<Entity> gatherCandidates(Player player, Vec3 from, Vec3 to, List<Step> behaviors) {
         AABB searchBox = buildSearchBox(player, from, to);
-        return player.level().getEntities(
-                player, searchBox, e -> e instanceof LivingEntity && e.isPickable());
+        return player.level().getEntities(player, searchBox, e -> isCandidate(e, behaviors));
+    }
+
+    /**
+     * Whether the aim may outline an entity: one the selected ability's
+     * steps take, pickable or an item entity, which vanilla never picks.
+     * decision steps-declare-the-entities-they-take
+     *
+     * @param entity    the entity in the search box
+     * @param behaviors the selected ability's steps
+     * @return true where the entity is a candidate
+     */
+    static boolean isCandidate(Entity entity, List<Step> behaviors) {
+        return (entity.isPickable() || entity instanceof ItemEntity) && Step.takenByAny(behaviors, entity);
     }
 
     /**
@@ -406,7 +421,7 @@ final class AimAssistResolver {
         }
 
         /**
-         * An entity hit (living, pickable, within cone + LOS).
+         * An entity hit (one the ability takes, within cone + LOS).
          *
          * @param entity the entity aimed at
          */

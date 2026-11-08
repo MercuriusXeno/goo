@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class CrystalAbilityIconsTest {
 
     private static final String ABILITY_ICONS = "/assets/goo/textures/goo/ability/";
-    private static final String CRYSTAL_BREW = "/assets/goo/textures/mob_effect/crystal_brew.png";
+    private static final String CRYSTAL_BREW = "/assets/goo/textures/mob_effect/crystal_held.png";
     private static final int SIDE = 16;
     private static final int ALPHA_SHIFT = 24;
 

@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.world.entity.LivingEntity;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -40,10 +39,7 @@ public record SculkerStep() implements Step {
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
         Sculker standing = target.getData(GooAttachments.SCULKER);
-        OptionalInt brew = host.brewDuration();
-        target.setData(GooAttachments.SCULKER, brew.isPresent()
-                ? standing.brew(brew.getAsInt(), target.level().getGameTime())
-                : standing.hold());
+        target.setData(GooAttachments.SCULKER, standing.hold());
         return true;
     }
 

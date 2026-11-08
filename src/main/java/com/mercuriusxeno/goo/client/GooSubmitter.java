@@ -25,6 +25,7 @@ import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.client.fluid.FluidTintSource;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -93,6 +94,31 @@ public final class GooSubmitter {
     }
 
     /**
+     * Returns the render type a living body draws with on its own texture,
+     * as LivingEntityRenderer picks it: translucent while visible,
+     * see-through for an invisible teammate, an outline alone for a glowing
+     * invisible body, and none for any other invisible one. The glove arm
+     * layer draws the cut glove arm with it, as the body around it draws
+     * (decision diagnose-and-correct-the-arm-through-the-glove).
+     *
+     * @param texture           the body's texture
+     * @param invisible         whether the body is invisible
+     * @param invisibleToPlayer whether the viewer cannot see through the invisibility
+     * @param glowing           whether the body glows
+     * @return the render type, or null where the body draws nothing
+     */
+    public static @Nullable RenderType livingBodyOn(Identifier texture, boolean invisible, boolean invisibleToPlayer,
+            boolean glowing) {
+        if (!invisible) {
+            return RenderTypes.entityTranslucent(texture);
+        }
+        if (!invisibleToPlayer) {
+            return RenderTypes.entityTranslucentCullItemTarget(texture);
+        }
+        return glowing ? RenderTypes.outline(texture) : null;
+    }
+
+    /**
      * Returns the solid render type on a standalone texture: the gasket
      * caps, drawn opaque on their own texture (decision
      * submitter-owns-every-render-choice).
@@ -125,6 +151,30 @@ public final class GooSubmitter {
      */
     public static RenderType cutoutOnBlockAtlas() {
         return cutoutOn(BLOCK_ATLAS);
+    }
+
+    /**
+     * Returns the render type a moving block draws through, lit by the
+     * lightmap alone over the face shade the world's tesselation bakes in,
+     * so a block drawn again over the world matches it
+     * (decision bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera).
+     *
+     * @return the cutout moving-block type on the block atlas
+     */
+    public static RenderType movingBlockCutout() {
+        return RenderTypes.cutoutMovingBlock();
+    }
+
+    /**
+     * Returns the render type a fading moving block draws through: the
+     * moving-block shader, lit by the lightmap alone, blended, so a block
+     * drawn over the world's own fades out without a second face shade.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     *
+     * @return the translucent moving-block type on the block atlas
+     */
+    public static RenderType movingBlockTranslucent() {
+        return RenderTypes.translucentMovingBlock();
     }
 
     /**

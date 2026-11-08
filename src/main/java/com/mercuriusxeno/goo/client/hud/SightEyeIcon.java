@@ -1,22 +1,20 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.client.overlay.FungusNearby;
-import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.extensions.common.IClientMobEffectExtensions;
-import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -25,8 +23,8 @@ import java.util.List;
  * does, so an open eye says a shift can start from here. The lid lifts and
  * falls through its frames over a quarter second rather than snapping.
  * sight-lengthens-shift-and-outlines-fungus
+ * shroom-hud-eye-stays-and-its-inventory-icon-is-sights
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SightEyeIcon implements IClientMobEffectExtensions {
 
     /** How long the lid takes to open or shut fully, in milliseconds. */
@@ -47,17 +45,8 @@ public final class SightEyeIcon implements IClientMobEffectExtensions {
     private static final List<Identifier> FRAMES = List.of(eye("eye_shut"), eye("eye_third"),
             eye("eye_two_thirds"), eye("eye_open"));
 
-    private SightEyeIcon() {
-    }
-
-    /**
-     * Registers the eye as the shroom effect's HUD icon.
-     *
-     * @param event the client extensions registration event
-     */
-    @SubscribeEvent
-    public static void registerEye(RegisterClientExtensionsEvent event) {
-        event.registerMobEffect(new SightEyeIcon(), GooMobEffects.BREW_EFFECTS.get(GooTypes.SHROOM));
+    /** The shroom effect's icon, which HeldEffectIcons registers. */
+    SightEyeIcon() {
     }
 
     private static Identifier eye(String name) {
@@ -86,6 +75,23 @@ public final class SightEyeIcon implements IClientMobEffectExtensions {
      */
     static Identifier frameFor(float open) {
         return FRAMES.get(Math.round(open * (FRAMES.size() - 1)));
+    }
+
+    /**
+     * The icon the inventory effect list draws for shroom's effect, Sight's ability icon,
+     * since the eye answers a fungus near the player in the world and the inventory hides it.
+     * shroom-hud-eye-stays-and-its-inventory-icon-is-sights
+     *
+     * @return Sight's icon texture, or null while no durative ability is synced for shroom
+     */
+    @Nullable Identifier inventoryIconTexture() {
+        return HeldEffectIcon.of(GooTypes.SHROOM);
+    }
+
+    @Override
+    public boolean renderInventoryIcon(MobEffectInstance instance, AbstractContainerScreen<?> screen,
+                                       GuiGraphicsExtractor graphics, int x, int y, int blitOffset) {
+        return HeldEffectIcons.drawInventoryIcon(graphics, inventoryIconTexture(), x, y);
     }
 
     @Override

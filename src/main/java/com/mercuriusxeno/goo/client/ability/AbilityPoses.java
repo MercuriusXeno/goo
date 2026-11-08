@@ -40,7 +40,7 @@ import java.util.Map;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AbilityPoses {
 
-    /** Ticks the wind-up takes to ease the hand across the chest: Shards' full charge. */
+    /** Ticks the wind-up takes to ease the hand across the chest: Knives' full charge. */
     static final float WIND_UP_TICKS = 30f;
     /** Ticks the fling takes to sweep the arm out. */
     static final float FLING_OUT_TICKS = 3f;

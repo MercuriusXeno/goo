@@ -49,6 +49,18 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
     /** How far the disc sits from the block center along the face's step: just off the face plane. */
     private static final float DISC_LIFT = -0.47f;
     private static final int OPAQUE = 0xFF;
+    /** From a cell's center to its face. */
+    private static final float CELL_HALF = 0.5f;
+    /** How far past the highest shaken face the cursor floats, so no shaken block pokes through it. */
+    private static final double CURSOR_CLEARANCE = 0.01;
+    /**
+     * How far Flatten's cursor sits from the cell's center along the face's
+     * step: above every face the ground shake raises, so the translucent dust
+     * lies over the shaking ground whole instead of showing through its seams
+     * (decision flatten-plays-bores-ground-shake).
+     */
+    private static final float CURSOR_LIFT =
+            (float) (GroundShake.highestFaceRise() + CURSOR_CLEARANCE) - CELL_HALF;
     private static final int DISC_SEGMENTS = 48;
     /** The cursor disc's radius in blocks, a circle over Flatten's 3x3 area. */
     static final float CURSOR_RADIUS = 1.5f;
@@ -85,7 +97,7 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        drawDisc(frame, burnout.pos(), burnout.placedFace(), progress, discRadius(progress), 0f);
+        drawDisc(frame, burnout.pos(), burnout.placedFace(), progress, discRadius(progress), DISC_LIFT);
     }
 
     /**
@@ -96,7 +108,16 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
      * @param face  the aimed face
      */
     public void renderCursor(BurnoutFrame frame, BlockPos cell, Direction face) {
-        drawDisc(frame, cell, face, cursorProgress(frame.gameTime()), CURSOR_RADIUS, 0f);
+        drawDisc(frame, cell, face, cursorProgress(frame.gameTime()), CURSOR_RADIUS, CURSOR_LIFT);
+    }
+
+    /**
+     * How far above the aimed face Flatten's cursor disc floats.
+     *
+     * @return the height in blocks
+     */
+    static float cursorHeightAboveFace() {
+        return CELL_HALF + CURSOR_LIFT;
     }
 
 
@@ -189,16 +210,16 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
      * @param face     the face the disc lies flat against
      * @param progress the disc's progress in [0, 1]
      * @param radius   the disc's radius in blocks
-     * @param spin     how far the dust is turned about the center, in radians
+     * @param lift     how far the disc sits from the cell's center along the face's step
      */
     private static void drawDisc(BurnoutFrame frame, BlockPos cell, Direction face, float progress, float radius,
-                                 float spin) {
+                                 float lift) {
         int progressByte = NetherDiscMesh.toByte(progress);
         int center = ARGB.color(OPAQUE, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
                 NetherDiscMesh.toByte(SIGNED_TO_UNIT));
         BurnoutGeometry.drawAtMarker(frame, cell, GooRenderTypes.ROCK_EXPLOSION_TYPE, (pose, c) ->
-                BurnoutGeometry.emitAnnulus(pose, c, face, DISC_LIFT, 0f, radius, DISC_SEGMENTS,
-                        (angle, outer) -> outer ? edgeColor(progressByte, angle + spin) : center));
+                BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, radius, DISC_SEGMENTS,
+                        (angle, outer) -> outer ? edgeColor(progressByte, angle) : center));
     }
 
     /**

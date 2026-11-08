@@ -19,7 +19,7 @@ import java.util.Comparator;
 /**
  * Creative mode tab registration. Shows machines, intermediates, and for
  * every type the goo type registry holds, a datapack's included, one goo,
- * two sample gooStacks, a bucket and the three chrysm tiers (decision generic-goo-items).
+ * two sample gooStacks, a bucket and a goo label (decision generic-goo-items).
  */
 public class GooCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> TABS =
@@ -41,7 +41,6 @@ public class GooCreativeTabs {
                 output.accept(GooItems.PLEXER.get());
                 output.accept(GooItems.REACTOR.get());
                 output.accept(GooItems.VAT.get());
-                output.accept(GooItems.CRYSTALLIZER.get());
                 // Intermediates
                 output.accept(GooItems.CHORAL_GASKET.get());
                 output.accept(GooItems.CHORAL_TUNER.get());
@@ -62,7 +61,7 @@ public class GooCreativeTabs {
         );
 
     /**
-     * Offers one type's 1-goo, 1K-goo and 1M-gooStacks, a bucket and one of each chrysm tier.
+     * Offers one type's 1-goo, 1K-goo and 1M-gooStacks, a bucket and a goo label.
      *
      * @param output the tab's item sink
      * @param key    the goo type's registry key
@@ -72,7 +71,6 @@ public class GooCreativeTabs {
         output.accept(GooItem.createWithVolume(key, SAMPLE_GOO_VOLUME));
         output.accept(GooItem.createWithVolume(key, LARGE_GOO_VOLUME));
         output.accept(GooBucketItem.of(key));
-        GooItems.CHRYSM_TIERS.forEach(tier -> output.accept(tier.get().createOf(key)));
         output.accept(GooItems.GOO_LABEL.get().labelOf(key));
     }
 }

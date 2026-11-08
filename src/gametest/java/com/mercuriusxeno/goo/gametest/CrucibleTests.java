@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.KnownItems;
-import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
@@ -60,7 +59,6 @@ public final class CrucibleTests {
     private static final String CR_THROWN_ITEM_TEACHES = "cr_thrown_item_teaches";
     private static final String CR_THROWN_CONTAINER_TEACHES = "cr_thrown_container_teaches";
     private static final String CR_UNTHROWN_ITEM_TEACHES_NOBODY = "cr_unthrown_item_teaches_nobody";
-    private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
     private static final String CR_CAP_GOO_IN_HAND = "cr_cap_goo_in_hand";
     private static final String CR_CAP_GOO_ENTITY = "cr_cap_goo_entity";
@@ -98,7 +96,6 @@ public final class CrucibleTests {
         GooTestFunctions.registerTest(registrar, CR_THROWN_ITEM_TEACHES, CrucibleTests::thrownItemTeachesTheThrower);
         GooTestFunctions.registerTest(registrar, CR_THROWN_CONTAINER_TEACHES, CrucibleTests::thrownContainerTeachesItsContents);
         GooTestFunctions.registerTest(registrar, CR_UNTHROWN_ITEM_TEACHES_NOBODY, CrucibleTests::unthrownItemTeachesNobody);
-        GooTestFunctions.registerTest(registrar, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
         GooTestFunctions.registerTest(registrar, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
         GooTestFunctions.registerTest(registrar, CR_CAP_GOO_IN_HAND, CrucibleTests::gooInHandRefusedAtCap);
         GooTestFunctions.registerTest(registrar, CR_CAP_GOO_ENTITY, CrucibleTests::gooEntityRefusedAtCap);
@@ -392,29 +389,6 @@ public final class CrucibleTests {
             helper.assertTrue(dropped.isRemoved(), SHOULD_ABSORB);
             helper.assertTrue(PlayerKnowledge.of(bystander).equals(KnownItems.NONE),
                     "An item with no thrower should teach nobody");
-            helper.succeed();
-        });
-    }
-
-    /**
-     * One chrysm of a type dropped into a lit crucible melts into exactly 32,000 mB
-     * of that type and the 3,200 mB of crystal spent on it, pool and reservoir
-     * together (decision chrysm-melts-back-to-its-goo).
-     *
-     * @param helper the gametest helper
-     */
-    public static void meltsChrysm(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
-        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        crucible.addHeat(TEST_HEAT_TICKS);
-        ItemEntity chrysm = CrucibleSpawns.spawnInBasin(helper, GooItems.CHRYSM.get().createOf(GooTypes.ENDER));
-        helper.runAfterDelay(ABSORB_DELAY, () -> {
-            GooContents held = crucible.getReservoir().mergeWith(PartiallyMeltedItem.getContents(crucible.getMeltingItem()));
-            helper.assertTrue(chrysm.isRemoved(), "The chrysm should melt in whole");
-            helper.assertValueEqual(Math.toIntExact(ChrysmTier.CHRYSM.volume()), held.getVolume(GooTypes.ENDER),
-                    "ender goo from one chrysm");
-            helper.assertValueEqual(Math.toIntExact(ChrysmTier.CHRYSM.volume() / 10), held.getVolume(GooTypes.CRYSTAL),
-                    "crystal goo returned");
             helper.succeed();
         });
     }

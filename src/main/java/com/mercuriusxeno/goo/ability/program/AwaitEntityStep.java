@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  * @param radius the volume radius in blocks, evaluated each tick
  * @param where  the filters an entity must pass; empty keeps any entity
  */
-public record AwaitEntityStep(SelectionShape shape, Expr radius, List<EntityFilter> where) implements Step {
+public record AwaitEntityStep(SelectionShape shape, Expr radius, List<EntityFilter> where) implements TakesNoEntity {
 
     private static final String NAME = "await_entity";
     private static final String FIELD_SHAPE = "shape";

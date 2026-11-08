@@ -91,7 +91,7 @@ public final class CanisterPlacementOverlay {
         CanisterPlacement placement = cachedPlacement;
         ClientLevel level = Minecraft.getInstance().level;
         if (placement != null && level != null) {
-            AABB bounds = CanisterBlock.slotShape(CanisterSlotLayout.centersAt(level, placement.pos()),
+            AABB bounds = CanisterBlock.slotShape(CanisterSlotLayout.SLOT_CENTERS,
                     placement.slot()).bounds();
             event.addCustomRenderer(previewRendererAt(placement.pos(), bounds));
         }

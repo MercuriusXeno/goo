@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that every bundled goo type ships the resources the client reads by
  * its id: the four goo sprites and their models, the fluid sprite, the type
- * icon, and the lang names of the type, its potion and its brew.
+ * icon, and the lang names of the type and its held effect.
  */
 class GooTypeResourcesTest {
 
@@ -74,17 +74,14 @@ class GooTypeResourcesTest {
     }
 
     /**
-     * Each bundled type names itself and its potion in en_us; BrewEffectNameTest
-     * proves the name its brew effect reads.
+     * Each bundled type names itself in en_us; HeldEffectNameTest proves the
+     * name its held effect reads.
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void langNamesEveryBundledType(ResourceKey<GooTypeDefinition> key) {
-        String id = GooTypes.id(key);
-        for (String langKey : List.of(GooTypeNames.translationKey(key),
-                "item.minecraft.potion.effect." + id + "_goo")) {
-            assertTrue(lang.has(langKey), "en_us lacks " + langKey);
-        }
+        String langKey = GooTypeNames.translationKey(key);
+        assertTrue(lang.has(langKey), "en_us lacks " + langKey);
     }
 
     private static void assertResource(String path) {

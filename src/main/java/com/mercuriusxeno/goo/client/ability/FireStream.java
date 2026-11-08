@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.FlamesStep;
 import com.mercuriusxeno.goo.client.ability.FireField.Jet;
 import com.mercuriusxeno.goo.client.ability.FireField.Wall;
@@ -10,8 +11,9 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -24,15 +26,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Flames' fire stream: while right click holds Flames, a pixelated jet of
- * flame pours from the glove down its cone, drawn by {@link FirePass} as
- * one field of voxels. A block in the look cuts the jet off where it stands,
- * the flames keeping their size, and the fire it displaces bounces off the
- * face, damped. flames-pixelated-fire-stream
+ * Flames' fire stream: while right click holds Flames, licks of flame and
+ * embers pour from the glove down its cone, drawn by {@link FirePass} on the
+ * world's 16-texel grid, and a block in the look cuts the fire off at its
+ * face. flames-draws-as-particle-style-fire
  * <p>
- * The operator's ruling on the jet's life: the fire front travels out from the
- * glove over a quarter second, and on release the jet burns away from the
- * glove outward over the same quarter second.
+ * The operator's ruling on the fire's life: the fire front travels out from
+ * the glove over a quarter second, and on release the fire burns away from
+ * the glove outward over the same quarter second.
  * <p>
  * A jet pinned by {@code /goodebug flames} burns in place, held and released
  * on a loop, so the operator can walk around it and watch it from any side.
@@ -41,17 +42,15 @@ import java.util.List;
 public final class FireStream {
 
     /** Ticks the fire front takes to travel the stream's whole range, and the burn-away takes on release. */
-    static final double TRAVEL_TICKS = com.mercuriusxeno.goo.ability.program.FlameShape.TRAVEL_TICKS;
+    static final double TRAVEL_TICKS = 5;
     /** A pinned jet's loop: held this many ticks, then released until the loop's end. */
     static final double PINNED_HELD_TICKS = 40;
     static final double PINNED_LOOP_TICKS = 60;
-    /** blaze_flames.json's reach and cone, for a pinned jet when no Flames is synced. */
-    private static final double DEFAULT_RANGE = 6;
-    private static final double DEFAULT_CONE_DEGREES = 20;
+    /** blaze_flames.json's reach and cone, for a pinned jet when no Flames is synced, and for a heater prism. */
+    static final double FLAMES_RANGE = 6;
+    static final double FLAMES_CONE_DEGREES = 20;
     private static final String FLAMES_ID = "goo:blaze_flames";
     private static final double HALF = 0.5;
-    /** Below this squared length a direction has no way. */
-    private static final double NO_WAY = 1e-6;
 
     /** The game time the current hold began, or NaN while no hold runs. */
     private static double heldSince = Double.NaN;
@@ -64,23 +63,21 @@ public final class FireStream {
     }
 
     /**
-     * A jet pinned in the world: its frame and the block it hits in world
-     * coordinates, and the game time its loop began.
+     * A jet pinned in the world, in world coordinates, and the game time its loop began.
      *
      * @param hand     the glove's world position
      * @param axis     the jet's unit vector
-     * @param side     the unit direction across the jet to its side
      * @param range    the stream's reach
-     * @param tan      the tangent of half the cone's angle
-     * @param wall     where the jet hits a block, the hit point in world coordinates, or null
+     * @param cone     the stream's cone, in degrees
+     * @param wall     where the jet meets a block, the hit point in world coordinates, or null
      * @param pinnedAt the game time the loop began
      */
-    private record PinnedJet(Vec3 hand, Vec3 axis, Vec3 side, double range, double tan, @Nullable Wall wall,
+    private record PinnedJet(Vec3 hand, Vec3 axis, double range, double cone, @Nullable Wall wall,
                              double pinnedAt) {
     }
 
     /**
-     * Pins a looping jet at the glove, down the look, as Flames would throw it now.
+     * Pins a looping jet at the glove, down the look, as Flames would pour it now.
      *
      * @return whether a jet was pinned: false with no player in a level
      */
@@ -91,13 +88,11 @@ public final class FireStream {
             return false;
         }
         ClientAbility flames = AbilitySyncHandler.findAbility(FLAMES_ID);
-        double range = flames == null ? DEFAULT_RANGE : flames.delivery().range();
-        double cone = flames == null ? DEFAULT_CONE_DEGREES : flames.delivery().coneDegrees();
+        double range = flames == null ? FLAMES_RANGE : flames.delivery().range();
+        double cone = flames == null ? FLAMES_CONE_DEGREES : flames.delivery().coneDegrees();
         Vec3 hand = GloveAim.handPosition(mc.gameRenderer.getMainCamera());
         Aim aim = aimAtCrosshair(player, hand, 1f, range);
-        Vec3 side = ConeSections.sectionSide(aim.axis(), player.getViewYRot(1f));
-        pinned = new PinnedJet(hand, aim.axis(), side, range, Math.tan(Math.toRadians(cone * HALF)), aim.wall(),
-                player.level().getGameTime());
+        pinned = new PinnedJet(hand, aim.axis(), range, cone, aim.wall(), player.level().getGameTime());
         return true;
     }
 
@@ -107,7 +102,7 @@ public final class FireStream {
     }
 
     /**
-     * Draws the held jet, and the pinned one, after the translucent blocks.
+     * Draws the held fire, the pinned one and every heater's, after the translucent blocks.
      *
      * @param event the level render stage event
      */
@@ -121,45 +116,63 @@ public final class FireStream {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = player.level().getGameTime() + partialTick;
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        List<Burning> burning = new ArrayList<>();
-        Burning held = heldJet(player, now, partialTick, camera);
-        if (held != null) {
-            burning.add(held);
-        }
-        Burning pinnedJet = pinnedJet(now, camera);
-        if (pinnedJet != null) {
-            burning.add(pinnedJet);
-        }
-        for (HeaterFlames.Heater heater : HeaterFlames.burning()) {
-            Burning heaterJet = heaterJet(player, heater, now, camera);
-            if (heaterJet != null) {
-                burning.add(heaterJet);
-            }
-        }
-        if (burning.isEmpty()) {
-            return;
-        }
         List<FireField> fields = new ArrayList<>();
-        for (Burning jet : burning) {
-            FireField field = new FireField(jet.jet(), jet.span(), jet.wall());
-            if (field.burns()) {
-                fields.add(field);
+        addBurning(fields, heldField(player, now, partialTick, camera));
+        addBurning(fields, pinnedField(now, camera));
+        for (HeaterFlames.Heater heater : HeaterFlames.burning()) {
+            JetSpan span = HeaterFlames.spanOf(heater, now, FLAMES_RANGE);
+            if (span != null) {
+                Wall wall = wallAlong(player.level(), player, heater.tip(), heater.axis(), FLAMES_RANGE);
+                addBurning(fields, HeaterFlames.fieldOf(heater, span, wall, camera));
             }
         }
         FirePass.draw(fields, camera, event.getModelViewMatrix());
     }
 
-    /**
-     * A jet burning this frame: its frame, its burning stretch and the block it hits, camera relative.
-     *
-     * @param jet  the jet's frame
-     * @param span the burning stretch
-     * @param wall where the jet hits a block, or null
-     */
-    private record Burning(Jet jet, JetSpan span, @Nullable Wall wall) {
+    private static void addBurning(List<FireField> fields, @Nullable FireField field) {
+        if (field != null && field.burns()) {
+            fields.add(field);
+        }
     }
 
-    private static @Nullable Burning heldJet(LocalPlayer player, double now, float partialTick, Vec3 camera) {
+    /**
+     * The field held Flames burns: from the glove, down its aim, at its
+     * delivery's reach and cone, cut off at the face the look meets.
+     *
+     * @param delivery Flames' delivery
+     * @param hand     the glove's world position
+     * @param axis     the aim's unit vector from the glove
+     * @param span     the burning stretch
+     * @param wall     where the look meets a block, in world coordinates, or null
+     * @param camera   the camera's world position
+     * @return the field, camera relative
+     */
+    static FireField fieldOf(Delivery delivery, Vec3 hand, Vec3 axis, JetSpan span, @Nullable Wall wall,
+                             Vec3 camera) {
+        return fieldFrom(hand, axis, delivery.range(), delivery.coneDegrees(), span, wall, camera);
+    }
+
+    /**
+     * A field from a spout in world coordinates, made camera relative.
+     *
+     * @param spout  where the fire pours from
+     * @param axis   the unit vector it pours along
+     * @param range  its reach in open air
+     * @param cone   its cone, in degrees
+     * @param span   the burning stretch
+     * @param wall   where its line meets a block, in world coordinates, or null
+     * @param camera the camera's world position
+     * @return the field
+     */
+    static FireField fieldFrom(Vec3 spout, Vec3 axis, double range, double cone, JetSpan span, @Nullable Wall wall,
+                               Vec3 camera) {
+        Jet jet = new Jet(spout.subtract(camera), axis, FireField.sideOf(axis),
+                Math.tan(Math.toRadians(cone * HALF)));
+        Wall relative = wall == null ? null : new Wall(wall.distance(), wall.at().subtract(camera), wall.face());
+        return new FireField(jet, span, range, relative);
+    }
+
+    private static @Nullable FireField heldField(LocalPlayer player, double now, float partialTick, Vec3 camera) {
         ClientAbility flames = selectedFlames(player);
         if (flames == null) {
             heldSince = Double.NaN;
@@ -171,57 +184,20 @@ public final class FireStream {
         if (span == null) {
             return null;
         }
-        Minecraft mc = Minecraft.getInstance();
-        Vec3 hand = GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+        Vec3 hand = GloveAim.handPosition(Minecraft.getInstance().gameRenderer.getMainCamera());
         Aim aim = aimAtCrosshair(player, hand, partialTick, range);
-        Vec3 side = ConeSections.sectionSide(aim.axis(), player.getViewYRot(partialTick));
-        double tan = Math.tan(Math.toRadians(flames.delivery().coneDegrees() * HALF));
-        return new Burning(new Jet(hand.subtract(camera), aim.axis(), side, tan), span,
-                cameraRelative(aim.wall(), camera));
+        return fieldOf(flames.delivery(), hand, aim.axis(), span, aim.wall(), camera);
     }
 
-    /**
-     * A heater prism's fire this frame: Flames' own, from the prism's tip the
-     * way its server last pointed it, bouncing off the block its line meets
-     * within Flames' reach. heater-prism-flames-nearby-creatures
-     *
-     * @param player the local player, whose level the line is traced in
-     * @param heater the heater
-     * @param now    the game time with the partial tick
-     * @param camera the camera's world position
-     * @return the heater's fire, or null once it has burned away
-     */
-    private static @Nullable Burning heaterJet(LocalPlayer player, HeaterFlames.Heater heater, double now,
-                                               Vec3 camera) {
-        JetSpan span = HeaterFlames.spanOf(heater, now, DEFAULT_RANGE);
-        if (span == null) {
-            return null;
-        }
-        Vec3 tip = heater.tip();
-        Vec3 axis = heater.axis();
-        BlockHitResult hit = player.level().clip(new ClipContext(tip, tip.add(axis.scale(DEFAULT_RANGE)),
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
-        Wall wall = hit.getType() == HitResult.Type.BLOCK
-                ? new Wall(hit.getLocation().distanceTo(tip), hit.getLocation(), hit.getDirection()) : null;
-        Vec3 side = new Vec3(-axis.z, 0, axis.x);
-        side = side.lengthSqr() > NO_WAY ? side.normalize() : new Vec3(1, 0, 0);
-        return new Burning(new Jet(tip.subtract(camera), axis, side, Math.tan(Math.toRadians(DEFAULT_CONE_DEGREES
-                * HALF))), span, cameraRelative(wall, camera));
-    }
-
-    private static @Nullable Burning pinnedJet(double now, Vec3 camera) {
+    private static @Nullable FireField pinnedField(double now, Vec3 camera) {
         PinnedJet jet = pinned;
         if (jet == null) {
             return null;
         }
         double intoLoop = (now - jet.pinnedAt()) % PINNED_LOOP_TICKS;
         double released = intoLoop < PINNED_HELD_TICKS ? Double.NaN : intoLoop - PINNED_HELD_TICKS;
-        JetSpan span = jetSpan(intoLoop, released, jet.range());
-        if (span.tail() >= span.front()) {
-            return null;
-        }
-        return new Burning(new Jet(jet.hand().subtract(camera), jet.axis(), jet.side(),
-                jet.tan()), span, cameraRelative(jet.wall(), camera));
+        return fieldFrom(jet.hand(), jet.axis(), jet.range(), jet.cone(), jetSpan(intoLoop, released, jet.range()),
+                jet.wall(), camera);
     }
 
     /**
@@ -251,9 +227,10 @@ public final class FireStream {
             }
             return jetSpan(now - heldSince, Double.NaN, range);
         }
-        if (Double.isNaN(heldSince)) {
-            return null;
-        }
+        return Double.isNaN(heldSince) ? null : trackRelease(now, range);
+    }
+
+    private static @Nullable JetSpan trackRelease(double now, double range) {
         if (Double.isNaN(releasedAt)) {
             releasedAt = now;
         }
@@ -285,8 +262,7 @@ public final class FireStream {
     /**
      * The jet's aim: the operator's ruling, the fire aims at what the
      * crosshair points at. The look from the eye finds the block and face,
-     * as the server's FlamesStep does, and the jet pours from the glove
-     * toward that point, so the fire bounces off the face the player looks at.
+     * and the jet pours from the glove toward that point.
      *
      * @param axis the jet's unit vector, from the glove
      * @param wall where the crosshair meets a block within the reach, in world coordinates, or null
@@ -294,15 +270,6 @@ public final class FireStream {
     private record Aim(Vec3 axis, @Nullable Wall wall) {
     }
 
-    /**
-     * Aims the jet from the glove at the crosshair's block within the reach.
-     *
-     * @param player      the local player
-     * @param hand        the glove's world position
-     * @param partialTick the frame's partial tick
-     * @param range       the stream's reach
-     * @return the aim
-     */
     private static Aim aimAtCrosshair(LocalPlayer player, Vec3 hand, float partialTick, double range) {
         Vec3 eye = player.getEyePosition(partialTick);
         Vec3 look = player.getViewVector(partialTick);
@@ -312,12 +279,24 @@ public final class FireStream {
             return new Aim(look, null);
         }
         Vec3 toHit = hit.getLocation().subtract(hand);
-        Direction face = hit.getDirection();
-        return new Aim(toHit.normalize(), new Wall(toHit.length(), hit.getLocation(), face));
+        return new Aim(toHit.normalize(), new Wall(toHit.length(), hit.getLocation(), hit.getDirection()));
     }
 
-    private static @Nullable Wall cameraRelative(@Nullable Wall wall, Vec3 camera) {
-        return wall == null ? null : new Wall(wall.distance(), wall.at().subtract(camera), wall.face());
+    /**
+     * Where a line from a spout meets a block within the reach.
+     *
+     * @param level  the level the line is traced in
+     * @param viewer the entity the trace ignores
+     * @param spout  where the line starts
+     * @param axis   its unit vector
+     * @param range  its reach
+     * @return the wall, in world coordinates, or null in open air
+     */
+    static @Nullable Wall wallAlong(Level level, Entity viewer, Vec3 spout, Vec3 axis, double range) {
+        BlockHitResult hit = level.clip(new ClipContext(spout, spout.add(axis.scale(range)),
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, viewer));
+        return hit.getType() == HitResult.Type.BLOCK
+                ? new Wall(hit.getLocation().distanceTo(spout), hit.getLocation(), hit.getDirection()) : null;
     }
 
     /**

@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -84,7 +85,7 @@ class AffordedCountTest {
 
         @Test
         void brewPayingOneATickReadsTwelveSeconds() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
             assertEquals("20/s | 12s", brew.petalLabel(250, NO_REAGENTS));
         }
     }
@@ -103,7 +104,7 @@ class AffordedCountTest {
 
         @Test
         void brewCountsReadInTheirLargestUnit() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
             assertEquals("1.5m", AffordedCount.reckon(brew, 1800, NO_REAGENTS).orElseThrow().label());
             assertEquals("12s", AffordedCount.reckon(brew, 250, NO_REAGENTS).orElseThrow().label());
         }
@@ -130,7 +131,7 @@ class AffordedCountTest {
 
         @Test
         void brewSubtractsTheStandingUpkeepAndHalvesItsOwnUnderAnExtender() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 2);
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 2);
             assertEquals("6s", count(brew, 250, StandingUpkeep.NONE));
             assertEquals("3s", count(brew, 250, new StandingUpkeep(2, false)));
             assertEquals("6s", count(brew, 250, new StandingUpkeep(1, true)));
@@ -147,7 +148,7 @@ class AffordedCountTest {
     class ActiveBrew {
 
         private static final long STARTED = 100L;
-        private final ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+        private final ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
 
         private HeldEffects.Held standingBrew() {
             return new HeldEffects.Held(brew.id(), GooTypes.BLAZE, 1, Set.of(), STARTED);
@@ -178,16 +179,6 @@ class AffordedCountTest {
 
             assertEquals("6s", AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow().label());
         }
-
-        @Test
-        void drunkBrewStandsNoUpkeepAndKeepsTheProspectiveCount() {
-            HeldEffects.Held drunk = new HeldEffects.Held(brew.id(), GooTypes.BLAZE, 1, Set.of(), STARTED,
-                    STARTED + 1000);
-            StandingUpkeep standing = StandingUpkeep.on(holding(drunk), GooTypes.BLAZE);
-
-            assertEquals(0.0, standing.perTick());
-            assertEquals("12s", AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow().label());
-        }
     }
 
     /** A dynamically priced petal reads its formula and never 0 (decision dynamic-costs-keep-the-mb-quantity). */
@@ -207,6 +198,18 @@ class AffordedCountTest {
             assertEquals("200 + 100/block", blink.petalLabel(THOUSAND, NO_REAGENTS));
         }
 
+        // The petal reads the tunable fixed price to grab a chunk, the number alone
+        @Test
+        void terrakinesisReadsItsFixedPriceToGrabAChunk() {
+            ClientAbility terrakinesis = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "terrakinesis"),
+                    "ability.goo.terrakinesis", "", 0, List.of(),
+                    List.of(new TerrakinesisStep(12, 1.5, 2.5, 3.5, 2.5, 1000)), 0, Delivery.of(DeliveryKind.SELF),
+                    AbilityBadge.CHANNELED, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0,
+                    DistancePrice.NONE, List.of(), ArmPose.HELD_OUT, "ability.goo.terrakinesis.description",
+                    Optional.of("ability.goo.terrakinesis.cost_mechanics"), Optional.of("%s"));
+            assertEquals("1K", terrakinesis.petalLabel(THOUSAND, NO_REAGENTS));
+        }
+
         @Test
         void noShippedDynamicPetalReadsZero() {
             for (String name : DYNAMIC_ABILITIES) {
@@ -214,7 +217,8 @@ class AffordedCountTest {
                 ClientAbility ability = ClientAbility.fromEntry(
                         AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)).get(0));
                 String label = ability.petalLabel(THOUSAND, NO_REAGENTS);
-                assertEquals(definition.costFormula().orElse("no formula"), label, name);
+                // The petal reads the formula filled from the ability's own numbers.
+                assertEquals(ability.formula().orElse("no formula"), label, name);
                 assertNotEquals("0", label, name);
             }
         }

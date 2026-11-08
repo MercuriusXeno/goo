@@ -5,10 +5,12 @@
   "mixins": [
     "ContainerShiftClickMergeMixin",
     "EntitySculkerSilenceMixin",
+    "EntitySlimeCoatUnderfootMixin",
     "FoodDataLifetapMixin",
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
     "LivingEntityHeldFallsMixin",
+    "LivingEntityPneumaBreathMixin",
     "LivingEntitySculkerSilenceMixin",
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
@@ -26,11 +28,13 @@
     "ClientPacketListenerGooMixin",
     "EntitySculkerOutlineColorMixin",
     "LevelRendererSculkerCullMixin",
+    "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
     "MinecraftSculkerOutlineMixin",
-    "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",
-    "PlayerModelAbilityPoseMixin"
+    "PlayerModelAbilityPoseMixin",
+    "EntityScryOutlineColorMixin",
+    "MinecraftScryOutlineMixin"
   ]
 }

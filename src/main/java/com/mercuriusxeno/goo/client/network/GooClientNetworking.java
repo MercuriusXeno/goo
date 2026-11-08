@@ -4,13 +4,15 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
+import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.MeltAbsorbs;
+import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
-import com.mercuriusxeno.goo.client.ability.ScrySweep;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
+import com.mercuriusxeno.goo.client.pocket.PocketScreens;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -25,19 +27,21 @@ import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.HeaterFlamePayload;
+import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.network.MeltAbsorbPayload;
+import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
+import com.mercuriusxeno.goo.network.PocketContentsPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
-import com.mercuriusxeno.goo.network.ScryPayload;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
@@ -78,6 +82,7 @@ public final class GooClientNetworking {
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
         event.register(OpenValuesManagerPayload.TYPE, ValuesManagerHandlers::handleOpen);
         event.register(WorkbenchReplyPayload.TYPE, ValuesManagerHandlers::handleReply);
+        event.register(PocketContentsPayload.TYPE, PocketScreens::handleContents);
         registerAbilityVisualHandlers(event);
     }
 
@@ -115,14 +120,15 @@ public final class GooClientNetworking {
     }
 
     /**
-     * Registers the handlers for the abilities' own visuals: astral's Scry,
+     * Registers the handlers for the abilities' own visuals: the held sweeps of
+     * astral's Scry, crystal's Glitter and metal's Magnet,
      * glow's Sunbeam, hex's leech and tomes, frost's Nova rings and
      * leaf's Reap swells.
      *
      * @param event the client payload handler registration event
      */
     private static void registerAbilityOwnVisualHandlers(RegisterClientPayloadHandlersEvent event) {
-        event.register(ScryPayload.TYPE, ScrySweep::onPayload);
+        event.register(HeldSweepPayload.TYPE, HeldSweepVisual::onPayload);
         event.register(SunbeamPayload.TYPE, SunbeamVisual::onPayload);
         event.register(LeechPayload.TYPE, LeechWisps::handle);
         event.register(TomePayload.TYPE, Tomes::handle);
@@ -131,6 +137,7 @@ public final class GooClientNetworking {
         event.register(MeltAbsorbPayload.TYPE, MeltAbsorbs::onPayload);
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
         event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);
+        event.register(MeteorScorchPayload.TYPE, MeteorScorches::onPayload);
         event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);
         event.register(ArmPosePayload.TYPE, AbilityPoses::onPayload);
     }

@@ -57,19 +57,6 @@ public record Shifter(float distance, long expiresAt, Optional<Vec3> safeGround)
     }
 
     /**
-     * A drunk brew: shifter stands for the brew's duration, or as long
-     * as it already stood where that is longer.
-     *
-     * @param brewDistance the brew's blink distance
-     * @param ticks        the brew's duration
-     * @param gameTime     the game time of the drink
-     * @return the shifter after the drink
-     */
-    public Shifter brew(float brewDistance, int ticks, long gameTime) {
-        return new Shifter(brewDistance, Math.max(expiresAt, gameTime + ticks), safeGround);
-    }
-
-    /**
      * Shifter remembering where the player last stood on solid ground.
      *
      * @param ground the player's feet on that ground

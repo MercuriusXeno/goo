@@ -5,10 +5,13 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.ArmPose;
+import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import org.junit.jupiter.api.Test;
@@ -25,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The abilities synced to the client for the glove's radial carry each one's cost formula.
  */
 class AbilitySyncPayloadTest {
+
+    private static final double TOLERANCE = 1e-9;
 
     /**
      * Every shipped ability the glove offers
@@ -46,7 +51,17 @@ class AbilitySyncPayloadTest {
     @ParameterizedTest
     @MethodSource("shippedGloveAbilities")
     void costRoundTripsThroughTheSyncCodec(AbilityDefinition definition) {
-        assertEquals(definition.cost(), roundTrip(definition).cost(), definition.id().toString());
+        assertEquals(definition.cost().in(GooValueTable.EMPTY), roundTrip(definition).cost().in(GooValueTable.EMPTY),
+                definition.id().toString());
+    }
+
+    /** A cost of 12 1/2 reaches the client whole, never rounded (decision goo-is-an-int-and-only-the-remainder-is-a-fraction). */
+    @Test
+    void aFractionalCostReachesTheClientExact() {
+        String json = AbilityJson.read("crystal_knives").replaceFirst("\"cost\": \\d+", "\"cost\": 12.5");
+        AbilityDefinition definition = AbilityJson.decodeText("crystal_knives", json);
+
+        assertEquals(GooFraction.of(25, 2), roundTrip(definition).cost().exactIn(GooValueTable.EMPTY));
     }
 
     /** The sync codec carries each badge kind to the client unchanged (decision badge-marks-the-target-kind). */
@@ -95,10 +110,26 @@ class AbilitySyncPayloadTest {
         assertEquals("goo.ability.rock.spire.lifted", client.description());
     }
 
-    /** Shards' shoulder cast reaches the client from its shipped JSON. */
+    /** Knives' shoulder cast reaches the client from its shipped JSON. */
     @Test
-    void shardsPoseRoundTripsFromItsJson() {
-        assertEquals(ArmPose.SHOULDER_CAST, roundTrip(AbilityJson.decode("crystal_shards")).pose());
+    void knivesPoseRoundTripsFromItsJson() {
+        assertEquals(ArmPose.SHOULDER_CAST, roundTrip(AbilityJson.decode("crystal_knives")).pose());
+    }
+
+    /**
+     * Knives' charge reaches the client whole, its no-charge floors included,
+     * so the client's aim lines fan the count and cone the server slings.
+     * decision knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
+     */
+    @Test
+    void knivesChargeRoundTripsWithItsFloors() {
+        Charge sent = AbilityJson.decode("crystal_knives").delivery().charge();
+
+        Charge received = roundTrip(AbilityJson.decode("crystal_knives")).delivery().charge();
+
+        assertEquals(sent, received);
+        assertEquals(3, received.fleckCount(0f));
+        assertEquals(5, received.spreadDegrees(0f), TOLERANCE);
     }
 
     /** The sync codec carries the items an ability requires to the client (decision ability-hidden-until-recipes-known). */

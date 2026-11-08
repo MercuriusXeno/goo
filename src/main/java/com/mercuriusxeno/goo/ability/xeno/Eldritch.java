@@ -54,15 +54,4 @@ public record Eldritch(long expiresAt) {
         return new Eldritch(NEVER_EXPIRES);
     }
 
-    /**
-     * A drunk brew: the state stands for the brew's duration, or as long as
-     * it already stood where that is longer.
-     *
-     * @param ticks    the brew's duration
-     * @param gameTime the game time of the drink
-     * @return the state after the drink
-     */
-    public Eldritch brew(int ticks, long gameTime) {
-        return new Eldritch(Math.max(expiresAt, gameTime + ticks));
-    }
 }

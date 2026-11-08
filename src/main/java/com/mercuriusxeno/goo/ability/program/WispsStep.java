@@ -44,7 +44,7 @@ import java.util.stream.Stream;
  * @param growth how many blocks the flood's edge grows each tick; zero reaches the radius at once
  */
 public record WispsStep(double radius, int count, int life, int above, boolean flood, double growth)
-        implements Step {
+        implements TakesNoEntity {
 
     private static final String NAME = "wisps";
     private static final String FIELD_RADIUS = "radius";

@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import net.minecraft.world.phys.Vec3;
@@ -26,7 +27,7 @@ class GloveThrowSenderTest {
     private static ClientAbility clientAbility(String name) {
         AbilityDefinition definition = AbilityJson.decode(name);
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
-                definition.order(), definition.tags(), definition.behaviors(), definition.cost(), definition.delivery(),
+                definition.order(), definition.tags(), definition.behaviors(), definition.cost().in(GooValueTable.EMPTY), definition.delivery(),
                 definition.badge(), definition.requires());
     }
 
@@ -53,7 +54,7 @@ class GloveThrowSenderTest {
     void aMissingReagentRefusesTheThrowTheGooCovers() {
         AbilityDefinition definition = AbilityJson.decode("hex_enchant");
         ClientAbility enchant = new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
-                definition.order(), definition.tags(), definition.behaviors(), definition.cost(),
+                definition.order(), definition.tags(), definition.behaviors(), definition.cost().in(GooValueTable.EMPTY),
                 definition.delivery(), definition.badge(), definition.requires(), definition.area(),
                 definition.indicator(), definition.consumes());
 
@@ -70,11 +71,11 @@ class GloveThrowSenderTest {
     void blinkPricesItsTripAsItsJsonNames() {
         AbilityDefinition definition = AbilityJson.decode("ender_blink");
         ClientAbility blink = new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
-                definition.order(), definition.tags(), definition.behaviors(), definition.cost(),
+                definition.order(), definition.tags(), definition.behaviors(), definition.cost().in(GooValueTable.EMPTY),
                 definition.delivery(), definition.badge(), definition.requires(), definition.area(),
-                definition.indicator(), definition.consumes(), definition.upkeep(), definition.distancePrice());
+                definition.indicator(), definition.consumes(), definition.upkeep().in(GooValueTable.EMPTY), definition.distancePrice());
         Optional<BlinkLanding> trip = Optional.of(new BlinkLanding(Vec3.ZERO, BLINK_TRIP, true));
-        int priced = definition.cost() + BLINK_TRIP * definition.distancePrice().perBlock()
+        int priced = definition.cost().in(GooValueTable.EMPTY) + BLINK_TRIP * definition.distancePrice().perBlock()
                 + definition.distancePrice().wallCost();
 
         assertTrue(definition.distancePrice().perBlock() > 0 && definition.distancePrice().wallCost() > 0);
@@ -82,6 +83,24 @@ class GloveThrowSenderTest {
         assertEquals(GooFormat.formatAmount(priced), blink.costLabel(trip));
         assertFalse(GloveThrowSender.affordsThrow(blink, trip, amount -> priced - 1 >= amount, item -> true));
         assertTrue(GloveThrowSender.affordsThrow(blink, trip, amount -> priced >= amount, item -> true));
+    }
+
+    /**
+     * A channel priced by its formula costs nothing up front, so the crosshair
+     * panel reads the formula the petal reads, never its zero cost (decision
+     * dynamic-costs-keep-the-mb-quantity).
+     */
+    @Test
+    void dynamicallyPricedChannelReadsItsFormulaOnThePanel() {
+        AbilityDefinition definition = AbilityJson.decode("void_outsider");
+        ClientAbility outsider = new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
+                definition.order(), definition.tags(), definition.behaviors(), definition.cost(),
+                definition.delivery(), definition.badge(), definition.requires(), definition.area(),
+                definition.indicator(), definition.consumes(), definition.upkeep(), definition.distancePrice(),
+                definition.onPrism(), definition.pose(), definition.description(), definition.costMechanics(),
+                definition.costFormula());
+
+        assertEquals(definition.costFormula().orElseThrow(), outsider.costLabel(Optional.empty()));
     }
 
     @Test

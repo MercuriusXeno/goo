@@ -257,7 +257,7 @@ public final class GloveUseTracker {
      * (decision self-brew-goos-eat-before-the-effect).
      *
      * @param player the local player
-     * @return true for a self + brew selection
+     * @return true for a durative selection
      */
     private static boolean selectedEats(LocalPlayer player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
@@ -318,6 +318,28 @@ public final class GloveUseTracker {
      */
     public static int heldTicks() {
         return PRESS.heldTicks();
+    }
+
+    /**
+     * The ticks the live press has run a held channel or stream, the first
+     * counted 1, which Terrakinesis's wind-up shake reads
+     * (decision terrakinesis-shakes-the-blocks-before-the-tear).
+     *
+     * @return the ticks, 0 while no channel runs
+     */
+    public static int channelTicks() {
+        return PRESS.channelTicks();
+    }
+
+    /**
+     * The scatter the live press slings its knives by, which its aim lines
+     * draw and its release sends.
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @return the press's scatter seed
+     */
+    public static long scatterSeed() {
+        return PRESS.scatterSeed();
     }
 
     /**

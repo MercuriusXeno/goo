@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 /**
  * Yore's Ancient, laid as its held effect starts: the target wears the aged
  * stone-and-gold overlay, and while the held effect stands no damage takes
- * it below half a heart. The effect list shows the one yore brew icon.
+ * it below half a heart. The effect list shows the one yore held effect icon.
  * ancient-makes-the-player-immortal
  */
 public record AncientStep() implements Step {
