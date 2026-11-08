@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
-import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
 import com.mercuriusxeno.goo.block.gate.EndGateBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
@@ -51,10 +50,6 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<VatBlockEntity>> VAT =
             BLOCK_ENTITIES.register("vat",
                     () -> new BlockEntityType<>(VatBlockEntity::new, GooBlocks.VAT.get()));
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CrystallizerBlockEntity>> CRYSTALLIZER =
-            BLOCK_ENTITIES.register("crystallizer",
-                    () -> new BlockEntityType<>(CrystallizerBlockEntity::new, GooBlocks.CRYSTALLIZER.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CanisterBlockEntity>> CANISTER =
             BLOCK_ENTITIES.register("canister",

@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.ability.CrystalPrism;
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
-import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * The plain prism's crystal: one six-sided milky quartz column with a pointed tip,
  * half a block wide, standing out of the center of the face the prism landed on,
- * drawn through {@link CrystalClusterSubmitter} as the crystallizer draws its prisms.
+ * drawn through {@link CrystalClusterSubmitter} as the prism column draws its own.
  * The landing blob turns into it: the blob's cube, sitting on the face it struck,
  * bends its four sides out into the column's six and draws its top out into the point.
  * A Relay or Reflector column then folds its six sides into four as its combo takes.
@@ -26,7 +26,7 @@ import java.util.List;
 public final class PrismCrystal {
 
     /** The one upright, flat-faced column. */
-    public static final List<CrystalCluster.Prism> PRISMS = List.of(PrismColumn.PRISM);
+    public static final List<CrystalPrism> PRISMS = List.of(PrismColumn.PRISM);
 
     /** The prism's milky quartz texture on the block atlas. */
     public static final Identifier SPRITE = Identifier.fromNamespaceAndPath(Goo.MODID, "block/prism");
@@ -97,7 +97,7 @@ public final class PrismCrystal {
 
     /**
      * The column part way from six sides to four, in model pixels on
-     * {@link CrystalCluster}'s base point along +y: each rim point slides from the
+     * {@link PrismColumn}'s base point along +y: each rim point slides from the
      * hexagon to a square whose sides face the hexagon's flats and corners, as
      * wide as the hexagon across its flats, so the square stands inside the
      * column's voxel shape; the shaft and the point keep their heights. One of the model transformations
@@ -107,7 +107,7 @@ public final class PrismCrystal {
      * @return the faces, each four corners wound outward
      */
     public static List<Vec3[]> foldFaces(double fold) {
-        CrystalCluster.Prism prism = PRISMS.getFirst();
+        CrystalPrism prism = PRISMS.getFirst();
         double shaft = prism.length() - prism.tipLength();
         Vec3[][] rings = new Vec3[RINGS][RIM_SLICES + 1];
         for (int slice = 0; slice <= RIM_SLICES; slice++) {
@@ -177,7 +177,7 @@ public final class PrismCrystal {
     }
 
     /**
-     * The blob part way into the column, in model pixels on {@link CrystalCluster}'s base
+     * The blob part way into the column, in model pixels on {@link PrismColumn}'s base
      * point along +y: each point of the blob's cube slides to its place on the column.
      * Four rings run from the base's center through the bottom rim and the top rim to
      * the top's center, which on the column are the base, the shaft's top and the point.
@@ -186,7 +186,7 @@ public final class PrismCrystal {
      * @return the faces, each four corners wound outward
      */
     public static List<Vec3[]> morphFaces(double morph) {
-        CrystalCluster.Prism prism = PRISMS.getFirst();
+        CrystalPrism prism = PRISMS.getFirst();
         double shaft = prism.length() - prism.tipLength();
         double blobBottom = 0;
         double blobTop = BLOB_HALF_WIDTH + BLOB_HALF_WIDTH;
@@ -254,13 +254,13 @@ public final class PrismCrystal {
                                    double prismHeight, double morph) {
         double rim = blobRim + (prismRim - blobRim) * morph;
         double height = blobHeight + (prismHeight - blobHeight) * morph;
-        return new Vec3(CrystalCluster.BASE_X + Math.cos(angle) * rim, CrystalCluster.BASE_Y + height,
-                CrystalCluster.BASE_Z - Math.sin(angle) * rim);
+        return new Vec3(PrismColumn.BASE_X + Math.cos(angle) * rim, PrismColumn.BASE_Y + height,
+                PrismColumn.BASE_Z - Math.sin(angle) * rim);
     }
 
     /**
      * Turns the pose so the column, which {@link CrystalClusterSubmitter} stands on
-     * {@link CrystalCluster}'s base point along +y, stands on the center of the
+     * {@link PrismColumn}'s base point along +y, stands on the center of the
      * landing face and points along {@code facing} into the cell.
      *
      * @param poseStack the pose at the cell's corner

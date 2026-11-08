@@ -52,6 +52,7 @@ public final class FungalShiftTests {
 
 
     private static final Identifier FUNGAL_SHIFT = Identifier.parse("goo:shroom_fungal_shift");
+    private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
     /** The light bay's west edge, on its floor. */
     private static final BlockPos STAND_POS = new BlockPos(0, 0, 8);
     /** Fifteen blocks east of the player, within the shift's range of sixteen. */
@@ -148,7 +149,7 @@ public final class FungalShiftTests {
     /**
      * A mushroom block seventy blocks straight up, past the shift's base
      * range of sixty-four: aimed at without sight the player stays put, and
-     * under the shroom brew's sight the player shifts onto it.
+     * under Sight held on the glove the player shifts onto it.
      *
      * @param helper the gametest helper
      */
@@ -161,7 +162,7 @@ public final class FungalShiftTests {
 
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
         double movedWithoutSight = player.position().distanceTo(before);
-        BrewEffectTests.drinkBrew(player, GooTypes.SHROOM);
+        HeartOverlayTests.invoke(player, GooTypes.SHROOM, SHROOM_SIGHT);
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
 
         BlockPos standing = player.blockPosition();
@@ -191,7 +192,7 @@ public final class FungalShiftTests {
 
     /**
      * A red mushroom stands behind a stone wall: aimed at without sight the
-     * player stays put, and under the shroom brew's sight the aim passes
+     * player stays put, and under Sight held on the glove the aim passes
      * through the wall and the player shifts onto it.
      *
      * @param helper the gametest helper
@@ -206,7 +207,7 @@ public final class FungalShiftTests {
 
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
         double movedWithoutSight = player.position().distanceTo(before);
-        BrewEffectTests.drinkBrew(player, GooTypes.SHROOM);
+        HeartOverlayTests.invoke(player, GooTypes.SHROOM, SHROOM_SIGHT);
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
 
         BlockPos standing = player.blockPosition();

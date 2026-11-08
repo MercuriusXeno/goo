@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.Lux;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,19 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LuxEventsTest {
 
     private static final long NOW = 1_000L;
-    private static final int HOUR = 72_000;
 
     @Test
     void heldLuxStandsUntilItsEffectEnds() {
         assertTrue(Lux.NONE.hold().standsAt(Long.MAX_VALUE - 1));
         assertFalse(Lux.NONE.standsAt(NOW));
-    }
-
-    @Test
-    void aBrewStandsForItsDurationAndNeverShortensWhatStands() {
-        Lux brewed = Lux.NONE.brew(HOUR, NOW);
-        assertEquals(NOW + HOUR, brewed.expiresAt());
-        assertEquals(Lux.NEVER_EXPIRES, Lux.NONE.hold().brew(HOUR, NOW).expiresAt());
     }
 
     @Test

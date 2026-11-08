@@ -80,7 +80,7 @@ class AbilityRegistryTest {
     }
 
     /**
-     * A drunk brew runs the type's self ability wearing the brew badge, and a
+     * A drunk brew runs the type's self ability wearing the durative badge, and a
      * type wearing none runs nothing (decision brew-grants-the-self-ability-for-an-hour).
      */
     @Nested
@@ -90,10 +90,10 @@ class AbilityRegistryTest {
         void brewBadgedSelfAbilityIsTheTypesBrew() {
             AbilityRegistry registry = registryOf(Stream.of(
                     selfAbility("rock_self", 0, AbilityBadge.SELF),
-                    ability("rock_arc_brew", 1, AbilityBadge.BREW),
-                    selfAbility("rock_brew", 2, AbilityBadge.BREW)));
+                    ability("rock_arc_brew", 1, AbilityBadge.DURATIVE),
+                    selfAbility("rock_brew", 2, AbilityBadge.DURATIVE)));
 
-            AbilityDefinition brew = registry.brewAbilityFor(GooTypes.ROCK);
+            AbilityDefinition brew = registry.durativeAbilityFor(GooTypes.ROCK);
 
             assertEquals("rock_brew", brew == null ? null : brew.id().getPath());
         }
@@ -102,17 +102,17 @@ class AbilityRegistryTest {
         void typeWithoutABrewBadgedSelfAbilityHasNoBrew() {
             AbilityRegistry registry = registryOf(Stream.of(
                     selfAbility("rock_self", 0, AbilityBadge.SELF),
-                    ability("rock_arc_brew", 1, AbilityBadge.BREW)));
+                    ability("rock_arc_brew", 1, AbilityBadge.DURATIVE)));
 
-            assertNull(registry.brewAbilityFor(GooTypes.ROCK));
+            assertNull(registry.durativeAbilityFor(GooTypes.ROCK));
         }
 
         @Test
         void shippedBlazeAndLeafBrewKindleAndBarkskin() {
             AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
 
-            assertEquals(AbilityJson.idOf("blaze_kindle.json"), idOf(registry.brewAbilityFor(GooTypes.BLAZE)));
-            assertEquals(AbilityJson.idOf("leaf_barkskin.json"), idOf(registry.brewAbilityFor(GooTypes.LEAF)));
+            assertEquals(AbilityJson.idOf("blaze_kindle.json"), idOf(registry.durativeAbilityFor(GooTypes.BLAZE)));
+            assertEquals(AbilityJson.idOf("leaf_barkskin.json"), idOf(registry.durativeAbilityFor(GooTypes.LEAF)));
         }
 
         private static Identifier idOf(AbilityDefinition definition) {

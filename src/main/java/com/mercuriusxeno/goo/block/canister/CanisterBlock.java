@@ -166,7 +166,7 @@ public class CanisterBlock extends GooMachineBlock {
      * precomputed grid shape for the fixed grid, else one built once per
      * centers array.
      *
-     * @param centers pixel centers per slot, from {@link CanisterSlotLayout#centersAt}
+     * @param centers pixel centers per slot, the fixed grid {@link CanisterSlotLayout#SLOT_CENTERS}
      * @param slot    the slot index (0-8)
      * @return the slot's body shape, or the center slot's if out of range
      */
@@ -272,7 +272,7 @@ public class CanisterBlock extends GooMachineBlock {
      *
      * @param hit     the block hit result from the interaction
      * @param pos     the block position
-     * @param centers pixel centers per slot, from {@link CanisterSlotLayout#centersAt}
+     * @param centers pixel centers per slot, the fixed grid {@link CanisterSlotLayout#SLOT_CENTERS}
      * @param inPlay  the slots a canister can stand in, from {@link CanisterSlotLayout#slotsInPlayAt}
      * @return the slot index (0-8), or -1 if no slot matched
      */

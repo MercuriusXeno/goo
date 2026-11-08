@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mojang.serialization.Codec;
 
 /**
- * The kind of heart overlay a brew lays over the player's health bar, which
+ * The kind of heart overlay a held effect lays over the player's health bar, which
  * names the overlay's rules: what a bare real heart costs, how fast a bare
  * heart regrows its shield and whether the overlay ends with its last shield
  * (decision overlay-hearts-are-an-elemental-overshield).

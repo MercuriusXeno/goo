@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.player.Player;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -13,8 +12,7 @@ import java.util.stream.Stream;
  * Lays Gluttony on the host's target player and finishes: while it stands,
  * healing and eating past full bars bank as overheal and overhunger up to
  * max_overheal and max_overhunger; a target that is not a player has no bars.
- * A drunk brew lasts the brew's duration; the glove holds it with no expiry,
- * until the player ends it or runs dry.
+ * The glove holds it with no expiry, until the player ends it or runs dry.
  * gluttony-overheals-and-overhungers
  * self-effects-trickle-until-ended
  *
@@ -52,12 +50,7 @@ public record GluttonyStep(Expr maxOverheal, Expr maxOverhunger) implements Step
             Gluttony standing = player.getData(GooAttachments.GLUTTONY);
             Gluttony caps = Gluttony.caps(maxOverheal.evaluateInt(context), maxOverhunger.evaluateInt(context));
             long now = player.level().getGameTime();
-            OptionalInt brewDuration = host.brewDuration();
-            // brew-grants-the-self-ability-for-an-hour: the brew alone names a duration
-            Gluttony laid = brewDuration.isPresent()
-                    ? standing.apply(caps, brewDuration.getAsInt(), now)
-                    : standing.hold(caps, now);
-            player.setData(GooAttachments.GLUTTONY, laid);
+            player.setData(GooAttachments.GLUTTONY, standing.hold(caps, now));
         }
         return true;
     }

@@ -168,7 +168,7 @@ public final class GooThrowHandler {
      * the flight is broadcast and the effect scheduled for arrival. A mob
      * ability aimed at an entity within reach touches it at once instead,
      * and a self ability runs on the player: on command, or after the eat
-     * for a self + brew ability. A throw naming no ability the player may
+     * for a durative ability. A throw naming no ability the player may
      * use, or consuming an item the player lacks, is refused whole, draining nothing,
      * and so is one whose ability refuses the aimed cell, which fizzles there.
      * decision mob-ability-touches-at-reach

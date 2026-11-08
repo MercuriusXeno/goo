@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
-import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
+import com.mercuriusxeno.goo.block.ability.CrystalPrism;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
@@ -59,19 +59,18 @@ class PrismCrystalTest {
         @Test
         void theColumnIsOneFlatFacedPrismEightPixelsAcrossWithAPoint() {
             assertEquals(1, PrismCrystal.PRISMS.size());
-            CrystalCluster.Prism prism = PrismCrystal.PRISMS.getFirst();
+            CrystalPrism prism = PrismCrystal.PRISMS.getFirst();
             assertEquals(4, prism.radius());
-            assertEquals(0, prism.rounding());
             assertEquals(0, prism.tilt());
             assertTrue(prism.tipLength() > 0, "the column has no point");
         }
 
         @Test
         void sixSidesAndSixTipFacesCloseOnOnePointAtTheColumnsLength() {
-            CrystalCluster.Prism prism = PrismCrystal.PRISMS.getFirst();
+            CrystalPrism prism = PrismCrystal.PRISMS.getFirst();
             List<Vec3[]> faces = CrystalClusterSubmitter.prismFaces(prism);
             assertEquals(2 * SIDES, faces.size());
-            Vec3 point = new Vec3(CrystalCluster.BASE_X, CrystalCluster.BASE_Y + prism.length(), CrystalCluster.BASE_Z);
+            Vec3 point = new Vec3(PrismColumn.BASE_X, PrismColumn.BASE_Y + prism.length(), PrismColumn.BASE_Z);
             int tipFaces = 0;
             for (Vec3[] face : faces) {
                 if (face[2].equals(face[3])) {
@@ -88,8 +87,8 @@ class PrismCrystalTest {
 
         @Test
         void eachFacingStandsTheBaseOnItsLandingFacesCenterPointingIntoTheCell() {
-            Vector3f base = new Vector3f((float) CrystalCluster.BASE_X, (float) CrystalCluster.BASE_Y,
-                    (float) CrystalCluster.BASE_Z).div(16);
+            Vector3f base = new Vector3f((float) PrismColumn.BASE_X, (float) PrismColumn.BASE_Y,
+                    (float) PrismColumn.BASE_Z).div(16);
             for (Direction facing : Direction.values()) {
                 Direction landing = facing.getOpposite();
                 Matrix4f placement = PrismColumn.placement(facing);
@@ -113,8 +112,8 @@ class PrismCrystalTest {
     @Nested
     class Morph {
 
-        private static final Vec3 BLOB_CENTER = new Vec3(CrystalCluster.BASE_X,
-                CrystalCluster.BASE_Y + PrismCrystal.BLOB_HALF_WIDTH, CrystalCluster.BASE_Z);
+        private static final Vec3 BLOB_CENTER = new Vec3(PrismColumn.BASE_X,
+                PrismColumn.BASE_Y + PrismCrystal.BLOB_HALF_WIDTH, PrismColumn.BASE_Z);
 
         private static boolean holds(List<Vec3[]> faces, Vec3 point) {
             return faces.stream().flatMap(Arrays::stream).anyMatch(corner -> corner.distanceTo(point) < EPSILON);
@@ -143,20 +142,20 @@ class PrismCrystalTest {
 
         @Test
         void theMorphEndsAsTheColumnWithItsPoint() {
-            CrystalCluster.Prism prism = PrismCrystal.PRISMS.getFirst();
+            CrystalPrism prism = PrismCrystal.PRISMS.getFirst();
             List<Vec3[]> column = PrismCrystal.morphFaces(1);
             for (Vec3[] face : CrystalClusterSubmitter.prismFaces(prism)) {
                 for (Vec3 corner : face) {
                     assertTrue(holds(column, corner), "the morph's end lacks the column's corner " + corner);
                 }
             }
-            Vec3 axis = new Vec3(CrystalCluster.BASE_X, 0, CrystalCluster.BASE_Z);
+            Vec3 axis = new Vec3(PrismColumn.BASE_X, 0, PrismColumn.BASE_Z);
             for (Vec3[] face : column) {
                 for (Vec3 corner : face) {
                     double fromAxis = new Vec3(corner.x, 0, corner.z).distanceTo(axis);
                     assertTrue(fromAxis <= prism.radius() + EPSILON, "a corner outside the column at " + corner);
-                    assertTrue(corner.y >= CrystalCluster.BASE_Y - EPSILON
-                            && corner.y <= CrystalCluster.BASE_Y + prism.length() + EPSILON,
+                    assertTrue(corner.y >= PrismColumn.BASE_Y - EPSILON
+                            && corner.y <= PrismColumn.BASE_Y + prism.length() + EPSILON,
                             "a corner beyond the column's length at " + corner);
                 }
             }
