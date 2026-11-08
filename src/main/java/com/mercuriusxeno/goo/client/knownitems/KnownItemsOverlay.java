@@ -35,15 +35,17 @@ public final class KnownItemsOverlay extends Screen {
 
     private final List<KnownItemsOverlayRenderer.KnownItem> ordered;
     private final Locale locale;
-    private final SearchInput search = new SearchInput();
+    private final SearchInput search;
     private int firstRow;
     private KnownItemsOverlayRenderer.@Nullable Drawn drawn;
     private boolean draggingThumb;
 
-    private KnownItemsOverlay(List<KnownItemsOverlayRenderer.KnownItem> ordered, Locale locale) {
+    private KnownItemsOverlay(List<KnownItemsOverlayRenderer.KnownItem> ordered, Locale locale,
+                              boolean openingKeyHeld) {
         super(Component.empty());
         this.ordered = ordered;
         this.locale = locale;
+        this.search = new SearchInput(openingKeyHeld);
     }
 
     /**
@@ -57,7 +59,9 @@ public final class KnownItemsOverlay extends Screen {
                         new ItemStack(BuiltInRegistries.ITEM.getValue(id))))
                 .filter(item -> !item.stack().isEmpty())
                 .toList();
-        mc.setScreen(new KnownItemsOverlay(KnownItemsListing.order(known, locale), locale));
+        // No screen stands yet, so the mapping's down state still follows a release a quick tap made.
+        mc.setScreen(new KnownItemsOverlay(KnownItemsListing.order(known, locale), locale,
+                KnownItemsKey.MAPPING.isDown()));
     }
 
     @Override

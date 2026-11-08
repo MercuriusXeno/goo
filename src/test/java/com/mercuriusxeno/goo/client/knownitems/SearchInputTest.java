@@ -13,7 +13,7 @@ class SearchInputTest {
 
     @Test
     void openingKeyAndItsRepeatsTypeNothing() {
-        SearchInput input = new SearchInput();
+        SearchInput input = new SearchInput(true);
         assertFalse(input.type("g"));
         assertFalse(input.type("g"));
         assertEquals("", input.text());
@@ -21,7 +21,7 @@ class SearchInputTest {
 
     @Test
     void typingFillsTheBarOnceTheOpeningKeyIsReleased() {
-        SearchInput input = new SearchInput();
+        SearchInput input = new SearchInput(true);
         input.type("g");
         input.releaseOpeningKey();
         assertTrue(input.type("s"));
@@ -30,8 +30,15 @@ class SearchInputTest {
     }
 
     @Test
+    void openingKeyReleasedBeforeTheOverlayOpensTypesTheFirstCharacterAtOnce() {
+        SearchInput input = new SearchInput(false);
+        assertTrue(input.type("s"));
+        assertEquals("s", input.text());
+    }
+
+    @Test
     void backspaceErasesTheLastCharacter() {
-        SearchInput input = new SearchInput();
+        SearchInput input = new SearchInput(true);
         input.releaseOpeningKey();
         input.type("ö");
         input.type("l");
