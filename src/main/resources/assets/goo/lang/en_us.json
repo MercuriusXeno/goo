@@ -175,8 +175,6 @@
   "goo.ability.quantum.swap.description": "Leaves a swap body where you stand; cast again to trade places with it.",
   "goo.ability.quantum.link": "Shared Fate",
   "goo.ability.quantum.link.description": "Links your next two struck mobs, mirroring health and status effects between them.",
-  "goo.ability.frost.snap": "Snap",
-  "goo.ability.frost.snap.description": "Deals cold damage and freezes a susceptible mob.",
   "goo.ability.frost.nova": "Nova",
   "goo.ability.frost.nova.description": "Hold to charge a frost nova that freezes and damages nearby mobs.",
   "goo.ability.frost.cold": "Cold",
