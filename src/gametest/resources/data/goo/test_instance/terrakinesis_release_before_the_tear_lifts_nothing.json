@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:terrakinesis_release_before_the_tear_lifts_nothing",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

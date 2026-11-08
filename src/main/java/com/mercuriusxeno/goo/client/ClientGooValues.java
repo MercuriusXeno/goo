@@ -23,7 +23,7 @@ public final class ClientGooValues {
     /**
      * Answers the values the current connection received.
      *
-     * @return the values, empty while no connection stands
+     * @return the values, empty while no connection stands or no client runs
      */
     public static IGooValueLookup current() {
         return SOURCE.get().get();
@@ -40,7 +40,9 @@ public final class ClientGooValues {
     }
 
     private static IGooValueLookup connectionValues() {
-        ClientPacketListener connection = Minecraft.getInstance().getConnection();
+        // No client runs in a unit test or on a dedicated server, so there is no connection to read.
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientPacketListener connection = minecraft == null ? null : minecraft.getConnection();
         if (connection instanceof GooValueSource source) {
             return source.gooValueLookup();
         }

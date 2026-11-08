@@ -92,6 +92,8 @@ public final class GloveInputGate {
     private boolean eating;
     /** Ticks the live press has previewed, which a charged ability's release fires by. */
     private int heldTicks;
+    /** Ticks the live press has run a held channel or stream, which Terrakinesis's wind-up reads. */
+    private int channelTicks;
     /** The scatter the live press slings its knives by. */
     private long scatterSeed;
 
@@ -103,6 +105,7 @@ public final class GloveInputGate {
             previewing = false;
             eating = false;
             heldTicks = 0;
+            channelTicks = 0;
             scatterSeed = SEEDS.nextLong();
         }
     }
@@ -137,6 +140,16 @@ public final class GloveInputGate {
     }
 
     /**
+     * Ticks the live press has run a held channel or stream, the first counted 1
+     * (decision terrakinesis-shakes-the-blocks-before-the-tear).
+     *
+     * @return the ticks, 0 while no channel runs
+     */
+    public int channelTicks() {
+        return streaming ? channelTicks : 0;
+    }
+
+    /**
      * The scatter the live press slings its knives by, rolled anew each
      * press and held through it, so the lines hold still while held and the
      * server throws the knives along them.
@@ -151,6 +164,7 @@ public final class GloveInputGate {
     /** Drops the live press. */
     public void cancel() {
         armed = false;
+        channelTicks = 0;
         streaming = false;
         previewing = false;
         eating = false;
@@ -210,6 +224,7 @@ public final class GloveInputGate {
     }
 
     private void tickStream(boolean useKeyDown, PressActions actions) {
+        channelTicks++;
         if (streaming) {
             if (useKeyDown) {
                 actions.hold();

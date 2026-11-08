@@ -49,5 +49,10 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> BOING =
         SOUND_EVENTS.register("effects.boing", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.BOING));
 
+    /** Spire's rising rumble (decision spire-rumbles-like-a-dull-earthquake). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> EARTH_RUMBLE =
+        SOUND_EVENTS.register("effects.earth_rumble",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.EARTH_RUMBLE));
+
     private GooSounds() {}
 }
