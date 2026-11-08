@@ -27,6 +27,13 @@ public final class BlockTransforms {
     /** The tint of a state drawn in its own colors. */
     static final int UNTINTED = -1;
 
+    /**
+     * The charred brown a block cooking into an item mingles its own face
+     * toward, since it has no result block to mingle in
+     * (decision blocks-that-cook-into-items-cook-like-blocks).
+     */
+    static final int CHARRED = 0x3A2418;
+
     /** Game ticks an exposure stands with no update before it is dropped. */
     static final int EXPOSURE_STALE_TICKS = 40;
 
@@ -68,6 +75,32 @@ public final class BlockTransforms {
      * @param tint    the RGB the mingled block is tinted by, negative for none
      */
     public record Exposure(BlockPos pos, BlockState toward, float share, long updated, int tint) {
+    }
+
+    /**
+     * What a block part way to its next rung draws mingled in over itself.
+     *
+     * @param state the state drawn
+     * @param tint  the RGB it is tinted by, negative for none
+     */
+    record Mingling(BlockState state, int tint) {
+    }
+
+    /**
+     * What an exposure mingles in over its block: the state it becomes, or,
+     * where it cooks away to air, the block standing there in its charred
+     * face, so a block cooking into an item transitions from its first share
+     * as one cooking into a block does
+     * (decision blocks-that-cook-into-items-cook-like-blocks).
+     *
+     * @param exposure the block's exposure
+     * @param standing the block standing at its position
+     * @return the state and tint drawn
+     */
+    static Mingling minglingOf(Exposure exposure, BlockState standing) {
+        return exposure.toward().isAir()
+                ? new Mingling(standing, CHARRED)
+                : new Mingling(exposure.toward(), exposure.tint());
     }
 
     /**
@@ -117,8 +150,9 @@ public final class BlockTransforms {
      * so the face it built up carries straight into the step; a block whose
      * untinted exposure built the transition plays no second dissolve, its
      * built block held whole over it a few ticks so the old block never
-     * shows before the client's chunk redraws; any other, a block cooked
-     * away to air among them, dissolves from the state it was.
+     * shows before the client's chunk redraws; a block cooked away to air
+     * dissolves from the charred face its exposure built; any other
+     * dissolves from the state it was.
      *
      * @param pos   the block
      * @param from  the state it was
@@ -131,9 +165,11 @@ public final class BlockTransforms {
         if (built != null && built.tint() >= 0) {
             // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
             playing.add(new Transform(pos.immutable(), built.toward(), start, built.tint()));
-        } else if (built == null || built.toward().isAir()) {
-            // broil-heat-wave-ring-cooks-ahead: a block cooked into an item drew nothing building, so it dissolves away
+        } else if (built == null) {
             playing.add(new Transform(pos.immutable(), from, start));
+        } else if (built.toward().isAir()) {
+            // blocks-that-cook-into-items-cook-like-blocks: the charred face it built dissolves away
+            playing.add(new Transform(pos.immutable(), from, start, CHARRED));
         } else {
             // broil-heat-wave-ring-cooks-ahead: the build was the one dissolve; the built block stays whole
             // over the old one until the chunk redraws it, so the old block never shows again

@@ -117,7 +117,6 @@ public final class StepTypes {
         register(PetrifyStep.TYPE);
         register(CalcifyStep.TYPE);
         register(DegradeStep.TYPE);
-        register(BroilStep.TYPE);
         register(FlamesStep.TYPE);
         register(HeaterStep.TYPE);
         register(LeafSteps.HEAL.type());
