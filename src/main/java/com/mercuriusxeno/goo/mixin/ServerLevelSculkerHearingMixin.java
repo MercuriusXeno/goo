@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Carries each sound the server plays to the Sculkers submerged in blocks
+ * Carries each sound the server plays to the Sculkers
  * that vanilla's range leaves it short of, out to render distance.
  * decision sculker-sight-persists-where-echoes-have-touched
  */

@@ -29,8 +29,8 @@ import java.util.Map;
  * A mob that makes a sound shows the sculk outline for about a second,
  * fading, and leaves the echoing silhouette of the shared afterimage; all of
  * it draws fainter the farther it stands, down to a fifth at the edge of
- * render distance. Submerged in blocks, the diver also hears the sounds the
- * server carries to it from anywhere within render distance. The brew's end
+ * render distance. The diver also hears the sounds the server carries to it
+ * from anywhere within render distance. The brew's end
  * forgets it all.
  * decision sculker-sight-persists-where-echoes-have-touched
  * decision afterimage-is-one-shared-effect
@@ -168,7 +168,7 @@ public final class SculkerSenses {
     /**
      * Hears a sound within render distance: its rings ripple out of its
      * source, and every mob standing at the source outlines, as a sound the
-     * game plays or one the server carries to a submerged diver alike.
+     * game plays or one the server carries from far off alike.
      *
      * @param at       where the sound played
      * @param loudness its loudness, 1 for an ordinary sound

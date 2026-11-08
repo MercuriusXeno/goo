@@ -6,7 +6,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Client-side handler for a far sound the server carried to a submerged
+ * Client-side handler for a far sound the server carried to a
  * diver: hears it as a sound the game plays.
  * decision sculker-sight-persists-where-echoes-have-touched
  */
