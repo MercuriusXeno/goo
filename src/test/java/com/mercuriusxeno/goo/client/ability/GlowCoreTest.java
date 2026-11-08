@@ -48,6 +48,32 @@ class GlowCoreTest {
         }
     }
 
+    /** Operator ruling 2026-11-08: the core is a cuboid, not a spheroid. */
+    @Test
+    void theCoreIsACuboid() {
+        VertexConsumer buffer = mock(VertexConsumer.class);
+        List<float[]> corners = new java.util.ArrayList<>();
+        when(buffer.addVertex(any(PoseStack.Pose.class), anyFloat(), anyFloat(), anyFloat())).thenAnswer(call -> {
+            corners.add(new float[] {call.getArgument(1), call.getArgument(2), call.getArgument(3)});
+            return buffer;
+        });
+        when(buffer.setColor(anyInt())).thenReturn(buffer);
+        GlowCore.emit(new PoseStack().last(), buffer, 1f, 1f);
+        assertTrue(!corners.isEmpty(), "the core emits nothing");
+        for (float[] corner : corners) {
+            float reach = Math.max(Math.abs(corner[0]), Math.max(Math.abs(corner[1]), Math.abs(corner[2])));
+            boolean aLayersHalfSize = CORE.stream().anyMatch(layer -> Math.abs(layer.radius() - reach) < 1e-5f);
+            assertTrue(aLayersHalfSize && isACubeCorner(corner, reach), "a vertex off every layer's cube at "
+                    + java.util.Arrays.toString(corner));
+        }
+    }
+
+    /** A cube's corner sits at its half-size on all three axes. */
+    private static boolean isACubeCorner(float[] corner, float half) {
+        return Math.abs(Math.abs(corner[0]) - half) < 1e-5f && Math.abs(Math.abs(corner[1]) - half) < 1e-5f
+                && Math.abs(Math.abs(corner[2]) - half) < 1e-5f;
+    }
+
     @Test
     void theCoreEmitsItsLayers() {
         VertexConsumer buffer = mock(VertexConsumer.class);
