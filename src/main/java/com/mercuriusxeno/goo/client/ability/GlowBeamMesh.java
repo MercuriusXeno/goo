@@ -22,13 +22,14 @@ public final class GlowBeamMesh {
     /**
      * The beam's layers from the core out, each wider and fainter than the
      * last; slimmed and dimmed after UAT found them too bright and too thick
-     * (operator ruling 2026-10-09).
+     * (operator ruling 2026-10-09), then made smaller with the layers drawn
+     * tighter together (operator ruling 2026-11-08).
      */
     public static final List<Layer> LAYERS = List.of(
-            new Layer(0.04f, ARGB.color(120, 0xFFF6C8)),
-            new Layer(0.09f, ARGB.color(66, 0xFFE628)),
-            new Layer(0.17f, ARGB.color(27, 0xFFD700)),
-            new Layer(0.28f, ARGB.color(11, 0xFFD700)));
+            new Layer(0.035f, ARGB.color(120, 0xFFF6C8)),
+            new Layer(0.06f, ARGB.color(66, 0xFFE628)),
+            new Layer(0.095f, ARGB.color(27, 0xFFD700)),
+            new Layer(0.14f, ARGB.color(11, 0xFFD700)));
     /** Blocks of beam one tile of the texture spans. */
     private static final float BLOCKS_PER_TILE = 1f;
     private static final Vector3f UP = new Vector3f(0f, 1f, 0f);

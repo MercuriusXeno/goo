@@ -76,6 +76,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.when;
@@ -138,13 +141,14 @@ class RadialWheelRendererTest {
             assertEquals(Component.translatable("goo.ability.hex.charm"), RadialWheelRenderer.buildLabel(entity));
         }
 
+        /** decision badges-halve-and-sit-up-right-and-closer */
         @Test
-        void everyBadgeKindDrawsFromA16x16SpriteUnderGooBadge() {
+        void everyBadgeKindDrawsFromAn8x8SpriteUnderGooBadge() {
             assertAll(Arrays.stream(AbilityBadge.values()).map(badge -> (Executable) () -> {
                 Identifier sprite = RadialWheelRenderer.badgeIcon(badge);
                 assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID,
                         "textures/goo/badge/" + badge.getSerializedName() + ".png"), sprite);
-                assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
+                assertEquals(List.of(RadialWheelRenderer.BADGE_SIZE, RadialWheelRenderer.BADGE_SIZE),
                         pngDimensions(ASSETS_ROOT + sprite.getNamespace() + "/" + sprite.getPath()), badge.name());
             }));
         }
@@ -327,6 +331,292 @@ class RadialWheelRendererTest {
         }
     }
 
+    /**
+     * Each badge, eight pixels square, stands right of the ability's icon without touching it, and the icon and
+     * badges together center on the cluster's point, with and without a prism badge.
+     * decision badges-halve-and-sit-up-right-and-closer
+     * decision abilities-replace-the-hovered-type
+     */
+    @Nested
+    class IconClusterLayout {
+
+        private static final int[] CENTER = {200, 120};
+        private static final int HALF_BADGE_SIDE = 8;
+        /** How far a cluster's middle may sit off its point: half a pixel, an odd width's rounding. */
+        private static final double CENTERING_SLACK = 0.5;
+
+        private List<RadialWheelRenderer.IconCluster> clusters() {
+            return List.of(RadialWheelRenderer.clusterAround(CENTER, AbilityBadge.WORLD, false),
+                    RadialWheelRenderer.clusterAround(CENTER, AbilityBadge.WORLD, true));
+        }
+
+        private static boolean meet(RadialWheelRenderer.ItemRect one, RadialWheelRenderer.ItemRect other) {
+            return one.left() < other.left() + other.size() && other.left() < one.left() + one.size()
+                    && one.top() < other.top() + other.size() && other.top() < one.top() + one.size();
+        }
+
+        @Test
+        void everyBadgeIsEightPixelsSquareRightOfTheIconWithoutTouchingIt() {
+            assertAll(clusters().stream().flatMap(cluster -> cluster.badges().stream().map(badge -> (Executable) () -> {
+                RadialWheelRenderer.ItemRect icon = cluster.icon();
+                assertEquals(HALF_BADGE_SIDE, badge.rect().size(), badge.badge() + " side");
+                assertEquals(RadialWheelRenderer.ABILITY_ICON_SIZE, icon.size(), "icon side");
+                assertTrue(badge.rect().left() > icon.left() + icon.size(),
+                        badge.badge() + " left " + badge.rect().left() + ", icon right " + (icon.left() + icon.size()));
+                assertFalse(meet(badge.rect(), icon), badge.badge() + " meets the icon");
+            })));
+        }
+
+        /**
+         * No badge, with or without the prism badge, meets any line of the ability's words placed round the same
+         * tip: a two-line name, each line the longest word any shipped ability's English name holds, and the widest
+         * shipped cost label, each line measured by the vanilla font's glyph advances.
+         * decision badges-halve-and-sit-up-right-and-closer
+         */
+        @Test
+        void noBadgeMeetsAnyLineOfTheAbilitysWords() throws IOException {
+            JsonObject lang = ShortNames.englishLang();
+            Component word = Component.literal(shippedAbilities().stream()
+                    .flatMap(ability -> Arrays.stream(lang.get(ability.displayName()).getAsString().split("\\s+")))
+                    .max(Comparator.comparingInt(String::length)).orElseThrow());
+            List<RadialWheelRenderer.PlacedLine> words = RadialWheelRenderer.placeWords(List.of(word, word),
+                    Component.literal(PetalWords.WIDEST_COST), CENTER, PetalWords::vanillaWidth,
+                    PetalWords.LINE_HEIGHT);
+            assertAll(clusters().stream().flatMap(cluster -> cluster.badges().stream()).flatMap(badge -> words.stream()
+                    .map(line -> (Executable) () -> {
+                        RadialWheelRenderer.ItemRect square = badge.rect();
+                        double[] box = line.box();
+                        assertFalse(square.left() < box[2] && box[0] < square.left() + square.size()
+                                        && square.top() < box[3] && box[1] < square.top() + square.size(),
+                                badge.badge() + " " + square + " meets \"" + line.text().getString() + "\" "
+                                        + Arrays.toString(box));
+                    })));
+        }
+
+        @Test
+        void iconAndBadgesCenterTogetherOnThePoint() {
+            assertAll(clusters().stream().map(cluster -> (Executable) () -> {
+                List<RadialWheelRenderer.ItemRect> squares = new ArrayList<>(List.of(cluster.icon()));
+                cluster.badges().forEach(badge -> squares.add(badge.rect()));
+                double left = squares.stream().mapToInt(RadialWheelRenderer.ItemRect::left).min().orElseThrow();
+                double right = squares.stream().mapToInt(square -> square.left() + square.size()).max().orElseThrow();
+                double top = squares.stream().mapToInt(RadialWheelRenderer.ItemRect::top).min().orElseThrow();
+                double bottom = squares.stream().mapToInt(square -> square.top() + square.size()).max().orElseThrow();
+                assertTrue(Math.abs((left + right) / 2 - CENTER[0]) <= CENTERING_SLACK,
+                        "middle x " + (left + right) / 2 + " for " + squares.size() + " squares");
+                assertTrue(Math.abs((top + bottom) / 2 - CENTER[1]) <= CENTERING_SLACK,
+                        "middle y " + (top + bottom) / 2 + " for " + squares.size() + " squares");
+            }));
+        }
+    }
+
+    /**
+     * Where an ability wears two badges, the prism badge draws first, so behind, fanned up and right of its partner,
+     * which covers only the prism badge's bottom-left corner, at most two pixels each way, and the cursor names each
+     * from its center.
+     * decision prism-badge-sits-behind-and-above-barely-overlapping
+     * decision hovering-a-badge-names-its-kind
+     */
+    @Nested
+    class PrismBadgeLayout {
+
+        private static final int[] ICON_CENTER = {200, 120};
+        private static final int MOST_OVERLAP = 2;
+
+        private final List<RadialWheelRenderer.BadgeIcon> layout = RadialWheelRenderer.clusterAround(ICON_CENTER,
+                AbilityBadge.WORLD, true).badges();
+
+        private RadialWheelRenderer.BadgeIcon prism() {
+            return layout.stream().filter(badge -> badge.badge() == AbilityBadge.PRISM).findFirst().orElseThrow();
+        }
+
+        private RadialWheelRenderer.BadgeIcon partner() {
+            return layout.stream().filter(badge -> badge.badge() == AbilityBadge.WORLD).findFirst().orElseThrow();
+        }
+
+        private static int[] centerOf(RadialWheelRenderer.ItemRect square) {
+            return new int[]{square.left() + square.size() / 2, square.top() + square.size() / 2};
+        }
+
+        @Test
+        void prismBadgeDrawsBeforeItsPartner() {
+            assertEquals(List.of(AbilityBadge.PRISM, AbilityBadge.WORLD),
+                    layout.stream().map(RadialWheelRenderer.BadgeIcon::badge).toList());
+        }
+
+        @Test
+        void prismBadgeFansUpAndRightWithOnlyItsBottomLeftCornerCovered() {
+            RadialWheelRenderer.ItemRect prism = prism().rect();
+            RadialWheelRenderer.ItemRect partner = partner().rect();
+            int across = Math.min(prism.left() + prism.size(), partner.left() + partner.size())
+                    - Math.max(prism.left(), partner.left());
+            int down = Math.min(prism.top() + prism.size(), partner.top() + partner.size())
+                    - Math.max(prism.top(), partner.top());
+            assertAll(
+                    () -> assertTrue(centerOf(prism)[0] > centerOf(partner)[0],
+                            "prism center x " + centerOf(prism)[0] + ", partner's " + centerOf(partner)[0]),
+                    () -> assertTrue(centerOf(prism)[1] < centerOf(partner)[1],
+                            "prism center y " + centerOf(prism)[1] + ", partner's " + centerOf(partner)[1]),
+                    () -> assertTrue(across >= 1 && across <= MOST_OVERLAP && down >= 1 && down <= MOST_OVERLAP,
+                            "overlap " + across + " across, " + down + " down"),
+                    () -> assertEquals(List.of(prism.left(), prism.top() + prism.size()),
+                            List.of(partner.left() + partner.size() - across, partner.top() + down),
+                            "the covered part is the prism badge's bottom-left corner"));
+        }
+
+        @Test
+        void eachBadgeNamesItsKindFromItsCenter() {
+            int[] prismCenter = centerOf(prism().rect());
+            int[] partnerCenter = centerOf(partner().rect());
+            assertAll(
+                    () -> assertEquals(Component.translatable("goo.badge." + AbilityBadge.PRISM.getSerializedName()),
+                            RadialWheelRenderer.badgeNameUnder(layout, prismCenter[0], prismCenter[1]), "prism"),
+                    () -> assertEquals(Component.translatable("goo.badge." + AbilityBadge.WORLD.getSerializedName()),
+                            RadialWheelRenderer.badgeNameUnder(layout, partnerCenter[0], partnerCenter[1]),
+                            "partner"));
+        }
+    }
+
+    /**
+     * An ability's name draws a little under full size and its cost smaller still, so in every shipped fan, on a wheel
+     * showing any number of the shipped types and opened at any slot, at the radius a 1080p screen draws at GUI scale
+     * 3 and at 4, no two of the fan's petals' words meet: each petal reads its English name and the widest cost label
+     * its ability shows, each line measured by the vanilla font's glyph advances.
+     * decision ability-name-shrinks-some-and-other-text-more
+     */
+    @Nested
+    class PetalWords {
+
+        private static final int CENTER = 500;
+        /** The vanilla font's advance for most glyphs: five pixels of ink and one of spacing. */
+        private static final int GLYPH_ADVANCE = 6;
+        /** The vanilla font's narrowest advance, a one-pixel glyph such as i. */
+        private static final int NARROWEST_ADVANCE = 2;
+        private static final int LINE_HEIGHT = 9;
+        /** The widest cost label a shipped petal reads: blink's formula. */
+        private static final String WIDEST_COST = "200 + 100/block";
+        private static final String ABILITY_KEY_PREFIX = "goo.ability.";
+        /** How many samples of holdings each power of ten takes. */
+        private static final int STEPS_PER_DECADE = 10;
+        /** The most holdings a petal's label is read at, in mB: a billion. */
+        private static final int MOST_HOLDINGS = 1_000_000_000;
+        /** How many samples reach from one mB to {@link #MOST_HOLDINGS}. */
+        private static final int HOLDING_STEPS = 9 * STEPS_PER_DECADE;
+        /** A 1080p screen's GUI width at GUI scale 3, and at GUI scale 4. */
+        private static final int SCALE_THREE_WIDTH = 640;
+        private static final int SCALE_FOUR_WIDTH = 480;
+
+        @Test
+        void nameDrawsUnderFullSizeAndTheCostSmallerStill() {
+            assertAll(
+                    () -> assertTrue(RadialWheelRenderer.NAME_SCALE < 1f, "name scale " + RadialWheelRenderer.NAME_SCALE),
+                    () -> assertTrue(RadialWheelRenderer.DETAIL_SCALE < RadialWheelRenderer.NAME_SCALE,
+                            "cost scale " + RadialWheelRenderer.DETAIL_SCALE));
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
+        void noTwoPetalsWordsMeetInAnyShippedFanAtAnyWheelTheShippedTypesCanShow(int guiWidth) throws IOException {
+            int radius = (int) RadialWheel.outerRadius(guiWidth, guiWidth * 9 / 16);
+            JsonObject lang = ShortNames.englishLang();
+            Map<String, List<ClientAbility>> fans = shippedFans();
+            List<String> meetings = new ArrayList<>();
+            int pairs = 0;
+            for (Map.Entry<String, List<ClientAbility>> fan : fans.entrySet()) {
+                List<List<Component>> names = fan.getValue().stream().map(ability -> RadialWheelRenderer
+                        .splitNameLines(lang.get(ability.displayName()).getAsString())).toList();
+                List<Component> costs = fan.getValue().stream().map(PetalWords::widestLabel).toList();
+                for (int types = 1; types <= fans.size(); types++) {
+                    for (int open = 0; open < types; open++) {
+                        List<List<RadialWheelRenderer.PlacedLine>> words = fanWords(types, open, radius, names, costs);
+                        for (int one = 0; one < words.size(); one++) {
+                            for (int other = one + 1; other < words.size(); other++) {
+                                pairs++;
+                                for (String meeting : meetings(words.get(one), words.get(other))) {
+                                    meetings.add(fan.getKey() + " on a " + types + "-type wheel opened at slot " + open
+                                            + ", petals " + one + " and " + other + ": " + meeting);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            assertTrue(pairs > 0, "no pair of petals checked");
+            assertEquals(List.of(), meetings);
+        }
+
+        /** Each petal's placed words in one open fan, in fan order. */
+        private List<List<RadialWheelRenderer.PlacedLine>> fanWords(int types, int open, int radius,
+                                                                    List<List<Component>> names, List<Component> costs) {
+            RadialWheel wheel = openedWheel(types, names.size(), open, radius);
+            RadialWheelRenderer.Frame frame = new RadialWheelRenderer.Frame(wheel, List.of(), List.of(), Map.of(),
+                    CENTER, CENTER, radius, mock(PetalLook.class), 0.0f);
+            return wheel.displayedLayout(0.0f).stream()
+                    .filter(petal -> petal.isAbility() && petal.type() == open)
+                    .sorted(Comparator.comparingInt(RadialWheel.PetalArc::ability))
+                    .map(petal -> RadialWheelRenderer.placeWords(names.get(petal.ability()), costs.get(petal.ability()),
+                            RadialWheelRenderer.tipCenter(frame, petal), PetalWords::vanillaWidth, LINE_HEIGHT))
+                    .toList();
+        }
+
+        /** Each pair of lines, one from each petal, whose boxes meet, as the two lines' words. */
+        private static List<String> meetings(List<RadialWheelRenderer.PlacedLine> one,
+                                             List<RadialWheelRenderer.PlacedLine> other) {
+            return one.stream().flatMap(line -> other.stream().filter(across -> meet(line.box(), across.box()))
+                    .map(across -> line.text().getString() + " meets " + across.text().getString())).toList();
+        }
+
+        private static boolean meet(double[] one, double[] other) {
+            return one[0] < other[2] && other[0] < one[2] && one[1] < other[3] && other[1] < one[3];
+        }
+
+        /** Each shipped type's abilities in fan order, by the type named in their display key. */
+        private static Map<String, List<ClientAbility>> shippedFans() {
+            return AbilityJson.files().stream()
+                    .map(AbilityJson::decode)
+                    .map(definition -> ClientAbility.fromEntry(com.mercuriusxeno.goo.network.AbilitySyncPayload
+                            .gloveEntries(definition.gooType(), List.of(definition)).getFirst()))
+                    .sorted(AbilityBadge.fanOrder(ClientAbility::badge, ClientAbility::order))
+                    .collect(Collectors.groupingBy(ability -> ability.displayName()
+                            .substring(ABILITY_KEY_PREFIX.length()).split("\\.")[0]));
+        }
+
+        /**
+         * The widest cost line an ability's petal reads, by the vanilla font: its petal label over holdings from
+         * none to {@link #MOST_HOLDINGS}, sampled ten to a decade with each power of ten less one, every reagent
+         * plentiful and no upkeep standing, so every count width the amount and duration formats print is met.
+         */
+        private static Component widestLabel(ClientAbility ability) {
+            List<Integer> holdings = new ArrayList<>(List.of(0));
+            for (int step = 0; step <= HOLDING_STEPS; step++) {
+                int sampled = (int) Math.round(Math.pow(10, step / (double) STEPS_PER_DECADE));
+                holdings.add(sampled);
+                holdings.add(sampled - 1);
+            }
+            return holdings.stream()
+                    .map(held -> Component.literal(ability.petalLabel(held, Integer.MAX_VALUE,
+                            com.mercuriusxeno.goo.client.network.StandingUpkeep.NONE)))
+                    .max(Comparator.comparingInt(PetalWords::vanillaWidth)).orElseThrow();
+        }
+
+        /** A line's width in the vanilla font: each glyph's advance, its pixel of spacing included. */
+        private static int vanillaWidth(Component line) {
+            return line.getString().chars().map(PetalWords::advance).sum();
+        }
+
+        /** One glyph's advance in the vanilla font's ASCII sheet; any glyph it lacks reads as wide as most. */
+        private static int advance(int glyph) {
+            return switch (glyph) {
+                case 'i', '!', '.', ',', ':', ';', '|', '\'' -> NARROWEST_ADVANCE;
+                case 'l', '`' -> NARROWEST_ADVANCE + 1;
+                case 'I', 't', '[', ']', ' ' -> NARROWEST_ADVANCE + 2;
+                case 'f', 'k', '<', '>', '(', ')', '{', '}', '*', '"' -> GLYPH_ADVANCE - 1;
+                case '@', '~' -> GLYPH_ADVANCE + 1;
+                default -> GLYPH_ADVANCE;
+            };
+        }
+    }
+
     /** The fan reads each ability's first-throw cost and the type's holdings (decision radial-shows-first-throw-cost-and-holdings). */
     @Nested
     class CostAndHoldings {
@@ -440,6 +730,8 @@ class RadialWheelRendererTest {
         private static final int LINE_HEIGHT = 9;
         /** A type icon's side, as the renderer draws it. */
         private static final int TYPE_ICON_SIZE = 12;
+        /** How many poses deep the frame's matrix stack nests: the panel's push, then a scaled word's. */
+        private static final int POSE_DEPTH = 4;
         /** Where a text call's ARGB color sits among its arguments. */
         private static final int TEXT_COLOR_ARGUMENT = 4;
         /** Where a blit's ARGB color sits among its arguments. */
@@ -479,8 +771,30 @@ class RadialWheelRendererTest {
             }
         };
 
-        /** One line of words the frame drew in its own color: where it centered, its top and what. */
-        private record DrawnText(int x, int y, Component text) {
+        /**
+         * One line of words the frame drew, read through the pose it drew under: the screen x it centered on, its
+         * screen top, what, its color and the scale it drew at.
+         */
+        private record DrawnText(double x, double y, Component text, int color, float scale) {
+        }
+
+        /** Every line each rendered frame drew, in draw order, by the graphics it drew to. */
+        private final Map<GuiGraphicsExtractor, List<DrawnText>> drawnTexts = new java.util.IdentityHashMap<>();
+
+        /**
+         * Records each line a mocked graphics draws, its place carried through the pose it draws under, so a
+         * scaled line reads back where it lands on screen.
+         */
+        private void recordTexts(GuiGraphicsExtractor graphics, Matrix3x2fStack pose) {
+            List<DrawnText> drawn = new ArrayList<>();
+            drawnTexts.put(graphics, drawn);
+            doAnswer(call -> {
+                org.joml.Vector2f center = pose.transformPosition((int) call.getArgument(2) + WORD_WIDTH / 2f,
+                        (int) call.getArgument(3), new org.joml.Vector2f());
+                drawn.add(new DrawnText(center.x, center.y, call.getArgument(1), call.getArgument(TEXT_COLOR_ARGUMENT),
+                        pose.m00()));
+                return null;
+            }).when(graphics).text(any(Font.class), any(Component.class), anyInt(), anyInt(), anyInt(), anyBoolean());
         }
 
         private final List<ResourceKey<GooTypeDefinition>> types = IntStream.range(0, TYPES)
@@ -563,7 +877,9 @@ class RadialWheelRendererTest {
                             .toList())
                     .toList();
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-            when(graphics.pose()).thenReturn(new Matrix3x2fStack(1));
+            Matrix3x2fStack pose = new Matrix3x2fStack(POSE_DEPTH);
+            when(graphics.pose()).thenReturn(pose);
+            recordTexts(graphics, pose);
             Font font = mock(Font.class);
             when(font.width(any(FormattedText.class))).thenReturn(WORD_WIDTH);
             RadialWheelRenderer.Hoverables hoverables = RadialWheelRenderer.render(graphics, font,
@@ -590,12 +906,12 @@ class RadialWheelRendererTest {
             RadialWheel wheel = openWheel();
             RadialWheel.PetalArc petal = wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .findFirst().orElseThrow();
-            int[] icon = RadialWheelRenderer.contentCenter(frameOf(wheel, List.of()), petal);
-            int[] own = RadialWheelRenderer.badgeBeside(icon);
-            int[] prism = RadialWheelRenderer.prismBadgeUnder(own);
-            int quarter = RadialWheelRenderer.ABILITY_ICON_SIZE / 4;
-            int[] onOwn = {own[0] + quarter, own[1] - quarter};
-            int[] onPrismBelowOwn = {prism[0], own[1] + RadialWheelRenderer.ABILITY_ICON_SIZE / 2 + quarter};
+            RadialWheelRenderer.IconCluster cluster = RadialWheelRenderer.clusterAround(
+                    RadialWheelRenderer.contentCenter(frameOf(wheel, List.of()), petal), AbilityBadge.WORLD, true);
+            int[] icon = cluster.iconCenter();
+            RadialWheelRenderer.ItemRect own = cluster.badges().getLast().rect();
+            int[] onOwn = {own.left() + own.size() / 2, own.top() + own.size() - 1};
+            int[] onPrismBelowOwn = aPointShowing(cluster.badges().getFirst().rect(), List.of(own));
             Component world = Component.translatable("goo.badge." + AbilityBadge.WORLD.getSerializedName());
             Component prismName = Component.translatable("goo.badge." + AbilityBadge.PRISM.getSerializedName());
 
@@ -608,6 +924,21 @@ class RadialWheelRendererTest {
                             petal.ability(), RADIUS, icon)), "petal face"),
                     () -> assertEquals(List.of(), tooltipsSet(renderFrame(wheel, NO_ABILITY,
                             NO_ABILITY, RADIUS, onPrismBelowOwn)), "no prism badge drawn"));
+        }
+
+        /** A pixel of a square that none of the squares drawn over it covers. */
+        private static int[] aPointShowing(RadialWheelRenderer.ItemRect square,
+                                           List<RadialWheelRenderer.ItemRect> covers) {
+            for (int y = square.top(); y < square.top() + square.size(); y++) {
+                for (int x = square.left(); x < square.left() + square.size(); x++) {
+                    int px = x;
+                    int py = y;
+                    if (covers.stream().noneMatch(cover -> cover.contains(px, py))) {
+                        return new int[]{x, y};
+                    }
+                }
+            }
+            throw new AssertionError(square + " lies wholly under " + covers);
         }
 
         private RadialWheelRenderer.Frame frameOf(RadialWheel wheel, List<List<OfferedAbility>> abilities) {
@@ -701,15 +1032,9 @@ class RadialWheelRendererTest {
             return wordsDrawn(renderFrame(wheel), color -> color != RadialWheelRenderer.OUTLINE_COLOR);
         }
 
-        /** The text calls a frame made in the colors a test asks for, each read back to its center. */
-        private static List<DrawnText> wordsDrawn(GuiGraphicsExtractor graphics,
-                                                  java.util.function.IntPredicate color) {
-            return mockingDetails(graphics).getInvocations().stream()
-                    .filter(call -> call.getMethod().getName().equals("text")
-                            && color.test(call.getArgument(TEXT_COLOR_ARGUMENT)))
-                    .map(call -> new DrawnText((int) call.getArgument(2) + WORD_WIDTH / 2, call.getArgument(3),
-                            call.getArgument(1)))
-                    .toList();
+        /** The lines a frame drew in the colors a test asks for, each read back to its center on screen. */
+        private List<DrawnText> wordsDrawn(GuiGraphicsExtractor graphics, java.util.function.IntPredicate color) {
+            return drawnTexts.get(graphics).stream().filter(text -> color.test(text.color())).toList();
         }
 
         /** decision abilities-replace-the-hovered-type */
@@ -718,16 +1043,18 @@ class RadialWheelRendererTest {
             GuiGraphicsExtractor graphics = renderFrame(restingOnOpenType(RADIUS));
             List<DrawnText> lines = wordsDrawn(graphics, color -> color != RadialWheelRenderer.OUTLINE_COLOR);
             List<DrawnText> border = wordsDrawn(graphics, color -> color == RadialWheelRenderer.OUTLINE_COLOR);
+            double slack = 1e-3;
 
             assertFalse(lines.isEmpty());
             assertAll(lines.stream().map(line -> (Executable) () -> {
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dy = -1; dy <= 1; dy++) {
-                        int x = line.x() + dx;
-                        int y = line.y() + dy;
+                        double x = line.x() + dx * line.scale();
+                        double y = line.y() + dy * line.scale();
                         boolean expected = dx != 0 || dy != 0;
-                        assertEquals(expected, border.stream().anyMatch(edge -> edge.x() == x && edge.y() == y
-                                && edge.text().equals(line.text())), line + " border at " + dx + "," + dy);
+                        assertEquals(expected, border.stream().anyMatch(edge -> Math.abs(edge.x() - x) < slack
+                                && Math.abs(edge.y() - y) < slack && edge.text().equals(line.text())),
+                                line + " border at " + dx + "," + dy);
                     }
                 }
             }));
@@ -823,12 +1150,20 @@ class RadialWheelRendererTest {
                     "sampled " + sampled + " expected " + expected + " at " + screen);
         }
 
-        /** decision abilities-replace-the-hovered-type */
+        /**
+         * Each ability's cluster centers on its tip: the icon straight after
+         * its petal's edge strip, the badge where
+         * {@link RadialWheelRenderer#clusterAround} places it, the name above
+         * the icon and the cost below it, both centered on the tip.
+         * decision abilities-replace-the-hovered-type
+         * decision badges-halve-and-sit-up-right-and-closer
+         */
         @Test
-        void abilityIconCentersOnItsTipWithTheNameAboveAndTheCostBelow() {
+        void abilityClusterCentersOnItsTipWithTheNameAboveAndTheCostBelow() {
             RadialWheel wheel = openWheel();
             GuiGraphicsExtractor graphics = renderFrame(wheel);
             List<DrawnText> texts = renderTexts(wheel);
+            RadialWheelRenderer.Frame frame = frameOf(wheel, List.of());
             int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
 
             List<PetalRenderState> submitted = submittedArguments(graphics, "submitGuiElementRenderState",
@@ -837,46 +1172,54 @@ class RadialWheelRendererTest {
 
             assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
-                        PetalMask.Point tip = petal.shape().tipCenter();
+                        int[] tip = RadialWheelRenderer.tipCenter(frame, petal);
+                        RadialWheelRenderer.IconCluster cluster = RadialWheelRenderer.clusterAround(tip,
+                                AbilityBadge.WORLD, false);
                         PetalRenderState iconState = spriteOf(submitted, iconOf(petal));
+                        int iconAt = submitted.indexOf(iconState);
                         float[] iconBox = boxOf(iconState);
-                        int iconX = Math.round(iconBox[0]) + half;
-                        int iconY = Math.round(iconBox[1]) + half;
-                        assertTrue(Math.hypot(iconX - (CENTER_X + tip.x() * RADIUS),
-                                iconY - (CENTER_Y + tip.y() * RADIUS)) <= TIP_TOLERANCE,
-                                petal + " icon at " + iconX + "," + iconY);
+                        assertEquals(List.of(cluster.iconCenter()[0] - half, cluster.iconCenter()[1] - half),
+                                List.of(Math.round(iconBox[0]), Math.round(iconBox[1])), petal + " icon's corner");
                         assertEquals(0xFFFFFFFF, iconState.color(), petal + " tint");
-                        PetalRenderState badgeState = submitted.get(submitted.indexOf(iconState) + 1);
+                        PetalRenderState before = submitted.get(iconAt - 1);
+                        assertTrue(!before.isTextured()
+                                        && before.color() == RadialWheelRenderer.faded(EDGE_COLOR, petal.presence()),
+                                petal + " icon draws straight after its petal's edge strip");
+                        PetalRenderState badgeState = submitted.get(iconAt + 1);
                         assertTrue(badgeState.textureSetup() == badge, petal + " badge follows");
                         float[] badgeBox = boxOf(badgeState);
-                        assertEquals(iconX + half, Math.round(badgeBox[0]), petal + " badge's left edge");
-                        assertEquals(iconY - half, Math.round(badgeBox[1]), petal + " badge's row");
-                        List<DrawnText> words = texts.stream().filter(text -> text.x() == iconX
-                                && Math.abs(text.y() - iconY) <= half + 2 * LINE_HEIGHT).toList();
+                        RadialWheelRenderer.ItemRect expected = cluster.badges().getLast().rect();
+                        assertEquals(expected.left(), Math.round(badgeBox[0]), petal + " badge's left edge");
+                        assertEquals(expected.top(), Math.round(badgeBox[1]), petal + " badge's top edge");
+                        RadialWheelRenderer.ItemRect iconSquare = cluster.icon();
+                        List<DrawnText> words = texts.stream().filter(text -> text.x() == tip[0]
+                                && Math.abs(text.y() - tip[1]) <= iconSquare.size() + 2 * LINE_HEIGHT).toList();
                         assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
-                        assertTrue(words.getFirst().y() + LINE_HEIGHT <= iconY - half, petal + " name above");
-                        assertTrue(words.getLast().y() >= iconY + half, petal + " cost below");
+                        assertTrue(words.getFirst().y() + LINE_HEIGHT * words.getFirst().scale() <= iconSquare.top(),
+                                petal + " name above");
+                        assertTrue(words.getLast().y() >= iconSquare.top() + iconSquare.size(),
+                                petal + " cost below");
                     }));
         }
 
         /**
-         * Every ability carrying an on_prism reaction paints the prism badge
-         * underneath its own badge, before its icon and own badge and a hair
-         * off the own badge, whole on its petal at the wheel radius a GUI of
-         * scale 3 and of scale 4 draws on a 1080p screen.
+         * Every ability carrying an on_prism reaction paints its icon, then
+         * the prism badge, then its own badge over it, each where
+         * {@link RadialWheelRenderer#clusterAround} places it and whole on its
+         * petal at the wheel radius a GUI of scale 3 and of scale 4 draws on a
+         * 1080p screen.
          * decision on-prism-reaction-wears-the-prism-badge
+         * decision prism-badge-sits-behind-and-above-barely-overlapping
          */
         @ParameterizedTest
         @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
-        void prismBadgeSitsWholeUnderTheOwnBadgeOnEveryPetal(int guiWidth) {
+        void prismBadgeDrawsWholeBehindItsPartnerOnEveryPetal(int guiWidth) {
             int radius = (int) RadialWheel.outerRadius(guiWidth, guiWidth * GUI_HEIGHT_PER_WIDTH / GUI_WIDTH_UNITS);
             RadialWheel wheel = openWheel();
             List<PetalRenderState> submitted = submittedArguments(
                     renderFrame(wheel, NO_ABILITY, EVERY_ABILITY, radius), "submitGuiElementRenderState",
                     PetalRenderState.class);
-            int size = RadialWheelRenderer.ABILITY_ICON_SIZE;
-            int left = RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT;
-            int down = RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN;
+            int size = RadialWheelRenderer.BADGE_SIZE;
             TextureSetup prismBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.PRISM));
             TextureSetup worldBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.WORLD));
 
@@ -884,28 +1227,18 @@ class RadialWheelRendererTest {
                     .map(petal -> (Executable) () -> {
                         PetalRenderState iconState = spriteOf(submitted, iconOf(petal));
                         int iconAt = submitted.indexOf(iconState);
-                        PetalRenderState prismState = submitted.get(iconAt - 1);
-                        PetalRenderState ownState = submitted.get(iconAt + 1);
-                        assertTrue(prismState.textureSetup() == prismBadge, petal + " prism badge before the icon");
-                        assertTrue(ownState.textureSetup() == worldBadge, petal + " own badge after the icon");
-                        float[] ownBox = boxOf(ownState);
+                        PetalRenderState prismState = submitted.get(iconAt + 1);
+                        PetalRenderState ownState = submitted.get(iconAt + 2);
+                        assertTrue(prismState.textureSetup() == prismBadge, petal + " prism badge after the icon");
+                        assertTrue(ownState.textureSetup() == worldBadge, petal + " own badge over the prism badge");
+                        RadialWheelRenderer.ItemRect expected = RadialWheelRenderer.clusterAround(
+                                RadialWheelRenderer.tipCenter(frameOf(wheel, List.of(), radius), petal),
+                                AbilityBadge.WORLD, true).badges().getFirst().rect();
                         float[] prismBox = boxOf(prismState);
-                        assertEquals(Math.round(ownBox[0]) - left, Math.round(prismBox[0]), petal + " prism badge's left");
-                        assertEquals(Math.round(ownBox[1]) + down, Math.round(prismBox[1]), petal + " prism badge's top");
+                        assertEquals(expected.left(), Math.round(prismBox[0]), petal + " prism badge's left");
+                        assertEquals(expected.top(), Math.round(prismBox[1]), petal + " prism badge's top");
                         assertEquals(size * size, areaOf(prismState), AREA_TOLERANCE, petal + " prism badge shown whole");
                     }));
-        }
-
-        /**
-         * The prism badge stands further out from under the own badge than the
-         * 4 left and 2 down that left only a sliver showing.
-         * decision prism-badge-overlapped-less-to-be-seen
-         */
-        @Test
-        void prismBadgePeeksOutFurtherThanASliver() {
-            assertTrue(RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT + RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN > 6,
-                    "nudge " + RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT + " left, "
-                            + RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN + " down");
         }
 
         /** The wheel opened on the open type with the cursor on one of its abilities. */
@@ -1337,7 +1670,7 @@ class RadialWheelRendererTest {
         void petalEdgeStripDrawsUntexturedInTheEdgeColorFadedByPresence() {
             List<PetalRenderState> edges = submittedArguments(renderFrame(openWheel()),
                     "submitGuiElementRenderState", PetalRenderState.class).stream()
-                    .filter(state -> !state.isTextured()).toList();
+                    .filter(state -> !state.isTextured() && state.color() != RadialWheelRenderer.OUTLINE_COLOR).toList();
             List<RadialWheel.PetalArc> petals = openWheel().displayedLayout(0.0f);
 
             assertEquals(petals.size(), edges.size());
@@ -1407,19 +1740,17 @@ class RadialWheelRendererTest {
         @Test
         void closedLiesOnTheCenterLineWithTheIconAndBadgeOutsideThePetal() {
             int[] center = RadialWheelRenderer.contentCenter(frame, at(0.0));
-            int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
-            int size = RadialWheelRenderer.ABILITY_ICON_SIZE;
+            RadialWheelRenderer.IconCluster cluster = RadialWheelRenderer.clusterAround(center, AbilityBadge.WORLD, true);
+            List<RadialWheelRenderer.ItemRect> squares = new ArrayList<>(List.of(cluster.icon()));
+            cluster.badges().forEach(badge -> squares.add(badge.rect()));
 
             assertEquals(0.0, across(center[0], center[1]), ROUNDING);
             assertTrue(along(center[0], center[1]) > fanned.shape().outer() * RADIUS, "short of the outer radius");
-            assertAll(IntStream.range(0, 4).mapToObj(corner -> (Executable) () -> {
-                int dx = corner % 2 == 0 ? -half : half;
-                int dy = corner / 2 == 0 ? -half : half;
-                assertFalse(insidePetal(center[0] + dx, center[1] + dy), "icon corner " + corner);
-                assertFalse(insidePetal(center[0] + dx + size, center[1] + dy), "badge corner " + corner);
-                int[] prism = RadialWheelRenderer.prismBadgeUnder(new int[]{center[0] + size, center[1]});
-                assertFalse(insidePetal(prism[0] + dx, prism[1] + dy), "prism badge corner " + corner);
-            }));
+            assertAll(squares.stream().flatMap(square -> IntStream.range(0, 4).mapToObj(corner -> (Executable) () -> {
+                int x = square.left() + (corner % 2 == 0 ? 0 : square.size());
+                int y = square.top() + (corner / 2 == 0 ? 0 : square.size());
+                assertFalse(insidePetal(x, y), square + " corner " + corner);
+            })));
         }
 
         @Test

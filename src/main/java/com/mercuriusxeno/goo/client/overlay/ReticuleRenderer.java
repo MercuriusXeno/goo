@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -35,6 +36,11 @@ final class ReticuleRenderer {
     private static final int ALPHA = 200;
     /** Below this, the view runs along the world's vertical axis. */
     private static final double VERTICAL_EPSILON = 1e-6;
+    /**
+     * The lines the reticule draws with, through depth: at a grazing look the
+     * ring's lower half dips below the face it marks.
+     */
+    static final RenderType RENDER_TYPE = GooRenderTypes.LINES_GLOW_THROUGH_BLOCKS;
 
     private ReticuleRenderer() {}
 
@@ -109,7 +115,7 @@ final class ReticuleRenderer {
             Camera camera, Vec3 point, int rgb) {
         Vec3 cam = camera.position();
         float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
-        LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(GooRenderTypes.LINES_GLOW));
+        LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(RENDER_TYPE));
         int color = ARGB.color(ALPHA, ARGB.red(rgb), ARGB.green(rgb), ARGB.blue(rgb));
         double radius = radiusAt(point.distanceTo(cam));
         for (Vec3[] line : reticuleLines(standOffPoint(point, cam, radius), cam, radius)) {
