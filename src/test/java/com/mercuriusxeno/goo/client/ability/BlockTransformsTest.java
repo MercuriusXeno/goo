@@ -65,17 +65,40 @@ class BlockTransformsTest {
         assertEquals(0, transforms.exposing(START + 1 + BlockTransforms.BUILT_HOLD_TICKS + 1).size());
     }
 
-    // broil-heat-wave-ring-cooks-ahead: a log cooked into charcoal dissolves away once, from the log
+    // blocks-that-cook-into-items-cook-like-blocks: a log cooked into charcoal dissolves away from its charred face
     @Test
-    void aStepOnAnExposureTowardAirDissolvesFromTheOldBlock() {
+    void aStepOnAnExposureTowardAirDissolvesFromTheCharredFace() {
         BlockState log = mock(BlockState.class);
         BlockState air = mock(BlockState.class);
         when(air.isAir()).thenReturn(true);
         BlockTransforms transforms = new BlockTransforms();
         transforms.expose(GRAVEL, air, 0.9f, START, BlockTransforms.UNTINTED);
         transforms.start(GRAVEL, log, START + 1);
-        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, log, START + 1)), transforms.live(START + 1));
+        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, log, START + 1, BlockTransforms.CHARRED)),
+                transforms.live(START + 1));
         assertEquals(0, transforms.exposing(START + 1).size());
+    }
+
+    // blocks-that-cook-into-items-cook-like-blocks: a log mingles in its charred face from the cook's first tick
+    @Test
+    void anExposureTowardAirMinglesTheStandingBlockCharredFromItsFirstShare() {
+        BlockState log = mock(BlockState.class);
+        BlockState air = mock(BlockState.class);
+        when(air.isAir()).thenReturn(true);
+        BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, air, 0.025f, START,
+                BlockTransforms.UNTINTED);
+
+        assertEquals(new BlockTransforms.Mingling(log, BlockTransforms.CHARRED),
+                BlockTransforms.minglingOf(firstTick, log));
+    }
+
+    @Test
+    void anExposureTowardABlockMinglesThatBlockInItsOwnTint() {
+        BlockState sand = mock(BlockState.class);
+        BlockState glass = mock(BlockState.class);
+        BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, glass, 0.025f, START, MAROON);
+
+        assertEquals(new BlockTransforms.Mingling(glass, MAROON), BlockTransforms.minglingOf(firstTick, sand));
     }
 
     @Test
