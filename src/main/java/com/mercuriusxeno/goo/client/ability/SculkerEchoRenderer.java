@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.overlay.FungusXray;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -19,9 +18,6 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -38,7 +34,6 @@ import java.util.Set;
  * its strongest lit side, fading as its echo fades and the farther it stands.
  * decision sculker-sight-persists-where-echoes-have-touched
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerEchoRenderer {
 
     /** The opacity a lit block draws at beside the player, as its echo is fresh. */
@@ -60,12 +55,12 @@ public final class SculkerEchoRenderer {
     }
 
     /**
-     * Draws every lit block within sight.
+     * Draws every lit block within sight, over the world the vision has
+     * already dimmed, so an echo shows at its own strength wherever it stands.
      *
      * @param event the level render stage event
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    static void draw(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || SculkerSenses.echoes().remembered().isEmpty()) {

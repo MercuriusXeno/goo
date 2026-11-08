@@ -3,11 +3,15 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import com.mojang.blaze3d.buffers.Std140Builder;
-import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
+import com.mojang.blaze3d.resource.CrossFrameResourcePool;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryStack;
 
@@ -21,8 +25,12 @@ import org.lwjgl.system.MemoryStack;
  *
  * <p>The chain dims the world by its depth, and the game renderer clears the
  * level's depth to draw the hand before its own post effect slot runs, so the
- * chain runs itself just before that clear, holding no slot.
+ * chain runs itself, holding no slot, once the world's blocks are drawn and
+ * before the glass field and the echoes draw over them: what stands behind
+ * the glass is dimmed by its own distance, and an echo shows at its own
+ * strength.
  */
+@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerVision {
 
     /** The chain at {@code assets/goo/post_effect/sculker_sense.json}. */
@@ -42,11 +50,15 @@ public final class SculkerVision {
     /** The camera's far plane past its render distance, as {@code Camera} sets it up. */
     private static final float FAR_PER_RENDER_BLOCK = 4f;
     private static final float TICKS_PER_SECOND = 20f;
+    /** The frames an unused render target is kept for, as the game renderer keeps its own. */
+    private static final int FRAMES_TO_KEEP_TARGETS = 3;
 
     private static final OwnedPostEffect SLOT = new OwnedPostEffect(POST_EFFECT_ID, SCULKER_CONFIG_BLOCK);
     private static final Vector4f SCULKER_PARAMS = new Vector4f();
     private static final Vector4f SCULKER_LOOK = new Vector4f();
     private static float presence;
+    /** The render targets the chain runs on, kept across frames as the game renderer keeps its own. */
+    private static final CrossFrameResourcePool TARGETS = new CrossFrameResourcePool(FRAMES_TO_KEEP_TARGETS);
 
     private SculkerVision() {
     }
@@ -80,14 +92,23 @@ public final class SculkerVision {
     }
 
     /**
-     * Eases the senses in while the local player's Sculker stands and out
-     * once it ends, and runs the chain on the level while they stand, its
-     * depth still whole; the game renderer calls this once a frame, just
-     * before it clears the level's depth to draw the hand.
+     * Once the world's blocks are drawn, runs the senses on them, then draws
+     * the glass field and the echoes over the dimmed world.
      *
-     * @param allocator the game renderer's resource pool
+     * @param event the level render stage event
      */
-    public static void senseBeforeTheHand(GraphicsResourceAllocator allocator) {
+    @SubscribeEvent
+    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        sense();
+        SculkerGlassRenderer.draw(event);
+        SculkerEchoRenderer.draw(event);
+    }
+
+    /**
+     * Eases the senses in while the local player's Sculker stands and out
+     * once it ends, and runs the chain on the world while they stand.
+     */
+    private static void sense() {
         Minecraft mc = Minecraft.getInstance();
         boolean stands = brewStands(mc);
         presence = easedPresence(presence, stands, mc.getDeltaTracker().getRealtimeDeltaTicks());
@@ -106,7 +127,8 @@ public final class SculkerVision {
             Std140Builder builder = Std140Builder.onStack(stack, SCULKER_CONFIG_SIZE);
             builder.putVec4(SCULKER_PARAMS);
             builder.putVec4(SCULKER_LOOK);
-            SLOT.runNow(mc, builder.get(), allocator);
+            SLOT.runNow(mc, builder.get(), TARGETS);
+            TARGETS.endFrame();
         }
     }
 }

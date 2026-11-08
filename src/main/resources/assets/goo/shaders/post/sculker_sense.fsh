@@ -3,12 +3,12 @@
 // Sculker's warden senses: the world dims with its distance from the diver and is heard rather than seen.
 // Where depth breaks, at the edges of open space, a sculk-teal contour
 // draws, brightened by echo rings sweeping out from the diver. The world
-// shows at 60% of its own look within 3 blocks, 30% at 8, 10% at 16 and
-// sinks into inky black by 24,
+// shows at 60% of its own look within 3 blocks, 30% at 5, 10% at 6.5 and
+// sinks into inky black by 8,
 // and sculk tendrils curl in from the screen's edge. The whole vision
-// eases in as the brew starts and out as it ends. Solid space is a dim sea. What the diver's echoes lit, the faces
-// and outlines drawn sculk teal, shows bright wherever it stands, as faint
-// as its fade with distance drew it.
+// eases in as the brew starts and out as it ends. Solid space is a dim sea.
+// The glass field and what the diver's echoes lit draw over the world once
+// this has dimmed it, so they show at their own strength.
 // decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
 // decision sculker-sight-persists-where-echoes-have-touched
 
@@ -34,25 +34,18 @@ out vec4 fragColor;
 
 const vec3 SCULK = vec3(0.06, 0.78, 0.82);
 // the world's brightness by its distance from the diver, a share of how it looks with no effect:
-// 60% within 3 blocks, 30% at 8, 10% at 16, black by 24
+// 60% within 3 blocks, 30% at 5, 10% at 6.5, black by 8
 const float BRIGHT_NEAR = 0.6;
 const float BRIGHT_ROOM = 0.3;
 const float BRIGHT_NEXT = 0.1;
 const float NEAR_REACH_BLOCKS = 3.0;
-const float ROOM_REACH = 8.0;
-const float NEXT_REACH = 16.0;
-const float DARK_REACH = 24.0;
+const float ROOM_REACH = 5.0;
+const float NEXT_REACH = 6.5;
+const float DARK_REACH = 8.0;
 const float EDGE_GAIN = 14.0;
 const float ECHO_SPEED = 12.0;
 const float ECHO_SPACING = 24.0;
 const float ECHO_WIDTH = 2.5;
-// an echo draws sculk teal: green and blue well above red, as a share of the
-// brighter of them, so a faint echo laid over the dark counts as an echo;
-// blue standing above green takes away from it, so the sky, the fog distant
-// terrain fades into, and water read as the world and dim with distance
-const float TEAL_FLOOR = 0.15;
-const float TEAL_FULL = 0.35;
-const float ECHO_GAIN = 1.1;
 
 float brightnessAt(float distance) {
     if (distance <= NEAR_REACH_BLOCKS) {
@@ -97,13 +90,7 @@ void main() {
 
     vec3 dark = scene * brightnessAt(center) * (1.0 - sky);
     vec3 heard = SCULK * contour * (0.45 + 0.55 * echo) * fade * (1.0 - sky);
-    vec3 color = dark + heard;
-
-    float brightest = max(max(scene.g, scene.b), 0.0001);
-    float teal = (min(scene.g, scene.b) - scene.r) / brightest;
-    float bluer = max(scene.b - scene.g, 0.0) / brightest;
-    float echoed = smoothstep(TEAL_FLOOR, TEAL_FULL, teal - bluer);
-    vec3 sensed = mix(color, scene * ECHO_GAIN, echoed);
+    vec3 sensed = dark + heard;
 
     fragColor = vec4(mix(scene, sensed, presence), 1.0);
 }

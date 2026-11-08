@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.overlay.FungusXray;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -19,9 +18,6 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -41,7 +37,6 @@ import java.util.List;
  * the farther block's face shows.
  * decision sculker-shows-blocks-translucent-close-up
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerGlassRenderer {
 
     /** The opacity the stone carrying on around the diver draws at: faint. */
@@ -53,18 +48,23 @@ public final class SculkerGlassRenderer {
     /** A block this faint is not drawn at all. */
     private static final float FAINTEST = 0.03f;
     private static final int OPAQUE = 255;
-    private static final int WHITE_RGB = 0xFFFFFF;
+    /**
+     * The shade the glass draws at: the world's brightness within the field
+     * under the vision, 60% of its own look, since the glass draws after the
+     * vision has dimmed the world.
+     */
+    private static final int NEAR_SHADE_RGB = 0x999999;
 
     private SculkerGlassRenderer() {
     }
 
     /**
-     * Draws the glass field while the local player's Sculker stands.
+     * Draws the glass field while the local player's Sculker stands, over
+     * the world the vision has already dimmed.
      *
      * @param event the level render stage event
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    static void draw(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || SculkerVision.presence() < SculkerVision.GONE) {
@@ -179,7 +179,7 @@ public final class SculkerGlassRenderer {
     }
 
     private static QuadInstance lookAt(float opacity) {
-        return FungusXray.instance(ARGB.color(Math.round(opacity * OPAQUE), WHITE_RGB));
+        return FungusXray.instance(ARGB.color(Math.round(opacity * OPAQUE), NEAR_SHADE_RGB));
     }
 
     /**

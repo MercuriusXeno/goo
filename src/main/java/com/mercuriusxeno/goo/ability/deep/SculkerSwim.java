@@ -1,21 +1,30 @@
 package com.mercuriusxeno.goo.ability.deep;
 
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * How a Sculker moves. Pressing sneak and jump together enters the dive,
- * and from then on every solid block is swimmable, bedrock included: the
+ * and from then on every solid block but bedrock is swimmable: the
  * body passes through stone with no key pressed into a block, weightless,
  * the movement input driving it along the look, jump lifting it and sneak
  * sinking it. The diver leaves the dive by rising out through a block's top
- * face and jumping clear, which stands it on that block. The world's floor
+ * face and jumping clear, which stands it on that block. Bedrock is a hard
+ * wall a diver stops at from any side, and one it never stays trapped in:
+ * a body already inside bedrock moves out of it freely. The world's floor
  * and ceiling hold a diver from leaving the world and never from coming
  * back into it, so a diver below the floor rises back in on jump and no
  * diver is trapped under the ground, creative included.
@@ -180,8 +189,54 @@ public final class SculkerSwim {
         Vec3 swim = swum(lastStroke, forward, strafe, rise, player.getLookAngle());
         AABB body = player.getBoundingBox();
         Level level = player.level();
-        return new Vec3(swim.x, heldInTheWorld(swim.y, body.minY, body.maxY, level.getMinY(), level.getMaxY() + 1),
-                swim.z);
+        Vec3 inWorld = new Vec3(swim.x,
+                heldInTheWorld(swim.y, body.minY, body.maxY, level.getMinY(), level.getMaxY() + 1), swim.z);
+        return heldOutOfBedrock(level, body, inWorld);
+    }
+
+    /**
+     * A move kept from carrying a body into bedrock: each axis in turn, as
+     * vanilla collides, stops at the face of any bedrock the body is not
+     * already inside, so bedrock walls a diver off from every side and a body
+     * already inside bedrock moves out freely.
+     *
+     * @param level the level
+     * @param body  the body's box
+     * @param move  the move
+     * @return the move bedrock allows
+     */
+    static Vec3 heldOutOfBedrock(Level level, AABB body, Vec3 move) {
+        List<VoxelShape> walls = bedrockAhead(level, body, move);
+        if (walls.isEmpty()) {
+            return move;
+        }
+        double up = Shapes.collide(Direction.Axis.Y, body, walls, move.y);
+        AABB risen = body.move(0, up, 0);
+        double east = Shapes.collide(Direction.Axis.X, risen, walls, move.x);
+        double south = Shapes.collide(Direction.Axis.Z, risen.move(east, 0, 0), walls, move.z);
+        return new Vec3(east, up, south);
+    }
+
+    /**
+     * The bedrock a move could carry a body into: every bedrock block within
+     * the move's reach that the body does not already overlap.
+     *
+     * @param level the level
+     * @param body  the body's box
+     * @param move  the move
+     * @return each such block's shape, placed in the world
+     */
+    private static List<VoxelShape> bedrockAhead(Level level, AABB body, Vec3 move) {
+        AABB inside = body.deflate(INSIDE_INSET);
+        AABB reach = body.expandTowards(move);
+        List<VoxelShape> walls = new ArrayList<>();
+        for (BlockPos cell : BlockPos.betweenClosed(BlockPos.containing(reach.minX, reach.minY, reach.minZ),
+                BlockPos.containing(reach.maxX, reach.maxY, reach.maxZ))) {
+            if (level.getBlockState(cell).is(Blocks.BEDROCK) && !inside.intersects(new AABB(cell))) {
+                walls.add(Shapes.block().move(cell.getX(), cell.getY(), cell.getZ()));
+            }
+        }
+        return walls;
     }
 
     /**
