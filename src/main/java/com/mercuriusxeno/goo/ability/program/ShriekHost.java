@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
 /**
- * A host that can sound a convoke's sculk call: draw the ring at its radius
+ * A host that can sound a shriek's sculk call: draw the ring at its radius
  * and set every mob the ring crosses walking to the host
- * (decision convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches).
+ * (decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches).
  */
-public interface ConvokeHost extends StepHost {
+public interface ShriekHost extends StepHost {
 
     /**
      * Draws the ring and calls every mob between its two radii.

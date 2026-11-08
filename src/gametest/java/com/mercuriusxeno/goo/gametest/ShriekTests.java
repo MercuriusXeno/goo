@@ -23,16 +23,16 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametest for the convoke blob's sculk call: landed on a stone floor with
+ * Gametest for the shriek blob's sculk call: landed on a stone floor with
  * a cow near it and a zombie far off on the other side, the zombie walks
  * toward the blob once the ring has reached it and the cow stays where it
- * grazed (decisions convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches
- * and convoke-ring-pulls-hostiles-only). The ring reaches any mob near it, so
+ * grazed (decisions shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
+ * and shriek-pulls-hostiles-only). The ring reaches any mob near it, so
  * the scene stands far from every other test, its chunks held loaded while it runs.
  */
 @RegistersGameTests
-public final class ConvokeTests {
-    private static final String CONVOKE_CALLS = "convoke_calls_the_zombie_and_leaves_the_cow";
+public final class ShriekTests {
+    private static final String SHRIEK_CALLS = "shriek_calls_the_zombie_and_leaves_the_cow";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -40,19 +40,19 @@ public final class ConvokeTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, CONVOKE_CALLS, ConvokeTests::convokeCallsTheZombieAndLeavesTheCow);
+        GooTestFunctions.registerTest(registrar, SHRIEK_CALLS, ShriekTests::shriekCallsTheZombieAndLeavesTheCow);
     }
 
-    private static final Identifier DEEP_CONVOKE = Identifier.parse("goo:deep_convoke");
+    private static final Identifier DEEP_SHRIEK = Identifier.parse("goo:deep_shriek");
     /** How far off its own bay the scene lies on each horizontal axis, past every other test. */
     private static final int FAR_OFF = 4096;
     /** The floor's reach from the blob along x, past the far zombie, and its half width along z. */
     private static final int FLOOR_LENGTH = 14;
     private static final int FLOOR_HALF_WIDTH = 3;
-    /** The near cow's and far zombie's distances from the blob, east and west of it, both inside deep_convoke.json's reach of 16. */
+    /** The near cow's and far zombie's distances from the blob, east and west of it, both inside deep_shriek.json's reach of 16. */
     private static final int NEAR = 4;
     private static final int FAR = 10;
-    /** deep_convoke.json's pulse period and reach: the ring reaches a radius r at r * PERIOD / REACH ticks. */
+    /** deep_shriek.json's pulse period and reach: the ring reaches a radius r at r * PERIOD / REACH ticks. */
     private static final int PERIOD = 40;
     private static final int REACH = 16;
     /** Ticks a called mob is given to walk once the ring reaches it. */
@@ -66,7 +66,7 @@ public final class ConvokeTests {
     private static final String SHOULD_LEAVE_THE_COW = "The ring should leave the cow uncalled";
     private static final String SHOULD_CALL_THE_ZOMBIE = "The ring should call the zombie to the blob";
 
-    private ConvokeTests() {
+    private ShriekTests() {
     }
 
     /**
@@ -78,7 +78,7 @@ public final class ConvokeTests {
      *
      * @param helper the gametest helper
      */
-    public static void convokeCallsTheZombieAndLeavesTheCow(GameTestHelper helper) {
+    public static void shriekCallsTheZombieAndLeavesTheCow(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos floor = buildFloor(helper);
         Vec3 blob = Vec3.atBottomCenterOf(floor.above());
@@ -91,7 +91,7 @@ public final class ConvokeTests {
                 .thenExecute(() -> {
                     mobs.add(spawn(helper, EntityType.COW, nearAt));
                     mobs.add(spawn(helper, EntityType.ZOMBIE, farAt));
-                    landConvoke(helper, floor);
+                    landShriek(helper, floor);
                 })
                 .thenIdle(ringReaches(FAR) + WALK_TICKS)
                 .thenExecute(() -> {
@@ -188,15 +188,14 @@ public final class ConvokeTests {
     }
 
     /**
-     * Lands a deep goo convoke blob on the top of a floor block.
-     * decision convoke-ships-on-deep
-     *
+     * Lands a deep goo shriek blob on the top of a floor block.
+         *
      * @param helper the gametest helper
      * @param floor  the floor block's absolute position
      */
-    private static void landConvoke(GameTestHelper helper, BlockPos floor) {
-        AbilityDefinition convoke = AbilityRegistry.of(helper.getLevel()).getAbility(DEEP_CONVOKE);
-        helper.assertTrue(convoke != null, String.format(ABILITY_REQUIRED, DEEP_CONVOKE));
-        AbilityImpact.land(helper.getLevel(), floor, GooTypes.DEEP, Direction.UP, convoke);
+    private static void landShriek(GameTestHelper helper, BlockPos floor) {
+        AbilityDefinition shriek = AbilityRegistry.of(helper.getLevel()).getAbility(DEEP_SHRIEK);
+        helper.assertTrue(shriek != null, String.format(ABILITY_REQUIRED, DEEP_SHRIEK));
+        AbilityImpact.land(helper.getLevel(), floor, GooTypes.DEEP, Direction.UP, shriek);
     }
 }

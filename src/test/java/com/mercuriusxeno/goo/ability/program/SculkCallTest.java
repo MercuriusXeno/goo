@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The convoke ring calls a hostile mob and passes every other mob over: a
+ * The shriek ring calls a hostile mob and passes every other mob over: a
  * zombie, a monster, is called, a cow, a creature, is not, and an enemy is
- * called whatever its category (decision convoke-ring-pulls-hostiles-only).
+ * called whatever its category (decision shriek-pulls-hostiles-only).
  */
 class SculkCallTest {
 

@@ -13,14 +13,14 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * One tick of a convoke blob's sculk call in a level: the ring stands as a
+ * One tick of a shriek blob's sculk call in a level: the ring stands as a
  * circle of sculk charge on the ground at its radius, clicking as it leaves
  * the blob, and every living hostile mob in the band it swept this tick,
  * within a few layers of the blob, takes a walk to the blob ahead of every
  * other move it would make, which holds while the blob stands; every other
  * mob the ring crosses is passed over untouched.
- * decision convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches
- * decision convoke-ring-pulls-hostiles-only
+ * decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
+ * decision shriek-pulls-hostiles-only
  */
 public final class SculkCall {
 
@@ -118,7 +118,7 @@ public final class SculkCall {
     /**
      * Whether the ring calls a mob of a category: a monster or an enemy is
      * called, and every other mob is passed over.
-     * decision convoke-ring-pulls-hostiles-only
+     * decision shriek-pulls-hostiles-only
      *
      * @param category the mob's category
      * @param enemy    whether the mob counts as an enemy
