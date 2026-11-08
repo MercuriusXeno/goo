@@ -57,6 +57,17 @@ public final class PortalTravel {
     }
 
     /**
+     * Forgets the portal sync last told a player who logged out, so the
+     * record holds only players on the server.
+     *
+     * @param event the logout
+     */
+    @SubscribeEvent
+    public static void onLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        PortalChoice.forget(event.getEntity().getUUID());
+    }
+
+    /**
      * Tells a respawned player the links standing where it respawned, which
      * may be another dimension than it died in.
      * linked-partner-chunks-stream-to-any-viewer
