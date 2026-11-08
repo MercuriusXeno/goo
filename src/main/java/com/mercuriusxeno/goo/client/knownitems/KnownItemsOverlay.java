@@ -15,7 +15,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -115,7 +114,7 @@ public final class KnownItemsOverlay extends Screen {
         drawn = KnownItemsOverlayRenderer.render(graphics, font, new KnownItemsOverlayRenderer.Frame(width, height,
                 KnownItemsListing.filter(ordered, search.text(), locale), search.text(), firstRow, mouseX, mouseY));
         firstRow = drawn.scroll().firstRow();
-        KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn.icons(), mouseX, mouseY);
+        KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
     }
 
     @Override
@@ -129,13 +128,13 @@ public final class KnownItemsOverlay extends Screen {
             dragThumbTo(track, event.y());
             return true;
         }
-        Identifier pick = KnownItemsOverlayRenderer.pickAt(drawn.icons(), event.x(), event.y());
+        KnownItemsOverlayRenderer.Pick pick = KnownItemsOverlayRenderer.pickAt(drawn, event.x(), event.y());
         if (pick == null) {
             return super.mouseClicked(event, doubleClick);
         }
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null && plexer != null) {
-            connection.send(new ServerboundCustomPayloadPacket(new PlexerTargetPickPayload(plexer, pick)));
+            connection.send(new ServerboundCustomPayloadPacket(new PlexerTargetPickPayload(plexer, pick.item())));
         }
         onClose();
         return true;

@@ -8,13 +8,16 @@ import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Draws the known items overlay left to right, top to bottom: one darkening fill over the whole frame,
  * the title in the top left corner with a wide bordered search bar beside it, then one item icon per
  * shown item in a grid from the left margin, the hovered cell lighter inside a border, and a scroll bar
- * when the rows overflow; names the item the cursor rests on. The close button is the overlay's widget.
+ * when the rows overflow; names the item the cursor rests on. The grid's first cell is Cancel, ahead
+ * of every item whatever the search shows. The close button is the overlay's widget.
  * decision menu-is-a-darkening-overlay-not-a-screen
+ * decision cancel-cell-clears-the-plexer-target
  * decision g-opens-the-known-items-menu-empty-handed
  */
 public final class KnownItemsOverlayRenderer {
@@ -63,6 +66,19 @@ public final class KnownItemsOverlayRenderer {
     static final int HOVER_BORDER = 0xFFE0E0E0;
     /** The hovered cell's fill, lighter than the darkening around it. */
     static final int HOVER_CELL = 0x60FFFFFF;
+    /** The Cancel glyph's red. */
+    static final int CANCEL_RED = 0xFFE03030;
+    /** The translation key of the Cancel cell's name. */
+    static final String CANCEL_KEY = "goo.known_items.cancel";
+    /** The Cancel glyph's ring: its outer and inner radius, in pixels, about the icon's center. */
+    private static final double CANCEL_OUTER = 7.5;
+    private static final double CANCEL_INNER = 5.5;
+    /** How far from the diagonal a pixel of the Cancel glyph's slash may sit. */
+    private static final double CANCEL_SLASH = 1.0;
+    /** A pixel's center, half a pixel in from its corner. */
+    private static final double PIXEL_CENTER = 0.5;
+    /** A row with no run of red pixels open. */
+    private static final int NO_RUN = -1;
 
     private KnownItemsOverlayRenderer() {}
 
@@ -135,10 +151,21 @@ public final class KnownItemsOverlayRenderer {
      * What a frame drew that the overlay's input reads back.
      *
      * @param icons  every icon drawn, where it drew
+     * @param cancel the Cancel cell's square, null when the scroll hides its row
      * @param scroll the grid's scroll, its first row clamped
      * @param track  where the scroll bar's track drew, null when every row shows
      */
-    public record Drawn(List<ItemIcon> icons, ScrollModel scroll, @Nullable Track track) {
+    public record Drawn(List<ItemIcon> icons, @Nullable Box cancel, ScrollModel scroll, @Nullable Track track) {
+    }
+
+    /**
+     * What a click in the grid picks: an item to target, or nothing to clear the target.
+     *
+     * @param item the item picked, empty for Cancel
+     */
+    public record Pick(Optional<Identifier> item) {
+        /** The Cancel cell's pick, which clears the target. */
+        public static final Pick CLEAR = new Pick(Optional.empty());
     }
 
     /**
@@ -167,35 +194,87 @@ public final class KnownItemsOverlayRenderer {
         graphics.text(font, title, MARGIN, MARGIN + SEARCH_INSET, TITLE_TEXT);
         drawSearchBar(graphics, font, MARGIN + font.width(title) + SIDES * GAP,
                 closeButton(frame.width()).left() - GAP, frame.query());
-        int count = frame.items().size();
-        ScrollModel scroll = ScrollModel.of((count + grid.columns() - 1) / grid.columns(), grid.rowsVisible(),
+        // The Cancel cell takes slot 0, so every item sits one slot on.
+        int slots = frame.items().size() + 1;
+        ScrollModel scroll = ScrollModel.of((slots + grid.columns() - 1) / grid.columns(), grid.rowsVisible(),
                 frame.firstRow());
         int first = scroll.firstRow() * grid.columns();
-        int end = Math.min(count, first + grid.rowsVisible() * grid.columns());
+        int end = Math.min(slots, first + grid.rowsVisible() * grid.columns());
         List<ItemIcon> icons = new ArrayList<>(end - first);
-        for (int i = first; i < end; i++) {
-            int shown = i - first;
-            ItemIcon icon = new ItemIcon(frame.items().get(i), grid.left() + shown % grid.columns() * CELL + INSET,
-                    grid.top() + shown / grid.columns() * CELL + INSET);
-            if (icon.contains(frame.cursorX(), frame.cursorY())) {
-                drawHoveredCell(graphics, icon);
+        Box cancel = null;
+        for (int slot = first; slot < end; slot++) {
+            int shown = slot - first;
+            Box cell = new Box(grid.left() + shown % grid.columns() * CELL, grid.top() + shown / grid.columns() * CELL,
+                    CELL);
+            if (inCell(cell, frame.cursorX(), frame.cursorY())) {
+                drawHoveredCell(graphics, cell);
             }
-            graphics.item(icon.item().stack(), icon.left(), icon.top());
-            icons.add(icon);
+            if (slot == 0) {
+                drawCancel(graphics, cell);
+                cancel = cell;
+            } else {
+                ItemIcon icon = new ItemIcon(frame.items().get(slot - 1), cell.left() + INSET, cell.top() + INSET);
+                graphics.item(icon.item().stack(), icon.left(), icon.top());
+                icons.add(icon);
+            }
         }
         Track track = scroll.scrolls() ? drawScrollBar(graphics, grid, scroll) : null;
-        return new Drawn(icons, scroll, track);
+        return new Drawn(icons, cancel, scroll, track);
+    }
+
+    private static boolean inCell(Box cell, double x, double y) {
+        return x >= cell.left() && x < cell.left() + cell.size() && y >= cell.top() && y < cell.top() + cell.size();
     }
 
     /**
-     * Draws the hovered item's cell lighter inside a one-pixel light border, under its icon.
+     * Draws the Cancel glyph in its cell's icon square: a red ring with a slash from its top left to
+     * its bottom right, one fill per run of pixels in each row.
      *
      * @param graphics the GUI graphics extractor
-     * @param icon     the hovered icon
+     * @param cell     the Cancel cell
      */
-    private static void drawHoveredCell(GuiGraphicsExtractor graphics, ItemIcon icon) {
-        int left = icon.left() - INSET;
-        int top = icon.top() - INSET;
+    private static void drawCancel(GuiGraphicsExtractor graphics, Box cell) {
+        int left = cell.left() + INSET;
+        int top = cell.top() + INSET;
+        double center = ICON / (double) SIDES;
+        for (int row = 0; row < ICON; row++) {
+            int runStart = NO_RUN;
+            for (int column = 0; column <= ICON; column++) {
+                boolean red = column < ICON
+                        && cancelPixel(column + PIXEL_CENTER - center, row + PIXEL_CENTER - center);
+                if (red && runStart == NO_RUN) {
+                    runStart = column;
+                } else if (!red && runStart != NO_RUN) {
+                    graphics.fill(left + runStart, top + row, left + column, top + row + 1, CANCEL_RED);
+                    runStart = NO_RUN;
+                }
+            }
+        }
+    }
+
+    /**
+     * Whether a pixel of the icon square, given from its center, is red in the Cancel glyph.
+     *
+     * @param dx the pixel center's offset right of the icon's center
+     * @param dy the pixel center's offset below the icon's center
+     * @return true on the ring or on the slash inside it
+     */
+    static boolean cancelPixel(double dx, double dy) {
+        double distance = Math.hypot(dx, dy);
+        boolean ring = distance <= CANCEL_OUTER && distance >= CANCEL_INNER;
+        boolean slash = distance < CANCEL_INNER && Math.abs(dx - dy) <= CANCEL_SLASH;
+        return ring || slash;
+    }
+
+    /**
+     * Draws the hovered cell lighter inside a one-pixel light border, under its icon.
+     *
+     * @param graphics the GUI graphics extractor
+     * @param cell     the hovered cell
+     */
+    private static void drawHoveredCell(GuiGraphicsExtractor graphics, Box cell) {
+        int left = cell.left();
+        int top = cell.top();
         int right = left + CELL;
         int bottom = top + CELL;
         // The border is a ring, so the lighter fill blends over the darkening rather than over the border.
@@ -282,17 +361,21 @@ public final class KnownItemsOverlayRenderer {
     }
 
     /**
-     * Names the item under the cursor beside it.
+     * Names the cell under the cursor beside it: an item by its name, the Cancel cell as Cancel.
      *
      * @param graphics the GUI graphics extractor
      * @param font     the font
-     * @param icons    the icons the frame drew
+     * @param drawn    what the frame drew
      * @param cursorX  the cursor's x
      * @param cursorY  the cursor's y
      */
-    public static void nameWhatTheCursorRestsOn(GuiGraphicsExtractor graphics, Font font, List<ItemIcon> icons,
+    public static void nameWhatTheCursorRestsOn(GuiGraphicsExtractor graphics, Font font, Drawn drawn,
                                                 int cursorX, int cursorY) {
-        ItemIcon hovered = itemUnder(icons, cursorX, cursorY);
+        if (drawn.cancel() != null && inCell(drawn.cancel(), cursorX, cursorY)) {
+            graphics.setTooltipForNextFrame(font, Component.translatable(CANCEL_KEY), cursorX, cursorY);
+            return;
+        }
+        ItemIcon hovered = itemUnder(drawn.icons(), cursorX, cursorY);
         if (hovered != null) {
             graphics.setTooltipForNextFrame(font, hovered.item().stack().getHoverName(), cursorX, cursorY);
         }
@@ -301,13 +384,16 @@ public final class KnownItemsOverlayRenderer {
     /**
      * The pick a click at a point makes.
      *
-     * @param icons the icons the frame drew
+     * @param drawn what the frame drew
      * @param x     the click's x
      * @param y     the click's y
-     * @return the id of the clicked item, or null for a click on no icon
+     * @return the clicked item's pick, the clear pick for Cancel, or null for a click on no cell
      */
-    public static @Nullable Identifier pickAt(List<ItemIcon> icons, double x, double y) {
-        ItemIcon clicked = itemUnder(icons, x, y);
-        return clicked == null ? null : clicked.item().id();
+    public static @Nullable Pick pickAt(Drawn drawn, double x, double y) {
+        if (drawn.cancel() != null && inCell(drawn.cancel(), x, y)) {
+            return Pick.CLEAR;
+        }
+        ItemIcon clicked = itemUnder(drawn.icons(), x, y);
+        return clicked == null ? null : new Pick(Optional.of(clicked.item().id()));
     }
 }
