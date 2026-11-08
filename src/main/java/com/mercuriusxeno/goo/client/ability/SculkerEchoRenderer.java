@@ -89,8 +89,8 @@ public final class SculkerEchoRenderer {
     }
 
     /**
-     * Draws a lit block's own quads on every side of it open to air, tinted
-     * teal at its strength.
+     * Draws a lit block's own quads on every side of it facing a block sound
+     * passes through, tinted teal at its strength.
      *
      * @param mc        the client, its level loaded
      * @param poseStack the pose stack
@@ -114,7 +114,7 @@ public final class SculkerEchoRenderer {
         poseStack.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
         for (BlockStateModelPart part : parts) {
             for (Direction side : Direction.values()) {
-                if (mc.level.getBlockState(pos.relative(side)).isAir()) {
+                if (SculkerSenses.passesSound(mc.level, pos.relative(side))) {
                     part.getQuads(side).forEach(quad -> consumer.putBakedQuad(poseStack.last(), quad, look));
                 }
             }

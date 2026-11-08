@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -221,13 +222,27 @@ public final class SculkerEchoes {
      * @param isAir whether a cell holds air
      */
     public void advance(long now, Predicate<BlockPos> isAir) {
+        advance(now, isAir.negate(), isAir);
+    }
+
+    /**
+     * Grows every ring to the game time given, lights each block its front
+     * crossed since the tick before that can light and stands beside a
+     * block sound passes through, lets the rings that have reached their
+     * reach die, and forgets the blocks that have faded.
+     *
+     * @param now         the game time
+     * @param lights      whether a block lights where an echo reaches it: one with a collision shape
+     * @param passesSound whether sound passes through a block: air, or a block that does not fill its cell
+     */
+    public void advance(long now, Predicate<BlockPos> lights, Predicate<BlockPos> passesSound) {
         for (Ripple ripple : ripples) {
             if (ripple.startTick() >= now) {
                 continue;
             }
             for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.radiusAt(now - 1), ripple.radiusAt(now))) {
                 float light = ripple.lightAt(cell);
-                if (!ScryReveal.exposedFaces(isAir, cell).isEmpty()) {
+                if (lights.test(cell) && besideOpenSpace(cell, passesSound)) {
                     light(cell.immutable(), now, light, ripple.adds());
                 }
             }
@@ -235,6 +250,15 @@ public final class SculkerEchoes {
         ripples.removeIf(ripple -> ripple.radiusAt(now) >= ripple.reach());
         remembered.values().removeIf(lit -> now >= lit.fadedAt());
         forgetTheFaintest();
+    }
+
+    private static boolean besideOpenSpace(BlockPos cell, Predicate<BlockPos> passesSound) {
+        for (Direction side : Direction.values()) {
+            if (passesSound.test(cell.relative(side))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
