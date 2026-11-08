@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
@@ -114,6 +115,11 @@ public final class WeirdTests {
     /** Pitched down at the slime coat over the stone three blocks east, so the axis ray ends on it. */
     private static final float AT_THE_SLIME = 9.4f;
     private static final String LAYERS_WRONG = "Slime at %s should hold %d layers, holds %s";
+    private static final String BOUNCE_SPLASHES = "bounce_splashes_k_layers";
+    private static final String BOUNCE_REQUIRED = "Ability registry must hold goo:weird_bounce";
+    private static final String NO_SPLASH_LAYERS = "weird_bounce.json should name a coat step laying layers";
+    private static final String SPLASH_WRONG = "Bounce's splash should leave %d layers over the landing cell and"
+            + " its four side neighbours, left %d";
 
     private WeirdTests() {
     }
@@ -133,6 +139,7 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, HELD_JUMPS_RAMP, WeirdTests::heldJumpsRampToTheCeiling);
         GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::coatSoftensTheMobItHits);
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
+        GooTestFunctions.registerTest(registrar, BOUNCE_SPLASHES, WeirdTests::bounceSplashesKLayers);
         GooTestFunctions.registerTest(registrar, SLIME_LEVELS_OUT, WeirdTests::slimeLevelsOutBesideAnOpenTop);
         GooTestFunctions.registerTest(registrar, SLIME_POURS_OFF_A_LEDGE, WeirdTests::slimePoursOffALedge);
         GooTestFunctions.registerTest(registrar, COAT_ADDS_A_LAYER, WeirdTests::coatAddsALayerToStandingSlime);
@@ -204,6 +211,40 @@ public final class WeirdTests {
         helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertLayers(helper, slimed, 2);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A Weird Bounce blob lands on a stone floor: once the flow settles, the
+     * landing cell and its four side neighbours hold slime whose layers sum
+     * to the k weird_bounce.json's coat step names.
+     * bounce-throw-dumps-layers-that-flow-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void bounceSplashesKLayers(GameTestHelper helper) {
+        AbilityDefinition bounce = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(BOUNCE));
+        helper.assertTrue(bounce != null, BOUNCE_REQUIRED);
+        int named = bounce.behaviors().stream().filter(CoatStep.class::isInstance).map(CoatStep.class::cast)
+                .mapToInt(CoatStep::layers).sum();
+        helper.assertTrue(named > 0, NO_SPLASH_LAYERS);
+        BlockPos landing = POOL_FLOOR.above();
+        List<BlockPos> splash = new java.util.ArrayList<>(List.of(landing));
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            splash.add(landing.relative(side));
+        }
+        for (BlockPos cell : splash) {
+            stoneUnder(helper, cell);
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                stoneUnder(helper, cell.relative(side));
+            }
+        }
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
+                NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, BOUNCE));
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            int laid = splash.stream().mapToInt(cell -> SlimeCoatBlock.layersOf(helper.getBlockState(cell))).sum();
+            helper.assertTrue(laid == named, String.format(SPLASH_WRONG, named, laid));
             helper.succeed();
         });
     }

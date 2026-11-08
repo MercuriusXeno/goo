@@ -6,6 +6,6 @@
   "cost": 1000,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "place_block", "block": "goo:slime_coat" }
+    { "type": "coat", "layers": 4 }
   ]
 }
