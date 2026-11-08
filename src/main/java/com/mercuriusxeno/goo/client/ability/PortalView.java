@@ -39,6 +39,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.jspecify.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -122,6 +123,8 @@ public final class PortalView {
     private static PartnerView.Source source = PartnerView.Source.NONE;
     /** The partner the view being drawn looks out of. */
     private static Gate currentFar;
+    /** The gate the view being drawn looks into. */
+    private static Gate currentNear;
     /** Half a block, from a partner's face out to the middle of its mouth. */
     private static final double HALF_BLOCK = 0.5;
 
@@ -315,6 +318,7 @@ public final class PortalView {
         currentPass = pass;
         currentCamera = camera;
         currentFar = far;
+        currentNear = near;
         source = from;
         try {
             CameraRenderState state = extractThrough(mc, delta, camera);
@@ -360,6 +364,26 @@ public final class PortalView {
      */
     public static Vec3 cameraPosition() {
         return currentCamera.position();
+    }
+
+    /**
+     * The gate the view being drawn looks into.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @return the gate, null while no view draws
+     */
+    public static @Nullable Gate viewedGate() {
+        return drawing ? currentNear : null;
+    }
+
+    /**
+     * The camera the view being drawn is drawn from, for marks drawn inside
+     * the view's own pass.
+     *
+     * @return the portal camera
+     */
+    public static Camera camera() {
+        return currentCamera;
     }
 
     /**
