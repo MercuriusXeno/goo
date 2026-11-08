@@ -79,14 +79,30 @@ class KnownItemsOverlayRendererTest {
             int cursorY = dirt.top() + 1;
             KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, icons, cursorX, cursorY);
 
-            assertEquals(List.of("fill", "fill", "text", "item", "item", "item", "setTooltipForNextFrame"),
-                    methods(graphics));
+            assertEquals(List.of("fill", "text", "fill", "fill", "text", "item", "item", "item", "text",
+                    "setTooltipForNextFrame"), methods(graphics));
             Invocation darken = calls(graphics).getFirst();
             assertEquals(List.of(0, 0, WIDTH, HEIGHT, KnownItemsOverlayRenderer.DARKEN), List.of(darken.getArguments()));
+            List<Invocation> texts = callsOf(graphics, "text");
+            assertEquals(Component.translatable(KnownItemsOverlayRenderer.TITLE_KEY), texts.get(0).getArgument(1));
+            assertEquals(Component.translatable(KnownItemsOverlayRenderer.PLACEHOLDER_KEY), texts.get(1).getArgument(1));
+            assertEquals(Component.translatable(KnownItemsOverlayRenderer.CLOSE_HINT_KEY), texts.get(2).getArgument(1));
             assertEquals(items.stream().map(KnownItem::stack).toList(),
                     callsOf(graphics, "item").stream().map(call -> call.getArgument(0)).toList());
             Invocation name = calls(graphics).getLast();
             assertEquals(List.of(font, Component.literal("Dirt"), cursorX, cursorY), List.of(name.getArguments()));
+        }
+
+        @Test
+        void titleDrawsAboveTheSearchBarAndTheHintUnderTheGrid() {
+            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            List<ItemIcon> icons = render(graphics, items, "", 0).icons();
+            List<Invocation> texts = callsOf(graphics, "text");
+            int barTop = callsOf(graphics, "fill").get(1).getArgument(1);
+            int gridBottom = icons.stream().mapToInt(icon -> icon.top() + KnownItemsOverlayRenderer.ICON).max()
+                    .orElseThrow();
+            assertTrue((int) texts.get(0).getArgument(3) < barTop, "the title should draw above the search bar");
+            assertTrue((int) texts.get(2).getArgument(3) >= gridBottom, "the hint should draw under the grid");
         }
     }
 
@@ -99,10 +115,16 @@ class KnownItemsOverlayRendererTest {
             List<ItemIcon> icons = render(graphics, matches, "s", 0).icons();
 
             int gridTop = icons.stream().mapToInt(ItemIcon::top).min().orElseThrow();
-            Invocation bar = callsOf(graphics, "fill").get(1);
+            Invocation border = callsOf(graphics, "fill").get(1);
+            Invocation bar = callsOf(graphics, "fill").get(2);
+            assertEquals(KnownItemsOverlayRenderer.SEARCH_BORDER, (int) border.getArgument(4));
             assertEquals(KnownItemsOverlayRenderer.SEARCH_BAR, (int) bar.getArgument(4));
-            assertTrue((int) bar.getArgument(3) <= gridTop, "the bar should end above the grid");
-            Invocation text = callsOf(graphics, "text").getFirst();
+            assertEquals(List.of((int) border.getArgument(0) + 1, (int) border.getArgument(1) + 1,
+                    (int) border.getArgument(2) - 1, (int) border.getArgument(3) - 1),
+                    List.of(bar.getArgument(0), bar.getArgument(1), bar.getArgument(2), bar.getArgument(3)),
+                    "the border should frame the bar one pixel wide");
+            assertTrue((int) border.getArgument(3) <= gridTop, "the bar should end above the grid");
+            Invocation text = callsOf(graphics, "text").get(1);
             assertEquals("s" + KnownItemsOverlayRenderer.CARET, text.getArgument(1));
             assertTrue((int) text.getArgument(3) < gridTop, "the typed text should draw above the grid");
             assertEquals(List.of(matches.get(0).stack(), matches.get(1).stack()),
@@ -118,8 +140,8 @@ class KnownItemsOverlayRendererTest {
             Drawn drawn = render(graphics, longList, "", 0);
 
             List<Invocation> fills = callsOf(graphics, "fill");
-            assertEquals(List.of(KnownItemsOverlayRenderer.DARKEN, KnownItemsOverlayRenderer.SEARCH_BAR,
-                    KnownItemsOverlayRenderer.TRACK, KnownItemsOverlayRenderer.THUMB),
+            assertEquals(List.of(KnownItemsOverlayRenderer.DARKEN, KnownItemsOverlayRenderer.SEARCH_BORDER,
+                    KnownItemsOverlayRenderer.SEARCH_BAR, KnownItemsOverlayRenderer.TRACK, KnownItemsOverlayRenderer.THUMB),
                     fills.stream().map(fill -> (Object) fill.getArgument(4)).toList());
             assertNotNull(drawn.track());
             int gridRight = drawn.icons().stream().mapToInt(icon -> icon.left() + KnownItemsOverlayRenderer.ICON)
@@ -133,7 +155,8 @@ class KnownItemsOverlayRendererTest {
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             Drawn drawn = render(graphics, items, "", 0);
             assertNull(drawn.track());
-            assertEquals(List.of(KnownItemsOverlayRenderer.DARKEN, KnownItemsOverlayRenderer.SEARCH_BAR),
+            assertEquals(List.of(KnownItemsOverlayRenderer.DARKEN, KnownItemsOverlayRenderer.SEARCH_BORDER,
+                    KnownItemsOverlayRenderer.SEARCH_BAR),
                     callsOf(graphics, "fill").stream().map(fill -> (Object) fill.getArgument(4)).toList());
         }
 

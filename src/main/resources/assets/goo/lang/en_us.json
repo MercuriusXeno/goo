@@ -9,6 +9,9 @@
   "key.goo.glove_menu": "Goo glove menu",
   "key.goo.goo_values": "Goo values",
   "key.goo.known_items": "Known items",
+  "goo.known_items.title": "Known Items",
+  "goo.known_items.search": "Search...",
+  "goo.known_items.close_hint": "Esc to close",
 
   "item.goo.goo": "%s Goo",
 

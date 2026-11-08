@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.client.radial.GloveRadialKey;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -52,7 +53,7 @@ public final class KnownItemsKey {
         while (MAPPING.consumeClick()) {
             LocalPlayer player = mc.player;
             if (player != null && KnownItemsKeyGate.pressOpensOverlay(player.getMainHandItem().isEmpty(),
-                    holdsGlove(player), mc.screen != null)) {
+                    holdsGlove(player), mc.screen != null, !ClientKnownItems.current().items().isEmpty())) {
                 KnownItemsOverlay.open();
             }
         }
