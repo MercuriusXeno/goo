@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -60,12 +61,6 @@ public final class ShriekTests {
     private static final int WALK_TICKS = 80;
     /** How much nearer the blob a called mob stands after its walk. */
     private static final double WALKED_NEARER = 2.5;
-    /**
-     * How far an uncalled mob may wander toward the blob and still read as
-     * holding: more than a stroll covers in the walk's time, far less than
-     * the walk all the way in a called mob makes.
-     */
-    private static final double WANDERED_AT_MOST = 5;
     private static final String SHOULD_SPAWN = "A %s should spawn";
     private static final String SHOULD_TICK = "The far chunks should tick their entities";
     private static final String ABILITY_REQUIRED = "%s must be loaded";
@@ -103,12 +98,12 @@ public final class ShriekTests {
                 .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(cowAt)
                         && level.isPositionEntityTicking(zombieAt) && level.isPositionEntityTicking(lateAt), SHOULD_TICK))
                 .thenExecute(() -> {
-                    mobs.add(spawn(helper, EntityType.COW, cowAt));
+                    mobs.add(stilled(spawn(helper, EntityType.COW, cowAt)));
                     mobs.add(spawn(helper, EntityType.ZOMBIE, zombieAt));
                     landShriek(helper, floor);
                 })
                 .thenIdle(AFTER_THE_SHRIEK)
-                .thenExecute(() -> mobs.add(spawn(helper, EntityType.ZOMBIE, lateAt)))
+                .thenExecute(() -> mobs.add(stilled(spawn(helper, EntityType.ZOMBIE, lateAt))))
                 .thenIdle(WALK_TICKS)
                 .thenExecute(() -> {
                     boolean cowCalled = SculkCall.isCalledTo(mobs.get(0), floor.above());
@@ -124,7 +119,7 @@ public final class ShriekTests {
                     helper.assertTrue(zombieOff <= FAR - WALKED_NEARER,
                             String.format(SHOULD_COME, FAR, (double) FAR, zombieOff));
                     helper.assertTrue(cowOff > NEAR - WALKED_NEARER, String.format(SHOULD_HOLD, COW, (double) NEAR, cowOff));
-                    helper.assertTrue(lateOff > FAR - WANDERED_AT_MOST,
+                    helper.assertTrue(lateOff > FAR - WALKED_NEARER,
                             String.format(SHOULD_HOLD, LATE_ZOMBIE, (double) FAR, lateOff));
                 })
                 .thenSucceed();
@@ -137,6 +132,19 @@ public final class ShriekTests {
      */
     private static double across(Vec3 at, Vec3 blob) {
         return Math.hypot(at.x - blob.x, at.z - blob.z);
+    }
+
+    /**
+     * Takes a mob's idle strolls away, so only a call could move it: a mob
+     * the shriek passes over then holds where it stood, and its holding
+     * reads the shriek rather than a random wander.
+     *
+     * @param mob the mob
+     * @return the same mob
+     */
+    private static Mob stilled(Mob mob) {
+        mob.goalSelector.removeAllGoals(RandomStrollGoal.class::isInstance);
+        return mob;
     }
 
     private static Mob spawn(GameTestHelper helper, EntityType<? extends Mob> type, BlockPos at) {
