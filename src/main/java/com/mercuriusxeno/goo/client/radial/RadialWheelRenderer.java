@@ -94,28 +94,22 @@ final class RadialWheelRenderer {
     private static final int SLASH_THICKNESS = 2;
     private static final int HALF = 2;
     /**
+     * How many rows of the prism badge's bottom its partner covers, so the two
+     * read as a pair and each stays hoverable.
+     * decision prism-badge-sits-behind-and-above-barely-overlapping
+     */
+    private static final int PRISM_BADGE_OVERLAP = 1;
+    /** How far above its partner's center the prism badge centers. */
+    private static final int PRISM_BADGE_RISE = BADGE_SIZE - PRISM_BADGE_OVERLAP;
+    /**
      * How far past the petal's outer radius a closed petal's icon centers:
-     * the reach from the icon's center to the badge's far corner, up and
-     * right of the icon, plus a pixel, so no pixel of either lies inside the
-     * petal; the prism badge tucked beside the badge reaches no further.
+     * the reach from the icon's center to the prism badge's far corner, up
+     * and right of the icon above the own badge, plus a pixel, so no pixel of
+     * the icon or a badge lies inside the petal.
      * decision icons-slide-in-from-behind-the-tip
      */
-    static final double ENTRY_REACH = Math.hypot(BADGE_REACH + BADGE_SIZE / 2, BADGE_REACH + BADGE_SIZE / 2) + 1;
-    /**
-     * How far left of the ability's own badge, toward the icon, the prism
-     * badge sits, so it peeks out from under the own badge: left rather than
-     * right, since the petal's face ends just past the own badge. Further
-     * left slides it under the icon, so the badge shows mostly below.
-     * decision on-prism-reaction-wears-the-prism-badge
-     * decision prism-badge-overlapped-less-to-be-seen
-     */
-    static final int PRISM_BADGE_NUDGE_LEFT = 5;
-    /**
-     * How far below the ability's own badge the prism badge sits.
-     * decision on-prism-reaction-wears-the-prism-badge
-     * decision prism-badge-overlapped-less-to-be-seen
-     */
-    static final int PRISM_BADGE_NUDGE_DOWN = 6;
+    static final double ENTRY_REACH = Math.hypot(BADGE_REACH + BADGE_SIZE / 2,
+            BADGE_REACH + PRISM_BADGE_RISE + BADGE_SIZE / 2) + 1;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ICON_SUFFIX = ".png";
@@ -298,7 +292,7 @@ final class RadialWheelRenderer {
      * @param cursorY the cursor's y
      * @return the kind's name, or null over no badge
      */
-    private static @Nullable Component badgeNameUnder(List<BadgeIcon> badges, int cursorX, int cursorY) {
+    static @Nullable Component badgeNameUnder(List<BadgeIcon> badges, int cursorX, int cursorY) {
         return badges.stream().filter(badge -> badge.shows(cursorX, cursorY)).findFirst()
                 .map(badge -> (Component) Component.translatable(BADGE_NAME_PREFIX + badge.badge().getSerializedName()))
                 .orElse(null);
@@ -641,12 +635,10 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Draws the ability's icon, then its badge untinted on the icon's top-right
-     * corner, covering a corner of the icon's square where the drawing seldom
-     * reaches. An ability carrying an on_prism reaction first draws the prism
-     * badge a little off the own badge, so the icon and the own badge cover
-     * part of it and it peeks out from underneath; each is cut at the petal's
-     * border so only the part under its face shows.
+     * Draws the ability's icon, then its badges untinted in the order
+     * {@link #badgeLayout} lists them, the own badge on the icon's top-right
+     * corner last; each is cut at the petal's border so only the part under
+     * its face shows.
      * badge-marks-the-target-kind
      * decision on-prism-reaction-wears-the-prism-badge
      * decision icons-slide-in-from-behind-the-tip
@@ -657,28 +649,47 @@ final class RadialWheelRenderer {
      * @param petal    the ability's petal
      * @param ability  the synced ability
      * @param color    the wedge's tint for the icon
-     * @return the own badge, and the prism badge less the icon and own badge drawn over it
+     * @return the badges drawn, as {@link #badgeLayout} lists them
      */
     private static List<BadgeIcon> blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame,
                                                    RadialWheel.PetalArc petal, ClientAbility ability, int color) {
         int[] slot = contentCenter(frame, petal);
-        int[] badgeSlot = badgeOnCorner(slot);
         PetalMask.Petal shape = petal.shape();
-        ItemRect ownSquare = badgeBox(slot);
-        List<BadgeIcon> badges = new ArrayList<>(List.of(new BadgeIcon(ability.badge(), ownSquare, List.of())));
-        if (ability.reactsToPrisms()) {
-            int[] prismSlot = prismBadgeUnder(badgeSlot);
-            // the operator's ruling: the prism badge sits underneath the own badge, to the side a hair
-            PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(AbilityBadge.PRISM)),
-                    prismSlot, BADGE_SIZE, COLOR_WHITE);
-            badges.add(new BadgeIcon(AbilityBadge.PRISM, squareAround(prismSlot, BADGE_SIZE),
-                    List.of(squareAround(slot, ABILITY_ICON_SIZE), ownSquare)));
-        }
+        List<BadgeIcon> badges = badgeLayout(slot, ability.badge(), ability.reactsToPrisms());
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)), slot,
                 ABILITY_ICON_SIZE, color);
-        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(ability.badge())),
-                badgeSlot, BADGE_SIZE, COLOR_WHITE);
+        for (BadgeIcon badge : badges) {
+            ItemRect square = badge.rect();
+            PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(badge.badge())),
+                    new int[]{square.left() + square.size() / HALF, square.top() + square.size() / HALF},
+                    square.size(), COLOR_WHITE);
+        }
         return badges;
+    }
+
+    /**
+     * An ability's badges in the order they draw over its icon: the prism
+     * badge first where the ability carries an on_prism reaction, so its
+     * partner covers the row they share, then the ability's own badge on the
+     * icon's corner. Each carries the squares drawn over it, which hide that
+     * part from the cursor.
+     * decision on-prism-reaction-wears-the-prism-badge
+     * decision prism-badge-sits-behind-and-above-barely-overlapping
+     * decision hovering-a-badge-names-its-kind
+     *
+     * @param iconCenter the icon's center
+     * @param own        the ability's own badge
+     * @param wearsPrism whether the ability carries an on_prism reaction
+     * @return the badges in draw order, the own badge last
+     */
+    static List<BadgeIcon> badgeLayout(int[] iconCenter, AbilityBadge own, boolean wearsPrism) {
+        ItemRect ownSquare = badgeBox(iconCenter);
+        BadgeIcon ownBadge = new BadgeIcon(own, ownSquare, List.of());
+        if (!wearsPrism) {
+            return List.of(ownBadge);
+        }
+        ItemRect prismSquare = squareAround(prismBadgeAbove(badgeOnCorner(iconCenter)), BADGE_SIZE);
+        return List.of(new BadgeIcon(AbilityBadge.PRISM, prismSquare, List.of(ownSquare)), ownBadge);
     }
 
     /**
@@ -704,15 +715,16 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The point the prism badge centers on: {@link #PRISM_BADGE_NUDGE_LEFT}
-     * left of and {@link #PRISM_BADGE_NUDGE_DOWN} below the own badge's center.
+     * The point the prism badge centers on: straight above its partner,
+     * its bottom {@link #PRISM_BADGE_OVERLAP} rows under the partner's top.
      * decision on-prism-reaction-wears-the-prism-badge
+     * decision prism-badge-sits-behind-and-above-barely-overlapping
      *
      * @param badgeCenter the own badge's center
      * @return the prism badge's center
      */
-    static int[] prismBadgeUnder(int[] badgeCenter) {
-        return new int[]{badgeCenter[0] - PRISM_BADGE_NUDGE_LEFT, badgeCenter[1] + PRISM_BADGE_NUDGE_DOWN};
+    static int[] prismBadgeAbove(int[] badgeCenter) {
+        return new int[]{badgeCenter[0], badgeCenter[1] - PRISM_BADGE_RISE};
     }
 
     /**
