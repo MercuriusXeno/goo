@@ -66,6 +66,27 @@ class GatePassageTest {
                 "A body coming out of the face should not cross back");
     }
 
+    /** A floor portal on the top of a block at y 64, its face the plane y 65. */
+    private static final Gate FLOOR = new Gate(OVERWORLD, new AABB(new BlockPos(0, 64, 0)).minmax(
+            new AABB(new BlockPos(0, 64, 1))), Direction.UP, Direction.NORTH.getUnitVec3());
+    /** A fall fast enough to carry a body past the face and on below it in one tick. */
+    private static final Vec3 FAST_FALL = new Vec3(0, -3.0, 0);
+
+    @Test
+    void aFastFallThroughAFloorPortalStillCrosses() {
+        Vec3 before = new Vec3(0.5, 66.0, 1.0);
+        Vec3 now = before.add(FAST_FALL);
+        assertTrue(GatePassage.crossed(FLOOR, before, now), "A body falling past a floor portal's face and on "
+                + "below it in one tick should still cross it");
+    }
+
+    @Test
+    void aFastFallSunkDeepIsStillCarried() {
+        Vec3 feet = new Vec3(0.5, 61.2, 1.0);
+        assertTrue(GatePassage.heldBehind(FLOOR, feet, 1.62, 1.8, FAST_FALL).isPresent(), "A body a fast fall "
+                + "carried well past a floor portal's face should still be carried through it");
+    }
+
     /** The far mouth's face, the plane z 3. */
     private static final double FAR_FACE_Z = 3.0;
 

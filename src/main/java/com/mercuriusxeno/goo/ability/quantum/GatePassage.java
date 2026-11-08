@@ -270,7 +270,10 @@ public final class GatePassage {
      */
     public static boolean crossed(Gate gate, Vec3 before, Vec3 now) {
         double out = gate.out(now);
-        return out < gate.out(before) && out < CAMERA_MARGIN && out > -DEEPEST && gate.withinOval(now);
+        // A fast body may pass the face and go on well behind it within one tick, so it may stand as much deeper
+        // than a slow one as it moved.
+        return out < gate.out(before) && out < CAMERA_MARGIN && out > -(DEEPEST + before.distanceTo(now))
+                && gate.withinOval(now);
     }
 
     /**
@@ -356,7 +359,7 @@ public final class GatePassage {
      */
     public static void announced(ServerPlayer player, Gate near, Vec3 feet, Vec3 motion, float yaw, float pitch) {
         Optional<Gate> far = partnerOf(near, player.level().dimension());
-        Optional<Held> held = heldBehind(near, feet, player.getEyeHeight(), player.getBbHeight());
+        Optional<Held> held = heldBehind(near, feet, player.getEyeHeight(), player.getBbHeight(), motion);
         if (far.isEmpty() || held.isEmpty() || feet.distanceTo(player.position()) > TRUSTED_STEP) {
             return;
         }
@@ -386,15 +389,17 @@ public final class GatePassage {
      * @param feet      the body's feet
      * @param eyeHeight its eye's height over its feet
      * @param height    its height
+     * @param motion    its momentum, which lets a fast body stand as much deeper past the face as it moves a tick
      * @return the point it is carried by, empty where neither eye nor middle stands just behind the face
      */
-    public static Optional<Held> heldBehind(Gate gate, Vec3 feet, double eyeHeight, double height) {
+    public static Optional<Held> heldBehind(Gate gate, Vec3 feet, double eyeHeight, double height, Vec3 motion) {
+        double deepest = DEEPEST + motion.length();
         Vec3 eye = feet.add(0, eyeHeight, 0);
-        if (behindTheFace(gate, eye)) {
+        if (behindTheFace(gate, eye, deepest)) {
             return Optional.of(new Held(eye, eyeHeight));
         }
         Vec3 middle = feet.add(0, height * HALF, 0);
-        return behindTheFace(gate, middle) ? Optional.of(new Held(middle, height * HALF)) : Optional.empty();
+        return behindTheFace(gate, middle, deepest) ? Optional.of(new Held(middle, height * HALF)) : Optional.empty();
     }
 
     /**
@@ -450,9 +455,9 @@ public final class GatePassage {
                 .findFirst();
     }
 
-    private static boolean behindTheFace(Gate gate, Vec3 point) {
+    private static boolean behindTheFace(Gate gate, Vec3 point, double deepest) {
         double out = gate.out(point);
-        return out < CAMERA_MARGIN && out > -DEEPEST && gate.withinOval(point);
+        return out < CAMERA_MARGIN && out > -deepest && gate.withinOval(point);
     }
 
     /**

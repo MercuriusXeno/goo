@@ -62,7 +62,7 @@ public final class ClientGatePassage {
     private static void carry(LocalPlayer player, GatePassage.Pair way) {
         Vec3 feet = player.position();
         Optional<GatePassage.Held> held = GatePassage.heldBehind(way.one(), feet, player.getEyeHeight(),
-                player.getBbHeight());
+                player.getBbHeight(), player.getDeltaMovement());
         if (held.isEmpty()) {
             return;
         }
