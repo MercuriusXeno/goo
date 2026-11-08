@@ -73,6 +73,21 @@ class MeteorTest {
     }
 
     /**
+     * Under cover it strikes the first block in its path, in the open cell
+     * over the cover's top, and under open sky it strikes the hit point
+     * (decision meteo-crashes-through-whatever-is-above).
+     */
+    @Test
+    void strikesTheTopOfWhateverCoversTheHitPoint() {
+        int cellY = (int) Math.floor(TARGET.y);
+        int roofOpenFrom = cellY + 7;
+
+        assertEquals(new Vec3(TARGET.x, roofOpenFrom + 0.5, TARGET.z), MeteorFall.strikePoint(TARGET, roofOpenFrom));
+        assertEquals(TARGET, MeteorFall.strikePoint(TARGET, cellY));
+        assertEquals(TARGET, MeteorFall.strikePoint(TARGET, cellY - 3));
+    }
+
+    /**
      * Past its fall time it stays at the target rather than falling through.
      */
     @Test
