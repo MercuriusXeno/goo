@@ -12,6 +12,9 @@ import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetGatedStep;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -19,6 +22,7 @@ import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.GateArc;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -35,6 +39,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Server-side handler for goo throw requests. Validates the client's claim,
@@ -52,6 +57,8 @@ public final class GooThrowHandler {
     /** Maximum throw range in blocks. */
     public static final double MAX_RANGE = 64.0;
     private static final double MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+    /** How far off a gate's face a throw's face point may stand and still read as on it. */
+    private static final double FACE_SLACK = 0.05;
 
     /** Block center offset (half-block). */
     private static final double BLOCK_CENTER = 0.5;
@@ -190,6 +197,10 @@ public final class GooThrowHandler {
             if (Goo.LOGGER.isDebugEnabled()) {
                 Goo.LOGGER.debug(LOG_UNUSABLE, payload.abilityId(), player.getName().getString());
             }
+            return;
+        }
+        // aim-and-shots-carry-through-linked-gates: a throw naming a gate the server finds untrue goes nowhere
+        if (payload.gate().isPresent() && hopOf(player, payload).isEmpty()) {
             return;
         }
         if (cleared(player, payload, ability)) {
@@ -394,6 +405,17 @@ public final class GooThrowHandler {
     private static void throwAtPoint(ServerPlayer player, GooThrowPayload payload,
             ResourceKey<GooTypeDefinition> gooType) {
         Vec3 eye = player.getEyePosition();
+        Optional<GateArc.Hop> hop = hopOf(player, payload);
+        if (hop.isPresent()) {
+            // aim-and-shots-carry-through-linked-gates: a point through a gate is reached or refused, never capped
+            double length = throughDistance(eye, hop.get(), payload.targetPoint());
+            GooFraction cost = resolveThrowCost(player, payload, gooType);
+            if (length > MAX_RANGE || refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) {
+                return;
+            }
+            depleteAndThrow(player, payload, gooType, length * length, cost);
+            return;
+        }
         Vec3 capped = capToRange(eye, payload.targetPoint(), MAX_RANGE);
         GooThrowPayload aimed = capped.equals(payload.targetPoint()) ? payload : payload.aimedAt(capped);
         GooFraction cost = resolveThrowCost(player, aimed, gooType);
@@ -700,8 +722,49 @@ public final class GooThrowHandler {
                 payload.grannyArc(),
                 payload.abilityId(),
                 delivery,
-                payload.targetPoint()
+                payload.targetPoint(),
+                payload.gate(),
+                payload.facePoint()
         );
+    }
+
+    /**
+     * The hop a throw through a gate makes, where the server finds it true.
+     *
+     * @param pairs     the server's linked pairs
+     * @param gate      the gate the throw names
+     * @param facePoint where the throw says its aim met the gate's face
+     * @param eye       the thrower's eye
+     * @return the hop, empty where the throw is refused
+     */
+    static Optional<GateArc.Hop> admittedHop(List<GatePassage.Pair> pairs, Gate gate, Vec3 facePoint, Vec3 eye) {
+        boolean onTheFace = Math.abs(gate.out(facePoint)) <= FACE_SLACK && gate.withinOval(facePoint);
+        boolean seenFromTheEye = gate.out(eye) > 0 && eye.distanceTo(facePoint) <= MAX_RANGE;
+        return onTheFace && seenFromTheEye ? GateRay.hopThrough(pairs, gate, facePoint) : Optional.empty();
+    }
+
+    /**
+     * The hop a throw's payload names, where the server finds it true.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @return the hop, empty for a throw naming no gate or one the server refuses
+     */
+    static Optional<GateArc.Hop> hopOf(ServerPlayer player, GooThrowPayload payload) {
+        return payload.gate().flatMap(gate -> admittedHop(GatePassage.pairsOf(player.level().getServer()), gate,
+                payload.facePoint(), player.getEyePosition()));
+    }
+
+    /**
+     * How far a throw through a gate flies.
+     *
+     * @param from   where the throw leaves from
+     * @param hop    the gate it passes
+     * @param target where it lands
+     * @return its length in blocks
+     */
+    static double throughDistance(Vec3 from, GateArc.Hop hop, Vec3 target) {
+        return from.distanceTo(hop.facePoint()) + hop.partnerPoint().distanceTo(target);
     }
 
     /**
@@ -712,6 +775,15 @@ public final class GooThrowHandler {
      * @return squared distance in blocks
      */
     static double targetDistanceSquared(ServerPlayer player, GooThrowPayload payload) {
+        if (payload.gate().isPresent()) {
+            // aim-and-shots-carry-through-linked-gates: a throw through a gate flies its two legs
+            Optional<GateArc.Hop> hop = hopOf(player, payload);
+            Entity aimed = payload.targetEntityId() >= 0 ? player.level().getEntity(payload.targetEntityId()) : null;
+            Vec3 target = aimed != null ? aimed.getBoundingBox().getCenter() : Vec3.atCenterOf(payload.targetPos());
+            double length = hop.map(passed -> throughDistance(player.getEyePosition(), passed, target))
+                    .orElse(Double.MAX_VALUE);
+            return length * length;
+        }
         if (payload.targetEntityId() >= 0) {
             Entity target = player.level().getEntity(payload.targetEntityId());
             if (target == null) { return Double.MAX_VALUE; }

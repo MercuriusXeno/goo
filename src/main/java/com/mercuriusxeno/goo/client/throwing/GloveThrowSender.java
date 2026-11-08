@@ -609,6 +609,22 @@ public final class GloveThrowSender {
      */
     private static GooThrowPayload buildPayload(TargetResult target, String typeId, String abilityId,
             Vec3 origin) {
+        GooThrowPayload payload = payloadFor(target, typeId, abilityId, origin);
+        TargetResult.Passage passage = target.passage();
+        // aim-and-shots-carry-through-linked-gates: a far-side target names the gate the aim passed
+        return passage == null ? payload : payload.through(passage.gate(), passage.facePoint());
+    }
+
+    /**
+     * The payload a target names, before any gate it was reached through.
+     *
+     * @param target    the resolved non-None aim target
+     * @param typeId    the goo type registry id
+     * @param abilityId the selected ability id string
+     * @param origin    the aim line start, where the flight leaves from
+     * @return the throw payload
+     */
+    private static GooThrowPayload payloadFor(TargetResult target, String typeId, String abilityId, Vec3 origin) {
         return switch (target) {
             case TargetResult.EntityTarget et -> entityPayload(typeId, et, abilityId, origin);
             case TargetResult.BlockTarget bt -> blockPayload(typeId, bt, abilityId, origin);
