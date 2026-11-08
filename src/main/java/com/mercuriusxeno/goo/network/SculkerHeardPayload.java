@@ -9,7 +9,7 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Server-to-client payload: a sound played past vanilla's range that a
- * diver submerged in blocks hears through the strata, so its client sends
+ * Sculker hears from far off, so its client sends
  * the sound's rings out and outlines the mob it came from.
  * decision sculker-sight-persists-where-echoes-have-touched
  *
