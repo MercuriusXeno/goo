@@ -1,0 +1,46 @@
+package com.mercuriusxeno.goo.network;
+
+import com.mercuriusxeno.goo.Goo;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.NonNull;
+
+/**
+ * Server-to-client payload: a sound played past vanilla's range that a
+ * diver submerged in blocks hears through the strata, so its client sends
+ * the sound's rings out and outlines the mob it came from.
+ * decision sculker-sight-persists-where-echoes-have-touched
+ *
+ * @param x        where the sound played, east
+ * @param y        where the sound played, up
+ * @param z        where the sound played, south
+ * @param loudness its volume, 1 for an ordinary sound
+ */
+public record SculkerHeardPayload(double x, double y, double z, float loudness) implements CustomPacketPayload {
+
+    /** Payload type ID for registration. */
+    public static final Type<SculkerHeardPayload> TYPE =
+        new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "sculker_heard"));
+
+    /** Stream codec for encoding/decoding. */
+    public static final StreamCodec<FriendlyByteBuf, SculkerHeardPayload> STREAM_CODEC =
+        StreamCodec.of(SculkerHeardPayload::encode, SculkerHeardPayload::decode);
+
+    @Override
+    public @NonNull Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
+
+    private static void encode(FriendlyByteBuf buf, SculkerHeardPayload payload) {
+        buf.writeDouble(payload.x);
+        buf.writeDouble(payload.y);
+        buf.writeDouble(payload.z);
+        buf.writeFloat(payload.loudness);
+    }
+
+    private static SculkerHeardPayload decode(FriendlyByteBuf buf) {
+        return new SculkerHeardPayload(buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat());
+    }
+}

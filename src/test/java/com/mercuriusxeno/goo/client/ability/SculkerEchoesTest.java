@@ -5,18 +5,21 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A heard sound starts a ripple whose growing front lights each block face
- * open to air that it crosses, tick by tick, a louder sound reaching
- * farther and lighting faces for longer; a mob within hearing pulses every
- * two seconds; a lit face fades out over about ten seconds unless a new echo
- * lights it again, draws weaker the farther the player stands from it and not at all
- * past the sight's reach, and the brew's end forgets it
+ * A heard sound sends three rings out of its source, a quarter second apart,
+ * each sweeping eight blocks a second across the faces open to air near it,
+ * an ordinary sound's reaching four blocks and the loudest's twelve; a face
+ * a ring crosses shows bright as the ring passes and then faintly, fading
+ * over about three seconds, six for the loudest, unless a new ring lights it
+ * again; a mob that makes a sound outlines for about a second; what is heard
+ * draws fainter the farther it stands, down to a fifth at the edge of render
+ * distance, and the brew's end forgets it
  * (decision sculker-sight-persists-where-echoes-have-touched).
  */
 class SculkerEchoesTest {
@@ -26,15 +29,19 @@ class SculkerEchoesTest {
     private static final Vec3 SOUND = new Vec3(0.5, 1, 0.5);
     private static final long HEARD_AT = 100;
     private static final SculkerEchoes.Face UNDER_THE_SOUND = new SculkerEchoes.Face(BlockPos.ZERO, Direction.UP);
-    private static final SculkerEchoes.Face TEN_AWAY = new SculkerEchoes.Face(new BlockPos(10, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face THREE_AWAY = new SculkerEchoes.Face(new BlockPos(3, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face SIX_AWAY = new SculkerEchoes.Face(new BlockPos(6, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face ELEVEN_AWAY = new SculkerEchoes.Face(new BlockPos(11, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face FOURTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(14, 0, 0), Direction.UP);
     private static final SculkerEchoes.Face BURIED_SIDE = new SculkerEchoes.Face(new BlockPos(1, -1, 0), Direction.WEST);
     private static final double CLOSE = 1e-6;
-
-    private static final SculkerEchoes.Face FIFTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(15, 0, 0), Direction.UP);
-    private static final float QUIET = 0.5f;
-    private static final long NINE_AND_A_HALF_SECONDS = 190;
-    private static final long TEN_SECONDS = 200;
-    private static final float LOUD = 2f;
+    private static final float LOUDEST = 4f;
+    /** Two seconds, long enough for any ring to have reached its end. */
+    private static final long TWO_SECONDS = 40;
+    private static final long ONE_SECOND = 20;
+    private static final long QUARTER_SECOND = 5;
+    private static final double RENDER_REACH = 160;
+    private static final Vec3 AT_THE_SOUND = new Vec3(0.5, 1.5, 0.5);
 
     private static SculkerEchoes heardAndAdvancedTo(long now) {
         return heardAndAdvancedTo(now, 1f);
@@ -50,118 +57,139 @@ class SculkerEchoesTest {
     }
 
     @Nested
-    class Rippling {
+    class Rings {
 
         @Test
-        void theFirstTickLightsTheFaceUnderTheSound() {
-            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 1);
-            assertTrue(echoes.remembered().containsKey(UNDER_THE_SOUND));
-            assertFalse(echoes.remembered().containsKey(TEN_AWAY));
+        void aSoundSendsThreeRingsAQuarterSecondApart() {
+            SculkerEchoes echoes = new SculkerEchoes();
+            echoes.hear(SOUND, HEARD_AT, 1f);
+            List<Long> starts = echoes.ripples().stream().map(SculkerEchoes.Ripple::startTick).toList();
+            assertEquals(List.of(HEARD_AT, HEARD_AT + QUARTER_SECOND, HEARD_AT + 2 * QUARTER_SECOND), starts);
         }
 
         @Test
-        void theGrowingFrontReachesFartherFacesOnLaterTicksAndOnlyFacesOpenToAir() {
-            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 8);
-            assertTrue(echoes.remembered().containsKey(TEN_AWAY));
-            assertFalse(echoes.remembered().containsKey(BURIED_SIDE));
+        void aRingSweepsEightBlocksASecond() {
+            SculkerEchoes echoes = new SculkerEchoes();
+            echoes.hear(SOUND, HEARD_AT, LOUDEST);
+            SculkerEchoes.Ripple first = echoes.ripples().get(0);
+            assertEquals(8.0, first.radiusAt(HEARD_AT + ONE_SECOND), CLOSE);
         }
 
         @Test
-        void aLitFaceLastsAboutTenSecondsAfterItsLastEcho() {
-            assertTrue(heardAndAdvancedTo(HEARD_AT + NINE_AND_A_HALF_SECONDS).remembered().containsKey(UNDER_THE_SOUND));
-            assertFalse(heardAndAdvancedTo(HEARD_AT + 2 + TEN_SECONDS).remembered().containsKey(UNDER_THE_SOUND));
+        void aRingCrossesNearFacesBeforeFartherOnesAndOnlyFacesOpenToAir() {
+            assertTrue(heardAndAdvancedTo(HEARD_AT + 2).remembered().containsKey(UNDER_THE_SOUND));
+            assertFalse(heardAndAdvancedTo(HEARD_AT + 2).remembered().containsKey(THREE_AWAY));
+            SculkerEchoes later = heardAndAdvancedTo(HEARD_AT + ONE_SECOND);
+            assertTrue(later.remembered().containsKey(THREE_AWAY));
+            assertFalse(later.remembered().containsKey(BURIED_SIDE));
         }
 
         @Test
-        void aNewEchoRelightsAFadingFace() {
-            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + SculkerEchoes.FADE_TICKS / 2);
-            long again = HEARD_AT + SculkerEchoes.FADE_TICKS / 2 + 1;
-            echoes.hear(SOUND, again);
-            for (long tick = again; tick <= again + SculkerEchoes.FADE_TICKS / 2 + 2; tick++) {
-                echoes.advance(tick, FLAT_GROUND);
-            }
-            assertTrue(echoes.remembered().containsKey(UNDER_THE_SOUND));
-            assertEquals(again + 1, echoes.remembered().get(UNDER_THE_SOUND).litAt());
-        }
-    }
-
-    @Nested
-    class Loudness {
-
-        @Test
-        void aLouderSoundRipplesFartherThanAQuietOne() {
-            assertTrue(heardAndAdvancedTo(HEARD_AT + 20, LOUD).remembered().containsKey(FIFTEEN_AWAY));
-            assertFalse(heardAndAdvancedTo(HEARD_AT + 20, QUIET).remembered().containsKey(FIFTEEN_AWAY));
+        void anOrdinarySoundReachesFourBlocks() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + TWO_SECONDS);
+            assertTrue(echoes.remembered().containsKey(THREE_AWAY));
+            assertFalse(echoes.remembered().containsKey(SIX_AWAY));
         }
 
         @Test
-        void aLouderSoundsFacesOutlastAQuietOnes() {
-            long pastTheQuietFade = HEARD_AT + 2 + Math.round(SculkerEchoes.FADE_TICKS * QUIET);
-            assertTrue(heardAndAdvancedTo(pastTheQuietFade, LOUD).remembered().containsKey(UNDER_THE_SOUND));
-            assertFalse(heardAndAdvancedTo(pastTheQuietFade, QUIET).remembered().containsKey(UNDER_THE_SOUND));
+        void theLoudestSoundReachesTwelveBlocks() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + TWO_SECONDS, LOUDEST);
+            assertTrue(echoes.remembered().containsKey(ELEVEN_AWAY));
+            assertFalse(echoes.remembered().containsKey(FOURTEEN_AWAY));
         }
 
         @Test
-        void theBrewsEndForgetsEveryFace() {
-            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 8);
-            assertFalse(echoes.remembered().isEmpty());
+        void eachRingRelightsTheFacesItCrosses() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2 * QUARTER_SECOND + 2);
+            assertEquals(HEARD_AT + 2 * QUARTER_SECOND + 2, echoes.remembered().get(UNDER_THE_SOUND).litAt());
+        }
+
+        @Test
+        void theBrewsEndForgetsEveryFaceAndRing() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2);
             echoes.clear();
-            assertTrue(echoes.remembered().isEmpty());
+            assertTrue(echoes.remembered().isEmpty() && echoes.ripples().isEmpty());
         }
     }
 
     @Nested
-    class AmbientPulse {
+    class Fading {
 
-        private static final int MOB = 42;
-        private static final long TWENTY_SECONDS = 400;
-        private static final long TWO_SECONDS = 40;
-
-        private long pulsesOver(long ticks, double distance) {
-            long count = 0;
-            for (long tick = 0; tick < ticks; tick++) {
-                count += SculkerEchoes.pulses(tick, MOB, distance) ? 1 : 0;
-            }
-            return count;
+        @Test
+        void anOrdinarySoundsFacesFadeOverThreeSeconds() {
+            assertEquals(60, SculkerEchoes.fadeTicksFor(1f));
         }
 
         @Test
-        void aMobWithinHearingPulsesEveryTwoSeconds() {
-            assertEquals(TWENTY_SECONDS / TWO_SECONDS, pulsesOver(TWENTY_SECONDS, 20));
+        void theLoudestSoundsFacesFadeOverSixSeconds() {
+            assertEquals(120, SculkerEchoes.fadeTicksFor(LOUDEST));
         }
 
         @Test
-        void aMobPastHearingNeverPulses() {
-            assertEquals(0, pulsesOver(TWENTY_SECONDS, SculkerEchoes.HEARING_REACH + 1));
+        void aFaceShowsBrightAsTheRingCrossesItThenFaintlyInItsWake() {
+            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, SculkerEchoes.fadeTicksFor(1f));
+            float onTheRing = SculkerEchoes.glowAt(lit, HEARD_AT);
+            float inTheWake = SculkerEchoes.glowAt(lit, HEARD_AT + QUARTER_SECOND);
+            assertEquals(1f, onTheRing, CLOSE);
+            assertTrue(inTheWake > 0 && inTheWake < onTheRing / 2, "the wake should glow faintly, it glows " + inTheWake);
+        }
+
+        @Test
+        void theWakeIsGoneOnceTheFaceHasFaded() {
+            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, SculkerEchoes.fadeTicksFor(1f));
+            assertEquals(0f, SculkerEchoes.glowAt(lit, HEARD_AT + SculkerEchoes.fadeTicksFor(1f)), CLOSE);
         }
     }
 
     @Nested
-    class Strength {
-
-        private static final Vec3 NEAR = new Vec3(0.5, 1, 0.5);
-        private static final SculkerEchoes.Lit LIT = new SculkerEchoes.Lit(HEARD_AT, SculkerEchoes.FADE_TICKS);
+    class Distance {
 
         @Test
-        void fallsAsThePlayerStandsFarther() {
-            Vec3 far = new Vec3(20.5, 1, 0.5);
-            assertTrue(SculkerEchoes.strength(UNDER_THE_SOUND, LIT, NEAR, HEARD_AT)
-                    > SculkerEchoes.strength(UNDER_THE_SOUND, LIT, far, HEARD_AT));
+        void whatIsHeardDrawsFullBesideThePlayer() {
+            assertEquals(1f, SculkerEchoes.strengthAt(0, RENDER_REACH), CLOSE);
         }
 
         @Test
-        void isZeroPastTheSightsReach() {
-            Vec3 pastReach = new Vec3(0.5 + SculkerEchoes.SIGHT_REACH + 1, 0.5, 0.5);
-            assertEquals(0f, SculkerEchoes.strength(UNDER_THE_SOUND, LIT, pastReach, HEARD_AT), CLOSE);
+        void whatIsHeardDrawsAFifthAtTheEdgeOfRenderDistance() {
+            assertEquals(0.2f, SculkerEchoes.strengthAt(RENDER_REACH, RENDER_REACH), CLOSE);
         }
 
         @Test
-        void fallsAsTheFaceAgesAndIsZeroOnceFaded() {
-            float fresh = SculkerEchoes.strength(UNDER_THE_SOUND, LIT, NEAR, HEARD_AT);
-            float halfway = SculkerEchoes.strength(UNDER_THE_SOUND, LIT, NEAR, HEARD_AT + SculkerEchoes.FADE_TICKS / 2);
-            float faded = SculkerEchoes.strength(UNDER_THE_SOUND, LIT, NEAR, HEARD_AT + SculkerEchoes.FADE_TICKS);
-            assertTrue(fresh > halfway && halfway > 0, "strength should fall from " + fresh + " to " + halfway);
-            assertEquals(0f, faded, CLOSE);
+        void whatIsHeardFadesEvenlyBetween() {
+            assertEquals(0.6f, SculkerEchoes.strengthAt(RENDER_REACH / 2, RENDER_REACH), CLOSE);
+        }
+
+        @Test
+        void nothingPastRenderDistanceDraws() {
+            assertEquals(0f, SculkerEchoes.strengthAt(RENDER_REACH + 1, RENDER_REACH), CLOSE);
+        }
+
+        @Test
+        void aFacesStrengthIsItsDistanceTimesItsGlow() {
+            SculkerEchoes.Lit lit = new SculkerEchoes.Lit(HEARD_AT, SculkerEchoes.fadeTicksFor(1f));
+            assertEquals(1f, SculkerEchoes.strength(UNDER_THE_SOUND, lit, AT_THE_SOUND, HEARD_AT, RENDER_REACH), 0.01);
+        }
+    }
+
+    @Nested
+    class Outlines {
+
+        @Test
+        void anOrdinarySoundOutlinesItsMobForASecond() {
+            assertEquals(20, SculkerEchoes.outlineTicksFor(1f));
+        }
+
+        @Test
+        void aLoudSoundOutlinesItsMobForTwoSecondsAtMost() {
+            assertEquals(40, SculkerEchoes.outlineTicksFor(LOUDEST));
+        }
+
+        @Test
+        void anOutlineFadesFromFullToNothing() {
+            int ticks = SculkerEchoes.outlineTicksFor(1f);
+            assertEquals(1f, SculkerEchoes.outlineLeftAt(HEARD_AT, ticks, HEARD_AT), CLOSE);
+            assertEquals(0.5f, SculkerEchoes.outlineLeftAt(HEARD_AT, ticks, HEARD_AT + ticks / 2), CLOSE);
+            assertEquals(0f, SculkerEchoes.outlineLeftAt(HEARD_AT, ticks, HEARD_AT + ticks), CLOSE);
         }
     }
 }

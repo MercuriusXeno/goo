@@ -90,8 +90,9 @@ public final class SculkerEchoRenderer {
     private static Map<BlockPos, LitBlock> litBlocks(Vec3 standing, long now) {
         Map<BlockPos, LitBlock> lit = new HashMap<>();
         float presence = SculkerVision.presence();
+        double reach = SculkerSenses.sightReach();
         SculkerSenses.echoes().remembered().forEach((face, lighting) -> {
-            float strength = SculkerEchoes.strength(face, lighting, standing, now) * presence;
+            float strength = SculkerEchoes.strength(face, lighting, standing, now, reach) * presence;
             if (strength > FAINTEST) {
                 lit.merge(face.pos(), new LitBlock(strength, EnumSet.of(face.side())), SculkerEchoRenderer::joined);
             }
