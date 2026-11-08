@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.program;
 
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,8 +39,8 @@ class BranchStepTest {
 
         ProgramBehavior.forHost(List.of(blastByCondition(1)), HostKind.ENTITY).tick(host);
 
-        verify(host).explode(THEN_POWER, ExplosionMode.NONE);
-        verify(host, never()).explode(OTHERWISE_POWER, ExplosionMode.NONE);
+        verify(host).explode(eq(THEN_POWER), anyDouble(), eq(ExplosionMode.NONE));
+        verify(host, never()).explode(eq(OTHERWISE_POWER), anyDouble(), eq(ExplosionMode.NONE));
     }
 
     @Test
@@ -47,7 +49,7 @@ class BranchStepTest {
 
         ProgramBehavior.forHost(List.of(blastByCondition(0)), HostKind.ENTITY).tick(host);
 
-        verify(host).explode(OTHERWISE_POWER, ExplosionMode.NONE);
-        verify(host, never()).explode(THEN_POWER, ExplosionMode.NONE);
+        verify(host).explode(eq(OTHERWISE_POWER), anyDouble(), eq(ExplosionMode.NONE));
+        verify(host, never()).explode(eq(THEN_POWER), anyDouble(), eq(ExplosionMode.NONE));
     }
 }

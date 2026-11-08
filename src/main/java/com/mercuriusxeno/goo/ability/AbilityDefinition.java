@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.program.BloomStep;
 import com.mercuriusxeno.goo.ability.program.ColonizeStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
-import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FloorsStep;
@@ -721,7 +720,7 @@ public record AbilityDefinition(
             return previewAtMaxReach(area, behaviors);
         }
         double reach = firstExplosion(behaviors)
-                .map(step -> (double) ExplosionMarch.maxReach(step.power().evaluateFloat(Variables.NONE)))
+                .map(step -> step.reachAt(Variables.NONE))
                 .orElseGet(() -> widestRadius(behaviors));
         return reach > 0 ? new AbilityArea(AbilityArea.Shape.SPHERE, reach, 0) : area;
     }
@@ -764,8 +763,7 @@ public record AbilityDefinition(
             return area;
         }
         return firstExplosion(behaviors)
-                .map(step -> new AbilityArea(area.shape(),
-                        ExplosionMarch.maxReach(step.power().evaluateFloat(Variables.NONE)), area.angle()))
+                .map(step -> new AbilityArea(area.shape(), step.reachAt(Variables.NONE), area.angle()))
                 .orElse(area);
     }
 

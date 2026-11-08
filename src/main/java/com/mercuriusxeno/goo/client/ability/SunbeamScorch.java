@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -16,13 +18,16 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Sunbeam's scorch as this client sees it: each frame a ray strikes a block,
  * the spot burns into its caster's {@link ScorchTrail}, and every mark still
  * showing draws as a quad flush on the face it burnt, white-hot where the
  * ray strikes now, cooling through orange to a dark burn mark behind it and
- * fading away. Client-only: it changes no block.
+ * fading away. Client-only: it changes no block. A mark draws only while
+ * the block it burns on stands, so none hangs in the air where a block went
+ * or a rake bridged a gap.
  * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -77,15 +82,41 @@ public final class SunbeamScorch {
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SUNBEAM_SCORCH_TYPE);
         PoseStack.Pose pose = event.getPoseStack().last();
-        for (ScorchTrail trail : TRAILS.values()) {
-            for (ScorchTrail.Mark mark : trail.marks()) {
-                emitMark(pose, consumer, mark, camera, now);
+        ClientLevel level = mc.level;
+        drawInTwoPasses(mc.renderBuffers().bufferSource(), consumer -> {
+            for (ScorchTrail trail : TRAILS.values()) {
+                for (ScorchTrail.Mark mark : trail.marksOnBlocks(pos -> blockStands(level, pos))) {
+                    emitMark(pose, consumer, mark, camera, now);
+                }
             }
-        }
+        });
+    }
+
+    /**
+     * Draws every mark's char, then every mark's glow over all of them, so
+     * no mark's char ring darkens its neighbor's glow and overlapping glows
+     * sum into one streak rather than stacking as separate decals.
+     *
+     * @param buffers   the buffer source
+     * @param drawMarks emits every mark into the consumer it is handed
+     */
+    static void drawInTwoPasses(MultiBufferSource.BufferSource buffers, Consumer<VertexConsumer> drawMarks) {
+        drawMarks.accept(buffers.getBuffer(GooRenderTypes.SUNBEAM_SCORCH_TYPE));
         buffers.endBatch(GooRenderTypes.SUNBEAM_SCORCH_TYPE);
+        drawMarks.accept(buffers.getBuffer(GooRenderTypes.SUNBEAM_SCORCH_GLOW_TYPE));
+        buffers.endBatch(GooRenderTypes.SUNBEAM_SCORCH_GLOW_TYPE);
+    }
+
+    /**
+     * Whether a block stands at a position for a mark to burn on: one with an outline.
+     *
+     * @param level the level
+     * @param pos   the position
+     * @return true where a block stands
+     */
+    private static boolean blockStands(ClientLevel level, BlockPos pos) {
+        return !level.getBlockState(pos).getShape(level, pos).isEmpty();
     }
 
     /**
