@@ -222,7 +222,8 @@ public final class TerrakinesisTests {
 
     /**
      * A hunk hucked along the look into a cobblestone wall crushes the wall
-     * where it strikes, breaks apart and drops every stone block it carried.
+     * where it strikes and breaks whole, every stone block it carried
+     * dropping on the same tick.
      *
      * @param helper the gametest helper
      */
@@ -243,7 +244,7 @@ public final class TerrakinesisTests {
                 int dropped = droppedStone(helper);
                 if (dropped > 0 && !firstDropSeen[0]) {
                     firstDropSeen[0] = true;
-                    helper.assertTrue(dropped < slab.size(), "The hunk should crumble block by block, not drop all "
+                    helper.assertTrue(dropped == slab.size(), "The hunk should break whole, dropping all "
                             + slab.size() + " of its stone on one tick, dropped " + dropped);
                 }
             });
