@@ -55,6 +55,36 @@ final class BlockCooking {
     }
 
     /**
+     * The blocks a flame melts and the blocks they melt into, vanilla's in play.
+     *
+     * @param ice        ice
+     * @param frostedIce frosted ice
+     * @param snowLayer  a snow layer
+     * @param water      the water source ice melts into
+     * @param air        what a snow layer, or ice where water evaporates, leaves
+     */
+    record Meltables(Block ice, Block frostedIce, Block snowLayer, Block water, Block air) {
+    }
+
+    /**
+     * The block a block melts into under a held flame, the rule vanilla's
+     * IceBlock.melt runs: ice and frosted ice leave a water source, or air
+     * where the dimension evaporates water, and a snow layer leaves air.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param raw             the block standing in the heat
+     * @param meltables       the blocks that melt and what they melt into
+     * @param waterEvaporates whether the dimension evaporates water, the ultrawarm rule
+     * @return the melted block, or empty where the block does not melt
+     */
+    static Optional<Block> meltedBlock(Block raw, Meltables meltables, boolean waterEvaporates) {
+        if (raw == meltables.ice() || raw == meltables.frostedIce()) {
+            return Optional.of(waterEvaporates ? meltables.air() : meltables.water());
+        }
+        return raw == meltables.snowLayer() ? Optional.of(meltables.air()) : Optional.empty();
+    }
+
+    /**
      * Finishes a cooked block, the one finish every cooked block takes: it
      * becomes its result where that is a block, or empties with the result
      * item resting at its center.
