@@ -22,7 +22,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -112,15 +111,11 @@ public final class PortalFaces {
     }
 
     /**
-     * Draws the gates once the world has drawn, ahead of everything else that
-     * stage draws, so the aim line and a flight heading into a gate draw over
-     * its face rather than under it: a line writes no depth, and a face drawn
-     * after it hid the near leg's last stretch inside the oval
-     * (decision aim-and-shots-carry-through-linked-gates).
+     * Draws the gates once the world has drawn.
      *
      * @param event the level render stage event
      */
-    @SubscribeEvent(priority = EventPriority.HIGH)
+    @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
