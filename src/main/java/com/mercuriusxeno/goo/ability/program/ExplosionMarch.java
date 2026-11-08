@@ -28,6 +28,8 @@ public final class ExplosionMarch {
     private static final double REACH_BLOCKS = 4.0;
     private static final double REACH_POWER = 3.0;
     private static final double GRID_SPAN = 2.0;
+    /** A point past the reach by more than a cell's diagonal lies in no cell whose center the reach holds. */
+    private static final double CELL_DIAGONAL = Math.sqrt(3.0);
     private static final List<Vec3> RAY_DIRECTIONS = rayDirections();
 
     private ExplosionMarch() {
@@ -81,7 +83,23 @@ public final class ExplosionMarch {
      * @return the marked cells
      */
     public static Set<BlockPos> markedCells(Vec3 center, float power, ResistanceLookup lookup) {
-        double reach = maxReach(power);
+        return markedCells(center, power, maxReach(power), lookup);
+    }
+
+    /**
+     * Marches every ray from the center and collects the cells a ray still
+     * held power in after paying for them, inside a sphere of the reach
+     * given, so a blast can carry more power than its open-air reach spends
+     * and still stop at the ring it draws.
+     * blast-fills-its-drawn-radius
+     *
+     * @param center the explosion center
+     * @param power  the power every ray starts with
+     * @param reach  the radius no marked cell's center lies past
+     * @param lookup the resistance of each cell
+     * @return the marked cells
+     */
+    public static Set<BlockPos> markedCells(Vec3 center, float power, double reach, ResistanceLookup lookup) {
         Set<BlockPos> marked = new HashSet<>();
         for (Vec3 direction : RAY_DIRECTIONS) {
             marchRay(center, direction, power, reach, lookup, marked);
@@ -124,7 +142,9 @@ public final class ExplosionMarch {
                                  ResistanceLookup lookup, Set<BlockPos> marked) {
         Vec3 step = direction.scale(STEP);
         Vec3 at = center;
-        for (float remaining = power; remaining > 0F; remaining -= BLEED_PER_STEP) {
+        double marchLimit = reach + CELL_DIAGONAL;
+        for (float remaining = power; remaining > 0F && at.distanceTo(center) <= marchLimit;
+             remaining -= BLEED_PER_STEP) {
             BlockPos cell = BlockPos.containing(at);
             Optional<Float> resistance = lookup.resistanceAt(cell);
             if (resistance.isPresent()) {
