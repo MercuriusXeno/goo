@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:broil_pops_charcoal_from_a_log",
+  "function": "goo:broil_rests_charcoal_where_the_log_stood",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 80,

@@ -38,7 +38,10 @@ public final class BroilStreamTests {
     /** Right behind the sand, its west face against the sand's, its top inside the cone. */
     private static final BlockPos HIDDEN_POS = SAND_POS.east();
     private static final String BROIL_SPARES_THE_HIDDEN_BLOCK = "broil_spares_the_hidden_block";
-    private static final String BROIL_POPS_CHARCOAL_FROM_A_LOG = "broil_pops_charcoal_from_a_log";
+    private static final String BROIL_RESTS_CHARCOAL_WHERE_THE_LOG_STOOD = "broil_rests_charcoal_where_the_log_stood";
+    /** How far from the cell's horizontal center a resting item may stand. */
+    private static final double AT_REST = 1e-6;
+    private static final String CHARCOAL_AT_REST = "The charcoal should stand at rest at the log's cell center";
     /** Two blocks east, between the player and the sand, inside the cone. */
     private static final BlockPos COW_POS = STAND_POS.east(2);
     /** One block east and one up, where the aim line toward the sand passes. */
@@ -73,18 +76,19 @@ public final class BroilStreamTests {
         GooTestFunctions.registerTest(registrar, BROIL_COOKS_SAND_AND_COW, BroilStreamTests::broilCooksSandAndCow);
         GooTestFunctions.registerTest(registrar, BROIL_SPARES_THE_HIDDEN_BLOCK,
                 BroilStreamTests::broilSparesTheHiddenBlock);
-        GooTestFunctions.registerTest(registrar, BROIL_POPS_CHARCOAL_FROM_A_LOG,
-                BroilStreamTests::broilPopsCharcoalFromALog);
+        GooTestFunctions.registerTest(registrar, BROIL_RESTS_CHARCOAL_WHERE_THE_LOG_STOOD,
+                BroilStreamTests::broilRestsCharcoalWhereTheLogStood);
     }
 
     /**
      * A mock player holds broil on an oak log, whose furnace result is an
-     * item: the log is gone and its charcoal lies where it stood.
-     * decision broil-heat-wave-ring-cooks-ahead
+     * item: the log is gone and its charcoal stands at rest at the center of
+     * the cell it stood in, never thrown out of it.
+     * decision blocks-that-cook-into-items-cook-like-blocks
      *
      * @param helper the gametest helper
      */
-    public static void broilPopsCharcoalFromALog(GameTestHelper helper) {
+    public static void broilRestsCharcoalWhereTheLogStood(GameTestHelper helper) {
         helper.setBlock(SAND_POS.below(), Blocks.BEDROCK);
         helper.setBlock(SAND_POS, Blocks.OAK_LOG);
         ServerPlayer player = broiler(helper);
@@ -92,7 +96,12 @@ public final class BroilStreamTests {
         helper.runAfterDelay(HOLD_TICKS + 2, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.AIR, SAND_POS);
-            helper.assertItemEntityPresent(Items.CHARCOAL, SAND_POS, ITEM_SEARCH_RADIUS);
+            Vec3 center = Vec3.atCenterOf(helper.absolutePos(SAND_POS));
+            helper.assertTrue(helper.getEntities(EntityType.ITEM, SAND_POS, ITEM_SEARCH_RADIUS).stream()
+                    .anyMatch(item -> item.getItem().is(Items.CHARCOAL)
+                            && Math.abs(item.getX() - center.x) < AT_REST
+                            && Math.abs(item.getZ() - center.z) < AT_REST
+                            && item.getDeltaMovement().horizontalDistance() < AT_REST), CHARCOAL_AT_REST);
             helper.succeed();
         });
     }
