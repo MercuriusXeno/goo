@@ -35,6 +35,8 @@ public final class DrinkRide {
     public static final int CELLS = CELLS_ACROSS * CELLS_ACROSS * CELLS_ACROSS;
     /** The most cells a chunk spans along any edge. */
     public static final int LONGEST_SPAN = 2;
+    /** The share of its way to its blob left at which a shrinking chunk is gone. */
+    static final double VANISH_SHARE = 0.25;
     private static final double HALF = 0.5;
     private static final int X = 0;
     private static final int Y = 1;
@@ -46,8 +48,12 @@ public final class DrinkRide {
     private static final int[][] SHAPES = {
         {2, 2, 2}, {2, 2, 1}, {2, 1, 2}, {1, 2, 2}, {2, 1, 1}, {1, 2, 1}, {1, 1, 2}, {1, 1, 1},
     };
-    /** The chance each of {@link #SHAPES} is taken where it fits. */
-    private static final double[] CHANCES = {0.5, 0.5, 0.5, 0.5, 0.6, 0.6, 0.6, 1};
+    /**
+     * The chance each of {@link #SHAPES} is taken where it fits: high for the big ones, so a block breaks into few
+     * chunks and a blob's converging chunks never crowd into a dark, tearing knot.
+     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
+     */
+    private static final double[] CHANCES = {0.6, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 1};
 
     private DrinkRide() {
     }
@@ -460,7 +466,9 @@ public final class DrinkRide {
 
     /**
      * How large a chunk flies at: whole in its place and as it leaves, then
-     * by what is left of its way, so the chunks taper into their blob.
+     * by what is left of its way, so the chunks taper into their blob, and
+     * gone for the last {@link #VANISH_SHARE} of it, so the many tiny chunks
+     * nearly there never crowd the blob into a dark, tearing knot.
      * unmake-converges-near-the-unmade-blocks-into-a-goo-item
      *
      * @param chunk the chunk
@@ -470,7 +478,8 @@ public final class DrinkRide {
      */
     public static double shrinkOf(Chunk chunk, Vec3 blob, double now) {
         double way = chunk.place().distanceTo(blob);
-        return way <= 0 ? 0 : Math.clamp(1 - distanceOf(chunk.release(), now) / way, 0, 1);
+        double left = way <= 0 ? 0 : Math.clamp(1 - distanceOf(chunk.release(), now) / way, 0, 1);
+        return left < VANISH_SHARE ? 0 : left;
     }
 
     /**

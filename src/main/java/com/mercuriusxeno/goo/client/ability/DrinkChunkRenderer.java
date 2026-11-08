@@ -103,15 +103,18 @@ public final class DrinkChunkRenderer {
         List<DrinkRide.Chunk> chunks = peel.breakup().chunks();
         boolean[] standing = DrinkRide.standingOf(chunks, now);
         int standingLight = LevelRenderer.getLightCoords(draw.level(), peel.pos());
-        int flyingLight = point == null ? standingLight : DrinkPeels.brighterOf(standingLight,
-                LevelRenderer.getLightCoords(draw.level(), BlockPos.containing(point)));
+        // a blob forms in a block being unmade, whose own cell reads dark, so the cell above it lights too
+        BlockPos blobCell = point == null ? peel.pos() : BlockPos.containing(point);
+        int flyingLight = DrinkPeels.brighterOf(standingLight, DrinkPeels.brighterOf(
+                LevelRenderer.getLightCoords(draw.level(), blobCell),
+                LevelRenderer.getLightCoords(draw.level(), blobCell.above())));
         Drawn[] drawn = new Drawn[chunks.size()];
         for (int index = 0; index < chunks.size(); index++) {
             DrinkRide.Chunk chunk = chunks.get(index);
             Vec3 at = standing[index] ? chunk.place() : flightOf(chunk, point, now);
-            if (at != null) {
-                // unmake-converges-near-the-unmade-blocks-into-a-goo-item: a flying chunk tapers into its blob
-                double scale = standing[index] || point == null ? 1 : DrinkRide.shrinkOf(chunk, point, now);
+            // unmake-converges-near-the-unmade-blocks-into-a-goo-item: a flying chunk tapers into its blob
+            double scale = standing[index] || point == null ? 1 : DrinkRide.shrinkOf(chunk, point, now);
+            if (at != null && scale > 0) {
                 drawn[index] = new Drawn(chunk.place(), at.subtract(draw.camera()), scale,
                         standing[index] ? standingLight : flyingLight);
             }

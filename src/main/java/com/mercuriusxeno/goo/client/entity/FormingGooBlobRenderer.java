@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.phys.Vec3;
 
@@ -43,6 +44,17 @@ public final class FormingGooBlobRenderer extends EntityRenderer<FormingGooBlob,
     public FormingGooBlobRenderer(EntityRendererProvider.Context context) {
         super(context);
         this.itemModelResolver = context.getItemModelResolver();
+    }
+
+    /** A blob forms in a block being unmade, whose own cell reads dark, so the cell above it lights it too. */
+    @Override
+    protected int getBlockLightLevel(FormingGooBlob blob, BlockPos pos) {
+        return Math.max(super.getBlockLightLevel(blob, pos), super.getBlockLightLevel(blob, pos.above()));
+    }
+
+    @Override
+    protected int getSkyLightLevel(FormingGooBlob blob, BlockPos pos) {
+        return Math.max(super.getSkyLightLevel(blob, pos), super.getSkyLightLevel(blob, pos.above()));
     }
 
     @Override
