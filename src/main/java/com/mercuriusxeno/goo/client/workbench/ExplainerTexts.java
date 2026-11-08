@@ -42,6 +42,13 @@ final class ExplainerTexts {
             + " feedback loop through conversions may be desirable to you, depending on what you're trying to do."
             + " Treat what the audit reports as informational, not a passing/failing grade. Use it to make decisions"
             + " about your values; you can't \"fail\" an audit.";
+    /** The Abilities tab's paragraph, from the idea abilities-tunable-from-the-workbench-priced-off-items. */
+    static final String ABILITIES = "I want the abilities to be tunable from the workbench, because I want to base"
+            + " costs on items. Every numeric param of every ability shows as an expression box; a cost is built like"
+            + " a by-type value that can only accept one type, the ability's own, so an item in it contributes its"
+            + " amount of that type. Save writes a draft per edited ability file, Promote renames the drafts over the"
+            + " live goo_abilities files in the world pack, and a dev client targets the source goo_abilities folder,"
+            + " as base_values does.";
 
     private ExplainerTexts() {
     }
@@ -57,6 +64,7 @@ final class ExplainerTexts {
             case VARIABLES -> PREFABS;
             case PROCESSES -> CONVERSIONS;
             case AUDIT -> AUDIT;
+            case ABILITIES -> ABILITIES;
         };
     }
 }

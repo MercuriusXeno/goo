@@ -1,30 +1,28 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import com.mercuriusxeno.goo.registry.GooPotions;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for the pulse brew: drinking it lengthens every timed effect
- * standing, a goo brew and a vanilla potion alike, by its duration, and each
- * timed effect applied while it stands lands lengthened the same.
+ * Gametests for pulse's Extender held on the glove: while it stands, every
+ * other held effect pays its upkeep on alternate ticks alone, so Kindle held
+ * beside it drains half its goo.
  * extender-multiplies-the-next-self-duration
  */
 @RegistersGameTests
 public final class ExtenderTests {
-    private static final String PULSE_BREW_EXTENDS_STANDING_EFFECTS = "pulse_brew_extends_standing_effects";
-    private static final String PULSE_BREW_EXTENDS_LATER_EFFECTS = "pulse_brew_extends_later_effects";
+    private static final String EXTENDER_HALVES_THE_OTHER_HELD_UPKEEP = "extender_halves_the_other_held_upkeep";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -32,74 +30,51 @@ public final class ExtenderTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, PULSE_BREW_EXTENDS_STANDING_EFFECTS, ExtenderTests::pulseBrewExtendsStandingEffects);
-        GooTestFunctions.registerTest(registrar, PULSE_BREW_EXTENDS_LATER_EFFECTS, ExtenderTests::pulseBrewExtendsLaterEffects);
+        GooTestFunctions.registerTest(registrar, EXTENDER_HALVES_THE_OTHER_HELD_UPKEEP,
+                ExtenderTests::extenderHalvesTheOtherHeldUpkeep);
     }
 
-
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
-    private static final int REGENERATION_TICKS = 600;
-    private static final long NOT_HELD = -1;
-    private static final String KINDLE_EXTENDED = "The blaze brew should end %d ticks later, expiry %d became %d";
-    private static final String REGENERATION_EXTENDED = "Regeneration should stand %d ticks, stands %d";
+    private static final Identifier PULSE_EXTENDER = Identifier.parse("goo:pulse_extender");
+    /** An even count, so the covered ticks are exactly half of them. */
+    private static final int UPKEEP_TICKS = 20;
+    private static final int HELD_PULSE = 3;
+    private static final String SHOULD_HOLD_BOTH = "Kindle and Extender should both be held, holds %s";
+    private static final String SHOULD_DRAIN_HALF =
+            "Kindle beside Extender should drain about %d mB over %d ticks, half its upkeep, drained %d";
 
     private ExtenderTests() {
     }
 
     /**
-     * A player under a blaze brew and a regeneration potion drinks the pulse
-     * brew: the blaze brew's expiry and the potion's duration each grow by
-     * the pulse brew's duration.
+     * A survival player holds Kindle and then Extender on the glove: over the
+     * ticks after, Kindle drains within one upkeep of half what it drains alone.
      *
      * @param helper the gametest helper
      */
-    public static void pulseBrewExtendsStandingEffects(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper);
-        BrewEffectTests.drinkBrew(player, GooTypes.BLAZE);
-        player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, REGENERATION_TICKS));
-        long kindleBefore = kindleExpiry(player);
-
-        BrewEffectTests.drinkBrew(player, GooTypes.PULSE);
-
-        long kindleAfter = kindleExpiry(player);
-        int regeneration = player.getEffect(MobEffects.REGENERATION).getDuration();
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(kindleBefore != NOT_HELD && kindleAfter == kindleBefore + GooPotions.BREW_DURATION,
-                String.format(KINDLE_EXTENDED, GooPotions.BREW_DURATION, kindleBefore, kindleAfter));
-        int expected = REGENERATION_TICKS + GooPotions.BREW_DURATION;
-        helper.assertTrue(regeneration == expected, String.format(REGENERATION_EXTENDED, expected, regeneration));
-        helper.succeed();
+    public static void extenderHalvesTheOtherHeldUpkeep(GameTestHelper helper) {
+        int kindleUpkeep = AbilityRegistry.of(helper.getLevel()).getAbility(BLAZE_KINDLE).upkeep()
+                .in(GooValueTable.EMPTY);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.PULSE, HELD_PULSE * GooStacks.THOUSAND));
+        HeartOverlayTests.invoke(player, GooTypes.PULSE, PULSE_EXTENDER);
+        boolean holdsBoth = player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE)
+                && player.getData(GooAttachments.HELD_EFFECTS).holds(PULSE_EXTENDER);
+        int blazeBefore = blaze(player);
+        SelfDeliveryTests.tickFor(helper, player, UPKEEP_TICKS);
+        helper.runAfterDelay(UPKEEP_TICKS + 1, () -> {
+            int drained = blazeBefore - blaze(player);
+            int half = UPKEEP_TICKS * kindleUpkeep / 2;
+            String held = player.getData(GooAttachments.HELD_EFFECTS).held().toString();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(holdsBoth, String.format(SHOULD_HOLD_BOTH, held));
+            helper.assertTrue(Math.abs(drained - half) <= kindleUpkeep,
+                    String.format(SHOULD_DRAIN_HALF, half, UPKEEP_TICKS, drained));
+            helper.succeed();
+        });
     }
 
-    /**
-     * A player under the pulse brew drinks a regeneration potion: it lands
-     * lengthened by the pulse brew's duration.
-     *
-     * @param helper the gametest helper
-     */
-    public static void pulseBrewExtendsLaterEffects(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper);
-        BrewEffectTests.drinkBrew(player, GooTypes.PULSE);
-
-        player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, REGENERATION_TICKS));
-
-        int regeneration = player.getEffect(MobEffects.REGENERATION).getDuration();
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        int expected = REGENERATION_TICKS + GooPotions.BREW_DURATION;
-        helper.assertTrue(regeneration == expected, String.format(REGENERATION_EXTENDED, expected, regeneration));
-        helper.succeed();
-    }
-
-    private static ServerPlayer drinker(GameTestHelper helper) {
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.PULSE);
-        // the mock player helper makes a creative player
-        player.setGameMode(GameType.SURVIVAL);
-        return player;
-    }
-
-    private static long kindleExpiry(ServerPlayer player) {
-        HeldEffects held = player.getData(GooAttachments.HELD_EFFECTS);
-        return held.held().stream().filter(effect -> effect.ability().equals(BLAZE_KINDLE))
-                .mapToLong(HeldEffects.Held::expiresAt).findFirst().orElse(NOT_HELD);
+    private static int blaze(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.BLAZE, 0);
     }
 }

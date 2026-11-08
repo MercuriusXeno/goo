@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
+import com.mercuriusxeno.goo.block.ability.CrystalPrism;
+import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -11,11 +12,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Submits a quartz cluster of {@link CrystalCluster} prisms in a goo type's own
- * fluid texture (decision crystallizer-emits-chrysm): the crystal growing on the
- * crystallizer and the chrysm items draw through this one path. Each prism is a
- * hexagonal column capped by a pointed tip, in model pixels scaled to the block,
- * standing on {@link CrystalCluster}'s base point.
+ * Submits {@link CrystalPrism} quartz prisms in a goo type's own fluid texture: the
+ * prism column and the crystals its combos grow draw through this one path. Each
+ * prism is a hexagonal column capped by a pointed tip, in model pixels scaled to the
+ * block, standing on {@link PrismColumn}'s base point.
  */
 public final class CrystalClusterSubmitter {
 
@@ -31,19 +31,6 @@ public final class CrystalClusterSubmitter {
     /** Texels per model pixel: half the texture's first scale (operator ruling). */
     private static final double TEXELS_PER_PIXEL = 2;
     private static final int TRIANGLE = 3;
-    /**
-     * A rounding prism's rings from base to point and slices around it: two slices a
-     * side, so each side rounds as it bulges; the base's center, four rings up the
-     * shaft and three up the tip.
-     */
-    private static final int ROUND_BANDS = 8;
-    private static final int ROUND_SLICES = 12;
-    private static final int SHAFT_TOP_RING = 5;
-    /** The spheroid's latitudes count up from the base, a quarter turn below its equator. */
-    private static final double SOUTH_POLE = Math.PI / 2;
-    /** Half a hexagon side's turn, 30 degrees. */
-    private static final double HALF_SIDE = Math.PI / SIDES;
-    private static final double HALF = 0.5;
     /**
      * A face turned evenly between x and z reads x's plane: without the margin, rounding
      * in its normal flips the choice frame to frame as the crystal grows, and the face flickers.
@@ -86,13 +73,13 @@ public final class CrystalClusterSubmitter {
      * @param light         the packed light
      */
     public static void submit(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                              List<CrystalCluster.Prism> prisms, Look look, int light) {
+                              List<CrystalPrism> prisms, Look look, int light) {
         if (prisms.isEmpty()) {
             return;
         }
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
             RenderContext ctx = new RenderContext(pose, c, light);
-            for (CrystalCluster.Prism prism : prisms) {
+            for (CrystalPrism prism : prisms) {
                 emitPrism(ctx, prism, look.color(), look.uv());
             }
         });
@@ -124,85 +111,18 @@ public final class CrystalClusterSubmitter {
      */
     private record Frame(Vec3 base, Vec3 axis, Vec3 across, Vec3 along) {
 
-        static Frame of(CrystalCluster.Prism prism) {
+        static Frame of(CrystalPrism prism) {
             double tilt = Math.toRadians(prism.tilt());
             double yaw = Math.toRadians(prism.yaw());
             Vec3 axis = new Vec3(Math.sin(tilt) * Math.sin(yaw), Math.cos(tilt), Math.sin(tilt) * Math.cos(yaw));
             Vec3 across = tilt == 0 ? new Vec3(1, 0, 0) : axis.cross(new Vec3(0, 1, 0)).normalize();
-            return new Frame(new Vec3(CrystalCluster.BASE_X, CrystalCluster.BASE_Y, CrystalCluster.BASE_Z), axis,
+            return new Frame(new Vec3(PrismColumn.BASE_X, PrismColumn.BASE_Y, PrismColumn.BASE_Z), axis,
                     across, axis.cross(across));
         }
 
         Vec3 rim(double angle) {
             return across.scale(Math.cos(angle)).add(along.scale(Math.sin(angle)));
         }
-    }
-
-    /**
-     * A rounding prism's faces in model pixels (operator ruling: its six sides round
-     * into 60 degree spheroid segments until what is left is a sphere). Rings run from
-     * the base's center up the shaft and the tip to the point, each cut into slices;
-     * every point moves from its place on the hexagonal prism toward its place on the
-     * spheroid the prism's length and radius span, by the prism's rounding. Each face
-     * is four corners wound outward, a band at a pole closing on the pole twice.
-     *
-     * @param prism the prism
-     * @return the faces
-     */
-    static List<Vec3[]> roundedFaces(CrystalCluster.Prism prism) {
-        Frame frame = Frame.of(prism);
-        List<Vec3[]> faces = new ArrayList<>();
-        for (int band = 0; band < ROUND_BANDS; band++) {
-            for (int slice = 0; slice < ROUND_SLICES; slice++) {
-                Vec3 lowerLeft = roundedPoint(frame, prism, band, slice);
-                Vec3 lowerRight = roundedPoint(frame, prism, band, slice + 1);
-                Vec3 upperRight = roundedPoint(frame, prism, band + 1, slice + 1);
-                Vec3 upperLeft = roundedPoint(frame, prism, band + 1, slice);
-                // The base band starts on its upper edge, so the pole's repeat falls last and the normal holds.
-                faces.add(band == 0 ? new Vec3[] {upperRight, upperLeft, lowerLeft, lowerRight}
-                        : new Vec3[] {lowerLeft, lowerRight, upperRight, upperLeft});
-            }
-        }
-        return faces;
-    }
-
-    /**
-     * @param frame the prism's frame
-     * @param prism the prism
-     * @param ring  the ring, 0 at the base's center to {@link #ROUND_BANDS} at the point
-     * @param slice the slice around the axis
-     * @return the point, between the prism's and the spheroid's by the prism's rounding
-     */
-    private static Vec3 roundedPoint(Frame frame, CrystalCluster.Prism prism, int ring, int slice) {
-        double angle = Math.TAU * slice / ROUND_SLICES;
-        Vec3 rim = frame.rim(angle);
-        double[] onShape = prismRing(prism, ring);
-        // The hexagon's rim at this angle: the radius at a corner, cos 30 degrees of it mid-side.
-        double hexagon = Math.cos(HALF_SIDE) / Math.cos(angle % SIDE_ANGLE - HALF_SIDE);
-        Vec3 onPrism = frame.base().add(frame.axis().scale(onShape[0]))
-                .add(rim.scale(prism.radius() * onShape[1] * hexagon));
-        double latitude = Math.PI * ring / ROUND_BANDS - SOUTH_POLE;
-        double halfLength = prism.length() * HALF;
-        Vec3 onSpheroid = frame.base().add(frame.axis().scale(halfLength + Math.sin(latitude) * halfLength))
-                .add(rim.scale(Math.cos(latitude) * prism.radius()));
-        return onPrism.lerp(onSpheroid, prism.rounding());
-    }
-
-    /**
-     * @param prism the prism
-     * @param ring  the ring, 0 at the base's center to {@link #ROUND_BANDS} at the point
-     * @return the ring's {height up the axis, share of the radius} on the flat-faced prism
-     */
-    private static double[] prismRing(CrystalCluster.Prism prism, int ring) {
-        double shaft = prism.length() - prism.tipLength();
-        if (ring == 0) {
-            return new double[] {0, 0};
-        }
-        if (ring <= SHAFT_TOP_RING) {
-            return new double[] {shaft * (ring - 1) / (SHAFT_TOP_RING - 1), 1};
-        }
-        double up = (double) (ring - SHAFT_TOP_RING) / (ROUND_BANDS - SHAFT_TOP_RING);
-        return new double[] {shaft + prism.tipLength() * up, 1 - up};
     }
 
     /**
@@ -280,7 +200,7 @@ public final class CrystalClusterSubmitter {
      * @return the corner's {u, v} in texels on the face's dominant plane, v counted down from the top
      */
     private static double[] project(Vec3 corner, Vec3 normal) {
-        double down = SPRITE_PIXELS - (corner.y - CrystalCluster.BASE_Y);
+        double down = SPRITE_PIXELS - (corner.y - PrismColumn.BASE_Y);
         double[] planar;
         if (Math.abs(normal.y) >= Math.abs(normal.x) - AXIS_TIE && Math.abs(normal.y) >= Math.abs(normal.z) - AXIS_TIE) {
             planar = new double[] {corner.x, corner.z};
@@ -374,15 +294,15 @@ public final class CrystalClusterSubmitter {
     }
 
     /**
-     * Emits one prism's six sides and its six tip faces, or its rounding mesh once it rounds.
+     * Emits one prism's six sides and its six tip faces.
      *
      * @param ctx   the render context
      * @param prism the prism
      * @param color the tint
      * @param uv    the type's sprite rectangle, tiled onto each face by {@link #blockUv}
      */
-    private static void emitPrism(RenderContext ctx, CrystalCluster.Prism prism, int color, GooRenderUtil.UvRect uv) {
-        for (Vec3[] face : prism.rounding() > 0 ? roundedFaces(prism) : prismFaces(prism)) {
+    private static void emitPrism(RenderContext ctx, CrystalPrism prism, int color, GooRenderUtil.UvRect uv) {
+        for (Vec3[] face : prismFaces(prism)) {
             emitQuad(ctx, color, uv, face);
         }
     }
@@ -394,7 +314,7 @@ public final class CrystalClusterSubmitter {
      * @param prism the prism
      * @return the faces
      */
-    static List<Vec3[]> prismFaces(CrystalCluster.Prism prism) {
+    static List<Vec3[]> prismFaces(CrystalPrism prism) {
         Frame frame = Frame.of(prism);
         Vec3 tip = frame.base().add(frame.axis().scale(prism.length()));
         Vec3 shaft = frame.axis().scale(prism.length() - prism.tipLength());

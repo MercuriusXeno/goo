@@ -35,10 +35,11 @@ public enum AbilityBadge implements StringRepresentable {
     CHANNELED("channeled"),
 
     /**
-     * Acts on the thrower as a brew, eaten before it takes effect.
+     * Acts on the thrower for as long as it is held, eaten before it takes effect.
      * decision self-brew-goos-eat-before-the-effect
+     * decision clock-badge-marks-durative-abilities
      */
-    BREW("brew"),
+    DURATIVE("durative"),
 
     /**
      * Lands wherever the crosshair points, favoring no mob or block.
@@ -65,7 +66,7 @@ public enum AbilityBadge implements StringRepresentable {
      * declaration order so the network ordinal stays put.
      * fan-sorts-badge-then-order
      */
-    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, FREE, PRISM, SELF, BREW);
+    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, FREE, PRISM, SELF, DURATIVE);
 
     private final String serializedName;
 

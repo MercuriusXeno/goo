@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
-import com.mercuriusxeno.goo.ability.BrewEffectIcon;
-import com.mercuriusxeno.goo.ability.BrewEffectName;
+import com.mercuriusxeno.goo.ability.HeldEffectIcon;
+import com.mercuriusxeno.goo.ability.HeldEffectName;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
@@ -115,7 +115,6 @@ public final class GooClientSetup {
      * Special renderer key for canister goo.
      */
     private static final String RENDERER_CANISTER = "canister_goo";
-    private static final String RENDERER_CHRYSM = "chrysm_crystal";
     private static final String RENDERER_GOO_LABEL = "goo_label";
     /**
      * Special renderer key for vat goo.
@@ -138,24 +137,24 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
-        BrewEffectName.readConnectionNamesFrom(
-                type -> syncedBrewAbility(type).map(ClientAbility::displayName).orElse(null));
-        BrewEffectIcon.readConnectionIconsFrom(
-                type -> syncedBrewAbility(type).map(ClientAbility::iconTexture).orElse(null));
+        HeldEffectName.readConnectionNamesFrom(
+                type -> syncedDurativeAbility(type).map(ClientAbility::displayName).orElse(null));
+        HeldEffectIcon.readConnectionIconsFrom(
+                type -> syncedDurativeAbility(type).map(ClientAbility::iconTexture).orElse(null));
         HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
     /**
-     * Answers the brew ability a type grants, from the abilities the server synced,
-     * picked as AbilityRegistry.brewAbilityFor picks; its name and its icon are the
-     * brew effect's.
+     * Answers the durative ability a type grants, from the abilities the server synced,
+     * picked as AbilityRegistry.durativeAbilityFor picks; its name and its icon are the
+     * held effect's.
      * decision brew-effect-reads-the-abilitys-own-name
      * decision every-brew-effect-draws-its-abilitys-icon
      *
      * @param type the goo type
      * @return the ability, or empty when the type grants none
      */
-    private static Optional<ClientAbility> syncedBrewAbility(ResourceKey<GooTypeDefinition> type) {
+    private static Optional<ClientAbility> syncedDurativeAbility(ResourceKey<GooTypeDefinition> type) {
         return AbilitySyncHandler.getAbilitiesForType(type).stream()
                 .filter(ability -> SelfEatRoute.eats(ability.delivery(), ability.badge()))
                 .min(Comparator.comparingInt(ClientAbility::order));
@@ -225,8 +224,6 @@ public final class GooClientSetup {
                 PlexerBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.REACTOR.get(),
                 ReactorBlockEntityRenderer::new);
-        event.registerBlockEntityRenderer(GooBlockEntities.CRYSTALLIZER.get(),
-                CrystallizerBlockEntityRenderer::new);
     }
 
     /**
@@ -384,7 +381,9 @@ public final class GooClientSetup {
     /**
      * Adds the goo coat layer and the ailment overlay layer to every living
      * entity renderer, both player skins and mannequins among them
-     * (decisions shader-coat-on-every-mob-landing, ailment-overlay-shader-per-ailment).
+     * (decisions shader-coat-on-every-mob-landing, ailment-overlay-shader-per-ailment),
+     * and the glove arm layer to every skin's player and mannequin renderers.
+     * decision diagnose-and-correct-the-arm-through-the-glove
      *
      * @param event the event instance
      */
@@ -408,6 +407,7 @@ public final class GooClientSetup {
             EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE, null);
             VineTangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
+        GloveArmLayer.addToSkins(event);
     }
 
     /**
@@ -462,10 +462,6 @@ public final class GooClientSetup {
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GLOVE),
                 GloveSpecialRenderer.Unbaked.MAP_CODEC
-        );
-        event.register(
-                Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_CHRYSM),
-                ChrysmSpecialRenderer.Unbaked.MAP_CODEC
         );
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GOO_LABEL),

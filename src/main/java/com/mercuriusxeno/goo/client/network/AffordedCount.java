@@ -10,7 +10,7 @@ import java.util.Optional;
  * reagent-count-is-the-smaller-bound
  *
  * @param count the whole uses, or the ticks a timed ability is sustained
- * @param timed true for a stream, channel or brew, which the holdings sustain for a time
+ * @param timed true for a stream, channel or durative ability, which the holdings sustain for a time
  */
 public record AffordedCount(long count, boolean timed) {
 
@@ -57,7 +57,7 @@ public record AffordedCount(long count, boolean timed) {
 
     /**
      * The ticks the holdings pay for the ability's own rate and the standing upkeep together:
-     * a brew's upkeep, halved under a standing Extender unless it is the Extender, or a stream's
+     * a durative ability's upkeep, halved under a standing Extender unless it is the Extender, or a stream's
      * or channel's cost each ticksPerCharge, scaled through by ticksPerCharge so 1000 over
      * 1000 a 60 ticks reads 60 rather than a hair under.
      *
@@ -68,9 +68,9 @@ public record AffordedCount(long count, boolean timed) {
      */
     private static long ticksSustained(ClientAbility ability, int holdings, StandingUpkeep standing) {
         if (ability.upkeep() > 0) {
-            // active-brew-counts-its-time-left: a brew standing on the glove is in the standing upkeep already
+            // time-counts-net-standing-upkeep: a durative ability standing on the glove is in the standing upkeep already
             double own = standing.paying().contains(ability.id()) ? 0
-                    : standing.ownBrewUpkeep(ability.upkeep(), ability.extendsOthers());
+                    : standing.ownDurativeUpkeep(ability.upkeep(), ability.extendsOthers());
             return (long) (holdings / (own + standing.perTick()));
         }
         int ticksPerCharge = ability.delivery().ticksPerCharge();

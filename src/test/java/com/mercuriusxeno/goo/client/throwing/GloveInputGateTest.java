@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * once and plays the pose's release only on a sent payload, swinging nothing
  * (decisions right-click-held-previews-release-throws, use-key-throw-swings-no-more), and a stream
  * runs from the press for as long as the key is held (decision stream-delivery-held-cone),
- * and a self + brew eat sends on the press while the key is still down
+ * and a durative eat sends on the press while the key is still down
  * (decision self-brew-goos-eat-before-the-effect).
  */
 class GloveInputGateTest {
@@ -294,7 +294,7 @@ class GloveInputGateTest {
     }
 
     /**
-     * A self + brew press starts the eat while the use key is still down, since
+     * A durative press starts the eat while the use key is still down, since
      * vanilla releases a used item the tick the key comes up, which would cancel
      * an eat started on release (decision self-brew-goos-eat-before-the-effect).
      */
@@ -302,7 +302,7 @@ class GloveInputGateTest {
     class AnEat {
 
         private RecordingActions eaten() {
-            return new RecordingActions(true, false, SelfEatRoute.eats(Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW));
+            return new RecordingActions(true, false, SelfEatRoute.eats(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
         }
 
         @Test
@@ -359,7 +359,7 @@ class GloveInputGateTest {
 
         @Test
         void aBrewOnASelfDeliveryRunsFromThePress() {
-            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW));
+            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
         }
 
         @Test

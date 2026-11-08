@@ -59,7 +59,7 @@ public interface ISidedProxy {
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param abilityId the ability resource id string
-     * @return true for a synced ability wearing the brew badge on a self delivery
+     * @return true for a synced ability wearing the durative badge on a self delivery
      */
     default boolean syncedAbilityEats(String abilityId) {
         return false;

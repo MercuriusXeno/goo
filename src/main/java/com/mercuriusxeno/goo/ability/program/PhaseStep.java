@@ -6,14 +6,13 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.LivingEntity;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Puts the host's target out of phase and finishes. A brew phases it for the
- * brew's duration; a step naming a duration phases it for that many ticks,
- * as a mob blob does; with neither it stands as a held effect from the glove
+ * Puts the host's target out of phase and finishes. A step naming a duration
+ * phases it for that many ticks, as a mob blob does; without one it stands as
+ * a held effect from the glove
  * until ended. Quantum's phase is {@code phase}, its blob {@code phase duration=600}.
  * phase-shares-a-plane-between-the-phased
  *
@@ -47,15 +46,8 @@ public record PhaseStep(Optional<Expr> duration) implements Step {
         LivingEntity target = host.target();
         long gameTime = target.level().getGameTime();
         OutOfPhase standing = target.getData(GooAttachments.OUT_OF_PHASE);
-        OptionalInt brew = host.brewDuration();
-        OutOfPhase laid;
-        if (brew.isPresent()) {
-            laid = standing.lastingFor(brew.getAsInt(), gameTime);
-        } else if (duration.isPresent()) {
-            laid = standing.lastingFor(duration.get().evaluateInt(context), gameTime);
-        } else {
-            laid = OutOfPhase.held();
-        }
+        OutOfPhase laid = duration.isPresent()
+                ? standing.lastingFor(duration.get().evaluateInt(context), gameTime) : OutOfPhase.held();
         target.setData(GooAttachments.OUT_OF_PHASE, laid);
         return true;
     }

@@ -47,7 +47,7 @@ class CrosshairFuelPanelTest {
 
         private static ClientAbility ability(int cost, AbilityBadge badge, List<Identifier> consumes, int upkeep) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "counted"), "ability.goo.counted", "",
-                    0, List.of(), List.of(), cost, badge == AbilityBadge.BREW ? Delivery.of(DeliveryKind.SELF) : Delivery.ARC,
+                    0, List.of(), List.of(), cost, badge == AbilityBadge.DURATIVE ? Delivery.of(DeliveryKind.SELF) : Delivery.ARC,
                     badge, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, consumes, upkeep);
         }
 
@@ -78,7 +78,7 @@ class CrosshairFuelPanelTest {
 
         @Test
         void brewReadsItsSeconds() {
-            ClientAbility brew = ability(0, AbilityBadge.BREW, List.of(), 1);
+            ClientAbility brew = ability(0, AbilityBadge.DURATIVE, List.of(), 1);
             assertEquals(concat(head(brew), new Count("12s")),
                     CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, brew, 250, PLENTY, NOT_READ));
         }

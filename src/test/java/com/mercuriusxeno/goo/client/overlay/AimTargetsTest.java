@@ -87,7 +87,7 @@ class AimTargetsTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = AbilityBadge.class, names = {"SELF", "BREW"})
+        @EnumSource(value = AbilityBadge.class, names = {"SELF", "DURATIVE"})
         void selfAimsNothing(AbilityBadge badge) {
             assertSame(TargetResult.NONE, resolve(badge, null).target());
         }

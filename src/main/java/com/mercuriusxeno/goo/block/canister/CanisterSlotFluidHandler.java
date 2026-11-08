@@ -34,7 +34,7 @@ import java.util.function.Supplier;
  * An insert or extract finds its fluid's tank by resource, whichever index
  * the caller names.
  *
- * <p>Used by canister, hub, reactor, plexer and crystallizer block
+ * <p>Used by canister, hub, reactor, and plexer block
  * entities for per-slot fluid storage.</p>
  *
  * decision canisters-hold-more-than-one-goo-type

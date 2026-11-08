@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.data.GooFraction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,16 @@ class DistancePriceTest {
                 Optional.of(BlockPos.ZERO)));
         assertEquals(140, withOculus.priceOf(BASE, toOculus));
         assertEquals(BASE + 800 + 400, withOculus.priceOf(BASE, trip(8, true)));
+    }
+
+    @Test
+    void aFractionalCostCarriesItsFractionThroughTheTrip() {
+        GooFraction half = GooFraction.of(401, 2);
+        assertEquals(half, BLINK.exactPriceOf(half, Optional.empty()));
+        assertEquals(half.plus(GooFraction.of(800)), BLINK.exactPriceOf(half, trip(8, false)));
+        Optional<BlinkLanding> toOculus = Optional.of(new BlinkLanding(Vec3.ZERO, 8, false,
+                Optional.of(BlockPos.ZERO)));
+        assertEquals(GooFraction.of(101), new DistancePrice(100, 400, 10).exactPriceOf(half, toOculus));
     }
 
     @Test

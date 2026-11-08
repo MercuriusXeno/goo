@@ -30,6 +30,7 @@ import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.program.WobbleStep;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -156,7 +157,7 @@ class AbilityLoaderTest {
             AbilityDefinition flight = AbilityJson.decode("typhoon_float");
 
             assertEquals("goo.ability.typhoon.float", flight.displayName());
-            assertTrue(SelfEatRoute.eats(flight.delivery(), flight.badge()), "typhoon_float is not a self + brew");
+            assertTrue(SelfEatRoute.eats(flight.delivery(), flight.badge()), "typhoon_float is not a durative");
             assertTrue(flight.behaviors().stream().anyMatch(AirbornStep.class::isInstance), "no airborn step");
             assertTrue(LaidState.laidBy(flight.behaviors()).contains(LaidState.AIRBORN),
                     "Float lays no flight to end with its held effect");
@@ -247,7 +248,7 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Every shipped self + brew ability names an upkeep in place of a one-shot
+     * Every shipped durative ability names an upkeep in place of a one-shot
      * cost, and every other ability names no upkeep
      * (decision self-effects-trickle-until-ended).
      */
@@ -257,10 +258,10 @@ class AbilityLoaderTest {
 
         for (AbilityDefinition ability : scanned.values()) {
             if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
-                assertEquals(0, ability.cost(), ability.id().toString());
-                assertTrue(ability.upkeep() >= 1, ability.id().toString());
+                assertEquals(0, ability.cost().in(GooValueTable.EMPTY), ability.id().toString());
+                assertTrue(ability.upkeep().in(GooValueTable.EMPTY) >= 1, ability.id().toString());
             } else {
-                assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep(), ability.id().toString());
+                assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep().in(GooValueTable.EMPTY), ability.id().toString());
             }
         }
     }
@@ -335,7 +336,7 @@ class AbilityLoaderTest {
         assertEquals(!brew.id().equals(SILENT_BREW), sounds, brew.id().toString());
     }
 
-    /** Every shipped self + brew ability (decision tests-read-the-inventory-from-loaded-json). */
+    /** Every shipped durative ability (decision tests-read-the-inventory-from-loaded-json). */
     static Stream<AbilityDefinition> shippedBrews() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(ability -> SelfEatRoute.eats(ability.delivery(), ability.badge()));
@@ -541,13 +542,13 @@ class AbilityLoaderTest {
 
             AbilityDefinition blast = AbilityJson.decode(BLAST);
 
-            assertTrue(blast.cost() > 0, "Blast's cost " + blast.cost());
+            assertTrue(blast.cost().in(GooValueTable.EMPTY) > 0, "Blast's cost " + blast.cost().in(GooValueTable.EMPTY));
             assertEquals(Optional.empty(), blast.costMechanics());
         }
     }
 
     /**
-     * Each goo type carries at most one self + brew ability: a second fails
+     * Each goo type carries at most one durative ability: a second fails
      * the load naming both, and a type carrying none is answered for the load's
      * warning (decision every-type-ships-one-brew-ability).
      */
@@ -557,7 +558,7 @@ class AbilityLoaderTest {
         private static AbilityDefinition brew(String name) {
             return new AbilityDefinition(Identifier.fromNamespaceAndPath(Goo.MODID, name), GooTypes.ROCK,
                     name, "", 0, 0, Delivery.of(DeliveryKind.SELF), List.of(), List.of(),
-                    AbilityBadge.BREW, List.of());
+                    AbilityBadge.DURATIVE, List.of());
         }
 
         private static Map<Identifier, AbilityDefinition> byId(AbilityDefinition... definitions) {
@@ -569,7 +570,7 @@ class AbilityLoaderTest {
             Map<Identifier, AbilityDefinition> abilities = byId(brew("rock_stoneskin"), brew("rock_pebbleskin"));
 
             ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
-                    () -> AbilityLoader.typesLackingABrew(abilities, List.of(GooTypes.ROCK)));
+                    () -> AbilityLoader.typesLackingADurative(abilities, List.of(GooTypes.ROCK)));
 
             assertTrue(refusal.getMessage().contains("goo:rock_stoneskin")
                     && refusal.getMessage().contains("goo:rock_pebbleskin"), refusal.getMessage());
@@ -580,7 +581,7 @@ class AbilityLoaderTest {
             Map<Identifier, AbilityDefinition> abilities = byId(brew("rock_stoneskin"));
 
             assertEquals(List.of(GooTypes.FROST),
-                    AbilityLoader.typesLackingABrew(abilities, List.of(GooTypes.ROCK, GooTypes.FROST)));
+                    AbilityLoader.typesLackingADurative(abilities, List.of(GooTypes.ROCK, GooTypes.FROST)));
         }
 
         @Test
@@ -588,7 +589,7 @@ class AbilityLoaderTest {
             Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
             List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.ZOO);
 
-            List<ResourceKey<GooTypeDefinition>> lacking = AbilityLoader.typesLackingABrew(shipped, GooTypes.BUNDLED);
+            List<ResourceKey<GooTypeDefinition>> lacking = AbilityLoader.typesLackingADurative(shipped, GooTypes.BUNDLED);
 
             assertTrue(carriers.stream().noneMatch(lacking::contains), lacking.toString());
             for (ResourceKey<GooTypeDefinition> type : carriers) {
@@ -615,10 +616,10 @@ class AbilityLoaderTest {
         void shippedZooRallyEatsAsABrewPayingUpkeep() {
             AbilityDefinition rally = AbilityJson.decode("zoo_rally");
 
-            assertEquals(AbilityBadge.BREW, rally.badge());
+            assertEquals(AbilityBadge.DURATIVE, rally.badge());
             assertEquals(DeliveryKind.SELF, rally.delivery().kind());
-            assertTrue(rally.upkeep() > 0, "upkeep " + rally.upkeep());
-            assertEquals(0, rally.cost());
+            assertTrue(rally.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + rally.upkeep().in(GooValueTable.EMPTY));
+            assertEquals(0, rally.cost().in(GooValueTable.EMPTY));
             assertTrue(SelfEatRoute.eats(rally.delivery(), rally.badge()));
         }
 

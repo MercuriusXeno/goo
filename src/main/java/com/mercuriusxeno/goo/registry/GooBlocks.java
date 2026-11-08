@@ -12,7 +12,6 @@ import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
-import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
@@ -291,11 +290,6 @@ public class GooBlocks {
             .noOcclusion();
     public static final DeferredBlock<VatBlock> VAT = BLOCKS.registerBlock("vat",
             VatBlock::new, VAT_PROPERTY_SUPPLIER);
-    private static final Supplier<BlockBehaviour.Properties> CRYSTALLIZER_PROPERTY_SUPPLIER = () -> BlockBehaviour.Properties.of()
-            .mapColor(MapColor.COLOR_PURPLE).strength(1.5F).sound(SoundType.AMETHYST).noOcclusion();
-    /** Phases goo into chrysm (decision crystallizer-emits-chrysm). */
-    public static final DeferredBlock<CrystallizerBlock> CRYSTALLIZER = BLOCKS.registerBlock("crystallizer",
-            CrystallizerBlock::new, CRYSTALLIZER_PROPERTY_SUPPLIER);
     private static final Supplier<BlockBehaviour.Properties> CANISTER_PROPERTY_SUPPLIER = () -> BlockBehaviour.Properties.of()
             .mapColor(MapColor.METAL).instabreak().sound(SoundType.METAL)
             .noOcclusion();

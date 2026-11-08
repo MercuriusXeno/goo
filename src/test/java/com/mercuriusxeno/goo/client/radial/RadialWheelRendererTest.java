@@ -17,7 +17,10 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
+import com.mercuriusxeno.goo.client.fade.Afterglow;
+import com.mercuriusxeno.goo.client.fade.Afterglows;
 import net.minecraft.world.item.ItemStack;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -45,8 +48,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -58,6 +65,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -85,7 +93,7 @@ class RadialWheelRendererTest {
     private static ClientAbility clientAbilityOf(AbilityDefinition definition) {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(), definition.behaviors(),
-                definition.cost(), definition.delivery(), definition.badge(), definition.requires());
+                definition.cost().in(GooValueTable.EMPTY), definition.delivery(), definition.badge(), definition.requires());
     }
 
     /**
@@ -139,6 +147,23 @@ class RadialWheelRendererTest {
                 assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
                         pngDimensions(ASSETS_ROOT + sprite.getNamespace() + "/" + sprite.getPath()), badge.name());
             }));
+        }
+
+        /**
+         * The badge folder ships a sprite only where a badge reads it, so a retired badge leaves no sprite behind.
+         * decision clock-badge-marks-durative-abilities
+         */
+        @Test
+        void theBadgeFolderHoldsExactlyTheSpritesTheBadgesRead() throws IOException, URISyntaxException {
+            URL folder = RadialWheelRendererTest.class.getClassLoader()
+                    .getResource(ASSETS_ROOT + Goo.MODID + "/textures/goo/badge");
+            assertNotNull(folder);
+            Set<String> shipped;
+            try (Stream<Path> sprites = Files.list(Path.of(folder.toURI()))) {
+                shipped = sprites.map(sprite -> sprite.getFileName().toString()).collect(Collectors.toSet());
+            }
+            assertEquals(Arrays.stream(AbilityBadge.values()).map(badge -> badge.getSerializedName() + ".png")
+                    .collect(Collectors.toSet()), shipped);
         }
 
         /** decision hovering-a-badge-names-its-kind */
@@ -346,7 +371,7 @@ class RadialWheelRendererTest {
         @Test
         void heldWedgeReadsItsUpkeepPerSecond() {
             ClientAbility held = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "held"), "ability.goo.held",
-                    "", 0, List.of(), List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(),
+                    "", 0, List.of(), List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(),
                     AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 1);
             assertEquals("20/s | 1.25m", RadialWheelRenderer.fanSlot(held, HOLDINGS).costLabel());
             assertFalse(RadialWheelRenderer.fanSlot(held, 20).dimmed());
@@ -1492,15 +1517,15 @@ class RadialWheelRendererTest {
         private static final int BLAZE = 0;
         private static final float QUARTER_PERIOD = PetalPulse.PERIOD_TICKS / 4f;
 
-        private RadialWheelRenderer.Frame frame(Set<Identifier> active) {
+        private RadialWheelRenderer.Frame frame(Map<Identifier, Float> active) {
             return frame(active, 1000);
         }
 
-        private RadialWheelRenderer.Frame frame(Set<Identifier> active, int blazeHeld) {
+        private RadialWheelRenderer.Frame frame(Map<Identifier, Float> active, int blazeHeld) {
             List<ResourceKey<GooTypeDefinition>> types = List.of(GooTypes.BLAZE, GooTypes.LEAF);
             List<List<OfferedAbility>> abilities = List.of(
                     List.of(new OfferedAbility(new ClientAbility(BLAZE_KINDLE, "ability.goo.kindle", "", 0, List.of(),
-                            List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of()), List.of())),
+                            List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of()), List.of())),
                     List.of());
             return new RadialWheelRenderer.Frame(new RadialWheel(types.size(), type -> 1), types, abilities,
                     Map.of(GooTypes.BLAZE, blazeHeld, GooTypes.LEAF, 1000), 0, 0, 100, null, 0f, active,
@@ -1509,22 +1534,34 @@ class RadialWheelRendererTest {
 
         @Test
         void anUnexpandedTypeHoldingAnActiveAbilityPulses() {
-            int pulsing = RadialWheelRenderer.typePetalTint(frame(Set.of(BLAZE_KINDLE)), BLAZE);
+            int pulsing = RadialWheelRenderer.typePetalTint(frame(Map.of(BLAZE_KINDLE, 1f)), BLAZE);
             assertEquals(RadialWheelRenderer.HOVER_ALPHA, ARGB.alpha(pulsing));
             assertTrue(ARGB.red(pulsing) > ARGB.red(RadialWheelRenderer.computeOverlayTint(false, false)));
+        }
+
+        /** decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends */
+        @Test
+        void aTypeWhoseAbilityEndedHalfASecondAgoPulsesAtHalfTheSwing() {
+            Afterglows<Identifier, Identifier> glows = new Afterglows<>();
+            PetalPulse.pulses(glows, Set.of(BLAZE_KINDLE), 99.95f);
+            PetalPulse.pulses(glows, Set.of(), 100f);
+            Map<Identifier, Float> settling = PetalPulse.pulses(glows, Set.of(), 100f + Afterglow.FADE_TICKS / 2f);
+            int halfSwing = Math.round((RadialWheelRenderer.HOVER_ALPHA - RadialWheelRenderer.NORMAL_ALPHA) / 2f);
+            assertEquals(RadialWheelRenderer.NORMAL_ALPHA + halfSwing,
+                    ARGB.alpha(RadialWheelRenderer.typePetalTint(frame(settling), BLAZE)));
         }
 
         @Test
         void aTypeHoldingNoActiveEffectRests() {
             assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
-                    RadialWheelRenderer.typePetalTint(frame(Set.of()), BLAZE));
+                    RadialWheelRenderer.typePetalTint(frame(Map.of()), BLAZE));
         }
 
         /** decision wheel-shows-only-held-types-with-abilities: no shown type is unheld, so none dims. */
         @Test
         void aTypeHeldAtZeroRestsUndimmed() {
             assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
-                    RadialWheelRenderer.typePetalTint(frame(Set.of(), 0), BLAZE));
+                    RadialWheelRenderer.typePetalTint(frame(Map.of(), 0), BLAZE));
         }
     }
 
