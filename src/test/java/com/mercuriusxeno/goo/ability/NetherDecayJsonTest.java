@@ -5,17 +5,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * nether_decay.json, read from the classpath as the loader reads it: Decay's
- * bite seeks the nearest mob within its delivery's 30-degree cone, which
+ * bite seeks the nearest mob within its delivery's 45-degree cone, which
  * nothing that paints blocks reads (decisions decay-gnats-degrade-each-block-once,
  * decay-paints-the-one-block-under-the-crosshair).
  */
 class NetherDecayJsonTest {
 
-    private static final double SEEK_CONE_DEGREES = 30;
+    private static final double SEEK_CONE_DEGREES = 45;
     private static final double DELTA = 1e-9;
 
     @Test
-    void theBiteSeeksWithinAThirtyDegreeCone() {
+    void theBiteSeeksWithinAFortyFiveDegreeCone() {
         assertEquals(SEEK_CONE_DEGREES, AbilityJson.decode("nether_decay").delivery().coneDegrees(), DELTA);
     }
 }

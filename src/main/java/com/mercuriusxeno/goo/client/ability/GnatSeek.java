@@ -13,18 +13,15 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Plays a tick of Decay's bite on the client: gnats leave the glove along
- * the aim and steer every tick toward the mob the swarm bites, so their paths
- * curve onto it and follow it as it moves
+ * Plays a tick of Decay's bite on the client: gnats leave the glove slow and
+ * sprayed wide around the aim, then speed up and steer every tick toward the
+ * mob the swarm bites, so their paths curve onto it and follow it as it moves
  * (decision decay-gnats-degrade-each-block-once).
  */
 public final class GnatSeek {
 
     /** Gnats launched each bitten tick, as many as the unbitten spray sends. */
     private static final int GNATS_PER_TICK = 6;
-    /** How far a gnat's launch may stray off the aim on each axis, as a share of its cruising speed. */
-    private static final double LAUNCH_SPREAD = 0.25;
-    private static final double HALF = 0.5;
 
     private GnatSeek() {
     }
@@ -46,19 +43,14 @@ public final class GnatSeek {
             return;
         }
         Vec3 glove = gloveOf(mc, payload);
-        Vec3 along = payload.aim().normalize().scale(GnatSteering.CRUISE);
         RandomSource random = level.getRandom();
         for (int i = 0; i < GNATS_PER_TICK; i++) {
-            Vec3 launch = along.add(stray(random), stray(random), stray(random));
+            Vec3 launch = GnatSteering.launch(payload.aim(), random.nextDouble(), random.nextDouble());
             if (mc.particleEngine.createParticle(GooParticles.GNAT.get(), glove.x, glove.y, glove.z, launch.x,
                     launch.y, launch.z) instanceof GnatParticle gnat) {
                 gnat.seek(() -> prey.getBoundingBox().getCenter());
             }
         }
-    }
-
-    private static double stray(RandomSource random) {
-        return (random.nextDouble() - HALF) * LAUNCH_SPREAD * GnatSteering.CRUISE;
     }
 
     /**
