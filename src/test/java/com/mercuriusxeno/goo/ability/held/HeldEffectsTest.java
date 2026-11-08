@@ -124,6 +124,15 @@ class HeldEffectsTest {
         }
 
         @Test
+        void anEffectWhoseAbilityIsNoLongerKnownEndsAndTheRestStand() {
+            HeldEffects.Changed changed = holding(hearts(KINDLE, GooTypes.BLAZE), gluttony())
+                    .endUnknown(ability -> !ability.equals(KINDLE));
+            assertEquals(List.of(KINDLE), changed.ended().stream().map(HeldEffects.Held::ability).toList());
+            assertFalse(changed.after().holds(KINDLE));
+            assertTrue(changed.after().holds(GLUTTONY));
+        }
+
+        @Test
         void endingAHeldEffectNamesIt() {
             HeldEffects.Changed changed = holding(hearts(KINDLE, GooTypes.BLAZE)).end(KINDLE);
             assertEquals(List.of(hearts(KINDLE, GooTypes.BLAZE)), changed.ended());

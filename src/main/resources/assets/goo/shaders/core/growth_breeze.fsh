@@ -10,7 +10,7 @@
 // LIGHTNING blend, so the stacked sections glow.
 //
 // Every pattern is noise over the section's position and a third axis that
-// runs along the cone and back with time, so it churns in place and flows
+// runs along the cone and back with time, so it swirls in place and flows
 // outward rather than sliding across the section.
 
 in float along;

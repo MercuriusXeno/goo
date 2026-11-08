@@ -167,7 +167,7 @@ public final class FungusXray {
      * @param color the ARGB color the quads take
      * @return the instance
      */
-    static QuadInstance instance(int color) {
+    public static QuadInstance instance(int color) {
         QuadInstance instance = new QuadInstance();
         instance.setColor(color);
         instance.setLightCoords(GooSubmitter.fullbrightLight());
@@ -208,7 +208,7 @@ public final class FungusXray {
      * @param instance  the color, light and overlay the quads take
      * @param swell     the scale about the block's center, one for its own size
      */
-    static void drawBlock(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
+    public static void drawBlock(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
                           BlockPos pos, QuadInstance instance, float swell) {
         BlockState state = mc.level.getBlockState(pos);
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
