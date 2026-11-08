@@ -23,12 +23,14 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametest for the shriek blob's sculk call: landed on a stone floor with
- * a cow near it and a zombie far off on the other side, the zombie walks
- * toward the blob once the ring has reached it and the cow stays where it
- * grazed (decisions shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
- * and shriek-pulls-hostiles-only). The ring reaches any mob near it, so
- * the scene stands far from every other test, its chunks held loaded while it runs.
+ * Gametest for the Shriek blob's one cry: landed on a stone floor with a
+ * cow near it and a zombie far off on the other side, both in earshot, the
+ * zombie walks toward the blob and the cow stays where it grazed, and a
+ * zombie arriving just after the cry is never called (decisions
+ * shriek-blob-cries-once-and-calls-earshot,
+ * shriek-is-a-sculk-call-that-draws-every-mob-it-reaches and
+ * shriek-pulls-hostiles-only). The cry reaches any mob near it, so the
+ * scene stands far from every other test, its chunks held loaded while it runs.
  */
 @RegistersGameTests
 public final class ShriekTests {
@@ -49,13 +51,12 @@ public final class ShriekTests {
     /** The floor's reach from the blob along x, past the far zombie, and its half width along z. */
     private static final int FLOOR_LENGTH = 14;
     private static final int FLOOR_HALF_WIDTH = 3;
-    /** The near cow's and far zombie's distances from the blob, east and west of it, both inside deep_shriek.json's reach of 16. */
+    /** The cow's and the zombies' distances from the blob, all inside deep_shriek.json's reach of 16. */
     private static final int NEAR = 4;
     private static final int FAR = 10;
-    /** deep_shriek.json's pulse period and reach: the ring reaches a radius r at r * PERIOD / REACH ticks. */
-    private static final int PERIOD = 40;
-    private static final int REACH = 16;
-    /** Ticks a called mob is given to walk once the ring reaches it. */
+    /** Ticks after the landing the late zombie spawns, once the shriek has sounded. */
+    private static final int AFTER_THE_SHRIEK = 2;
+    /** Ticks a called mob is given to walk after the shriek. */
     private static final int WALK_TICKS = 80;
     /** How much nearer the blob a called mob stands after its walk, more than a wandering mob covers. */
     private static final double WALKED_NEARER = 2.5;
@@ -63,18 +64,24 @@ public final class ShriekTests {
     private static final String SHOULD_TICK = "The far chunks should tick their entities";
     private static final String ABILITY_REQUIRED = "%s must be loaded";
     private static final String SHOULD_COME = "The zombie %d blocks out should walk nearer the blob, stood %.2f off, stands %.2f off";
-    private static final String SHOULD_LEAVE_THE_COW = "The ring should leave the cow uncalled";
-    private static final String SHOULD_CALL_THE_ZOMBIE = "The ring should call the zombie to the blob";
+    private static final String SHOULD_HOLD = "The %s should hold where it stood, %.2f off the blob, it stands %.2f off";
+    private static final String SHOULD_LEAVE_THE_COW = "The shriek should leave the cow uncalled";
+    private static final String SHOULD_CALL_THE_ZOMBIE = "The shriek should call the zombie in earshot to the blob";
+    private static final String SHOULD_LEAVE_THE_LATE_ZOMBIE = "The zombie arriving after the shriek should not be called";
+    private static final String COW = "cow";
+    private static final String LATE_ZOMBIE = "late zombie";
 
     private ShriekTests() {
     }
 
     /**
-     * A zombie ten blocks west of the blob is called to it and stands at least
-     * two and a half blocks nearer it eighty ticks after the ring reached it,
-     * while a cow four blocks east, which the ring crossed first, is never
-     * called. The mobs spawn once the far chunks tick their
-     * entities, since a mob added sooner stands frozen.
+     * A zombie ten blocks west of the blob and a cow four blocks east stand
+     * in earshot as the blob lands and shrieks: the zombie is called and
+     * stands at least two and a half blocks nearer the blob eighty ticks
+     * later, the cow is never called and holds where it stood, and a second
+     * zombie spawned ten blocks east just after the shriek is never called
+     * and holds where it spawned. The mobs spawn once the far chunks tick
+     * their entities, since a mob added sooner stands frozen.
      *
      * @param helper the gametest helper
      */
@@ -82,37 +89,39 @@ public final class ShriekTests {
         ServerLevel level = helper.getLevel();
         BlockPos floor = buildFloor(helper);
         Vec3 blob = Vec3.atBottomCenterOf(floor.above());
-        BlockPos nearAt = floor.above().east(NEAR);
-        BlockPos farAt = floor.above().west(FAR);
+        BlockPos cowAt = floor.above().east(NEAR);
+        BlockPos zombieAt = floor.above().west(FAR);
+        BlockPos lateAt = floor.above().east(FAR);
         List<Mob> mobs = new ArrayList<>();
         helper.startSequence()
-                .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(nearAt)
-                        && level.isPositionEntityTicking(farAt), SHOULD_TICK))
+                .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(cowAt)
+                        && level.isPositionEntityTicking(zombieAt) && level.isPositionEntityTicking(lateAt), SHOULD_TICK))
                 .thenExecute(() -> {
-                    mobs.add(spawn(helper, EntityType.COW, nearAt));
-                    mobs.add(spawn(helper, EntityType.ZOMBIE, farAt));
+                    mobs.add(spawn(helper, EntityType.COW, cowAt));
+                    mobs.add(spawn(helper, EntityType.ZOMBIE, zombieAt));
                     landShriek(helper, floor);
                 })
-                .thenIdle(ringReaches(FAR) + WALK_TICKS)
+                .thenIdle(AFTER_THE_SHRIEK)
+                .thenExecute(() -> mobs.add(spawn(helper, EntityType.ZOMBIE, lateAt)))
+                .thenIdle(WALK_TICKS)
                 .thenExecute(() -> {
                     boolean cowCalled = SculkCall.isCalledTo(mobs.get(0), floor.above());
                     boolean zombieCalled = SculkCall.isCalledTo(mobs.get(1), floor.above());
-                    double farOff = across(mobs.get(1).position(), blob);
+                    boolean lateCalled = SculkCall.isCalledTo(mobs.get(2), floor.above());
+                    double cowOff = across(mobs.get(0).position(), blob);
+                    double zombieOff = across(mobs.get(1).position(), blob);
+                    double lateOff = across(mobs.get(2).position(), blob);
                     release(helper, floor, mobs);
                     helper.assertFalse(cowCalled, SHOULD_LEAVE_THE_COW);
                     helper.assertTrue(zombieCalled, SHOULD_CALL_THE_ZOMBIE);
-                    helper.assertTrue(farOff <= FAR - WALKED_NEARER,
-                            String.format(SHOULD_COME, FAR, (double) FAR, farOff));
+                    helper.assertFalse(lateCalled, SHOULD_LEAVE_THE_LATE_ZOMBIE);
+                    helper.assertTrue(zombieOff <= FAR - WALKED_NEARER,
+                            String.format(SHOULD_COME, FAR, (double) FAR, zombieOff));
+                    helper.assertTrue(cowOff > NEAR - WALKED_NEARER, String.format(SHOULD_HOLD, COW, (double) NEAR, cowOff));
+                    helper.assertTrue(lateOff > FAR - WALKED_NEARER,
+                            String.format(SHOULD_HOLD, LATE_ZOMBIE, (double) FAR, lateOff));
                 })
                 .thenSucceed();
-    }
-
-    /**
-     * @param radius a distance from the blob
-     * @return the ticks after the landing the first ring reaches it
-     */
-    private static int ringReaches(int radius) {
-        return radius * PERIOD / REACH + 1;
     }
 
     /**
