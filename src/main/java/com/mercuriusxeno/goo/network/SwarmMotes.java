@@ -1,26 +1,25 @@
 package com.mercuriusxeno.goo.network;
 
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * Where a mob-first stream's motes fly while its swarm bites no mob: from the
- * glove into the block under the crosshair, each mote to its own point
- * inside, so the swarm converges on the block it paints; a bitten mob's
- * gnats seek it on the client instead (decision decay-gnats-degrade-each-block-once).
+ * Where a mob-first stream's gnats converge while its swarm bites no mob:
+ * the block under the crosshair, or the point at the stream's reach where
+ * the crosshair meets none; and how fast a gnat flies, which the swarm's
+ * bite waits on (decision decay-gnats-degrade-each-block-once).
  */
-final class SwarmMotes {
+public final class SwarmMotes {
+
+    /** A seeking gnat's speed leaving the glove, blocks per tick. */
+    public static final double GNAT_SPEED = 0.35;
 
     private SwarmMotes() {
     }
 
     /**
-     * The box the motes fly into this tick.
+     * The box the gnats converge on this tick.
      *
      * @param crosshair the block the crosshair lands on, or a miss at the stream's reach
      * @return the crosshair block's cell, else the point at the stream's reach
@@ -30,26 +29,5 @@ final class SwarmMotes {
             return new AABB(crosshair.getBlockPos());
         }
         return new AABB(crosshair.getLocation(), crosshair.getLocation());
-    }
-
-    /**
-     * Each mote's flight from the glove, a vector from the apex to the point
-     * inside the target it comes to rest at.
-     *
-     * @param apex   the glove hand
-     * @param target the box the motes fly into
-     * @param count  how many motes
-     * @param random the level's random
-     * @return the flights, one a mote
-     */
-    static List<Vec3> moteFlights(Vec3 apex, AABB target, int count, RandomSource random) {
-        List<Vec3> flights = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            Vec3 rest = new Vec3(target.minX + random.nextDouble() * target.getXsize(),
-                    target.minY + random.nextDouble() * target.getYsize(),
-                    target.minZ + random.nextDouble() * target.getZsize());
-            flights.add(rest.subtract(apex));
-        }
-        return flights;
     }
 }

@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A seeking gnat leaves the glove along the line the player fires and is
- * pulled toward its prey every tick, its momentum carrying it on along the
+ * A seeking gnat leaves the glove fanned up to 45 degrees off the line the
+ * player fires and is pulled toward its prey every tick, its momentum carrying it on along the
  * aim, so its path slides off the aim and curves into the prey rather than
  * snapping onto it, and it closes on the prey (decision
  * decay-gnats-degrade-each-block-once). The flight is stepped here as the
@@ -21,8 +21,10 @@ class GnatSteeringTest {
     private static final Vec3 AIM = new Vec3(1, 0, 0);
     /** Four blocks out along the aim and two to its side, about 27 degrees off. */
     private static final Vec3 PREY = new Vec3(4, 0, 2);
-    /** The widest a gnat launches off the firing line. */
-    private static final double WIDEST_LAUNCH_DEGREES = 5;
+    /** Decay's cone, apex to rim, which the swarm fans across. */
+    private static final double FAN_DEGREES = 90;
+    /** The widest a gnat launches off the firing line, half the fan. */
+    private static final double WIDEST_LAUNCH_DEGREES = 45;
     private static final int TURNING_TICKS = 4;
     private static final int FLIGHT_TICKS = 40;
     /** Within this of the prey's center a gnat has reached the mob it bites. */
@@ -32,20 +34,20 @@ class GnatSteeringTest {
     class Launch {
 
         @Test
-        void theWidestLaunchLeavesFiveDegreesOffTheFiringLine() {
-            assertEquals(WIDEST_LAUNCH_DEGREES, degreesBetween(AIM, GnatSteering.launch(AIM, 1, 0)), DELTA);
+        void theWidestLaunchLeavesFortyFiveDegreesOffTheFiringLine() {
+            assertEquals(WIDEST_LAUNCH_DEGREES, degreesBetween(AIM, GnatSteering.launch(AIM, FAN_DEGREES, 1, 0)), DELTA);
         }
 
         @Test
         void aGnatLeavesAtItsCruisingSpeed() {
-            assertEquals(GnatSteering.CRUISE, GnatSteering.launch(AIM, 1, 0).length(), DELTA);
+            assertEquals(GnatSteering.CRUISE, GnatSteering.launch(AIM, FAN_DEGREES, 1, 0).length(), DELTA);
         }
     }
 
     @Nested
     class Seeking {
 
-        private final Vec3 downTheLine = GnatSteering.launch(AIM, 0, 0);
+        private final Vec3 downTheLine = GnatSteering.launch(AIM, FAN_DEGREES, 0, 0);
 
         @Test
         void thePreyPullsTheGnatFromItsFirstTick() {

@@ -269,11 +269,10 @@ public final class GooStreamHandler {
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
-            if (ability.hasTag(AbilityTags.MOB_FIRST) && !struck.isEmpty()) {
-                EntityVisuals.sendToWatchers(player, new GnatSeekPayload(player.getId(), apex,
-                        aimFrom(apex, crosshair.getLocation(), axis), struck.getFirst().getId()));
-            } else if (ability.hasTag(AbilityTags.MOB_FIRST)) {
-                sprayInto(level, apex, SwarmMotes.moteTarget(crosshair), delivery);
+            if (ability.hasTag(AbilityTags.MOB_FIRST)) {
+                SwarmStrike.send(player, apex, aimFrom(apex, crosshair.getLocation(), axis), delivery, struck,
+                        crosshair);
+                struck = SwarmStrike.reached(player, apex, struck, held);
             } else {
                 Vec3 target = crosshair.getLocation();
                 sprayParticles(level, apex, aimFrom(apex, target, axis), delivery,
@@ -496,26 +495,6 @@ public final class GooStreamHandler {
         return living.stream().filter(Mob.class::isInstance)
                 .min(Comparator.comparingDouble(entity -> entity.distanceToSqr(apex)))
                 .map(List::of).orElse(List.of());
-    }
-
-    /**
-     * Launches the delivery's particle from the glove, each mote coming to
-     * rest at its own point inside the target, so a mob-first stream's swarm
-     * converges on the mob it bites or the block it paints
-     * (decision decay-gnats-degrade-each-block-once).
-     *
-     * @param level    the server level
-     * @param apex     the glove hand
-     * @param target   the box the motes fly into
-     * @param delivery the stream delivery
-     */
-    private static void sprayInto(ServerLevel level, Vec3 apex, AABB target, Delivery delivery) {
-        delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
-            for (Vec3 flight : SwarmMotes.moteFlights(apex, target, PARTICLES_PER_TICK, level.getRandom())) {
-                level.sendParticles(particle, apex.x, apex.y, apex.z, ALONG_THE_VECTOR, flight.x, flight.y,
-                        flight.z, LAUNCH_SPEED_PER_BLOCK);
-            }
-        });
     }
 
     /**
