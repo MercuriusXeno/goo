@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -18,6 +19,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -49,6 +51,14 @@ public final class FlamesStreamTests {
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward the sand's center three blocks off. */
     private static final float LOOKING_AT_SAND = 20.5f;
+    private static final String FLAMES_MELTS_ICE_AND_SNOW = "flames_melts_ice_and_snow";
+    /** Two blocks south of the first player, past the bedrock wall between the rows. */
+    private static final BlockPos SNOW_STAND_POS = STAND_POS.south(2);
+    /** Three blocks east of the second player, at its feet. */
+    private static final BlockPos SNOW_POS = SNOW_STAND_POS.east(3);
+    /** Pitch down from the eye toward the center of a one-layer snow three blocks off. */
+    private static final float LOOKING_AT_SNOW = 27.4f;
+    private static final String WATER_WHERE_THE_ICE_STOOD = "A water source should stand where the ice stood";
     private static final int HELD_GOO = 6;
     /**
      * The leaves burn on the first held tick and blaze_flames.json cooks the sand after forty more; a ten-health
@@ -78,6 +88,37 @@ public final class FlamesStreamTests {
                 FlamesStreamTests::flamesSparesTheHiddenBlock);
         GooTestFunctions.registerTest(registrar, FLAMES_RESTS_CHARCOAL_WHERE_THE_LOG_STOOD,
                 FlamesStreamTests::flamesRestsCharcoalWhereTheLogStood);
+        GooTestFunctions.registerTest(registrar, FLAMES_MELTS_ICE_AND_SNOW, FlamesStreamTests::flamesMeltsIceAndSnow);
+    }
+
+    /**
+     * Two mock players hold flames, one on ice and one on a snow layer, each
+     * in its own row behind a bedrock wall that keeps the melted water off
+     * the snow: the ice stands as a water source and the snow layer as air.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param helper the gametest helper
+     */
+    public static void flamesMeltsIceAndSnow(GameTestHelper helper) {
+        helper.setBlock(SAND_POS.below(), Blocks.BEDROCK);
+        helper.setBlock(SAND_POS, Blocks.ICE);
+        helper.setBlock(SNOW_POS.below(), Blocks.BEDROCK);
+        helper.setBlock(SNOW_POS, Blocks.SNOW);
+        for (int x = 0; x <= SNOW_POS.getX() + 1; x++) {
+            helper.setBlock(new BlockPos(x, STAND_POS.getY(), STAND_POS.getZ() + 1), Blocks.BEDROCK);
+        }
+        ServerPlayer onIce = flamer(helper, STAND_POS, LOOKING_AT_SAND);
+        ServerPlayer onSnow = flamer(helper, SNOW_STAND_POS, LOOKING_AT_SNOW);
+        hold(helper, onIce, HOLD_TICKS);
+        hold(helper, onSnow, HOLD_TICKS);
+        helper.runAfterDelay(HOLD_TICKS + 2, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(onIce);
+            helper.getLevel().getServer().getPlayerList().remove(onSnow);
+            helper.assertBlockState(SAND_POS, state -> state.getFluidState().isSourceOfType(Fluids.WATER),
+                    state -> Component.literal(WATER_WHERE_THE_ICE_STOOD + ", found " + state));
+            helper.assertBlockPresent(Blocks.AIR, SNOW_POS);
+            helper.succeed();
+        });
     }
 
     /**
@@ -174,15 +215,19 @@ public final class FlamesStreamTests {
         }
     }
 
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static ServerPlayer flamer(GameTestHelper helper) {
+        return flamer(helper, STAND_POS, LOOKING_AT_SAND);
+    }
+
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer flamer(GameTestHelper helper, BlockPos standOn, float pitch) {
         AbilityDefinition flames = AbilityRegistry.of(helper.getLevel()).getAbility(BLAZE_FLAMES);
         helper.assertTrue(flames != null, ABILITY_REQUIRED);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(standOn));
         player.setPos(stand.x, stand.y, stand.z);
         player.setYRot(FACING_EAST);
-        player.setXRot(LOOKING_AT_SAND);
+        player.setXRot(pitch);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.BLAZE, HELD_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, flames);
