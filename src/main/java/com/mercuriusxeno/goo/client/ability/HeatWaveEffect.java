@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.BroilStep;
+import com.mercuriusxeno.goo.ability.program.FlamesStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -19,10 +19,11 @@ import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 
 /**
- * Broil's heat wave: while right click holds a broil, the view ripples like
+ * Flames' heat wave: while right click holds Flames, the view ripples like
  * air over a fire around the crosshair the cone runs along, easing in as the
  * hold starts and out after it ends, through {@code goo:heat_wave}.
  * decision broil-heat-wave-ring-cooks-ahead
+ * decision flames-absorbs-broil-and-cooks-blocks
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeatWaveEffect {
@@ -50,7 +51,7 @@ public final class HeatWaveEffect {
     }
 
     /**
-     * Eases the heat toward full while the broil runs and toward none
+     * Eases the heat toward full while Flames runs and toward none
      * otherwise, then draws or releases the wave.
      *
      * @param event the level render stage event
@@ -59,7 +60,7 @@ public final class HeatWaveEffect {
     public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        boolean running = player != null && broils(runningAbility(player), GloveUseTracker.runsHeld(player));
+        boolean running = player != null && holdsFlames(runningAbility(player), GloveUseTracker.runsHeld(player));
         heat = easedHeat(heat, running, mc.getDeltaTracker().getRealtimeDeltaTicks());
         if (heat < COLD || mc.level == null) {
             SLOT.hide(mc.gameRenderer);
@@ -78,10 +79,10 @@ public final class HeatWaveEffect {
 
     /**
      * The heat after a frame: it closes a share of the gap to full heat
-     * while the broil runs, and to none otherwise.
+     * while Flames runs, and to none otherwise.
      *
      * @param heat       the heat before the frame, 0 to 1
-     * @param running    whether the broil runs
+     * @param running    whether Flames runs
      * @param deltaTicks the frame's length in ticks
      * @return the heat after the frame
      */
@@ -96,13 +97,13 @@ public final class HeatWaveEffect {
     }
 
     /**
-     * Whether a broil runs: the selected ability broils and right click holds it.
+     * Whether Flames runs: the selected ability runs a flame and right click holds it.
      *
      * @param ability the selected ability's synced copy, or null when none
      * @param useHeld whether right click holds a live press
-     * @return true while the broil runs
+     * @return true while Flames runs
      */
-    static boolean broils(@Nullable ClientAbility ability, boolean useHeld) {
-        return useHeld && ability != null && ability.behaviors().stream().anyMatch(BroilStep.class::isInstance);
+    static boolean holdsFlames(@Nullable ClientAbility ability, boolean useHeld) {
+        return useHeld && ability != null && ability.behaviors().stream().anyMatch(FlamesStep.class::isInstance);
     }
 }
