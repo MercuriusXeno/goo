@@ -23,6 +23,7 @@
   ],
   "client": [
     "ClientLevelGooValuesMixin",
+    "ClientLevelMeltKeepsMixin",
     "ClientPacketListenerGooMixin",
     "ClientPacketListenerGateCarryMixin",
     "GameRendererPortalViewMixin",
