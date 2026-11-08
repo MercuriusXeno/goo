@@ -12,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * sprout at random times into evenly spaced slots along the edges, many at
  * once, each with its own length, thickness and wandering path that may
  * fork, and each withers and goes in its time, so the count on screen drifts
- * and no layout repeats; and a soft fringe of rounded lobes fills every edge
- * evenly behind them (decisions sight-lengthens-shift-and-outlines-fungus and
+ * and no layout repeats; and a soft fringe fills every edge behind them, its
+ * inner edge a few slow, drifting sine waves that undulate and never break (decisions sight-lengthens-shift-and-outlines-fungus and
  * sculker-sight-persists-where-echoes-have-touched).
  */
 class TendrilVignetteTest {
@@ -131,19 +131,22 @@ class TendrilVignetteTest {
     }
 
     @Test
-    void aSoftFringeOfRoundedLobesFillsEveryEdgeEvenly() {
-        List<TendrilVignette.Lobe> lobes = new TendrilVignette(SEED).fringe();
+    void aSoftFringeUndulatesAlongEveryEdgeAndNeverBreaks() {
+        TendrilVignette vignette = new TendrilVignette(SEED);
         for (int edge = 0; edge < 4; edge++) {
-            int onEdge = edge;
-            List<TendrilVignette.Lobe> along = lobes.stream().filter(lobe -> lobe.edge() == onEdge).toList();
-            assertTrue(along.size() == TendrilVignette.LOBES_PER_EDGE, "edge " + edge + " holds " + along.size());
-            for (int i = 0; i < along.size(); i++) {
-                float middle = (i + 0.5f) / TendrilVignette.LOBES_PER_EDGE;
-                assertTrue(Math.abs(along.get(i).along() - middle) <= TendrilVignette.LOBE_JITTER + 1e-6f,
-                        "a lobe sat at " + along.get(i).along() + ", off its place " + middle);
-                assertTrue(along.get(i).radius() >= TendrilVignette.SMALLEST_LOBE
-                        && along.get(i).radius() <= TendrilVignette.LARGEST_LOBE, "a lobe's size strayed");
+            float lowest = Float.MAX_VALUE;
+            float highest = 0f;
+            for (int time = 0; time <= SAMPLES_UNTIL; time += SAMPLE_EVERY) {
+                for (int step = 0; step <= 100; step++) {
+                    float depth = vignette.fringeDepth(edge, step / 100f, time);
+                    lowest = Math.min(lowest, depth);
+                    highest = Math.max(highest, depth);
+                }
             }
+            assertTrue(lowest > 0f, "the fringe should never break along edge " + edge + ", it fell to " + lowest);
+            assertTrue(highest <= TendrilVignette.DEEPEST_FRINGE + 1e-6f, "the fringe reached too deep, " + highest);
+            assertTrue(highest - lowest >= TendrilVignette.FRINGE_BASE / 4,
+                    "the fringe should undulate along edge " + edge + ", it spans " + lowest + " to " + highest);
         }
     }
 

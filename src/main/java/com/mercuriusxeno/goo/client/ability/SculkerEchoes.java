@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 /**
- * What a Sculker hears echoes off of. Every sound heard sends three rings
+ * What a Sculker hears echoes off of. Every sound heard sends two rings
  * out of its source a quarter second apart, each sweeping eight blocks a
  * second, and every block face open to air that a ring crosses is lit, full
  * at the source and weaker the farther the ring has travelled, to nothing at
@@ -21,8 +21,8 @@ import java.util.function.Predicate;
  * face's light falls at a steady rate, a full light within three seconds,
  * so a face fades by how recently and how strongly it was lit. A face shows
  * bright as a ring crosses it, then faintly as its light falls. A mob that
- * makes a sound outlines for two seconds, longer for a louder one up to
- * four. What is heard draws fainter the farther the player stands from it,
+ * makes a sound outlines for three seconds, longer for a louder one up to
+ * six. What is heard draws fainter the farther the player stands from it,
  * down to a fifth at the edge of render distance and not at all past it;
  * the brew's end forgets every face. The oldest faces give way once the
  * memory holds its most, so a loud dive never outgrows it.
@@ -33,7 +33,7 @@ public final class SculkerEchoes {
     /** How fast a ring sweeps out of its source, in blocks per tick: eight blocks a second. */
     static final double RING_SPEED = 0.4;
     /** The rings each sound sends out. */
-    static final int RINGS = 3;
+    static final int RINGS = 2;
     /** Ticks between one ring of a sound and its next, a quarter second. */
     static final int RING_GAP_TICKS = 5;
     /** How far a sound of ordinary loudness ripples before it dies, in blocks. */
@@ -48,10 +48,10 @@ public final class SculkerEchoes {
     static final float RING_TICKS = 3f;
     /** How brightly a face glows in a ring's wake, as a share of the ring's own glow. */
     static final float WAKE_SHARE = 0.3f;
-    /** Ticks a mob that made a sound of ordinary loudness stays outlined, two seconds. */
-    static final int OUTLINE_TICKS = 40;
-    /** The longest any mob stays outlined, however loud its sound, four seconds. */
-    static final int LONGEST_OUTLINE_TICKS = 80;
+    /** Ticks a mob that made a sound of ordinary loudness stays outlined, three seconds. */
+    static final int OUTLINE_TICKS = 60;
+    /** The longest any mob stays outlined, however loud its sound, six seconds. */
+    static final int LONGEST_OUTLINE_TICKS = 120;
     /** How strongly what is heard at the edge of render distance draws, as a share of beside the player. */
     static final float FARTHEST_SHARE = 0.2f;
     /** The quietest and loudest a sound reads, as a share of ordinary loudness. */
@@ -168,8 +168,8 @@ public final class SculkerEchoes {
     }
 
     /**
-     * How long a mob that made a sound stays outlined: two seconds for an
-     * ordinary sound, longer for a louder one up to four.
+     * How long a mob that made a sound stays outlined: three seconds for an
+     * ordinary sound, longer for a louder one up to six.
      *
      * @param loudness the sound's loudness, 1 for an ordinary sound
      * @return the ticks its outline lasts

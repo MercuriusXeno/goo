@@ -12,14 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A heard sound sends three rings out of its source, a quarter second apart,
+ * A heard sound sends two rings out of its source, a quarter second apart,
  * each sweeping eight blocks a second across the faces open to air near it,
  * lighting each full at the source and weaker the farther it travels, gone
  * at four blocks for an ordinary sound and six for the loudest; sounds that
  * meet on a face add up, once per sound, to twice a full light at most, and
  * a face's light falls at a steady rate, one ordinary sound's within three
  * seconds; a face shows bright as a ring crosses it and faintly after; a mob
- * that makes a sound outlines for two seconds, four at the loudest; what is
+ * that makes a sound outlines for three seconds, six at the loudest; what is
  * heard draws fainter the farther it stands, down to a fifth at the edge of
  * render distance, and the brew's end forgets it
  * (decision sculker-sight-persists-where-echoes-have-touched).
@@ -61,11 +61,11 @@ class SculkerEchoesTest {
     class Rings {
 
         @Test
-        void aSoundSendsThreeRingsAQuarterSecondApart() {
+        void aSoundSendsTwoRingsAQuarterSecondApart() {
             SculkerEchoes echoes = new SculkerEchoes();
             echoes.hear(SOUND, HEARD_AT, 1f);
             List<Long> starts = echoes.ripples().stream().map(SculkerEchoes.Ripple::startTick).toList();
-            assertEquals(List.of(HEARD_AT, HEARD_AT + QUARTER_SECOND, HEARD_AT + 2 * QUARTER_SECOND), starts);
+            assertEquals(List.of(HEARD_AT, HEARD_AT + QUARTER_SECOND), starts);
         }
 
         @Test
@@ -117,8 +117,8 @@ class SculkerEchoesTest {
 
         @Test
         void eachRingRelightsTheFacesItCrosses() {
-            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2 * QUARTER_SECOND + 2);
-            assertEquals(HEARD_AT + 2 * QUARTER_SECOND + 2, echoes.remembered().get(UNDER_THE_SOUND).litAt());
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + QUARTER_SECOND + 2);
+            assertEquals(HEARD_AT + QUARTER_SECOND + 2, echoes.remembered().get(UNDER_THE_SOUND).litAt());
         }
 
         @Test
@@ -144,8 +144,8 @@ class SculkerEchoesTest {
         }
 
         @Test
-        void oneSoundsThreeRingsLightAFaceOnce() {
-            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2 * QUARTER_SECOND + 2);
+        void oneSoundsRingsLightAFaceOnce() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + QUARTER_SECOND + 2);
             float once = heardTimes(1, 1f).remembered().get(UNDER_THE_SOUND).light();
             assertTrue(echoes.remembered().get(UNDER_THE_SOUND).light() <= once);
         }
@@ -237,13 +237,13 @@ class SculkerEchoesTest {
     class Outlines {
 
         @Test
-        void anOrdinarySoundOutlinesItsMobForTwoSeconds() {
-            assertEquals(40, SculkerEchoes.outlineTicksFor(1f));
+        void anOrdinarySoundOutlinesItsMobForThreeSeconds() {
+            assertEquals(60, SculkerEchoes.outlineTicksFor(1f));
         }
 
         @Test
-        void aLoudSoundOutlinesItsMobForFourSecondsAtMost() {
-            assertEquals(80, SculkerEchoes.outlineTicksFor(LOUDEST));
+        void aLoudSoundOutlinesItsMobForSixSecondsAtMost() {
+            assertEquals(120, SculkerEchoes.outlineTicksFor(LOUDEST));
         }
 
         @Test
