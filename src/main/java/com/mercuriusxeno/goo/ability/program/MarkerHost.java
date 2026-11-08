@@ -40,7 +40,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, WatchHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
+        FieldEffectHost, PhasedHost, WatchHost, HoardHost, StateWriteHost, LevelHost, ShriekHost, PowerEmitHost,
         BeatHost, RelayHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
@@ -252,7 +252,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     /**
      * Sounds the sculk call from the marker's cell, where called mobs walk to.
-     * decision convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches
+     * decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
      */
     @Override
     public void callRing(double inner, double outer) {

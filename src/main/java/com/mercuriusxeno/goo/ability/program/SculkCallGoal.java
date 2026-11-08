@@ -8,10 +8,10 @@ import net.minecraft.world.phys.Vec3;
 import java.util.EnumSet;
 
 /**
- * A called mob's walk to the convoke blob that called it, ahead of every
+ * A called mob's walk to the shriek blob that called it, ahead of every
  * other move the mob would make: it holds while the blob stands and the mob
  * has not arrived, re-pathing as it walks, and lies idle once the blob goes.
- * decision convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches
+ * decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
  */
 final class SculkCallGoal extends Goal {
 

@@ -101,9 +101,9 @@ public enum HostCapability {
     LEVEL(LevelHost.class),
     /**
      * A spot a sculk call rings out from, every mob it crosses walking to it (decision
-     * convoke-is-a-sculk-call-that-draws-every-mob-the-ring-touches).
+     * shriek-is-a-sculk-call-that-draws-every-mob-it-reaches).
      */
-    CONVOKE(ConvokeHost.class),
+    SHRIEK(ShriekHost.class),
     /**
      * A struck surface an End gate can open over (decision
      * end-clears-blocks-and-opens-a-portal).
