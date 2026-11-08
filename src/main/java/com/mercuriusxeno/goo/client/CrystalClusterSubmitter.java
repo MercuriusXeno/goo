@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
@@ -74,10 +75,25 @@ public final class CrystalClusterSubmitter {
      */
     public static void submit(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                               List<CrystalPrism> prisms, Look look, int light) {
+        submit(poseStack, nodeCollector, GooSubmitter.renderType(), prisms, look, light);
+    }
+
+    /**
+     * Submits the prisms in one draw on the block atlas, through a render type.
+     *
+     * @param poseStack     the pose stack, placed so model pixels map onto the block
+     * @param nodeCollector the node collector
+     * @param renderType    the render type the prisms draw through, on the block atlas
+     * @param prisms        the prisms to draw
+     * @param look          the type's sprite and tint
+     * @param light         the packed light
+     */
+    public static void submit(PoseStack poseStack, SubmitNodeCollector nodeCollector, RenderType renderType,
+                              List<CrystalPrism> prisms, Look look, int light) {
         if (prisms.isEmpty()) {
             return;
         }
-        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
+        nodeCollector.submitCustomGeometry(poseStack, renderType, (pose, c) -> {
             RenderContext ctx = new RenderContext(pose, c, light);
             for (CrystalPrism prism : prisms) {
                 emitPrism(ctx, prism, look.color(), look.uv());
@@ -97,7 +113,23 @@ public final class CrystalClusterSubmitter {
      */
     public static void submitFaces(PoseStack poseStack, SubmitNodeCollector nodeCollector, List<Vec3[]> faces,
                                    Look look, int light) {
-        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
+        submitFaces(poseStack, nodeCollector, GooSubmitter.renderType(), faces, look, light);
+    }
+
+    /**
+     * Submits faces in model pixels, each four corners in winding order, in one draw
+     * on the block atlas through a render type, tiled as a prism's faces are.
+     *
+     * @param poseStack     the pose stack, placed so model pixels map onto the block
+     * @param nodeCollector the node collector
+     * @param renderType    the render type the faces draw through, on the block atlas
+     * @param faces         the faces to draw
+     * @param look          the sprite and tint
+     * @param light         the packed light
+     */
+    public static void submitFaces(PoseStack poseStack, SubmitNodeCollector nodeCollector, RenderType renderType,
+                                   List<Vec3[]> faces, Look look, int light) {
+        nodeCollector.submitCustomGeometry(poseStack, renderType, (pose, c) -> {
             RenderContext ctx = new RenderContext(pose, c, light);
             for (Vec3[] face : faces) {
                 emitQuad(ctx, look.color(), look.uv(), face);

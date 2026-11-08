@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:unmake_overflow_drops_at_feet",
+  "function": "goo:sunbeam_warms_a_bare_prism_as_it_charges",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 140,
+  "max_ticks": 60,
   "setup_ticks": 0,
   "required": true
 }
