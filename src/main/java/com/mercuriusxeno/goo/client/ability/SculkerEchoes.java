@@ -5,6 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +25,9 @@ import java.util.function.Predicate;
  * makes a sound outlines for three seconds, longer for a louder one up to
  * six. What is heard draws fainter the farther the player stands from it,
  * down to a fifth at the edge of render distance and not at all past it;
- * the brew's end forgets every face. The oldest faces give way once the
- * memory holds its most, so a loud dive never outgrows it.
+ * the brew's end forgets every face. The faces whose light runs out soonest
+ * give way once the memory holds its most, so a loud dive never outgrows it
+ * and weak sounds never push out what a strong one lit.
  * decision sculker-sight-persists-where-echoes-have-touched
  */
 public final class SculkerEchoes {
@@ -56,18 +58,26 @@ public final class SculkerEchoes {
     static final float QUIETEST = 0.25f;
     static final float LOUDEST = 4f;
 
-    /** The most faces the memory holds before the oldest give way. */
+    /** The most faces the memory holds before the faintest give way. */
     static final int MOST_FACES = 32_768;
     /** The most rings growing at once; a sound past them starts none. */
     static final int MOST_RIPPLES = 192;
 
     private final List<Ripple> ripples = new ArrayList<>();
-    private final Map<Face, Lit> remembered = new LinkedHashMap<>() {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<Face, Lit> eldest) {
-            return size() > MOST_FACES;
-        }
-    };
+    private final int mostFaces;
+    private final Map<Face, Lit> remembered = new LinkedHashMap<>();
+
+    /** A memory holding the most faces it ever needs. */
+    public SculkerEchoes() {
+        this(MOST_FACES);
+    }
+
+    /**
+     * @param mostFaces the most faces the memory holds before the faintest give way
+     */
+    SculkerEchoes(int mostFaces) {
+        this.mostFaces = mostFaces;
+    }
 
     /**
      * One block face an echo has touched.
@@ -239,6 +249,25 @@ public final class SculkerEchoes {
         }
         ripples.removeIf(ripple -> ripple.radiusAt(now) >= ripple.reach());
         remembered.values().removeIf(lit -> now >= lit.fadedAt());
+        forgetTheFaintest();
+    }
+
+    /**
+     * Keeps the memory to its most: past it, the faces whose light runs out
+     * soonest give way, so a stream of weak sounds never pushes out a face a
+     * strong one lit, however long ago that was.
+     */
+    private void forgetTheFaintest() {
+        int over = remembered.size() - mostFaces;
+        if (over <= 0) {
+            return;
+        }
+        remembered.entrySet().stream()
+                .sorted(Comparator.comparingLong(entry -> entry.getValue().fadedAt()))
+                .limit(over)
+                .map(Map.Entry::getKey)
+                .toList()
+                .forEach(remembered::remove);
     }
 
     /**
