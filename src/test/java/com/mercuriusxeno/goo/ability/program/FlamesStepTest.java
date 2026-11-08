@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -133,6 +135,15 @@ class FlamesStepTest {
         @Test
         void sandInTheFlameBecomesItsFurnaceResult() {
             assertEquals(Optional.of(glass), heats.apply(sand));
+        }
+
+        @Test
+        void heatingIceCarriesTheMeltMarkAndSandNone() {
+            Function<Block, OptionalInt> marks = FlamesStep.exposureMark(
+                    raw -> BlockCooking.meltedBlock(raw, meltables, false));
+
+            assertEquals(OptionalInt.of(BlockExposures.MELTS_AWAY), marks.apply(ice));
+            assertEquals(OptionalInt.empty(), marks.apply(sand));
         }
 
         @Test

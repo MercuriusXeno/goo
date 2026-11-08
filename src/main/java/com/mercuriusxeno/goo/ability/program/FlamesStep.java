@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -119,7 +120,7 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
                 PaintedHold.paintSeen(host, List.of(looked), cooks, marks);
             }
         });
-        PaintedHold.buildPainted(host, cooks, marks, 1f / cookTicks, OptionalInt.empty(),
+        PaintedHold.buildPainted(host, cooks, marks, 1f / cookTicks, exposureMark(melts),
                 (pos, raw, into) -> finishHeated(host, pos, raw, into, melts, results,
                         Blocks.AIR.defaultBlockState()));
     }
@@ -139,6 +140,20 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
                                                        Function<Item, Optional<Item>> smelt, Block emptied) {
         return raw -> BlockCooking.meltedBlock(raw, meltables, waterEvaporates)
                 .or(() -> BlockCooking.cookedBlock(raw, smelt, emptied));
+    }
+
+    /**
+     * The mark each heating block's exposure carries to the clients: a
+     * melting block carries the melt mark, so it shows nothing while it heats
+     * and is eaten away once it melts, as Blaze Melt eats stone; any other is
+     * untinted, cooking as it always has.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param melts the block a block melts into, empty where it does not melt
+     * @return the mark of each block, empty for untinted
+     */
+    static Function<Block, OptionalInt> exposureMark(Function<Block, Optional<Block>> melts) {
+        return raw -> melts.apply(raw).isPresent() ? OptionalInt.of(BlockExposures.MELTS_AWAY) : OptionalInt.empty();
     }
 
     /**

@@ -218,6 +218,24 @@ final class PaintedHold {
      */
     static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
                              OptionalInt tint, CellFinish finish) {
+        buildPainted(host, next, marks, rate, raw -> tint, finish);
+    }
+
+    /**
+     * Builds every painted block one tick toward the block it becomes, each
+     * block's exposure carrying the tint its painted block names, so one hold
+     * can melt one block and cook another
+     * (decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
+     *
+     * @param host   the channel host
+     * @param next   the block a block becomes, empty where it becomes none
+     * @param marks  the hold's marks
+     * @param rate   the share one tick builds
+     * @param tintOf the tint or mark each painted block's exposure carries, empty for none
+     * @param finish the step a full block takes
+     */
+    static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
+                             Function<Block, OptionalInt> tintOf, CellFinish finish) {
         for (Map.Entry<BlockPos, Block> painted : Map.copyOf(marks.painted()).entrySet()) {
             BlockPos pos = painted.getKey();
             Block raw = painted.getValue();
@@ -226,7 +244,7 @@ final class PaintedHold {
                 marks.noteStepped(pos);
             } else if (!host.finishingAlone(pos)) {
                 next.apply(raw).ifPresentOrElse(into -> {
-                    if (build(host, pos, into, rate, tint, () -> finish.finish(pos, raw, into))) {
+                    if (build(host, pos, into, rate, tintOf.apply(raw), () -> finish.finish(pos, raw, into))) {
                         marks.noteStepped(pos);
                     }
                 }, () -> marks.unpaint(pos));

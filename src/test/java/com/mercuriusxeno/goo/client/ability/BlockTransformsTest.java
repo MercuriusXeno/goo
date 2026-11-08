@@ -2,10 +2,10 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -89,34 +89,43 @@ class BlockTransformsTest {
         BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, air, 0.025f, START,
                 BlockTransforms.UNTINTED);
 
-        assertEquals(new BlockTransforms.Mingling(log, BlockTransforms.CHARRED),
+        assertEquals(Optional.of(new BlockTransforms.Mingling(log, BlockTransforms.CHARRED)),
                 BlockTransforms.minglingOf(firstTick, log));
     }
 
-    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: water draws no model, so ice mingles as air does
+    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: heating ice shows no face, never a charred one
     @Test
-    void anExposureTowardWaterMinglesTheStandingIceCharredFromItsFirstShare() {
+    void aMeltingExposureMinglesNothingInWhileItHeats() {
         BlockState ice = mock(BlockState.class);
         BlockState water = mock(BlockState.class);
-        when(water.getRenderShape()).thenReturn(RenderShape.INVISIBLE);
-        BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, water, 0.025f, START,
-                BlockTransforms.UNTINTED);
+        BlockTransforms.Exposure heating = new BlockTransforms.Exposure(GRAVEL, water, 0.5f, START,
+                BlockTransforms.MELTS_AWAY);
 
-        assertEquals(new BlockTransforms.Mingling(ice, BlockTransforms.CHARRED),
-                BlockTransforms.minglingOf(firstTick, ice));
+        assertEquals(Optional.empty(), BlockTransforms.minglingOf(heating, ice));
     }
 
-    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: melted ice dissolves through the noise into its water
+    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: melted ice is eaten away over its water as Melt does
     @Test
-    void aStepOnAnExposureTowardWaterDissolvesFromTheCharredFace() {
+    void aStepOnAMeltingIceExposureEatsTheIceAwayUntinted() {
         BlockState ice = mock(BlockState.class);
         BlockState water = mock(BlockState.class);
-        when(water.getRenderShape()).thenReturn(RenderShape.INVISIBLE);
         BlockTransforms transforms = new BlockTransforms();
-        transforms.expose(GRAVEL, water, 0.9f, START, BlockTransforms.UNTINTED);
+        transforms.expose(GRAVEL, water, 0.9f, START, BlockTransforms.MELTS_AWAY);
         transforms.start(GRAVEL, ice, START + 1);
-        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, ice, START + 1, BlockTransforms.CHARRED)),
-                transforms.live(START + 1));
+        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, ice, START + 1)), transforms.live(START + 1));
+        assertEquals(0, transforms.exposing(START + 1).size());
+    }
+
+    // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: a melted snow layer is eaten away to nothing, uncharred
+    @Test
+    void aStepOnAMeltingSnowExposureEatsTheSnowAwayUntinted() {
+        BlockState snow = mock(BlockState.class);
+        BlockState air = mock(BlockState.class);
+        when(air.isAir()).thenReturn(true);
+        BlockTransforms transforms = new BlockTransforms();
+        transforms.expose(GRAVEL, air, 0.9f, START, BlockTransforms.MELTS_AWAY);
+        transforms.start(GRAVEL, snow, START + 1);
+        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, snow, START + 1)), transforms.live(START + 1));
     }
 
     @Test
@@ -125,7 +134,8 @@ class BlockTransformsTest {
         BlockState glass = mock(BlockState.class);
         BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, glass, 0.025f, START, MAROON);
 
-        assertEquals(new BlockTransforms.Mingling(glass, MAROON), BlockTransforms.minglingOf(firstTick, sand));
+        assertEquals(Optional.of(new BlockTransforms.Mingling(glass, MAROON)),
+                BlockTransforms.minglingOf(firstTick, sand));
     }
 
     @Test
