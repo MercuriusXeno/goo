@@ -3,14 +3,11 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import com.mojang.blaze3d.buffers.Std140Builder;
+import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryStack;
 
@@ -21,8 +18,11 @@ import org.lwjgl.system.MemoryStack;
  * sea past them.
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  * decision sculker-shows-blocks-translucent-close-up
+ *
+ * <p>The chain dims the world by its depth, and the game renderer clears the
+ * level's depth to draw the hand before its own post effect slot runs, so the
+ * chain runs itself just before that clear, holding no slot.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerVision {
 
     /** The chain at {@code assets/goo/post_effect/sculker_sense.json}. */
@@ -34,7 +34,7 @@ public final class SculkerVision {
     private static final float DIM_REACH = 40f;
     /** The share of the gap to full or no presence the vision closes each tick, about a second and a half to settle. */
     static final float EASE_PER_TICK = 0.05f;
-    /** Below this presence the vision is gone and the slot is released. */
+    /** Below this presence the vision is gone and its chain stops running. */
     static final float GONE = 0.01f;
     /** How far from the diver, in blocks, the scene's own colors still show: the glass field's radius. */
     private static final float NEAR_REACH = (float) SculkerGlass.FIELD_RADIUS;
@@ -81,18 +81,19 @@ public final class SculkerVision {
 
     /**
      * Eases the senses in while the local player's Sculker stands and out
-     * once it ends, releasing the slot when they are gone.
+     * once it ends, and runs the chain on the level while they stand, its
+     * depth still whole; the game renderer calls this once a frame, just
+     * before it clears the level's depth to draw the hand.
      *
-     * @param event the level render stage event
+     * @param allocator the game renderer's resource pool
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+    public static void senseBeforeTheHand(GraphicsResourceAllocator allocator) {
         Minecraft mc = Minecraft.getInstance();
         boolean stands = brewStands(mc);
         presence = easedPresence(presence, stands, mc.getDeltaTracker().getRealtimeDeltaTicks());
+        SLOT.hide(mc.gameRenderer);
         if (mc.level == null || !stands && presence < GONE) {
             presence = stands ? presence : 0f;
-            SLOT.hide(mc.gameRenderer);
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -105,7 +106,7 @@ public final class SculkerVision {
             Std140Builder builder = Std140Builder.onStack(stack, SCULKER_CONFIG_SIZE);
             builder.putVec4(SCULKER_PARAMS);
             builder.putVec4(SCULKER_LOOK);
-            SLOT.show(mc, builder.get());
+            SLOT.runNow(mc, builder.get(), allocator);
         }
     }
 }

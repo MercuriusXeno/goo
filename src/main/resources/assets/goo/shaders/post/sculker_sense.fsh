@@ -46,10 +46,12 @@ const float EDGE_GAIN = 14.0;
 const float ECHO_SPEED = 12.0;
 const float ECHO_SPACING = 24.0;
 const float ECHO_WIDTH = 2.5;
-// an echo draws sculk teal: green and blue well above red, which the dark lets through bright
-const float TEAL_CHROMA = 0.12;
-// a faint echo, its teal laid over the dark, still counts as an echo from here
-const float TEAL_FLOOR = 0.02;
+// an echo draws sculk teal: green and blue well above red, as a share of the
+// brighter of them, so a faint echo laid over the dark counts as an echo;
+// blue standing above green takes away from it, so the sky, the fog distant
+// terrain fades into, and water read as the world and dim with distance
+const float TEAL_FLOOR = 0.15;
+const float TEAL_FULL = 0.35;
 const float ECHO_GAIN = 1.1;
 
 float brightnessAt(float distance) {
@@ -97,8 +99,10 @@ void main() {
     vec3 heard = SCULK * contour * (0.45 + 0.55 * echo) * fade * (1.0 - sky);
     vec3 color = dark + heard;
 
-    float tealness = min(scene.g, scene.b) - scene.r;
-    float echoed = smoothstep(TEAL_FLOOR, TEAL_CHROMA, tealness);
+    float brightest = max(max(scene.g, scene.b), 0.0001);
+    float teal = (min(scene.g, scene.b) - scene.r) / brightest;
+    float bluer = max(scene.b - scene.g, 0.0) / brightest;
+    float echoed = smoothstep(TEAL_FLOOR, TEAL_FULL, teal - bluer);
     vec3 sensed = mix(color, scene * ECHO_GAIN, echoed);
 
     fragColor = vec4(mix(scene, sensed, presence), 1.0);
