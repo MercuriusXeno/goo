@@ -465,7 +465,7 @@ public final class GooRenderTypes {
      * wins the face's own depth without standing off it.
      */
     public static final RenderPipeline SUNBEAM_SCORCH = shaderPairPipeline("sunbeam_scorch", "sunbeam_scorch",
-            BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA, DefaultVertexFormat.POSITION_COLOR_NORMAL,
             new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT));
 
