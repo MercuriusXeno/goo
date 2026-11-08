@@ -87,6 +87,18 @@ class GatePassageTest {
                 + "carried well past a floor portal's face should still be carried through it");
     }
 
+    /** Straight down, as a camera's pitch reads it. */
+    private static final float LOOKING_DOWN = 90F;
+
+    @Test
+    void aBodyLookingDownComesOutStillLookingDown() {
+        Vec3 eye = new Vec3(0.5, 64.97, 1.0);
+        GatePassage.Landing landing = GatePassage.landingThrough(FLOOR, NEAR, new GatePassage.Held(eye, 1.62), 1.8,
+                FAST_FALL, 0F, LOOKING_DOWN);
+        assertTrue(Math.abs(landing.pitch() - LOOKING_DOWN) < 1F, "A body dropping into a floor portal looking "
+                + "down should come out of a wall portal still looking down, pitched " + landing.pitch());
+    }
+
     /** The far mouth's face, the plane z 3. */
     private static final double FAR_FACE_Z = 3.0;
 

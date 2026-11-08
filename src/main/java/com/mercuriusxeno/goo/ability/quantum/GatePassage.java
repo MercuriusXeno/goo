@@ -45,7 +45,9 @@ public final class GatePassage {
     /** How deep behind a gate's face a body's middle may be and still cross it this tick. */
     private static final double DEEPEST = 1.5;
     private static final double HALF = 0.5;
-    private static final double UNIT = 1.0;
+    private static final Vec3 UP = new Vec3(0, 1, 0);
+    /** A turned heading this near zero long stands straight up or down, with no level heading to read. */
+    private static final double TURN_EPSILON = 1.0E-6;
     /**
      * How far before a gate's face a body's eye or middle counts as through
      * it: past the camera's near plane, a twentieth of a block, and the face's
@@ -326,11 +328,30 @@ public final class GatePassage {
      */
     public static Landing landing(PortalTransform through, Vec3 held, double drop, Vec3 motion, float yaw,
             float pitch) {
-        Vec3 look = through.direction(Vec3.directionFromRotation(pitch, yaw));
-        float turnedYaw = (float) Math.atan2(-look.x(), look.z()) * DEGREES;
-        float turnedPitch = (float) Math.asin(Math.clamp(-look.y(), -UNIT, UNIT)) * DEGREES;
-        return new Landing(through.point(held).subtract(0, drop, 0), through.direction(motion), turnedYaw,
-                turnedPitch);
+        return new Landing(through.point(held).subtract(0, drop, 0), through.direction(motion),
+                turnedYaw(through, yaw), pitch);
+    }
+
+    /**
+     * The heading a body faces coming out of a pair. The look turns relative
+     * to the body: its pitch carries through unchanged, so a body looking
+     * down as it drops in still looks down coming out, and only its heading
+     * turns, read from its right hand turned through the pair, which stays
+     * level where its forward would turn to straight up or down, as from a
+     * floor gate into a wall.
+     *
+     * @param through the transform through the pair
+     * @param yaw     its yaw going in, in degrees
+     * @return its yaw coming out, in degrees
+     */
+    private static float turnedYaw(PortalTransform through, float yaw) {
+        Vec3 forward = Vec3.directionFromRotation(0F, yaw);
+        Vec3 right = through.direction(forward.cross(UP));
+        Vec3 facing = UP.cross(right);
+        if (facing.lengthSqr() < TURN_EPSILON) {
+            return yaw;
+        }
+        return (float) Math.atan2(-facing.x(), facing.z()) * DEGREES;
     }
 
     private static void carry(ServerLevel target, Entity entity, Landing landing) {
