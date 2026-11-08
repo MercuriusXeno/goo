@@ -81,6 +81,13 @@ public final class GateRay {
      * The ray carried on out of the partner: from the partner's matching
      * point, set just out of its face so a clip starts clear of the
      * partner's own blocks, turned through the pair, for the reach left.
+     *
+     * @param near  the gate the ray goes into
+     * @param far   its partner
+     * @param from  the ray's start
+     * @param to    the ray's end
+     * @param along how far along the ray, as a fraction of it, it meets the face
+     * @return the crossing
      */
     private static Crossing crossingAt(Gate near, Gate far, Vec3 from, Vec3 to, double along) {
         Vec3 facePoint = from.lerp(to, along);
