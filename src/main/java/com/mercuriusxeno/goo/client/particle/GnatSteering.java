@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.network.SwarmMotes;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.world.phys.Vec3;
 
 /**
  * How a seeking gnat flies so it reads as homing rather than auto-aim: it
- * leaves the glove along the line the player fires, and every tick its prey
+ * leaves the glove fanned across the stream's cone around the line the
+ * player fires, and every tick its prey
  * pulls it, a small push toward the prey added to the velocity it already
  * has, with a little drag; its momentum carries it on along the aim at first,
  * so its path slides off the aim and curves into the mob, and the drag damps
@@ -13,10 +15,8 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class GnatSteering {
 
-    /** A seeking gnat's speed leaving the glove, blocks per tick. */
-    public static final double CRUISE = 0.35;
-    /** The spray a gnat launches inside, apex to rim, so the widest leaves 5 degrees off the firing line. */
-    private static final double SPRAY_DEGREES = 10;
+    /** A seeking gnat's speed leaving the glove, blocks per tick, which the server's bite waits on. */
+    public static final double CRUISE = SwarmMotes.GNAT_SPEED;
     /** How hard the prey pulls a gnat each tick, blocks per tick per tick. */
     private static final double PULL = 0.06;
     /** The share of its velocity a gnat keeps each tick, which with the pull caps it near half a block a tick. */
@@ -32,13 +32,14 @@ public final class GnatSteering {
     /**
      * A seeking gnat's launch from the glove.
      *
-     * @param aim       the heading from the glove onto the crosshair, any length
-     * @param tiltShare how far off the firing line, 0 on it and 1 at the spray's rim
-     * @param turnShare which way round the firing line, a share of a full turn
+     * @param aim          the heading from the glove onto the crosshair, any length
+     * @param sprayDegrees the cone the swarm fans across, apex to rim, in degrees
+     * @param tiltShare    how far off the firing line, 0 on it and 1 at the spray's rim
+     * @param turnShare    which way round the firing line, a share of a full turn
      * @return the launch velocity, blocks per tick
      */
-    public static Vec3 launch(Vec3 aim, double tiltShare, double turnShare) {
-        return StreamCone.launchDirection(aim, SPRAY_DEGREES, tiltShare, turnShare).scale(CRUISE);
+    public static Vec3 launch(Vec3 aim, double sprayDegrees, double tiltShare, double turnShare) {
+        return StreamCone.launchDirection(aim, sprayDegrees, tiltShare, turnShare).scale(CRUISE);
     }
 
     /**
