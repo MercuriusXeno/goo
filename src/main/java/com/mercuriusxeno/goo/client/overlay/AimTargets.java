@@ -1,13 +1,19 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ability.PartnerView;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -19,6 +25,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -37,6 +44,8 @@ final class AimTargets {
      * arcs onto the top of the block instead of hitting the side.
      */
     private static final double GRANNY_ARC_THRESHOLD = 0.85;
+    /** How far before a gate's face the near leg's clip ends, clear of the gate's own blocks. */
+    private static final double BEFORE_THE_FACE = 0.01;
 
     private AimTargets() {
     }
@@ -62,27 +71,99 @@ final class AimTargets {
         Vec3 eyePos = player.getEyePosition(partialTick);
         // decision grab-reaches-telekinesis-range: a grab marks no mob beyond what it lifts
         Vec3 reach = eyePos.add(player.getViewVector(partialTick).scale(range));
-        return resolveFor(hint, new AimSources() {
+        Optional<GateRay.Crossing> crossing = GateRay.first(GatePassage.clientPairs(), player.level().dimension(),
+                eyePos, reach);
+        if (crossing.isPresent()) {
+            Optional<AimState.Resolution> through = throughGate(player, seed, hint, behaviors, eyePos,
+                    crossing.get());
+            if (through.isPresent()) {
+                return through.get();
+            }
+        }
+        return resolveFor(hint, sourcesAlong(player, player.level(), eyePos, reach, seed, behaviors));
+    }
+
+    /**
+     * The aim through a linked gate the ray meets: nothing where a block or,
+     * for an aim that locks on, a mob stands on the near side before the
+     * gate's face, so the aim stops there as it always has; else the target
+     * the ray carried on out of the partner resolves, read in whichever level
+     * holds the partner's blocks, carrying the gate it passed.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player    the local player
+     * @param seed      the previous frame's aim-assist hit
+     * @param hint      the targeting mode
+     * @param behaviors the selected ability's steps
+     * @param eyePos    the eye
+     * @param crossing  where the ray passes the gate
+     * @return the far-side resolution, empty where the near side stops the aim first
+     */
+    private static Optional<AimState.Resolution> throughGate(Player player, AimAssistResolver.@Nullable AimHit seed,
+            TargetingHint hint, List<Step> behaviors, Vec3 eyePos, GateRay.Crossing crossing) {
+        Vec3 beforeFace = crossing.facePoint().add(crossing.near().face().getUnitVec3().scale(BEFORE_THE_FACE));
+        boolean blockedNear = clipBlocks(player.level(), player, eyePos, beforeFace).getType() == HitResult.Type.BLOCK;
+        boolean mobNear = hint != TargetingHint.BLOCK && AimAssistResolver.findClosestAimHit(player, eyePos,
+                beforeFace, seed, behaviors) instanceof AimAssistResolver.AimHit.EntityHit;
+        if (blockedNear || mobNear) {
+            return Optional.empty();
+        }
+        AimState.Resolution far = resolveFor(hint, sourcesAlong(player, blocksAround(player, crossing.far()),
+                crossing.farFrom(), crossing.farTo(), seed, behaviors));
+        return Optional.of(new AimState.Resolution(
+                far.target().through(new TargetResult.Passage(crossing.near(), crossing.facePoint())), far.hit()));
+    }
+
+    /**
+     * The blocks a far leg clips against: the client level where it holds the
+     * partner's chunk, else the streamed view of the partner's surroundings.
+     * linked-partner-chunks-stream-to-any-viewer
+     *
+     * @param player the local player
+     * @param far    the partner
+     * @return the blocks around the partner
+     */
+    private static BlockGetter blocksAround(Player player, Gate far) {
+        ChunkPos chunk = ChunkPos.containing(BlockPos.containing(far.center()));
+        return player.level().hasChunk(chunk.x(), chunk.z()) || !PartnerView.CLIENT.holds(chunk)
+                ? player.level() : PartnerView.CLIENT;
+    }
+
+    /**
+     * Where one leg of the aim comes from, a ray from one point to another
+     * clipped against the given blocks.
+     *
+     * @param player    the local player
+     * @param blocks    the blocks the leg clips against
+     * @param from      the leg's start
+     * @param to        the leg's end
+     * @param seed      the previous frame's aim-assist hit
+     * @param behaviors the selected ability's steps
+     * @return the leg's sources
+     */
+    private static AimSources sourcesAlong(Player player, BlockGetter blocks, Vec3 from, Vec3 to,
+            AimAssistResolver.@Nullable AimHit seed, List<Step> behaviors) {
+        return new AimSources() {
             @Override
             public AimAssistResolver.@Nullable AimHit entityHit() {
-                return AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed, behaviors);
+                return AimAssistResolver.findClosestAimHit(player, from, to, seed, behaviors);
             }
 
             @Override
             public TargetResult blockTarget() {
-                return resolveBlockTarget(player, eyePos, reach);
+                return resolveBlockTarget(player, blocks, from, to);
             }
 
             @Override
             public TargetResult pointTarget() {
-                return pointOf(clipBlocks(player, eyePos, reach), reach);
+                return pointOf(clipBlocks(blocks, player, from, to), to);
             }
 
             @Override
             public Vec3 entityPoint(Entity entity) {
-                return pointOnEntity(entity.getBoundingBox(), eyePos, reach);
+                return pointOnEntity(entity.getBoundingBox(), from, to);
             }
-        });
+        };
     }
 
     /**
@@ -191,13 +272,14 @@ final class AimTargets {
     /**
      * Clips the ray against block outlines and fluid sources.
      *
+     * @param blocks the blocks the ray clips against
      * @param player the local player
-     * @param eyePos the eye position
+     * @param eyePos the ray's start
      * @param reach  the ray's end at range
      * @return the clip result
      */
-    private static BlockHitResult clipBlocks(Player player, Vec3 eyePos, Vec3 reach) {
-        return player.level().clip(new ClipContext(
+    private static BlockHitResult clipBlocks(BlockGetter blocks, Player player, Vec3 eyePos, Vec3 reach) {
+        return blocks.clip(new ClipContext(
                 eyePos, reach, ClipContext.Block.OUTLINE, ClipContext.Fluid.SOURCE_ONLY, player));
     }
 
@@ -207,16 +289,17 @@ final class AimTargets {
      * arc always renders toward the aimed direction.
      *
      * @param player the local player
-     * @param eyePos the eye position
+     * @param blocks the blocks the ray clips against
+     * @param eyePos the ray's start
      * @param reach  the maximum reach endpoint
      * @return the resolved block target, or max-range projection on miss
      */
-    private static TargetResult resolveBlockTarget(Player player, Vec3 eyePos, Vec3 reach) {
-        BlockHitResult hit = clipBlocks(player, eyePos, reach);
+    private static TargetResult resolveBlockTarget(Player player, BlockGetter blocks, Vec3 eyePos, Vec3 reach) {
+        BlockHitResult hit = clipBlocks(blocks, player, eyePos, reach);
         if (hit.getType() != HitResult.Type.BLOCK) {
-            return projectToGround(player.level(), reach);
+            return projectToGround(player.level(), blocks, reach);
         }
-        return classifyBlockHit(player.level(), hit);
+        return classifyBlockHit(blocks, hit);
     }
 
     /**
@@ -224,15 +307,16 @@ final class AimTargets {
      * If the endpoint is above max build height (looking upward), starts
      * the downward cast from build height at the same XZ.
      *
-     * @param level the current level
-     * @param reach the max-range endpoint along the look vector
+     * @param level  the current level, whose height bounds the cast
+     * @param blocks the blocks the cast clips against
+     * @param reach  the max-range endpoint along the look vector
      * @return a block target on the ground, or NONE if no ground found
      */
-    private static TargetResult projectToGround(Level level, Vec3 reach) {
+    private static TargetResult projectToGround(Level level, BlockGetter blocks, Vec3 reach) {
         double topY = Math.min(reach.y, level.getMaxY());
         Vec3 top = new Vec3(reach.x, topY, reach.z);
         Vec3 bottom = new Vec3(reach.x, level.getMinY(), reach.z);
-        BlockHitResult ground = level.clip(new ClipContext(
+        BlockHitResult ground = blocks.clip(new ClipContext(
                 top, bottom, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.SOURCE_ONLY, CollisionContext.empty()));
         if (ground.getType() != HitResult.Type.BLOCK) {
@@ -251,7 +335,7 @@ final class AimTargets {
      * @param hit   the confirmed block hit
      * @return granny-arc or block-face target result
      */
-    private static TargetResult classifyBlockHit(Level level, BlockHitResult hit) {
+    private static TargetResult classifyBlockHit(BlockGetter level, BlockHitResult hit) {
         BlockPos pos = hit.getBlockPos();
         Direction face = hit.getDirection();
         if (level.getBlockState(pos).getBlock() instanceof GlowCrystalBlock) {
@@ -276,7 +360,7 @@ final class AimTargets {
      * @param face  the hit face direction
      * @return true if the hit qualifies for a granny arc
      */
-    private static boolean isGrannyArcCandidate(Level level, BlockHitResult hit,
+    private static boolean isGrannyArcCandidate(BlockGetter level, BlockHitResult hit,
                                                 BlockPos pos, Direction face) {
         return face.getAxis() != Direction.Axis.Y
                 && isUpperEdge(level, hit)
@@ -292,7 +376,7 @@ final class AimTargets {
      * @param face  the face direction to match
      * @return true if a matching glow crystal exists
      */
-    private static boolean isGlowCrystalOnFace(Level level, BlockPos pos, Direction face) {
+    private static boolean isGlowCrystalOnFace(BlockGetter level, BlockPos pos, Direction face) {
         BlockState state = level.getBlockState(pos);
         return state.getBlock() instanceof GlowCrystalBlock
                 && state.getValue(GlowCrystalBlock.FACING) == face;
@@ -307,7 +391,7 @@ final class AimTargets {
      * @param hit   the block hit result
      * @return true if the hit is on the upper edge
      */
-    private static boolean isUpperEdge(Level level, BlockHitResult hit) {
+    private static boolean isUpperEdge(BlockGetter level, BlockHitResult hit) {
         BlockPos pos = hit.getBlockPos();
         VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
         if (shape.isEmpty()) {

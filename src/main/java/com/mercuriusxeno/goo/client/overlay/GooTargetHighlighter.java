@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.SpireFootprint;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
@@ -98,8 +99,8 @@ public final class GooTargetHighlighter {
      */
     @SubscribeEvent
     public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
-        // portals-link-by-looking-through-portal-vision: the aim draws in the frame alone, never in a view through a gate
         if (PortalView.drawing()) {
+            drawMarksThroughTheGate(event);
             return;
         }
         clearCachedArc();
@@ -121,8 +122,36 @@ public final class GooTargetHighlighter {
         cachedArcPartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
-        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)), frame);
+        if (drawsMarks(false, null, target.passage())) {
+            renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)), frame);
+        }
         renderHeldDome(target, abilityId, frame);
+    }
+
+    /**
+     * In a view through a gate, draws the marks of a target the aim reached
+     * through that gate, seen from the view's camera, so the outline and the
+     * ripple show on the far side through the view; the line and the held
+     * ghost stay the frame's own.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param event the view pass's render stage event
+     */
+    private static void drawMarksThroughTheGate(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+        Minecraft mc = Minecraft.getInstance();
+        TargetResult target = AimTracker.currentTarget();
+        if (mc.player == null || !mc.options.getCameraType().isFirstPerson()
+                || !drawsMarks(true, PortalView.viewedGate(), target.passage())) {
+            return;
+        }
+        ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(mc.player);
+        if (selectedType == null) {
+            return;
+        }
+        String abilityId = GloveAim.selectedAbilityId(mc.player);
+        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)),
+                new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(), PortalView.camera(), mc,
+                        selectedType));
     }
 
     /**
@@ -146,6 +175,19 @@ public final class GooTargetHighlighter {
         }
         HeldDomeRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), target, ability,
                 frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+    }
+
+    /**
+     * Whether the aim target's marks draw in the pass drawing now.
+     *
+     * @param viewDrawing whether a view through a gate is drawing, rather than the main frame
+     * @param viewGate    the gate the drawing view looks into, null in the main frame
+     * @param passage     the gate the aim passed to reach its target, null for a near-side target
+     * @return true where the marks draw in this pass
+     */
+    static boolean drawsMarks(boolean viewDrawing, @Nullable Gate viewGate, TargetResult.@Nullable Passage passage) {
+        // aim-and-shots-carry-through-linked-gates: a far-side target is seen through the gate the aim passed
+        return passage == null ? !viewDrawing : viewDrawing && passage.gate().equals(viewGate);
     }
 
     /**

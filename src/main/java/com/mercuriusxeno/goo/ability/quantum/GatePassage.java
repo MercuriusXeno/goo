@@ -62,7 +62,7 @@ public final class GatePassage {
      * of the crossing margin, so a step straight back counts as crossing the
      * partner rather than walking into the opened blocks behind its face.
      */
-    private static final double LANDING_MARGIN = 0.12;
+    static final double LANDING_MARGIN = 0.12;
     /** A crawling body's height. */
     private static final double CRAWL_HEIGHT = 0.6;
     /** How far before a low wall gate's face a player drops into a crawl. */

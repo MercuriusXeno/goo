@@ -498,6 +498,8 @@ public final class PortalTests {
     private static final int FAR = 480;
     /** A pitch tipping the look down into the frame's face. */
     private static final float LOOK_DOWN = 30F;
+    /** A pitch looking straight up, away from every wall pair. */
+    private static final float LOOK_UP = -90F;
     /** A yaw looking north, into the first frame's south face. */
     private static final float NORTH = 180F;
 
@@ -532,15 +534,18 @@ public final class PortalTests {
                 nine.add(new ChunkPos(partner.x() + dx, partner.z() + dz));
             }
         }
+        // Other tests' linked pairs stand around this one in a full run, so the test reads the partner's nine
+        // alone, and looks away straight up, where no wall pair stands.
         helper.runAfterDelay(STEP * 3, () -> {
-            helper.assertTrue(PartnerStreaming.streamedTo(player).equals(nine), "A player looking into the entry "
-                    + "should be streamed the nine chunks around its far partner, holds "
+            helper.assertTrue(PartnerStreaming.streamedTo(player).containsAll(nine), "A player looking into the "
+                    + "entry should be streamed the nine chunks around its far partner, holds "
                     + PartnerStreaming.streamedTo(player));
-            player.setYRot(0F);
+            player.setXRot(LOOK_UP);
         });
         helper.runAfterDelay(STEP * 6, () -> {
-            helper.assertTrue(PartnerStreaming.streamedTo(player).isEmpty(), "A player looking away should hold "
-                    + "no streamed chunk, holds " + PartnerStreaming.streamedTo(player));
+            helper.assertTrue(java.util.Collections.disjoint(PartnerStreaming.streamedTo(player), nine), "A player "
+                    + "looking away should hold none of the partner's chunks, holds "
+                    + PartnerStreaming.streamedTo(player));
             level.getServer().getPlayerList().remove(player);
             helper.succeed();
         });
