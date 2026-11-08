@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.network.SwarmMotes;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -87,6 +88,74 @@ class GnatSteeringTest {
                 at = at.add(velocity);
             }
             assertTrue(at.distanceTo(PREY) < ON_THE_PREY, "after the flight the gnat rests at " + at);
+        }
+    }
+
+    /**
+     * The swarm converges on a block on the floor: even a gnat fanned the
+     * full 45 degrees down off the aim, toward the floor, is turned onto the
+     * block before it strikes the floor more than a block short, from a glove
+     * held 1 to 1.6 blocks over the floor at 2 to 6 blocks out.
+     */
+    @Nested
+    class ConvergingOnAFloorBlock {
+
+        private static final double[] DISTANCES = {2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6};
+        private static final double[] GLOVE_HEIGHTS = {1.0, 1.3, 1.6};
+        /** The farthest short of its target the worst-launched gnat may strike the floor. */
+        private static final double WIDEST_MISS = 1.0;
+        private static final double HALF_A_BLOCK = 0.5;
+        private static final int MOST_TICKS = 60;
+
+        @Test
+        void aGnatFannedDownTowardTheFloorStillLandsWithinABlockOfItsTarget() {
+            for (double distance : DISTANCES) {
+                for (double height : GLOVE_HEIGHTS) {
+                    Vec3 glove = new Vec3(0, height, 0);
+                    Vec3 target = new Vec3(distance, 0, 0);
+                    Vec3 velocity = fannedDown(target.subtract(glove));
+                    Vec3 at = glove;
+                    for (int tick = 0; tick < MOST_TICKS && at.y > 0; tick++) {
+                        velocity = GnatSteering.steer(velocity, at, target);
+                        at = at.add(velocity);
+                    }
+                    double short_ = distance - at.x;
+                    assertTrue(short_ <= WIDEST_MISS, "from " + height + " up, " + distance + " out, the gnat struck the"
+                            + " floor " + short_ + " blocks short");
+                }
+            }
+        }
+
+        @Test
+        void theBiteWaitsNoLessThanTheGnatsTakeToArrive() {
+            for (double distance : DISTANCES) {
+                Vec3 glove = new Vec3(0, 1.3, 0);
+                Vec3 target = new Vec3(distance, 0, 0);
+                Vec3 velocity = GnatSteering.launch(target.subtract(glove), FAN_DEGREES, 0, 0);
+                Vec3 at = glove;
+                int tick = 0;
+                while (at.distanceTo(target) >= HALF_A_BLOCK && tick < MOST_TICKS) {
+                    velocity = GnatSteering.steer(velocity, at, target);
+                    at = at.add(velocity);
+                    tick++;
+                }
+                int wait = (int) Math.ceil(glove.distanceTo(target) / SwarmMotes.GNAT_SPEED);
+                assertTrue(wait >= tick, distance + " out, the gnats take " + tick + " ticks, the bite waits " + wait);
+            }
+        }
+
+        /**
+         * A launch at the fan's rim straight down off the aim.
+         *
+         * @param aim the heading from the glove onto the target
+         * @return the launch velocity
+         */
+        private Vec3 fannedDown(Vec3 aim) {
+            Vec3 forward = aim.normalize();
+            Vec3 side = forward.cross(new Vec3(0, 1, 0)).normalize();
+            Vec3 down = side.cross(forward).normalize().scale(-1);
+            double tilt = Math.toRadians(FAN_DEGREES / 2);
+            return forward.scale(Math.cos(tilt)).add(down.scale(Math.sin(tilt))).normalize().scale(GnatSteering.CRUISE);
         }
     }
 

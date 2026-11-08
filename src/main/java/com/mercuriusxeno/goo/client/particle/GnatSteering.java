@@ -17,10 +17,8 @@ public final class GnatSteering {
 
     /** A seeking gnat's speed leaving the glove, blocks per tick, which the server's bite waits on. */
     public static final double CRUISE = SwarmMotes.GNAT_SPEED;
-    /** How hard the prey pulls a gnat each tick, blocks per tick per tick. */
-    private static final double PULL = 0.06;
-    /** The share of its velocity a gnat keeps each tick, which with the pull caps it near half a block a tick. */
-    private static final double DRAG = 0.88;
+    private static final double PULL = SwarmMotes.PULL;
+    private static final double DRAG = SwarmMotes.DRAG;
     /** Within this many blocks of its prey the pull eases off, so the gnat settles on it. */
     private static final double ARRIVING_WITHIN = 1.0;
     /** Below this squared gap a gnat sits on its prey and is pulled no way. */
