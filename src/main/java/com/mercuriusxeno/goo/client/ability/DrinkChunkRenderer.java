@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Draws every peeling block's chunks as solid boxes of the block's own
  * faces, a standing chunk lit as its block stood and a flying one by the
- * brighter of that and the light at the glove, never by the light inside a
+ * brighter of that and the light at the point, never by the light inside a
  * solid block it passes through, which read black where streams crossed;
  * all in one submission a frame: a cell's face draws only where it
  * bounds its chunk and no standing chunk covers it, so a whole block costs
@@ -99,33 +99,56 @@ public final class DrinkChunkRenderer {
      * @param now  the game time, with the partial tick
      */
     private static void drawPeel(Draw draw, DrinkPeels.Peel peel, double now) {
-        Vec3 glove = DrinkPeels.CLIENT.gloveOf(peel.drinker());
+        Vec3 point = DrinkPeels.CLIENT.destinationOf(peel.blob());
         List<DrinkRide.Chunk> chunks = peel.breakup().chunks();
         boolean[] standing = DrinkRide.standingOf(chunks, now);
         int standingLight = LevelRenderer.getLightCoords(draw.level(), peel.pos());
-        int flyingLight = glove == null ? standingLight : DrinkPeels.brighterOf(standingLight,
-                LevelRenderer.getLightCoords(draw.level(), BlockPos.containing(glove)));
-        Vec3[] shifts = new Vec3[chunks.size()];
-        int[] lights = new int[chunks.size()];
+        // a blob forms in a block being unmade, whose own cell reads dark, so the cell above it lights too
+        BlockPos blobCell = point == null ? peel.pos() : BlockPos.containing(point);
+        int flyingLight = DrinkPeels.brighterOf(standingLight, DrinkPeels.brighterOf(
+                LevelRenderer.getLightCoords(draw.level(), blobCell),
+                LevelRenderer.getLightCoords(draw.level(), blobCell.above())));
+        Drawn[] drawn = new Drawn[chunks.size()];
         for (int index = 0; index < chunks.size(); index++) {
             DrinkRide.Chunk chunk = chunks.get(index);
-            Vec3 at = standing[index] ? chunk.place() : flightOf(chunk, glove, now);
-            if (at != null) {
-                shifts[index] = at.subtract(chunk.place()).subtract(draw.camera());
-                lights[index] = standing[index] ? standingLight : flyingLight;
+            Vec3 at = standing[index] ? chunk.place() : flightOf(chunk, point, now);
+            // unmake-converges-near-the-unmade-blocks-into-a-goo-item: a flying chunk tapers into its blob
+            double scale = standing[index] || point == null ? 1 : DrinkRide.shrinkOf(chunk, point, now);
+            if (at != null && scale > 0) {
+                drawn[index] = new Drawn(chunk.place(), at.subtract(draw.camera()), scale,
+                        standing[index] ? standingLight : flyingLight);
             }
         }
-        drawCells(draw, peel, standing, shifts, lights);
+        drawCells(draw, peel, standing, drawn);
+    }
+
+    /**
+     * How one chunk draws this frame.
+     *
+     * @param place  its middle while it stood in the block
+     * @param middle its middle now, camera relative
+     * @param scale  how large it is, 1 for whole
+     * @param light  the packed light it is lit by
+     */
+    private record Drawn(Vec3 place, Vec3 middle, double scale, int light) {
+
+        /**
+         * @param cellPlace a cell's middle while the chunk stood in the block
+         * @return that cell's middle now, camera relative
+         */
+        Vec3 cellAt(Vec3 cellPlace) {
+            return middle.add(cellPlace.subtract(place).scale(scale));
+        }
     }
 
     /**
      * @param chunk a chunk that has left its block
-     * @param glove the drinker's glove, or null while it goes unplaced
+     * @param point where its blob stands, or null while it goes unplaced
      * @param now   the game time, with the partial tick
-     * @return where its middle flies, or null once it reached the glove or while the glove goes unplaced
+     * @return where its middle flies, or null once it reached the point or while the point goes unplaced
      */
-    private static @Nullable Vec3 flightOf(DrinkRide.Chunk chunk, @Nullable Vec3 glove, double now) {
-        return glove == null ? null : DrinkRide.pointOf(chunk, glove, now);
+    private static @Nullable Vec3 flightOf(DrinkRide.Chunk chunk, @Nullable Vec3 point, double now) {
+        return point == null ? null : DrinkRide.pointOf(chunk, point, now);
     }
 
     /**
@@ -134,14 +157,13 @@ public final class DrinkChunkRenderer {
      * @param draw     what the frame draws into
      * @param peel     the block peeling
      * @param standing by chunk index, whether that chunk still stands
-     * @param shifts   by chunk index, how far it has moved from its place, camera relative, or null where undrawn
-     * @param lights   by chunk index, the packed light it is lit by
+     * @param drawn    by chunk index, how it draws, or null where undrawn
      */
-    private static void drawCells(Draw draw, DrinkPeels.Peel peel, boolean[] standing, Vec3[] shifts, int[] lights) {
+    private static void drawCells(Draw draw, DrinkPeels.Peel peel, boolean[] standing, Drawn[] drawn) {
         for (int cell = 0; cell < DrinkRide.CELLS; cell++) {
-            int chunk = peel.breakup().chunkOfCell()[cell];
-            if (shifts[chunk] != null) {
-                drawCell(draw, peel, cell, standing, peel.breakup().placeOf(cell).add(shifts[chunk]), lights[chunk]);
+            Drawn chunk = drawn[peel.breakup().chunkOfCell()[cell]];
+            if (chunk != null) {
+                drawCell(draw, peel, cell, standing, chunk.cellAt(peel.breakup().placeOf(cell)), chunk);
             }
         }
     }
@@ -154,11 +176,12 @@ public final class DrinkChunkRenderer {
      * @param cell     the cell's grid index
      * @param standing by chunk index, whether that chunk still stands
      * @param middle   its middle, camera relative
-     * @param light    the packed light it is lit by
+     * @param chunk    how its chunk draws
      */
     private static void drawCell(Draw draw, DrinkPeels.Peel peel, int cell, boolean[] standing, Vec3 middle,
-                                 int light) {
-        Vec3 size = peel.breakup().cellSize();
+                                 Drawn chunk) {
+        int light = chunk.light();
+        Vec3 size = peel.breakup().cellSize().scale(chunk.scale());
         Vec3 least = middle.subtract(size.scale(HALF));
         for (Direction face : FACES) {
             if (DrinkRide.shows(peel.breakup(), cell, face, standing)) {

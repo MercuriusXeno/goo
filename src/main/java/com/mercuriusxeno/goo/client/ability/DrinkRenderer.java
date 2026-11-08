@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.entity.FormingGooBlob;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -38,9 +39,9 @@ import java.util.Set;
  * them, the layout walk placed against the drinker's glove and aim, and the
  * streams that walk gives, kept so the next frame knows where liquid still
  * flows and the drink stays live until its last stream is spent, and keeps
- * each drinker's glove for their chunks to fly to. The frame a block's
- * square lands, the block stands as solid chunks of its own faces that peel
- * away to the hand over the drain, so it is never seen vanishing.
+ * where each forming goo blob stands for its chunks to fly to. The frame a
+ * block's square lands, the block stands as solid chunks of its own faces
+ * that peel away to its blob over the drain, so it is never seen vanishing.
  * decision unmake-waves-dissolve-by-crucible-cost
  * decision diagnose-then-fix-unmake-seam-and-ribbing
  * decision unmake-drink-is-a-stream-of-break-particles
@@ -66,6 +67,8 @@ public final class DrinkRenderer {
     private static final Set<Integer> SHOWING = new HashSet<>();
     /** Which blocks of each drink have begun to peel, by its drinker. */
     private static final Map<Integer, DrinkLandings> LANDINGS = new HashMap<>();
+    /** Where each blob a drink streams to last stood, by its entity id, for chunks still flying once it is gone. */
+    private static final Map<Integer, Vec3> BLOB_POINTS = new HashMap<>();
 
     private DrinkRenderer() {
     }
@@ -73,16 +76,16 @@ public final class DrinkRenderer {
     /**
      * What a frame builds a drink against.
      *
-     * @param glove the drinker's glove, in the world
-     * @param pull  the unit direction the trunk flows as it enters the hand
-     * @param aim   the drinker's aim line, which picks the spine
-     * @param ticks the game time including the partial tick
+     * @param look        the drinker's look
+     * @param aim         the drinker's aim line, which picks the spine
+     * @param ticks       the game time including the partial tick
+     * @param partialTick the partial tick
      */
-    private record Frame(Vec3 glove, Vec3 pull, DrinkLayout.Aim aim, double ticks) {
+    private record Frame(Vec3 look, DrinkLayout.Aim aim, double ticks, float partialTick) {
     }
 
     /**
-     * Builds every drink's tree this frame, after the level.
+     * Builds every drink's trees this frame, after the level.
      *
      * @param event the level stage event
      */
@@ -97,25 +100,49 @@ public final class DrinkRenderer {
         double ticks = level.getGameTime() + partialTick;
         List<ClientDrinks.Drink> drinks = ClientDrinks.CLIENT.live(ticks, SHOWING::contains);
         forgetAllBut(drinks);
-        CameraRenderState sight = event.getLevelRenderState().cameraRenderState;
         for (ClientDrinks.Drink drink : drinks) {
             Entity drinker = level.getEntity(drink.playerId());
             if (drinker != null) {
                 Vec3 look = drinker.getViewVector(partialTick);
-                Vec3 pull = drink.layout().pullToward(look, ticks);
                 DrinkLayout.Aim aim = new DrinkLayout.Aim(drinker.getEyePosition(partialTick), look);
-                streamsOf(level, drink, new Frame(gloveOf(mc, drinker, partialTick, sight), pull, aim, ticks));
+                streamsOf(level, drink, new Frame(look, aim, ticks, partialTick));
             }
         }
     }
 
     private static void forgetAllBut(List<ClientDrinks.Drink> drinks) {
         Set<Integer> drinkers = new HashSet<>();
-        drinks.forEach(drink -> drinkers.add(drink.playerId()));
+        Set<Integer> blobs = new HashSet<>();
+        drinks.forEach(drink -> {
+            drinkers.add(drink.playerId());
+            drink.streaming().forEach(streaming -> blobs.add(streaming.blob()));
+        });
         LAST.keySet().retainAll(drinkers);
         SHOWING.retainAll(drinkers);
         LANDINGS.keySet().retainAll(drinkers);
-        DrinkPeels.CLIENT.keepGlovesOf(drinkers);
+        BLOB_POINTS.keySet().retainAll(blobs);
+        DrinkPeels.CLIENT.keepDestinationsOf(blobs);
+    }
+
+    /**
+     * Where a blob a drink streams to stands this frame: the forming blob
+     * itself, or where it last stood once it is gone, or the first of its
+     * blocks before the client has seen it.
+     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
+     *
+     * @param level       the client level
+     * @param blob        the blob's entity id
+     * @param blocks      the blocks streaming to it
+     * @param partialTick the partial tick
+     * @return the point its streams and chunks end at
+     */
+    private static Vec3 blobPoint(ClientLevel level, int blob, List<DrinkTree.Block> blocks, float partialTick) {
+        if (level.getEntity(blob) instanceof FormingGooBlob forming) {
+            Vec3 at = forming.getPosition(partialTick);
+            BLOB_POINTS.put(blob, at);
+            return at;
+        }
+        return BLOB_POINTS.getOrDefault(blob, blocks.getFirst().center());
     }
 
     /**
@@ -168,8 +195,10 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Builds one drink's streams this frame: its tree built for the frame and kept
-     * for the next, the drink showing while any stream has liquid left.
+     * Builds one drink's streams this frame: a tree for each blob its blocks
+     * stream to, built for the frame and kept for the next, the drink showing
+     * while any stream has liquid left.
+     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
      *
      * @param level the client level
      * @param drink the drink
@@ -177,23 +206,29 @@ public final class DrinkRenderer {
      */
     private static void streamsOf(ClientLevel level, ClientDrinks.Drink drink, Frame frame) {
         Map<BlockPos, BlockState> states = new HashMap<>();
-        List<DrinkTree.Block> blocks = blocksOf(level, drink, states);
+        Map<Integer, List<DrinkTree.Block>> byBlob = blocksByBlob(level, drink, states);
         Map<BlockPos, DrinkTree.Stream> last = LAST.getOrDefault(drink.playerId(), Map.of());
-        drink.layout().place(states.keySet(), frame.glove(), frame.aim(), frame.ticks(),
-                DrinkTree.flowingOf(last, states.keySet()));
         Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
         boolean flowing = false;
         DrinkLandings landings = LANDINGS.computeIfAbsent(drink.playerId(), ignored -> new DrinkLandings());
-        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
-                frame.ticks())) {
-            built.put(stream.block().pos(), stream);
-            flowing |= !stream.spent();
-            if (landings.peelsAt(stream.block(), frame.ticks())) {
-                peel(level, drink.playerId(), stream.block(), states.get(stream.block().pos()));
+        for (Map.Entry<Integer, List<DrinkTree.Block>> group : byBlob.entrySet()) {
+            int blob = group.getKey();
+            Vec3 point = blobPoint(level, blob, group.getValue(), frame.partialTick());
+            DrinkLayout layout = drink.layoutFor(blob);
+            Set<BlockPos> laid = new HashSet<>();
+            group.getValue().forEach(block -> laid.add(block.pos()));
+            layout.place(laid, point, frame.aim(), frame.ticks(), DrinkTree.flowingOf(last, laid));
+            Vec3 pull = layout.pullToward(frame.look(), frame.ticks());
+            for (DrinkTree.Stream stream : DrinkTree.build(group.getValue(), layout, point, pull, frame.ticks())) {
+                built.put(stream.block().pos(), stream);
+                flowing |= !stream.spent();
+                if (landings.peelsAt(stream.block(), frame.ticks())) {
+                    peel(level, blob, stream.block(), states.get(stream.block().pos()));
+                }
             }
+            DrinkPeels.CLIENT.destination(blob, point);
         }
         LAST.put(drink.playerId(), built);
-        DrinkPeels.CLIENT.glove(drink.playerId(), frame.glove());
         showing(drink.playerId(), flowing);
     }
 
@@ -209,19 +244,20 @@ public final class DrinkRenderer {
         }
     }
 
-    private static List<DrinkTree.Block> blocksOf(ClientLevel level, ClientDrinks.Drink drink,
-                                                  Map<BlockPos, BlockState> states) {
-        List<DrinkTree.Block> blocks = new ArrayList<>();
+    private static Map<Integer, List<DrinkTree.Block>> blocksByBlob(ClientLevel level, ClientDrinks.Drink drink,
+                                                                  Map<BlockPos, BlockState> states) {
+        Map<Integer, List<DrinkTree.Block>> byBlob = new HashMap<>();
         for (DrinkPayload.Streaming streaming : drink.streaming()) {
             BlockState state = ClientDrinks.CLIENT.blockOf(streaming.pos(), seenAt(level, streaming.pos()));
             if (state != null) {
                 states.put(streaming.pos(), state);
-                blocks.add(new DrinkTree.Block(streaming.pos(), Vec3.atCenterOf(streaming.pos()),
-                        DrinkTree.scaleOf(MeltMeshGoo.volumeOf(state)), streaming.picked(), streaming.start(),
-                        streaming.end()));
+                byBlob.computeIfAbsent(streaming.blob(), ignored -> new ArrayList<>())
+                        .add(new DrinkTree.Block(streaming.pos(), Vec3.atCenterOf(streaming.pos()),
+                                DrinkTree.scaleOf(MeltMeshGoo.volumeOf(state)), streaming.picked(), streaming.start(),
+                                streaming.end()));
             }
         }
-        return blocks;
+        return byBlob;
     }
 
     /**
@@ -244,15 +280,15 @@ public final class DrinkRenderer {
     /**
      * Peels a block into its chunks with its own break sound, as vanilla
      * plays it: the chunks fill the block's outline and stand in its place
-     * wearing its own faces, crumbling off one by one to fly to the
-     * drinker's glove as it is placed frame by frame.
+     * wearing its own faces, crumbling off one by one to fly to its blob
+     * where the blob stands frame by frame.
      *
-     * @param level   the client level
-     * @param drinker the drinker
-     * @param block   the block
-     * @param state   the block as it stood
+     * @param level the client level
+     * @param blob  the entity id of the blob its chunks fly to
+     * @param block the block
+     * @param state the block as it stood
      */
-    private static void peel(ClientLevel level, int drinker, DrinkTree.Block block, BlockState state) {
+    private static void peel(ClientLevel level, int blob, DrinkTree.Block block, BlockState state) {
         BlockPos pos = block.pos();
         SoundType sound = state.getSoundType(level, pos, null);
         level.playLocalSound(pos, sound.getBreakSound(), SoundSource.BLOCKS, (sound.getVolume() + 1) * HALF_F,
@@ -260,7 +296,7 @@ public final class DrinkRenderer {
         VoxelShape shape = state.getShape(level, pos);
         AABB outline = shape.isEmpty() ? Shapes.block().bounds() : shape.bounds();
         DrinkRide.Breakup breakup = DrinkRide.chunksOf(block, outline, level.getRandom());
-        DrinkPeels.CLIENT.begin(new DrinkPeels.Peel(drinker, pos.immutable(), breakup, PeelFaces.of(level, pos, state),
+        DrinkPeels.CLIENT.begin(new DrinkPeels.Peel(blob, pos.immutable(), breakup, PeelFaces.of(level, pos, state),
                 block.end() + (double) DrinkStream.LONGEST_TRAVEL_TICKS));
     }
 }

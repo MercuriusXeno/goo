@@ -28,12 +28,14 @@ import java.util.stream.Stream;
  * Glow's Radiant: leaves wisps of light in dark air, each fading out after
  * its life. The channel floods ({@link WispFlood}): from the holder's eyes
  * out through the connected air they see, nearest first, a budget of cells
- * a tick, a wisp in each dark cell no wisp already lights, the flood
+ * a tick, a wisp by a chance, the density, in each dark cell no wisp
+ * already lights, so the wisps scatter rather than fall on a grid, the flood
  * starting over when the hold starts, and carried on from where the holder
  * moves to, its reach and its wisps kept, as they walk. Without a
  * flood the step tries the one cell above the host, a wisp there when it is
  * dark air.
  * decision radiant-wisps-where-light-is-low
+ * decision radiant-scatters-wisps-at-random-among-the-dark
  * operator rulings 2026-10-10: wisps flood out from the eyes nearest first to 64 blocks, the edge at 16 blocks a second
  *
  * @param radius how far from the host a cell may be, in blocks; zero for the host's own cell
@@ -41,10 +43,11 @@ import java.util.stream.Stream;
  * @param life   how many ticks a wisp lasts
  * @param above  how many blocks above the host the tried cell sits
  * @param flood  whether the step floods out from the holder's eyes; otherwise it tries the host's own cell
- * @param growth how many blocks the flood's edge grows each tick; zero reaches the radius at once
+ * @param growth  how many blocks the flood's edge grows each tick; zero reaches the radius at once
+ * @param density the chance, from 0 to 1, that a dark, sighted cell the flood reaches takes a wisp
  */
-public record WispsStep(double radius, int count, int life, int above, boolean flood, double growth)
-        implements TakesNoEntity {
+public record WispsStep(double radius, int count, int life, int above, boolean flood, double growth,
+        double density) implements TakesNoEntity {
 
     private static final String NAME = "wisps";
     private static final String FIELD_RADIUS = "radius";
@@ -53,6 +56,9 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
     private static final String FIELD_ABOVE = "above";
     private static final String FIELD_FLOOD = "flood";
     private static final String FIELD_GROWTH = "growth";
+    private static final String FIELD_DENSITY = "density";
+    /** The density a flood scatters its wisps at when the step names none: about one dark cell in four. */
+    static final double SCATTERED_DENSITY = 0.25;
     private static final float CHIME_VOLUME = 0.4f;
     private static final float CHIME_PITCH = 1.6f;
     private static final float CHIME_PITCH_SPREAD = 0.4f;
@@ -74,7 +80,8 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_LIFE).forGetter(WispsStep::life),
             Codec.INT.optionalFieldOf(FIELD_ABOVE, 0).forGetter(WispsStep::above),
             Codec.BOOL.optionalFieldOf(FIELD_FLOOD, false).forGetter(WispsStep::flood),
-            Codec.DOUBLE.optionalFieldOf(FIELD_GROWTH, 0.0).forGetter(WispsStep::growth)
+            Codec.DOUBLE.optionalFieldOf(FIELD_GROWTH, 0.0).forGetter(WispsStep::growth),
+            Codec.doubleRange(0, 1).optionalFieldOf(FIELD_DENSITY, SCATTERED_DENSITY).forGetter(WispsStep::density)
     ).apply(inst, WispsStep::new));
 
     /**
@@ -113,7 +120,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
             FLOODS.put(holder.getUUID(), under);
         }
         under.walkedAt(level.getGameTime());
-        under.walk(count, new LevelCells(level, holder));
+        under.walk(count, new LevelCells(level, holder), level.getRandom());
     }
 
     /**
@@ -141,7 +148,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
      * @return the flood to walk
      */
     WispFlood floodFor(@Nullable WispFlood under, BlockPos eyes, int heldTicks, int litSteps) {
-        return under == null || heldTicks == ChannelAim.FIRST_TICK ? new WispFlood(eyes, radius, growth, litSteps)
+        return under == null || heldTicks == ChannelAim.FIRST_TICK ? new WispFlood(eyes, radius, growth, litSteps, density)
                 : under.movedTo(eyes);
     }
 
