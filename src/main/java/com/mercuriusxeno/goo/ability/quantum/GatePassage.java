@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.network.EntityVisuals;
+import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -394,6 +396,9 @@ public final class GatePassage {
         entity.setDeltaMovement(landing.motion());
         entity.hurtMarked = true;
         entity.resetFallDistance();
+        // aim-and-shots-carry-through-linked-gates: watchers set the body where it came out, never sliding it there
+        EntityVisuals.sendToWatchers(entity, new GateCarriedPayload(entity.getId(), landing.feet(), landing.motion(),
+                landing.yaw(), landing.pitch()));
     }
 
     /**
