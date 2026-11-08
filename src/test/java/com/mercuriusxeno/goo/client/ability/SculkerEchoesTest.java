@@ -47,6 +47,8 @@ class SculkerEchoesTest {
     private static final long ONE_SECOND = 20;
     private static final long QUARTER_SECOND = 5;
     private static final double RENDER_REACH = 160;
+    /** A memory small enough for a few weak sounds to fill it. */
+    private static final int SMALL_MEMORY = 120;
     private static final Vec3 AT_THE_SOUND = new Vec3(0.5, 1.5, 0.5);
 
     private static SculkerEchoes heardAndAdvancedTo(long now) {
@@ -171,6 +173,49 @@ class SculkerEchoesTest {
         @Test
         void aFacesLightIsCappedAtTwiceAFullLight() {
             assertEquals(2f, heardTimes(5, 1f).remembered().get(UNDER_THE_SOUND).light(), CLOSE);
+        }
+
+        @Test
+        void aWeakSoundCrossingAHeavilyLitFaceNeverShortensItsLight() {
+            SculkerEchoes echoes = new SculkerEchoes();
+            echoes.hear(SOUND, HEARD_AT, LOUDEST, SculkerEchoes.rangeFor(LOUDEST));
+            long weakAt = HEARD_AT + 20;
+            echoes.hear(new Vec3(8.5, 1, 0.5), weakAt, 0.25f, 12);
+            float before = Float.MAX_VALUE;
+            long fadedAt = 0;
+            for (long tick = HEARD_AT; tick <= HEARD_AT + 200; tick++) {
+                echoes.advance(tick, FLAT_GROUND);
+                SculkerEchoes.Lit lit = echoes.remembered().get(UNDER_THE_SOUND);
+                if (tick > HEARD_AT + 2 && lit != null) {
+                    float level = lit.levelAt(tick);
+                    float expected = before - 1f / 60;
+                    assertTrue(before == Float.MAX_VALUE || level >= expected - 1e-4f,
+                            "the weak sound shortened the face's light at tick " + tick + ": " + before + " -> " + level);
+                    before = level;
+                    fadedAt = lit.fadedAt();
+                }
+            }
+            assertTrue(fadedAt >= HEARD_AT + 2 + 120, "the point-blank light should last its full six seconds, it ends at "
+                    + (fadedAt - HEARD_AT));
+        }
+
+        @Test
+        void manyWeakSoundsNeverPushOutAFaceAStrongSoundLit() {
+            SculkerEchoes echoes = new SculkerEchoes(SMALL_MEMORY);
+            echoes.hear(SOUND, HEARD_AT, LOUDEST, SculkerEchoes.rangeFor(1f));
+            for (long tick = HEARD_AT; tick <= HEARD_AT + 3; tick++) {
+                echoes.advance(tick, FLAT_GROUND);
+            }
+            long weakAt = HEARD_AT + 4;
+            for (int sound = 0; sound < 12; sound++) {
+                echoes.hear(new Vec3(30.5 + sound * 9, 1, 0.5), weakAt, 0.25f, 4);
+            }
+            for (long tick = weakAt; tick <= weakAt + 20; tick++) {
+                echoes.advance(tick, FLAT_GROUND);
+            }
+            assertTrue(echoes.remembered().size() <= SMALL_MEMORY, "the memory outgrew its most");
+            assertTrue(echoes.remembered().containsKey(UNDER_THE_SOUND),
+                    "weak sounds pushed out the face a strong sound lit point-blank");
         }
 
         @Test
