@@ -44,6 +44,8 @@ public final class GatePassage {
     private static final double APPROACH = 1.0;
     /** How deep behind a gate's face a body's middle may be and still cross it this tick. */
     private static final double DEEPEST = 1.5;
+    /** The farthest a body moves in a tick that a gate still sees the tick before and the tick it crosses. */
+    private static final double FASTEST_TICK = 5.0;
     private static final double HALF = 0.5;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     /** The least upward speed a body comes up out of a floor gate with, rising about two blocks. */
@@ -136,8 +138,8 @@ public final class GatePassage {
      * @return true where the gate opens the block to the body
      */
     private static boolean opensTo(Gate gate, Entity entity, BlockPos pos, Vec3 middle) {
-        return gate.dimension().equals(entity.level().dimension()) && gate.covers(pos) && atTheFace(gate, entity,
-                middle) && !standsOn(gate, entity);
+        return gate.dimension().equals(entity.level().dimension()) && gate.covers(pos)
+                && opensToPath(gate, middle, entity.getDeltaMovement(), entity.getBbWidth()) && !standsOn(gate, entity);
     }
 
     /**
@@ -209,6 +211,26 @@ public final class GatePassage {
         }
     }
 
+    /**
+     * Whether a gate's blocks stand open to a body by where it stands and
+     * where it moves this tick.
+     *
+     * @param gate   the gate
+     * @param middle the body's middle
+     * @param motion the body's motion this tick
+     * @param width  the body's width
+     * @return true where the body passes into the gate's blocks
+     */
+    static boolean opensToPath(Gate gate, Vec3 middle, Vec3 motion, double width) {
+        double out = gate.out(middle);
+        if (out > -DEEPEST && out < APPROACH + width && gate.withinOval(middle)) {
+            return true;
+        }
+        // aim-and-shots-carry-through-linked-gates: a fast body, a projectile, may reach the face only by its path
+        double after = gate.out(middle.add(motion));
+        return out > 0 && after <= 0 && gate.withinOval(middle.lerp(middle.add(motion), out / (out - after)));
+    }
+
     private static boolean atTheFace(Gate gate, Entity entity, Vec3 middle) {
         double out = gate.out(middle);
         return out > -DEEPEST && out < APPROACH + entity.getBbWidth() && gate.withinOval(middle);
@@ -258,7 +280,7 @@ public final class GatePassage {
         if (level == null || target == null) {
             return;
         }
-        for (Entity entity : level.getEntities((Entity) null, near.blocks().inflate(APPROACH + 1),
+        for (Entity entity : level.getEntities((Entity) null, near.blocks().inflate(APPROACH + 1 + FASTEST_TICK),
                 body -> body.isAlive() && !(body instanceof Player))) {
             Vec3 middle = entity.getBoundingBox().getCenter();
             Vec3 before = lastMiddles.get(entity.getUUID());
