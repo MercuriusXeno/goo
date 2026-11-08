@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.knownitems;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlayRenderer.Drawn;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlayRenderer.ItemIcon;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlayRenderer.KnownItem;
-import com.mercuriusxeno.goo.network.GhostItemPickPayload;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -241,9 +240,7 @@ class KnownItemsOverlayRendererTest {
         @Test
         void clickOnAnIconPicksThatItem() {
             ItemIcon sand = icons.get(2);
-            GhostItemPickPayload pick = KnownItemsOverlayRenderer.pickAt(icons, sand.left() + 1, sand.top() + 1);
-            assertNotNull(pick);
-            assertEquals(SAND, pick.item());
+            assertEquals(SAND, KnownItemsOverlayRenderer.pickAt(icons, sand.left() + 1, sand.top() + 1));
         }
 
         @Test

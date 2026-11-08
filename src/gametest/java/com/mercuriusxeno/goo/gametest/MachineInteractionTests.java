@@ -18,7 +18,7 @@ import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GhostItem;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.lab.LabKit;
-import com.mercuriusxeno.goo.network.GhostItemPickHandler;
+import com.mercuriusxeno.goo.network.PlexerTargetPickHandler;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -64,13 +64,11 @@ public final class MachineInteractionTests {
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
-    private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
+    private static final String IX_PLEXER_PICK_SETS_TARGET = "ix_plexer_pick_sets_target";
     private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
     private static final String IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN = "ix_plexer_fizzles_until_lab_learn";
-    private static final String IX_PLEXER_GHOST_TARGET = "ix_ghost_targets_the_plexer";
     private static final String IX_GHOST_ENTITY_NEVER_JOINS = "ix_ghost_entity_never_joins";
     private static final String IX_GHOST_STANDS_FOR_ITS_ITEM = "ix_ghost_stands_for_its_item";
-    private static final String IX_GHOST_PICK_PLACES_IN_HAND = "ix_ghost_pick_places_in_hand";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -88,13 +86,11 @@ public final class MachineInteractionTests {
         GooTestFunctions.registerTest(registrar, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
         GooTestFunctions.registerTest(registrar, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         GooTestFunctions.registerTest(registrar, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
-        GooTestFunctions.registerTest(registrar, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
+        GooTestFunctions.registerTest(registrar, IX_PLEXER_PICK_SETS_TARGET, MachineInteractionTests::plexerPickSetsTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN, MachineInteractionTests::plexerFizzlesOnAKitPlayerUntilLabLearn);
-        GooTestFunctions.registerTest(registrar, IX_PLEXER_GHOST_TARGET, MachineInteractionTests::plexerTargetsAGhostItem);
         GooTestFunctions.registerTest(registrar, IX_GHOST_ENTITY_NEVER_JOINS, MachineInteractionTests::ghostItemEntityNeverJoins);
         GooTestFunctions.registerTest(registrar, IX_GHOST_STANDS_FOR_ITS_ITEM, MachineInteractionTests::ghostItemStandsForItsItem);
-        GooTestFunctions.registerTest(registrar, IX_GHOST_PICK_PLACES_IN_HAND, MachineInteractionTests::ghostPickPlacesInTheEmptyHand);
         GooTestFunctions.registerTest(registrar, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
@@ -266,31 +262,28 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Plexer: an item clicked into the cutaway becomes the target through the dispatcher,
-     * and an empty-hand click on the cutaway clears it; neither click sends the player a
-     * message (decisions plexer-target-shows-in-a-hud-element, plexer-messages-go-and-refusal-fizzles).
+     * Plexer: a menu pick of an item the player knows sets that plexer's target and sends no message;
+     * a pick of an item the player has not learned leaves the target empty
+     * (decisions right-click-on-the-plexer-opens-the-known-items-menu, plexer-messages-go-and-refusal-fizzles).
      *
      * @param helper the gametest helper
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void plexerSetTarget(GameTestHelper helper) {
+    public static void plexerPickSetsTarget(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
         PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
         player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
-        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
         PacketRecorder recorder = PacketRecorder.attachTo(player);
 
         try {
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            pick(helper, player, Items.DIRT);
+            helper.assertTrue(plexer.getTargetItem().isEmpty(), "A pick of an unlearned item should leave the target empty");
+
+            pick(helper, player, Items.STONE);
             helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
             assertNoMessage(helper, recorder, "Setting the target");
-
-            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
-            helper.assertTrue(plexer.getTargetItem().isEmpty(), "An empty-hand cutaway click should clear the target");
-            assertNoMessage(helper, recorder, "Clearing the target");
         } finally {
             helper.getLevel().getServer().getPlayerList().remove(player);
         }
@@ -298,47 +291,14 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Plexer: a ghost of a known item used on the cutaway targets that item and leaves the hand empty;
-     * a sneak use targets it and keeps the ghost; a ghost of an item with no goo value fizzles and
-     * stays in hand (decision ghost-item-targets-the-plexer-sneak-keeps-throw-deletes).
+     * Sends the plexer at the test's position a menu pick of an item, as its menu does.
      *
      * @param helper the gametest helper
+     * @param player the picking player
+     * @param item   the item picked
      */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void plexerTargetsAGhostItem(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
-        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
-        Identifier stone = PlayerKnowledge.idOf(Items.STONE);
-        Identifier bedrock = PlayerKnowledge.idOf(Items.BEDROCK);
-        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(stone).with(bedrock));
-
-        try {
-            player.setItemInHand(InteractionHand.MAIN_HAND, GhostItem.of(stone));
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
-            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), "A ghost of stone should target stone");
-            helper.assertTrue(player.getMainHandItem().isEmpty(), "A plain ghost use should leave the hand empty");
-
-            plexer.setTargetItem(ItemStack.EMPTY);
-            player.setItemInHand(InteractionHand.MAIN_HAND, GhostItem.of(stone));
-            player.setShiftKeyDown(true);
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
-            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), "A sneak ghost use should target stone");
-            helper.assertTrue(stone.equals(GhostItem.represented(player.getMainHandItem())),
-                    "A sneak ghost use should keep the ghost in hand");
-
-            plexer.setTargetItem(ItemStack.EMPTY);
-            player.setShiftKeyDown(false);
-            player.setItemInHand(InteractionHand.MAIN_HAND, GhostItem.of(bedrock));
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
-            helper.assertTrue(plexer.getTargetItem().isEmpty(), "A ghost of bedrock should fizzle");
-            helper.assertTrue(bedrock.equals(GhostItem.represented(player.getMainHandItem())),
-                    "A refused ghost should stay in hand");
-        } finally {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-        }
-        helper.succeed();
+    private static void pick(GameTestHelper helper, ServerPlayer player, Item item) {
+        PlexerTargetPickHandler.pick(player, helper.absolutePos(BE_POS), PlayerKnowledge.idOf(item));
     }
 
     /**
@@ -381,29 +341,6 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * A known items pick of stone by a player who knows stone places a ghost of stone in their
-     * empty main hand (decision menu-places-a-ghost-item-in-the-empty-hand).
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void ghostPickPlacesInTheEmptyHand(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Identifier stone = PlayerKnowledge.idOf(Items.STONE);
-        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(stone));
-        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        try {
-            GhostItemPickHandler.place(player, stone);
-            helper.assertTrue(stone.equals(GhostItem.represented(player.getMainHandItem())),
-                    "A pick of stone should place a ghost of stone in the main hand, held "
-                            + player.getMainHandItem());
-        } finally {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-        }
-        helper.succeed();
-    }
-
-    /**
      * The player has been sent no chat or overlay message since the recorder attached.
      *
      * @param helper   the gametest helper
@@ -431,25 +368,22 @@ public final class MachineInteractionTests {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         // The server sends particles and sounds only to players near them, so the player stands beside the plexer.
         player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
-        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
         PacketRecorder recorder = PacketRecorder.attachTo(player);
 
         try {
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            pick(helper, player, Items.STONE);
             helper.assertTrue(plexer.getTargetItem().isEmpty(),
                     "Plexer should refuse a target the player has not learned");
             assertRefusalCue(helper, plexer, recorder, 1);
 
             // Bedrock holds no goo value, so the plexer cannot take it even from a player who knows it.
             player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.BEDROCK)));
-            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BEDROCK));
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            pick(helper, player, Items.BEDROCK);
             helper.assertTrue(plexer.getTargetItem().isEmpty(), "Plexer should refuse an item with no goo value");
             assertRefusalCue(helper, plexer, recorder, 2);
 
-            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
             player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            pick(helper, player, Items.STONE);
             helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
         } finally {
             helper.getLevel().getServer().getPlayerList().remove(player);
@@ -459,7 +393,7 @@ public final class MachineInteractionTests {
 
     /**
      * Plexer: a player who takes the lab kit still knows nothing, so the plexer fizzles
-     * on stone; after the learn route the same click sets the target, and after the
+     * on stone; after the learn route the same pick sets the target, and after the
      * forget route it fizzles again (decision lab-kit-teaches-every-recipe).
      *
      * @param helper the gametest helper
@@ -474,18 +408,17 @@ public final class MachineInteractionTests {
         PacketRecorder recorder = PacketRecorder.attachTo(player);
 
         try {
-            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            pick(helper, player, Items.STONE);
             helper.assertTrue(plexer.getTargetItem().isEmpty(), "A kit player should not know stone yet");
             assertRefusalCue(helper, plexer, recorder, 1);
 
             LabKit.learn(player, helper.getLevel());
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            pick(helper, player, Items.STONE);
             helper.assertTrue(plexer.getTargetItem().is(Items.STONE), "After learn the plexer should take stone");
 
             plexer.setTargetItem(ItemStack.EMPTY);
             LabKit.forget(player);
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            pick(helper, player, Items.STONE);
             helper.assertTrue(plexer.getTargetItem().isEmpty(), "After forget the plexer should refuse stone again");
             assertRefusalCue(helper, plexer, recorder, 2);
         } finally {

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
 import com.mercuriusxeno.goo.client.ClientKnownItems;
-import com.mercuriusxeno.goo.network.GhostItemPickPayload;
+import com.mercuriusxeno.goo.network.PlexerTargetPickPayload;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -11,9 +11,11 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -37,6 +39,7 @@ public final class KnownItemsOverlay extends Screen {
     private static final int ROW_UP = -1;
     private static final int ROW_DOWN = 1;
 
+    private final @Nullable BlockPos plexer;
     private final List<KnownItemsOverlayRenderer.KnownItem> ordered;
     private final Locale locale;
     private final SearchInput search;
@@ -44,18 +47,40 @@ public final class KnownItemsOverlay extends Screen {
     private KnownItemsOverlayRenderer.@Nullable Drawn drawn;
     private boolean draggingThumb;
 
-    private KnownItemsOverlay(List<KnownItemsOverlayRenderer.KnownItem> ordered, Locale locale,
-                              boolean openingKeyHeld) {
+    private KnownItemsOverlay(@Nullable BlockPos plexer, List<KnownItemsOverlayRenderer.KnownItem> ordered,
+                              Locale locale, boolean openingKeyHeld) {
         super(Component.empty());
+        this.plexer = plexer;
         this.ordered = ordered;
         this.locale = locale;
         this.search = new SearchInput(openingKeyHeld);
     }
 
     /**
-     * Opens the overlay over the items the client's player knows, in the selected language's order.
+     * Opens the overlay for a plexer, whose target a pick sets.
+     * decision right-click-on-the-plexer-opens-the-known-items-menu
+     *
+     * @param plexer the plexer's position
      */
-    public static void open() {
+    public static void open(BlockPos plexer) {
+        open(plexer, false);
+    }
+
+    /**
+     * Opens the overlay from the known items key, for no plexer.
+     */
+    public static void openFromKey() {
+        // No screen stands yet, so the mapping's down state still follows a release a quick tap made.
+        open(null, KnownItemsKey.MAPPING.isDown());
+    }
+
+    /**
+     * Opens the overlay over the items the client's player knows, in the selected language's order.
+     *
+     * @param plexer         the plexer a pick targets, or null for none
+     * @param openingKeyHeld whether a key that opened the overlay is still down
+     */
+    private static void open(@Nullable BlockPos plexer, boolean openingKeyHeld) {
         Minecraft mc = Minecraft.getInstance();
         Locale locale = KnownItemsListing.localeOf(mc.getLanguageManager().getSelected());
         List<KnownItemsOverlayRenderer.KnownItem> known = ClientKnownItems.current().items().stream()
@@ -63,9 +88,7 @@ public final class KnownItemsOverlay extends Screen {
                         new ItemStack(BuiltInRegistries.ITEM.getValue(id))))
                 .filter(item -> !item.stack().isEmpty())
                 .toList();
-        // No screen stands yet, so the mapping's down state still follows a release a quick tap made.
-        mc.setScreen(new KnownItemsOverlay(KnownItemsListing.order(known, locale), locale,
-                KnownItemsKey.MAPPING.isDown()));
+        mc.setScreen(new KnownItemsOverlay(plexer, KnownItemsListing.order(known, locale), locale, openingKeyHeld));
     }
 
     /**
@@ -106,13 +129,13 @@ public final class KnownItemsOverlay extends Screen {
             dragThumbTo(track, event.y());
             return true;
         }
-        GhostItemPickPayload pick = KnownItemsOverlayRenderer.pickAt(drawn.icons(), event.x(), event.y());
+        Identifier pick = KnownItemsOverlayRenderer.pickAt(drawn.icons(), event.x(), event.y());
         if (pick == null) {
             return super.mouseClicked(event, doubleClick);
         }
         var connection = Minecraft.getInstance().getConnection();
-        if (connection != null) {
-            connection.send(new ServerboundCustomPayloadPacket(pick));
+        if (connection != null && plexer != null) {
+            connection.send(new ServerboundCustomPayloadPacket(new PlexerTargetPickPayload(plexer, pick)));
         }
         onClose();
         return true;
