@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Held self + brew effects: each pays its upkeep per tick after its start tick, ends when it cannot pay or is ended, and a heart-changing start ends any other heart-changing effect (decision self-effects-trickle-until-ended). */
+/** Held durative effects: each pays its upkeep per tick after its start tick, ends when it cannot pay or is ended, and a heart-changing start ends any other heart-changing effect (decision self-effects-trickle-until-ended). */
 class HeldEffectsTest {
 
     private static final long STARTED = 100L;
@@ -73,22 +73,6 @@ class HeldEffectsTest {
             assertEquals(List.of(KINDLE), ticked.ended().stream().map(HeldEffects.Held::ability).toList());
             assertTrue(ticked.after().isEmpty());
             assertEquals(Map.of(), ticked.drawn());
-        }
-
-        @Test
-        void aPrepaidEffectPaysNothingAndEndsAtItsExpiry() {
-            // brew-runs-the-crawl-prepaid-on-a-shown-clock
-            long expiresAt = STARTED + 100;
-            HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP,
-                    Set.of(LaidState.HEART_OVERLAY), STARTED, expiresAt);
-            HeldEffects held = holding(brewed);
-            HeldEffects.Ticked before = held.tick(type -> 0, expiresAt - 1);
-            assertEquals(Map.of(), before.drawn());
-            assertSame(held, before.after());
-            HeldEffects.Ticked atEnd = held.tick(type -> 0, expiresAt);
-            assertEquals(List.of(brewed), atEnd.ended());
-            assertTrue(brewed.prepaid());
-            assertFalse(hearts(KINDLE, GooTypes.BLAZE).prepaid());
         }
 
         @Test
@@ -155,7 +139,7 @@ class HeldEffectsTest {
         }
     }
 
-    /** The effect list shows each glove effect's time left: its type's goo over the upkeep drawn a tick (decision brew-runs-the-crawl-prepaid-on-a-shown-clock). */
+    /** The effect list shows each glove effect's time left: its type's goo over the upkeep drawn a tick (decision self-effects-trickle-until-ended). */
     @Nested
     class TimeLeft {
 
@@ -196,13 +180,6 @@ class HeldEffectsTest {
             assertEquals(Map.of(GooTypes.BLAZE, (int) (3000 / 1.5), GooTypes.PULSE, 3000),
                     held.ticksLeft(type -> 3000));
         }
-
-        @Test
-        void aPrepaidBrewCountsNoUpkeep() {
-            HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP,
-                    Set.of(LaidState.HEART_OVERLAY), STARTED, STARTED + 100);
-            assertEquals(Map.of(), holding(brewed).ticksLeft(type -> 2000));
-        }
     }
 
     /** Every end plays the ended effect's down cue once (decision held-effects-sound-up-and-down). */
@@ -236,11 +213,11 @@ class HeldEffectsTest {
         }
 
         @Test
-        void aPrepaidExpiryPlaysTheAbilitysOwnCueOnce() {
+        void runningDryPlaysTheAbilitysOwnCueOnce() {
             SoundCue own = SoundCue.of(Identifier.withDefaultNamespace("block.fire.extinguish"));
-            HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, GooFraction.of(UPKEEP),
-                    Set.of(LaidState.HEART_OVERLAY), STARTED, STARTED + 10, own);
-            List<HeldEffects.Held> ended = holding(brewed).tick(type -> 0, STARTED + 10).ended();
+            HeldEffects.Held kindle = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, GooFraction.of(UPKEEP),
+                    Set.of(LaidState.HEART_OVERLAY), STARTED, own);
+            List<HeldEffects.Held> ended = holding(kindle).tick(type -> 0, STARTED + 1).ended();
             assertEquals(List.of(own.sound()), playedIds(ended));
         }
     }
@@ -253,14 +230,13 @@ class HeldEffectsTest {
         assertEquals(Set.of(), LaidState.laidBy(List.of()));
     }
 
-    /** Extender's two forms (decision extender-multiplies-the-next-self-duration). */
+    /** The Extender held beside other effects (decision extender-multiplies-the-next-self-duration). */
     @Nested
     class Extender {
 
         private static final Identifier EXTENDER = Identifier.fromNamespaceAndPath("goo", "pulse_extender");
         private static final int TICKS = 20;
         private static final int PLENTY = 1000;
-        private static final long BREW = 1200L;
 
         private HeldEffects.Held gloveExtender() {
             return new HeldEffects.Held(EXTENDER, GooTypes.PULSE, UPKEEP, Set.of(LaidState.EXTENDER), STARTED);
@@ -290,29 +266,12 @@ class HeldEffectsTest {
         }
 
         @Test
-        void thePulseBrewLengthensEachOtherPrepaidBrewFlat() {
-            HeldEffects.Held kindle = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED,
-                    STARTED + BREW);
-            HeldEffects.Held drunk = new HeldEffects.Held(EXTENDER, GooTypes.PULSE, UPKEEP,
-                    Set.of(LaidState.EXTENDER), STARTED, STARTED + BREW);
-            HeldEffects extended = holding(kindle, drunk).extendPrepaid(BREW);
-            assertEquals(STARTED + 2 * BREW, extended.held().get(0).expiresAt());
-            assertEquals(STARTED + BREW, extended.held().get(1).expiresAt());
-            assertEquals(BREW, extended.extensionTicks());
-        }
-
-        @Test
         void aGloveExtenderDoublesEachOtherEffectsTimeLeftUntilItEnds() {
             HeldEffects held = holding(gloveExtender(), hearts(KINDLE, GooTypes.BLAZE));
             assertEquals(2 * PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
             assertEquals(PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.PULSE));
             HeldEffects ended = held.end(EXTENDER).after();
             assertEquals(PLENTY / UPKEEP, ended.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
-        }
-
-        @Test
-        void aGloveExtenderLengthensNothingApplied() {
-            assertEquals(0, holding(gloveExtender()).extensionTicks());
         }
     }
 }

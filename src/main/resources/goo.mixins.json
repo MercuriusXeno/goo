@@ -23,7 +23,6 @@
     "ClientPacketListenerGooMixin",
     "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
-    "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",
     "PlayerModelAbilityPoseMixin",

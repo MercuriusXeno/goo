@@ -2,7 +2,7 @@
   "gooType": "rock",
   "displayName": "goo.ability.rock.stoneskin",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
-  "badge": "brew",
+  "badge": "durative",
   "order": 50,
   "upkeep": 1,
   "requires": ["minecraft:deepslate"],

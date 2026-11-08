@@ -62,16 +62,4 @@ public record Lifetap(float fraction, long expiresAt) {
         return new Lifetap(castFraction, NEVER_EXPIRES);
     }
 
-    /**
-     * A drunk brew: the lifetap stands for the brew's duration, or as long as
-     * it already stood where that is longer.
-     *
-     * @param brewFraction the brew's leech fraction
-     * @param ticks        the brew's duration
-     * @param gameTime     the game time of the drink
-     * @return the lifetap after the drink
-     */
-    public Lifetap brew(float brewFraction, int ticks, long gameTime) {
-        return new Lifetap(brewFraction, Math.max(expiresAt, gameTime + ticks));
-    }
 }

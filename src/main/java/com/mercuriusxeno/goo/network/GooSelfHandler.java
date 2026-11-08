@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
@@ -30,13 +29,12 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 /**
  * Server side of a self delivery: nothing leaves the hand. A self ability
  * wearing the self badge runs on command: its cost at stack zero drains and
- * its programs run on the invoking player the tick it is invoked. A self +
- * brew ability, one wearing the brew badge, starts the player eating the
+ * its programs run on the invoking player the tick it is invoked. A durative
+ * ability, one wearing the durative badge, starts the player eating the
  * glove instead, and when the eat finishes its programs run and the effect is
  * held, paying its upkeep each tick after; an eat let go or interrupted
  * before then runs nothing and drains nothing, and the eat replaces the throw
@@ -55,7 +53,7 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Delivers a self ability: a self + brew ability starts the eat, a
+     * Delivers a self ability: a durative ability starts the eat, a
      * channel runs only through its held ticks and so nothing here
      * (decision flatten-disc-cursor-breaks-above-the-plane), every other
      * runs on command with the throw sound.
@@ -111,12 +109,12 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Starts the eat for a self + brew ability the player can afford, in the
+     * Starts the eat for a durative ability the player can afford, in the
      * hand holding the glove; a player short of a tick's upkeep starts no eat.
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
-     * @param ability the self + brew ability
+     * @param ability the durative ability
      */
     private static void beginEating(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
@@ -147,7 +145,7 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Starts a held self + brew effect with no one-shot drain and runs its
+     * Starts a held durative effect with no one-shot drain and runs its
      * programs on the player, when the player holds a tick's upkeep. The
      * effect is held before the programs run, so a heart-changing effect it
      * replaces clears before its own hearts lay.
@@ -155,7 +153,7 @@ public final class GooSelfHandler {
      *
      * @param player  the eating player
      * @param gooType the ability's goo type
-     * @param ability the self + brew ability
+     * @param ability the durative ability
      */
     private static void hold(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
@@ -251,24 +249,6 @@ public final class GooSelfHandler {
                 .flatMap(Step::refusal).ifPresent(host::playSound);
     }
 
-    /**
-     * Runs a drunk brew: the type's brew ability starts prepaid, the same
-     * held effect and program the glove runs, for the brew's duration with no
-     * goo drained. A type with no brew ability yet runs nothing.
-     * decision brew-grants-the-self-ability-for-an-hour
-     * decision brew-runs-the-crawl-prepaid-on-a-shown-clock
-     *
-     * @param player   the drinking player
-     * @param gooType  the brew's goo type
-     * @param duration the brew's duration in ticks
-     */
-    public static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int duration) {
-        AbilityDefinition ability = AbilityRegistry.of(player.level()).brewAbilityFor(gooType);
-        if (ability != null) {
-            HeldEffectsEvents.startPrepaid(player, gooType, ability, duration);
-            runOn(new PlayerHost(player.level(), player, OptionalInt.of(duration)), ability);
-        }
-    }
 
     /**
      * Runs an ability's programs on a player host, logging a program the host refuses.

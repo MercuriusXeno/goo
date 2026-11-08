@@ -257,7 +257,7 @@ public final class GloveUseTracker {
      * (decision self-brew-goos-eat-before-the-effect).
      *
      * @param player the local player
-     * @return true for a self + brew selection
+     * @return true for a durative selection
      */
     private static boolean selectedEats(LocalPlayer player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);

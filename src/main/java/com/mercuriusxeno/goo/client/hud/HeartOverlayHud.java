@@ -426,7 +426,7 @@ public final class HeartOverlayHud {
         BarLayout layout = layout(graphics, gui, player, frame.leftHeightBefore());
         SlotPainter painter = new SlotPainter(graphics, overlay, gui.getGuiTicks(), frame.partialTick(),
                 RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()),
-                warningAlpha(player, gui.getGuiTicks() + frame.partialTick()) * painted.alpha(), painted.alpha());
+                painted.alpha(), painted.alpha());
         int slots = painted.slots(health);
         for (int slot = 0; slot < slots; slot++) {
             painter.paint(slot, layout.x(slot), layout.y(slot),
@@ -438,21 +438,6 @@ public final class HeartOverlayHud {
         }
     }
 
-    /**
-     * The opacity the overlay's sprites pulse at while a prepaid heart brew
-     * is inside its last thirty seconds, whole otherwise.
-     * brew-runs-the-crawl-prepaid-on-a-shown-clock
-     *
-     * @param player  the local player
-     * @param guiTime the gui time, fraction included
-     * @return the opacity, zero to one
-     */
-    private static float warningAlpha(LocalPlayer player, float guiTime) {
-        long now = player.level().getGameTime();
-        boolean warning = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
-                .anyMatch(effect -> effect.changesHearts() && BrewClock.warns(effect.expiresAt(), now));
-        return BrewClock.pulseAlpha(warning, guiTime);
-    }
 
     /**
      * The heart slots the overlay paints: those real health fills, and for
@@ -548,7 +533,7 @@ public final class HeartOverlayHud {
      * @param guiTicks    the gui tick
      * @param partialTick the fraction of the tick elapsed
      * @param crawl       the half regrowing now, if any
-     * @param alpha       the opacity the sprites draw at, pulsing as a prepaid brew nears its end
+     * @param alpha       the opacity the sprites draw at
      * @param fade        the overlay's strength, whole while it stands and falling once its effect ends
      */
     private record SlotPainter(GuiGraphicsExtractor graphics, HeartOverlay overlay, int guiTicks, float partialTick,

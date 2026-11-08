@@ -6,11 +6,13 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooEntities;
+import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -30,6 +32,8 @@ public final class MonstrosityTests {
     private static final String DROPS_XENO = "monstrosity_drops_xeno";
 
     private static final Identifier PHASE = Identifier.parse("goo:quantum_phase");
+    private static final Identifier XENO_ELDRITCH = Identifier.parse("goo:xeno_eldritch");
+    private static final int HELD_XENO = 3;
     private static final BlockPos MONSTROSITY_POS = new BlockPos(3, 1, 3);
     private static final float HIT = 4.0F;
     private static final float KILLING_HIT = 1000.0F;
@@ -73,14 +77,16 @@ public final class MonstrosityTests {
     }
 
     /**
-     * A free-willed monstrosity beside a player under the xeno brew takes
+     * A free-willed monstrosity beside a player holding Eldritch Sight on the glove takes
      * that player as its target through its own goals.
      *
      * @param helper the gametest helper
      */
     public static void monstrosityHuntsTheEldritch(GameTestHelper helper) {
         ServerPlayer eldritch = SurvivalPlayers.placeIn(helper);
-        BrewEffectTests.drink(eldritch, GooTypes.XENO);
+        eldritch.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        eldritch.getInventory().add(GooStacks.createForOutput(GooTypes.XENO, HELD_XENO * GooStacks.THOUSAND));
+        HeartOverlayTests.invoke(eldritch, GooTypes.XENO, XENO_ELDRITCH);
         EldritchMonstrosity monstrosity = helper.spawn(GooEntities.ELDRITCH_MONSTROSITY.get(), MONSTROSITY_POS);
         helper.succeedWhen(() -> {
             helper.assertTrue(monstrosity.getTarget() == eldritch,

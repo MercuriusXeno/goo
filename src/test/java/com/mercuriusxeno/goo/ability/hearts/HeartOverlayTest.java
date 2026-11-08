@@ -67,16 +67,16 @@ class HeartOverlayTest {
         @Test
         void kindleAshesEveryHeartAndEmbersOne() {
             // heart-effects-crawl-while-held
-            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW);
+            HeartOverlay overlay = HeartOverlay.NONE.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW);
             List<Integer> ashBehindOne = new ArrayList<>(Collections.nCopies(10, 0));
             ashBehindOne.set(0, HeartOverlay.FULL_SHIELD);
             assertEquals(ashBehindOne, overlay.shields());
-            assertEquals(NOW + DURATION, overlay.expiresAt());
+            assertEquals(HeartOverlay.NEVER_EXPIRES, overlay.expiresAt());
         }
 
         @Test
         void kindleReignitesTheNextHeartPastItsIntervalUntilAllAreEmber() {
-            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW);
+            HeartOverlay overlay = HeartOverlay.NONE.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW);
             HeartOverlay oneHalfOn = tickedThrough(overlay, FULL_HEALTH, overlay.regrowAt());
             assertEquals(1, oneHalfOn.shieldAt(1));
             assertEquals(0, oneHalfOn.shieldAt(2));
@@ -85,16 +85,10 @@ class HeartOverlayTest {
 
         @Test
         void missingHeartStaysMissing() {
-            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.KINDLE, DURATION, 13f, NOW);
+            HeartOverlay overlay = HeartOverlay.NONE.hold(HeartKind.KINDLE, 13f, 13f, HeartOverlay.WHOLE_HIT, NOW);
             assertEquals(7, overlay.shields().size());
             assertEquals(14, tickedThrough(overlay, 13f, NOW + DURATION - 1).shieldHalves());
             assertEquals(0, overlay.shieldAt(7));
-        }
-
-        @Test
-        void sameKindAgainAddsNoDuration() {
-            HeartOverlay broken = kindled(FULL_HEALTH).drain(1f, NOW).overlay();
-            assertSame(broken, broken.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW));
         }
 
         @Test
@@ -112,19 +106,18 @@ class HeartOverlayTest {
             HeartOverlay held = HeartOverlay.NONE.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH,
                     HeartOverlay.WHOLE_HIT, NOW).drain(1f, NOW).overlay();
             assertSame(held, held.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW + 1));
-            assertSame(held, held.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW + 1));
         }
 
         @Test
         void anotherKindReplacesTheStandingOverlayFromOneHeart() {
             HeartOverlay spent = kindled(FULL_HEALTH).drain(5f, NOW).overlay()
                     .burn(1f, FULL_HEALTH, NOW + 1).overlay();
-            HeartOverlay barked = spent.apply(HeartKind.BARKSKIN, DURATION, 18f, NOW + 2);
+            HeartOverlay barked = spent.hold(HeartKind.BARKSKIN, 18f, 18f, HeartOverlay.WHOLE_HIT, NOW + 2);
             assertEquals(HeartKind.BARKSKIN, barked.kind());
             List<Integer> oneBark = new ArrayList<>(Collections.nCopies(9, 0));
             oneBark.set(0, HeartOverlay.FULL_SHIELD);
             assertEquals(oneBark, barked.shields());
-            assertEquals(NOW + 2 + DURATION, barked.expiresAt());
+            assertEquals(HeartOverlay.NEVER_EXPIRES, barked.expiresAt());
             assertEquals(NOW + 2, barked.fireReadyAt());
         }
     }
@@ -379,7 +372,7 @@ class HeartOverlayTest {
         @Test
         void barkskinStartsWithOneBarkHeartAndBarksEachFurtherHeart() {
             // heart-effects-crawl-while-held
-            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, DURATION, FULL_HEALTH, NOW);
+            HeartOverlay overlay = HeartOverlay.NONE.hold(HeartKind.BARKSKIN, FULL_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW);
             assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(0));
             assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldHalves());
             long interval = HeartKind.BARKSKIN.regrowInterval(0);
@@ -442,7 +435,7 @@ class HeartOverlayTest {
         }
 
         private HeartOverlay freshAtSix() {
-            return HeartOverlay.NONE.apply(HeartKind.STONESKIN, DURATION, SIX_HEALTH, FULL_HEALTH, DAMAGE_TAKEN, NOW);
+            return HeartOverlay.NONE.hold(HeartKind.STONESKIN, SIX_HEALTH, FULL_HEALTH, DAMAGE_TAKEN, NOW);
         }
 
         @Test
@@ -458,8 +451,7 @@ class HeartOverlayTest {
         @Test
         void stoneFillsTheEmptyHalfOfAHalfHeartFirst() {
             // heart-effects-crawl-while-held: five health leaves heart three half full
-            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.STONESKIN, DURATION, 5f, FULL_HEALTH,
-                    DAMAGE_TAKEN, NOW);
+            HeartOverlay overlay = HeartOverlay.NONE.hold(HeartKind.STONESKIN, 5f, FULL_HEALTH, DAMAGE_TAKEN, NOW);
             assertEquals(1, overlay.shieldAt(2));
             assertEquals(1, overlay.shieldHalves());
             long interval = HeartKind.STONESKIN.regrowInterval(0);
@@ -510,8 +502,8 @@ class HeartOverlayTest {
 
         @Test
         void stoneFillsOnlyTheMissingHearts() {
-            HeartOverlay whole = tickedThrough(HeartOverlay.NONE.apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH,
-                    FULL_HEALTH, DAMAGE_TAKEN, NOW), HALF_HEALTH, NOW + DURATION - 1);
+            HeartOverlay whole = tickedThrough(HeartOverlay.NONE.hold(HeartKind.STONESKIN, HALF_HEALTH, FULL_HEALTH,
+                    DAMAGE_TAKEN, NOW), HALF_HEALTH, NOW + DURATION - 1);
             assertEquals(MISSING_HALVES, whole.shieldHalves());
             assertEquals(0, whole.shieldAt(4));
             assertEquals(HeartOverlay.FULL_SHIELD, whole.shieldAt(5));
@@ -552,12 +544,6 @@ class HeartOverlayTest {
             assertTrue(stoned().blocksHealing());
             assertTrue(stoned().drainScaled(30f, DAMAGE_TAKEN, NOW).overlay().blocksHealing());
             assertFalse(barked(FULL_HEALTH).blocksHealing());
-        }
-
-        @Test
-        void drinkingAgainAddsNoDuration() {
-            HeartOverlay stone = stoned();
-            assertSame(stone, stone.apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH, FULL_HEALTH, DAMAGE_TAKEN, NOW));
         }
     }
 

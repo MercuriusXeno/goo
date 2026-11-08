@@ -23,8 +23,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for xeno's Eldritch Sight: an out-of-phase zombie takes a
- * player for its target only while that player is eldritch, whether by
- * the held ability or the brew, and turns from a plain player, the way an
+ * player for its target only while that player holds the ability, and turns
+ * from a plain player, the way an
  * in-phase zombie does not.
  * eldritch-sight-reveals-the-out-of-phase
  */
@@ -49,7 +49,6 @@ public final class EldritchTests {
     private static final Identifier XENO_ELDRITCH = Identifier.parse("goo:xeno_eldritch");
     private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Eldritch Sight";
     private static final String SHOULD_TARGET_HELD = "An out-of-phase zombie should target the player holding Eldritch Sight, targeted %s";
-    private static final String SHOULD_TARGET_BREWED = "An out-of-phase zombie should target the player under the xeno brew, targeted %s";
     private static final String SHOULD_IGNORE_PLAIN = "An out-of-phase zombie should not target a plain player, targeted %s";
     private static final String SHOULD_IGNORE_ENDED = "An out-of-phase zombie should not target a player whose Eldritch Sight ended, targeted %s";
     private static final String IN_PHASE_SHOULD_TARGET = "An in-phase zombie should target the plain player, targeted %s";
@@ -58,27 +57,21 @@ public final class EldritchTests {
     }
 
     /**
-     * A survival player eats Eldritch Sight from the glove and another drinks
-     * the xeno brew: an out-of-phase zombie offered each player takes each
-     * one for its target.
+     * A survival player eats Eldritch Sight from the glove: an out-of-phase
+     * zombie offered the player takes it for its target.
      *
      * @param helper the gametest helper
      */
     public static void eldritchPlayerIsSeen(GameTestHelper helper) {
         ServerPlayer holder = eatenEldritch(helper);
         boolean held = holder.getData(GooAttachments.HELD_EFFECTS).holds(XENO_ELDRITCH);
-        ServerPlayer drinker = targetable(helper);
-        BrewEffectTests.drink(drinker, GooTypes.XENO);
         Zombie zombie = zombie(helper, true);
 
         LivingEntity heldTarget = offer(zombie, holder);
-        LivingEntity brewedTarget = offer(zombie, drinker);
         zombie.discard();
         helper.getLevel().getServer().getPlayerList().remove(holder);
-        helper.getLevel().getServer().getPlayerList().remove(drinker);
         helper.assertTrue(held, SHOULD_HOLD);
         helper.assertTrue(heldTarget == holder, String.format(SHOULD_TARGET_HELD, heldTarget));
-        helper.assertTrue(brewedTarget == drinker, String.format(SHOULD_TARGET_BREWED, brewedTarget));
         helper.succeed();
     }
 

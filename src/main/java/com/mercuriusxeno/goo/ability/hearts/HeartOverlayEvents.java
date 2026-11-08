@@ -204,10 +204,10 @@ public final class HeartOverlayEvents {
     /**
      * The share of a hit stone hearts take: an explosion or a pickaxe finds a
      * stone heart worth only half a heart, a physical hit, one armor checks,
-     * is reduced by the brew's multiplier, and any other hit lands whole.
+     * is reduced by the overlay's multiplier, and any other hit lands whole.
      *
      * @param source      the damage source
-     * @param damageTaken the brew's physical multiplier
+     * @param damageTaken the overlay's physical multiplier
      * @return the share of the hit the stone takes
      */
     static float stoneShare(DamageSource source, float damageTaken) {
