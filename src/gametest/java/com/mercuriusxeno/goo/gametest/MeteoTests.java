@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.MeteorStep;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.ability.world.MeteorFall;
-import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -27,15 +26,15 @@ import java.util.function.Consumer;
 
 /**
  * Gametests for Meteo: under a clear sky its meteor leaves its spawn height
- * at once, falls for about two seconds and blasts a crater at the target; under a roof the throw fizzles before it is paid
- * for, taking no goo and calling no meteor.
+ * at once, falls for about two seconds and blasts a crater at the target;
+ * under a roof the throw goes ahead, paid for, and calls a meteor.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
- * decision meteo-needs-a-clear-sky
+ * decision meteo-crashes-through-whatever-is-above
  */
 @RegistersGameTests
 public final class MeteoTests {
     private static final String METEO_STRIKES = "meteo_strikes_under_clear_sky";
-    private static final String METEO_FIZZLES = "meteo_fizzles_under_a_roof";
+    private static final String METEO_THROWN_UNDER_A_ROOF = "meteo_is_thrown_under_a_roof";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -44,7 +43,7 @@ public final class MeteoTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, METEO_STRIKES, MeteoTests::meteoStrikesUnderClearSky);
-        GooTestFunctions.registerTest(registrar, METEO_FIZZLES, MeteoTests::meteoFizzlesUnderARoof);
+        GooTestFunctions.registerTest(registrar, METEO_THROWN_UNDER_A_ROOF, MeteoTests::meteoIsThrownUnderARoof);
     }
 
 
@@ -74,8 +73,8 @@ public final class MeteoTests {
             + " %s, stands at %s";
     private static final String SHOULD_LAND = "The meteor should land within %d ticks of appearing";
     private static final String SUPPLY_REQUIRED = "The thrower should hold Meteo's cost, holds %d of %d";
-    private static final String SHOULD_NOT_PAY = "A roofed throw should cost nothing, cost %d";
-    private static final String SHOULD_NOT_FALL = "A roofed throw should call no meteor";
+    private static final String SHOULD_PAY = "A roofed throw should cost Meteo's %d, cost %d";
+    private static final String SHOULD_FALL_UNDER_A_ROOF = "A roofed throw should call a meteor over the cell";
 
     private MeteoTests() {
     }
@@ -93,7 +92,8 @@ public final class MeteoTests {
         BlockPos ground = helper.absolutePos(GROUND);
         level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
         openCageRoofOver(level, ground);
-        helper.assertTrue(MeteorSky.clearAbove(level, ground.above()), SKY_REQUIRED);
+        helper.assertTrue(level.getHeight(Heightmap.Types.MOTION_BLOCKING, ground.getX(), ground.getZ())
+                == ground.above().getY(), SKY_REQUIRED);
 
         MeteorStep step = meteo.behaviors().stream().filter(MeteorStep.class::isInstance)
                 .map(MeteorStep.class::cast).findFirst().orElse(null);
@@ -117,31 +117,35 @@ public final class MeteoTests {
     }
 
     /**
-     * Meteo thrown at ground under a stone roof fizzles: the thrower keeps
-     * every drop of goo and no meteor falls.
+     * Meteo thrown at ground under a stone roof goes ahead: the thrower pays
+     * its cost and a meteor falls over the cell.
+     * decision meteo-crashes-through-whatever-is-above
      *
      * @param helper the gametest helper
      */
-    public static void meteoFizzlesUnderARoof(GameTestHelper helper) {
+    public static void meteoIsThrownUnderARoof(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         AbilityDefinition meteo = AbilityRegistry.of(level).getAbility(ASTRAL_METEO);
         helper.assertTrue(meteo != null, ABILITY_REQUIRED);
         BlockPos ground = helper.absolutePos(GROUND);
         level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
+        openCageRoofOver(level, ground);
         level.setBlockAndUpdate(ground.above(ROOF_HEIGHT), Blocks.STONE.defaultBlockState());
         ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
         KnownRecipes.teachRequires(player, meteo);
         int held = astralHeld(player);
-        helper.assertTrue(held >= meteo.cost().in(GooValueTable.EMPTY), String.format(SUPPLY_REQUIRED, held, meteo.cost().in(GooValueTable.EMPTY)));
+        int cost = meteo.cost().in(GooValueTable.EMPTY);
+        helper.assertTrue(held >= cost, String.format(SUPPLY_REQUIRED, held, cost));
 
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ASTRAL), NO_TARGET_ENTITY,
                 ground, Direction.UP.ordinal(), false, ASTRAL_METEO.toString(), player.getEyePosition()));
 
         int spent = held - astralHeld(player);
-        helper.assertTrue(spent == 0, String.format(SHOULD_NOT_PAY, spent));
-        helper.assertTrue(meteorsOver(level, ground).isEmpty(), SHOULD_NOT_FALL);
-        level.getServer().getPlayerList().remove(player);
-        helper.succeed();
+        helper.assertTrue(spent == cost, String.format(SHOULD_PAY, cost, spent));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(!meteorsOver(level, ground).isEmpty(), SHOULD_FALL_UNDER_A_ROOF);
+            level.getServer().getPlayerList().remove(player);
+        });
     }
 
     /**
@@ -151,7 +155,7 @@ public final class MeteoTests {
      * @param level the level
      * @param cell  the cell
      */
-    private static void openCageRoofOver(ServerLevel level, BlockPos cell) {
+    public static void openCageRoofOver(ServerLevel level, BlockPos cell) {
         int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, cell.getX(), cell.getZ());
         for (BlockPos above = cell.above(); above.getY() < top; above = above.above()) {
             if (level.getBlockState(above).is(Blocks.BARRIER)) {
@@ -160,7 +164,14 @@ public final class MeteoTests {
         }
     }
 
-    private static java.util.List<Meteor> meteorsOver(ServerLevel level, BlockPos ground) {
+    /**
+     * The meteors falling over a cell, up to their spawn height.
+     *
+     * @param level  the level
+     * @param ground the cell
+     * @return the meteors over it
+     */
+    public static java.util.List<Meteor> meteorsOver(ServerLevel level, BlockPos ground) {
         return level.getEntitiesOfClass(Meteor.class, new AABB(ground).expandTowards(0, FALL_SEARCH, 0));
     }
 
