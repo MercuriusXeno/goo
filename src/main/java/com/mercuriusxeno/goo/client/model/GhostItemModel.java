@@ -17,6 +17,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.ItemOwner;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
@@ -41,6 +42,11 @@ public final class GhostItemModel implements ItemModel {
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
     private static final GhostItemModel INSTANCE = new GhostItemModel();
+
+    /** The half block a layer's item transform recenters by. */
+    private static final float RECENTER = 0.5f;
+    /** Moves a layer back by the half block its item transform recenters it. */
+    private static final Matrix4fc UNDO_RECENTER = new Matrix4f().translation(RECENTER, RECENTER, RECENTER);
 
     /** Draws the represented item's faded layers in place of the ghost's one layer. */
     static final SpecialModelRenderer<ItemStackRenderState> FADED_LAYERS = new FadedLayersRenderer();
@@ -67,6 +73,9 @@ public final class GhostItemModel implements ItemModel {
             output.setAnimated();
         }
         ItemStackRenderState.LayerRenderState layer = output.newLayer();
+        // Every item transform recenters a layer by half a block; the represented item's layers recenter
+        // themselves, so this layer undoes its own.
+        layer.setLocalTransform(UNDO_RECENTER);
         layer.setUsesBlockLight(layers.usesBlockLight());
         layer.setExtents(() -> extentsOf(layers));
         layer.setupSpecialModel(FADED_LAYERS, layers);
