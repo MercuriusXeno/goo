@@ -697,7 +697,9 @@ public final class PortalTests {
     /** How far from its landing cell a slime born through a pair may stand and still be in place. */
     private static final double IN_PLACE = 1.5;
     /** Ticks the slime is watched after the throw: its flight, its morph and a little life after. */
-    private static final int WATCHED_TICKS = 60;
+    private static final int WATCHED_TICKS = 100;
+    /** How far east of the bay the slime's far partner stands, within a mob's no-despawn reach of the thrower. */
+    private static final int SLIME_FAR = 24;
 
     /**
      * A Slime thrown through a linked pair at a floor past the partner is
@@ -713,10 +715,15 @@ public final class PortalTests {
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(WEIRD_SLIME));
         standAt(helper, player, A_BLOCK_OFF);
         Portal near = castAt(helper, player, FIRST, Direction.SOUTH);
-        BlockPos farBlock = helper.absolutePos(FIRST).east(FAR);
+        // A hostile mob with no player within 128 blocks despawns on its first tick, so the far side stands
+        // within the 32 blocks where no mob despawns at all.
+        BlockPos farBlock = helper.absolutePos(FIRST).east(SLIME_FAR);
         level.setBlockAndUpdate(farBlock, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(farBlock.above(), Blocks.STONE.defaultBlockState());
         BlockPos floor = farBlock.south(PAST_THE_PARTNER);
+        // The partner's tether holds only its own chunk; where the test lands it, the floor may stand in the next.
+        ChunkPos floorChunk = ChunkPos.containing(floor);
+        level.setChunkForced(floorChunk.x(), floorChunk.z(), true);
         level.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
         level.setBlockAndUpdate(floor.above(2), Blocks.AIR.defaultBlockState());
@@ -729,26 +736,22 @@ public final class PortalTests {
                 Direction.UP.ordinal(), false, WEIRD_SLIME.toString(), player.getEyePosition(),
                 landing).through(near.gate(), near.gate().center()));
         long thrownAt = helper.getTick();
-        List<String> strays = new java.util.ArrayList<>();
-        boolean[] born = {false};
+        // A slime hops about once alive, so the test reads where it first stands, its birth.
+        Vec3[] bornAt = {null};
         helper.onEachTick(() -> {
-            for (net.minecraft.world.entity.monster.Slime slime : level.getEntitiesOfClass(
-                    net.minecraft.world.entity.monster.Slime.class, new net.minecraft.world.phys.AABB(floor)
-                            .inflate(FAR))) {
-                born[0] = true;
-                double off = slime.position().distanceTo(landing);
-                if (off > IN_PLACE) {
-                    strays.add("tick " + (helper.getTick() - thrownAt) + " at " + slime.position() + ", "
-                            + off + " from the landing");
-                }
+            if (bornAt[0] == null) {
+                level.getEntitiesOfClass(net.minecraft.world.entity.monster.Slime.class,
+                        new net.minecraft.world.phys.AABB(floor).inflate(SLIME_FAR * 2)).stream().findFirst()
+                        .ifPresent(slime -> bornAt[0] = slime.position());
             }
             if (helper.getTick() - thrownAt >= WATCHED_TICKS) {
                 level.getEntitiesOfClass(net.minecraft.world.entity.monster.Slime.class,
-                        new net.minecraft.world.phys.AABB(floor).inflate(FAR)).forEach(Entity::discard);
+                        new net.minecraft.world.phys.AABB(floor).inflate(SLIME_FAR * 2)).forEach(Entity::discard);
                 level.getServer().getPlayerList().remove(player);
-                helper.assertTrue(born[0], "A slime should be born past the partner");
-                helper.assertTrue(strays.isEmpty(), "A slime born through a pair should stand where it landed, "
-                        + "strayed " + strays.subList(0, Math.min(3, strays.size())));
+                level.setChunkForced(floorChunk.x(), floorChunk.z(), false);
+                helper.assertTrue(bornAt[0] != null, "A slime should be born past the partner");
+                helper.assertTrue(bornAt[0].distanceTo(landing) <= IN_PLACE, "A slime born through a pair should "
+                        + "be born where it landed, " + landing + ", was born at " + bornAt[0]);
                 helper.succeed();
             }
         });
