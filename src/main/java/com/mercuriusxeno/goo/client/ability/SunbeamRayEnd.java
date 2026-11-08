@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Predicate;
 
 /**
  * Where a sunbeam ray's drawn end sits each frame. The server's ray arrives
@@ -14,6 +16,8 @@ final class SunbeamRayEnd {
 
     /** Below this squared gap the aim point sits on the eye and gives no direction. */
     private static final double SHORTEST_AIM_SQUARED = 1e-6;
+    /** How far past the struck spot, along the ray, the struck block is read, in blocks. */
+    private static final double INTO_THE_STRUCK = 1e-3;
 
     private SunbeamRayEnd() {
     }
@@ -41,6 +45,26 @@ final class SunbeamRayEnd {
      * @param aimPoint the point the hold aims at this frame
      */
     record OwnAim(Vec3 eye, Vec3 aimPoint) {
+    }
+
+    /**
+     * Where the ray's light gathers: the middle of a prism it struck that
+     * refracts it, so the ray runs into the core its refracted beams leave
+     * from; else the struck spot.
+     * decision diagnose-and-correct-the-sunbeam-prism-depth
+     *
+     * @param from              where the ray leaves the caster
+     * @param end               where the ray struck
+     * @param refractingPrismAt whether a prism that refracts the ray stands at a position
+     * @return the point the ray's light gathers at
+     */
+    static Vec3 gathersAt(Vec3 from, Vec3 end, Predicate<BlockPos> refractingPrismAt) {
+        Vec3 along = end.subtract(from);
+        if (along.lengthSqr() < SHORTEST_AIM_SQUARED) {
+            return end;
+        }
+        BlockPos struck = BlockPos.containing(end.add(along.normalize().scale(INTO_THE_STRUCK)));
+        return refractingPrismAt.test(struck) ? Vec3.atCenterOf(struck) : end;
     }
 
     /**
