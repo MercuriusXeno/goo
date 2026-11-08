@@ -9,10 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The vignette's tendrils are a live population, not a fixed set: they
- * sprout at random places along the edges at random times, each with its own
- * length, thickness and wandering path that may fork, and each withers and
- * goes in its time, so the count on screen drifts and no layout repeats
- * (decisions sight-lengthens-shift-and-outlines-fungus and
+ * sprout at random times into evenly spaced slots along the edges, many at
+ * once, each with its own length, thickness and wandering path that may
+ * fork, and each withers and goes in its time, so the count on screen drifts
+ * and no layout repeats; and a soft fringe of rounded lobes fills every edge
+ * evenly behind them (decisions sight-lengthens-shift-and-outlines-fungus and
  * sculker-sight-persists-where-echoes-have-touched).
  */
 class TendrilVignetteTest {
@@ -94,6 +95,56 @@ class TendrilVignetteTest {
                 && live.stream().anyMatch(tendril -> !tendril.forks()), "some tendrils should fork, not all");
         assertTrue(live.stream().anyMatch(TendrilVignette.Tendril::thick)
                 && live.stream().anyMatch(tendril -> !tendril.thick()), "some tendrils should root thick, not all");
+    }
+
+    @Test
+    void tendrilsRootInEvenlySpacedSlotsOnePerSlot() {
+        TendrilVignette vignette = new TendrilVignette(SEED);
+        for (int tick = 0; tick <= SAMPLES_UNTIL; tick++) {
+            vignette.advance(tick);
+            Set<Integer> slots = new HashSet<>();
+            for (TendrilVignette.Tendril tendril : vignette.live()) {
+                int slot = TendrilVignette.slotOf(tendril.along());
+                float middle = (slot + 0.5f) / TendrilVignette.SLOTS_PER_EDGE;
+                assertTrue(Math.abs(tendril.along() - middle) <= TendrilVignette.SLOT_JITTER + 1e-6f,
+                        "a tendril rooted " + tendril.along() + ", off its slot's middle " + middle);
+                assertTrue(slots.add(tendril.edge() * TendrilVignette.SLOTS_PER_EDGE + slot),
+                        "two tendrils rooted in one slot at tick " + tick);
+            }
+        }
+    }
+
+    @Test
+    void mostSlotsStandFilledOnceSettled() {
+        TendrilVignette vignette = new TendrilVignette(SEED);
+        int samples = 0;
+        int standing = 0;
+        for (int tick = 0; tick <= SAMPLES_UNTIL; tick++) {
+            vignette.advance(tick);
+            if (tick >= SETTLED && tick % SAMPLE_EVERY == 0) {
+                samples++;
+                standing += vignette.live().size();
+            }
+        }
+        float filled = (float) standing / samples / (TendrilVignette.SLOTS_PER_EDGE * 4);
+        assertTrue(filled >= 0.75f, "most slots should stand filled, " + filled + " do");
+    }
+
+    @Test
+    void aSoftFringeOfRoundedLobesFillsEveryEdgeEvenly() {
+        List<TendrilVignette.Lobe> lobes = new TendrilVignette(SEED).fringe();
+        for (int edge = 0; edge < 4; edge++) {
+            int onEdge = edge;
+            List<TendrilVignette.Lobe> along = lobes.stream().filter(lobe -> lobe.edge() == onEdge).toList();
+            assertTrue(along.size() == TendrilVignette.LOBES_PER_EDGE, "edge " + edge + " holds " + along.size());
+            for (int i = 0; i < along.size(); i++) {
+                float middle = (i + 0.5f) / TendrilVignette.LOBES_PER_EDGE;
+                assertTrue(Math.abs(along.get(i).along() - middle) <= TendrilVignette.LOBE_JITTER + 1e-6f,
+                        "a lobe sat at " + along.get(i).along() + ", off its place " + middle);
+                assertTrue(along.get(i).radius() >= TendrilVignette.SMALLEST_LOBE
+                        && along.get(i).radius() <= TendrilVignette.LARGEST_LOBE, "a lobe's size strayed");
+            }
+        }
     }
 
     @Test

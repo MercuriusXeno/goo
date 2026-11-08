@@ -58,8 +58,14 @@ public final class ShriekTests {
     private static final int AFTER_THE_SHRIEK = 2;
     /** Ticks a called mob is given to walk after the shriek. */
     private static final int WALK_TICKS = 80;
-    /** How much nearer the blob a called mob stands after its walk, more than a wandering mob covers. */
+    /** How much nearer the blob a called mob stands after its walk. */
     private static final double WALKED_NEARER = 2.5;
+    /**
+     * How far an uncalled mob may wander toward the blob and still read as
+     * holding: more than a stroll covers in the walk's time, far less than
+     * the walk all the way in a called mob makes.
+     */
+    private static final double WANDERED_AT_MOST = 5;
     private static final String SHOULD_SPAWN = "A %s should spawn";
     private static final String SHOULD_TICK = "The far chunks should tick their entities";
     private static final String ABILITY_REQUIRED = "%s must be loaded";
@@ -118,7 +124,7 @@ public final class ShriekTests {
                     helper.assertTrue(zombieOff <= FAR - WALKED_NEARER,
                             String.format(SHOULD_COME, FAR, (double) FAR, zombieOff));
                     helper.assertTrue(cowOff > NEAR - WALKED_NEARER, String.format(SHOULD_HOLD, COW, (double) NEAR, cowOff));
-                    helper.assertTrue(lateOff > FAR - WALKED_NEARER,
+                    helper.assertTrue(lateOff > FAR - WANDERED_AT_MOST,
                             String.format(SHOULD_HOLD, LATE_ZOMBIE, (double) FAR, lateOff));
                 })
                 .thenSucceed();
