@@ -54,6 +54,7 @@ public final class FrostAbilityTests {
     private static final String NOVA_TAPPED_REACHES_NEAR = "nova_tapped_reaches_only_the_near";
     private static final String NOVA_FREEZES_WATER_AND_LAVA = "nova_freezes_water_and_lava_in_its_ring";
     private static final String COLD_BREAKS_GRASS = "cold_breaks_grass_and_freezes_faster";
+    private static final String COLD_FREEZES_WATER_AND_LAVA = "cold_freezes_water_and_lava_in_its_cone";
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
     private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
     private static final String ORB_ENDS_AT_ITS_RANGE = "orb_ends_at_its_range";
@@ -75,6 +76,8 @@ public final class FrostAbilityTests {
         GooTestFunctions.registerTest(registrar, NOVA_FREEZES_WATER_AND_LAVA,
                 FrostAbilityTests::novaFreezesWaterAndLavaInItsRing);
         GooTestFunctions.registerTest(registrar, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksGrassAndFreezesFaster);
+        GooTestFunctions.registerTest(registrar, COLD_FREEZES_WATER_AND_LAVA,
+                FrostAbilityTests::coldFreezesWaterAndLavaInItsCone);
         GooTestFunctions.registerTest(registrar, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
         GooTestFunctions.registerTest(registrar, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
         GooTestFunctions.registerTest(registrar, ORB_ENDS_AT_ITS_RANGE, FrostAbilityTests::orbEndsAtItsRange);
@@ -127,6 +130,16 @@ public final class FrostAbilityTests {
     private static final float NOVA_PER_HELD_TICK = 0.8f / FULL_HOLD_TICKS;
     private static final String SHOULD_KILL_GRASS = "Cold should break the grass in its cone";
     private static final String SHOULD_OUTFREEZE_NOVA = "Ten ticks of Cold should freeze past %s, Nova's ten held ticks; stands %s";
+    /** Pitched down at the floor, so the cone's floor cells four to six blocks out stand near its axis. */
+    private static final float AT_THE_FLOOR = 25f;
+    /** Still water and lava in the floor inside Cold's cone, a block apart so neither meets the other. */
+    private static final BlockPos COLD_WATER_POS = new BlockPos(4, 0, 2);
+    private static final BlockPos COLD_LAVA_POS = new BlockPos(6, 0, 2);
+    /** Still water in the floor three blocks beside the cone's axis, outside its sixteen degrees, rim to rim. */
+    private static final BlockPos COLD_BESIDE_WATER_POS = new BlockPos(4, 0, 5);
+    private static final String SHOULD_ICE_IN_THE_CONE = "Cold's cone should freeze the water it reaches to ice";
+    private static final String SHOULD_OBSIDIAN_IN_THE_CONE = "Cold's cone should freeze the lava it reaches to obsidian";
+    private static final String SHOULD_LEAVE_WATER_BESIDE_THE_CONE = "Cold's cone should leave the water beside it standing";
     private static final Identifier FROST_ORB = Identifier.parse("goo:frost_orb");
     /** Two still water blocks in the floor under the Orb's path. */
     private static final BlockPos POOL_NEAR = new BlockPos(2, 0, 2);
@@ -331,6 +344,40 @@ public final class FrostAbilityTests {
             helper.assertBlockNotPresent(Blocks.SHORT_GRASS, GRASS_POS);
             float novaFloor = NOVA_PER_HELD_TICK * COLD_HOLD_TICKS;
             helper.assertTrue(gauge > novaFloor, String.format(SHOULD_OUTFREEZE_NOVA, novaFloor, gauge));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Cold held ten ticks at the floor freezes the still water in its cone to
+     * ice and the still lava to obsidian, and leaves the water beside its cone
+     * standing (decision nova-ring-and-cold-cone-freeze-water-and-lava).
+     *
+     * @param helper the gametest helper
+     */
+    public static void coldFreezesWaterAndLavaInItsCone(GameTestHelper helper) {
+        helper.setBlock(COLD_WATER_POS, Blocks.WATER);
+        helper.setBlock(COLD_LAVA_POS, Blocks.LAVA);
+        helper.setBlock(COLD_BESIDE_WATER_POS, Blocks.WATER);
+        ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STREAMER_POS));
+        streamer.setPos(stand.x, stand.y, stand.z);
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(AT_THE_FLOOR);
+        AbilityDefinition cold = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_COLD);
+        helper.assertTrue(cold != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(streamer, cold);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.FROST), FROST_COLD.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        for (int held = 1; held <= COLD_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
+        }
+        helper.runAfterDelay(COLD_HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertTrue(helper.getBlockState(COLD_WATER_POS).is(Blocks.ICE), SHOULD_ICE_IN_THE_CONE);
+            helper.assertTrue(helper.getBlockState(COLD_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN_IN_THE_CONE);
+            helper.assertTrue(helper.getBlockState(COLD_BESIDE_WATER_POS).is(Blocks.WATER),
+                    SHOULD_LEAVE_WATER_BESIDE_THE_CONE);
             helper.succeed();
         });
     }
