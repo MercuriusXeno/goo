@@ -28,10 +28,12 @@ import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.material.FogType;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -118,6 +120,10 @@ public final class PortalView {
     private static Camera currentCamera;
     /** Where the view being drawn draws its partner's side from. */
     private static PartnerView.Source source = PartnerView.Source.NONE;
+    /** The partner the view being drawn looks out of. */
+    private static Gate currentFar;
+    /** Half a block, from a partner's face out to the middle of its mouth. */
+    private static final double HALF_BLOCK = 0.5;
 
     private PortalView() {
     }
@@ -308,6 +314,7 @@ public final class PortalView {
         }
         currentPass = pass;
         currentCamera = camera;
+        currentFar = far;
         source = from;
         try {
             CameraRenderState state = extractThrough(mc, delta, camera);
@@ -353,6 +360,32 @@ public final class PortalView {
      */
     public static Vec3 cameraPosition() {
         return currentCamera.position();
+    }
+
+    /**
+     * The section at the mouth of the partner the view being drawn looks out
+     * of, where the streamed far side's section graph starts its walk.
+     * linked-partner-chunks-stream-to-any-viewer
+     *
+     * @return the section just before the partner's face
+     */
+    public static SectionPos partnerMouth() {
+        return SectionPos.of(BlockPos.containing(currentFar.center().add(currentFar.face().getUnitVec3()
+                .scale(HALF_BLOCK))));
+    }
+
+    /**
+     * Whether a section stands within the frustum of the camera the view is
+     * being drawn from.
+     *
+     * @param section the section
+     * @return true where the view's camera can see it
+     */
+    public static boolean frustumHolds(SectionPos section) {
+        BlockPos origin = section.origin();
+        return currentCamera.getCullFrustum().isVisible(new AABB(origin.getX(), origin.getY(), origin.getZ(),
+                origin.getX() + SectionPos.SECTION_SIZE, origin.getY() + SectionPos.SECTION_SIZE,
+                origin.getZ() + SectionPos.SECTION_SIZE));
     }
 
     /**
