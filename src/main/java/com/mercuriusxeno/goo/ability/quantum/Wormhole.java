@@ -2,12 +2,10 @@ package com.mercuriusxeno.goo.ability.quantum;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -35,20 +33,12 @@ public final class Wormhole {
     private static final int CENTRED_REACH = 1;
     /** A crawling body's height, the least room a hole needs past the wall. */
     private static final double CRAWL_HEIGHT = 0.6;
-    /** Points on the ring a wormhole's mouth or a collapse draws. */
-    private static final int RING_POINTS = 24;
-    /** The ring's radius around the mouth, in blocks. */
-    private static final double RING_RADIUS = 1.2;
-    /** How hard a collapsing ring's particles fall in toward its middle. */
-    private static final double COLLAPSE_SPEED = 0.12;
-    /** How far off the struck face the ring draws, so it shows over the block. */
+    /** How far off the struck face a refused hole's sound plays, so it sounds before the block. */
     private static final double FACE_LIFT = 0.55;
     private static final double HALF = 0.5;
     private static final float SOUND_VOLUME = 1.0f;
     private static final float MOUTH_PITCH = 1.3f;
     private static final float COLLAPSE_PITCH = 0.6f;
-    /** How hard an opening mouth's motes burst outward across its face. */
-    private static final double BURST_SPEED = 0.9;
 
     private Wormhole() {
     }
@@ -262,8 +252,8 @@ public final class Wormhole {
     }
 
     /**
-     * Shows a hole that could not be made: a ring on the struck face falling
-     * in on itself, and a dull drop of sound.
+     * Shows a hole that could not be made: a dull drop of sound on the
+     * struck face, with no particles.
      *
      * @param level  the level
      * @param struck the struck block
@@ -271,20 +261,14 @@ public final class Wormhole {
      */
     public static void collapse(ServerLevel level, BlockPos struck, Direction face) {
         Vec3 middle = onFace(struck, face);
-        for (Vec3 offset : ring(face.getAxis())) {
-            Vec3 at = middle.add(offset);
-            Vec3 inward = offset.normalize().reverse();
-            level.sendParticles(ParticleTypes.SQUID_INK, at.x(), at.y(), at.z(), 0,
-                    inward.x(), inward.y(), inward.z(), COLLAPSE_SPEED);
-        }
         level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.CONDUIT_DEACTIVATE,
                 SoundSource.BLOCKS, SOUND_VOLUME, COLLAPSE_PITCH);
     }
 
     /**
-     * Opens a mouth with some fanfare: a powering-up hum, and a burst of
-     * portal motes thrown outward across the face as the client grows the
-     * mouth open, its view through to the partner inside.
+     * Opens a mouth: a powering-up hum as the client grows the mouth in from
+     * nothing to its size, its view through to the partner inside, with no
+     * particles (operator ruling: vanilla particles read ugly here).
      *
      * @param level the level
      * @param mouth the mouth
@@ -293,35 +277,6 @@ public final class Wormhole {
         Vec3 middle = mouth.center();
         level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.BEACON_ACTIVATE,
                 SoundSource.PLAYERS, SOUND_VOLUME, MOUTH_PITCH);
-        for (Vec3 offset : ring(mouth.face().getAxis())) {
-            Vec3 outward = offset.normalize();
-            level.sendParticles(ParticleTypes.PORTAL, middle.x(), middle.y(), middle.z(), 0,
-                    outward.x(), outward.y(), outward.z(), BURST_SPEED);
-            level.sendParticles(ParticleTypes.REVERSE_PORTAL, middle.x() + offset.x() * HALF,
-                    middle.y() + offset.y() * HALF, middle.z() + offset.z() * HALF, 0, outward.x(), outward.y(),
-                    outward.z(), BURST_SPEED * HALF);
-        }
-    }
-
-    /**
-     * The ring's points around a middle, in the plane across an axis.
-     *
-     * @param axis the axis the ring stands across
-     * @return each point's offset from the middle
-     */
-    private static List<Vec3> ring(Direction.Axis axis) {
-        List<Vec3> points = new ArrayList<>();
-        for (int point = 0; point < RING_POINTS; point++) {
-            double angle = Mth.TWO_PI * point / RING_POINTS;
-            double first = Math.cos(angle) * RING_RADIUS;
-            double second = Math.sin(angle) * RING_RADIUS;
-            points.add(switch (axis) {
-                case X -> new Vec3(0, first, second);
-                case Y -> new Vec3(first, 0, second);
-                case Z -> new Vec3(first, second, 0);
-            });
-        }
-        return points;
     }
 
     private static Vec3 onFace(BlockPos struck, Direction face) {

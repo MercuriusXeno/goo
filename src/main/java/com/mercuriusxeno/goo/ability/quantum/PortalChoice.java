@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.network.PortalsSyncPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,9 +32,6 @@ public final class PortalChoice {
     private static final float CHOOSE_PITCH = 1.6f;
     private static final float LINK_PITCH = 1.2f;
     private static final float BREAK_PITCH = 1.5f;
-    private static final int BREAK_PARTICLES = 24;
-    private static final double BREAK_SPREAD = 0.4;
-    private static final double BREAK_SPEED = 0.05;
     /** The portal sync last told each player's client. */
     private static final Map<UUID, PortalsSyncPayload> LAST_SENT = new ConcurrentHashMap<>();
 
@@ -133,9 +129,8 @@ public final class PortalChoice {
         Map<UUID, QuantumPortals.Link> before = portals.links();
         portals.fall(hit.get()).ifPresent(owner -> PortalTether.tie(level.getServer(), owner, before.get(owner),
                 false));
+        // operator ruling: no vanilla particles as a portal breaks, its wind-down sound alone
         Vec3 at = hit.get().faceCenter();
-        level.sendParticles(ParticleTypes.REVERSE_PORTAL, at.x(), at.y(), at.z(), BREAK_PARTICLES, BREAK_SPREAD,
-                BREAK_SPREAD, BREAK_SPREAD, BREAK_SPEED);
         level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS,
                 SOUND_VOLUME, BREAK_PITCH);
         syncEveryone(level.getServer());
