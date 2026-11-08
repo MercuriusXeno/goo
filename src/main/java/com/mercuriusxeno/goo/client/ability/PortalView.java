@@ -12,10 +12,10 @@ import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
-import net.minecraft.client.CloudStatus;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.TextureFilteringMethod;
+import net.minecraft.client.renderer.CloudRenderer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
@@ -101,6 +101,8 @@ public final class PortalView {
     private static ProjectionMatrixBuffer skyProjection;
     private static final String SKY_VIEW_LABEL = "goo_portal_view_sky";
     private static final String FOG_LABEL = "goo_portal_view_fog";
+    /** A cloud renderer for each view a frame draws, apart from the frame's own. */
+    private static final List<CloudRenderer> VIEW_CLOUDS = new ArrayList<>();
     /** The fog the views draw with, apart from the frame's own. */
     private static GpuBuffer fogBuffer;
     /** The clipped projection a view takes once its sky is drawn, null outside a view's sky. */
@@ -172,6 +174,7 @@ public final class PortalView {
     public static void drawBeforeExtract(DeltaTracker delta, boolean advance) {
         VIEWS.clear();
         passes = 0;
+        VIEW_CLOUDS.forEach(CloudRenderer::endFrame);
         Minecraft mc = Minecraft.getInstance();
         if (!advance || !inWorld(mc) || !mc.gameRenderer.getMainCamera().isInitialized()) {
             return;
@@ -397,12 +400,12 @@ public final class PortalView {
         GameRenderer game = mc.gameRenderer;
         LevelRenderState state = game.gameRenderState.levelRenderState;
         RenderTarget frame = mc.mainRenderTarget;
-        CloudStatus clouds = game.gameRenderState.optionsRenderState.cloudStatus;
+        CloudRenderer frameClouds = mc.levelRenderer.cloudRenderer;
         drawing = true;
         try {
-            // The cloud renderer keeps one mesh built around one camera; drawing clouds from a view would rebuild
-            // it around the view's camera and leave the frame's clouds jumping between the two.
-            game.gameRenderState.optionsRenderState.cloudStatus = CloudStatus.OFF;
+            // The cloud renderer keeps one mesh built around one camera; each view draws its clouds with its own,
+            // so the frame's clouds keep theirs.
+            mc.levelRenderer.cloudRenderer = cloudsFor(currentPass);
             mc.mainRenderTarget = target;
             placeGlobalCamera(mc, delta, camera.pos);
             if (skyDraws(state, camera)) {
@@ -416,7 +419,7 @@ public final class PortalView {
             mc.levelRenderer.renderLevel(game.resourcePool, delta, false, camera, camera.viewRotationMatrix,
                     viewFog(camera.fogData), camera.fogData.color, true, state.chunkSectionsToRender);
         } finally {
-            game.gameRenderState.optionsRenderState.cloudStatus = clouds;
+            mc.levelRenderer.cloudRenderer = frameClouds;
             mc.mainRenderTarget = frame;
             drawing = false;
             clippedAfterSky = null;
@@ -478,6 +481,20 @@ public final class PortalView {
             RenderSystem.getDevice().createCommandEncoder().writeToBuffer(fogBuffer.slice(), data);
         }
         return fogBuffer.slice();
+    }
+
+    /**
+     * The cloud renderer a view draws with, one for each view a frame draws,
+     * each turning its buffers over once a frame as the frame's own does.
+     *
+     * @param pass the view's pass, from one
+     * @return its cloud renderer
+     */
+    private static CloudRenderer cloudsFor(int pass) {
+        while (VIEW_CLOUDS.size() < pass) {
+            VIEW_CLOUDS.add(ViewCloudRenderer.loaded());
+        }
+        return VIEW_CLOUDS.get(pass - 1);
     }
 
     private static ProjectionMatrixBuffer skyProjectionBuffer() {
