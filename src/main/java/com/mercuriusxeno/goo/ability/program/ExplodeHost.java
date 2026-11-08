@@ -9,7 +9,8 @@ public interface ExplodeHost extends StepHost {
      * Detonates at the anchor's center.
      *
      * @param power the explosion power
+     * @param reach the radius the explosion cuts at most
      * @param mode  how blocks are treated
      */
-    void explode(float power, ExplosionMode mode);
+    void explode(float power, double reach, ExplosionMode mode);
 }
