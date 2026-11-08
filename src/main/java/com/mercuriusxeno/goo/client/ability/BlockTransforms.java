@@ -53,6 +53,7 @@ public final class BlockTransforms {
     private final List<Transform> playing = new ArrayList<>();
     private final Map<BlockPos, Exposure> exposures = new HashMap<>();
     private final Map<BlockPos, Long> exposedSince = new HashMap<>();
+    private final Map<BlockPos, BlockState> meltingFrom = new HashMap<>();
 
     /**
      * The mingle seed of a block's transition begun at a tick, so each use on a
@@ -82,34 +83,77 @@ public final class BlockTransforms {
     }
 
     /**
-     * What a block part way to its next rung draws mingled in over itself.
+     * What a block part way to its next rung draws mingled over itself.
      *
-     * @param state the state drawn
-     * @param tint  the RGB it is tinted by, negative for none
+     * @param state     the state drawn
+     * @param tint      the RGB it is tinted by, negative for none
+     * @param dissolved the share of the drawn state dissolved, 0 whole to 1 gone
      */
-    record Mingling(BlockState state, int tint) {
+    record Mingling(BlockState state, int tint, float dissolved) {
     }
 
     /**
-     * What an exposure mingles in over its block: the state it becomes, or,
-     * where it cooks away to air, the block standing there in its charred
-     * face, so a block cooking into an item transitions from its first share
-     * as one cooking into a block does
-     * (decision blocks-that-cook-into-items-cook-like-blocks); a block
-     * melting away mingles nothing in while it heats
+     * What an exposure mingles over its block: the state it becomes, built in
+     * by the share; or, where it cooks away to air, the block standing there
+     * in its charred face, so a block cooking into an item transitions from
+     * its first share as one cooking into a block does
+     * (decision blocks-that-cook-into-items-cook-like-blocks); or, for a block
+     * melting away, the block it was, eaten away by the share over what it
+     * melts into
      * (decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
      *
      * @param exposure the block's exposure
-     * @param standing the block standing at its position
-     * @return the state and tint drawn, empty for a block melting away
+     * @param standing the block standing at its position, the block it was for one melting away
+     * @return the state, tint and dissolved share drawn
      */
-    static Optional<Mingling> minglingOf(Exposure exposure, BlockState standing) {
+    static Mingling minglingOf(Exposure exposure, BlockState standing) {
         if (exposure.tint() == MELTS_AWAY) {
-            return Optional.empty();
+            return new Mingling(standing, UNTINTED, exposure.share());
         }
-        return Optional.of(exposure.toward().isAir()
-                ? new Mingling(standing, CHARRED)
-                : new Mingling(exposure.toward(), exposure.tint()));
+        return exposure.toward().isAir()
+                ? new Mingling(standing, CHARRED, 1f - exposure.share())
+                : new Mingling(exposure.toward(), exposure.tint(), 1f - exposure.share());
+    }
+
+    /**
+     * The state the client sets its own copy of a melting block's cell to as
+     * a melt share arrives: what it melts into on the melt's first share, so
+     * the client draws the block it was eaten away over it while the server
+     * still holds the block; the block it was once the share cools back to
+     * nothing, while the cell still holds what the client set it to. Fluids
+     * flow on the server alone, so the client's water spills nothing.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param pos     the block
+     * @param toward  the state it melts into
+     * @param share   the share arrived
+     * @param current the state the client's copy holds now
+     * @return the state to set the client's copy to, empty to leave it
+     */
+    public Optional<BlockState> meltSwap(BlockPos pos, BlockState toward, float share, BlockState current) {
+        if (share > 0f) {
+            if (meltingFrom.containsKey(pos) || current == toward) {
+                return Optional.empty();
+            }
+            meltingFrom.put(pos.immutable(), current);
+            return Optional.of(toward);
+        }
+        BlockState was = meltingFrom.remove(pos);
+        return was != null && current == toward ? Optional.of(was) : Optional.empty();
+    }
+
+    /**
+     * The block a position draws as standing: the block it was for one
+     * melting away, whose cell the client has already swapped, or the
+     * client's block there.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param pos   the block
+     * @param world the state the client's copy holds
+     * @return the state drawn as standing there
+     */
+    public BlockState standingAt(BlockPos pos, BlockState world) {
+        return meltingFrom.getOrDefault(pos, world);
     }
 
     /**
@@ -161,7 +205,8 @@ public final class BlockTransforms {
      * built block held whole over it a few ticks so the old block never
      * shows before the client's chunk redraws; a block cooked away to air
      * dissolves from the charred face its exposure built; a block melted
-     * away, and any other, dissolves from the state it was.
+     * away plays nothing, its melt having eaten it away already; any other
+     * dissolves from the state it was.
      *
      * @param pos   the block
      * @param from  the state it was
@@ -169,13 +214,17 @@ public final class BlockTransforms {
      */
     public void start(BlockPos pos, BlockState from, long start) {
         exposedSince.remove(pos);
+        meltingFrom.remove(pos);
         Exposure built = exposures.remove(pos);
         playing.removeIf(transform -> transform.pos().equals(pos));
+        if (built != null && built.tint() == MELTS_AWAY) {
+            // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: the melt was the one dissolve
+            return;
+        }
         if (built != null && built.tint() >= 0) {
             // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
             playing.add(new Transform(pos.immutable(), built.toward(), start, built.tint()));
-        } else if (built == null || built.tint() == MELTS_AWAY) {
-            // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: a melted block is eaten away as Melt's stone is
+        } else if (built == null) {
             playing.add(new Transform(pos.immutable(), from, start));
         } else if (built.toward().isAir()) {
             // blocks-that-cook-into-items-cook-like-blocks: the charred face it built dissolves away
@@ -257,5 +306,6 @@ public final class BlockTransforms {
         playing.clear();
         exposures.clear();
         exposedSince.clear();
+        meltingFrom.clear();
     }
 }
