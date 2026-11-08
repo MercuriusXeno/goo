@@ -41,7 +41,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
@@ -262,22 +261,50 @@ public final class GooStreamHandler {
         Vec3 apex = coneApex(player, origin);
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id());
-        // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
-        // fly from the hand onto the point the crosshair lands on
-        Vec3 target = crosshairTarget(player, delivery.range());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         List<Integer> healed = new ArrayList<>();
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
-            sprayParticles(level, apex, aimFrom(apex, target, axis), delivery,
-                    Math.min(delivery.range(), apex.distanceTo(target)));
-            for (LivingEntity living : runPasses(cast, apex, axis, ability, delivery, held)) {
+            List<LivingEntity> struck = sprayAndStrike(cast, apex, axis, ability, held);
+            for (LivingEntity living : struck) {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
                         entitySteps, cast));
             }
             sprayFloors(player, apex, axis, ability);
         }
         strikeCaster(cast, ability, apex, entitySteps, healed);
+    }
+
+    /**
+     * Runs the stream's block pass, shows its motes, and answers the living
+     * its entity pass strikes this tick: a mob-first stream's swarm converges
+     * on the mob it chases or the block under the crosshair, biting the mob
+     * once its gnats arrive; any other stream sprays its particle onto the
+     * point the crosshair lands on.
+     *
+     * @param cast    the tick's cast
+     * @param apex    the cone's apex, the glove hand
+     * @param axis    the look
+     * @param ability the stream ability
+     * @param held    the hold's tick count
+     * @return the living the entity pass strikes
+     */
+    private static List<LivingEntity> sprayAndStrike(CastOn cast, Vec3 apex, Vec3 axis, AbilityDefinition ability,
+                                                     int held) {
+        ServerPlayer player = cast.player();
+        Delivery delivery = ability.delivery();
+        // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
+        // fly from the hand, a mob-first swarm's converging on the mob it chases or the block it paints
+        BlockHitResult crosshair = crosshairHit(player, delivery.range());
+        Vec3 aim = aimFrom(apex, crosshair.getLocation(), axis);
+        List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
+        if (ability.hasTag(AbilityTags.MOB_FIRST)) {
+            SwarmStrike.send(player, apex, aim, delivery, struck, crosshair);
+            return SwarmStrike.reached(player, apex, struck, held);
+        }
+        sprayParticles(cast.level(), apex, aim, delivery,
+                Math.min(delivery.range(), apex.distanceTo(crosshair.getLocation())));
+        return struck;
     }
 
     /**
@@ -315,19 +342,18 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Where the crosshair lands within a stream's reach: the face of the first
-     * block the player's look meets, or the end of the reach along the look.
+     * Where the crosshair lands within a stream's reach: the first block the
+     * player's look meets, or a miss at the end of the reach along the look.
      *
      * @param player the streaming player
      * @param range  the stream's reach in blocks
-     * @return the point
+     * @return the hit, its location the struck face's point or the reach's end
      */
-    private static Vec3 crosshairTarget(ServerPlayer player, double range) {
+    private static BlockHitResult crosshairHit(ServerPlayer player, double range) {
         Vec3 eye = player.getEyePosition();
         Vec3 end = eye.add(player.getLookAngle().scale(range));
-        BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
+        return player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
-        return hit.getType() == HitResult.Type.BLOCK ? hit.getLocation() : end;
     }
 
     /**
@@ -438,15 +464,17 @@ public final class GooStreamHandler {
     static List<LivingEntity> livingInCone(ServerLevel level, ServerPlayer player, Vec3 apex, Vec3 axis,
                                            Delivery delivery) {
         Vec3 eye = player.getEyePosition();
-        AABB reach = new AABB(apex, apex).inflate(delivery.range()).minmax(new AABB(eye, eye).inflate(delivery.range()));
-        return level.getEntitiesOfClass(LivingEntity.class, reach, living -> living != player && living.isAlive()
-                && (inCone(apex, axis, delivery, living) || inCone(eye, axis, delivery, living)));
+        double living = delivery.livingReach();
+        AABB reach = new AABB(apex, apex).inflate(living).minmax(new AABB(eye, eye).inflate(living));
+        return level.getEntitiesOfClass(LivingEntity.class, reach, entity -> entity != player && entity.isAlive()
+                && (inCone(apex, axis, delivery, entity) || inCone(eye, axis, delivery, entity)));
     }
 
     private static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
-        return StreamCone.contains(apex, axis, delivery.range(), delivery.coneDegrees(),
-                living.getBoundingBox().getCenter())
-                || living.getBoundingBox().clip(apex, apex.add(axis.normalize().scale(delivery.range()))).isPresent();
+        // decay-gnats-degrade-each-block-once: a stream may seek the living past the blocks it works
+        double reach = delivery.livingReach();
+        return StreamCone.contains(apex, axis, reach, delivery.coneDegrees(), living.getBoundingBox().getCenter())
+                || living.getBoundingBox().clip(apex, apex.add(axis.normalize().scale(reach))).isPresent();
     }
 
     /**
@@ -470,30 +498,34 @@ public final class GooStreamHandler {
         // decay-gnats-degrade-each-block-once: a mob in the cone takes the swarm, else the blocks do;
         // the operator's ruling: blocks already painted keep stepping while the swarm bites
         boolean mobFirst = ability.hasTag(AbilityTags.MOB_FIRST);
-        List<LivingEntity> struck = mobFirst ? nearestMob(inCone, apex) : inCone;
+        List<LivingEntity> struck = mobFirst ? mostAlignedMob(inCone, cast.player().getEyePosition(), axis) : inCone;
         runBlockPass(cast, axis, delivery, ability, held, !mobFirst || struck.isEmpty());
         return struck;
     }
 
     /**
-     * The mob nearest the cone's apex among the living a stream reaches, the
-     * one a mob-first stream strikes (decision decay-gnats-degrade-each-block-once).
+     * The mob a mob-first stream strikes among the living it reaches: the
+     * one lying nearest the cone's axis, the smallest angle off the look from
+     * the eye, so the swarm goes where the player aims rather than for the
+     * mob that happens to stand closest (decision decay-gnats-degrade-each-block-once).
      *
      * @param living the living entities in the cone
-     * @param apex   the cone's apex
-     * @return the nearest mob alone, or none when no mob stands in the cone
+     * @param eye    the streaming player's eye
+     * @param axis   the look
+     * @return the most aligned mob alone, or none when no mob stands in the cone
      */
-    static List<LivingEntity> nearestMob(List<LivingEntity> living, Vec3 apex) {
+    static List<LivingEntity> mostAlignedMob(List<LivingEntity> living, Vec3 eye, Vec3 axis) {
+        Vec3 look = axis.normalize();
         return living.stream().filter(Mob.class::isInstance)
-                .min(Comparator.comparingDouble(entity -> entity.distanceToSqr(apex)))
+                .max(Comparator.comparingDouble(entity -> look.dot(entity.getBoundingBox().getCenter().subtract(eye)
+                        .normalize())))
                 .map(List::of).orElse(List.of());
     }
 
     /**
      * Launches the delivery's particle from the glove, each mote flying out
      * along its own heading inside the cone and coming to rest as far off as
-     * the crosshair lands (decisions mycosis-spore-stream-buds-and-poisons,
-     * decay-gnats-degrade-each-block-once).
+     * the crosshair lands (decision mycosis-spore-stream-buds-and-poisons).
      *
      * @param level    the server level
      * @param apex     the cone's apex
