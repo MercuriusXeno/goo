@@ -40,7 +40,6 @@ class AbilityPoseTableTest {
             Map.entry("frost_iceborn", ArmPose.HELD_UP),
             Map.entry("frost_nova", ArmPose.HELD_UP),
             Map.entry("frost_orb", ArmPose.SWUNG),
-            Map.entry("frost_snap", ArmPose.SWUNG),
             Map.entry("glow_crystal", ArmPose.HELD_OUT),
             Map.entry("glow_lux", ArmPose.HELD_UP),
             Map.entry("glow_radiant", ArmPose.HELD_UP),

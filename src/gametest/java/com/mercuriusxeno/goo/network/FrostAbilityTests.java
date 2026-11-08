@@ -24,7 +24,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Witch;
-import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
@@ -225,19 +224,18 @@ public final class FrostAbilityTests {
     private static final String SHOULD_FREEZE_LIGHTLY = "An uncharged Nova should freeze the near zombie lightly, stands %s";
     private static final String SHOULD_HURT = "Nova's ring should hurt the %s zombie it crosses";
     private static final String SHOULD_NOT_REACH = "An uncharged Nova should not reach the far zombie, stands %s";
-    private static final String FROST_SNAP = "goo:frost_snap";
     private static final BlockPos WITCH_POS = new BlockPos(3, 1, 3);
-    /** frost_snap.json's amount of ten over a witch's twenty six health: three snaps fill her gauge. */
-    private static final int SNAPS_TO_ENCASE_A_WITCH = 3;
+    /** A full Nova's freeze of sixteen over a witch's twenty six health: two full Novas fill her gauge. */
+    private static final int NOVAS_TO_ENCASE_A_WITCH = 2;
     /**
-     * frost_snap.json's hold. The snaps' damage leaves the witch hurt, and a hurt witch picks a healing
+     * frost_nova.json's hold. The Novas' damage leaves the witch hurt, and a hurt witch picks a healing
      * potion on about one tick in twenty, so a hold this long sees her drink unless the hold stops her.
      */
     private static final int WITCH_HOLD_TICKS = 300;
-    private static final String SHOULD_ENCASE_THE_WITCH = "Three snaps should fill a witch's frozen gauge";
+    private static final String SHOULD_ENCASE_THE_WITCH = "Two full Novas should fill a witch's frozen gauge";
     private static final String SHOULD_HOLD_NO_POTION = "A frozen witch should hold no potion, holds %s on hold tick %s";
     private static final String SHOULD_NOT_DRINK = "A frozen witch should not be drinking, on hold tick %s";
-    /** Three blocks over the bay's floor, so the witch is still falling when the snaps freeze her. */
+    /** Three blocks over the bay's floor, so the witch is still falling when the Novas freeze her. */
     private static final BlockPos WITCH_DROP_POS = new BlockPos(3, 4, 3);
     /** Ticks into the hold by which a three-block fall has landed. */
     private static final int LANDED_TICKS = 40;
@@ -649,7 +647,7 @@ public final class FrostAbilityTests {
     }
 
     /**
-     * A witch frozen full by Snap drinks no potion while encased: on every
+     * A witch frozen full by Nova drinks no potion while encased: on every
      * tick of the hold her main hand holds no potion and she is not drinking
      * (decision diagnose-and-correct-held-mobs-still-acting).
      *
@@ -657,15 +655,8 @@ public final class FrostAbilityTests {
      */
     public static void frozenWitchDrinksNoPotion(GameTestHelper helper) {
         Witch witch = helper.spawn(EntityType.WITCH, WITCH_POS);
-        AbilityDefinition snap = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(FROST_SNAP));
-        helper.assertTrue(snap != null, ABILITY_REQUIRED);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            for (int struck = 0; struck < SNAPS_TO_ENCASE_A_WITCH; struck++) {
-                GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, snap.gooType(),
-                        witch.getId(), witch.blockPosition(), Direction.UP, FROST_SNAP));
-            }
-            helper.assertTrue(witch.getData(GooAttachments.FROZEN).full(), SHOULD_ENCASE_THE_WITCH);
-        });
+        ServerPlayer caster = caster(helper);
+        helper.runAfterDelay(SETTLE_TICKS, () -> encaseWithNovas(helper, caster, witch));
         for (int held = 1; held < WITCH_HOLD_TICKS; held++) {
             int holdTick = held;
             helper.runAfterDelay(SETTLE_TICKS + held, () -> {
@@ -678,7 +669,7 @@ public final class FrostAbilityTests {
     }
 
     /**
-     * A witch frozen full by Snap in mid air still falls to the floor while
+     * A witch frozen full by Nova in mid air still falls to the floor while
      * encased, and once the hold runs out she thaws below full with her AI
      * back: the gate on her potion turn leaves the rest of her tick running
      * (decision diagnose-and-correct-held-mobs-still-acting).
@@ -687,15 +678,10 @@ public final class FrostAbilityTests {
      */
     public static void frozenWitchFallsAndThaws(GameTestHelper helper) {
         Witch witch = helper.spawn(EntityType.WITCH, WITCH_DROP_POS);
-        AbilityDefinition snap = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(FROST_SNAP));
-        helper.assertTrue(snap != null, ABILITY_REQUIRED);
+        ServerPlayer caster = caster(helper);
         double[] frozeAt = new double[1];
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            for (int struck = 0; struck < SNAPS_TO_ENCASE_A_WITCH; struck++) {
-                GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, snap.gooType(),
-                        witch.getId(), witch.blockPosition(), Direction.UP, FROST_SNAP));
-            }
-            helper.assertTrue(witch.getData(GooAttachments.FROZEN).full(), SHOULD_ENCASE_THE_WITCH);
+            encaseWithNovas(helper, caster, witch);
             frozeAt[0] = witch.getY();
         });
         helper.runAfterDelay(SETTLE_TICKS + LANDED_TICKS, () -> {
@@ -708,6 +694,22 @@ public final class FrostAbilityTests {
             helper.assertFalse(witch.isNoAi(), SHOULD_GIVE_THE_WITCH_AI_BACK);
             helper.succeed();
         });
+    }
+
+    /**
+     * Fills a witch's frozen gauge with full Novas the caster releases
+     * through the charge payload, then takes the caster out of the level.
+     *
+     * @param helper the gametest helper
+     * @param caster the Nova's caster
+     * @param witch  the witch the Novas freeze
+     */
+    private static void encaseWithNovas(GameTestHelper helper, ServerPlayer caster, Witch witch) {
+        for (int released = 0; released < NOVAS_TO_ENCASE_A_WITCH; released++) {
+            release(caster, FULL_HOLD_TICKS);
+        }
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertTrue(witch.getData(GooAttachments.FROZEN).full(), SHOULD_ENCASE_THE_WITCH);
     }
 
     private static void release(ServerPlayer caster, int heldTicks) {
