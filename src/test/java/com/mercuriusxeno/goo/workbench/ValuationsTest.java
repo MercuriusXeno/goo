@@ -27,6 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ValuationsTest {
 
+    /** Warm derivations sampled after the first, cold one, the fastest graded. */
+    private static final int WARM_RUNS = 20;
+
     private static final String SMALL = """
             {
                 "_constants": {
@@ -704,8 +707,9 @@ class ValuationsTest {
         InventoryView inventory = InventoryView.parse(resourceText("/workbench/gametest_inventory.json"));
         // The fastest warm run is graded: one wall-clock sample read 105 ms under the whole suite's parallel load
         // while every run alone stood under 100, so a pause in one run measures the machine, not the derivation.
+        // The gate's loaded machine read 103 ms as the fastest of four warm runs, so twenty are sampled.
         long fastestMillis = Long.MAX_VALUE;
-        for (int run = 0; run < 5; run++) {
+        for (int run = 0; run <= WARM_RUNS; run++) {
             long start = System.nanoTime();
             Valuations.derivedFrom(model, inventory);
             long millis = (System.nanoTime() - start) / 1_000_000;
