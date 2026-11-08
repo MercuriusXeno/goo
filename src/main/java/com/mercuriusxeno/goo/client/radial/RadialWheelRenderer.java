@@ -60,19 +60,27 @@ final class RadialWheelRenderer {
     private static final int TYPE_ICON_SIZE = 12;
     /** ability-icons-read-16x16 */
     static final int ABILITY_ICON_SIZE = 16;
-    private static final int ABILITY_ICON_OFFSET = ABILITY_ICON_SIZE / 2;
     /**
      * A badge's side, drawn from an 8x8 source.
      * decision badges-halve-and-sit-up-right-and-closer
      */
     static final int BADGE_SIZE = 8;
+    /** How many pixels wide the dark frame around an ability's icon draws. */
+    private static final int FRAME_WIDTH = 1;
     /**
-     * How many pixels of the icon's top-right corner a badge covers along each side, so it reads attached.
+     * The side of the square an ability icon's frame covers, the icon inside it.
+     * decision abilities-replace-the-hovered-type
+     */
+    static final int FRAME_SIZE = ABILITY_ICON_SIZE + FRAME_WIDTH + FRAME_WIDTH;
+    /**
+     * How many pixels of the petal's face show between the icon's frame and its badges.
      * decision badges-halve-and-sit-up-right-and-closer
      */
-    private static final int BADGE_OVERLAP = 2;
-    /** How far the own badge's center sits right of, and above, its icon's center. */
-    private static final int BADGE_REACH = ABILITY_ICON_OFFSET - BADGE_OVERLAP + BADGE_SIZE / 2;
+    private static final int BADGE_GAP = 1;
+    /** How far below the frame's top the own badge's top sits, so it stands beside the icon's middle. */
+    private static final int BADGE_DROP = 6;
+    /** How wide an icon's cluster stands from its frame's left edge to its badges' right edge. */
+    private static final int CLUSTER_WIDTH = FRAME_SIZE + BADGE_GAP + BADGE_SIZE;
     private static final int LABEL_GAP = 1;
     /**
      * The scale an ability's name draws at on the wheel.
@@ -102,14 +110,14 @@ final class RadialWheelRenderer {
     /** How far above its partner's center the prism badge centers. */
     private static final int PRISM_BADGE_RISE = BADGE_SIZE - PRISM_BADGE_OVERLAP;
     /**
-     * How far past the petal's outer radius a closed petal's icon centers:
-     * the reach from the icon's center to the prism badge's far corner, up
-     * and right of the icon above the own badge, plus a pixel, so no pixel of
-     * the icon or a badge lies inside the petal.
+     * How far past the petal's outer radius a closed petal's cluster centers:
+     * the reach from the cluster's center to its far corner, the prism badge
+     * above the own badge included, plus a pixel, so no pixel of the icon,
+     * its frame or a badge lies inside the petal.
      * decision icons-slide-in-from-behind-the-tip
      */
-    static final double ENTRY_REACH = Math.hypot(BADGE_REACH + BADGE_SIZE / 2,
-            BADGE_REACH + PRISM_BADGE_RISE + BADGE_SIZE / 2) + 1;
+    static final double ENTRY_REACH = Math.hypot(CLUSTER_WIDTH - CLUSTER_WIDTH / HALF,
+            FRAME_SIZE / HALF + PRISM_BADGE_RISE - BADGE_DROP) + 1;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ICON_SUFFIX = ".png";
@@ -597,9 +605,9 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The screen point an ability petal's icon centers on as its type fans
-     * out: past the petal's outer radius while the type is closed, far enough
-     * that the icon and the badge beside it lie wholly outside the petal,
+     * The screen point an ability petal's icon cluster centers on as its type
+     * fans out: past the petal's outer radius while the type is closed, far
+     * enough that the framed icon and its badges lie wholly outside the petal,
      * sliding inward along the center line to the tip's center once the type
      * is fully open, and back out along the same line as it closes.
      * decision icons-slide-in-from-behind-the-tip
@@ -635,61 +643,113 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Draws the ability's icon, then its badges untinted in the order
-     * {@link #badgeLayout} lists them, the own badge on the icon's top-right
-     * corner last; each is cut at the petal's border so only the part under
-     * its face shows.
+     * Draws the ability's cluster: the icon's dark frame, the icon inside it,
+     * then its badges untinted in the order {@link #clusterAround} lists
+     * them, the own badge last; each is cut at the petal's border so only the
+     * part under its face shows.
      * badge-marks-the-target-kind
      * decision on-prism-reaction-wears-the-prism-badge
      * decision icons-slide-in-from-behind-the-tip
      * decision badges-halve-and-sit-up-right-and-closer
+     * decision abilities-replace-the-hovered-type
      *
      * @param graphics the GUI graphics extractor
      * @param frame    what the frame draws from
      * @param petal    the ability's petal
      * @param ability  the synced ability
      * @param color    the wedge's tint for the icon
-     * @return the badges drawn, as {@link #badgeLayout} lists them
+     * @return the badges drawn, as {@link #clusterAround} lists them
      */
     private static List<BadgeIcon> blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame,
                                                    RadialWheel.PetalArc petal, ClientAbility ability, int color) {
-        int[] slot = contentCenter(frame, petal);
+        IconCluster cluster = clusterAround(contentCenter(frame, petal), ability.badge(), ability.reactsToPrisms());
         PetalMask.Petal shape = petal.shape();
-        List<BadgeIcon> badges = badgeLayout(slot, ability.badge(), ability.reactsToPrisms());
-        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)), slot,
-                ABILITY_ICON_SIZE, color);
-        for (BadgeIcon badge : badges) {
+        for (List<double[]> side : frameSides(cluster.frame())) {
+            PetalPainter.paintShape(graphics, frame, shape, side, OUTLINE_COLOR);
+        }
+        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)),
+                cluster.iconCenter(), ABILITY_ICON_SIZE, color);
+        for (BadgeIcon badge : cluster.badges()) {
             ItemRect square = badge.rect();
             PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(badge.badge())),
                     new int[]{square.left() + square.size() / HALF, square.top() + square.size() / HALF},
                     square.size(), COLOR_WHITE);
         }
-        return badges;
+        return cluster.badges();
     }
 
     /**
-     * An ability's badges in the order they draw over its icon: the prism
-     * badge first where the ability carries an on_prism reaction, so its
-     * partner covers the row they share, then the ability's own badge on the
-     * icon's corner. Each carries the squares drawn over it, which hide that
-     * part from the cursor.
+     * Where an ability's icon and badges draw: the icon's frame and the
+     * badges right of it, in the order they draw.
+     *
+     * @param frame  the square the icon's frame covers, the icon inside it
+     * @param badges the badges in draw order, the own badge last, each with the squares drawn over it
+     */
+    record IconCluster(ItemRect frame, List<BadgeIcon> badges) {
+
+        /**
+         * The point the icon centers on, the middle of its frame.
+         *
+         * @return the point's x and y
+         */
+        int[] iconCenter() {
+            return new int[]{frame.left() + frame.size() / HALF, frame.top() + frame.size() / HALF};
+        }
+    }
+
+    /**
+     * Lays an ability's icon and badges out as one cluster centered on a
+     * point: the icon in its frame on the left, the own badge
+     * {@link #BADGE_GAP} right of the frame beside the icon's middle, and the
+     * prism badge, where the ability carries an on_prism reaction, drawn
+     * first so the own badge stands in front of it. Nothing overlaps the icon.
+     * decision abilities-replace-the-hovered-type
+     * decision badges-halve-and-sit-up-right-and-closer
      * decision on-prism-reaction-wears-the-prism-badge
      * decision prism-badge-sits-behind-and-above-barely-overlapping
      * decision hovering-a-badge-names-its-kind
      *
-     * @param iconCenter the icon's center
+     * @param center     the point the cluster centers on
      * @param own        the ability's own badge
      * @param wearsPrism whether the ability carries an on_prism reaction
-     * @return the badges in draw order, the own badge last
+     * @return the cluster
      */
-    static List<BadgeIcon> badgeLayout(int[] iconCenter, AbilityBadge own, boolean wearsPrism) {
-        ItemRect ownSquare = badgeBox(iconCenter);
+    static IconCluster clusterAround(int[] center, AbilityBadge own, boolean wearsPrism) {
+        int left = center[0] - CLUSTER_WIDTH / HALF;
+        int top = center[1] - FRAME_SIZE / HALF;
+        ItemRect ownSquare = new ItemRect(left + FRAME_SIZE + BADGE_GAP, top + BADGE_DROP, BADGE_SIZE);
         BadgeIcon ownBadge = new BadgeIcon(own, ownSquare, List.of());
+        ItemRect frameSquare = new ItemRect(left, top, FRAME_SIZE);
         if (!wearsPrism) {
-            return List.of(ownBadge);
+            return new IconCluster(frameSquare, List.of(ownBadge));
         }
-        ItemRect prismSquare = squareAround(prismBadgeAbove(badgeOnCorner(iconCenter)), BADGE_SIZE);
-        return List.of(new BadgeIcon(AbilityBadge.PRISM, prismSquare, List.of(ownSquare)), ownBadge);
+        ItemRect prismSquare = squareAround(prismBadgeAbove(new int[]{ownSquare.left() + BADGE_SIZE / HALF,
+                ownSquare.top() + BADGE_SIZE / HALF}), BADGE_SIZE);
+        return new IconCluster(frameSquare,
+                List.of(new BadgeIcon(AbilityBadge.PRISM, prismSquare, List.of(ownSquare)), ownBadge));
+    }
+
+    /**
+     * The four sides of an icon's frame, each a {@link #FRAME_WIDTH}-wide bar
+     * along one edge of its square.
+     * decision abilities-replace-the-hovered-type
+     *
+     * @param square the frame's square
+     * @return each side's corners on screen, in order
+     */
+    static List<List<double[]>> frameSides(ItemRect square) {
+        double left = square.left();
+        double top = square.top();
+        double right = left + square.size();
+        double bottom = top + square.size();
+        return List.of(bar(left, top, right, top + FRAME_WIDTH), bar(left, bottom - FRAME_WIDTH, right, bottom),
+                bar(left, top + FRAME_WIDTH, left + FRAME_WIDTH, bottom - FRAME_WIDTH),
+                bar(right - FRAME_WIDTH, top + FRAME_WIDTH, right, bottom - FRAME_WIDTH));
+    }
+
+    private static List<double[]> bar(double left, double top, double right, double bottom) {
+        return List.of(new double[]{left, top}, new double[]{right, top}, new double[]{right, bottom},
+                new double[]{left, bottom});
     }
 
     /**
@@ -704,17 +764,6 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The square an ability's own badge draws in beside its icon.
-     * decision badges-halve-and-sit-up-right-and-closer
-     *
-     * @param iconCenter the icon's center
-     * @return the badge's square
-     */
-    static ItemRect badgeBox(int[] iconCenter) {
-        return squareAround(badgeOnCorner(iconCenter), BADGE_SIZE);
-    }
-
-    /**
      * The point the prism badge centers on: straight above its partner,
      * its bottom {@link #PRISM_BADGE_OVERLAP} rows under the partner's top.
      * decision on-prism-reaction-wears-the-prism-badge
@@ -725,20 +774,6 @@ final class RadialWheelRenderer {
      */
     static int[] prismBadgeAbove(int[] badgeCenter) {
         return new int[]{badgeCenter[0], badgeCenter[1] - PRISM_BADGE_RISE};
-    }
-
-    /**
-     * The point an ability's own badge centers on: up and right of its icon,
-     * the badge covering {@link #BADGE_OVERLAP} pixels of the icon's top-right
-     * corner along each side.
-     * badge-marks-the-target-kind
-     * decision badges-halve-and-sit-up-right-and-closer
-     *
-     * @param iconCenter the icon's center
-     * @return the badge's center
-     */
-    static int[] badgeOnCorner(int[] iconCenter) {
-        return new int[]{iconCenter[0] + BADGE_REACH, iconCenter[1] - BADGE_REACH};
     }
 
     /**
@@ -838,14 +873,15 @@ final class RadialWheelRenderer {
 
     /**
      * Places an ability's words around its resting tip: the name's lines at
-     * {@link #NAME_SCALE} stacked directly above the icon, the cost at
-     * {@link #DETAIL_SCALE} directly below it.
+     * {@link #NAME_SCALE} stacked a pixel above the icon's frame, the cost at
+     * {@link #DETAIL_SCALE} flush under the frame, so a neighbor's name
+     * below stays clear of it.
      * decision abilities-replace-the-hovered-type
      * decision ability-name-shrinks-some-and-other-text-more
      *
      * @param name       the name's lines
      * @param cost       the cost, or null for none
-     * @param restingTip the point the icon rests on
+     * @param restingTip the point the icon's cluster rests on
      * @param widthOf    each line's width at full size
      * @param lineHeight the font's line height at full size
      * @return the lines, the name's from the top, then the cost's
@@ -854,13 +890,13 @@ final class RadialWheelRenderer {
                                        ToIntFunction<Component> widthOf, int lineHeight) {
         List<PlacedLine> lines = new ArrayList<>(name.size() + 1);
         double nameLine = lineHeight * (double) NAME_SCALE;
-        double top = restingTip[1] - ABILITY_ICON_OFFSET - LABEL_GAP - name.size() * nameLine;
+        double top = restingTip[1] - FRAME_SIZE / HALF - LABEL_GAP - name.size() * nameLine;
         for (Component line : name) {
             lines.add(new PlacedLine(line, restingTip[0], top, NAME_SCALE, widthOf.applyAsInt(line), lineHeight));
             top += nameLine;
         }
         if (cost != null) {
-            lines.add(new PlacedLine(cost, restingTip[0], restingTip[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
+            lines.add(new PlacedLine(cost, restingTip[0], restingTip[1] + FRAME_SIZE / HALF,
                     DETAIL_SCALE, widthOf.applyAsInt(cost), lineHeight));
         }
         return lines;
