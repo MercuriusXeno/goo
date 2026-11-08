@@ -66,6 +66,52 @@ class BlockCookingTest {
         }
     }
 
+    /**
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     */
+    @Nested
+    class MeltedBlock {
+
+        private final Block ice = mock(Block.class);
+        private final Block frostedIce = mock(Block.class);
+        private final Block snowLayer = mock(Block.class);
+        private final Block water = mock(Block.class);
+        private final Block air = mock(Block.class);
+        private final BlockCooking.Meltables meltables =
+                new BlockCooking.Meltables(ice, frostedIce, snowLayer, water, air);
+
+        @Test
+        void iceMeltsToWater() {
+            assertEquals(Optional.of(water), BlockCooking.meltedBlock(ice, meltables, false));
+        }
+
+        @Test
+        void frostedIceMeltsToWater() {
+            assertEquals(Optional.of(water), BlockCooking.meltedBlock(frostedIce, meltables, false));
+        }
+
+        @Test
+        void iceMeltsToAirWhereUltrawarm() {
+            assertEquals(Optional.of(air), BlockCooking.meltedBlock(ice, meltables, true));
+            assertEquals(Optional.of(air), BlockCooking.meltedBlock(frostedIce, meltables, true));
+        }
+
+        @Test
+        void snowLayerMeltsToAir() {
+            assertEquals(Optional.of(air), BlockCooking.meltedBlock(snowLayer, meltables, false));
+        }
+
+        @Test
+        void aBlockThatNeitherMeltsNorSmeltsIsLeft() {
+            Block stone = mock(Block.class);
+            when(stone.asItem()).thenReturn(mock(Item.class));
+
+            assertEquals(Optional.empty(), BlockCooking.meltedBlock(stone, meltables, false));
+            assertEquals(Optional.empty(), FlamesStep.heatedInto(meltables, false, item -> Optional.empty(), air)
+                    .apply(stone));
+        }
+    }
+
     @Nested
     class FinishCooked {
 

@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -51,7 +52,7 @@ class ProgramBehaviorTest {
 
         program.tick(host);
 
-        verify(host).explode(4f, ExplosionMode.TNT);
+        verify(host).explode(eq(4f), anyDouble(), eq(ExplosionMode.TNT));
         assertFalse(program.isActive());
     }
 
@@ -62,11 +63,11 @@ class ProgramBehaviorTest {
 
         program.tick(host);
         program.tick(host);
-        verify(host, never()).explode(anyFloat(), any());
+        verify(host, never()).explode(anyFloat(), anyDouble(), any());
         assertTrue(program.isActive());
 
         program.tick(host);
-        verify(host).explode(1f, ExplosionMode.TNT);
+        verify(host).explode(eq(1f), anyDouble(), eq(ExplosionMode.TNT));
         assertFalse(program.isActive());
     }
 
@@ -81,10 +82,10 @@ class ProgramBehaviorTest {
         program.tick(host);
         program.tick(host);
         assertTrue(program.isActive());
-        verify(host, never()).explode(anyFloat(), any());
+        verify(host, never()).explode(anyFloat(), anyDouble(), any());
 
         program.tick(host);
-        verify(host).explode(3.5f, ExplosionMode.TNT);
+        verify(host).explode(eq(3.5f), anyDouble(), eq(ExplosionMode.TNT));
         assertFalse(program.isActive());
     }
 
@@ -95,8 +96,8 @@ class ProgramBehaviorTest {
 
         program.tick(host);
 
-        verify(host).explode(1f, ExplosionMode.TNT);
-        verify(host).explode(2f, ExplosionMode.TNT);
+        verify(host).explode(eq(1f), anyDouble(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(2f), anyDouble(), eq(ExplosionMode.TNT));
         assertEquals(3, program.stepIndex());
     }
 
@@ -108,7 +109,7 @@ class ProgramBehaviorTest {
         program.tick(host);
         program.tick(host);
 
-        verify(host, times(1)).explode(anyFloat(), any());
+        verify(host, times(1)).explode(anyFloat(), anyDouble(), any());
         verify(host, never()).anyEntityWithin(any(), anyDouble(), any());
     }
 

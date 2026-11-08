@@ -36,6 +36,9 @@ public final class BlockExposures {
     /** The tint of a mingled block drawn in its own colors. */
     public static final int UNTINTED = BlockExposurePayload.UNTINTED;
 
+    /** The mark of a block melting away, which the client draws nothing for until it steps. */
+    public static final int MELTS_AWAY = BlockExposurePayload.MELTS_AWAY;
+
     private final Map<Exposed, Exposure> exposures = new HashMap<>();
 
     /**

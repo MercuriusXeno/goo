@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -12,7 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The local caster's sunbeam ray, drawn frame by frame against a wall while
  * the server's rays arrive once a tick a round trip late, holds still under
  * a steady look and moves by a bounded step under a turning one
- * (decision diagnose-and-correct-the-sunbeam-jitter).
+ * (decision diagnose-and-correct-the-sunbeam-jitter); a ray striking a
+ * prism that refracts it runs into the prism's middle, where its core is
+ * (decision diagnose-and-correct-the-sunbeam-prism-depth).
  */
 class SunbeamRayEndTest {
 
@@ -55,6 +58,21 @@ class SunbeamRayEndTest {
             ends.add(SunbeamRayEnd.drawnEnd(serverEnd, own, RANGE, WALL));
         }
         return ends;
+    }
+
+    /** A prism in the wall's cell straight ahead, the ray striking its near face. */
+    private static final BlockPos PRISM = new BlockPos(0, 64, 20);
+
+    @Test
+    void aRayStrikingARefractingPrismGathersAtItsMiddle() {
+        Vec3 struck = new Vec3(0.5, 64.5, WALL_Z + 0.25);
+        assertEquals(Vec3.atCenterOf(PRISM), SunbeamRayEnd.gathersAt(EYE.add(0.5, 0.5, 0), struck, PRISM::equals));
+    }
+
+    @Test
+    void aRayStrikingAnythingElseGathersWhereItStruck() {
+        Vec3 struck = new Vec3(0.5, 64.5, WALL_Z);
+        assertEquals(struck, SunbeamRayEnd.gathersAt(EYE.add(0.5, 0.5, 0), struck, pos -> false));
     }
 
     @Test

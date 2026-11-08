@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,7 @@ import org.mockito.ArgumentCaptor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -45,6 +47,19 @@ class GooRenderTypesTest {
                 .collect(Collectors.toCollection(TreeSet::new));
 
         assertEquals(Set.of(), unregistered, "declared but never registered");
+    }
+
+    /**
+     * Sunbeam's scorch draws its char translucent, darkening the face, and its
+     * glow in a pass of its own added onto the face, the block showing through.
+     * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
+     */
+    @Test
+    void sunbeamsScorchAddsItsGlowOntoTheFace() {
+        assertEquals(Optional.of(BlendFunction.TRANSLUCENT),
+                GooRenderTypes.SUNBEAM_SCORCH.getColorTargetState().blendFunction());
+        assertEquals(Optional.of(BlendFunction.ADDITIVE),
+                GooRenderTypes.SUNBEAM_SCORCH_GLOW.getColorTargetState().blendFunction());
     }
 
     /** Meteo's rock writes depth, so its near faces hide its far ones rather than drawing back to front. */

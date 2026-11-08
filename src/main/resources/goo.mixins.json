@@ -25,6 +25,7 @@
   ],
   "client": [
     "ClientLevelGooValuesMixin",
+    "ClientLevelMeltKeepsMixin",
     "CloudRendererSculkerMixin",
     "ClientPacketListenerGooMixin",
     "LevelRendererSculkerCullMixin",

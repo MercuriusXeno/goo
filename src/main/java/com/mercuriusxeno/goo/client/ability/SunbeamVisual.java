@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.RayStep;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
@@ -15,6 +16,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -25,6 +27,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +38,11 @@ import java.util.Objects;
  * light ({@link GlowBeamMesh}) from just below the caster's eye to where the
  * ray struck, and on from a prism it struck to each mob the prism refracted
  * it toward. A ray shows while its caster holds it and for a tick after the
- * last one the server sent.
+ * last one the server sent. A ray a prism refracts runs into the prism's
+ * middle and its refracted beams leave from there, out of a soft core of
+ * light ({@link GlowCore}).
  * decision sunbeam-splits-at-the-prism-with-a-glisten
+ * decision diagnose-and-correct-the-sunbeam-prism-depth
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SunbeamVisual {
@@ -94,17 +100,75 @@ public final class SunbeamVisual {
         RAYS.entrySet().removeIf(entry -> level.getEntity(entry.getKey()) == null
                 || now - entry.getValue().arrivedAt() > LINGER_TICKS);
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         float scroll = Mth.frac(-(now + partialTick) * SCROLL_PER_TICK);
+        List<Vec3> cores = drawRays(mc, level, event.getPoseStack(), consumer, partialTick, scroll);
+        buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
+        drawCores(event.getPoseStack(), buffers, cores);
+    }
+
+    /**
+     * Draws every ray still showing, each run into the core of a prism that
+     * refracts it.
+     * decision diagnose-and-correct-the-sunbeam-prism-depth
+     *
+     * @param mc          the client
+     * @param level       the level
+     * @param poseStack   the pose stack
+     * @param consumer    the beam's vertex consumer
+     * @param partialTick the frame's partial tick
+     * @param scroll      the texture's scroll offset
+     * @return each core's middle, camera-relative
+     */
+    private static List<Vec3> drawRays(Minecraft mc, ClientLevel level, PoseStack poseStack, VertexConsumer consumer,
+                                       float partialTick, float scroll) {
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        List<Vec3> cores = new ArrayList<>();
         for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
             Entity caster = Objects.requireNonNull(level.getEntity(entry.getKey()));
-            drawRay(event.getPoseStack(), consumer, GloveHand.of(mc, caster, partialTick).subtract(camera),
-                    drawnEnd(mc, caster, entry.getValue(), partialTick).subtract(camera), entry.getValue(),
+            Vec3 hand = GloveHand.of(mc, caster, partialTick);
+            Vec3 struck = drawnEnd(mc, caster, entry.getValue(), partialTick);
+            Vec3 gathered = SunbeamRayEnd.gathersAt(hand, struck, pos -> refractsAt(level, pos));
+            if (!gathered.equals(struck)) {
+                cores.add(gathered.subtract(camera));
+            }
+            drawRay(poseStack, consumer, hand.subtract(camera), gathered.subtract(camera), entry.getValue(),
                     camera, scroll);
         }
-        buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
+        return cores;
+    }
+
+    /**
+     * Whether a prism that refracts a ray stands at a position: one holding a combo.
+     *
+     * @param level the level
+     * @param pos   the position
+     * @return true for a refracting prism
+     */
+    private static boolean refractsAt(ClientLevel level, BlockPos pos) {
+        return level.getBlockEntity(pos) instanceof PrismBlockEntity prism && prism.hasCombo();
+    }
+
+    /**
+     * Draws the core of light at each prism a ray runs into, after the rays.
+     *
+     * @param poseStack the pose stack
+     * @param buffers   the buffer source
+     * @param cores     each core's middle, camera-relative
+     */
+    private static void drawCores(PoseStack poseStack, MultiBufferSource.BufferSource buffers, List<Vec3> cores) {
+        if (cores.isEmpty()) {
+            return;
+        }
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE);
+        for (Vec3 core : cores) {
+            poseStack.pushPose();
+            poseStack.translate(core.x, core.y, core.z);
+            GlowCore.emit(poseStack.last(), consumer, 1f, 1f);
+            poseStack.popPose();
+        }
+        buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }
 
     /**

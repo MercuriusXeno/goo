@@ -146,8 +146,8 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
 
     @Override
-    public void explode(float power, ExplosionMode mode) {
-        GooExplosion.detonate(level, target.position(), power, mode, GooExplosion.Look.vanilla());
+    public void explode(float power, double reach, ExplosionMode mode) {
+        GooExplosion.detonate(level, target.position(), power, reach, mode, GooExplosion.Look.vanilla());
     }
 
     @Override
