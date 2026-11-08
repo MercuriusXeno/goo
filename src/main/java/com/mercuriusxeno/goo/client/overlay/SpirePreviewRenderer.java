@@ -30,8 +30,9 @@ import java.util.Set;
  * rectangle scaled from the footprint's center out to its edge in the goo
  * type's color, fading as it grows, over a steady outline of that edge; and, once the footprint is fixed and the
  * rise is being set, ghost stone, the stone Spire grows drawn translucent and
- * full bright through the moving-block shader, only its outer faces, so it
- * reads as one solid ghost with no seams between its blocks.
+ * full bright through the moving-block shader, only its outer faces, each
+ * also drawn facing in, so it reads as one solid ghost with no seams between
+ * its blocks, from outside or from within the footprint.
  * decision spire-previews-as-a-surface-ripple-and-ghost-stone
  */
 final class SpirePreviewRenderer {
@@ -97,16 +98,24 @@ final class SpirePreviewRenderer {
         for (BlockPos cell : cells) {
             List<BlockStateModelPart> parts = new ArrayList<>();
             model.collectParts(mc.level, cell, STONE, RandomSource.create(STONE.getSeed(cell)), parts);
-            ps.pushPose();
-            ps.translate(cell.getX() - camPos.x, cell.getY() - camPos.y, cell.getZ() - camPos.z);
             for (Direction side : SpirePreview.outerFaces(cell, all)) {
-                for (BlockStateModelPart part : parts) {
-                    part.getQuads(side).forEach(quad -> consumer.putBakedQuad(ps.last(), quad, look));
-                }
+                drawFace(ps, consumer, look, parts, new SpirePreview.Face(cell, side), camPos);
             }
-            ps.popPose();
+            for (SpirePreview.Face inward : SpirePreview.inwardFaces(cell, all)) {
+                drawFace(ps, consumer, look, parts, inward, camPos);
+            }
         }
         buf.endBatch(ghost);
+    }
+
+    private static void drawFace(PoseStack ps, VertexConsumer consumer, QuadInstance look,
+                                 List<BlockStateModelPart> parts, SpirePreview.Face face, Vec3 camPos) {
+        ps.pushPose();
+        ps.translate(face.cell().getX() - camPos.x, face.cell().getY() - camPos.y, face.cell().getZ() - camPos.z);
+        for (BlockStateModelPart part : parts) {
+            part.getQuads(face.side()).forEach(quad -> consumer.putBakedQuad(ps.last(), quad, look));
+        }
+        ps.popPose();
     }
 
     /**
