@@ -25,7 +25,7 @@ class GateArcTest {
 
     @Test
     void theLegsRunHandToFaceAndPartnerToTarget() {
-        List<Vec3[]> legs = GateArc.legs(HAND, HOP, TARGET, 0, SEGMENTS);
+        List<Vec3[]> legs = GateArc.legs(HAND, HOP, TARGET, 0, 0, SEGMENTS);
         assertEquals(2, legs.size(), "A target past a gate should draw two legs");
         assertClose(HAND, legs.get(0)[0], "the near leg's start");
         assertClose(FACE, legs.get(0)[legs.get(0).length - 1], "the near leg's end, on the gate's face");
@@ -34,21 +34,21 @@ class GateArcTest {
     }
 
     @Test
-    void theFarLegCarriesOnTheNearLegsCurve() {
-        List<Vec3[]> legs = GateArc.legs(HAND, HOP, TARGET, PEAK, SEGMENTS);
+    void eachArcingLegMeetsTheGateExactlyWhereTheAimDoes() {
+        List<Vec3[]> legs = GateArc.legs(HAND, HOP, TARGET, PEAK, PEAK, SEGMENTS);
         Vec3[] near = legs.get(0);
         Vec3[] far = legs.get(1);
-        double nearEndsAbove = near[near.length - 1].y() - FACE.y();
-        double farStartsAbove = far[0].y() - PARTNER.y();
-        assertTrue(nearEndsAbove > CLOSE, "The arc should stand above its chord where it meets the gate, stands "
-                + nearEndsAbove);
-        assertEquals(nearEndsAbove, farStartsAbove, CLOSE, "The far leg should start as high above its chord as "
-                + "the near leg ends");
+        assertClose(FACE, near[near.length - 1], "the arcing near leg's end, on the point the aim meets the face");
+        assertClose(PARTNER, far[0], "the arcing far leg's start, on the partner's matching point");
+        assertTrue(near[near.length / 2].y() > HAND.lerp(FACE, 0.5).y() + CLOSE, "The near leg should arc above "
+                + "its own chord");
+        assertTrue(far[far.length / 2].y() > PARTNER.lerp(TARGET, 0.5).y() + CLOSE, "The far leg should arc above "
+                + "its own chord");
     }
 
     @Test
     void aBeamDrawsTwoStraightLegs() {
-        List<Vec3[]> legs = GateArc.legs(HAND, HOP, TARGET, 0, SEGMENTS);
+        List<Vec3[]> legs = GateArc.legs(HAND, HOP, TARGET, 0, 0, SEGMENTS);
         for (Vec3 point : legs.get(0)) {
             assertEquals(0, distanceOffChord(point, HAND, FACE), CLOSE, "The near leg of a beam should be straight");
         }
@@ -60,7 +60,7 @@ class GateArcTest {
 
     @Test
     void aTargetWithNoGateDrawsOneLeg() {
-        List<Vec3[]> legs = GateArc.legs(HAND, null, TARGET, PEAK, SEGMENTS);
+        List<Vec3[]> legs = GateArc.legs(HAND, null, TARGET, PEAK, PEAK, SEGMENTS);
         assertEquals(1, legs.size(), "A near-side target should draw one leg");
         assertClose(HAND, legs.get(0)[0], "the leg's start");
         assertClose(TARGET, legs.get(0)[legs.get(0).length - 1], "the leg's end");

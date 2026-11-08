@@ -129,10 +129,11 @@ public final class ArcRenderer {
     static void renderGateLeg(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, Camera camera,
             Vec3 hand, GateArc.Hop hop, Vec3 end, boolean far, LineStyle style) {
         double length = hand.distanceTo(hop.facePoint()) + hop.partnerPoint().distanceTo(end);
-        double peak = style.straightLine() ? 0 : Mth.lerp(style.grannyWeight(), ThrowArc.basePeak(length),
-                ThrowArc.lobPeak(hop.partnerPoint(), end));
+        double nearPeak = style.straightLine() ? 0 : ThrowArc.basePeak(hand.distanceTo(hop.facePoint()));
+        double farPeak = style.straightLine() ? 0 : Mth.lerp(style.grannyWeight(),
+                ThrowArc.basePeak(hop.partnerPoint().distanceTo(end)), ThrowArc.lobPeak(hop.partnerPoint(), end));
         int segments = Mth.clamp((int) (length / SAMPLE_SPACING), MIN_ARC_SEGMENTS, MAX_ARC_SEGMENTS);
-        List<Vec3[]> legs = GateArc.legs(hand, hop, end, peak, segments);
+        List<Vec3[]> legs = GateArc.legs(hand, hop, end, nearPeak, farPeak, segments);
         emitDashedGlow(poseStack, bufferSource, camera, legs.get(far ? 1 : 0), style.rgb(),
                 computeDashOffset(style.partialTick()), Minecraft.getInstance().getWindow().getAppropriateLineWidth(),
                 AIM_LINE_GLOW);
