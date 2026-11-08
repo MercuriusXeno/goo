@@ -262,15 +262,18 @@ public final class GooStreamHandler {
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id());
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
-        // fly from the hand, a mob-first swarm's into what it strikes
+        // fly from the hand, a mob-first swarm's curving onto the mob it bites or into the block it paints
         BlockHitResult crosshair = crosshairHit(player, delivery.range());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         List<Integer> healed = new ArrayList<>();
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
-            if (ability.hasTag(AbilityTags.MOB_FIRST)) {
-                sprayInto(level, apex, SwarmMotes.moteTarget(struck, crosshair), delivery);
+            if (ability.hasTag(AbilityTags.MOB_FIRST) && !struck.isEmpty()) {
+                EntityVisuals.sendToWatchers(player, new GnatSeekPayload(player.getId(), apex,
+                        aimFrom(apex, crosshair.getLocation(), axis), struck.getFirst().getId()));
+            } else if (ability.hasTag(AbilityTags.MOB_FIRST)) {
+                sprayInto(level, apex, SwarmMotes.moteTarget(crosshair), delivery);
             } else {
                 Vec3 target = crosshair.getLocation();
                 sprayParticles(level, apex, aimFrom(apex, target, axis), delivery,
