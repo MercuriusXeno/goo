@@ -445,15 +445,17 @@ public final class GooStreamHandler {
     static List<LivingEntity> livingInCone(ServerLevel level, ServerPlayer player, Vec3 apex, Vec3 axis,
                                            Delivery delivery) {
         Vec3 eye = player.getEyePosition();
-        AABB reach = new AABB(apex, apex).inflate(delivery.range()).minmax(new AABB(eye, eye).inflate(delivery.range()));
-        return level.getEntitiesOfClass(LivingEntity.class, reach, living -> living != player && living.isAlive()
-                && (inCone(apex, axis, delivery, living) || inCone(eye, axis, delivery, living)));
+        double living = delivery.livingReach();
+        AABB reach = new AABB(apex, apex).inflate(living).minmax(new AABB(eye, eye).inflate(living));
+        return level.getEntitiesOfClass(LivingEntity.class, reach, entity -> entity != player && entity.isAlive()
+                && (inCone(apex, axis, delivery, entity) || inCone(eye, axis, delivery, entity)));
     }
 
     private static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
-        return StreamCone.contains(apex, axis, delivery.range(), delivery.coneDegrees(),
-                living.getBoundingBox().getCenter())
-                || living.getBoundingBox().clip(apex, apex.add(axis.normalize().scale(delivery.range()))).isPresent();
+        // decay-gnats-degrade-each-block-once: a stream may seek the living past the blocks it works
+        double reach = delivery.livingReach();
+        return StreamCone.contains(apex, axis, reach, delivery.coneDegrees(), living.getBoundingBox().getCenter())
+                || living.getBoundingBox().clip(apex, apex.add(axis.normalize().scale(reach))).isPresent();
     }
 
     /**
