@@ -17,8 +17,10 @@ import org.jspecify.annotations.NonNull;
  * @param y        where the sound played, up
  * @param z        where the sound played, south
  * @param loudness its volume, 1 for an ordinary sound
+ * @param range    how far it carries, in blocks
  */
-public record SculkerHeardPayload(double x, double y, double z, float loudness) implements CustomPacketPayload {
+public record SculkerHeardPayload(double x, double y, double z, float loudness, float range)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<SculkerHeardPayload> TYPE =
@@ -38,9 +40,11 @@ public record SculkerHeardPayload(double x, double y, double z, float loudness) 
         buf.writeDouble(payload.y);
         buf.writeDouble(payload.z);
         buf.writeFloat(payload.loudness);
+        buf.writeFloat(payload.range);
     }
 
     private static SculkerHeardPayload decode(FriendlyByteBuf buf) {
-        return new SculkerHeardPayload(buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat());
+        return new SculkerHeardPayload(buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(),
+                buf.readFloat());
     }
 }

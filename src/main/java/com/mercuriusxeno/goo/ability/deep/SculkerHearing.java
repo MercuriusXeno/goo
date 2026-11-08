@@ -40,7 +40,7 @@ public final class SculkerHearing {
         for (ServerPlayer player : level.players()) {
             if (player != except && player.hasData(GooAttachments.SCULKER) && SculkerSwim.dives(player)
                     && carriesTo(player.position().distanceTo(at), range, viewReach)) {
-                PacketDistributor.sendToPlayer(player, new SculkerHeardPayload(at.x, at.y, at.z, loudness));
+                PacketDistributor.sendToPlayer(player, new SculkerHeardPayload(at.x, at.y, at.z, loudness, (float) range));
             }
         }
     }

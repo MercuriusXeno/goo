@@ -158,7 +158,21 @@ public final class SculkerSenses {
             return;
         }
         SoundInstance sound = event.getSound();
-        hear(new Vec3(sound.getX(), sound.getY(), sound.getZ()), loudnessOf(mc, sound));
+        float loudness = loudnessOf(mc, sound);
+        hear(new Vec3(sound.getX(), sound.getY(), sound.getZ()), loudness, rangeOf(sound, loudness));
+    }
+
+    /**
+     * How far a sound carries, as its own attenuation reaches: its
+     * attenuation distance, times its loudness past ordinary.
+     *
+     * @param sound    the sound, resolved
+     * @param loudness its loudness
+     * @return its range, in blocks
+     */
+    private static double rangeOf(SoundInstance sound, float loudness) {
+        return sound.getSound() == null ? SculkerEchoes.rangeFor(loudness)
+                : sound.getSound().getAttenuationDistance() * Math.max(1f, loudness);
     }
 
     /**
@@ -183,15 +197,16 @@ public final class SculkerSenses {
      *
      * @param at       where the sound played
      * @param loudness its loudness, 1 for an ordinary sound
+     * @param range    how far it carries, in blocks
      */
-    public static void hear(Vec3 at, float loudness) {
+    public static void hear(Vec3 at, float loudness, double range) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (!hearsAt(mc, at)) {
             return;
         }
         long now = mc.level.getGameTime();
-        ECHOES.hear(at, now, loudness);
+        ECHOES.hear(at, now, loudness, range);
         List<Entity> mobs = mc.level.getEntities(player, new AABB(at, at).inflate(SOUND_OWNER_REACH),
                 LivingEntity.class::isInstance);
         int ticks = SculkerEchoes.outlineTicksFor(loudness);

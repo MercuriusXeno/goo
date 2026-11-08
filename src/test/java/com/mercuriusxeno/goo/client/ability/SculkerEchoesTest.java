@@ -32,8 +32,13 @@ class SculkerEchoesTest {
     private static final long HEARD_AT = 100;
     private static final SculkerEchoes.Face UNDER_THE_SOUND = new SculkerEchoes.Face(BlockPos.ZERO, Direction.UP);
     private static final SculkerEchoes.Face THREE_AWAY = new SculkerEchoes.Face(new BlockPos(3, 0, 0), Direction.UP);
-    private static final SculkerEchoes.Face FIVE_AWAY = new SculkerEchoes.Face(new BlockPos(5, 0, 0), Direction.UP);
-    private static final SculkerEchoes.Face SEVEN_AWAY = new SculkerEchoes.Face(new BlockPos(7, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face ELEVEN_AWAY = new SculkerEchoes.Face(new BlockPos(11, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face THIRTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(13, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face FIFTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(15, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face SEVENTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(17, 0, 0), Direction.UP);
+    private static final SculkerEchoes.Face TWENTY_AWAY = new SculkerEchoes.Face(new BlockPos(20, 0, 0), Direction.UP);
+    /** Long enough for a ring to cross twenty blocks. */
+    private static final long FOUR_SECONDS = 80;
     private static final SculkerEchoes.Face BURIED_SIDE = new SculkerEchoes.Face(new BlockPos(1, -1, 0), Direction.WEST);
     private static final double CLOSE = 1e-6;
     private static final float LOUDEST = 4f;
@@ -86,21 +91,27 @@ class SculkerEchoesTest {
         }
 
         @Test
-        void anOrdinarySoundReachesFourBlocks() {
-            assertTrue(everLit(THREE_AWAY, 1f));
-            assertFalse(everLit(FIVE_AWAY, 1f));
+        void aRingTravelsItsSoundsWholeRange() {
+            assertTrue(everLit(ELEVEN_AWAY, 12));
+            assertFalse(everLit(THIRTEEN_AWAY, 12));
         }
 
         @Test
-        void theLoudestSoundReachesSixBlocks() {
-            assertTrue(everLit(FIVE_AWAY, LOUDEST));
-            assertFalse(everLit(SEVEN_AWAY, LOUDEST));
+        void anOrdinarySoundTravelsSixteenBlocks() {
+            assertEquals(16.0, SculkerEchoes.rangeFor(1f), CLOSE);
+            assertTrue(everLit(FIFTEEN_AWAY, SculkerEchoes.rangeFor(1f)));
+            assertFalse(everLit(SEVENTEEN_AWAY, SculkerEchoes.rangeFor(1f)));
         }
 
-        private boolean everLit(SculkerEchoes.Face face, float loudness) {
+        @Test
+        void aLouderSoundTravelsFarther() {
+            assertTrue(everLit(TWENTY_AWAY, SculkerEchoes.rangeFor(2f)));
+        }
+
+        private boolean everLit(SculkerEchoes.Face face, double range) {
             SculkerEchoes echoes = new SculkerEchoes();
-            echoes.hear(SOUND, HEARD_AT, loudness);
-            for (long tick = HEARD_AT; tick <= HEARD_AT + TWO_SECONDS; tick++) {
+            echoes.hear(SOUND, HEARD_AT, 1f, range);
+            for (long tick = HEARD_AT; tick <= HEARD_AT + FOUR_SECONDS; tick++) {
                 echoes.advance(tick, FLAT_GROUND);
                 if (echoes.remembered().containsKey(face)) {
                     return true;
