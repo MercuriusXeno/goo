@@ -168,6 +168,15 @@ public final class PortalChoice {
     }
 
     /**
+     * Forgets the portal sync last told a player.
+     *
+     * @param player the player's id
+     */
+    static void forget(UUID player) {
+        LAST_SENT.remove(player);
+    }
+
+    /**
      * The portal sync a player's client is sent.
      *
      * @param player the player
