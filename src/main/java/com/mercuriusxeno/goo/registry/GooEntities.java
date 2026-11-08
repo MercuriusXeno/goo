@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.EldritchMonstrosity;
 import com.mercuriusxeno.goo.entity.FeedPile;
+import com.mercuriusxeno.goo.entity.FormingGooBlob;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.entity.SwapBody;
@@ -68,6 +69,19 @@ public final class GooEntities {
             .noLootTable()
             .clientTrackingRange(ROLLING_GOO_TRACKING_RANGE)
             .updateInterval(1)
+            .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
+    /**
+     * The goo blob Unmake's chunks converge on, hovering and growing until it
+     * becomes a goo item (decision unmake-converges-near-the-unmade-blocks-into-a-goo-item).
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<FormingGooBlob>> FORMING_GOO_BLOB =
+        ENTITIES.register("forming_goo_blob", id -> EntityType.Builder
+            .<FormingGooBlob>of(FormingGooBlob::new, MobCategory.MISC)
+            .sized(SPHERE_SIZE, SPHERE_SIZE)
+            .clientTrackingRange(SPHERE_TRACKING_CHUNKS)
+            .updateInterval(1)
+            .noLootTable()
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
     /**
