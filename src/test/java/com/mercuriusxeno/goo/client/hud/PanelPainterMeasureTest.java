@@ -18,7 +18,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
+import com.mojang.blaze3d.vertex.PoseStack;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that PanelPainter measures the canister, vat and crucible panels to the
@@ -212,5 +217,40 @@ class PanelPainterMeasureTest {
      */
     private static VatStackData vat(GooContents contents, String label, int stackSize) {
         return new VatStackData(contents, 0, ContainerCapacity.VAT_BASE, false, false, label, null, null, null, stackSize);
+    }
+
+    /**
+     * An item model draws only from the side of the panel its text reads from, since the
+     * background and text cull from behind (decision all-huds-draw-an-items-model-as-the-inventory-does).
+     */
+    @Nested
+    class FrontFacing {
+
+        /**
+         * Builds the pose a panel on a block's north face takes, as PanelPainter orients it:
+         * camera-relative, its local +z turned to face north, scaled to pixels with Y down.
+         *
+         * @param panelZFromCamera the panel's Z less the camera's
+         * @return the panel's pose matrix
+         */
+        private static Matrix4f northFacingPanel(float panelZFromCamera) {
+            PoseStack poseStack = new PoseStack();
+            poseStack.translate(0, 0, panelZFromCamera);
+            poseStack.mulPose(new Quaternionf().rotationY((float) Math.PI));
+            poseStack.scale(InWorldHud.PIXEL_SCALE, -InWorldHud.PIXEL_SCALE, InWorldHud.PIXEL_SCALE);
+            return poseStack.last().pose();
+        }
+
+        /** A camera two blocks north of a north-facing panel stands before its front. */
+        @Test
+        void cameraBeforeTheFrontSeesIt() {
+            assertTrue(PanelPainter.frontFacesCamera(northFacingPanel(2f)));
+        }
+
+        /** A camera two blocks south of a north-facing panel stands behind it. */
+        @Test
+        void cameraBehindThePanelSeesNoFront() {
+            assertFalse(PanelPainter.frontFacesCamera(northFacingPanel(-2f)));
+        }
     }
 }
