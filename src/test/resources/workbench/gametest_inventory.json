@@ -931,11 +931,6 @@
       "image": "minecraft/budding_amethyst.png"
     },
     {
-      "id": "goo:budding_chrysm",
-      "name": "Untyped Budding Chrysm",
-      "image": "goo/budding_chrysm.png"
-    },
-    {
       "id": "minecraft:bundle",
       "name": "Bundle",
       "image": "minecraft/bundle.png"
@@ -1264,11 +1259,6 @@
       "id": "minecraft:chorus_plant",
       "name": "Chorus Plant",
       "image": "minecraft/chorus_plant.png"
-    },
-    {
-      "id": "goo:chrysm",
-      "name": "Untyped Chrysm",
-      "image": "goo/chrysm.png"
     },
     {
       "id": "minecraft:clay",
@@ -2746,11 +2736,6 @@
       "image": "minecraft/flowering_azalea_leaves.png"
     },
     {
-      "id": "goo:flowering_chrysm",
-      "name": "Untyped Flowering Chrysm",
-      "image": "goo/flowering_chrysm.png"
-    },
-    {
       "id": "minecraft:fox_spawn_egg",
       "name": "Fox Spawn Egg",
       "image": "minecraft/fox_spawn_egg.png"
@@ -4134,11 +4119,6 @@
       "id": "minecraft:map",
       "name": "Empty Map",
       "image": "minecraft/map.png"
-    },
-    {
-      "id": "goo:materia",
-      "name": "Untyped Materia",
-      "image": "goo/materia.png"
     },
     {
       "id": "minecraft:medium_amethyst_bud",

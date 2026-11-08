@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.GooGloveItem.GloveTier;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -46,20 +45,6 @@ public class GooItems {
      */
     public static final DeferredItem<GooBucketItem> GOO_BUCKET = ITEMS.registerItem("goo_bucket",
             props -> new GooBucketItem(GooFluids.SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
-    // chrysm-tiers-fixed-and-stackable: each tier stacks to the default 64.
-    public static final DeferredItem<ChrysmItem> CHRYSM = registerChrysm(ChrysmTier.CHRYSM);
-    public static final DeferredItem<ChrysmItem> BUDDING_CHRYSM = registerChrysm(ChrysmTier.BUDDING_CHRYSM);
-    public static final DeferredItem<ChrysmItem> FLOWERING_CHRYSM = registerChrysm(ChrysmTier.FLOWERING_CHRYSM);
-    public static final DeferredItem<ChrysmItem> MATERIA = registerChrysm(ChrysmTier.MATERIA);
-    /** The four chrysm tiers, smallest first. */
-    public static final List<DeferredItem<ChrysmItem>> CHRYSM_TIERS = List.of(CHRYSM, BUDDING_CHRYSM,
-            FLOWERING_CHRYSM, MATERIA);
-
-    static {
-        // chrysm-tiers-in-32x-steps: a saved kilochrysm holds a budding chrysm's volume, a megachrysm materia's.
-        ITEMS.addAlias(Identifier.fromNamespaceAndPath(Goo.MODID, "kilochrysm"), BUDDING_CHRYSM.getId());
-        ITEMS.addAlias(Identifier.fromNamespaceAndPath(Goo.MODID, "megachrysm"), MATERIA.getId());
-    }
     // --- Block items ---
     public static final DeferredItem<BlockItem> CRUCIBLE = ITEMS.registerSimpleBlockItem("crucible", GooBlocks.CRUCIBLE);
     /**
@@ -121,10 +106,6 @@ public class GooItems {
     public static final List<DeferredItem<? extends Item>> EXORITE_SET = List.of(
             EXORITE_PICKAXE, EXORITE_AXE, EXORITE_SHOVEL, EXORITE_HOE, EXORITE_SWORD,
             EXORITE_HELMET, EXORITE_CHESTPLATE, EXORITE_LEGGINGS, EXORITE_BOOTS);
-
-    private static DeferredItem<ChrysmItem> registerChrysm(ChrysmTier tier) {
-        return ITEMS.registerItem(tier.registryPath(), props -> new ChrysmItem(props, tier));
-    }
 
     private static DeferredItem<ExoriteGearItem> registerExoriteArmor(String name, ArmorType type) {
         return ITEMS.registerItem(name, props -> new ExoriteGearItem(props.humanoidArmor(ExoriteArmorMaterial.MATERIAL, type).fireResistant()));
