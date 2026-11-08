@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -217,10 +218,21 @@ public final class BlockTransforms {
         meltingFrom.remove(pos);
         Exposure built = exposures.remove(pos);
         playing.removeIf(transform -> transform.pos().equals(pos));
-        if (built != null && built.tint() == MELTS_AWAY) {
-            // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: the melt was the one dissolve
-            return;
+        // flames-melts-vanilla-meltable-ice-and-snow-over-the-hold: the melt was the one dissolve
+        if (built == null || built.tint() != MELTS_AWAY) {
+            playStep(pos, from, start, built);
         }
+    }
+
+    /**
+     * Plays the step of a block no melt ate away, by the exposure that built it.
+     *
+     * @param pos   the block
+     * @param from  the state it was
+     * @param start the game tick the transform began
+     * @param built the exposure that built the step, null for none
+     */
+    private void playStep(BlockPos pos, BlockState from, long start, @Nullable Exposure built) {
         if (built != null && built.tint() >= 0) {
             // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
             playing.add(new Transform(pos.immutable(), built.toward(), start, built.tint()));
