@@ -375,6 +375,67 @@ class RadialWheelRendererTest {
     }
 
     /**
+     * Where an ability wears two badges, the prism badge draws first, so behind, centered above its partner, the two
+     * overlapping by a texel or two, and the cursor names each from its center.
+     * decision prism-badge-sits-behind-and-above-barely-overlapping
+     * decision hovering-a-badge-names-its-kind
+     */
+    @Nested
+    class PrismBadgeLayout {
+
+        private static final int[] ICON_CENTER = {200, 120};
+        private static final int MOST_OVERLAP = 2;
+
+        private final List<RadialWheelRenderer.BadgeIcon> layout = RadialWheelRenderer.badgeLayout(ICON_CENTER,
+                AbilityBadge.WORLD, true);
+
+        private RadialWheelRenderer.BadgeIcon prism() {
+            return layout.stream().filter(badge -> badge.badge() == AbilityBadge.PRISM).findFirst().orElseThrow();
+        }
+
+        private RadialWheelRenderer.BadgeIcon partner() {
+            return layout.stream().filter(badge -> badge.badge() == AbilityBadge.WORLD).findFirst().orElseThrow();
+        }
+
+        private static int[] centerOf(RadialWheelRenderer.ItemRect square) {
+            return new int[]{square.left() + square.size() / 2, square.top() + square.size() / 2};
+        }
+
+        @Test
+        void prismBadgeDrawsBeforeItsPartner() {
+            assertEquals(List.of(AbilityBadge.PRISM, AbilityBadge.WORLD),
+                    layout.stream().map(RadialWheelRenderer.BadgeIcon::badge).toList());
+        }
+
+        @Test
+        void prismBadgeCentersAboveItsPartnerOverlappingItByATexelOrTwo() {
+            RadialWheelRenderer.ItemRect prism = prism().rect();
+            RadialWheelRenderer.ItemRect partner = partner().rect();
+            int across = Math.min(prism.left() + prism.size(), partner.left() + partner.size())
+                    - Math.max(prism.left(), partner.left());
+            int down = Math.min(prism.top() + prism.size(), partner.top() + partner.size())
+                    - Math.max(prism.top(), partner.top());
+            assertAll(
+                    () -> assertTrue(centerOf(prism)[1] < centerOf(partner)[1],
+                            "prism center y " + centerOf(prism)[1] + ", partner's " + centerOf(partner)[1]),
+                    () -> assertTrue(across > 0 && down >= 1 && down <= MOST_OVERLAP,
+                            "overlap " + across + " across, " + down + " down"));
+        }
+
+        @Test
+        void eachBadgeNamesItsKindFromItsCenter() {
+            int[] prismCenter = centerOf(prism().rect());
+            int[] partnerCenter = centerOf(partner().rect());
+            assertAll(
+                    () -> assertEquals(Component.translatable("goo.badge." + AbilityBadge.PRISM.getSerializedName()),
+                            RadialWheelRenderer.badgeNameUnder(layout, prismCenter[0], prismCenter[1]), "prism"),
+                    () -> assertEquals(Component.translatable("goo.badge." + AbilityBadge.WORLD.getSerializedName()),
+                            RadialWheelRenderer.badgeNameUnder(layout, partnerCenter[0], partnerCenter[1]),
+                            "partner"));
+        }
+    }
+
+    /**
      * An ability's name draws a little under full size and its cost smaller still, so across the widest fan the mod
      * ships, opened at any angle on the wheel a 1080p screen draws at GUI scale 3 and at 4, no two neighboring
      * petals' words meet: every shipped fan in the order the wheel fans it, each petal reading its English name and
@@ -768,14 +829,11 @@ class RadialWheelRendererTest {
                     .findFirst().orElseThrow();
             int[] icon = RadialWheelRenderer.contentCenter(frameOf(wheel, List.of()), petal);
             int[] own = RadialWheelRenderer.badgeOnCorner(icon);
-            int[] prism = RadialWheelRenderer.prismBadgeUnder(own);
+            int[] prism = RadialWheelRenderer.prismBadgeAbove(own);
             int badgeHalf = RadialWheelRenderer.BADGE_SIZE / 2;
-            int iconHalf = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
-            int[] onOwn = {own[0] + badgeHalf / 2, own[1] - badgeHalf / 2};
+            int[] onOwn = {own[0] + badgeHalf / 2, own[1] + badgeHalf / 2};
             int[] onPrismBelowOwn = aPointShowing(new RadialWheelRenderer.ItemRect(prism[0] - badgeHalf,
-                    prism[1] - badgeHalf, RadialWheelRenderer.BADGE_SIZE), List.of(RadialWheelRenderer.badgeBox(icon),
-                    new RadialWheelRenderer.ItemRect(icon[0] - iconHalf, icon[1] - iconHalf,
-                            RadialWheelRenderer.ABILITY_ICON_SIZE)));
+                    prism[1] - badgeHalf, RadialWheelRenderer.BADGE_SIZE), List.of(RadialWheelRenderer.badgeBox(icon)));
             Component world = Component.translatable("goo.badge." + AbilityBadge.WORLD.getSerializedName());
             Component prismName = Component.translatable("goo.badge." + AbilityBadge.PRISM.getSerializedName());
 
@@ -1053,23 +1111,24 @@ class RadialWheelRendererTest {
         }
 
         /**
-         * Every ability carrying an on_prism reaction paints the prism badge
-         * underneath its own badge, before its icon and own badge and a hair
-         * off the own badge, whole on its petal at the wheel radius a GUI of
-         * scale 3 and of scale 4 draws on a 1080p screen.
+         * Every ability carrying an on_prism reaction paints its icon, then
+         * the prism badge, then its own badge over it, each where
+         * {@link RadialWheelRenderer#badgeLayout} places it and whole on its
+         * petal at the wheel radius a GUI of scale 3 and of scale 4 draws on a
+         * 1080p screen.
          * decision on-prism-reaction-wears-the-prism-badge
+         * decision prism-badge-sits-behind-and-above-barely-overlapping
          */
         @ParameterizedTest
         @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
-        void prismBadgeSitsWholeUnderTheOwnBadgeOnEveryPetal(int guiWidth) {
+        void prismBadgeDrawsWholeBehindItsPartnerOnEveryPetal(int guiWidth) {
             int radius = (int) RadialWheel.outerRadius(guiWidth, guiWidth * GUI_HEIGHT_PER_WIDTH / GUI_WIDTH_UNITS);
             RadialWheel wheel = openWheel();
             List<PetalRenderState> submitted = submittedArguments(
                     renderFrame(wheel, NO_ABILITY, EVERY_ABILITY, radius), "submitGuiElementRenderState",
                     PetalRenderState.class);
             int size = RadialWheelRenderer.BADGE_SIZE;
-            int left = RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT;
-            int down = RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN;
+            int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
             TextureSetup prismBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.PRISM));
             TextureSetup worldBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.WORLD));
 
@@ -1077,28 +1136,19 @@ class RadialWheelRendererTest {
                     .map(petal -> (Executable) () -> {
                         PetalRenderState iconState = spriteOf(submitted, iconOf(petal));
                         int iconAt = submitted.indexOf(iconState);
-                        PetalRenderState prismState = submitted.get(iconAt - 1);
-                        PetalRenderState ownState = submitted.get(iconAt + 1);
-                        assertTrue(prismState.textureSetup() == prismBadge, petal + " prism badge before the icon");
-                        assertTrue(ownState.textureSetup() == worldBadge, petal + " own badge after the icon");
-                        float[] ownBox = boxOf(ownState);
+                        PetalRenderState prismState = submitted.get(iconAt + 1);
+                        PetalRenderState ownState = submitted.get(iconAt + 2);
+                        assertTrue(prismState.textureSetup() == prismBadge, petal + " prism badge after the icon");
+                        assertTrue(ownState.textureSetup() == worldBadge, petal + " own badge over the prism badge");
+                        float[] iconBox = boxOf(iconState);
+                        RadialWheelRenderer.ItemRect expected = RadialWheelRenderer.badgeLayout(new int[]{
+                                Math.round(iconBox[0]) + half, Math.round(iconBox[1]) + half}, AbilityBadge.WORLD,
+                                true).getFirst().rect();
                         float[] prismBox = boxOf(prismState);
-                        assertEquals(Math.round(ownBox[0]) - left, Math.round(prismBox[0]), petal + " prism badge's left");
-                        assertEquals(Math.round(ownBox[1]) + down, Math.round(prismBox[1]), petal + " prism badge's top");
+                        assertEquals(expected.left(), Math.round(prismBox[0]), petal + " prism badge's left");
+                        assertEquals(expected.top(), Math.round(prismBox[1]), petal + " prism badge's top");
                         assertEquals(size * size, areaOf(prismState), AREA_TOLERANCE, petal + " prism badge shown whole");
                     }));
-        }
-
-        /**
-         * The prism badge stands further out from under the own badge than the
-         * 4 left and 2 down that left only a sliver showing.
-         * decision prism-badge-overlapped-less-to-be-seen
-         */
-        @Test
-        void prismBadgePeeksOutFurtherThanASliver() {
-            assertTrue(RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT + RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN > 6,
-                    "nudge " + RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT + " left, "
-                            + RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN + " down");
         }
 
         /** The wheel opened on the open type with the cursor on one of its abilities. */
@@ -1601,18 +1651,17 @@ class RadialWheelRendererTest {
         void closedLiesOnTheCenterLineWithTheIconAndBadgeOutsideThePetal() {
             int[] center = RadialWheelRenderer.contentCenter(frame, at(0.0));
             int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
-            int size = RadialWheelRenderer.ABILITY_ICON_SIZE;
+            List<RadialWheelRenderer.ItemRect> squares = new ArrayList<>(List.of(new RadialWheelRenderer.ItemRect(
+                    center[0] - half, center[1] - half, RadialWheelRenderer.ABILITY_ICON_SIZE)));
+            RadialWheelRenderer.badgeLayout(center, AbilityBadge.WORLD, true).forEach(badge -> squares.add(badge.rect()));
 
             assertEquals(0.0, across(center[0], center[1]), ROUNDING);
             assertTrue(along(center[0], center[1]) > fanned.shape().outer() * RADIUS, "short of the outer radius");
-            assertAll(IntStream.range(0, 4).mapToObj(corner -> (Executable) () -> {
-                int dx = corner % 2 == 0 ? -half : half;
-                int dy = corner / 2 == 0 ? -half : half;
-                assertFalse(insidePetal(center[0] + dx, center[1] + dy), "icon corner " + corner);
-                assertFalse(insidePetal(center[0] + dx + size, center[1] + dy), "badge corner " + corner);
-                int[] prism = RadialWheelRenderer.prismBadgeUnder(new int[]{center[0] + size, center[1]});
-                assertFalse(insidePetal(prism[0] + dx, prism[1] + dy), "prism badge corner " + corner);
-            }));
+            assertAll(squares.stream().flatMap(square -> IntStream.range(0, 4).mapToObj(corner -> (Executable) () -> {
+                int x = square.left() + (corner % 2 == 0 ? 0 : square.size());
+                int y = square.top() + (corner / 2 == 0 ? 0 : square.size());
+                assertFalse(insidePetal(x, y), square + " corner " + corner);
+            })));
         }
 
         @Test
