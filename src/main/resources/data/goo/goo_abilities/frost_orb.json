@@ -18,7 +18,7 @@
             { "type": "freeze", "amount": 0.5, "hold": 300, "thaw": 0.005, "vulnerability": 0.5, "physical_bonus": 3 }
           ]
         },
-        { "type": "freeze_blocks", "radius": 2.5, "lasting": false }
+        { "type": "freeze_blocks", "radius": 6, "lasting": false }
       ]
     },
     {
@@ -39,7 +39,7 @@
         { "type": "freeze", "amount": "0.9 * max_health", "hold": 300, "thaw": 0.005, "vulnerability": 0.5, "physical_bonus": 3 }
       ]
     },
-    { "type": "freeze_blocks", "radius": 3, "lasting": false },
+    { "type": "freeze_blocks", "radius": 6, "lasting": false },
     { "type": "sound", "id": "minecraft:block.glass.break", "at": "host", "source": "players", "volume": 1, "pitch": 0.8 }
   ],
   "tags": ["no_splat"]
