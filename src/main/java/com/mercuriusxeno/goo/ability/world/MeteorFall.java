@@ -3,9 +3,9 @@ package com.mercuriusxeno.goo.ability.world;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Where Meteo's meteor appears and where it stands as it falls: high above
- * its target, then straight down to it over its fall time. Held apart from
- * the entity so the path reads without a mod loader.
+ * Where Meteo's meteor strikes, where it appears and where it stands as it
+ * falls: high above its target, then straight down to it over its fall
+ * time. Held apart from the entity so the path reads without a mod loader.
  * decision meteo-needs-a-clear-sky
  */
 public final class MeteorFall {
@@ -16,8 +16,27 @@ public final class MeteorFall {
      * than popping in just over the target (operator ruling 2026-11-06).
      */
     public static final int FALL_HEIGHT = 200;
+    /** From a cell's floor to its center. */
+    private static final double CELL_CENTER = 0.5;
 
     private MeteorFall() {
+    }
+
+    /**
+     * Where a meteor called down on a hit point strikes: the first block in
+     * its path down the hit point's column, so under cover it strikes the
+     * open cell over the cover's top, and under open sky the hit point.
+     * decision meteo-crashes-through-whatever-is-above
+     *
+     * @param hitPoint the center of the cell the blob landed in
+     * @param openFrom the lowest y over which every cell of the column lets motion through
+     * @return the point the meteor strikes
+     */
+    public static Vec3 strikePoint(Vec3 hitPoint, int openFrom) {
+        if (openFrom <= Math.floor(hitPoint.y)) {
+            return hitPoint;
+        }
+        return new Vec3(hitPoint.x, openFrom + CELL_CENTER, hitPoint.z);
     }
 
     /**
