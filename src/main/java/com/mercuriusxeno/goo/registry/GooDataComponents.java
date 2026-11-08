@@ -14,6 +14,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -129,6 +130,17 @@ public class GooDataComponents {
                     () -> DataComponentType.<GloveSelection>builder()
                             .persistent(GloveSelection.CODEC)
                             .networkSynchronized(GloveSelection.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The id of the item a ghost item stands for.
+     * decision ghost-is-one-item-type-whose-entity-self-destroys
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Identifier>> GHOST_OF =
+            DATA_COMPONENTS.register("ghost_of",
+                    () -> DataComponentType.<Identifier>builder()
+                            .persistent(Identifier.CODEC)
+                            .networkSynchronized(Identifier.STREAM_CODEC)
                             .build());
 
     /**

@@ -102,6 +102,14 @@ public class GooItems {
     public static final DeferredItem<PartiallyMeltedItem> PARTIALLY_MELTED_ITEM = ITEMS.registerItem(
             "partially_melted_item", props -> new PartiallyMeltedItem(props.stacksTo(1)));
 
+    /**
+     * The ghost item, one item standing for any item the player knows, its id in the GHOST_OF component;
+     * unstackable, in no creative tab.
+     * decision ghost-is-one-item-type-whose-entity-self-destroys
+     */
+    public static final DeferredItem<GhostItem> GHOST_ITEM = ITEMS.registerItem("ghost_item",
+            props -> new GhostItem(props.stacksTo(1)));
+
     /** The nine exorite tools and armor pieces, tools first, in creative tab order. */
     public static final List<DeferredItem<? extends Item>> EXORITE_SET = List.of(
             EXORITE_PICKAXE, EXORITE_AXE, EXORITE_SHOVEL, EXORITE_HOE, EXORITE_SWORD,
