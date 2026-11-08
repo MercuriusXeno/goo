@@ -10,6 +10,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -26,7 +27,7 @@ import java.util.function.Predicate;
  */
 public final class Wormhole {
 
-    /** The mouth sizes a hole tries, largest first, each as its two spans across the face. */
+    /** The mouth sizes a hole tries, each as its two spans across the face. */
     private static final int[][] MOUTH_SIZES = {{3, 3}, {3, 2}, {2, 3}, {2, 2}, {3, 1}, {1, 3}, {2, 1}, {1, 2},
         {1, 1}};
     /** How far each way across the face the 3x3 centred on the struck block reaches. */
@@ -165,11 +166,13 @@ public final class Wormhole {
     }
 
     /**
-     * Every mouth shape a struck block can open, largest first: 3x3, then
-     * 3x2 and 2x3, 2x2, 3x1 and 1x3, 2x1 and 1x2, then 1x1, each placed every
-     * way inside the 3x3 centred on the struck block, the most centred first,
-     * so a hole opens where the blob struck and a smaller one finds its room
-     * within that 3x3 whether or not it covers the struck block itself.
+     * Every mouth shape a struck block can open, each placed every way inside
+     * the 3x3 centred on the struck block, in the order a hole tries them:
+     * the largest first, so a hole opens the one largest mouth the space
+     * holds; of two the same size the lower first; and of two as low the
+     * more centred first. A smaller mouth finds its room within that 3x3
+     * whether or not it covers the struck block itself.
+     * hole-closes-the-space-to-an-opening-ahead
      *
      * @param struck the struck block
      * @param across the two positive directions across the face
@@ -178,19 +181,26 @@ public final class Wormhole {
     static List<List<BlockPos>> mouthsOver(BlockPos struck, Direction[] across) {
         List<List<BlockPos>> mouths = new ArrayList<>();
         for (int[] size : MOUTH_SIZES) {
-            List<int[]> lows = new ArrayList<>();
             for (int first = -CENTRED_REACH; first <= CENTRED_REACH + 1 - size[0]; first++) {
                 for (int second = -CENTRED_REACH; second <= CENTRED_REACH + 1 - size[1]; second++) {
-                    lows.add(new int[] {first, second});
+                    mouths.add(rectangle(struck, across, first, first + size[0] - 1, second, second + size[1] - 1));
                 }
             }
-            lows.sort(java.util.Comparator.comparingDouble(low -> Math.abs(low[0] + (size[0] - 1) * HALF)
-                    + Math.abs(low[1] + (size[1] - 1) * HALF)));
-            for (int[] low : lows) {
-                mouths.add(rectangle(struck, across, low[0], low[0] + size[0] - 1, low[1], low[1] + size[1] - 1));
-            }
         }
+        mouths.sort(Comparator.<List<BlockPos>>comparingInt(mouth -> -mouth.size())
+                .thenComparingDouble(Wormhole::heightOf)
+                .thenComparingDouble(mouth -> offCentre(struck, mouth)));
         return mouths;
+    }
+
+    private static double heightOf(List<BlockPos> mouth) {
+        return mouth.stream().mapToInt(BlockPos::getY).average().orElseThrow();
+    }
+
+    private static double offCentre(BlockPos struck, List<BlockPos> mouth) {
+        Vec3 middle = boxOf(mouth).getCenter();
+        return Math.abs(middle.x() - struck.getX() - HALF) + Math.abs(middle.y() - struck.getY() - HALF)
+                + Math.abs(middle.z() - struck.getZ() - HALF);
     }
 
     /**
