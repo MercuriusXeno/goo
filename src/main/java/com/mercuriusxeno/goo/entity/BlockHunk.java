@@ -102,8 +102,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private static final int MOST_FLIGHT_TICKS = 200;
     /** Ticks one block of a shattering hunk takes to crumble away. */
     public static final int CRUMBLE_TICKS = 2;
-    /** Ticks between one block of a shattering hunk beginning to crumble and the next. */
-    public static final int BLOCK_STAGGER_TICKS = 1;
+    /** Ticks between one block of a shattering hunk beginning to crumble and the next: none, it breaks whole. */
+    public static final int BLOCK_STAGGER_TICKS = 0;
     /** Ticks a settled hunk keeps drawing over its stone while the clients' chunks redraw it. */
     public static final int SETTLE_LINGER_TICKS = 5;
     /** How far a rider's feet may stand from the hunk's top and still ride it, in blocks. */

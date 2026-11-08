@@ -11,8 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 
 /**
- * A struck hunk crumbles block by block, the blocks leading into what it
- * struck first, each a set span after the last
+ * A struck hunk crumbles whole, every block at the moment it strikes
  * (decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity).
  */
 class HunkShatterTest {
@@ -29,12 +28,12 @@ class HunkShatterTest {
     }
 
     @Test
-    void eachTurnBeginsASetSpanAfterTheLastAndEndsACrumbleLater() {
+    void everyBlockCrumblesTheMomentTheHunkStrikes() {
         long struck = 1000;
-        assertEquals(struck, HunkShatter.crumbleStart(struck, 0));
-        assertEquals(struck + 2L * BlockHunk.BLOCK_STAGGER_TICKS, HunkShatter.crumbleStart(struck, 2));
-        assertEquals(struck + 2L * BlockHunk.BLOCK_STAGGER_TICKS + BlockHunk.CRUMBLE_TICKS,
-                HunkShatter.crumbleEnd(struck, 2));
+        for (int turn = 0; turn <= 2; turn++) {
+            assertEquals(struck, HunkShatter.crumbleStart(struck, turn), "turn " + turn + " starts late");
+            assertEquals(struck + BlockHunk.CRUMBLE_TICKS, HunkShatter.crumbleEnd(struck, turn));
+        }
     }
 
     @Test
