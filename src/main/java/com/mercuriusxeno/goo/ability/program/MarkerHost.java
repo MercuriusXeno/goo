@@ -251,12 +251,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Sounds the sculk call from the marker's cell, where called mobs walk to.
-     * decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
+     * Shrieks from the marker's cell, where called mobs walk to.
+     * decision shriek-blob-cries-once-and-calls-earshot
      */
     @Override
-    public void callRing(double inner, double outer) {
-        SculkCall.pulse(level, pos, inner, outer);
+    public void shriek(double reach) {
+        SculkCall.shriek(level, pos, reach);
     }
 
 

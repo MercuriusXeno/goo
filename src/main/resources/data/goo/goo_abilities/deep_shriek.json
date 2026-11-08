@@ -10,7 +10,7 @@
     {
       "type": "linger",
       "steps": [
-        { "type": "shriek", "every": 40, "reach": 16, "lasts": 600 }
+        { "type": "shriek", "reach": 16, "lasts": 600 }
       ]
     }
   ],
