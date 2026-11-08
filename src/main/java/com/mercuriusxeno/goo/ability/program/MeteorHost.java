@@ -1,18 +1,17 @@
 package com.mercuriusxeno.goo.ability.program;
 
 /**
- * A landing that can call a meteor down on the cell its blob landed in.
- * decision meteo-needs-a-clear-sky
+ * A landing that can call a meteor down toward the cell its blob landed in.
+ * decision meteo-crashes-through-whatever-is-above
  */
 public interface MeteorHost extends StepHost {
 
     /**
-     * Calls a meteor down on the landing when the sky above it is clear,
-     * fizzling otherwise.
+     * Calls a meteor down toward the landing, crashing into whatever stands
+     * above it.
      *
      * @param power     the explosion's power
      * @param fallTicks the ticks the meteor falls for
-     * @return true once a meteor falls
      */
-    boolean callMeteor(float power, int fallTicks);
+    void callMeteor(float power, int fallTicks);
 }
