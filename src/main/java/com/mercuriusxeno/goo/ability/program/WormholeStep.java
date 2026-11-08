@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  * steps in out of the other until the lifetime runs out. A throw at a face
  * with no opening within reach is refused before it is paid, the face
  * showing the hole collapse. Quantum's hole is
- * {@code wormhole reach=16 lifetime=200}.
+ * {@code wormhole reach=32 lifetime=600}.
  * hole-closes-the-space-to-an-opening-ahead
  *
  * @param reach    how many cells past the struck block the scan runs; a literal, read before the throw is paid
