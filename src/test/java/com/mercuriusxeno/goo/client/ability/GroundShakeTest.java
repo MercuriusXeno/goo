@@ -135,6 +135,12 @@ class GroundShakeTest {
             assertFalse(GroundShake.shakes(terrakinesis, true, TerrakinesisStep.WINDUP_TICKS));
             assertFalse(GroundShake.shakes(terrakinesis, false, 1));
         }
+
+        @Test
+        void terrakinesisShakesNothingWithNoWindUpRunning() {
+            // The server publishes no wind-up while a hunk is held or a throw cools down: tick zero.
+            assertFalse(GroundShake.shakes(ability(TERRAKINESIS), true, 0));
+        }
     }
 
     @Nested
