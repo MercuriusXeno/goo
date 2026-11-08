@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,7 +13,7 @@ import java.util.function.Predicate;
 /**
  * What a Sculker hears echoes off of. Every sound heard sends two rings
  * out of its source a quarter second apart, each sweeping eight blocks a
- * second, and every block face open to air that a ring crosses is lit, full
+ * second, and every block open to air that a ring crosses is lit, full
  * at the source and weaker the farther the ring has travelled, to nothing at
  * the end of the sound's range, sixteen blocks for an ordinary sound and
  * farther for a louder one, a louder sound lighting stronger. Sounds that meet on a face add up, each sound once
@@ -65,7 +64,7 @@ public final class SculkerEchoes {
 
     private final List<Ripple> ripples = new ArrayList<>();
     private final int mostFaces;
-    private final Map<Face, Lit> remembered = new LinkedHashMap<>();
+    private final Map<BlockPos, Lit> remembered = new LinkedHashMap<>();
 
     /** A memory holding the most faces it ever needs. */
     public SculkerEchoes() {
@@ -77,15 +76,6 @@ public final class SculkerEchoes {
      */
     SculkerEchoes(int mostFaces) {
         this.mostFaces = mostFaces;
-    }
-
-    /**
-     * One block face an echo has touched.
-     *
-     * @param pos  the block
-     * @param side the side of it open to air
-     */
-    public record Face(BlockPos pos, Direction side) {
     }
 
     /**
@@ -242,8 +232,8 @@ public final class SculkerEchoes {
             }
             for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.radiusAt(now - 1), ripple.radiusAt(now))) {
                 float light = ripple.lightAt(cell);
-                for (Direction side : ScryReveal.exposedFaces(isAir, cell)) {
-                    light(new Face(cell.immutable(), side), now, light, ripple.adds());
+                if (!ScryReveal.exposedFaces(isAir, cell).isEmpty()) {
+                    light(cell.immutable(), now, light, ripple.adds());
                 }
             }
         }
@@ -280,7 +270,7 @@ public final class SculkerEchoes {
      * @param light the ring's light there
      * @param adds  whether the ring adds its light
      */
-    private void light(Face face, long now, float light, boolean adds) {
+    private void light(BlockPos face, long now, float light, boolean adds) {
         Lit standing = remembered.remove(face);
         float left = standing == null ? 0f : standing.levelAt(now);
         float held = adds ? Math.min(MOST_LIGHT, left + light) : left;
@@ -290,7 +280,7 @@ public final class SculkerEchoes {
     /**
      * @return each lit face and its lighting
      */
-    public Map<Face, Lit> remembered() {
+    public Map<BlockPos, Lit> remembered() {
         return Collections.unmodifiableMap(remembered);
     }
 
@@ -308,17 +298,17 @@ public final class SculkerEchoes {
     }
 
     /**
-     * How strongly a lit face draws now, for a player standing at a point.
+     * How strongly a lit block draws now, for a player standing at a point.
      *
-     * @param face   the face
+     * @param block  the block
      * @param lit    its lighting
      * @param player the player's position
      * @param now    the game time
      * @param reach  the render distance, in blocks
      * @return the distance strength, times the face's glow
      */
-    public static float strength(Face face, Lit lit, Vec3 player, long now, double reach) {
-        return strengthAt(Vec3.atCenterOf(face.pos()).distanceTo(player), reach) * glowAt(lit, now);
+    public static float strength(BlockPos block, Lit lit, Vec3 player, long now, double reach) {
+        return strengthAt(Vec3.atCenterOf(block).distanceTo(player), reach) * glowAt(lit, now);
     }
 
     /**

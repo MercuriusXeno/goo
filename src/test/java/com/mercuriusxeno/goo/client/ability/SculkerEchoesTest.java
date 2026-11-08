@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,16 +29,16 @@ class SculkerEchoesTest {
     private static final Predicate<BlockPos> FLAT_GROUND = pos -> pos.getY() > 0;
     private static final Vec3 SOUND = new Vec3(0.5, 1, 0.5);
     private static final long HEARD_AT = 100;
-    private static final SculkerEchoes.Face UNDER_THE_SOUND = new SculkerEchoes.Face(BlockPos.ZERO, Direction.UP);
-    private static final SculkerEchoes.Face THREE_AWAY = new SculkerEchoes.Face(new BlockPos(3, 0, 0), Direction.UP);
-    private static final SculkerEchoes.Face ELEVEN_AWAY = new SculkerEchoes.Face(new BlockPos(11, 0, 0), Direction.UP);
-    private static final SculkerEchoes.Face THIRTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(13, 0, 0), Direction.UP);
-    private static final SculkerEchoes.Face FIFTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(15, 0, 0), Direction.UP);
-    private static final SculkerEchoes.Face SEVENTEEN_AWAY = new SculkerEchoes.Face(new BlockPos(17, 0, 0), Direction.UP);
-    private static final SculkerEchoes.Face TWENTY_AWAY = new SculkerEchoes.Face(new BlockPos(20, 0, 0), Direction.UP);
+    private static final BlockPos UNDER_THE_SOUND = BlockPos.ZERO;
+    private static final BlockPos THREE_AWAY = new BlockPos(3, 0, 0);
+    private static final BlockPos ELEVEN_AWAY = new BlockPos(11, 0, 0);
+    private static final BlockPos THIRTEEN_AWAY = new BlockPos(13, 0, 0);
+    private static final BlockPos FIFTEEN_AWAY = new BlockPos(15, 0, 0);
+    private static final BlockPos SEVENTEEN_AWAY = new BlockPos(17, 0, 0);
+    private static final BlockPos TWENTY_AWAY = new BlockPos(20, 0, 0);
     /** Long enough for a ring to cross twenty blocks. */
     private static final long FOUR_SECONDS = 80;
-    private static final SculkerEchoes.Face BURIED_SIDE = new SculkerEchoes.Face(new BlockPos(1, -1, 0), Direction.WEST);
+    private static final BlockPos BURIED_SIDE = new BlockPos(1, -1, 0);
     private static final double CLOSE = 1e-6;
     private static final float LOUDEST = 4f;
     /** Two seconds, long enough for any ring to have reached its end. */
@@ -110,7 +109,7 @@ class SculkerEchoesTest {
             assertTrue(everLit(TWENTY_AWAY, SculkerEchoes.rangeFor(2f)));
         }
 
-        private boolean everLit(SculkerEchoes.Face face, double range) {
+        private boolean everLit(BlockPos face, double range) {
             SculkerEchoes echoes = new SculkerEchoes();
             echoes.hear(SOUND, HEARD_AT, 1f, range);
             for (long tick = HEARD_AT; tick <= HEARD_AT + FOUR_SECONDS; tick++) {
