@@ -4,17 +4,15 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.LivingEntity;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
  * Grants the host's target fungal sight and finishes: Fungal Shift reaches
  * the factor farther and fungus shows through walls while it stands. Cast
- * from the glove it stands as a held effect, paying its upkeep until ended;
- * drunk as a brew it stands for the brew's hour. Sight is {@code sight factor=3}
- * (decisions sight-lengthens-shift-and-outlines-fungus,
- * self-effects-trickle-until-ended and brew-grants-the-self-ability-for-an-hour).
+ * from the glove it stands as a held effect, paying its upkeep until ended.
+ * Sight is {@code sight factor=3} (decisions sight-lengthens-shift-and-outlines-fungus
+ * and self-effects-trickle-until-ended).
  *
  * @param factor what Fungal Shift's range is multiplied by, evaluated when the step runs
  */
@@ -44,13 +42,9 @@ public record SightStep(Expr factor) implements Step {
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
-        long now = target.level().getGameTime();
         float rangeFactor = factor.evaluateFloat(context);
         Sight standing = target.getData(GooAttachments.SIGHT);
-        OptionalInt brew = host.brewDuration();
-        target.setData(GooAttachments.SIGHT, brew.isPresent()
-                ? standing.brew(rangeFactor, brew.getAsInt(), now)
-                : standing.hold(rangeFactor));
+        target.setData(GooAttachments.SIGHT, standing.hold(rangeFactor));
         return true;
     }
 

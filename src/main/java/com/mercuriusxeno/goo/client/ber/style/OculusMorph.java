@@ -1,14 +1,14 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.block.ability.CrystalPrism;
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
-import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
  * The prism's quartz column part way into the oculus's eye, in model pixels
- * on {@link CrystalCluster}'s base point along +y, as the prism's own morph
+ * on {@link PrismColumn}'s base point along +y, as the prism's own morph
  * draws the blob into the column: each point of the column slides to its
  * place on a small six-sided lens floating where the eye hovers. The base
  * lifts off the face, the shaft draws in, and the point squats into the
@@ -43,7 +43,7 @@ public final class OculusMorph {
      * @return the faces, each four corners wound outward
      */
     public static List<Vec3[]> faces(double morph) {
-        CrystalCluster.Prism column = PrismColumn.PRISM;
+        CrystalPrism column = PrismColumn.PRISM;
         double shaft = column.length() - column.tipLength();
         double lensRim = EYE_RADIUS * RIM_SHARE;
         Vec3[][] rings = new Vec3[RINGS][RIM_SLICES + 1];
@@ -85,7 +85,7 @@ public final class OculusMorph {
                               double morph) {
         double rim = columnRim + (eyeRim - columnRim) * morph;
         double height = columnHeight + (eyeHeight - columnHeight) * morph;
-        return new Vec3(CrystalCluster.BASE_X + Math.cos(angle) * rim, CrystalCluster.BASE_Y + height,
-                CrystalCluster.BASE_Z - Math.sin(angle) * rim);
+        return new Vec3(PrismColumn.BASE_X + Math.cos(angle) * rim, PrismColumn.BASE_Y + height,
+                PrismColumn.BASE_Z - Math.sin(angle) * rim);
     }
 }

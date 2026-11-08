@@ -2,7 +2,7 @@
   "gooType": "leaf",
   "displayName": "goo.ability.leaf.barkskin",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
-  "badge": "brew",
+  "badge": "durative",
   "order": 10,
   "upkeep": 1,
   "requires": ["minecraft:oak_log"],

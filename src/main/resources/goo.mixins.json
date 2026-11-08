@@ -27,7 +27,6 @@
     "GameRendererPortalViewMixin",
     "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
-    "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",
     "PlayerModelAbilityPoseMixin",

@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  * it rallies nothing. A mob the caster already rallied has its expiry pushed
  * out, keeping its buff and health. Zoo's Rally is
  * {@code rally duration=100 damage=6 health=1.5 speed=0.5}, re-run while its
- * brew holds.
+ * held effect stands.
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
  *

@@ -92,14 +92,13 @@ public final class AbilityRegistry {
     }
 
     /**
-     * The ability a drunk brew of this type runs: the type's self ability
-     * wearing the brew badge, lowest by order.
-     * decision brew-grants-the-self-ability-for-an-hour
+     * The type's durative ability: its self ability wearing the durative
+     * badge, lowest by order, whose name and icon its held effect shows.
      *
      * @param type the goo type
-     * @return the brew ability, or null when the type carries none yet
+     * @return the durative ability, or null when the type carries none yet
      */
-    public @Nullable AbilityDefinition brewAbilityFor(ResourceKey<GooTypeDefinition> type) {
+    public @Nullable AbilityDefinition durativeAbilityFor(ResourceKey<GooTypeDefinition> type) {
         return getAbilitiesForType(type).stream()
                 .filter(def -> SelfEatRoute.eats(def.delivery(), def.badge()))
                 .min(Comparator.comparingInt(AbilityDefinition::order))

@@ -2,7 +2,7 @@
   "gooType": "ender",
   "displayName": "goo.ability.ender.shifter",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
-  "badge": "brew",
+  "badge": "durative",
   "order": 20,
   "upkeep": 1,
   "requires": ["minecraft:chorus_fruit"],

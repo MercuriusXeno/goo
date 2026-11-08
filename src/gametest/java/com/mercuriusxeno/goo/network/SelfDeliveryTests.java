@@ -46,8 +46,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * Gametests for the self delivery through the real throw path. A self
  * ability wearing the self badge runs on command: its cost at stack zero
  * drains and its programs run on the invoking player the tick it is invoked
- * (decision self-delivery-runs-on-player). A self + brew ability, one
- * wearing the brew badge, starts the player eating the glove, and drains
+ * (decision self-delivery-runs-on-player). A durative ability, one
+ * wearing the durative badge, starts the player eating the glove, and drains
  * and runs when the eat finishes; an eat let go before then runs nothing
  * and drains nothing (decision self-brew-goos-eat-before-the-effect). The
  * mock server player has no connection ticking it, so the eat tests tick it
@@ -126,7 +126,7 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_RUN_ON_COMMAND = "A self-badged ability should run on command, not eat";
     private static final String SHOULD_BLINK_EAST = "The player should move past %.1f and no farther than %.1f east the tick it blinks, moved %.3f";
     private static final String SHOULD_DRAIN_COST = "The cast should drain the stack-zero cost of %d mB, drained %d";
-    private static final String SHOULD_START_EATING = "Invoking a self + brew ability should start the player eating";
+    private static final String SHOULD_START_EATING = "Invoking a durative ability should start the player eating";
     private static final String SHOULD_LAY_NOTHING_MID_EAT = "Mid-eat no ember should stand, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING_MID_EAT = "Mid-eat no goo should drain, drained %d";
     private static final String SHOULD_LAY_EMBERS = "The finished eat should lay %d ember halves, laid %d";
@@ -138,6 +138,9 @@ public final class SelfDeliveryTests {
             "The effect list should show held Kindle with %d ticks left and no particles, held as a glove effect: %s";
     private static final String SHOULD_END_HELD = "Invoking held Kindle again should end it, held reads %s";
     private static final String SHOULD_CLEAR_OVERLAY = "An ended Kindle should clear its embers, %d halves stand";
+    private static final String SHOULD_MIRROR_WHILE_HELD = "Held Kindle should stand in the effect list";
+    private static final String SHOULD_LEAVE_THE_EFFECT_LIST =
+            "An ended Kindle should leave the effect list, the blaze held effect reads %s";
     private static final String SHOULD_NOT_EAT_AGAIN = "Invoking held Kindle again should start no eat";
     private static final String SHOULD_STAND_PAID = "Kindle should stand while its upkeep is paid, tick %d";
     private static final String SHOULD_END_DRY = "Kindle should end on the tick the inventory cannot pay, held reads %s";
@@ -237,13 +240,11 @@ public final class SelfDeliveryTests {
         int drainedAtEat = HELD_GOO * GooStacks.THOUSAND - heldAtEat;
         helper.assertTrue(drainedAtEat == 0, String.format(SHOULD_DRAIN_NOTHING_AT_EAT, drainedAtEat));
         helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE), SHOULD_BE_HELD);
-        // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list shows the glove effect's time left
-        MobEffectInstance shown = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.BLAZE));
+        // The effect list shows the held effect's time left, the ticks the held goo pays for.
+        MobEffectInstance shown = player.getEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.BLAZE));
         int expectedTicks = heldAtEat / kindle.upkeep().in(GooValueTable.EMPTY);
-        boolean stillGlove = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
-                .noneMatch(HeldEffects.Held::prepaid);
-        helper.assertTrue(shown != null && Math.abs(shown.getDuration() - expectedTicks) <= 1 && !shown.isVisible()
-                && stillGlove, String.format(SHOULD_SHOW_TIME_LEFT, expectedTicks, shown));
+        helper.assertTrue(shown != null && Math.abs(shown.getDuration() - expectedTicks) <= 1 && !shown.isVisible(),
+                String.format(SHOULD_SHOW_TIME_LEFT, expectedTicks, shown));
         tickFor(helper, player, UPKEEP_TICKS);
         helper.runAfterDelay(UPKEEP_TICKS + 1, () -> {
             int drained = heldAtEat - held(player, GooTypes.BLAZE);
@@ -264,16 +265,21 @@ public final class SelfDeliveryTests {
     public static void kindleInvokedAgainEnds(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
         helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE), SHOULD_BE_HELD);
+        MobEffectInstance shownWhileHeld = player.getEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.BLAZE));
 
         invoke(player, GooTypes.BLAZE, BLAZE_KINDLE);
 
         boolean using = player.isUsingItem();
         HeldEffects heldAfter = player.getData(GooAttachments.HELD_EFFECTS);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        MobEffectInstance shownAfter = player.getEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.BLAZE));
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertFalse(using, SHOULD_NOT_EAT_AGAIN);
         helper.assertTrue(heldAfter.isEmpty(), String.format(SHOULD_END_HELD, heldAfter));
         helper.assertTrue(overlay == HeartOverlay.NONE, String.format(SHOULD_CLEAR_OVERLAY, overlay.shieldHalves()));
+        // brew-drink-path-leaves-the-mod: the effect list mirrors the hold, so the mirror leaves when the hold ends
+        helper.assertTrue(shownWhileHeld != null, SHOULD_MIRROR_WHILE_HELD);
+        helper.assertTrue(shownAfter == null, String.format(SHOULD_LEAVE_THE_EFFECT_LIST, shownAfter));
         helper.succeed();
     }
 

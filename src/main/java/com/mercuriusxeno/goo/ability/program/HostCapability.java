@@ -170,11 +170,6 @@ public enum HostCapability {
      */
     RELAY(RelayHost.class),
     /**
-     * A host that can lengthen the timed effects standing on it (decision
-     * extender-multiplies-the-next-self-duration).
-     */
-    EXTEND_EFFECTS(EffectExtendHost.class),
-    /**
     /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).

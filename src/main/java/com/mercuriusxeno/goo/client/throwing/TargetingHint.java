@@ -29,7 +29,7 @@ public enum TargetingHint {
 
     /**
      * The aim mode a badge asks for: mob favors entities, world favors blocks,
-     * self and brew aim nothing, and every other badge aims the ray's point.
+     * self and durative aim nothing, and every other badge aims the ray's point.
      *
      * @param badge the selected ability's badge
      * @return the aim mode

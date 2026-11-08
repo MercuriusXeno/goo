@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.program.ReflectorStep;
 import com.mercuriusxeno.goo.ability.program.RelayStep;
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
-import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
@@ -71,8 +70,8 @@ class PrismComboStyleTest {
     @Test
     void theFoldedColumnStaysInsideTheVoxelShape() {
         for (Vec3 corner : corners(PrismCrystal.foldFaces(1))) {
-            assertTrue(Math.abs(corner.x - CrystalCluster.BASE_X) <= PrismColumn.RADIUS + EPSILON
-                    && Math.abs(corner.z - CrystalCluster.BASE_Z) <= HALF_FLATS + EPSILON,
+            assertTrue(Math.abs(corner.x - PrismColumn.BASE_X) <= PrismColumn.RADIUS + EPSILON
+                    && Math.abs(corner.z - PrismColumn.BASE_Z) <= HALF_FLATS + EPSILON,
                     "a corner outside the voxel shape at " + corner);
         }
     }
@@ -85,7 +84,7 @@ class PrismComboStyleTest {
 
     /** A corner's reach on the square whose sides face the axes: its larger offset across the column. */
     private static double squareReach(Vec3 corner) {
-        return Math.max(Math.abs(corner.x - CrystalCluster.BASE_X), Math.abs(corner.z - CrystalCluster.BASE_Z));
+        return Math.max(Math.abs(corner.x - PrismColumn.BASE_X), Math.abs(corner.z - PrismColumn.BASE_Z));
     }
 
     private static List<Vec3> corners(List<Vec3[]> faces) {

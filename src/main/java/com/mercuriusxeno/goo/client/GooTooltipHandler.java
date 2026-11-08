@@ -84,27 +84,10 @@ public final class GooTooltipHandler {
         if (handleGooTooltip(event.getTooltipElements(), stack)) {
             return;
         }
-        GooContents chrysmValue = chrysmValue(stack);
-        if (chrysmValue != null) {
-            appendGooRows(event.getTooltipElements(), chrysmValue.getAll());
-            return;
-        }
         if (handleContainerTooltip(event.getTooltipElements(), stack)) {
             return;
         }
         handleItemTooltip(event.getTooltipElements(), stack);
-    }
-
-    /**
-     * A chrysm's goo value, read from its tier and type rather than the item registry:
-     * its tier volume of its type and the crystal spent on it (decision chrysm-melts-back-to-its-goo).
-     *
-     * @param stack the item stack
-     * @return the value, or null when the stack is no typed chrysm
-     */
-    static @org.jspecify.annotations.Nullable GooContents chrysmValue(ItemStack stack) {
-        ResourceKey<GooTypeDefinition> type = stack.get(GooDataComponents.GOO_TYPE.get());
-        return stack.getItem() instanceof ChrysmItem chrysm && type != null ? chrysm.tier().contentsOf(type) : null;
     }
 
     /**
@@ -136,14 +119,14 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Returns true if the stack holds goo of its own: a goo, a chrysm, goo
-     * fluid, goo contents or canister fluid.
+     * Returns true if the stack holds goo of its own: a goo, goo fluid, goo
+     * contents or canister fluid.
      *
      * @param stack the item stack to inspect
      * @return true if the stack carries goo
      */
     private static boolean carriesGoo(ItemStack stack) {
-        if (stack.getItem() instanceof GooItem || chrysmValue(stack) != null || getGooContentType(stack) != null) {
+        if (stack.getItem() instanceof GooItem || getGooContentType(stack) != null) {
             return true;
         }
         return isEmptyContents(stack.get(GooDataComponents.GOO_CONTENTS.get()))

@@ -33,8 +33,8 @@ class PanelPlacementTest {
     }
 
     /**
-     * The crucible and crystallizer rim panels billboard rather than lie on a face, so the
-     * side-face correction leaves their nudge where it stood.
+     * The crucible rim panel billboards rather than lie on a face, so the
+     * side-face correction leaves its nudge where it stood.
      */
     @Test
     void rimNudgeKeepsItsStandingOffset() {
