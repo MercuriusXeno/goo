@@ -11,49 +11,54 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 /**
- * What a Sculker hears echoes off of. Every sound heard starts a ripple at
- * its source whose front grows outward a block and a half a tick, the way
- * Scry's sweep grows, and every block face open to air that the front
- * crosses is lit. A louder sound's ripple reaches farther and the faces it
- * lights last longer before they fade, a mob's sound alike; every living mob
- * within hearing gives off a dull ambient pulse, a quiet ripple every couple
- * of seconds. A lit face fades out over about ten seconds unless a new echo
- * lights it again, drawn weaker the farther the player stands from it and not at
- * all past the sight's reach; the brew's end forgets every face. The oldest
- * faces give way once the memory holds its most, so a loud dive never
- * outgrows it.
+ * What a Sculker hears echoes off of. Every sound heard sends three rings
+ * out of its source a quarter second apart, each sweeping eight blocks a
+ * second, and every block face open to air that a ring crosses is lit. An
+ * ordinary sound's rings reach four blocks and the loudest's twelve, and
+ * the faces a louder sound lights last longer before they fade. A face
+ * shows bright as a ring crosses it, then faintly in its wake, fading out
+ * over about three seconds, six for the loudest, unless a new ring lights
+ * it again. A mob that makes a sound outlines for about a second, longer
+ * for a louder one. What is heard draws fainter the farther the player
+ * stands from it, down to a fifth at the edge of render distance and not
+ * at all past it; the brew's end forgets every face. The oldest faces give
+ * way once the memory holds its most, so a loud dive never outgrows it.
  * decision sculker-sight-persists-where-echoes-have-touched
  */
 public final class SculkerEchoes {
 
-    /** How fast a ripple's front grows, in blocks per tick. */
-    static final double RIPPLE_SPEED = 1.5;
+    /** How fast a ring sweeps out of its source, in blocks per tick: eight blocks a second. */
+    static final double RING_SPEED = 0.4;
+    /** The rings each sound sends out. */
+    static final int RINGS = 3;
+    /** Ticks between one ring of a sound and its next, a quarter second. */
+    static final int RING_GAP_TICKS = 5;
     /** How far a sound of ordinary loudness ripples before it dies, in blocks. */
-    static final double RIPPLE_REACH = 12;
+    static final double RIPPLE_REACH = 4;
     /** How far any ripple reaches at the most, however loud its sound. */
-    static final double LOUDEST_REACH = 32;
-    /** How far from the player a lit face still shows, in blocks; it fades to nothing there. */
-    static final double SIGHT_REACH = 32;
-    /** Ticks a face lit by a sound of ordinary loudness takes to fade out with no new echo, about ten seconds. */
-    static final int FADE_TICKS = 200;
-    /** The longest any lit face lasts, however loud the sound that lit it. */
-    static final int LONGEST_FADE_TICKS = 400;
+    static final double LOUDEST_REACH = 12;
+    /** Ticks a face lit by a sound of ordinary loudness takes to fade out with no new ring, about three seconds. */
+    static final int FADE_TICKS = 60;
+    /** The longest any lit face lasts, however loud the sound that lit it, about six seconds. */
+    static final int LONGEST_FADE_TICKS = 120;
+    /** Ticks a face shows bright after a ring crosses it, before it sinks to its wake. */
+    static final float RING_TICKS = 3f;
+    /** How brightly a face glows in a ring's wake, as a share of the ring's own glow. */
+    static final float WAKE_SHARE = 0.3f;
+    /** Ticks a mob that made a sound of ordinary loudness stays outlined, a second. */
+    static final int OUTLINE_TICKS = 20;
+    /** The longest any mob stays outlined, however loud its sound, two seconds. */
+    static final int LONGEST_OUTLINE_TICKS = 40;
+    /** How strongly what is heard at the edge of render distance draws, as a share of beside the player. */
+    static final float FARTHEST_SHARE = 0.2f;
     /** The quietest and loudest a sound reads, as a share of ordinary loudness. */
     static final float QUIETEST = 0.25f;
     static final float LOUDEST = 4f;
-    /** Ticks between one ambient pulse of a mob within hearing and its next, about two seconds. */
-    static final int PULSE_TICKS = 40;
-    /** The loudness of a mob's ambient pulse, a quarter of an ordinary sound's. */
-    static final float PULSE_LOUDNESS = 0.25f;
-    /** How far from the player a mob's ambient pulse is heard, in blocks. */
-    static final double HEARING_REACH = 32;
-    /** Ticks each mob's pulse clock runs apart from the next mob's, so mobs pulse on their own beats. */
-    private static final int PULSE_STAGGER = 7;
 
     /** The most faces the memory holds before the oldest give way. */
     static final int MOST_FACES = 32_768;
-    /** The most ripples growing at once; a sound past them starts none. */
-    static final int MOST_RIPPLES = 64;
+    /** The most rings growing at once; a sound past them starts none. */
+    static final int MOST_RIPPLES = 192;
 
     private final List<Ripple> ripples = new ArrayList<>();
     private final Map<Face, Lit> remembered = new LinkedHashMap<>() {
@@ -97,7 +102,7 @@ public final class SculkerEchoes {
     }
 
     /**
-     * A ripple growing out of a sound's source.
+     * One ring sweeping out of a sound's source.
      *
      * @param source    where the sound played
      * @param startTick the game time it played
@@ -111,7 +116,7 @@ public final class SculkerEchoes {
          * @return how far the front stands from the source then
          */
         double radiusAt(long now) {
-            return Math.min(reach, Math.max(0, now - startTick) * RIPPLE_SPEED);
+            return Math.min(reach, Math.max(0, now - startTick) * RING_SPEED);
         }
     }
 
@@ -126,31 +131,44 @@ public final class SculkerEchoes {
     }
 
     /**
-     * Starts a ripple at a sound's source, reaching farther and lighting
-     * faces for longer the louder the sound.
+     * Sends a sound's rings out of its source a quarter second apart,
+     * reaching farther and lighting faces for longer the louder the sound.
      *
      * @param at       where the sound played
      * @param tick     the game time it played
      * @param loudness the sound's loudness, 1 for an ordinary sound
      */
     public void hear(Vec3 at, long tick, float loudness) {
-        if (ripples.size() >= MOST_RIPPLES) {
+        if (ripples.size() + RINGS > MOST_RIPPLES) {
             return;
         }
         double reach = Math.min(LOUDEST_REACH, RIPPLE_REACH * share(loudness));
-        ripples.add(new Ripple(at, tick, reach, fadeTicksFor(loudness)));
+        for (int ring = 0; ring < RINGS; ring++) {
+            ripples.add(new Ripple(at, tick + (long) ring * RING_GAP_TICKS, reach, fadeTicksFor(loudness)));
+        }
     }
 
     /**
-     * Whether a mob gives off its ambient pulse on a tick.
+     * How long a mob that made a sound stays outlined: a second for an
+     * ordinary sound, longer for a louder one up to two.
      *
-     * @param now      the game time
-     * @param mobId    the mob's entity id
-     * @param distance how far the mob stands from the player, in blocks
-     * @return true on the mob's pulse tick while it is within hearing
+     * @param loudness the sound's loudness, 1 for an ordinary sound
+     * @return the ticks its outline lasts
      */
-    public static boolean pulses(long now, int mobId, double distance) {
-        return distance <= HEARING_REACH && Math.floorMod(now + (long) mobId * PULSE_STAGGER, PULSE_TICKS) == 0;
+    public static int outlineTicksFor(float loudness) {
+        return Math.min(LONGEST_OUTLINE_TICKS, Math.round(OUTLINE_TICKS * share(loudness)));
+    }
+
+    /**
+     * What is left of a mob's outline: full as it makes its sound, fading to nothing.
+     *
+     * @param heardAt the game time its sound played
+     * @param ticks   how long its outline lasts
+     * @param now     the game time
+     * @return 1 as it is heard, falling to 0 once its outline has faded
+     */
+    public static float outlineLeftAt(long heardAt, int ticks, long now) {
+        return (float) Math.clamp(1 - (double) (now - heardAt) / ticks, 0, 1);
     }
 
     /**
@@ -177,6 +195,9 @@ public final class SculkerEchoes {
      */
     public void advance(long now, Predicate<BlockPos> isAir) {
         for (Ripple ripple : ripples) {
+            if (ripple.startTick() >= now) {
+                continue;
+            }
             Lit lit = new Lit(now, ripple.fadeTicks());
             for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.radiusAt(now - 1), ripple.radiusAt(now))) {
                 for (Direction side : ScryReveal.exposedFaces(isAir, cell)) {
@@ -211,7 +232,7 @@ public final class SculkerEchoes {
     }
 
     /**
-     * @return the ripples growing now
+     * @return the rings growing now, and those yet to set out
      */
     List<Ripple> ripples() {
         return Collections.unmodifiableList(ripples);
@@ -230,19 +251,37 @@ public final class SculkerEchoes {
      * @param lit    its lighting
      * @param player the player's position
      * @param now    the game time
-     * @return the distance strength, times what is left of its fade
+     * @param reach  the render distance, in blocks
+     * @return the distance strength, times the face's glow
      */
-    public static float strength(Face face, Lit lit, Vec3 player, long now) {
-        return strengthAt(Vec3.atCenterOf(face.pos()).distanceTo(player)) * lit.leftAt(now);
+    public static float strength(Face face, Lit lit, Vec3 player, long now, double reach) {
+        return strengthAt(Vec3.atCenterOf(face.pos()).distanceTo(player), reach) * glowAt(lit, now);
+    }
+
+    /**
+     * How brightly a lit face glows now: full as a ring crosses it, sinking
+     * over a few ticks to its faint wake, which fades out with the lighting.
+     *
+     * @param lit its lighting
+     * @param now the game time
+     * @return the glow, 1 on the ring, 0 once faded
+     */
+    public static float glowAt(Lit lit, long now) {
+        float ring = Math.max(0f, 1f - (now - lit.litAt()) / RING_TICKS);
+        return Math.max(ring, WAKE_SHARE * lit.leftAt(now));
     }
 
     /**
      * How strongly something heard draws at a distance from the player.
      *
      * @param distance how far from the player it stands, in blocks
-     * @return 1 at the player, falling to 0 at the sight's reach and past it
+     * @param reach    the render distance, in blocks
+     * @return 1 at the player, falling evenly to a fifth at the edge of render distance, 0 past it
      */
-    public static float strengthAt(double distance) {
-        return (float) Math.max(0, 1 - distance / SIGHT_REACH);
+    public static float strengthAt(double distance, double reach) {
+        if (distance > reach) {
+            return 0f;
+        }
+        return (float) (1 - (1 - FARTHEST_SHARE) * distance / reach);
     }
 }

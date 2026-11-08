@@ -38,6 +38,7 @@ import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
+import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
@@ -88,6 +89,7 @@ public final class GooClientNetworking {
     private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
+        event.register(SculkerHeardPayload.TYPE, SculkerHeardHandler::handle);
         event.register(DrinkPayload.TYPE, UnmakeHandler::handleDrink);
         event.register(UnmadePayload.TYPE, UnmakeHandler::handleUnmade);
         registerEffectHandlers(event);

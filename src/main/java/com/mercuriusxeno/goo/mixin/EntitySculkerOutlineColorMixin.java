@@ -22,6 +22,7 @@ public abstract class EntitySculkerOutlineColorMixin {
      */
     @ModifyReturnValue(method = "getTeamColor", at = @At("RETURN"))
     private int goo$sculkTealWhenRemembered(int original) {
-        return SculkerSenses.outlines((Entity) (Object) this) ? SculkerSenses.SCULK_RGB : original;
+        Entity self = (Entity) (Object) this;
+        return SculkerSenses.outlines(self) ? SculkerSenses.outlineColor(self) : original;
     }
 }
