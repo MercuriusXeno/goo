@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * One caster's sunbeam scorch: a mark dropped each time the struck spot moves
@@ -23,8 +25,15 @@ final class ScorchTrail {
     static final double MARK_SPACING = 0.12;
     /** Past this jump along one face the ray left the face between frames, so nothing bridges it. */
     private static final double LONGEST_BRIDGE = 3;
+    /**
+     * Past this many ticks since the newest mark burnt, the beam stopped and
+     * started again rather than raked, so nothing bridges the two spots.
+     */
+    static final double LONGEST_PAUSE = 2;
     /** Two points this close along a face's axis sit on one plane. */
     private static final double SAME_PLANE = 1e-3;
+    /** How far into its face a mark reaches to find the block it burns on, in blocks. */
+    private static final double INTO_THE_FACE = 1e-3;
 
     private final Deque<Mark> marks = new ArrayDeque<>();
 
@@ -46,6 +55,15 @@ final class ScorchTrail {
         double heat(double now) {
             return Math.clamp(1 - (now - bornAt) / FADE_TICKS, 0, 1);
         }
+
+        /**
+         * The block the mark burns on: the one just behind its face.
+         *
+         * @return the block's position
+         */
+        BlockPos block() {
+            return BlockPos.containing(point.subtract(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(INTO_THE_FACE)));
+        }
     }
 
     /**
@@ -58,7 +76,7 @@ final class ScorchTrail {
     void burn(Vec3 point, Direction face, double now) {
         Mark newest = marks.peekLast();
         double gap = newest == null ? Double.MAX_VALUE : newest.point().distanceTo(point);
-        if (!onOnePlane(newest, point, face) || gap > LONGEST_BRIDGE) {
+        if (!onOnePlane(newest, point, face) || gap > LONGEST_BRIDGE || now - newest.bornAt() > LONGEST_PAUSE) {
             marks.addLast(new Mark(point, face, now));
         } else if (gap < MARK_SPACING) {
             marks.pollLast();
@@ -109,6 +127,16 @@ final class ScorchTrail {
      */
     List<Mark> marks() {
         return List.copyOf(marks);
+    }
+
+    /**
+     * The marks still showing whose block still stands, oldest first.
+     *
+     * @param blockStands whether a block stands at a position
+     * @return the marks to draw
+     */
+    List<Mark> marksOnBlocks(Predicate<BlockPos> blockStands) {
+        return marks.stream().filter(mark -> blockStands.test(mark.block())).toList();
     }
 
     /**
