@@ -132,12 +132,16 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
     }
 
     /**
-     * The frame's up: along its length, so a wall frame's up is world up and
-     * a floor frame's up runs the way the caster faced.
+     * The frame's up: along its length, a wall frame's world up and a floor
+     * or ceiling frame's the negative way of its axis, north for one lying
+     * north and south and west for one lying east and west, whichever way the
+     * caster faced. Two frames that look to lie the same way then are the
+     * same way, and a pair never turns a body around or over.
      *
      * @return the unit up
      */
     public Vec3 up() {
-        return along.getUnitVec3();
+        return along.getAxis().isVertical() ? along.getUnitVec3()
+                : Direction.fromAxisAndDirection(along.getAxis(), Direction.AxisDirection.NEGATIVE).getUnitVec3();
     }
 }

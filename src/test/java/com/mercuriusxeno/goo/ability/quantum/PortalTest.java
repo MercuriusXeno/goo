@@ -38,4 +38,22 @@ class PortalTest {
         Optional<Portal> frame = Portal.frameAt(solid::contains, pos -> true, AT, Direction.SOUTH, Direction.NORTH);
         assertEquals(Optional.of(new Portal(AT, Direction.SOUTH, Direction.UP)), frame);
     }
+
+    @Test
+    void aFloorPortalThrownNorthOrSouthHasNorthUp() {
+        for (Direction facing : new Direction[] {Direction.NORTH, Direction.SOUTH}) {
+            Portal frame = Portal.frameAt(pos -> true, pos -> true, AT, Direction.UP, facing).orElseThrow();
+            assertEquals(Direction.NORTH.getUnitVec3(), frame.gate().up(), "A floor portal thrown facing " + facing
+                    + " should have north up");
+        }
+    }
+
+    @Test
+    void aCeilingPortalThrownEastOrWestHasWestUp() {
+        for (Direction facing : new Direction[] {Direction.EAST, Direction.WEST}) {
+            Portal frame = Portal.frameAt(pos -> true, pos -> true, AT, Direction.DOWN, facing).orElseThrow();
+            assertEquals(Direction.WEST.getUnitVec3(), frame.gate().up(), "A ceiling portal thrown facing " + facing
+                    + " should have west up");
+        }
+    }
 }
