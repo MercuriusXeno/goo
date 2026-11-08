@@ -22,6 +22,7 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
@@ -65,6 +66,8 @@ public final class PortalTests {
                 PortalTests::arrowFliesThroughALinkedPair);
         GooTestFunctions.registerTest(registrar, THROW_LANDS_THROUGH_A_LINKED_PAIR,
                 PortalTests::throwLandsThroughALinkedPair);
+        GooTestFunctions.registerTest(registrar, SLIME_SPAWNS_IN_PLACE_THROUGH_A_PAIR,
+                PortalTests::slimeSpawnsInPlaceThroughAPair);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_A_PLAYER_CHANGING_DIMENSION,
                 PortalTests::linkReachesAPlayerChangingDimension);
         GooTestFunctions.registerTest(registrar, PLACING_LINKS_TO_THE_LAST_PLACED,
@@ -686,6 +689,68 @@ public final class PortalTests {
             helper.assertBlockNotPresent(GooBlocks.PRISM.get(), FIRST.south());
             helper.assertBlockNotPresent(GooBlocks.PRISM.get(), FIRST.above().south());
             level.getServer().getPlayerList().remove(player);
+        });
+    }
+
+    private static final String SLIME_SPAWNS_IN_PLACE_THROUGH_A_PAIR = "portal_slime_spawns_in_place_through_a_pair";
+    private static final Identifier WEIRD_SLIME = Identifier.fromNamespaceAndPath("goo", "weird_slime");
+    /** How far from its landing cell a slime born through a pair may stand and still be in place. */
+    private static final double IN_PLACE = 1.5;
+    /** Ticks the slime is watched after the throw: its flight, its morph and a little life after. */
+    private static final int WATCHED_TICKS = 60;
+
+    /**
+     * A Slime thrown through a linked pair at a floor past the partner is
+     * born on that floor and stays there, never coming in from elsewhere
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimeSpawnsInPlaceThroughAPair(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.WEIRD);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.WEIRD, PRISM_GOO * GooStacks.THOUSAND));
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(WEIRD_SLIME));
+        standAt(helper, player, A_BLOCK_OFF);
+        Portal near = castAt(helper, player, FIRST, Direction.SOUTH);
+        BlockPos farBlock = helper.absolutePos(FIRST).east(FAR);
+        level.setBlockAndUpdate(farBlock, Blocks.STONE.defaultBlockState());
+        level.setBlockAndUpdate(farBlock.above(), Blocks.STONE.defaultBlockState());
+        BlockPos floor = farBlock.south(PAST_THE_PARTNER);
+        level.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
+        level.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
+        level.setBlockAndUpdate(floor.above(2), Blocks.AIR.defaultBlockState());
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP);
+        PortalChoice.place(level, player.getUUID(), far);
+        PortalChoice.choose(player, Optional.of(near));
+        PortalChoice.link(player, far);
+        Vec3 landing = Vec3.atBottomCenterOf(floor.above());
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.WEIRD), NO_ENTITY, floor,
+                Direction.UP.ordinal(), false, WEIRD_SLIME.toString(), player.getEyePosition(),
+                landing).through(near.gate(), near.gate().center()));
+        long thrownAt = helper.getTick();
+        List<String> strays = new java.util.ArrayList<>();
+        boolean[] born = {false};
+        helper.onEachTick(() -> {
+            for (net.minecraft.world.entity.monster.Slime slime : level.getEntitiesOfClass(
+                    net.minecraft.world.entity.monster.Slime.class, new net.minecraft.world.phys.AABB(floor)
+                            .inflate(FAR))) {
+                born[0] = true;
+                double off = slime.position().distanceTo(landing);
+                if (off > IN_PLACE) {
+                    strays.add("tick " + (helper.getTick() - thrownAt) + " at " + slime.position() + ", "
+                            + off + " from the landing");
+                }
+            }
+            if (helper.getTick() - thrownAt >= WATCHED_TICKS) {
+                level.getEntitiesOfClass(net.minecraft.world.entity.monster.Slime.class,
+                        new net.minecraft.world.phys.AABB(floor).inflate(FAR)).forEach(Entity::discard);
+                level.getServer().getPlayerList().remove(player);
+                helper.assertTrue(born[0], "A slime should be born past the partner");
+                helper.assertTrue(strays.isEmpty(), "A slime born through a pair should stand where it landed, "
+                        + "strayed " + strays.subList(0, Math.min(3, strays.size())));
+                helper.succeed();
+            }
         });
     }
 
