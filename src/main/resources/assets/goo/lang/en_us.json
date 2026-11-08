@@ -146,7 +146,7 @@
   "goo.ability.crystal.prism": "Prism",
   "goo.ability.crystal.prism.description": "Grow a prism where it lands. Prisms react with other goo types.",
   "goo.ability.astral.meteo": "Meteo",
-  "goo.ability.astral.meteo.description": "Calls a meteor; requires open sky.",
+  "goo.ability.astral.meteo.description": "Calls a meteor down; it crashes through whatever stands above.",
   "goo.ability.astral.scry": "Scry",
   "goo.ability.astral.scry.description": "Hold to see the spaces around you.",
   "goo.ability.deep.churn": "Churn",
