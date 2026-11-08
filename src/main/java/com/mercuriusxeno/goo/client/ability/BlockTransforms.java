@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -87,18 +88,31 @@ public final class BlockTransforms {
     }
 
     /**
+     * Whether a state draws no block model to mingle in: air, or a fluid
+     * such as the water ice melts into.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     *
+     * @param state the state a block becomes
+     * @return true where the mingle has no model of it to draw
+     */
+    static boolean drawsNoModel(BlockState state) {
+        return state.isAir() || state.getRenderShape() == RenderShape.INVISIBLE;
+    }
+
+    /**
      * What an exposure mingles in over its block: the state it becomes, or,
-     * where it cooks away to air, the block standing there in its charred
-     * face, so a block cooking into an item transitions from its first share
-     * as one cooking into a block does
-     * (decision blocks-that-cook-into-items-cook-like-blocks).
+     * where it becomes a state with no model, air or a fluid, the block
+     * standing there in its charred face, so a block cooking into an item or
+     * melting transitions from its first share as one cooking into a block
+     * does (decisions blocks-that-cook-into-items-cook-like-blocks,
+     * flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
      *
      * @param exposure the block's exposure
      * @param standing the block standing at its position
      * @return the state and tint drawn
      */
     static Mingling minglingOf(Exposure exposure, BlockState standing) {
-        return exposure.toward().isAir()
+        return drawsNoModel(exposure.toward())
                 ? new Mingling(standing, CHARRED)
                 : new Mingling(exposure.toward(), exposure.tint());
     }
@@ -150,8 +164,8 @@ public final class BlockTransforms {
      * so the face it built up carries straight into the step; a block whose
      * untinted exposure built the transition plays no second dissolve, its
      * built block held whole over it a few ticks so the old block never
-     * shows before the client's chunk redraws; a block cooked away to air
-     * dissolves from the charred face its exposure built; any other
+     * shows before the client's chunk redraws; a block cooked away to air or
+     * melted into water dissolves from the charred face its exposure built; any other
      * dissolves from the state it was.
      *
      * @param pos   the block
@@ -167,7 +181,7 @@ public final class BlockTransforms {
             playing.add(new Transform(pos.immutable(), built.toward(), start, built.tint()));
         } else if (built == null) {
             playing.add(new Transform(pos.immutable(), from, start));
-        } else if (built.toward().isAir()) {
+        } else if (drawsNoModel(built.toward())) {
             // blocks-that-cook-into-items-cook-like-blocks: the charred face it built dissolves away
             playing.add(new Transform(pos.immutable(), from, start, CHARRED));
         } else {
