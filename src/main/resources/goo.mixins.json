@@ -24,6 +24,7 @@
     "ClientLevelGooValuesMixin",
     "ClientPacketListenerGooMixin",
     "EntitySculkerOutlineColorMixin",
+    "GameRendererSculkerVisionMixin",
     "LevelRendererSculkerCullMixin",
     "LivingEntityRendererPhaseMixin",
     "MinecraftSculkerOutlineMixin",
