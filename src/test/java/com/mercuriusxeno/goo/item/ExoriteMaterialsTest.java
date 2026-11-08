@@ -8,7 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The exorite tool material stands above netherite's on durability, mining
  * speed and attack bonus (decision exorite-tool-and-armor-set), its durability
- * netherite's times 1.35 (decision exorite-tool-durability-is-2742). The armor
+ * netherite's times 1.35 (decision exorite-tool-durability-is-2742), and
+ * enchants at 20 against netherite's 15 (decision
+ * exorite-enchants-above-netherite). The armor
  * material needs a booted game, so gametest goo:exorite_armor_stats covers it.
  */
 class ExoriteMaterialsTest {
@@ -22,6 +24,12 @@ class ExoriteMaterialsTest {
     void toolDurabilityIsNetheriteTimesOnePointThreeFive() {
         assertEquals(Math.round(ToolMaterial.NETHERITE.durability() * 1.35f), ExoriteMaterials.TOOL.durability());
         assertEquals(2742, ExoriteMaterials.TOOL.durability());
+    }
+
+    @Test
+    void toolEnchantmentValueIsTwentyAboveNetherite() {
+        assertEquals(20, ExoriteMaterials.TOOL.enchantmentValue());
+        assertTrue(ExoriteMaterials.TOOL.enchantmentValue() > ToolMaterial.NETHERITE.enchantmentValue());
     }
 
     @Test
