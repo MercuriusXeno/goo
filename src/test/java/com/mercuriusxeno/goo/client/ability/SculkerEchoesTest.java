@@ -129,6 +129,23 @@ class SculkerEchoesTest {
         }
 
         @Test
+        void partialBlocksLetSoundThroughAndOnlyBlocksWithCollisionLight() {
+            BlockPos sign = new BlockPos(2, 1, 0);
+            BlockPos fence = new BlockPos(4, 1, 0);
+            Predicate<BlockPos> lights = pos -> pos.getY() <= 0 || pos.equals(fence);
+            Predicate<BlockPos> passesSound = pos -> pos.getY() > 0;
+            SculkerEchoes echoes = new SculkerEchoes();
+            echoes.hear(new Vec3(3.5, 2.5, 0.5), HEARD_AT, 1f, 12);
+            for (long tick = HEARD_AT; tick <= HEARD_AT + ONE_SECOND; tick++) {
+                echoes.advance(tick, lights, passesSound);
+            }
+            assertTrue(echoes.remembered().containsKey(sign.below()), "the block under the sign should light");
+            assertTrue(echoes.remembered().containsKey(fence.below()), "the block under the fence should light");
+            assertTrue(echoes.remembered().containsKey(fence), "the fence should light");
+            assertFalse(echoes.remembered().containsKey(sign), "the sign, with no collision, should not light");
+        }
+
+        @Test
         void eachRingRelightsTheFacesItCrosses() {
             SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + QUARTER_SECOND + 2);
             assertEquals(HEARD_AT + QUARTER_SECOND + 2, echoes.remembered().get(UNDER_THE_SOUND).litAt());

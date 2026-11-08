@@ -8,8 +8,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -140,7 +142,7 @@ public final class SculkerSenses {
             return;
         }
         long now = level.getGameTime();
-        ECHOES.advance(now, pos -> level.getBlockState(pos).isAir());
+        ECHOES.advance(now, pos -> lightsUp(level, pos), pos -> passesSound(level, pos));
         HEARD.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null || now >= heard.getValue().fadedAt());
     }
 
@@ -228,6 +230,30 @@ public final class SculkerSenses {
         LocalPlayer player = mc.player;
         return player != null && mc.level != null && SculkerSwim.dives(player)
                 && SculkerEchoes.strengthAt(at.distanceTo(player.position()), sightReach()) > 0;
+    }
+
+    /**
+     * Whether a block lights where an echo reaches it: one with a collision
+     * shape, so a torch or a sign, which has none, never shows.
+     *
+     * @param level the level
+     * @param pos   the block
+     * @return true for a block with a collision shape
+     */
+    static boolean lightsUp(BlockGetter level, BlockPos pos) {
+        return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
+    }
+
+    /**
+     * Whether sound passes through a block: air, or a block that does not
+     * fill its cell, so a sign or a fence never blocks it.
+     *
+     * @param level the level
+     * @param pos   the block
+     * @return true for air or a partial block
+     */
+    static boolean passesSound(BlockGetter level, BlockPos pos) {
+        return !level.getBlockState(pos).isCollisionShapeFullBlock(level, pos);
     }
 
     /**
