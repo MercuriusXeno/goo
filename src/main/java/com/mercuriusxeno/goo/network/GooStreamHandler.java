@@ -498,22 +498,27 @@ public final class GooStreamHandler {
         // decay-gnats-degrade-each-block-once: a mob in the cone takes the swarm, else the blocks do;
         // the operator's ruling: blocks already painted keep stepping while the swarm bites
         boolean mobFirst = ability.hasTag(AbilityTags.MOB_FIRST);
-        List<LivingEntity> struck = mobFirst ? nearestMob(inCone, apex) : inCone;
+        List<LivingEntity> struck = mobFirst ? mostAlignedMob(inCone, cast.player().getEyePosition(), axis) : inCone;
         runBlockPass(cast, axis, delivery, ability, held, !mobFirst || struck.isEmpty());
         return struck;
     }
 
     /**
-     * The mob nearest the cone's apex among the living a stream reaches, the
-     * one a mob-first stream strikes (decision decay-gnats-degrade-each-block-once).
+     * The mob a mob-first stream strikes among the living it reaches: the
+     * one lying nearest the cone's axis, the smallest angle off the look from
+     * the eye, so the swarm goes where the player aims rather than for the
+     * mob that happens to stand closest (decision decay-gnats-degrade-each-block-once).
      *
      * @param living the living entities in the cone
-     * @param apex   the cone's apex
-     * @return the nearest mob alone, or none when no mob stands in the cone
+     * @param eye    the streaming player's eye
+     * @param axis   the look
+     * @return the most aligned mob alone, or none when no mob stands in the cone
      */
-    static List<LivingEntity> nearestMob(List<LivingEntity> living, Vec3 apex) {
+    static List<LivingEntity> mostAlignedMob(List<LivingEntity> living, Vec3 eye, Vec3 axis) {
+        Vec3 look = axis.normalize();
         return living.stream().filter(Mob.class::isInstance)
-                .min(Comparator.comparingDouble(entity -> entity.distanceToSqr(apex)))
+                .max(Comparator.comparingDouble(entity -> look.dot(entity.getBoundingBox().getCenter().subtract(eye)
+                        .normalize())))
                 .map(List::of).orElse(List.of());
     }
 
