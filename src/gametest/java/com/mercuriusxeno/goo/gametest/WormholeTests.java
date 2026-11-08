@@ -49,7 +49,7 @@ public final class WormholeTests {
     private static final String STANDS_BEFORE_A_FULL_MOUTH = "hole_stands_before_a_full_mouth";
     private static final String DISMISSED_BY_A_HIT = "hole_dismissed_by_a_hit";
     private static final String REFUSED_ON_GLASS = "hole_refused_on_glass";
-    private static final String OPENS_DOWN_FROM_THE_STRUCK_BLOCK = "hole_opens_down_from_the_struck_block";
+    private static final String CENTRES_ON_THE_STRUCK_BLOCK = "hole_centres_on_the_struck_block";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -71,8 +71,8 @@ public final class WormholeTests {
         GooTestFunctions.registerTest(registrar, STANDS_BEFORE_A_FULL_MOUTH, WormholeTests::standsBeforeAFullMouth);
         GooTestFunctions.registerTest(registrar, DISMISSED_BY_A_HIT, WormholeTests::dismissedByAHit);
         GooTestFunctions.registerTest(registrar, REFUSED_ON_GLASS, WormholeTests::refusedOnGlass);
-        GooTestFunctions.registerTest(registrar, OPENS_DOWN_FROM_THE_STRUCK_BLOCK,
-                WormholeTests::opensDownFromTheStruckBlock);
+        GooTestFunctions.registerTest(registrar, CENTRES_ON_THE_STRUCK_BLOCK,
+                WormholeTests::centresOnTheStruckBlock);
     }
 
     private static final String CLOSES_AFTER_ITS_LIFETIME = "hole_closes_after_its_lifetime";
@@ -278,7 +278,11 @@ public final class WormholeTests {
             for (int z = 1; z <= 3; z++) {
                 helper.setBlock(new BlockPos(x, FLOOR_Y, z), Blocks.STONE);
                 helper.setBlock(new BlockPos(x, FLOOR_Y - 1, z), x == 2 && z == 2 ? Blocks.AIR : Blocks.STONE);
-                helper.setBlock(new BlockPos(x, FLOOR_Y - 2, z), Blocks.STONE);
+                // Stone deeper than the hole's reach under the floor, so a smaller mouth beside the open cell, which
+                // the 3x3 centred on the struck block also tries, finds no opening below.
+                for (int depth = FLOOR_Y - 2; depth >= FLOOR_Y - 2 - HOLE_REACH; depth--) {
+                    helper.setBlock(new BlockPos(x, depth, z), Blocks.STONE);
+                }
             }
         }
         ServerPlayer caster = caster(helper);
@@ -405,13 +409,13 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown at a wall one block wide and four tall, the hole opens down
-     * from the struck block, its mouth the struck block and the two below,
-     * rather than centred on it.
+     * Thrown at a wall one block wide and four tall, the hole centres on the
+     * struck block, its mouth the block below it, the struck block and the
+     * one above, rather than opening down to the wall's foot.
      *
      * @param helper the gametest helper
      */
-    public static void opensDownFromTheStruckBlock(GameTestHelper helper) {
+    public static void centresOnTheStruckBlock(GameTestHelper helper) {
         for (int y = 1; y <= TALL_WALL_TOP; y++) {
             for (int z = WALL_NEAR_Z; z <= WALL_FAR_Z; z++) {
                 helper.setBlock(new BlockPos(2, y, z), Blocks.STONE);
@@ -422,8 +426,8 @@ public final class WormholeTests {
         helper.runAfterDelay(LANDED, () -> {
             assertMouthSpans(helper, HIGH_IN_THE_TALL_WALL, 1, 3, 1);
             double bottom = holeStruckAt(helper, HIGH_IN_THE_TALL_WALL).orElseThrow().entry().blocks().minY;
-            helper.assertTrue(bottom == helper.absolutePos(new BlockPos(2, 1, 2)).getY(), "The hole should open down "
-                    + "from the struck block to the wall's foot, its bottom stands at " + bottom);
+            helper.assertTrue(bottom == helper.absolutePos(HIGH_IN_THE_TALL_WALL.below()).getY(), "The hole should "
+                    + "centre on the struck block, its bottom the block below it, stands at " + bottom);
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -488,6 +492,8 @@ public final class WormholeTests {
     private static final Vec3 SUNK_IN_THE_FLOOR = new Vec3(2.5, FLOOR_Y, 2.5);
     /** Where feet come out, in the one-block cell beneath the floor. */
     private static final Vec3 IN_THE_CELL_BELOW = new Vec3(2.5, FLOOR_Y - 1, 2.5);
+    /** How many cells past the struck block a hole's scan runs, as quantum_hole.json reads. */
+    private static final int HOLE_REACH = 32;
     /** A wall thicker than sixteen blocks and thinner than thirty-two. */
     private static final int THICK_WALL = 20;
 
