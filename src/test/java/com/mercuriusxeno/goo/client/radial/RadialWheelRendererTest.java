@@ -332,45 +332,66 @@ class RadialWheelRendererTest {
     }
 
     /**
-     * A badge draws at half the icon's side, up and right of the icon, covering its top-right corner by a texel or
-     * two along each side, so it reads attached rather than beside.
+     * An ability's icon sits in its frame with nothing over it, each badge eight pixels square stands right of the
+     * frame without touching it, and the frame and badges together center on the cluster's point, with and without
+     * a prism badge.
      * decision badges-halve-and-sit-up-right-and-closer
+     * decision abilities-replace-the-hovered-type
      */
     @Nested
-    class BadgeBox {
+    class IconClusterLayout {
 
-        private static final int[] ICON_CENTER = {200, 120};
+        private static final int[] CENTER = {200, 120};
         private static final int HALF_BADGE_SIDE = 8;
+        /** How far a cluster's middle may sit off its point: half a pixel, an odd width's rounding. */
+        private static final double CENTERING_SLACK = 0.5;
 
-        private final RadialWheelRenderer.ItemRect icon = new RadialWheelRenderer.ItemRect(
-                ICON_CENTER[0] - RadialWheelRenderer.ABILITY_ICON_SIZE / 2,
-                ICON_CENTER[1] - RadialWheelRenderer.ABILITY_ICON_SIZE / 2, RadialWheelRenderer.ABILITY_ICON_SIZE);
-        private final RadialWheelRenderer.ItemRect badge = RadialWheelRenderer.badgeBox(ICON_CENTER);
+        private List<RadialWheelRenderer.IconCluster> clusters() {
+            return List.of(RadialWheelRenderer.clusterAround(CENTER, AbilityBadge.WORLD, false),
+                    RadialWheelRenderer.clusterAround(CENTER, AbilityBadge.WORLD, true));
+        }
 
-        @Test
-        void badgeIsEightPixelsSquare() {
-            assertEquals(HALF_BADGE_SIDE, badge.size());
+        private static boolean meet(RadialWheelRenderer.ItemRect one, RadialWheelRenderer.ItemRect other) {
+            return one.left() < other.left() + other.size() && other.left() < one.left() + one.size()
+                    && one.top() < other.top() + other.size() && other.top() < one.top() + one.size();
         }
 
         @Test
-        void badgeCentersAboveAndRightOfTheIcon() {
-            double badgeX = badge.left() + badge.size() / 2.0;
-            double badgeY = badge.top() + badge.size() / 2.0;
-            assertAll(
-                    () -> assertTrue(badgeX > ICON_CENTER[0], "badge center x " + badgeX),
-                    () -> assertTrue(badgeY < ICON_CENTER[1], "badge center y " + badgeY));
+        void everyBadgeIsEightPixelsSquareRightOfTheFrameWithoutTouchingIt() {
+            assertAll(clusters().stream().flatMap(cluster -> cluster.badges().stream().map(badge -> (Executable) () -> {
+                RadialWheelRenderer.ItemRect frame = cluster.frame();
+                assertEquals(HALF_BADGE_SIDE, badge.rect().size(), badge.badge() + " side");
+                assertTrue(badge.rect().left() > frame.left() + frame.size(),
+                        badge.badge() + " left " + badge.rect().left() + ", frame right " + (frame.left() + frame.size()));
+                assertFalse(meet(badge.rect(), frame), badge.badge() + " meets the frame");
+            })));
         }
 
         @Test
-        void badgeCoversTheIconsTopRightCornerByOneOrTwoTexels() {
-            int across = Math.min(icon.left() + icon.size(), badge.left() + badge.size())
-                    - Math.max(icon.left(), badge.left());
-            int down = Math.min(icon.top() + icon.size(), badge.top() + badge.size()) - Math.max(icon.top(), badge.top());
-            assertAll(
-                    () -> assertTrue(across >= 1 && across <= 2, "overlap across " + across),
-                    () -> assertTrue(down >= 1 && down <= 2, "overlap down " + down),
-                    () -> assertEquals(icon.left() + icon.size(), badge.left() + across, "on the icon's right edge"),
-                    () -> assertEquals(icon.top(), badge.top() + badge.size() - down, "on the icon's top edge"));
+        void theFrameHoldsTheIconCenteredWithAPixelAllRound() {
+            assertAll(clusters().stream().map(cluster -> (Executable) () -> {
+                RadialWheelRenderer.ItemRect frame = cluster.frame();
+                int[] icon = cluster.iconCenter();
+                assertEquals(RadialWheelRenderer.ABILITY_ICON_SIZE + 2, frame.size(), "frame side");
+                assertEquals(List.of(frame.left() + frame.size() / 2, frame.top() + frame.size() / 2),
+                        List.of(icon[0], icon[1]), "icon center");
+            }));
+        }
+
+        @Test
+        void frameAndBadgesCenterTogetherOnThePoint() {
+            assertAll(clusters().stream().map(cluster -> (Executable) () -> {
+                List<RadialWheelRenderer.ItemRect> squares = new ArrayList<>(List.of(cluster.frame()));
+                cluster.badges().forEach(badge -> squares.add(badge.rect()));
+                double left = squares.stream().mapToInt(RadialWheelRenderer.ItemRect::left).min().orElseThrow();
+                double right = squares.stream().mapToInt(square -> square.left() + square.size()).max().orElseThrow();
+                double top = squares.stream().mapToInt(RadialWheelRenderer.ItemRect::top).min().orElseThrow();
+                double bottom = squares.stream().mapToInt(square -> square.top() + square.size()).max().orElseThrow();
+                assertTrue(Math.abs((left + right) / 2 - CENTER[0]) <= CENTERING_SLACK,
+                        "middle x " + (left + right) / 2 + " for " + squares.size() + " squares");
+                assertTrue(Math.abs((top + bottom) / 2 - CENTER[1]) <= CENTERING_SLACK,
+                        "middle y " + (top + bottom) / 2 + " for " + squares.size() + " squares");
+            }));
         }
     }
 
@@ -386,8 +407,8 @@ class RadialWheelRendererTest {
         private static final int[] ICON_CENTER = {200, 120};
         private static final int MOST_OVERLAP = 2;
 
-        private final List<RadialWheelRenderer.BadgeIcon> layout = RadialWheelRenderer.badgeLayout(ICON_CENTER,
-                AbilityBadge.WORLD, true);
+        private final List<RadialWheelRenderer.BadgeIcon> layout = RadialWheelRenderer.clusterAround(ICON_CENTER,
+                AbilityBadge.WORLD, true).badges();
 
         private RadialWheelRenderer.BadgeIcon prism() {
             return layout.stream().filter(badge -> badge.badge() == AbilityBadge.PRISM).findFirst().orElseThrow();
@@ -495,7 +516,7 @@ class RadialWheelRendererTest {
                         String where = fan.getKey() + " opened at slot " + open + ": "
                                 + fan.getValue().get(ability).displayName() + " and "
                                 + fan.getValue().get(ability + 1).displayName();
-                        checks.add(() -> assertFalse(anyMeet(here, next), where));
+                        checks.add(() -> assertEquals(List.of(), meetings(here, next), where));
                     }
                 }
             }
@@ -503,9 +524,11 @@ class RadialWheelRendererTest {
             assertAll(checks);
         }
 
-        private static boolean anyMeet(List<RadialWheelRenderer.PlacedLine> one,
-                                       List<RadialWheelRenderer.PlacedLine> other) {
-            return one.stream().anyMatch(line -> other.stream().anyMatch(across -> meet(line.box(), across.box())));
+        /** Each pair of lines, one from each petal, whose boxes meet, as the two lines' words. */
+        private static List<String> meetings(List<RadialWheelRenderer.PlacedLine> one,
+                                             List<RadialWheelRenderer.PlacedLine> other) {
+            return one.stream().flatMap(line -> other.stream().filter(across -> meet(line.box(), across.box()))
+                    .map(across -> line.text().getString() + " meets " + across.text().getString())).toList();
         }
 
         private static boolean meet(double[] one, double[] other) {
@@ -827,13 +850,12 @@ class RadialWheelRendererTest {
             RadialWheel wheel = openWheel();
             RadialWheel.PetalArc petal = wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .findFirst().orElseThrow();
-            int[] icon = RadialWheelRenderer.contentCenter(frameOf(wheel, List.of()), petal);
-            int[] own = RadialWheelRenderer.badgeOnCorner(icon);
-            int[] prism = RadialWheelRenderer.prismBadgeAbove(own);
-            int badgeHalf = RadialWheelRenderer.BADGE_SIZE / 2;
-            int[] onOwn = {own[0] + badgeHalf / 2, own[1] + badgeHalf / 2};
-            int[] onPrismBelowOwn = aPointShowing(new RadialWheelRenderer.ItemRect(prism[0] - badgeHalf,
-                    prism[1] - badgeHalf, RadialWheelRenderer.BADGE_SIZE), List.of(RadialWheelRenderer.badgeBox(icon)));
+            RadialWheelRenderer.IconCluster cluster = RadialWheelRenderer.clusterAround(
+                    RadialWheelRenderer.contentCenter(frameOf(wheel, List.of()), petal), AbilityBadge.WORLD, true);
+            int[] icon = cluster.iconCenter();
+            RadialWheelRenderer.ItemRect own = cluster.badges().getLast().rect();
+            int[] onOwn = {own.left() + own.size() / 2, own.top() + own.size() - 1};
+            int[] onPrismBelowOwn = aPointShowing(cluster.badges().getFirst().rect(), List.of(own));
             Component world = Component.translatable("goo.badge." + AbilityBadge.WORLD.getSerializedName());
             Component prismName = Component.translatable("goo.badge." + AbilityBadge.PRISM.getSerializedName());
 
@@ -1072,13 +1094,22 @@ class RadialWheelRendererTest {
                     "sampled " + sampled + " expected " + expected + " at " + screen);
         }
 
-        /** decision abilities-replace-the-hovered-type */
+        /**
+         * Each ability's cluster centers on its tip: the icon's four frame
+         * sides in the words' dark border color, the icon inside the frame,
+         * the badge where {@link RadialWheelRenderer#clusterAround} places it,
+         * the name above the frame and the cost below it, both centered on the tip.
+         * decision abilities-replace-the-hovered-type
+         * decision badges-halve-and-sit-up-right-and-closer
+         */
         @Test
-        void abilityIconCentersOnItsTipWithTheNameAboveAndTheCostBelow() {
+        void abilityClusterCentersOnItsTipWithTheNameAboveAndTheCostBelow() {
             RadialWheel wheel = openWheel();
             GuiGraphicsExtractor graphics = renderFrame(wheel);
             List<DrawnText> texts = renderTexts(wheel);
+            RadialWheelRenderer.Frame frame = frameOf(wheel, List.of());
             int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
+            int frameSides = 4;
 
             List<PetalRenderState> submitted = submittedArguments(graphics, "submitGuiElementRenderState",
                     PetalRenderState.class);
@@ -1086,34 +1117,39 @@ class RadialWheelRendererTest {
 
             assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
-                        PetalMask.Point tip = petal.shape().tipCenter();
+                        int[] tip = RadialWheelRenderer.tipCenter(frame, petal);
+                        RadialWheelRenderer.IconCluster cluster = RadialWheelRenderer.clusterAround(tip,
+                                AbilityBadge.WORLD, false);
                         PetalRenderState iconState = spriteOf(submitted, iconOf(petal));
+                        int iconAt = submitted.indexOf(iconState);
                         float[] iconBox = boxOf(iconState);
-                        int iconX = Math.round(iconBox[0]) + half;
-                        int iconY = Math.round(iconBox[1]) + half;
-                        assertTrue(Math.hypot(iconX - (CENTER_X + tip.x() * RADIUS),
-                                iconY - (CENTER_Y + tip.y() * RADIUS)) <= TIP_TOLERANCE,
-                                petal + " icon at " + iconX + "," + iconY);
+                        assertEquals(List.of(cluster.iconCenter()[0] - half, cluster.iconCenter()[1] - half),
+                                List.of(Math.round(iconBox[0]), Math.round(iconBox[1])), petal + " icon's corner");
                         assertEquals(0xFFFFFFFF, iconState.color(), petal + " tint");
-                        PetalRenderState badgeState = submitted.get(submitted.indexOf(iconState) + 1);
+                        assertTrue(submitted.subList(iconAt - frameSides, iconAt).stream()
+                                .allMatch(side -> side.color() == RadialWheelRenderer.OUTLINE_COLOR),
+                                petal + " frame sides before the icon");
+                        PetalRenderState badgeState = submitted.get(iconAt + 1);
                         assertTrue(badgeState.textureSetup() == badge, petal + " badge follows");
                         float[] badgeBox = boxOf(badgeState);
-                        RadialWheelRenderer.ItemRect expected = RadialWheelRenderer.badgeBox(new int[]{iconX, iconY});
+                        RadialWheelRenderer.ItemRect expected = cluster.badges().getLast().rect();
                         assertEquals(expected.left(), Math.round(badgeBox[0]), petal + " badge's left edge");
                         assertEquals(expected.top(), Math.round(badgeBox[1]), petal + " badge's top edge");
-                        List<DrawnText> words = texts.stream().filter(text -> text.x() == iconX
-                                && Math.abs(text.y() - iconY) <= half + 2 * LINE_HEIGHT).toList();
+                        RadialWheelRenderer.ItemRect frameSquare = cluster.frame();
+                        List<DrawnText> words = texts.stream().filter(text -> text.x() == tip[0]
+                                && Math.abs(text.y() - tip[1]) <= frameSquare.size() + 2 * LINE_HEIGHT).toList();
                         assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
-                        assertTrue(words.getFirst().y() + LINE_HEIGHT * words.getFirst().scale() <= iconY - half,
+                        assertTrue(words.getFirst().y() + LINE_HEIGHT * words.getFirst().scale() <= frameSquare.top(),
                                 petal + " name above");
-                        assertTrue(words.getLast().y() >= iconY + half, petal + " cost below");
+                        assertTrue(words.getLast().y() >= frameSquare.top() + frameSquare.size(),
+                                petal + " cost below");
                     }));
         }
 
         /**
          * Every ability carrying an on_prism reaction paints its icon, then
          * the prism badge, then its own badge over it, each where
-         * {@link RadialWheelRenderer#badgeLayout} places it and whole on its
+         * {@link RadialWheelRenderer#clusterAround} places it and whole on its
          * petal at the wheel radius a GUI of scale 3 and of scale 4 draws on a
          * 1080p screen.
          * decision on-prism-reaction-wears-the-prism-badge
@@ -1128,7 +1164,6 @@ class RadialWheelRendererTest {
                     renderFrame(wheel, NO_ABILITY, EVERY_ABILITY, radius), "submitGuiElementRenderState",
                     PetalRenderState.class);
             int size = RadialWheelRenderer.BADGE_SIZE;
-            int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
             TextureSetup prismBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.PRISM));
             TextureSetup worldBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.WORLD));
 
@@ -1140,10 +1175,9 @@ class RadialWheelRendererTest {
                         PetalRenderState ownState = submitted.get(iconAt + 2);
                         assertTrue(prismState.textureSetup() == prismBadge, petal + " prism badge after the icon");
                         assertTrue(ownState.textureSetup() == worldBadge, petal + " own badge over the prism badge");
-                        float[] iconBox = boxOf(iconState);
-                        RadialWheelRenderer.ItemRect expected = RadialWheelRenderer.badgeLayout(new int[]{
-                                Math.round(iconBox[0]) + half, Math.round(iconBox[1]) + half}, AbilityBadge.WORLD,
-                                true).getFirst().rect();
+                        RadialWheelRenderer.ItemRect expected = RadialWheelRenderer.clusterAround(
+                                RadialWheelRenderer.tipCenter(frameOf(wheel, List.of(), radius), petal),
+                                AbilityBadge.WORLD, true).badges().getFirst().rect();
                         float[] prismBox = boxOf(prismState);
                         assertEquals(expected.left(), Math.round(prismBox[0]), petal + " prism badge's left");
                         assertEquals(expected.top(), Math.round(prismBox[1]), petal + " prism badge's top");
@@ -1580,7 +1614,7 @@ class RadialWheelRendererTest {
         void petalEdgeStripDrawsUntexturedInTheEdgeColorFadedByPresence() {
             List<PetalRenderState> edges = submittedArguments(renderFrame(openWheel()),
                     "submitGuiElementRenderState", PetalRenderState.class).stream()
-                    .filter(state -> !state.isTextured()).toList();
+                    .filter(state -> !state.isTextured() && state.color() != RadialWheelRenderer.OUTLINE_COLOR).toList();
             List<RadialWheel.PetalArc> petals = openWheel().displayedLayout(0.0f);
 
             assertEquals(petals.size(), edges.size());
@@ -1650,10 +1684,9 @@ class RadialWheelRendererTest {
         @Test
         void closedLiesOnTheCenterLineWithTheIconAndBadgeOutsideThePetal() {
             int[] center = RadialWheelRenderer.contentCenter(frame, at(0.0));
-            int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
-            List<RadialWheelRenderer.ItemRect> squares = new ArrayList<>(List.of(new RadialWheelRenderer.ItemRect(
-                    center[0] - half, center[1] - half, RadialWheelRenderer.ABILITY_ICON_SIZE)));
-            RadialWheelRenderer.badgeLayout(center, AbilityBadge.WORLD, true).forEach(badge -> squares.add(badge.rect()));
+            RadialWheelRenderer.IconCluster cluster = RadialWheelRenderer.clusterAround(center, AbilityBadge.WORLD, true);
+            List<RadialWheelRenderer.ItemRect> squares = new ArrayList<>(List.of(cluster.frame()));
+            cluster.badges().forEach(badge -> squares.add(badge.rect()));
 
             assertEquals(0.0, across(center[0], center[1]), ROUNDING);
             assertTrue(along(center[0], center[1]) > fanned.shape().outer() * RADIUS, "short of the outer radius");
