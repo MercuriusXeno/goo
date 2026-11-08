@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -22,7 +24,9 @@ import java.util.Map;
  * the spot burns into its caster's {@link ScorchTrail}, and every mark still
  * showing draws as a quad flush on the face it burnt, white-hot where the
  * ray strikes now, cooling through orange to a dark burn mark behind it and
- * fading away. Client-only: it changes no block.
+ * fading away. Client-only: it changes no block. A mark draws only while
+ * the block it burns on stands, so none hangs in the air where a block went
+ * or a rake bridged a gap.
  * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -80,12 +84,24 @@ public final class SunbeamScorch {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SUNBEAM_SCORCH_TYPE);
         PoseStack.Pose pose = event.getPoseStack().last();
+        ClientLevel level = mc.level;
         for (ScorchTrail trail : TRAILS.values()) {
-            for (ScorchTrail.Mark mark : trail.marks()) {
+            for (ScorchTrail.Mark mark : trail.marksOnBlocks(pos -> blockStands(level, pos))) {
                 emitMark(pose, consumer, mark, camera, now);
             }
         }
         buffers.endBatch(GooRenderTypes.SUNBEAM_SCORCH_TYPE);
+    }
+
+    /**
+     * Whether a block stands at a position for a mark to burn on: one with an outline.
+     *
+     * @param level the level
+     * @param pos   the position
+     * @return true where a block stands
+     */
+    private static boolean blockStands(ClientLevel level, BlockPos pos) {
+        return !level.getBlockState(pos).getShape(level, pos).isEmpty();
     }
 
     /**
