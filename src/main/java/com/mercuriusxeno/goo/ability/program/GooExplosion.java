@@ -56,10 +56,12 @@ public final class GooExplosion extends ServerExplosion {
     private static final int FIRE_ONE_IN = 3;
 
     private final boolean lightsFires;
+    private final double reach;
 
-    private GooExplosion(ServerLevel level, Vec3 center, float power, ExplosionMode mode) {
+    private GooExplosion(ServerLevel level, Vec3 center, float power, double reach, ExplosionMode mode) {
         super(level, null, null, DAMAGE_CALCULATOR, center, power, mode == ExplosionMode.FIRE, blockInteraction(mode));
         this.lightsFires = mode == ExplosionMode.FIRE;
+        this.reach = reach;
     }
 
     /**
@@ -110,7 +112,24 @@ public final class GooExplosion extends ServerExplosion {
      * @param look   how the explosion shows and sounds
      */
     public static void detonate(ServerLevel level, Vec3 center, float power, ExplosionMode mode, Look look) {
-        GooExplosion explosion = new GooExplosion(level, center, power, mode);
+        detonate(level, center, power, ExplosionMarch.maxReach(power), mode, look);
+    }
+
+    /**
+     * Detonates a Goo explosion cutting at most the reach given, which a
+     * blast holds to the ring it draws while its power digs through stone.
+     * blast-fills-its-drawn-radius
+     *
+     * @param level  the server level
+     * @param center the explosion center
+     * @param power  the power every ray starts with
+     * @param reach  the radius the explosion cuts at most
+     * @param mode   how blocks are treated
+     * @param look   how the explosion shows and sounds
+     */
+    public static void detonate(ServerLevel level, Vec3 center, float power, double reach, ExplosionMode mode,
+                                Look look) {
+        GooExplosion explosion = new GooExplosion(level, center, power, reach, mode);
         if (EventHooks.onExplosionStart(level, explosion)) {
             return;
         }
@@ -140,7 +159,8 @@ public final class GooExplosion extends ServerExplosion {
     @Override
     public int explode() {
         level().gameEvent(null, GameEvent.EXPLODE, center());
-        List<BlockPos> marked = new ArrayList<>(ExplosionMarch.markedCells(center(), radius(), this::resistanceAt));
+        List<BlockPos> marked = new ArrayList<>(ExplosionMarch.markedCells(center(), radius(), reach,
+                this::resistanceAt));
         hurtEntitiesWithinReach(marked);
         if (getBlockInteraction() != BlockInteraction.KEEP) {
             breakBlocks(marked);
@@ -196,7 +216,6 @@ public final class GooExplosion extends ServerExplosion {
     private void hurtEntitiesWithinReach(List<BlockPos> marked) {
         ServerLevel level = level();
         Vec3 center = center();
-        double reach = ExplosionMarch.maxReach(radius());
         if (reach <= 0) {
             return;
         }

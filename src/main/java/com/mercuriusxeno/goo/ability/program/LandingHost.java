@@ -147,8 +147,9 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
      * drawn by its goo type (decision elemental-explosion-per-type).
      */
     @Override
-    public void explode(float power, ExplosionMode mode) {
-        GooExplosion.detonate(level, anchor(), power, mode, GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
+    public void explode(float power, double reach, ExplosionMode mode) {
+        GooExplosion.detonate(level, anchor(), power, reach, mode,
+                GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
     }
 
     @Override
