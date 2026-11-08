@@ -78,6 +78,16 @@ public interface BlockBreakHost extends StepHost {
     }
 
     /**
+     * The state standing at a position.
+     *
+     * @param pos the position
+     * @return the state there
+     */
+    default BlockState stateAt(BlockPos pos) {
+        return level().getBlockState(pos);
+    }
+
+    /**
      * Transforms the block at a position into another, which every watching
      * client draws as the old block mingling into the new
      * (decision petrify-stone-encasement-and-calcify-map).

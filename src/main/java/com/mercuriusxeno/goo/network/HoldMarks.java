@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
@@ -11,14 +11,14 @@ import java.util.Set;
 
 /**
  * What one stream hold has marked on the blocks it reached: the blocks it
- * painted, each with the block that stood there when it was painted, which
+ * painted, each with the state that stood there when it was painted, which
  * keep transitioning while the hold lasts, and the positions it has stepped,
  * which it steps no further (decision decay-gnats-degrade-each-block-once).
  * A new hold starts with fresh marks.
  */
 public final class HoldMarks {
 
-    private final Map<BlockPos, Block> painted = new HashMap<>();
+    private final Map<BlockPos, BlockState> painted = new HashMap<>();
     private final Set<BlockPos> stepped = new HashSet<>();
     private @Nullable Vec3 anchor;
 
@@ -26,18 +26,18 @@ public final class HoldMarks {
      * Paints a block, unless the hold already painted or stepped it.
      *
      * @param pos    the block
-     * @param origin the block standing there now
+     * @param origin the state standing there now
      */
-    public void paint(BlockPos pos, Block origin) {
+    public void paint(BlockPos pos, BlockState origin) {
         if (!stepped.contains(pos)) {
             painted.putIfAbsent(pos.immutable(), origin);
         }
     }
 
     /**
-     * @return the painted blocks, each with the block that stood there when painted, as a copy
+     * @return the painted blocks, each with the state that stood there when painted, as a copy
      */
-    public Map<BlockPos, Block> painted() {
+    public Map<BlockPos, BlockState> painted() {
         return Map.copyOf(painted);
     }
 

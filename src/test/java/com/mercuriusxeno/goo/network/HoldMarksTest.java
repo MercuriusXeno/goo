@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -9,15 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * A hold paints each block once with the block standing there, and a block
+ * A hold paints each block once with the state standing there, and a block
  * it has stepped leaves the painted set and is never painted again in the
  * hold (decision decay-gnats-degrade-each-block-once).
  */
 class HoldMarksTest {
 
     private static final BlockPos BLOCK = new BlockPos(1, 2, 3);
-    private final Block stone = mock(Block.class);
-    private final Block cobblestone = mock(Block.class);
+    private final BlockState stone = mock(BlockState.class);
+    private final BlockState cobblestone = mock(BlockState.class);
 
     @Test
     void aBlockKeepsTheOriginItWasFirstPaintedWith() {
