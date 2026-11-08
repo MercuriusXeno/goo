@@ -94,9 +94,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      * here as it explodes rather than when the blob landed.
      */
     @Override
-    public void explode(float power, ExplosionMode mode) {
+    public void explode(float power, double reach, ExplosionMode mode) {
         burnout().sendToTracking(level);
-        GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, mode,
+        GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, reach, mode,
                 GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
     }
 

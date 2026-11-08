@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
-import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -98,8 +97,7 @@ public final class GooExplosionTests {
         ExplodeStep explode = ability.behaviors().stream().filter(ExplodeStep.class::isInstance)
                 .map(ExplodeStep.class::cast).findFirst().orElse(null);
         helper.assertTrue(explode != null, NO_EXPLODE_STEP);
-        double reach = ExplosionMarch.maxReach(explode.power().evaluateFloat(
-                HostVariables.sized(DragSize.REFERENCE_RADIUS)));
+        double reach = explode.reachAt(HostVariables.sized(DragSize.REFERENCE_RADIUS));
         layFloor(helper, Blocks.STONE);
 
         strike(helper, ability);

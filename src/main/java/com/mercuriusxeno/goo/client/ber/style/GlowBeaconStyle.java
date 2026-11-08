@@ -36,7 +36,8 @@ public final class GlowBeaconStyle implements PrismComboStyle {
         float scroll = Mth.frac(-state.animationTime * SCROLL_PER_TICK);
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             float radius = layer.radius() * state.beamRadiusScale;
-            nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
+            nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
+                    GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
                     (pose, buffer) -> GlowBeamMesh.emitLayer(pose, buffer, radius, layer.color(), scroll, BEAM_REACH));
         }
         poseStack.popPose();

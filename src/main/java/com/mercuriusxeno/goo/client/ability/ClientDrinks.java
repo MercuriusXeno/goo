@@ -13,12 +13,14 @@ import java.util.Set;
 import java.util.function.IntPredicate;
 
 /**
- * The blocks streaming into Unmake drinks this client draws, each drink kept
+ * The blocks streaming in Unmake drinks this client draws, each drink kept
  * from the server's first word of it until its every stream has wholly
- * entered the glove and its skin shows nothing more, with the fixed layout of its tree; and the block each
- * one was, remembered from the first frame the client saw it flowing, so the
- * stream's tail is drawn after the block is gone.
+ * reached its blob and its skin shows nothing more, with the fixed layout of
+ * the tree each blob's streams make; and the block each one was, remembered
+ * from the first frame the client saw it flowing, so the stream's tail is
+ * drawn after the block is gone.
  * decision unmake-waves-dissolve-by-crucible-cost
+ * unmake-converges-near-the-unmade-blocks-into-a-goo-item
  */
 public final class ClientDrinks {
 
@@ -26,17 +28,26 @@ public final class ClientDrinks {
     public static final ClientDrinks CLIENT = new ClientDrinks();
 
     /**
-     * One player's drink: the blocks streaming into their glove, and the fixed layout of their tree.
+     * One player's drink: the blocks streaming to their blobs, and the fixed
+     * layout of the tree each blob's streams make.
      *
      * @param playerId  the player's entity id
      * @param streaming the blocks still streaming or whose stream is still in the air
-     * @param layout    the layout of the drink's tree, laid as each block first appeared
+     * @param layouts   the layout of each blob's tree, by the blob's entity id, laid as each block first appeared
      */
-    public record Drink(int playerId, List<DrinkPayload.Streaming> streaming, DrinkLayout layout) {
+    public record Drink(int playerId, List<DrinkPayload.Streaming> streaming, Map<Integer, DrinkLayout> layouts) {
+
+        /**
+         * @param blob a blob's entity id
+         * @return the layout of the tree its streams make
+         */
+        public DrinkLayout layoutFor(int blob) {
+            return layouts.computeIfAbsent(blob, ignored -> new DrinkLayout());
+        }
     }
 
     private final Map<Integer, Map<BlockPos, DrinkPayload.Streaming>> drinks = new HashMap<>();
-    private final Map<Integer, DrinkLayout> layouts = new HashMap<>();
+    private final Map<Integer, Map<Integer, DrinkLayout>> layouts = new HashMap<>();
     private final Remembered<BlockPos, BlockState> blocks = new Remembered<>();
 
     /**
@@ -68,7 +79,7 @@ public final class ClientDrinks {
      * its travel and whose skin has nothing left to show; a drink's blocks
      * are kept together until then, since a stream still in the air runs
      * down the trunks of blocks drained before it, and the skin is what says
-     * when the last of it is in the glove.
+     * when the last of it is in its blob.
      *
      * @param now       the game time, with the partial tick
      * @param stillSeen whether a player's drink still has skin to show, by the player's entity id
@@ -81,8 +92,11 @@ public final class ClientDrinks {
                 .allMatch(streaming -> DrinkStream.gone(streaming, now)) && !stillSeen.test(drink.getKey()));
         layouts.keySet().retainAll(drinks.keySet());
         drinks.forEach((playerId, shown) -> {
-            live.add(new Drink(playerId, List.copyOf(shown.values()),
-                    layouts.computeIfAbsent(playerId, ignored -> new DrinkLayout())));
+            Map<Integer, DrinkLayout> blobLayouts = layouts.computeIfAbsent(playerId, ignored -> new HashMap<>());
+            Set<Integer> blobs = new HashSet<>();
+            shown.values().forEach(streaming -> blobs.add(streaming.blob()));
+            blobLayouts.keySet().retainAll(blobs);
+            live.add(new Drink(playerId, List.copyOf(shown.values()), blobLayouts));
             drawn.addAll(shown.keySet());
         });
         blocks.keepOnly(drawn);

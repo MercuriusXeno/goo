@@ -108,6 +108,19 @@ public final class BusterEvents {
     }
 
     /**
+     * Whether a player's hit or break spreads: a positive radius on a player
+     * standing, never one sneaking.
+     * buster-sleeps-while-sneaking
+     *
+     * @param radius   the player's blast radius
+     * @param sneaking whether the player sneaks
+     * @return true where the hit or break spreads
+     */
+    public static boolean spreads(float radius, boolean sneaking) {
+        return radius > NOT_BUSTING && !sneaking;
+    }
+
+    /**
      * Refreshes the overlay of each player whose held effects lay Buster.
      *
      * @param event the player tick event
@@ -153,7 +166,8 @@ public final class BusterEvents {
      */
     @SubscribeEvent
     public static void onBlockBroken(BlockEvent.BreakEvent event) {
-        if (spreading || !(event.getPlayer() instanceof ServerPlayer player) || radiusOf(player) <= NOT_BUSTING) {
+        if (spreading || !(event.getPlayer() instanceof ServerPlayer player)
+                || !spreads(radiusOf(player), player.isShiftKeyDown())) {
             return;
         }
         BlockPos origin = event.getPos();
@@ -174,7 +188,7 @@ public final class BusterEvents {
                 || source.getDirectEntity() != attacker || !source.is(DamageTypes.PLAYER_ATTACK)) {
             return null;
         }
-        return radiusOf(attacker) > NOT_BUSTING ? attacker : null;
+        return spreads(radiusOf(attacker), attacker.isShiftKeyDown()) ? attacker : null;
     }
 
     private static List<LivingEntity> caughtAround(LivingEntity struck, ServerPlayer attacker, float radius) {

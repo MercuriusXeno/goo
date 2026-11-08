@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
-import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -177,6 +176,6 @@ public final class UnstableExplosionVisual implements BurnoutVisual, HeldGhostVi
      * @return the max reach of the step's power at that size, in blocks
      */
     static float blastReach(ExplodeStep step, double size) {
-        return (float) ExplosionMarch.maxReach(step.power().evaluateFloat(HostVariables.sized(size)));
+        return (float) step.reachAt(HostVariables.sized(size));
     }
 }

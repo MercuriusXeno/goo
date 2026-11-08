@@ -6,6 +6,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -21,6 +22,8 @@ public record ReflectorStep(int every) implements Step {
 
     private static final String NAME = "reflector";
     private static final String FIELD_EVERY = "every";
+    /** Glow-yellow, the reflector's column: the color a bare prism warms toward as Sunbeam charges it. */
+    static final int GLOW_YELLOW = 0xFFE628;
 
     /**
      * Codec for the step's params.
@@ -60,5 +63,14 @@ public record ReflectorStep(int every) implements Step {
     @Override
     public Set<HostCapability> requires() {
         return Set.of(HostCapability.LEVEL, HostCapability.TICKING);
+    }
+
+    /**
+     * prism-conversion-creeps-over-the-hold: a bare prism Sunbeam charges warms
+     * toward the glow-yellow its reflector column wears.
+     */
+    @Override
+    public OptionalInt prismTint() {
+        return OptionalInt.of(GLOW_YELLOW);
     }
 }

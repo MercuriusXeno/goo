@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ber.style;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ability.GlowBeamMesh;
+import com.mercuriusxeno.goo.client.ability.GlowCore;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -46,11 +47,33 @@ public final class GlowReflectorStyle implements PrismComboStyle {
                 poseStack.translate(center.x, center.y, center.z);
                 poseStack.mulPose(GlowBeamMesh.alongBeam(link));
                 float length = (float) link.length();
-                nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
+                nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
+                        GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
                         (pose, buffer) -> emitBeam(pose, buffer, length, share, scroll));
                 poseStack.popPose();
             }
         }
+        if (!state.links.isEmpty()) {
+            submitCore(poseStack, nodeCollector, share);
+        }
+    }
+
+    /**
+     * Draws the soft core of light every rail leaves from, at the prism's
+     * middle after its column, scaled and dimmed with the rails.
+     * decision diagnose-and-correct-the-sunbeam-prism-depth
+     *
+     * @param poseStack     the pose at the prism's cell corner
+     * @param nodeCollector the submit collector
+     * @param share         the network's light as a share of the brightest
+     */
+    private static void submitCore(PoseStack poseStack, SubmitNodeCollector nodeCollector, float share) {
+        float width = DIMMEST_WIDTH + (1f - DIMMEST_WIDTH) * share;
+        poseStack.pushPose();
+        poseStack.translate(HALF, HALF, HALF);
+        nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
+                (pose, buffer) -> GlowCore.emit(pose, buffer, width, share));
+        poseStack.popPose();
     }
 
     @Override

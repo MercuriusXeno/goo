@@ -4,8 +4,10 @@
 // one burnt spot as a ragged disc. A fresh mark glows white-hot across the
 // disc; as it cools the glow draws in to a shrinking core and runs through
 // yellow and orange to a dull red, leaving a dark char ring, and in the last
-// share of its life the char itself fades away. TRANSLUCENT blend, so the char
-// darkens the face it lies on.
+// share of its life the char itself fades away. Two passes: every mark's char
+// first, TRANSLUCENT so it darkens the face, then with GLOW_PASS every mark's
+// glow added onto the face, the block showing through, so overlapping marks
+// blend into one streak rather than stacking as decals.
 
 in vec2 acrossMark;
 in float heat;
@@ -44,8 +46,9 @@ void main() {
     // The glow fills the disc while white-hot and draws in to its middle as it cools.
     float glowReach = edge * mix(0.15, 0.95, heat);
     float glow = (1.0 - smoothstep(glowReach * 0.5, glowReach, radius)) * smoothstep(0.05, 0.3, heat);
-    vec3 color = mix(CHAR, glowAt(heat), glow);
-    float charOpacity = CHAR_OPACITY * smoothstep(0.0, CHAR_FADE, heat);
-    float opacity = max(charOpacity, glow) * disc;
-    fragColor = vec4(color, opacity);
+#ifdef GLOW_PASS
+    fragColor = vec4(glowAt(heat) * glow * disc, 1.0);
+#else
+    fragColor = vec4(CHAR, CHAR_OPACITY * smoothstep(0.0, CHAR_FADE, heat) * disc);
+#endif
 }

@@ -16,7 +16,7 @@ import java.util.List;
  * decision unmake-waves-dissolve-by-crucible-cost
  *
  * @param playerId  the player's entity id
- * @param streaming the blocks on their way into the glove
+ * @param streaming the blocks on their way to their blobs
  */
 public record DrinkPayload(int playerId, List<Streaming> streaming) implements CustomPacketPayload {
 
@@ -28,14 +28,16 @@ public record DrinkPayload(int playerId, List<Streaming> streaming) implements C
             StreamCodec.of(DrinkPayload::encode, DrinkPayload::decode);
 
     /**
-     * One block on its way into the glove.
+     * One block on its way to the goo blob its chunks converge on.
      *
      * @param pos    the block
      * @param picked the game time it was picked, the square leaving the hand for it
      * @param start  the game time the square lands and it starts streaming
      * @param end    the game time it is drained and gone
+     * @param blob   the entity id of the forming goo blob its chunks converge on
+     *               (decision unmake-converges-near-the-unmade-blocks-into-a-goo-item)
      */
-    public record Streaming(BlockPos pos, long picked, long start, long end) {
+    public record Streaming(BlockPos pos, long picked, long start, long end, int blob) {
     }
 
     @Override
@@ -51,6 +53,7 @@ public record DrinkPayload(int playerId, List<Streaming> streaming) implements C
             buf.writeVarLong(streaming.picked());
             buf.writeVarLong(streaming.start());
             buf.writeVarLong(streaming.end());
+            buf.writeVarInt(streaming.blob());
         }
     }
 
@@ -59,7 +62,8 @@ public record DrinkPayload(int playerId, List<Streaming> streaming) implements C
         int count = buf.readVarInt();
         List<Streaming> streaming = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            streaming.add(new Streaming(buf.readBlockPos(), buf.readVarLong(), buf.readVarLong(), buf.readVarLong()));
+            streaming.add(new Streaming(buf.readBlockPos(), buf.readVarLong(), buf.readVarLong(), buf.readVarLong(),
+                    buf.readVarInt()));
         }
         return new DrinkPayload(playerId, streaming);
     }

@@ -68,6 +68,27 @@ public final class GooRenderTypes {
     );
 
     /**
+     * The additive glow lines passing every depth test, for a mark that must
+     * never sink into the face it sits on, such as the aim reticule.
+     */
+    public static final RenderPipeline LINES_ADDITIVE_GLOW_THROUGH_BLOCKS =
+            RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+                    .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE,
+                            "pipeline/lines_additive_glow" + THROUGH_BLOCKS_SUFFIX))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .build();
+
+    /** RenderType that draws additive glow lines through blocks. */
+    public static final RenderType LINES_GLOW_THROUGH_BLOCKS = RenderType.create(
+            "goo_lines_additive_glow" + THROUGH_BLOCKS_SUFFIX,
+            RenderSetup.builder(LINES_ADDITIVE_GLOW_THROUGH_BLOCKS)
+                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
+                    .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                    .createRenderSetup()
+    );
+
+    /**
      * Sight's fungus x-ray (decision sight-lengthens-shift-and-outlines-fungus):
      * a block's own baked quads through vanilla's translucent entity shader,
      * passing every depth test and writing no depth, so fungus shows through walls.
@@ -416,6 +437,26 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
+    /**
+     * A glow prism's column and halo (decision diagnose-and-correct-the-sunbeam-prism-depth):
+     * vanilla's translucent entity draw with depth write off, so the beams
+     * drawn after it, Sunbeam's ray among them, show in front of the column
+     * rather than fail the depth it would write.
+     */
+    public static final RenderPipeline GLOW_COLUMN = RenderPipelines.ENTITY_TRANSLUCENT.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_column"))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The glow column render type, on the block atlas. */
+    public static final RenderType GLOW_COLUMN_TYPE = RenderType.create("goo_glow_column",
+            RenderSetup.builder(GLOW_COLUMN)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/atlas/blocks.png"))
+                    .useLightmap()
+                    .useOverlay()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
     /** Per-texture memoized render types on the glow beam pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GLOW_BEAM_FACTORY =
             net.minecraft.util.Util.memoize(texture -> RenderType.create(
@@ -451,6 +492,20 @@ public final class GooRenderTypes {
 
     /** RenderType that draws Sunbeam's scorch. */
     public static final RenderType SUNBEAM_SCORCH_TYPE = burnoutType(SUNBEAM_SCORCH);
+
+    /**
+     * Sunbeam's scorch glow (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
+     * the scorch's shaders in their glow pass, added onto the world after
+     * every mark's char, so overlapping marks' glows sum into one streak.
+     */
+    public static final RenderPipeline SUNBEAM_SCORCH_GLOW = SUNBEAM_SCORCH.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sunbeam_scorch_glow"))
+            .withShaderDefine("GLOW_PASS")
+            .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
+            .build();
+
+    /** RenderType that draws Sunbeam's scorch glow. */
+    public static final RenderType SUNBEAM_SCORCH_GLOW_TYPE = burnoutType(SUNBEAM_SCORCH_GLOW);
 
     /**
      * Nether black-hole accretion-disk pipeline: third render pass that
@@ -1275,6 +1330,7 @@ public final class GooRenderTypes {
      */
     private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
+        event.registerPipeline(LINES_ADDITIVE_GLOW_THROUGH_BLOCKS);
         event.registerPipeline(FUNGUS_XRAY);
         event.registerPipeline(FUNGUS_GLOW);
         event.registerPipeline(SPORE_SHELL);
@@ -1319,7 +1375,9 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GLOW_BEAM);
+        event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);
+        event.registerPipeline(SUNBEAM_SCORCH_GLOW);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
         event.registerPipeline(METEOR_SCORCH);

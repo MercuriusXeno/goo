@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ClientDrinksTest {
 
     private static final int PLAYER = 7;
+    private static final int BLOB = 11;
     private static final long START = 100;
     private static final long PICKED = START - SiphonRule.INJECT_TICKS;
     private static final long END = 134;
@@ -28,7 +29,7 @@ class ClientDrinksTest {
     }
 
     private static DrinkPayload.Streaming streaming(BlockPos pos, long end) {
-        return new DrinkPayload.Streaming(pos, PICKED, START, end);
+        return new DrinkPayload.Streaming(pos, PICKED, START, end, BLOB);
     }
 
     @Test
@@ -59,8 +60,8 @@ class ClientDrinksTest {
         ClientDrinks drinks = new ClientDrinks();
         drinks.show(drink(streaming(BlockPos.ZERO, END)));
 
-        DrinkLayout first = drinks.live(START, id -> false).getFirst().layout();
-        DrinkLayout next = drinks.live(START + 1, id -> false).getFirst().layout();
+        DrinkLayout first = drinks.live(START, id -> false).getFirst().layoutFor(BLOB);
+        DrinkLayout next = drinks.live(START + 1, id -> false).getFirst().layoutFor(BLOB);
 
         assertSame(first, next);
     }

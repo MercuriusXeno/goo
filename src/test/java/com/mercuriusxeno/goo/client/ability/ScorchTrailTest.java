@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -11,13 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Sunbeam's scorch trail takes each spot the ray burns, ages every mark on
  * the game clock and drops it once the fade time has passed
- * (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades).
+ * (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades), and
+ * draws a mark only where the block it burns on stands.
  */
 class ScorchTrailTest {
 
     private static final Vec3 SPOT = new Vec3(4.5, 64.0, -2.5);
     private static final double START = 1000;
     private static final double TOLERANCE = 1e-9;
+    /** Ticks between a beam's last frame and its next start, a short release and press again. */
+    private static final double RESTARTED_AFTER = 10;
 
     private static ScorchTrail burntOnceAt(double now) {
         ScorchTrail trail = new ScorchTrail();
@@ -80,6 +84,37 @@ class ScorchTrailTest {
     }
 
     @Nested
+    class Standing {
+
+        /** The block SPOT's mark burns on: the one under its upward face. */
+        private static final BlockPos UNDER_THE_SPOT = new BlockPos(4, 63, -3);
+        private static final int GAP_WIDTH = 2;
+
+        @Test
+        void aMarkDrawsWhileItsBlockStands() {
+            ScorchTrail trail = burntOnceAt(START);
+            assertEquals(trail.marks(), trail.marksOnBlocks(UNDER_THE_SPOT::equals));
+        }
+
+        @Test
+        void aMarkWhoseBlockIsGoneDrawsNot() {
+            ScorchTrail trail = burntOnceAt(START);
+            assertEquals(List.of(), trail.marksOnBlocks(pos -> false));
+        }
+
+        @Test
+        void aRakeAcrossAGapDrawsNoMarkOverTheGap() {
+            ScorchTrail trail = burntOnceAt(START);
+            trail.burn(SPOT.add(GAP_WIDTH, 0, 0), Direction.UP, START + 1);
+            BlockPos gap = UNDER_THE_SPOT.east();
+            List<ScorchTrail.Mark> drawn = trail.marksOnBlocks(pos -> !pos.equals(gap));
+            assertTrue(drawn.stream().noneMatch(mark -> mark.block().equals(gap)), "a mark drawn over the gap");
+            assertTrue(drawn.stream().anyMatch(mark -> mark.block().equals(UNDER_THE_SPOT)));
+            assertTrue(drawn.stream().anyMatch(mark -> mark.block().equals(gap.east())));
+        }
+    }
+
+    @Nested
     class Trailing {
 
         @Test
@@ -92,6 +127,14 @@ class ScorchTrailTest {
                         + TOLERANCE, "a gap between marks " + (i - 1) + " and " + i);
             }
             assertEquals(SPOT.add(1, 0, 0), marks.getLast().point());
+        }
+
+        /** A beam stopped and started again leaves two spots, not a streak joining them. */
+        @Test
+        void aBeamStartedAgainBridgesNothingToTheLastStop() {
+            ScorchTrail trail = burntOnceAt(START);
+            trail.burn(SPOT.add(1, 0, 0), Direction.UP, START + RESTARTED_AFTER);
+            assertEquals(2, trail.marks().size());
         }
 
         @Test

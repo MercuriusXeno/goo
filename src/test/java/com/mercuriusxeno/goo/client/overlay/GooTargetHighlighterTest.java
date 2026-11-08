@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.TargetResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -9,8 +12,10 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -84,6 +89,31 @@ class GooTargetHighlighterTest {
         @Test
         void nothingAimedDrawsNoLine() {
             assertNull(GooTargetHighlighter.aimLineEnd(TargetResult.NONE));
+        }
+    }
+
+    /** A drag-sized ability is never thrown, so it draws no throw arc (decision blast-draws-no-throw-arc). */
+    @Nested
+    class DrawsTheThrowArc {
+
+        private static boolean drawsAimLine(String abilityName) {
+            AbilityDefinition ability = AbilityJson.decode(abilityName);
+            return GooTargetHighlighter.drawsAimLine(ability.delivery(), ability.hasTag(AbilityTags.DRAG_SIZED));
+        }
+
+        @Test
+        void blastDrawsNoArc() {
+            assertFalse(drawsAimLine("unstable_explode"));
+        }
+
+        @Test
+        void theBlackHoleDrawsNoArc() {
+            assertFalse(drawsAimLine("nether_black_hole"));
+        }
+
+        @Test
+        void aThrownBlobDrawsItsArc() {
+            assertTrue(drawsAimLine("frost_orb"));
         }
     }
 }

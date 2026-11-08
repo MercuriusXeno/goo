@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mojang.blaze3d.platform.CompareOp;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -67,6 +68,16 @@ class ReticuleRendererTest {
         Vec3 drawn = ReticuleRenderer.standOffPoint(new Vec3(0.4, 64, 0), camera, 1.0);
 
         assertEquals(0.2, drawn.x, TOLERANCE);
+    }
+
+    /**
+     * The ring's lower half dips below the floor at a grazing look, so the
+     * reticule passes every depth test rather than sinking into the face it
+     * marks (operator ruling: draw the reticule through depth).
+     */
+    @Test
+    void theReticuleDrawsThroughDepth() {
+        assertEquals(CompareOp.ALWAYS_PASS, ReticuleRenderer.RENDER_TYPE.pipeline().getDepthStencilState().depthTest());
     }
 
     @Test
