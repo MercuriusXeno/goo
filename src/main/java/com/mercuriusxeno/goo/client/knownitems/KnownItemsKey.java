@@ -54,7 +54,7 @@ public final class KnownItemsKey {
             LocalPlayer player = mc.player;
             if (player != null && KnownItemsKeyGate.pressOpensOverlay(player.getMainHandItem().isEmpty(),
                     holdsGlove(player), mc.screen != null, !ClientKnownItems.current().items().isEmpty())) {
-                KnownItemsOverlay.open();
+                KnownItemsOverlay.openFromKey();
             }
         }
     }

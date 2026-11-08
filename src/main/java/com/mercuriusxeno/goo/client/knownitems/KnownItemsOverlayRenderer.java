@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
-import com.mercuriusxeno.goo.network.GhostItemPickPayload;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -305,10 +304,10 @@ public final class KnownItemsOverlayRenderer {
      * @param icons the icons the frame drew
      * @param x     the click's x
      * @param y     the click's y
-     * @return the pick naming the clicked item, or null for a click on no icon
+     * @return the id of the clicked item, or null for a click on no icon
      */
-    public static @Nullable GhostItemPickPayload pickAt(List<ItemIcon> icons, double x, double y) {
+    public static @Nullable Identifier pickAt(List<ItemIcon> icons, double x, double y) {
         ItemIcon clicked = itemUnder(icons, x, y);
-        return clicked == null ? null : new GhostItemPickPayload(clicked.item().id());
+        return clicked == null ? null : clicked.item().id();
     }
 }
