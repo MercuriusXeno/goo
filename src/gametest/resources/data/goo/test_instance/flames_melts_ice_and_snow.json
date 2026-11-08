@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:unmake_overflow_drops_at_feet",
+  "function": "goo:flames_melts_ice_and_snow",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 140,
+  "max_ticks": 80,
   "setup_ticks": 0,
   "required": true
 }

@@ -47,6 +47,8 @@ class DrinkRideTest {
     /** A glove so far off that no chunk reaches it within the drain, so every chunk that left is still flying. */
     private static final Vec3 FAR_GLOVE = Vec3.atCenterOf(POS).add(-40, 0, 0);
     private static final int SHELL_FACES = 6 * DrinkRide.CELLS_ACROSS * DrinkRide.CELLS_ACROSS;
+    /** The most chunks a block breaks into: a quarter of its cells. */
+    private static final int FEWEST_CHUNKS_CAP = DrinkRide.CELLS / 4;
 
     private static DrinkRide.Breakup breakup(long seed) {
         return DrinkRide.chunksOf(BLOCK, WHOLE, RandomSource.create(seed));
@@ -142,8 +144,11 @@ class DrinkRideTest {
         void neighbouringCellsMergeIntoAFewChunksOfMixedSize() {
             for (long seed = 0; seed < SEEDS; seed++) {
                 List<DrinkRide.Chunk> chunks = breakup(seed).chunks();
-                assertTrue(chunks.size() <= DrinkRide.CELLS / 2, chunks.size() + " chunks from seed " + seed);
+                // unmake-converges-near-the-unmade-blocks-into-a-goo-item: few enough that a blob's chunks never crowd
+                assertTrue(chunks.size() <= FEWEST_CHUNKS_CAP, chunks.size() + " chunks from seed " + seed);
                 assertTrue(chunks.stream().anyMatch(chunk -> chunk.cells() > 2), "no big chunk from seed " + seed);
+                assertTrue(chunks.stream().anyMatch(chunk -> chunk.cells() < DrinkRide.CELLS / DrinkRide.CELLS_ACROSS
+                        / 2), "no small chunk from seed " + seed);
                 for (DrinkRide.Chunk chunk : chunks) {
                     for (int span : chunk.span()) {
                         assertTrue(span >= 1 && span <= DrinkRide.LONGEST_SPAN, "a chunk spans " + span);
@@ -263,6 +268,19 @@ class DrinkRideTest {
             assertFalse(DrinkRide.done(chunk.place(), GLOVE, span - ON_THE_LINE * 2));
             assertTrue(DrinkRide.done(chunk.place(), GLOVE, span));
             assertNull(DrinkRide.pointOf(chunk, GLOVE, chunk.release() + span / DrinkStream.FLOW + TICK));
+        }
+
+        /** The stream of chunks tapers into its blob (decision unmake-converges-near-the-unmade-blocks-into-a-goo-item). */
+        @Test
+        void aChunkShrinksAsItNearsItsBlob() {
+            double span = chunk.place().distanceTo(GLOVE);
+            double halfway = chunk.release() + span / DrinkStream.FLOW / 2;
+            double nearly = chunk.release() + span / DrinkStream.FLOW * 0.9;
+
+            assertEquals(1, DrinkRide.shrinkOf(chunk, GLOVE, chunk.release()), ON_THE_LINE);
+            assertEquals(0.5, DrinkRide.shrinkOf(chunk, GLOVE, halfway), ON_THE_LINE);
+            assertEquals(0, DrinkRide.shrinkOf(chunk, GLOVE, nearly), ON_THE_LINE,
+                    "a chunk nearly in its blob is gone rather than crowding it");
         }
     }
 }
