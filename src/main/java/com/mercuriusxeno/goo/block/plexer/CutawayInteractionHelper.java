@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
+import com.mercuriusxeno.goo.item.GhostItem;
+import com.mercuriusxeno.goo.item.GhostItemTargeting;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -61,15 +63,23 @@ public final class CutawayInteractionHelper {
     /** Sets the plexer's target item; the plexer panel names it, so no message goes to the player.
      * Any item the plexer cannot take, one with no goo value or one the player has not
      * learned, puffs smoke and fizzles instead (decision plexer-messages-go-and-refusal-fizzles).
+     * A held ghost targets the item it stands for, so the knowledge gate and the fizzle read
+     * that item; a plain use discards the ghost and a sneak use keeps it.
+     * decision ghost-item-targets-the-plexer-sneak-keeps-throw-deletes
      *
      * @param plexer the plexer block entity
      * @param player the interacting player
-     * @param stack  the item to set as target
+     * @param stack  the held stack, an item or a ghost
      * @return SUCCESS interaction result
      */
     public static InteractionResult applyTargetItem(PlexerBlockEntity plexer, Player player, ItemStack stack) {
-        if (!plexer.isValidTarget(stack)
-                || refusesTarget(PlayerKnowledge.idOf(stack.getItem()), PlayerKnowledge.of(player))) {
+        Identifier represented = GhostItem.represented(stack);
+        ItemStack target = represented == null ? stack : GhostItem.representedStack(stack);
+        KnownItems known = PlayerKnowledge.of(player);
+        GhostItemTargeting.GhostUse use = GhostItemTargeting.resolve(PlayerKnowledge.idOf(stack.getItem()),
+                represented, player.isSecondaryUseActive(),
+                id -> !plexer.isValidTarget(target) || refusesTarget(id, known));
+        if (use.refused()) {
             if (plexer.getLevel() instanceof ServerLevel level) {
                 BlockPos pos = plexer.getBlockPos();
                 PlexerRefusalCue.playAt(level, pos,
@@ -77,7 +87,10 @@ public final class CutawayInteractionHelper {
             }
             return InteractionResult.SUCCESS;
         }
-        plexer.setTargetItem(cleanCopy(stack));
+        plexer.setTargetItem(cleanCopy(target));
+        if (use.emptiesHand()) {
+            stack.setCount(0);
+        }
         return InteractionResult.SUCCESS;
     }
 

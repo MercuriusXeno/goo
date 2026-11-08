@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
+import com.mercuriusxeno.goo.item.GhostItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -151,7 +152,9 @@ public class PlexerBlockEntityRenderer
      */
     private static void extractHeldItem(Minecraft mc, PlexerBlockEntity be,
             PlexerRenderState state) {
-        ItemStack held = mc.player.getMainHandItem();
+        ItemStack mainHand = mc.player.getMainHandItem();
+        // decision ghost-item-targets-the-plexer-sneak-keeps-throw-deletes
+        ItemStack held = GhostItem.represented(mainHand) == null ? mainHand : GhostItem.representedStack(mainHand);
         if (!held.isEmpty() && be.isValidTarget(held)) {
             state.heldItem = cleanForPreview(held);
             state.heldItemValid = true;

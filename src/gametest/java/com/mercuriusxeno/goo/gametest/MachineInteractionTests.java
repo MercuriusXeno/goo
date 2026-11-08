@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mercuriusxeno.goo.item.GhostItem;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.lab.LabKit;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
@@ -31,6 +32,7 @@ import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -64,6 +66,9 @@ public final class MachineInteractionTests {
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
     private static final String IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN = "ix_plexer_fizzles_until_lab_learn";
+    private static final String IX_PLEXER_GHOST_TARGET = "ix_ghost_targets_the_plexer";
+    private static final String IX_GHOST_ENTITY_NEVER_JOINS = "ix_ghost_entity_never_joins";
+    private static final String IX_GHOST_STANDS_FOR_ITS_ITEM = "ix_ghost_stands_for_its_item";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -84,6 +89,9 @@ public final class MachineInteractionTests {
         GooTestFunctions.registerTest(registrar, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN, MachineInteractionTests::plexerFizzlesOnAKitPlayerUntilLabLearn);
+        GooTestFunctions.registerTest(registrar, IX_PLEXER_GHOST_TARGET, MachineInteractionTests::plexerTargetsAGhostItem);
+        GooTestFunctions.registerTest(registrar, IX_GHOST_ENTITY_NEVER_JOINS, MachineInteractionTests::ghostItemEntityNeverJoins);
+        GooTestFunctions.registerTest(registrar, IX_GHOST_STANDS_FOR_ITS_ITEM, MachineInteractionTests::ghostItemStandsForItsItem);
         GooTestFunctions.registerTest(registrar, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
@@ -283,6 +291,89 @@ public final class MachineInteractionTests {
         } finally {
             helper.getLevel().getServer().getPlayerList().remove(player);
         }
+        helper.succeed();
+    }
+
+    /**
+     * Plexer: a ghost of a known item used on the cutaway targets that item and leaves the hand empty;
+     * a sneak use targets it and keeps the ghost; a ghost of an item with no goo value fizzles and
+     * stays in hand (decision ghost-item-targets-the-plexer-sneak-keeps-throw-deletes).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void plexerTargetsAGhostItem(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
+        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
+        Identifier stone = PlayerKnowledge.idOf(Items.STONE);
+        Identifier bedrock = PlayerKnowledge.idOf(Items.BEDROCK);
+        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(stone).with(bedrock));
+
+        try {
+            player.setItemInHand(InteractionHand.MAIN_HAND, GhostItem.of(stone));
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), "A ghost of stone should target stone");
+            helper.assertTrue(player.getMainHandItem().isEmpty(), "A plain ghost use should leave the hand empty");
+
+            plexer.setTargetItem(ItemStack.EMPTY);
+            player.setItemInHand(InteractionHand.MAIN_HAND, GhostItem.of(stone));
+            player.setShiftKeyDown(true);
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), "A sneak ghost use should target stone");
+            helper.assertTrue(stone.equals(GhostItem.represented(player.getMainHandItem())),
+                    "A sneak ghost use should keep the ghost in hand");
+
+            plexer.setTargetItem(ItemStack.EMPTY);
+            player.setShiftKeyDown(false);
+            player.setItemInHand(InteractionHand.MAIN_HAND, GhostItem.of(bedrock));
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().isEmpty(), "A ghost of bedrock should fizzle");
+            helper.assertTrue(bedrock.equals(GhostItem.represented(player.getMainHandItem())),
+                    "A refused ghost should stay in hand");
+        } finally {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * An item entity carrying a ghost never joins the level, while one carrying stone beside it stands
+     * (decision ghost-is-one-item-type-whose-entity-self-destroys).
+     *
+     * @param helper the gametest helper
+     */
+    public static void ghostItemEntityNeverJoins(GameTestHelper helper) {
+        Vec3 at = Vec3.atCenterOf(helper.absolutePos(BE_POS));
+        helper.getLevel().addFreshEntity(new ItemEntity(helper.getLevel(), at.x, at.y, at.z,
+                GhostItem.of(PlayerKnowledge.idOf(Items.STONE))));
+        helper.getLevel().addFreshEntity(new ItemEntity(helper.getLevel(), at.x, at.y, at.z, new ItemStack(Items.STONE)));
+        helper.runAfterDelay(1, () -> {
+            List<ItemEntity> standing = helper.getLevel().getEntitiesOfClass(ItemEntity.class, helper.getBounds());
+            helper.assertTrue(standing.stream().noneMatch(item -> GhostItem.represented(item.getItem()) != null),
+                    "No item entity carrying a ghost should stand, found " + standing);
+            helper.assertTrue(standing.stream().anyMatch(item -> item.getItem().is(Items.STONE)),
+                    "The stone item entity should stand, found " + standing);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A ghost of stone carries stone's id and reads stone's name; a plain stone stack stands for nothing
+     * (decision ghost-is-one-item-type-whose-entity-self-destroys).
+     *
+     * @param helper the gametest helper
+     */
+    public static void ghostItemStandsForItsItem(GameTestHelper helper) {
+        Identifier stone = PlayerKnowledge.idOf(Items.STONE);
+        ItemStack ghost = GhostItem.of(stone);
+        helper.assertTrue(stone.equals(GhostItem.represented(ghost)), "A ghost of stone should carry stone's id");
+        String stoneName = new ItemStack(Items.STONE).getHoverName().getString();
+        helper.assertTrue(stoneName.equals(ghost.getHoverName().getString()),
+                "A ghost of stone should read " + stoneName + ", read " + ghost.getHoverName().getString());
+        helper.assertTrue(GhostItem.represented(new ItemStack(Items.STONE)) == null,
+                "A plain stone stack should stand for nothing");
         helper.succeed();
     }
 

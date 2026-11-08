@@ -93,6 +93,7 @@
   "effect.goo.bio_toxin": "Bio Toxin",
 
   "item.goo.partially_melted_item": "Partially Melted Item",
+  "item.goo.ghost_item": "Ghost Item",
 
   "item.goo.choral_tuner": "Choral Tuner",
   "goo.tuner.naming_header": "Canister Label:",
