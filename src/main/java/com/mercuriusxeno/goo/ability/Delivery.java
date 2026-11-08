@@ -30,10 +30,36 @@ import java.util.Optional;
  * @param form           the form the goo takes in flight, by the share transformAt names
  * @param topSpeed       the fastest an arc flies in blocks per tick, slowing a throw its type would fly faster;
  *                       {@link #NO_TOP_SPEED} for none
+ * @param seekRange      how far a stream reaches the living it strikes, past the range it works blocks within;
+ *                       {@link #NO_SEEK_RANGE} for the range itself
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
-                       Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed) {
+                       Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed,
+                       double seekRange) {
+
+    /**
+     * A delivery whose stream strikes the living within its range.
+     *
+     * @param kind           the delivery kind
+     * @param blocksPerTick  a beam's speed in blocks per tick
+     * @param range          a stream's reach in blocks
+     * @param coneDegrees    a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge a stream's ticks of hold one cost pays for
+     * @param grannyAllowed  whether an arc may lob onto a top face
+     * @param particle       the particle a stream sprays along its cone, empty for none
+     * @param transformAt    the share of the flight by which the blob has taken its traveling form
+     * @param sound          the sound a stream makes while held, empty for none
+     * @param charge         the charge block
+     * @param form           the form the goo takes in flight
+     * @param topSpeed       the fastest an arc flies in blocks per tick
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
+                    Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+                charge, form, topSpeed, NO_SEEK_RANGE);
+    }
 
     /**
      * A delivery naming no top speed.
@@ -132,6 +158,8 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     public static final double DEFAULT_TRANSFORM_AT = 0.4;
     /** The top speed of a delivery that names none: its flight keeps its type's time. */
     public static final double NO_TOP_SPEED = 0;
+    /** The seek range of a stream that names none: it strikes the living within its range. */
+    public static final double NO_SEEK_RANGE = 0;
 
     /** An arc with every param at its default. */
     public static final Delivery ARC = of(DeliveryKind.ARC);
@@ -159,7 +187,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             // traveling-form-transforms-in-flight
             TravelForm.CODEC.optionalFieldOf("form", TravelForm.BLOB).forGetter(Delivery::form),
             // dart-flies-at-a-speed-you-can-follow
-            Codec.DOUBLE.optionalFieldOf("top_speed", NO_TOP_SPEED).forGetter(Delivery::topSpeed)
+            Codec.DOUBLE.optionalFieldOf("top_speed", NO_TOP_SPEED).forGetter(Delivery::topSpeed),
+            // decay-gnats-degrade-each-block-once
+            Codec.DOUBLE.optionalFieldOf("seek_range", NO_SEEK_RANGE).forGetter(Delivery::seekRange)
     ).apply(inst, Delivery::new));
 
     /**
@@ -179,8 +209,25 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.optional(StreamSound.STREAM_CODEC), Delivery::sound,
             Charge.STREAM_CODEC, Delivery::charge,
             TravelForm.STREAM_CODEC, Delivery::form,
-            ByteBufCodecs.DOUBLE, Delivery::topSpeed,
-            Delivery::new);
+            Reach.STREAM_CODEC, delivery -> new Reach(delivery.topSpeed(), delivery.seekRange()),
+            (kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+             charge, form, reach) -> new Delivery(kind, blocksPerTick, range, coneDegrees, ticksPerCharge,
+                    grannyAllowed, particle, transformAt, sound, charge, form, reach.topSpeed(), reach.seekRange()));
+
+    /**
+     * The top speed and the seek range on the wire as one field, since a
+     * stream codec composes at most twelve.
+     *
+     * @param topSpeed  the fastest an arc flies in blocks per tick
+     * @param seekRange how far a stream reaches the living it strikes
+     */
+    private record Reach(double topSpeed, double seekRange) {
+
+        private static final StreamCodec<ByteBuf, Reach> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.DOUBLE, Reach::topSpeed,
+                ByteBufCodecs.DOUBLE, Reach::seekRange,
+                Reach::new);
+    }
 
     /**
      * A delivery of the kind with every param at its default.
@@ -315,6 +362,15 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * How far a stream reaches the living it strikes.
+     *
+     * @return the reach in blocks
+     */
+    public double livingReach() {
+        return seekRange > NO_SEEK_RANGE ? seekRange : range;
+    }
+
+    /**
      * This delivery with a stream's cone reshaped, every other param kept.
      *
      * @param newRange       the stream's reach in blocks
@@ -323,6 +379,6 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public Delivery withCone(double newRange, double newConeDegrees) {
         return new Delivery(kind, blocksPerTick, newRange, newConeDegrees, ticksPerCharge, grannyAllowed, particle,
-                transformAt, sound, charge, form, topSpeed);
+                transformAt, sound, charge, form, topSpeed, seekRange);
     }
 }
