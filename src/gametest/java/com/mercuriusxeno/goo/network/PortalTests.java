@@ -10,7 +10,9 @@ import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -56,6 +58,8 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, PLACE_CHOOSE_LINK_AND_CARRY, PortalTests::placeChooseLinkAndCarry);
         GooTestFunctions.registerTest(registrar, HIT_BREAKS_THE_PORTAL, PortalTests::hitBreaksThePortal);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_EVERY_CLIENT, PortalTests::linkReachesEveryClient);
+        GooTestFunctions.registerTest(registrar, THROW_LANDS_THROUGH_A_LINKED_PAIR,
+                PortalTests::throwLandsThroughALinkedPair);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_A_PLAYER_CHANGING_DIMENSION,
                 PortalTests::linkReachesAPlayerChangingDimension);
         GooTestFunctions.registerTest(registrar, PLACING_LINKS_TO_THE_LAST_PLACED,
@@ -574,6 +578,53 @@ public final class PortalTests {
         level.getServer().getPlayerList().remove(owner);
         level.getServer().getPlayerList().remove(onlooker);
         helper.succeed();
+    }
+
+    private static final String THROW_LANDS_THROUGH_A_LINKED_PAIR = "portal_throw_lands_through_a_linked_pair";
+    private static final Identifier CRYSTAL_PRISM = Identifier.fromNamespaceAndPath("goo", "crystal_prism");
+    /** The thousands of mB of crystal goo a prism thrower carries, as StackKeyTests' thrower does. */
+    private static final int PRISM_GOO = 10;
+    /** How far south of the far partner the floor the throw lands on stands. */
+    private static final int PAST_THE_PARTNER = 3;
+
+    /**
+     * A plain arc thrown through a linked pair 480 blocks apart lands at the
+     * block it was aimed at past the partner, measured by its two legs rather
+     * than the straight line between its ends, and nothing lands on the near
+     * face (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void throwLandsThroughALinkedPair(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
+        // A prism costs more than the invoker's two thousand mB holds, so the thrower carries a prism thrower's goo.
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.CRYSTAL, PRISM_GOO * GooStacks.THOUSAND));
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(CRYSTAL_PRISM));
+        standAt(helper, player, A_BLOCK_OFF);
+        Portal near = castAt(helper, player, FIRST, Direction.SOUTH);
+        BlockPos farBlock = helper.absolutePos(FIRST).east(FAR);
+        level.setBlockAndUpdate(farBlock, Blocks.STONE.defaultBlockState());
+        level.setBlockAndUpdate(farBlock.above(), Blocks.STONE.defaultBlockState());
+        BlockPos floor = farBlock.south(PAST_THE_PARTNER);
+        level.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
+        level.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP);
+        PortalChoice.place(level, player.getUUID(), far);
+        PortalChoice.choose(player, Optional.of(near));
+        PortalChoice.link(player, far);
+        GooThrowPayload thrown = new GooThrowPayload(GooTypes.id(GooTypes.CRYSTAL), NO_ENTITY, floor,
+                Direction.UP.ordinal(), false, CRYSTAL_PRISM.toString(), player.getEyePosition(),
+                Vec3.atCenterOf(floor).add(0, 0.5, 0)).through(near.gate(), near.gate().center());
+        GooThrowHandler.execute(player, thrown);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(level.getBlockState(floor.above()).is(GooBlocks.PRISM.get()), "A throw through the "
+                    + "linked pair should land on the floor past the partner, found "
+                    + level.getBlockState(floor.above()));
+            helper.assertBlockNotPresent(GooBlocks.PRISM.get(), FIRST.south());
+            helper.assertBlockNotPresent(GooBlocks.PRISM.get(), FIRST.above().south());
+            level.getServer().getPlayerList().remove(player);
+        });
     }
 
     private static final String LINK_REACHES_A_PLAYER_CHANGING_DIMENSION =

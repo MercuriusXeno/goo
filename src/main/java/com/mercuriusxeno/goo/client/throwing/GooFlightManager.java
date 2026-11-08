@@ -1,10 +1,14 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.throwing.GateArc;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -18,6 +22,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -74,8 +79,12 @@ public final class GooFlightManager {
         boolean grannyArc = payload.grannyArc();
         int id = nextId;
         nextId++;
+        // aim-and-shots-carry-through-linked-gates: a flight through a gate flies out of the partner the client holds
+        Optional<Gate> gate = payload.gate();
+        GateArc.Hop hop = gate.flatMap(passed -> GateRay.hopThrough(GatePassage.clientPairs(), passed,
+                payload.facePoint())).orElse(null);
         FLIGHTS.put(id, new GooFlight(start, throwEnd, targetEntityId,
-                payload.targetPos(), type, payload.delivery(), travelTicks, grannyArc));
+                payload.targetPos(), type, payload.delivery(), travelTicks, grannyArc, gate.orElse(null), hop));
     }
 
     /**
@@ -189,11 +198,29 @@ public final class GooFlightManager {
          * Arc peak, fixed at the throw from start to throwEnd.
          */
         private final double peak;
+        /** The gate the flight goes into, null for a flight on the near side. */
+        private final @Nullable Gate gate;
+        /** Where the flight meets the gate's face and comes out of the partner, null with no gate. */
+        private final GateArc.@Nullable Hop hop;
         public int ticksElapsed;
 
-        public GooFlight(Vec3 start, Vec3 throwEnd, int targetEntityId,
-                          BlockPos targetBlockPos, ResourceKey<GooTypeDefinition> gooType,
-                          Delivery delivery, int travelTicks, boolean grannyArc) {
+        /**
+         * A flight that passes a linked gate on its way to a far-side target.
+         *
+         * @param start          the hand the flight leaves
+         * @param throwEnd       the target at the throw
+         * @param targetEntityId the target entity ID, or -1 for block targets
+         * @param targetBlockPos the target block
+         * @param gooType        the thrown type
+         * @param delivery       the thrown ability's delivery
+         * @param travelTicks    the ticks the flight takes
+         * @param grannyArc      whether the throw is a lob onto a top face
+         * @param gate           the gate the flight goes into
+         * @param hop            where it meets the gate's face and comes out of the partner
+         */
+        public GooFlight(Vec3 start, Vec3 throwEnd, int targetEntityId, BlockPos targetBlockPos,
+                ResourceKey<GooTypeDefinition> gooType, Delivery delivery, int travelTicks, boolean grannyArc,
+                @Nullable Gate gate, GateArc.@Nullable Hop hop) {
             this.start = start;
             this.throwEnd = throwEnd;
             this.targetEntityId = targetEntityId;
@@ -202,8 +229,75 @@ public final class GooFlightManager {
             this.delivery = delivery;
             this.travelTicks = travelTicks;
             this.grannyArc = grannyArc;
-            this.peak = delivery.peak(start, throwEnd, grannyArc);
+            this.gate = hop == null ? null : gate;
+            this.hop = gate == null ? null : hop;
+            this.peak = this.hop == null ? delivery.peak(start, throwEnd, grannyArc) : peakThrough(this.hop);
             this.ticksElapsed = 0;
+        }
+
+        /**
+         * A flight to a near-side target, passing no gate.
+         *
+         * @param start          the hand the flight leaves
+         * @param throwEnd       the target at the throw
+         * @param targetEntityId the target entity ID, or -1 for block targets
+         * @param targetBlockPos the target block
+         * @param gooType        the thrown type
+         * @param delivery       the thrown ability's delivery
+         * @param travelTicks    the ticks the flight takes
+         * @param grannyArc      whether the throw is a lob onto a top face
+         */
+        public GooFlight(Vec3 start, Vec3 throwEnd, int targetEntityId,
+                          BlockPos targetBlockPos, ResourceKey<GooTypeDefinition> gooType,
+                          Delivery delivery, int travelTicks, boolean grannyArc) {
+            this(start, throwEnd, targetEntityId, targetBlockPos, gooType, delivery, travelTicks, grannyArc, null,
+                    null);
+        }
+
+        /**
+         * The peak of a flight through a gate, over its two legs' summed
+         * length, as the aim line draws it.
+         *
+         * @param passed the gate's hop
+         * @return the peak height in blocks
+         */
+        private double peakThrough(GateArc.Hop passed) {
+            if (delivery.aimsStraight()) {
+                return 0;
+            }
+            return grannyArc && delivery.grannyAllowed() ? ThrowArc.lobPeak(passed.partnerPoint(), throwEnd)
+                    : ThrowArc.basePeak(start.distanceTo(passed.facePoint())
+                            + passed.partnerPoint().distanceTo(throwEnd));
+        }
+
+        /**
+         * The gate whose view draws the flight where it stands, past the
+         * partner on its far leg.
+         *
+         * @param partialTick the partial tick for interpolation
+         * @return the gate the flight went into, empty on its near leg or with no gate
+         */
+        public Optional<Gate> drawnThrough(float partialTick) {
+            if (gate == null || hop == null || GateArc.onNearLeg(start, hop, getEnd(), progress(partialTick))) {
+                return Optional.empty();
+            }
+            return Optional.of(gate);
+        }
+
+        private float progress(float partialTick) {
+            return Math.min(1.0f, (ticksElapsed + partialTick) / travelTicks);
+        }
+
+        /**
+         * Where the flight stands at a point of its progress: along its arc,
+         * or along its two legs where it passes a gate.
+         *
+         * @param t how far along the flight, from 0 to 1
+         * @return the position
+         */
+        private Vec3 along(double t) {
+            Vec3 end = getEnd();
+            return hop == null ? ThrowArc.arcPoint(start, end, t, peak) : GateArc.at(start, hop, end, peak, t);
         }
 
         /**
@@ -228,8 +322,7 @@ public final class GooFlightManager {
          * @return the position
          */
         public Vec3 getPosition(float partialTick) {
-            float t = Math.min(1.0f, (ticksElapsed + partialTick) / travelTicks);
-            return ThrowArc.arcPoint(start, getEnd(), t, peak);
+            return along(progress(partialTick));
         }
 
         /**
@@ -239,11 +332,15 @@ public final class GooFlightManager {
          * @return the velocity
          */
         public Vec3 getVelocity(float partialTick) {
-            float t = Math.min(1.0f, (ticksElapsed + partialTick) / travelTicks);
-            Vec3 end = getEnd();
-            Vec3 posNow = ThrowArc.arcPoint(start, end, t, peak);
-            Vec3 posNext = ThrowArc.arcPoint(start, end,
-                    Math.min(1.0, t + VELOCITY_DT), peak);
+            float t = progress(partialTick);
+            Vec3 posNow = along(t);
+            Vec3 posNext = along(Math.min(1.0, t + VELOCITY_DT));
+            if (hop != null && GateArc.onNearLeg(start, hop, getEnd(), t)
+                    != GateArc.onNearLeg(start, hop, getEnd(), Math.min(1.0, t + VELOCITY_DT))) {
+                // A step across the gate jumps from the face to the partner; the near leg's own heading stands.
+                posNow = along(Math.max(0.0, t - VELOCITY_DT));
+                posNext = along(t);
+            }
             Vec3 diff = posNext.subtract(posNow);
             double len = diff.length();
             return len > DIRECTION_EPSILON ? diff.scale(1.0 / len) : new Vec3(0, 1, 0);

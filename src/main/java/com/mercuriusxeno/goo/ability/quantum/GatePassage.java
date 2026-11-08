@@ -234,6 +234,16 @@ public final class GatePassage {
         lastMiddles = seen;
     }
 
+    /**
+     * The gates the server holds linked now, portals and holes alike.
+     *
+     * @param server the server
+     * @return the pairs
+     */
+    public static List<Pair> pairsOf(MinecraftServer server) {
+        return gather(server);
+    }
+
     private static List<Pair> gather(MinecraftServer server) {
         List<Pair> pairs = new ArrayList<>();
         QuantumPortals.get(server.overworld()).links().values()
