@@ -4,10 +4,15 @@ import com.mercuriusxeno.goo.network.HoldMarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -19,7 +24,8 @@ import static org.mockito.Mockito.when;
  * A painted block steps through the finish its stream names, whether the
  * hold fills it or it is left to finish alone past nine tenths, a block
  * stepping to the empty block included
- * (decision blocks-that-cook-into-items-cook-like-blocks).
+ * (decision blocks-that-cook-into-items-cook-like-blocks), and a ray crosses
+ * each cell on its line once, nearest first.
  */
 class PaintedHoldTest {
 
@@ -61,5 +67,25 @@ class PaintedHoldTest {
 
         verify(finish).finish(pos, log, empty);
         verify(host, never()).transformBlock(any(), any());
+    }
+
+    @Test
+    void theLineCrossesEachCellItRunsThroughOnceNearestFirst() {
+        List<BlockPos> cells = PaintedHold.cellsAlong(new Vec3(0.5, 0.5, 0.5), new Vec3(3.5, 0.5, 0.5));
+        assertEquals(List.of(new BlockPos(0, 0, 0), new BlockPos(1, 0, 0), new BlockPos(2, 0, 0),
+                new BlockPos(3, 0, 0)), cells);
+    }
+
+    @Test
+    void aSlantedLineStepsDownThroughTheCellsBelow() {
+        List<BlockPos> cells = PaintedHold.cellsAlong(new Vec3(0.5, 2.5, 0.5), new Vec3(2.5, 0.5, 0.5));
+        assertTrue(cells.contains(new BlockPos(1, 1, 0)));
+        assertFalse(cells.contains(new BlockPos(2, 2, 0)));
+    }
+
+    @Test
+    void aLineWithNoLengthHoldsItsOwnCell() {
+        Vec3 here = new Vec3(0.5, 0.5, 0.5);
+        assertEquals(List.of(new BlockPos(0, 0, 0)), PaintedHold.cellsAlong(here, here));
     }
 }
