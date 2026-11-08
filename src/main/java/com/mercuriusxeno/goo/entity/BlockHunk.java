@@ -138,20 +138,12 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     static final double SNAP_TO_SEAT = 0.08;
     /** How far a hold pushed into the ground leans toward a seat its shape fits, 1 all the way; tuned in playtesting. */
     static final double SEAT_PULL = 1.0;
-    /** How fast a torn hunk rises out of its hole, in blocks a tick. */
-    static final double RISE_OUT_SPEED = 0.3;
     /** Whether the hunk was thrown, so it breaks on impact; a hunk let go is placed where it lands. */
     private static final EntityDataAccessor<Boolean> THROWN =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
     /** The game time a let-go hunk was placed on the grid, or {@link #WHOLE} before. */
     private static final EntityDataAccessor<Long> PLACED_AT =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.LONG);
-    /** Whether a held hunk has risen clear of its hole, so the holder's client glides it to the look. */
-    private static final EntityDataAccessor<Boolean> CLEAR_OF_HOLE =
-            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
-    /** Whether a held hunk's middle has been carried off its hole's footprint, so its hole no longer stands shut to it. */
-    private static final EntityDataAccessor<Boolean> CARRIED_AWAY =
-            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.BOOLEAN);
     /** The player holding a lifted hunk, so their own client draws it on their look. */
     private static final EntityDataAccessor<Integer> HOLDER =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.INT);
@@ -318,8 +310,6 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         entityData.define(HOLDER, NO_HOLDER);
         entityData.define(SHATTER_START, WHOLE);
         entityData.define(SHATTER_FACE, Direction.DOWN);
-        entityData.define(CLEAR_OF_HOLE, false);
-        entityData.define(CARRIED_AWAY, false);
         entityData.define(THROWN, false);
         entityData.define(PLACED_AT, WHOLE);
     }
@@ -334,49 +324,27 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Where a held hunk moves this tick toward its hold: straight up out of
-     * the hole it came from until its bottom clears the hole's rim, then
-     * easing toward the hold (HoldEase), so it glides in and trails the look.
+     * Where a held hunk moves this tick toward its hold: easing toward it
+     * (HoldEase), by its own blocks against the world, from the grab on, so
+     * the holder alone pulls it out of its hole; nothing lifts it for them.
+     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
      *
      * @param hold where the hold puts the hunk
      * @return the point to move it to this tick
      */
     public Vec3 holdStep(Vec3 hold) {
-        if (!clearOfHole()) {
-            double rimHeight = home.getY() + heightInBlocks();
-            if (getY() < rimHeight) {
-                return allowedTo(position().add(0, Math.min(RISE_OUT_SPEED, rimHeight - getY()), 0));
-            }
-        }
-        entityData.set(CLEAR_OF_HOLE, true);
-        if (!carriedAway() && offHome(position())) {
-            entityData.set(CARRIED_AWAY, true);
-        }
         Vec3 eased = easedToward(position(), hold, HoldEase.TICK_SECONDS);
         return position().add(heldMove(position(), eased.subtract(position())));
     }
 
     /**
-     * Whether the hunk's middle has been carried off its hole's footprint,
-     * so its own hole no longer stands shut to it.
+     * Whether a held hunk still sits in the slot it was grabbed from, where
+     * it shakes until the holder moves it out at all.
      *
-     * @return true once carried away
+     * @return true while it is held and seated in its slot
      */
-    public boolean carriedAway() {
-        return entityData.get(CARRIED_AWAY);
-    }
-
-    /**
-     * Whether the hunk's middle stands off its hole's footprint, seen from
-     * above: until it does, its own hole stays shut to it, so a chunk lifted
-     * and held over where it came from never drops back in; once it has, its
-     * hole opens to it pulled back down over it.
-     *
-     * @param position the hunk's position
-     * @return true once its middle is off the hole
-     */
-    private boolean offHome(Vec3 position) {
-        return !overTheHole(position);
+    public boolean heldInItsSlot() {
+        return holderId() != NO_HOLDER && position().distanceToSqr(Vec3.atBottomCenterOf(home)) < SEATED_SQR;
     }
 
     /**
@@ -438,18 +406,14 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * The part of a move the world allows a held hunk, by its own blocks: once
-     * it has cleared its hole and until it is carried out of the hole's column,
-     * its own hole stands solid to it, so it never drops back in as it is lifted.
-     * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     * The part of a move the world allows a held hunk, by its own blocks.
      *
      * @param from where it stands
      * @param move the move wanted
      * @return the move allowed
      */
     public Vec3 heldMove(Vec3 from, Vec3 move) {
-        List<AABB> ownHole = clearOfHole() && !carriedAway() ? cellsAt(Vec3.atBottomCenterOf(home)) : List.of();
-        return HunkCollision.allowed(level(), cellsAt(from), move, ownHole);
+        return allowedMove(from, move);
     }
 
     /**
@@ -533,15 +497,13 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         if (!pushedIn) {
             return Optional.empty();
         }
-        // Its own hole stays shut while it is still being lifted out, so it never drops straight back in.
-        return HoleFit.fitNear(originCellOf(hold), shape(), this::open)
-                .filter(seat -> carriedAway() || !seat.equals(home)).map(Vec3::atBottomCenterOf);
+        return HoleFit.fitNear(originCellOf(hold), shape(), this::open).map(Vec3::atBottomCenterOf);
     }
 
     /**
-     * Whether the hold, once the hunk has been carried off its hole, puts the
-     * hunk's middle over the hole, seen from above, and its bottom below the
-     * hole's rim, however deep, with every cell of its slot still open: pulled down over its slot, the hunk goes back in. For a
+     * Whether the hold puts the hunk's middle over its hole, seen from above,
+     * and its bottom below the hole's rim, however deep, with every cell of its
+     * slot still open: pulled down over its slot, the hunk goes back in. For a
      * hole a block wide, over it is within half a block of its column.
      * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
      *
@@ -554,7 +516,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
                 .orElse(Double.NEGATIVE_INFINITY);
         boolean pulledDown = hold.y + shape.minY < rim;
         boolean slotOpen = shape().stream().allMatch(offset -> open(home.offset(offset)));
-        return carriedAway() && overTheHole(hold) && pulledDown && slotOpen;
+        return overTheHole(hold) && pulledDown && slotOpen;
     }
 
     private List<BlockPos> shape() {
@@ -567,21 +529,6 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     private static BlockPos originCellOf(Vec3 position) {
         return BlockPos.containing(position.x, position.y + HALF, position.z);
-    }
-
-    /**
-     * Whether a held hunk has risen clear of its hole, from when it glides to the hold.
-     *
-     * @return true once clear
-     */
-    public boolean clearOfHole() {
-        return entityData.get(CLEAR_OF_HOLE);
-    }
-
-    private int heightInBlocks() {
-        int low = blocks.stream().mapToInt(block -> block.offset().getY()).min().orElse(0);
-        int high = blocks.stream().mapToInt(block -> block.offset().getY()).max().orElse(0);
-        return high - low + 1;
     }
 
     /**

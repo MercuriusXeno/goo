@@ -162,6 +162,10 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
      * @return the tremble, zero for a hunk not climbing
      */
     private static Vec3 trembleOf(BlockHunk hunk, double time) {
+        if (hunk.heldInItsSlot()) {
+            // Grabbed and still seated, it shakes in its slot until the holder pulls it out.
+            return new Vec3(sway(time, 0), 0, sway(time, TREMBLE_PHASE)).scale(TREMBLE);
+        }
         if (!hunk.climbing(time)) {
             return Vec3.ZERO;
         }
