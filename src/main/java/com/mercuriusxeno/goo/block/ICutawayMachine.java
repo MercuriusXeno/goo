@@ -15,4 +15,14 @@ public interface ICutawayMachine {
      * @return true when the hit lands in the machine's cutaway
      */
     boolean isCutawayHit(BlockHitResult hit);
+
+    /**
+     * Whether a click in the cutaway is the machine's own, so a held canister's placement stands
+     * down there.
+     *
+     * @return true unless the machine's cutaway takes no click
+     */
+    default boolean cutawayTakesClicks() {
+        return true;
+    }
 }

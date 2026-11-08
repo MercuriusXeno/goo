@@ -164,6 +164,16 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
     }
 
     /**
+     * Every plexer click opens its menu, so a canister aimed through the cutaway places where the
+     * placement lines show.
+     * decision canister-placement-wins-over-the-menu
+     */
+    @Override
+    public boolean cutawayTakesClicks() {
+        return false;
+    }
+
+    /**
      * Returns true if the item has a non-empty, non-restricted goo value.
      *
      * @param stack the item to check
