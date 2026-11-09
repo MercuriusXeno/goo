@@ -169,7 +169,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
      * decision canister-placement-wins-over-the-menu
      */
     @Override
-    public boolean cutawayTakesClicks() {
+    public boolean takesCutawayClick(net.minecraft.world.phys.BlockHitResult hit) {
         return false;
     }
 

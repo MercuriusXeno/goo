@@ -21,13 +21,14 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The known items overlay: a Screen only because a Screen is what takes the mouse and the keys. It
- * draws a darkening fill, a search bar, the items the player knows in their language's alphabetical
- * order and a scroll bar when they overflow, nothing else, and keeps the game running beneath it.
- * Typing narrows the items, the wheel or a drag on the thumb scrolls them, a click on an item asks
- * the server for a ghost of it and closes, and Escape closes.
+ * The plexer's known items menu: a Screen only because a Screen is what takes the mouse and the keys.
+ * It draws a darkening fill, a title, a search bar, a close button, Cancel and the items the player
+ * knows in their language's alphabetical order, and a scroll bar when they overflow, and keeps the
+ * game running beneath it. Typing narrows the items, the wheel or a drag on the thumb scrolls them, a
+ * click on an item sets the plexer's target and closes, Cancel clears it and closes, and Escape closes.
  * decision menu-is-a-darkening-overlay-not-a-screen
- * decision menu-places-a-ghost-item-in-the-empty-hand
+ * decision right-click-on-the-plexer-opens-the-known-items-menu
+ * decision cancel-cell-clears-the-plexer-target
  * decision menu-lists-known-items-alphabetically-with-search-and-scroll
  */
 public final class KnownItemsOverlay extends Screen {
