@@ -175,6 +175,46 @@ public final class GatePassage {
     }
 
     /**
+     * Where a body passing a linked gate reads its light from: just before
+     * the face of the gate it passes, where its eye stands inside the wall,
+     * whose blocks hold no light, so it is never drawn dark while it passes.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param pairs     the linked pairs
+     * @param dimension the level the body stands in
+     * @param middle    the body's middle
+     * @param width     the body's width
+     * @param probe     where it would read its light from
+     * @return the probe, set before the face of a gate it passes
+     */
+    public static Vec3 litFrom(List<Pair> pairs, ResourceKey<Level> dimension, Vec3 middle, double width,
+            Vec3 probe) {
+        return pairs.stream().flatMap(pair -> Stream.of(pair.one(), pair.other()))
+                .filter(gate -> gate.dimension().equals(dimension) && atTheFace(gate, middle, width)
+                        && gate.out(probe) < LIT_BEFORE)
+                .findFirst()
+                .map(gate -> probe.add(gate.face().getUnitVec3().scale(LIT_BEFORE - gate.out(probe))))
+                .orElse(probe);
+    }
+
+    /**
+     * Where a body passing a linked gate reads its light from, among the
+     * pairs its side knows.
+     *
+     * @param entity the body
+     * @param probe  where it would read its light from
+     * @return the probe, set before the face of a gate it passes
+     */
+    public static Vec3 litFrom(Entity entity, Vec3 probe) {
+        List<Pair> pairs = entity.level().isClientSide() ? clientPairs : serverPairs;
+        return pairs.isEmpty() ? probe : litFrom(pairs, entity.level().dimension(),
+                entity.getBoundingBox().getCenter(), entity.getBbWidth(), probe);
+    }
+
+    /** How far before a gate's face a passing body reads its light: into the open cell before it. */
+    private static final double LIT_BEFORE = 0.5;
+
+    /**
      * Whether a player must crawl to pass a gate before it: one on a wall
      * shorter than the player stands, its mouth before the player's feet.
      *
@@ -235,8 +275,12 @@ public final class GatePassage {
     }
 
     private static boolean atTheFace(Gate gate, Entity entity, Vec3 middle) {
+        return atTheFace(gate, middle, entity.getBbWidth());
+    }
+
+    private static boolean atTheFace(Gate gate, Vec3 middle, double width) {
         double out = gate.out(middle);
-        return out > -DEEPEST && out < APPROACH + entity.getBbWidth() && gate.withinOval(middle);
+        return out > -DEEPEST && out < APPROACH + width && gate.withinOval(middle);
     }
 
     /**

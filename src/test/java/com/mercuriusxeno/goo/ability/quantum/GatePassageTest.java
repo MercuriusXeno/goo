@@ -119,6 +119,59 @@ class GatePassageTest {
                 + landing.feet());
     }
 
+    /** A portal on a wall's west face, its face the plane x 10. */
+    private static final Gate WEST_FACING = new Gate(OVERWORLD, new AABB(new BlockPos(10, 0, 0)).minmax(
+            new AABB(new BlockPos(10, 1, 0))), Direction.WEST, Direction.UP.getUnitVec3());
+    /** Its partner on another wall's south face, the plane z 21. */
+    private static final Gate SOUTH_FACING = new Gate(OVERWORLD, new AABB(new BlockPos(20, 0, 20)).minmax(
+            new AABB(new BlockPos(20, 1, 20))), Direction.SOUTH, Direction.UP.getUnitVec3());
+    /** Minecraft's yaw for each heading, in degrees. */
+    private static final float FACING_SOUTH = 0F;
+    private static final float FACING_WEST = 90F;
+    private static final float FACING_NORTH = 180F;
+    private static final float FACING_EAST = -90F;
+
+    /**
+     * A body walking into a west-facing portal facing east comes out of a
+     * south-facing partner facing south, its facing kept relative to the
+     * portal, as the operator ruled.
+     */
+    @Test
+    void aBodyFacingIntoAPortalComesOutFacingOutOfItsPartner() {
+        GatePassage.Landing landing = GatePassage.landing(PortalTransform.between(WEST_FACING, SOUTH_FACING),
+                new Vec3(9.9, 1.0, 0.5), 0.9, new Vec3(0.2, 0, 0), FACING_EAST, 0F);
+        assertTrue(Math.abs(net.minecraft.util.Mth.wrapDegrees(landing.yaw() - FACING_SOUTH)) < 1F, "A body "
+                + "facing into the west-facing portal should come out of the south-facing one facing south, faces "
+                + landing.yaw());
+    }
+
+    /**
+     * A body backing into a west-facing portal, facing away from it, comes
+     * out of a south-facing partner facing back at it, north.
+     */
+    @Test
+    void aBodyBackingIntoAPortalComesOutFacingItsPartner() {
+        GatePassage.Landing landing = GatePassage.landing(PortalTransform.between(WEST_FACING, SOUTH_FACING),
+                new Vec3(9.9, 1.0, 0.5), 0.9, new Vec3(0.2, 0, 0), FACING_WEST, 0F);
+        assertTrue(Math.abs(net.minecraft.util.Mth.wrapDegrees(landing.yaw() - FACING_NORTH)) < 1F, "A body "
+                + "backing into the west-facing portal should come out of the south-facing one facing back at it, "
+                + "north, faces " + landing.yaw());
+    }
+
+    /**
+     * A body passing through a wall gate reads its light from just in front
+     * of the gate's face, not from inside the wall its eye stands in, which
+     * holds no light, so it is never drawn dark while it passes.
+     */
+    @Test
+    void aBodyPassingAWallGateIsLitFromBeforeItsFace() {
+        Vec3 middle = new Vec3(0.5, 1.0, -0.1);
+        Vec3 eyeInTheWall = new Vec3(0.5, 1.6, 0.3);
+        Vec3 lit = GatePassage.litFrom(java.util.List.of(new GatePassage.Pair(NEAR, FAR)), OVERWORLD, middle, 0.6,
+                eyeInTheWall);
+        assertTrue(NEAR.out(lit) > 0, "A body passing the gate should be lit from before its face, lit from " + lit);
+    }
+
     /** The air time coming up out of a floor gate should give, in blocks risen. */
     private static final double ESCAPE_RISE = 2.0;
     /** A living body's gravity a tick, and the drag its upward speed keeps. */
