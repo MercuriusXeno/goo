@@ -79,8 +79,20 @@ public final class GateRay {
          * @return the point to head for, on the start's side of the pair
          */
         public Vec3 headFor() {
-            return in.center().subtract(in.face().getUnitVec3().scale(PAST_THE_FACE));
+            return intoGate(in);
         }
+    }
+
+    /**
+     * Where a body heads to go into a gate: the middle of its opening, a
+     * block past its face, so a body fits through the opening whatever
+     * height it was drawn at and crosses the face.
+     *
+     * @param gate the gate
+     * @return the point to head for
+     */
+    public static Vec3 intoGate(Gate gate) {
+        return gate.center().subtract(gate.face().getUnitVec3().scale(PAST_THE_FACE));
     }
 
     /**

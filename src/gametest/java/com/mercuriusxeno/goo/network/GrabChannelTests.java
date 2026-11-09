@@ -27,6 +27,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.concurrent.atomic.AtomicReference;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -84,6 +85,9 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabDrawsThroughAPortalItStandsBeside);
         GooTestFunctions.registerTest(registrar, GRAB_DRAWS_UP_OUT_OF_A_FLOOR_PORTAL_WITHOUT_A_LEAP,
                 GrabChannelTests::grabDrawsUpOutOfAFloorPortalWithoutALeap);
+        GooTestFunctions.registerTest(registrar,
+                GRAB_AIMED_THROUGH_A_PORTAL_DRAWS_THROUGH_IT_THOUGH_A_STRAIGHT_WAY_STANDS_OPEN,
+                GrabChannelTests::grabAimedThroughAPortalDrawsThroughItThoughAStraightWayStandsOpen);
     }
 
 
@@ -414,7 +418,7 @@ public final class GrabChannelTests {
     }
 
     /** How far from a portal's middle a body carried out of it first stands: its own half size and the margin. */
-    private static final double CAME_OUT_REACH = 1.5;
+    private static final double CAME_OUT_REACH = 1.2;
     /** Before the far portal, near enough that the portal's blocks stand open to the pig. */
     private static final BlockPos BESIDE_THE_FAR_PORTAL = new BlockPos(WALL_X + 1, 1, 0);
 
@@ -483,6 +487,72 @@ public final class GrabChannelTests {
             helper.assertTrue(motions.get(0).y() <= 0, "The pig should come up out of the floor portal with no leap "
                     + "of its own, moving " + motions.get(0));
             PortalChoice.breakAt(level, floor.block().pos(), floor.face());
+            PortalChoice.breakAt(level, far.block().pos(), far.face());
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_AIMED_THROUGH_A_PORTAL_DRAWS_THROUGH_IT_THOUGH_A_STRAIGHT_WAY_STANDS_OPEN =
+            "grab_aimed_through_a_portal_draws_through_it_though_a_straight_way_stands_open";
+    /** The near pillar's column, the bay's last inside the barrier ring, past the hold point. */
+    private static final int PILLAR_X = 5;
+    /** The near pillar's lower block, the near portal on its west face before the player. */
+    private static final BlockPos NEAR_PILLAR = new BlockPos(PILLAR_X, 1, 2);
+    /** The far pillar's lower block, three blocks south and one nearer, the far portal on its east face. */
+    private static final BlockPos FAR_PILLAR = new BlockPos(PILLAR_X - 1, 1, 5);
+    /** Where Grab holds a body's middle for the player at STAND_POS looking level east: the far distance on. */
+    private static final Vec3 HOLD_MIDDLE = new Vec3(4.5, 2.62, 2.5);
+    /** The zombie, east of the far pillar on the line out of the far portal, in plain sight of the hold point. */
+    private static final BlockPos IN_PLAIN_SIGHT = new BlockPos(PILLAR_X, 1, 5);
+
+    /**
+     * A zombie Grab is aimed at through a portal is drawn through that
+     * portal, though a straight way to the hold point stands open beside the
+     * pillars, rather than pulled sideways across to it
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabAimedThroughAPortalDrawsThroughItThoughAStraightWayStandsOpen(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        for (BlockPos pillar : java.util.List.of(NEAR_PILLAR, FAR_PILLAR)) {
+            helper.setBlock(pillar, Blocks.STONE);
+            helper.setBlock(pillar.above(), Blocks.STONE);
+        }
+        ServerLevel level = helper.getLevel();
+        Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PILLAR)), Direction.WEST,
+                Direction.UP);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PILLAR)), Direction.EAST,
+                Direction.UP);
+        PortalChoice.place(level, player.getUUID(), near);
+        PortalChoice.place(level, player.getUUID(), far);
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, IN_PLAIN_SIGHT);
+        Vec3 holdMiddle = helper.absoluteVec(HOLD_MIDDLE);
+        net.minecraft.world.phys.BlockHitResult straight = level.clip(new net.minecraft.world.level.ClipContext(
+                zombie.getBoundingBox().getCenter(), holdMiddle, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE,
+                net.minecraft.world.phys.shapes.CollisionContext.empty()));
+        helper.assertTrue(straight.getType() == net.minecraft.world.phys.HitResult.Type.MISS, "The layout should "
+                + "leave a straight way open from the zombie to the hold point, blocked at "
+                + helper.relativeVec(straight.getLocation()) + ", " + level.getBlockState(straight.getBlockPos()));
+        java.util.List<Vec3> cameOut = new java.util.ArrayList<>();
+        for (int held = 1; held <= THROUGH_TICKS; held++) {
+            helper.runAfterDelay(held, () -> {
+                cameOut.add(zombie.getBoundingBox().getCenter());
+                GooStreamHandler.streamTick(player, holdTick(player, zombie));
+            });
+        }
+        helper.runAfterDelay(THROUGH_TICKS + 1, () -> {
+            // Off the far portal's column, the zombie first stands either out of the near portal, within its width,
+            // or somewhere across the open ground between, pulled sideways.
+            double farColumn = far.gate().blocks().minZ - HALF;
+            Vec3 left = cameOut.stream().filter(middle -> middle.z() < farColumn).findFirst().orElseThrow(
+                    () -> new AssertionError("The zombie should leave the far portal"));
+            AABB nearMouth = near.gate().blocks();
+            helper.assertTrue(left.z() >= nearMouth.minZ && left.z() <= nearMouth.maxZ, "The zombie aimed at "
+                    + "through the portal should come out of the near portal, carried through the pair, not pulled "
+                    + "sideways across; went " + cameOut.stream().map(helper::relativeVec).toList());
+            PortalChoice.breakAt(level, near.block().pos(), near.face());
             PortalChoice.breakAt(level, far.block().pos(), far.face());
             leave(helper, player);
         });

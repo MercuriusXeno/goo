@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisHolds;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.network.AilmentPayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
@@ -18,6 +19,10 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Runs Grab on the entities a player's channel holds: a held entity hangs
@@ -88,6 +93,48 @@ public final class GrabEvents {
     public static void drawToward(ServerPlayer player, Entity held, Vec3 step, double throwSpeed) {
         moveHeld(player, held, step, throwSpeed);
     }
+
+    /**
+     * Binds a player's grab of a body to the gate the grab reached it
+     * through, the gate on the body's side, until the pair carries the body
+     * out; a grab reaching it straight binds none.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the grabbing player
+     * @param body   the grabbed body
+     * @param gate   the gate on the body's side the grab reached through, empty for a straight grab
+     */
+    public static void bindThrough(ServerPlayer player, Entity body, Optional<Gate> gate) {
+        gate.ifPresentOrElse(through -> THROUGH.put(player.getUUID(), new Through(body.getId(), through)),
+                () -> THROUGH.remove(player.getUUID()));
+    }
+
+    /**
+     * The gate a player's grab of a body still draws it through.
+     *
+     * @param player the grabbing player
+     * @param body   the held body
+     * @return the gate on the body's side, empty once carried out or for a straight grab
+     */
+    public static Optional<Gate> boundThrough(ServerPlayer player, Entity body) {
+        Through through = THROUGH.get(player.getUUID());
+        return through != null && through.bodyId() == body.getId() ? Optional.of(through.gate()) : Optional.empty();
+    }
+
+    /**
+     * Frees every grab bound through a gate of a body the pair carried out.
+     *
+     * @param body the carried body
+     */
+    public static void carriedOut(Entity body) {
+        THROUGH.values().removeIf(through -> through.bodyId() == body.getId());
+    }
+
+    /** A grab bound through a gate: the body, and the gate on its side. */
+    private record Through(int bodyId, Gate gate) {
+    }
+
+    private static final Map<UUID, Through> THROUGH = new HashMap<>();
 
     /**
      * Whether a Grab holds an entity now.

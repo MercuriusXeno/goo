@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.held.Telekinesis;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mojang.serialization.Codec;
@@ -83,6 +84,9 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         Entity held = GrabEvents.heldBy(player);
         if (held == null) {
             held = sentTarget(player, context.hostAs(ChannelHost.class));
+            if (held != null) {
+                GrabEvents.bindThrough(player, held, aimedThrough(player, held));
+            }
         }
         if (held instanceof ItemEntity item) {
             Vec3 eye = player.getEyePosition();
@@ -91,7 +95,9 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
             Vec3 middle = held.getBoundingBox().getCenter();
             Vec3 lift = new Vec3(0, held.getBbHeight() * HALF, 0);
             Vec3 hold = holdPoint(player, held);
-            Optional<Vec3> gate = throughGates(player, held, middle, hold.add(lift));
+            Entity body = held;
+            Optional<Vec3> gate = boundGate(player, body).map(GateRay::intoGate)
+                    .or(() -> throughGates(player, body, middle, hold.add(lift)));
             if (gate.isPresent()) {
                 Vec3 toGate = gate.get().subtract(middle);
                 GrabEvents.drawToward(player, held, toGate.normalize().scale(Math.min(pullSpeed, toGate.length())),
@@ -101,6 +107,40 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
             }
         }
         return true;
+    }
+
+    /**
+     * The gate on a body's side a grab reached it through: the first linked
+     * gate the player's look passes before it reaches the body, so a body
+     * aimed at through a portal is drawn back through that portal whether or
+     * not a straight way to the holder stands open.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the grabbing player
+     * @param body   the body taken
+     * @return the partner of the gate the look passed, empty where the look reached the body straight
+     */
+    private Optional<Gate> aimedThrough(ServerPlayer player, Entity body) {
+        Vec3 eye = player.getEyePosition();
+        double reach = reachWith(Telekinesis.entityReachLaid(player));
+        double straight = eye.distanceTo(body.getBoundingBox().getCenter());
+        return GateRay.first(GatePassage.pairsOf(player.level().getServer()), player.level().dimension(), eye,
+                        eye.add(player.getLookAngle().scale(reach)))
+                .filter(crossing -> eye.distanceTo(crossing.facePoint()) < straight)
+                .map(GateRay.Crossing::far);
+    }
+
+    /**
+     * The gate a held body is still drawn through: the one its grab is bound
+     * to, while that gate stands linked.
+     *
+     * @param player the holding player
+     * @param body   the held body
+     * @return the gate, empty once the pair carried it out, for a straight grab, or once the gate is gone
+     */
+    private static Optional<Gate> boundGate(ServerPlayer player, Entity body) {
+        List<GatePassage.Pair> pairs = GatePassage.pairsOf(player.level().getServer());
+        return GrabEvents.boundThrough(player, body).filter(gate -> GateRay.partnerIn(pairs, gate).isPresent());
     }
 
     /**
