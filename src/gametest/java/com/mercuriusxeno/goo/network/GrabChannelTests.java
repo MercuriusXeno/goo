@@ -80,6 +80,10 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabDrawsAPigBackThroughAPortal);
         GooTestFunctions.registerTest(registrar, GRAB_DRAWS_THROUGH_A_PORTAL_IN_STEADY_STEPS,
                 GrabChannelTests::grabDrawsThroughAPortalInSteadySteps);
+        GooTestFunctions.registerTest(registrar, GRAB_DRAWS_THROUGH_A_PORTAL_IT_STANDS_BESIDE,
+                GrabChannelTests::grabDrawsThroughAPortalItStandsBeside);
+        GooTestFunctions.registerTest(registrar, GRAB_DRAWS_UP_OUT_OF_A_FLOOR_PORTAL_WITHOUT_A_LEAP,
+                GrabChannelTests::grabDrawsUpOutOfAFloorPortalWithoutALeap);
     }
 
 
@@ -391,6 +395,8 @@ public final class GrabChannelTests {
 
     private static final String GRAB_DRAWS_THROUGH_A_PORTAL_IN_STEADY_STEPS =
             "grab_draws_through_a_portal_in_steady_steps";
+    private static final String GRAB_DRAWS_THROUGH_A_PORTAL_IT_STANDS_BESIDE =
+            "grab_draws_through_a_portal_it_stands_beside";
     /** The farthest a drawn body moves in one tick on its way to a portal: Grab's pull speed, with slack. */
     private static final double STEADY_STEP = 1.05;
 
@@ -404,6 +410,85 @@ public final class GrabChannelTests {
      * @param helper the gametest helper
      */
     public static void grabDrawsThroughAPortalInSteadySteps(GameTestHelper helper) {
+        drawsThroughInSteadySteps(helper, PAST_THE_WALL);
+    }
+
+    /** How far from a portal's middle a body carried out of it first stands: its own half size and the margin. */
+    private static final double CAME_OUT_REACH = 1.5;
+    /** Before the far portal, near enough that the portal's blocks stand open to the pig. */
+    private static final BlockPos BESIDE_THE_FAR_PORTAL = new BlockPos(WALL_X + 1, 1, 0);
+
+    /**
+     * A pig standing right before the far portal, where the portal's blocks
+     * stand open to it, is drawn through the pair in steady steps all the
+     * same, never jumped straight at the hold point through the opened block
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabDrawsThroughAPortalItStandsBeside(GameTestHelper helper) {
+        drawsThroughInSteadySteps(helper, BESIDE_THE_FAR_PORTAL);
+    }
+
+    private static final String GRAB_DRAWS_UP_OUT_OF_A_FLOOR_PORTAL_WITHOUT_A_LEAP =
+            "grab_draws_up_out_of_a_floor_portal_without_a_leap";
+    /** The floor portal's first block, flat on the floor before the player, running east. */
+    private static final BlockPos FLOOR_PORTAL = new BlockPos(3, 0, 2);
+
+    /**
+     * A pig drawn back through a pair whose near portal lies on the floor
+     * comes up out of it moving no way of its own, rather than with the leap
+     * a floor portal gives a walker to step off it, so Grab draws it to the
+     * hold point without flinging it up first
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabDrawsUpOutOfAFloorPortalWithoutALeap(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        for (int z = -1; z <= 3; z++) {
+            for (int y = 1; y <= 3; y++) {
+                helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.STONE);
+            }
+        }
+        helper.setBlock(FLOOR_PORTAL, Blocks.STONE);
+        helper.setBlock(FLOOR_PORTAL.east(), Blocks.STONE);
+        ServerLevel level = helper.getLevel();
+        Portal floor = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FLOOR_PORTAL)), Direction.UP,
+                Direction.EAST);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
+                Direction.UP);
+        PortalChoice.place(level, player.getUUID(), floor);
+        PortalChoice.place(level, player.getUUID(), far);
+        Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
+        double wall = helper.absolutePos(NEAR_PORTAL).getX();
+        java.util.List<Vec3> motions = new java.util.ArrayList<>();
+        java.util.List<Vec3> cameOut = new java.util.ArrayList<>();
+        for (int held = 1; held <= THROUGH_TICKS; held++) {
+            helper.runAfterDelay(held, () -> {
+                if (pig.getX() < wall) {
+                    motions.add(pig.getDeltaMovement());
+                    cameOut.add(pig.getBoundingBox().getCenter());
+                }
+                GooStreamHandler.streamTick(player, holdTick(player, pig));
+            });
+        }
+        helper.runAfterDelay(THROUGH_TICKS + 1, () -> {
+            helper.assertTrue(!motions.isEmpty(), "The pig should come up out of the floor portal, stands at "
+                    + helper.relativeVec(pig.position()));
+            Vec3 mouth = floor.gate().center();
+            helper.assertTrue(cameOut.get(0).distanceTo(mouth) < CAME_OUT_REACH, "The pig should first stand on the "
+                    + "player's side at the floor portal, carried through the pair, not jumped through the wall; stood "
+                    + "at " + helper.relativeVec(cameOut.get(0)));
+            helper.assertTrue(motions.get(0).y() <= 0, "The pig should come up out of the floor portal with no leap "
+                    + "of its own, moving " + motions.get(0));
+            PortalChoice.breakAt(level, floor.block().pos(), floor.face());
+            PortalChoice.breakAt(level, far.block().pos(), far.face());
+            leave(helper, player);
+        });
+    }
+
+    private static void drawsThroughInSteadySteps(GameTestHelper helper, BlockPos pigAt) {
         ServerPlayer player = grabber(helper);
         for (int z = -1; z <= 3; z++) {
             for (int y = 1; y <= 3; y++) {
@@ -417,22 +502,31 @@ public final class GrabChannelTests {
                 Direction.UP);
         PortalChoice.place(level, player.getUUID(), near);
         PortalChoice.place(level, player.getUUID(), far);
-        Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
+        Pig pig = helper.spawn(EntityType.PIG, pigAt);
         double wall = helper.absolutePos(NEAR_PORTAL).getX();
         java.util.List<Vec3> path = new java.util.ArrayList<>();
+        java.util.List<Vec3> cameOut = new java.util.ArrayList<>();
         path.add(pig.position());
         for (int held = 1; held <= THROUGH_TICKS; held++) {
             helper.runAfterDelay(held, () -> {
+                if (pig.getX() < wall) {
+                    cameOut.add(pig.getBoundingBox().getCenter());
+                }
                 GooStreamHandler.streamTick(player, holdTick(player, pig));
                 path.add(pig.position());
             });
         }
         helper.runAfterDelay(THROUGH_TICKS + 1, () -> {
+            helper.assertTrue(!cameOut.isEmpty() && cameOut.get(0).distanceTo(near.gate().center()) < CAME_OUT_REACH,
+                    "The pig should first stand on the player's side at the near portal, carried through the pair, "
+                            + "not jumped through the wall; stood at " + cameOut.stream().map(helper::relativeVec)
+                            .toList() + " along " + path.stream().map(helper::relativeVec).toList());
             // The far portal's face is the wall's east face; a body east of it has yet to go through.
             double farFace = wall + 1;
             long beforeThePortal = path.stream().filter(feet -> feet.x() > farFace).count();
-            helper.assertTrue(beforeThePortal > 1, "The pig should be seen drawn toward the portal over more than "
-                    + "one tick, not jumped into it, along " + path.stream().map(helper::relativeVec).toList());
+            helper.assertTrue(beforeThePortal > 1 || pigAt.equals(BESIDE_THE_FAR_PORTAL), "The pig should be seen "
+                    + "drawn toward the portal over more than one tick, not jumped into it, along "
+                    + path.stream().map(helper::relativeVec).toList());
             for (int at = 1; at < path.size(); at++) {
                 double step = path.get(at).distanceTo(path.get(at - 1));
                 helper.assertTrue(path.get(at).x() <= farFace || step <= STEADY_STEP,

@@ -95,7 +95,8 @@ public final class GateRay {
         Optional<Route> shortest = Optional.empty();
         for (GatePassage.Pair pair : pairs) {
             for (GatePassage.Pair way : List.of(pair, new GatePassage.Pair(pair.other(), pair.one()))) {
-                if (way.one().out(from) > 0 && way.other().out(to) > 0) {
+                // A body already inside the gate's opening, short of where it is carried, still goes through it.
+                if (way.one().out(from) > -PAST_THE_FACE && way.other().out(to) > 0) {
                     double length = from.distanceTo(way.one().center()) + way.other().center().distanceTo(to);
                     if (shortest.isEmpty() || length < shortest.get().length()) {
                         shortest = Optional.of(new Route(way.one(), way.other(), length));

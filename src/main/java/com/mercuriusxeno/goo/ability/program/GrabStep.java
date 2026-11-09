@@ -15,6 +15,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
@@ -116,16 +117,27 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
      * @return where it heads through a gate, empty where it heads straight for the end
      */
     private static Optional<Vec3> throughGates(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {
-        if (inSight(player, body, from, to)) {
+        if (inSight(player, from, to)) {
             return Optional.empty();
         }
         return GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), from, to)
                 .map(GateRay.Route::headFor);
     }
 
-    private static boolean inSight(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {
+    /**
+     * Whether nothing solid stands on the straight line between two points,
+     * read as the bare world: a body's own context would read a linked gate's
+     * blocks open while the body stands at the gate, and see straight through
+     * the wall to the far side of it, though no straight way runs there.
+     *
+     * @param player the holding player
+     * @param from   the line's start
+     * @param to     its end
+     * @return true where the line runs clear
+     */
+    private static boolean inSight(ServerPlayer player, Vec3 from, Vec3 to) {
         return player.level().clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
-                body)).getType() == HitResult.Type.MISS;
+                CollisionContext.empty())).getType() == HitResult.Type.MISS;
     }
 
     /**
@@ -141,7 +153,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         Vec3 eye = player.getEyePosition();
         Vec3 middle = body.getBoundingBox().getCenter();
         double straight = eye.distanceTo(middle);
-        double length = inSight(player, body, eye, middle) ? straight
+        double length = inSight(player, eye, middle) ? straight
                 : GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), eye, middle)
                         .map(GateRay.Route::length).orElse(straight);
         return length * length;
