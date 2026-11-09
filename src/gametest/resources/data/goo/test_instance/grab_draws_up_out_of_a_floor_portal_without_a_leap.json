@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:grab_draws_up_out_of_a_floor_portal_without_a_leap",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

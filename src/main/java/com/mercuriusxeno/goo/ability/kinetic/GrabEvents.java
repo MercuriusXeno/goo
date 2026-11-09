@@ -69,15 +69,15 @@ public final class GrabEvents {
      * @param throwSpeed the speed a throw launches it at, in blocks per tick
      */
     public static void hold(ServerPlayer player, Entity held, Vec3 at, double throwSpeed) {
-        moveHeld(player, held, at.subtract(held.position()), Vec3.ZERO, throwSpeed);
+        moveHeld(player, held, at.subtract(held.position()), throwSpeed);
     }
 
     /**
      * Draws a held entity one step toward a linked gate this channel tick,
-     * carrying the step as its motion, so the client is seen to slide it into
-     * the gate and the pair carries it on out of the partner along that
-     * motion, rather than jumping it into the gate in one tick the client
-     * never shows arriving.
+     * so the client is seen to slide it into the gate rather than jumping it
+     * there in one tick it never shows arriving. The step leaves the body no
+     * motion, so its own tick moves it no further and it crosses the face
+     * where the pair's own check sees it cross.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param player     the holding player
@@ -86,15 +86,26 @@ public final class GrabEvents {
      * @param throwSpeed the speed a throw launches it at, in blocks per tick
      */
     public static void drawToward(ServerPlayer player, Entity held, Vec3 step, double throwSpeed) {
-        moveHeld(player, held, step, step, throwSpeed);
+        moveHeld(player, held, step, throwSpeed);
     }
 
-    private static void moveHeld(ServerPlayer player, Entity held, Vec3 step, Vec3 motion, double throwSpeed) {
+    /**
+     * Whether a Grab holds an entity now.
+     *
+     * @param entity the entity
+     * @return true while a channel holds it
+     */
+    public static boolean isHeld(Entity entity) {
+        return entity.hasData(GooAttachments.GRABBED)
+                && !entity.getData(GooAttachments.GRABBED).releasedAt(entity.level().getGameTime());
+    }
+
+    private static void moveHeld(ServerPlayer player, Entity held, Vec3 step, double throwSpeed) {
         long until = player.level().getGameTime() + HOLD_GRACE_TICKS;
         suspend(held, until);
         // Moved rather than placed, so the held body collides with the blocks it is pulled against.
         held.move(MoverType.SELF, step);
-        held.setDeltaMovement(motion);
+        held.setDeltaMovement(Vec3.ZERO);
         held.fallDistance = 0;
         held.hurtMarked = true;
         player.setData(GooAttachments.GRAB_HOLD, new GrabHold(held.getId(), throwSpeed, until, false));

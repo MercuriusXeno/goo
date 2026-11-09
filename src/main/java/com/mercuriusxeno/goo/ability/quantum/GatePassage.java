@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import net.minecraft.core.BlockPos;
@@ -287,8 +288,12 @@ public final class GatePassage {
             Vec3 middle = entity.getBoundingBox().getCenter();
             Vec3 before = lastMiddles.get(entity.getUUID());
             if (before != null && crossed(near, before, middle)) {
-                carry(target, entity, landingThrough(near, far, new Held(middle, entity.getBbHeight() * HALF),
-                        entity.getBbHeight(), entity.getDeltaMovement(), entity.getYRot(), entity.getXRot()));
+                Landing landing = landingThrough(near, far, new Held(middle, entity.getBbHeight() * HALF),
+                        entity.getBbHeight(), entity.getDeltaMovement(), entity.getYRot(), entity.getXRot());
+                // aim-and-shots-carry-through-linked-gates: Grab moves a held body itself, so it comes out moving no
+                // way of its own, without the leap a floor gate gives a walker
+                carry(target, entity, GrabEvents.isHeld(entity) ? new Landing(landing.feet(), Vec3.ZERO,
+                        landing.yaw(), landing.pitch()) : landing);
             }
             seen.put(entity.getUUID(), middle);
         }
