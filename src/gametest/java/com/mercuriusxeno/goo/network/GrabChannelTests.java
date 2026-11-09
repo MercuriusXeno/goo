@@ -85,6 +85,8 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabDrawsThroughAPortalItStandsBeside);
         GooTestFunctions.registerTest(registrar, GRAB_DRAWS_UP_OUT_OF_A_FLOOR_PORTAL_WITHOUT_A_LEAP,
                 GrabChannelTests::grabDrawsUpOutOfAFloorPortalWithoutALeap);
+        GooTestFunctions.registerTest(registrar, GRAB_NEVER_CYCLES_A_MOB_THROUGH_FACING_PORTALS,
+                GrabChannelTests::grabNeverCyclesAMobThroughFacingPortals);
         GooTestFunctions.registerTest(registrar,
                 GRAB_AIMED_THROUGH_A_PORTAL_DRAWS_THROUGH_IT_THOUGH_A_STRAIGHT_WAY_STANDS_OPEN,
                 GrabChannelTests::grabAimedThroughAPortalDrawsThroughItThoughAStraightWayStandsOpen);
@@ -554,6 +556,69 @@ public final class GrabChannelTests {
                     + "sideways across; went " + cameOut.stream().map(helper::relativeVec).toList());
             PortalChoice.breakAt(level, near.block().pos(), near.face());
             PortalChoice.breakAt(level, far.block().pos(), far.face());
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_NEVER_CYCLES_A_MOB_THROUGH_FACING_PORTALS =
+            "grab_never_cycles_a_mob_through_facing_portals";
+    /** The block the west portal of a facing pair stands on, its face the plane x 2. */
+    private static final BlockPos FACING_WEST_WALL = new BlockPos(1, 1, 2);
+    /** The block the east portal of the pair stands on, its face the plane x 4. */
+    private static final BlockPos FACING_EAST_WALL = new BlockPos(4, 1, 2);
+    /** Between the pair: where the player stands, facing the west portal, its hold point behind that wall. */
+    private static final BlockPos BETWEEN = new BlockPos(3, 1, 2);
+    /** Yaw looking west, along -x. */
+    private static final float FACING_WEST = 90f;
+    /** Ticks enough for a cycling pig to go round several times. */
+    private static final int CYCLE_TICKS = 20;
+
+    /**
+     * A pig held between two portals facing each other, with the hold point
+     * behind one portal's wall, is carried through the pair at most once,
+     * never cycled through it tick after tick: the far leg out of the pair to
+     * the hold point is walled, so no way through the pair reaches it
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabNeverCyclesAMobThroughFacingPortals(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(BETWEEN));
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setYRot(FACING_WEST);
+        player.setYHeadRot(FACING_WEST);
+        for (BlockPos wall : java.util.List.of(FACING_WEST_WALL, FACING_EAST_WALL)) {
+            for (int z = 1; z <= 3; z++) {
+                for (int y = 1; y <= 3; y++) {
+                    helper.setBlock(new BlockPos(wall.getX(), y, z), Blocks.STONE);
+                }
+            }
+        }
+        ServerLevel level = helper.getLevel();
+        Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FACING_WEST_WALL)), Direction.EAST,
+                Direction.UP);
+        Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FACING_EAST_WALL)), Direction.WEST,
+                Direction.UP);
+        PortalChoice.place(level, player.getUUID(), west);
+        PortalChoice.place(level, player.getUUID(), east);
+        Pig pig = helper.spawn(EntityType.PIG, BETWEEN);
+        java.util.List<Vec3> path = new java.util.ArrayList<>();
+        path.add(pig.position());
+        for (int held = 1; held <= CYCLE_TICKS; held++) {
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(player, holdTick(player, pig));
+                path.add(pig.position());
+            });
+        }
+        helper.runAfterDelay(CYCLE_TICKS + 1, () -> {
+            // Each time the pig stands past the west portal's face it has gone into the pair once more.
+            double westFace = helper.absolutePos(FACING_WEST_WALL).getX() + 1;
+            long intoThePair = path.stream().filter(feet -> feet.x() < westFace).count();
+            helper.assertTrue(intoThePair <= 1, "The pig should go into the facing pair at most once, went in "
+                    + intoThePair + " times along " + path.stream().map(helper::relativeVec).toList());
+            PortalChoice.breakAt(level, west.block().pos(), west.face());
+            PortalChoice.breakAt(level, east.block().pos(), east.face());
             leave(helper, player);
         });
     }
