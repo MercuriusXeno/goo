@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -11,8 +12,9 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Server-to-client payload: the server carried a body through a linked gate,
- * so each client watching it sets it at once where it came out, rather than
- * sliding it from the gate it went into through whatever stands between.
+ * so each client watching it turns the body it draws through the same pair
+ * and slides it on out of the partner, rather than sliding it from the gate
+ * it went into through whatever stands between.
  * aim-and-shots-carry-through-linked-gates
  *
  * @param entityId the carried body's id
@@ -20,9 +22,11 @@ import org.jspecify.annotations.NonNull;
  * @param motion   how it moves coming out
  * @param yaw      its yaw coming out, in degrees
  * @param pitch    its pitch coming out, in degrees
+ * @param entered  the gate it went into
+ * @param exit     the partner it came out of
  */
-public record GateCarriedPayload(int entityId, Vec3 feet, Vec3 motion, float yaw, float pitch)
-        implements CustomPacketPayload {
+public record GateCarriedPayload(int entityId, Vec3 feet, Vec3 motion, float yaw, float pitch, Gate entered,
+        Gate exit) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<GateCarriedPayload> TYPE =
@@ -35,6 +39,8 @@ public record GateCarriedPayload(int entityId, Vec3 feet, Vec3 motion, float yaw
             Vec3.STREAM_CODEC, GateCarriedPayload::motion,
             ByteBufCodecs.FLOAT, GateCarriedPayload::yaw,
             ByteBufCodecs.FLOAT, GateCarriedPayload::pitch,
+            Gate.STREAM_CODEC, GateCarriedPayload::entered,
+            Gate.STREAM_CODEC, GateCarriedPayload::exit,
             GateCarriedPayload::new);
 
     @Override
