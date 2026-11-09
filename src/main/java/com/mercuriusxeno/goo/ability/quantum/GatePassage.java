@@ -289,6 +289,7 @@ public final class GatePassage {
             Vec3 before = lastMiddles.get(entity.getUUID());
             if (before != null && crossed(near, before, middle)) {
                 carry(target, entity, bodyLanding(near, far, entity, middle));
+                GrabEvents.carriedOut(entity);
             }
             seen.put(entity.getUUID(), middle);
         }
