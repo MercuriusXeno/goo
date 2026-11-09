@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.quantum.ExitTilt;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import net.minecraft.client.Minecraft;
@@ -70,6 +71,8 @@ public final class ClientGateCarry {
         body.zOld = before.z();
         turnBy(body, Mth.wrapDegrees(carry.yaw() - body.getYRot()));
         body.setDeltaMovement(carry.motion());
+        // bodies-emerge-along-their-travel-and-ease-upright: drawn tilted the way it went in, easing upright
+        ClientExitTilts.record(carry.entityId(), ExitTilt.between(carry.entered(), carry.exit()), gameTime);
         CARRIED.put(carry.entityId(), new Carried(carry.feet(), gameTime + STALE_TICKS));
         if (slide != null) {
             slide.interpolateTo(carry.feet(), carry.yaw(), carry.pitch());

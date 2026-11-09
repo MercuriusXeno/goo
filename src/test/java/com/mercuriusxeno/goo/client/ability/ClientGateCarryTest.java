@@ -14,6 +14,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -94,6 +95,49 @@ class ClientGateCarryTest {
         Vec3 middle = PortalTransform.between(ENTERED, FLOOR).point(DRAWN.add(0, HEIGHT / 2, 0));
         verify(body).setPos(middle.subtract(0, HEIGHT / 2, 0));
     }
+
+    /** A body dropping into the floor portal and coming out of the north-facing wall one. */
+    private static final int DROPPED = 11;
+    /** About half a second. */
+    private static final int EASE_TICKS = 10;
+
+    /**
+     * A body the server carried from a floor portal out of a wall portal
+     * holds a quarter-turn tilt on the client from the tick it emerged, and
+     * the tilt leaves once it has eased to nothing
+     * (decision bodies-emerge-along-their-travel-and-ease-upright).
+     */
+    @Test
+    void aBodyCarriedFromAFloorPortalOutOfAWallPortalHoldsItsTiltUntilItEases() {
+        Entity body = mock(Entity.class);
+        when(body.getInterpolation()).thenReturn(mock(InterpolationHandler.class));
+        when(body.position()).thenReturn(new Vec3(0.5, 64.4, 1.0));
+        when(body.getId()).thenReturn(DROPPED);
+        GateCarriedPayload outOfTheWall = new GateCarriedPayload(DROPPED, new Vec3(0.5, 0.0, -0.4), Vec3.ZERO, 0F,
+                0F, FLOOR, ENTERED);
+
+        ClientGateCarry.snap(body, outOfTheWall, CARRIED_AT);
+
+        assertEquals(QUARTER_TURN, ClientExitTilts.tiltOf(DROPPED, CARRIED_AT).map(tilt -> tilt.degrees())
+                .orElse(0.0), 1.0E-6, "The body should hold a quarter-turn tilt from the tick it emerged");
+        assertTrue(ClientExitTilts.tiltOf(DROPPED, CARRIED_AT + EASE_TICKS).isEmpty(),
+                "The tilt should leave once it has eased to nothing");
+    }
+
+    /**
+     * The local player its own client carried from a floor portal out of a
+     * wall portal holds the same tilt on its client.
+     */
+    @Test
+    void theLocalPlayerCarriedFromAFloorPortalOutOfAWallPortalHoldsItsTilt() {
+        ClientGatePassage.recordTilt(DROPPED + 1, new com.mercuriusxeno.goo.ability.quantum.GatePassage.Pair(FLOOR,
+                ENTERED), CARRIED_AT);
+
+        assertEquals(QUARTER_TURN, ClientExitTilts.tiltOf(DROPPED + 1, CARRIED_AT).map(tilt -> tilt.degrees())
+                .orElse(0.0), 1.0E-6, "The player should hold a quarter-turn tilt from the tick it emerged");
+    }
+
+    private static final double QUARTER_TURN = 90.0;
 
     @Test
     void theServersWordPlacingTheBodyBackAtTheLandingIsStale() {

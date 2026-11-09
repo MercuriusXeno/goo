@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
+import com.mercuriusxeno.goo.client.ability.ExitTiltLook;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
@@ -353,7 +354,7 @@ public final class GooClientSetup {
      * Registers the render state modifiers that stamp each entity's goo state
      * onto its render state: the glove's target outline, the goo coat, the
      * ailments, the phase, the stone and frost encasements, the frozen pose, the grab
-     * flail, the vine tangle, the transformation and the eldritch phase, in that order.
+     * flail, the vine tangle, the transformation, the eldritch phase and the exit tilt, in that order.
      *
      * @param event the event instance
      */
@@ -372,7 +373,8 @@ public final class GooClientSetup {
                 GrabFlail::stampFlail,
                 VineTangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation,
-                EldritchSight::stampPhase);
+                EldritchSight::stampPhase,
+                ExitTiltLook::stampTilt);
         for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
             event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
             }, stamp);
