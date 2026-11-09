@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.quantum.ExitTilt;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.network.GateCrossedPayload;
@@ -59,6 +60,19 @@ public final class ClientGatePassage {
      * @param player the local player
      * @param way    the gate crossed, then its partner
      */
+    /**
+     * Records the tilt the local player came out of a pair with, from the
+     * game time it emerged.
+     * bodies-emerge-along-their-travel-and-ease-upright
+     *
+     * @param playerId the player's id
+     * @param way      the gate crossed, then its partner
+     * @param gameTime the game time it emerged
+     */
+    static void recordTilt(int playerId, GatePassage.Pair way, long gameTime) {
+        ClientExitTilts.record(playerId, ExitTilt.between(way.one(), way.other()), gameTime);
+    }
+
     private static void carry(LocalPlayer player, GatePassage.Pair way) {
         Vec3 feet = player.position();
         Optional<GatePassage.Held> held = GatePassage.heldBehind(way.one(), feet, player.getEyeHeight(),
@@ -73,6 +87,7 @@ public final class ClientGatePassage {
                 player.getBbHeight(), motion, yaw, pitch);
         GatePassage.Landing before = landedBefore(player, way, held.get(), now);
         placeAt(player, now, before);
+        recordTilt(player.getId(), way, player.level().getGameTime());
         player.connection.send(new ServerboundCustomPayloadPacket(new GateCrossedPayload(way.one(), feet, motion,
                 yaw, pitch)));
     }
