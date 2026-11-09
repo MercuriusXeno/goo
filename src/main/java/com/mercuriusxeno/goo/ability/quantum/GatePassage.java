@@ -503,10 +503,14 @@ public final class GatePassage {
     }
 
     /**
-     * Feet set clear of a floor or ceiling gate's face: on a floor no lower
-     * than the face, under a ceiling low enough that a crawling body's head
-     * stands below it, so a body dropping through a 1x1 hole into a cell one
-     * block tall comes out crawling in it rather than pressed into its floor.
+     * Feet set clear of the blocks around a gate's opening: on a floor no
+     * lower than the face, under a ceiling low enough that a crawling body's
+     * head stands below it, so a body dropping through a 1x1 hole into a cell
+     * one block tall comes out crawling in it rather than pressed into its
+     * floor, and out of a wall no lower than the opening's bottom edge, so a
+     * body crossing low, by its middle through a floor portal's far half,
+     * comes out standing in the opening rather than in the ground under it,
+     * which it would sink through.
      *
      * @param gate   the gate come out of
      * @param feet   where the feet would stand
@@ -518,7 +522,7 @@ public final class GatePassage {
         return switch (gate.face()) {
             case UP -> new Vec3(feet.x(), Math.max(feet.y(), plane), feet.z());
             case DOWN -> new Vec3(feet.x(), Math.min(feet.y(), plane - Math.min(height, CRAWL_HEIGHT)), feet.z());
-            default -> feet;
+            default -> new Vec3(feet.x(), Math.max(feet.y(), gate.blocks().minY), feet.z());
         };
     }
 
