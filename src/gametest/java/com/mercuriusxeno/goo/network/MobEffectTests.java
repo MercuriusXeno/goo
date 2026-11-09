@@ -19,7 +19,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.animal.cow.Cow;
@@ -32,8 +31,6 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -55,8 +52,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class MobEffectTests {
     private static final String MOB_METAL = "mob_metal_javelin";
     private static final String ALLURE_COURTS = "allure_courts_the_struck_animal";
-    private static final String MOB_FROST = "mob_frost_snap";
-    private static final String SNAP_ENCASES_THEN_THAWS = "snap_encases_then_thaws";
     private static final String FLOAT_LEVITATES_A_ZOMBIE = "float_levitates_a_zombie";
     private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
@@ -76,8 +71,6 @@ public final class MobEffectTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, MOB_METAL, MobEffectTests::metalJavelin);
         GooTestFunctions.registerTest(registrar, ALLURE_COURTS, MobEffectTests::allureCourtsTheStruckAnimal);
-        GooTestFunctions.registerTest(registrar, MOB_FROST, MobEffectTests::frostSnap);
-        GooTestFunctions.registerTest(registrar, SNAP_ENCASES_THEN_THAWS, MobEffectTests::snapEncasesThenThaws);
         GooTestFunctions.registerTest(registrar, FLOAT_LEVITATES_A_ZOMBIE, MobEffectTests::floatLevitatesAZombie);
         GooTestFunctions.registerTest(registrar, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
         GooTestFunctions.registerTest(registrar, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
@@ -101,7 +94,6 @@ public final class MobEffectTests {
     private static final BlockPos BYSTANDER_POS = SPAWN_POS.east();
     /** The tick after spawning, once the level's entity index holds the spawned mobs. */
     private static final int SETTLE_TICKS = 1;
-    private static final String SHOULD_HAVE_SLOWNESS = "Target should have slowness";
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
     private static final String SKELETON_SHOULD_STAND_IDLE = "The skeleton should target no one before the charm";
     private static final String ZOMBIE_SHOULD_TURN_ON_SKELETON = "The charmed zombie should target the skeleton";
@@ -120,7 +112,6 @@ public final class MobEffectTests {
     private static final String OTHER_HIT_SHOULD_LEAVE = "A hit from another mob should leave the charm";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
-    private static final String SHOULD_HAVE_NO_AI = "Target should have AI disabled";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
     private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
@@ -129,7 +120,6 @@ public final class MobEffectTests {
     private static final String LEVITATION_SHOULD_HIDE_PARTICLES = "Shulk's levitation should show no particles";
     private static final String FLOAT_SHOULD_END_WITH_LEVITATION = "The zombie's float should end when its levitation does";
     private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
-    private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
@@ -150,18 +140,6 @@ public final class MobEffectTests {
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
-    private static final String SHOULD_BE_HALF_FROZEN = "One snap should fill half a zombie's frozen gauge, stands %s";
-    private static final String SHOULD_BE_ENCASED = "Two snaps should fill a zombie's frozen gauge";
-    private static final String SHOULD_STAND_STILL = "An encased zombie should have no speed";
-    private static final String SHOULD_HOLD_FULL = "A full gauge should hold through frost_snap.json's hold";
-    private static final String SHOULD_THAW = "A full gauge should thaw below full once its hold runs out";
-    private static final String SHOULD_HAVE_AI_BACK = "A thawed zombie should have its AI back";
-    /** frost_snap.json's amount of ten over a zombie's twenty health. */
-    private static final float HALF_FROZEN = 0.5f;
-    /** frost_snap.json's hold. */
-    private static final int SNAP_HOLD_TICKS = 300;
-    /** Ticks past the hold by which the thaw has taken the gauge below full. */
-    private static final int THAW_CHECK_TICKS = 3;
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -227,54 +205,6 @@ public final class MobEffectTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, cow, ABILITY_ZOO_ALLURE);
             helper.assertTrue(cow.isInLove(), SHOULD_BE_IN_LOVE);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Frost snap is a program: a not_boss target selection wrapping freeze
-     * damage, a freeze step and a slowness potion step; one snap on a zombie
-     * fills half its frozen gauge, ten of its twenty health.
-     *
-     * @param helper the gametest helper
-     */
-    public static void frostSnap(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
-        float before = mob.getHealth();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_FROST_SNAP);
-            float gauge = mob.getData(GooAttachments.FROZEN).gauge();
-            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-            helper.assertTrue(gauge == HALF_FROZEN, String.format(SHOULD_BE_HALF_FROZEN, gauge));
-            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Two snaps fill a helmeted zombie's frozen gauge: it stands encased
-     * with no AI and no speed, and once frost_snap.json's hold runs out it
-     * thaws below full with its AI back.
-     *
-     * @param helper the gametest helper
-     */
-    public static void snapEncasesThenThaws(GameTestHelper helper) {
-        Mob zombie = helper.spawn(EntityType.ZOMBIE, SPAWN_POS);
-        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_FROST_SNAP);
-            strike(helper, zombie, ABILITY_FROST_SNAP);
-            helper.assertTrue(zombie.getData(GooAttachments.FROZEN).full(), SHOULD_BE_ENCASED);
-            helper.assertTrue(zombie.isNoAi(), SHOULD_HAVE_NO_AI);
-            helper.assertTrue(zombie.getAttributeValue(Attributes.MOVEMENT_SPEED) == 0, SHOULD_STAND_STILL);
-        });
-        helper.runAfterDelay(SETTLE_TICKS + SNAP_HOLD_TICKS - 1, () -> {
-            helper.assertTrue(zombie.getData(GooAttachments.FROZEN).full(), SHOULD_HOLD_FULL);
-            helper.assertTrue(zombie.isNoAi(), SHOULD_HAVE_NO_AI);
-        });
-        helper.runAfterDelay(SETTLE_TICKS + SNAP_HOLD_TICKS + THAW_CHECK_TICKS, () -> {
-            helper.assertFalse(zombie.getData(GooAttachments.FROZEN).full(), SHOULD_THAW);
-            helper.assertFalse(zombie.isNoAi(), SHOULD_HAVE_AI_BACK);
             helper.succeed();
         });
     }

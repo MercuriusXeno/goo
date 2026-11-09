@@ -13,8 +13,8 @@ import java.util.stream.Stream;
 /**
  * A frost hit on the host's target: the mob's frozen gauge rises by the
  * amount over its max health, and the curve the JSON names sets how a full
- * gauge holds, thaws and weakens it. Frost snap is
- * {@code freeze amount=10 hold=300 thaw=0.005 vulnerability=0.5}. A target
+ * gauge holds, thaws and weakens it. Cold's wind is
+ * {@code freeze amount=0.8 hold=300 thaw=0.005 vulnerability=0.5}. A target
  * that is no mob is left alone.
  * frozen-gauge-per-mob-encases-when-full
  *

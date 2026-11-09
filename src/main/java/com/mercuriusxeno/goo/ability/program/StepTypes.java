@@ -1,24 +1,34 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.google.gson.JsonElement;
+import com.mercuriusxeno.goo.Goo;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.Dynamic;
+import com.mojang.serialization.JsonOps;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Registry of {@link StepType}s and the dispatch codec that reads a step
  * tree: {@link #CODEC} reads {@code "type"}, finds the type by name and
  * hands the rest of the object to that type's codec. A name no type
- * carries refuses at load.
+ * carries refuses at load, save inside a step list: {@link #LIST_CODEC}
+ * drops a step of a type no longer registered, as a save or a pack from
+ * before a step's rename carries, and loads the rest
+ * (decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches).
  */
 public final class StepTypes {
 
     private static final Map<String, StepType<?>> TYPES = new LinkedHashMap<>();
     private static final String ERR_UNKNOWN = "Unknown step type: ";
     private static final String TYPE_FIELD = "type";
+    private static final String WARN_DROPPED = "Dropping a step of the type {}, which no step type carries any more";
 
     /**
      * Codec for one step, dispatching on the {@code "type"} field.
@@ -28,9 +38,12 @@ public final class StepTypes {
             .dispatch(TYPE_FIELD, Step::type, StepType::codec);
 
     /**
-     * Codec for a step list, the body of a program or a container step.
+     * Codec for a step list, the body of a program or a container step: a
+     * step of a type no longer registered is dropped with a warning and the
+     * rest load; a known step that does not read refuses the list.
      */
-    public static final Codec<List<Step>> LIST_CODEC = CODEC.listOf();
+    public static final Codec<List<Step>> LIST_CODEC = Codec.PASSTHROUGH.listOf()
+            .flatXmap(StepTypes::knownSteps, StepTypes::encodedSteps);
 
     static {
         register(LeafSteps.WAIT.type());
@@ -121,9 +134,8 @@ public final class StepTypes {
         register(FeedStep.TYPE);
         register(ZoneStep.TYPE);
         register(ShifterStep.TYPE);
-        register(ConvokeStep.TYPE);
-        register(DiveStep.TYPE);
-        register(ChurnStep.TYPE);
+        register(ShriekStep.TYPE);
+        register(SculkerStep.TYPE);
         register(EndStep.TYPE);
         register(PocketOpenStep.TYPE);
         register(OutsiderStep.TYPE);
@@ -187,6 +199,49 @@ public final class StepTypes {
      * @param name the type name
      * @return the type, or an error naming the unknown type
      */
+    /**
+     * Reads a step list, dropping each step whose type no step type carries.
+     *
+     * @param entries the list's entries, unread
+     * @return the steps read, or the first known step's refusal
+     */
+    private static DataResult<List<Step>> knownSteps(List<Dynamic<?>> entries) {
+        List<Step> steps = new ArrayList<>();
+        for (Dynamic<?> entry : entries) {
+            Optional<String> name = entry.get(TYPE_FIELD).asString().result();
+            if (name.isPresent() && !TYPES.containsKey(name.get())) {
+                Goo.LOGGER.warn(WARN_DROPPED, name.get());
+                continue;
+            }
+            DataResult<Step> step = CODEC.parse(entry);
+            Optional<DataResult.Error<Step>> refused = step.error();
+            if (refused.isPresent()) {
+                return DataResult.error(refused.get().messageSupplier());
+            }
+            steps.add(step.getOrThrow());
+        }
+        return DataResult.success(steps);
+    }
+
+    /**
+     * Writes a step list, each step as its type's codec writes it.
+     *
+     * @param steps the steps
+     * @return the list's entries, or the first step's refusal
+     */
+    private static DataResult<List<Dynamic<?>>> encodedSteps(List<Step> steps) {
+        List<Dynamic<?>> entries = new ArrayList<>();
+        for (Step step : steps) {
+            DataResult<JsonElement> written = CODEC.encodeStart(JsonOps.INSTANCE, step);
+            Optional<DataResult.Error<JsonElement>> refused = written.error();
+            if (refused.isPresent()) {
+                return DataResult.error(refused.get().messageSupplier());
+            }
+            entries.add(new Dynamic<>(JsonOps.INSTANCE, written.getOrThrow()));
+        }
+        return DataResult.success(entries);
+    }
+
     private static DataResult<StepType<?>> byName(String name) {
         StepType<?> type = TYPES.get(name);
         if (type == null) {
