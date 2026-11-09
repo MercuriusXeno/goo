@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.protocol.game.VecDeltaCodec;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
@@ -138,6 +139,32 @@ class ClientGateCarryTest {
     }
 
     private static final double QUARTER_TURN = 90.0;
+
+    /**
+     * Dropping the server's word placing a carried body at its landing still
+     * takes the landing as the base the server's later small moves are read
+     * from, so each later move places the body where the server has it, not
+     * the carry's whole distance back toward the gate it went into.
+     */
+    @Test
+    void aDroppedLandingSyncStillMovesTheBaseLaterMovesAreReadFrom() {
+        Entity body = mock(Entity.class);
+        VecDeltaCodec moves = new VecDeltaCodec();
+        moves.setBase(DRAWN);
+        when(body.getId()).thenReturn(BODY);
+        when(body.position()).thenReturn(DRAWN);
+        when(body.getPositionCodec()).thenReturn(moves);
+        ClientGateCarry.snap(body, CARRY, CARRIED_AT);
+
+        assertTrue(ClientGateCarry.dropStale(body, CARRY.feet(), CARRIED_AT + 1), "The landing's sync should drop");
+
+        Vec3 stepOn = CARRY.feet().add(0, 0, 0.25);
+        Vec3 read = moves.decode(new VecDeltaCodec() { { setBase(CARRY.feet()); } }.encodeX(stepOn),
+                new VecDeltaCodec() { { setBase(CARRY.feet()); } }.encodeY(stepOn),
+                new VecDeltaCodec() { { setBase(CARRY.feet()); } }.encodeZ(stepOn));
+        assertTrue(read.distanceTo(stepOn) < 0.01, "A later move from the landing should read where the server has "
+                + "the body, " + stepOn + ", reads " + read);
+    }
 
     @Test
     void theServersWordPlacingTheBodyBackAtTheLandingIsStale() {
