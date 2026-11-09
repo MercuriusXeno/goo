@@ -86,7 +86,13 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
         return blocks.contains(Vec3.atCenterOf(pos));
     }
 
-    private double halfSpan(Vec3 axis) {
+    /**
+     * How far the gate's opening reaches from its middle along an axis across its face.
+     *
+     * @param axis a unit axis along the face, its right or its up
+     * @return the half span, in blocks
+     */
+    double halfSpan(Vec3 axis) {
         return Math.abs(axis.x()) * blocks.getXsize() * HALF + Math.abs(axis.y()) * blocks.getYsize() * HALF
                 + Math.abs(axis.z()) * blocks.getZsize() * HALF;
     }

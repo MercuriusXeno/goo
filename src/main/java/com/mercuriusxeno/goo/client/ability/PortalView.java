@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
+import com.mercuriusxeno.goo.ability.quantum.ViewCone;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -119,6 +120,8 @@ public final class PortalView {
     private static int currentPass = MAIN_PASS;
     /** The camera of the pass drawing now. */
     private static Camera currentCamera;
+    /** The cone the pass drawing now sees through its openings, null for the main frame. */
+    private static @Nullable ViewCone currentCone;
     /** Where the view being drawn draws its partner's side from. */
     private static PartnerView.Source source = PartnerView.Source.NONE;
     /** The partner the view being drawn looks out of. */
@@ -190,7 +193,7 @@ public final class PortalView {
         }
         Camera main = mc.gameRenderer.getMainCamera();
         Eye eye = new Eye(main.position(), vec(main.forwardVector()), vec(main.upVector()));
-        Seen frame = new Seen(MAIN_PASS, eye, main);
+        Seen frame = new Seen(MAIN_PASS, eye, main, null);
         // Every gate the frame sees directly holds a view before any view within a view spends the budget,
         // so a tunnel never leaves a portal or a hole in plain sight showing its swirl.
         List<Gate[]> direct = ways().stream().filter(way -> shows(mc, frame, way[0])).toList();
@@ -206,8 +209,9 @@ public final class PortalView {
      * @param pass   the pass, zero for the main frame
      * @param eye    where it looks from
      * @param camera its camera, whose frustum says what it sees
+     * @param cone   the cone it sees through the openings it was drawn through, null for the main frame
      */
-    private record Seen(int pass, Eye eye, Camera camera) {
+    private record Seen(int pass, Eye eye, Camera camera, @Nullable ViewCone cone) {
     }
 
     /**
@@ -235,7 +239,8 @@ public final class PortalView {
     }
 
     /**
-     * Whether a pass faces a portal, near enough and in its frustum, in its own level.
+     * Whether a pass faces a portal, near enough and in its frustum, in its
+     * own level, and within the cone it sees through its openings.
      *
      * @param mc   the client
      * @param seen the pass looking
@@ -243,11 +248,26 @@ public final class PortalView {
      * @return true where the portal's view is worth drawing
      */
     private static boolean shows(Minecraft mc, Seen seen, Gate near) {
+        return faces(mc, seen, near) && sees(seen, near.blocks().inflate(TOUCH));
+    }
+
+    private static boolean faces(Minecraft mc, Seen seen, Gate near) {
         Vec3 toEye = seen.eye().position().subtract(near.center());
-        return near.dimension().equals(mc.level.dimension())
-                && toEye.dot(near.face().getUnitVec3()) > 0
-                && toEye.length() < mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK
-                && seen.camera().getCullFrustum().isVisible(near.blocks().inflate(TOUCH));
+        return near.dimension().equals(mc.level.dimension()) && toEye.dot(near.face().getUnitVec3()) > 0
+                && toEye.length() < mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK;
+    }
+
+    /**
+     * Whether a pass sees a box: in its camera's frustum, and within the cone
+     * it sees through its openings, so a gate the opening hides shows nothing.
+     * nested-views-skip-when-tiny-or-outside-the-parent-opening
+     *
+     * @param seen the pass looking
+     * @param box  the box
+     * @return true where the pass may show some of it
+     */
+    private static boolean sees(Seen seen, AABB box) {
+        return seen.camera().getCullFrustum().isVisible(box) && (seen.cone() == null || seen.cone().holds(box));
     }
 
     /**
@@ -305,18 +325,21 @@ public final class PortalView {
             return;
         }
         int pass = ++passes;
+        ViewCone own = ViewCone.through(eye.position(), far);
+        ViewCone cone = seen.cone() == null ? own : own.and(seen.cone().through(through));
         PortalCamera camera = cameraAt(depth);
         camera.place(mc.level, mc.player, delta, mc.gameRenderer.getMainCamera().getFov(), eye.position(),
                 turnOf(eye.forward(), eye.up()));
         if (depth < DEEPEST_VIEW) {
             for (Gate[] way : ways()) {
                 if (!way[0].equals(far)) {
-                    drawThrough(mc, delta, new Seen(pass, eye, camera), way[0], way[1], depth + 1);
+                    drawThrough(mc, delta, new Seen(pass, eye, camera, cone), way[0], way[1], depth + 1);
                 }
             }
         }
         currentPass = pass;
         currentCamera = camera;
+        currentCone = cone;
         currentFar = far;
         currentNear = near;
         source = from;
@@ -328,6 +351,7 @@ public final class PortalView {
             renderInto(mc, delta, targetFor(mc, pass - 1), state, unclipped);
         } finally {
             currentPass = MAIN_PASS;
+            currentCone = null;
         }
         VIEWS.put(new ViewKey(seen.pass(), near), Identifier.fromNamespaceAndPath(Goo.MODID, VIEW_PATH + (pass - 1)));
     }
@@ -400,16 +424,30 @@ public final class PortalView {
 
     /**
      * Whether a section stands within the frustum of the camera the view is
-     * being drawn from.
+     * being drawn from, and within the cone it sees through its openings.
+     * nested-views-skip-when-tiny-or-outside-the-parent-opening
      *
      * @param section the section
      * @return true where the view's camera can see it
      */
     public static boolean frustumHolds(SectionPos section) {
         BlockPos origin = section.origin();
-        return currentCamera.getCullFrustum().isVisible(new AABB(origin.getX(), origin.getY(), origin.getZ(),
+        return seesThrough(currentCamera, new AABB(origin.getX(), origin.getY(), origin.getZ(),
                 origin.getX() + SectionPos.SECTION_SIZE, origin.getY() + SectionPos.SECTION_SIZE,
                 origin.getZ() + SectionPos.SECTION_SIZE));
+    }
+
+    /**
+     * Whether a view's camera sees a box: within its frustum, and within the
+     * cone the view sees through its openings, so what the frame around an
+     * opening hides is neither built nor drawn.
+     *
+     * @param camera the view's camera
+     * @param box    the box
+     * @return true where the view may show some of it
+     */
+    private static boolean seesThrough(Camera camera, AABB box) {
+        return camera.getCullFrustum().isVisible(box) && (currentCone == null || currentCone.holds(box));
     }
 
     /**
@@ -583,7 +621,8 @@ public final class PortalView {
 
     /**
      * Fills the visible sections with every section in the view area the
-     * portal camera's frustum holds, and queues a build for each one that
+     * portal camera's frustum and the view's cone through its openings
+     * hold, and queues a build for each one that
      * waits for one: the frame builds only the sections the main camera sees,
      * so a section seen through the portal alone would stand unbuilt.
      *
@@ -599,7 +638,7 @@ public final class PortalView {
         }
         RenderRegionCache cache = new RenderRegionCache();
         for (SectionRenderDispatcher.RenderSection section : levels.viewArea.sections) {
-            if (camera.getCullFrustum().isVisible(section.getBoundingBox())) {
+            if (seesThrough(camera, section.getBoundingBox())) {
                 visible.add(section);
                 buildWhenWaiting(section, cache);
             }
