@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:sculker_walks_silent_past_a_sensor",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}

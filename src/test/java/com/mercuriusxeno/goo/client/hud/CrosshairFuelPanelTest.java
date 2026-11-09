@@ -86,13 +86,13 @@ class CrosshairFuelPanelTest {
         /** A dynamic ability's row reads the live mB at the aim (decision dynamic-costs-keep-the-mb-quantity). */
         @Test
         void dynamicAbilityReadsTheLiveMbAtTheAim() {
-            ClientAbility churn = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "counted"),
+            ClientAbility counted = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "counted"),
                     "ability.goo.counted", "", 0, List.of(), List.of(), THOUSAND, Delivery.ARC, AbilityBadge.WORLD,
                     List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0, DistancePrice.NONE, List.of(),
                     ArmPose.defaultFor(DeliveryKind.ARC), "ability.goo.counted.description", Optional.empty(),
                     Optional.of("1K x r³"));
-            assertEquals(concat(head(churn), new Count("700")),
-                    CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, churn, 3500, PLENTY, "700"));
+            assertEquals(concat(head(counted), new Count("700")),
+                    CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, counted, 3500, PLENTY, "700"));
         }
 
         /** With upkeep standing on the type, the panel's and the petal's stream counts are one text (decision time-counts-net-standing-upkeep). */

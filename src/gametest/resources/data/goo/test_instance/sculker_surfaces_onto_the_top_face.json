@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:sculker_surfaces_onto_the_top_face",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

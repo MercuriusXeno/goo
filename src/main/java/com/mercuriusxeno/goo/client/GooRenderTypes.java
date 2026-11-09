@@ -41,6 +41,13 @@ public final class GooRenderTypes {
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
     /** Fragments fainter than this are cut, as vanilla's translucent entity cuts them. */
     private static final float ALPHA_CUTOUT = 0.1f;
+    /**
+     * The depth bias vanilla's block-breaking cracks draw with, pulling a
+     * layer drawn in the same plane as the world's own faces in front of
+     * them so the two never fight.
+     */
+    private static final float DECAL_BIAS_SCALE = -1.0f;
+    private static final float DECAL_BIAS_CONSTANT = -10.0f;
     private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
     /** Must match goo_fluid_surface.fsh: the sampler the frame's mingle table binds to. */
     private static final String MINGLE_TABLE_SAMPLER = "MingleTable";
@@ -125,6 +132,38 @@ public final class GooRenderTypes {
                             .withTexture("Sampler0", atlas)
                             .useLightmap()
                             .useOverlay()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Sculker's glass field (decision sculker-shows-blocks-translucent-close-up):
+     * the x-ray's translucent block quads, depth tested so the diver's own
+     * body and every entity in front of the glass stands over it, writing
+     * depth so the vision dims each block by its true distance and, drawn
+     * nearest first, only the nearest face shows at each point with no layers
+     * stacking behind it; both sides of a face draw, so a face is seen from
+     * inside the stone as from the open, and every face draws at one shade,
+     * floors and ceilings as bright as walls.
+     */
+    public static final RenderPipeline SCULKER_GLASS = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sculker_glass"))
+            .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
+            .withSampler("Sampler1")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+                    DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT))
+            .withCull(false)
+            .build();
+
+    /** Per-atlas memoized render types on Sculker's glass pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> SCULKER_GLASS_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_sculker_glass",
+                    RenderSetup.builder(SCULKER_GLASS)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .sortOnUpload()
                             .createRenderSetup()
             ));
 
@@ -855,6 +894,16 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Returns Sculker's glass render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType sculkerGlass(Identifier atlas) {
+        return SCULKER_GLASS_FACTORY.apply(atlas);
+    }
+
+    /**
      * Returns the block transform render type for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
@@ -1319,6 +1368,21 @@ public final class GooRenderTypes {
             .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
             .build();
 
+    /**
+     * Sculker's soft outline pipeline (decision sculker-sight-persists-where-echoes-have-touched):
+     * a fullscreen pass over the ripple buffer's red channel through
+     * {@code goo_soft_outline.fsh}, painting a blurred glow out from each heard
+     * body's edge in the color ColorModulator carries, blended over the frame.
+     */
+    public static final RenderPipeline GOO_SOFT_OUTLINE = RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_soft_outline"))
+            .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_soft_outline"))
+            .withSampler("InSampler")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+            .build();
+
     /** The one render type on the ailment overlay pipeline, its glint texture bound. */
     public static final RenderType GOO_AILMENT_OVERLAY_TYPE = RenderType.create(
             "goo_ailment_overlay",
@@ -1472,6 +1536,7 @@ public final class GooRenderTypes {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(LINES_ADDITIVE_GLOW_THROUGH_BLOCKS);
         event.registerPipeline(FUNGUS_XRAY);
+        event.registerPipeline(SCULKER_GLASS);
         event.registerPipeline(FUNGUS_GLOW);
         event.registerPipeline(SPORE_SHELL);
         event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
@@ -1512,6 +1577,7 @@ public final class GooRenderTypes {
     private static void registerOverlayPipelines(RegisterRenderPipelinesEvent event) {
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
+        event.registerPipeline(GOO_SOFT_OUTLINE);
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GOO_PORTAL_VIEW);
