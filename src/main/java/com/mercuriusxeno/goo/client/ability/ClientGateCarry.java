@@ -1,19 +1,24 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Sets a body the server carried through a linked gate where it came out,
- * at once: the vanilla teleport a client hears for a mob in sight slides it
- * there over a few ticks, through the walls between the gate it went into
- * and the partner it came out of, drawn dark while inside them.
+ * Turns a body the server carried through a linked gate through the same
+ * pair where the client draws it, and slides it on from there to where it
+ * came out: the vanilla teleport a client hears for a mob in sight slides it
+ * there over a few ticks through the walls between, drawn dark while inside
+ * them, and setting it at the landing at once flashes it there from short of
+ * the gate it went into.
  * aim-and-shots-carry-through-linked-gates
  */
 public final class ClientGateCarry {
@@ -49,13 +54,42 @@ public final class ClientGateCarry {
         if (slide != null) {
             slide.cancel();
         }
-        body.snapTo(carry.feet(), carry.yaw(), carry.pitch());
+        // A mob shows a few ticks behind the server, short of the gate as the carry arrives; turned through the
+        // pair where it is drawn, its last tick with it, it is seen going on out of the partner unbroken.
+        PortalTransform through = PortalTransform.between(carry.entered(), carry.exit());
+        Vec3 before = through.point(new Vec3(body.xo, body.yo, body.zo));
+        body.setPos(through.point(body.position()));
+        body.xo = before.x();
+        body.yo = before.y();
+        body.zo = before.z();
+        body.xOld = before.x();
+        body.yOld = before.y();
+        body.zOld = before.z();
+        turnBy(body, Mth.wrapDegrees(carry.yaw() - body.getYRot()));
         body.setDeltaMovement(carry.motion());
         CARRIED.put(carry.entityId(), new Carried(carry.feet(), gameTime + STALE_TICKS));
-        // A mob shows a few ticks behind the server; set where the server holds it now, it would stand still
-        // until the server's next move arrives, so it moves on along its motion meanwhile.
         if (slide != null) {
-            slide.interpolateTo(carry.feet().add(carry.motion().scale(LEAD_TICKS)), carry.yaw(), carry.pitch());
+            slide.interpolateTo(carry.feet(), carry.yaw(), carry.pitch());
+        } else {
+            body.setPos(carry.feet());
+        }
+    }
+
+    /**
+     * Turns a body's facing, now and last tick, by the pair's turn, so it
+     * comes out of the partner facing the way the pair turns it.
+     *
+     * @param body the body
+     * @param turn the turn, in degrees
+     */
+    private static void turnBy(Entity body, float turn) {
+        body.setYRot(body.getYRot() + turn);
+        body.yRotO += turn;
+        if (body instanceof LivingEntity living) {
+            living.yHeadRot += turn;
+            living.yHeadRotO += turn;
+            living.yBodyRot += turn;
+            living.yBodyRotO += turn;
         }
     }
 
@@ -82,8 +116,6 @@ public final class ClientGateCarry {
         return position.distanceTo(carried.landing()) < SAME_SPOT;
     }
 
-    /** Ticks a carried body moves on ahead of the server's next word, as vanilla interpolates a mob's move. */
-    static final int LEAD_TICKS = 3;
     /** Ticks after a carry the server's word placing the body back at its landing is dropped. */
     private static final int STALE_TICKS = 6;
     /** How near its landing a move places a body to read as placing it back there. */

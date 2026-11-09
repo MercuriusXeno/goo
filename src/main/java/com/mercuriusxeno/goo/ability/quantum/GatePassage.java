@@ -288,7 +288,7 @@ public final class GatePassage {
             Vec3 middle = entity.getBoundingBox().getCenter();
             Vec3 before = lastMiddles.get(entity.getUUID());
             if (before != null && crossed(near, before, middle)) {
-                carry(target, entity, bodyLanding(near, far, entity, middle));
+                carry(target, entity, bodyLanding(near, far, entity, middle), new Pair(near, far));
                 GrabEvents.carriedOut(entity);
             }
             seen.put(entity.getUUID(), middle);
@@ -410,15 +410,16 @@ public final class GatePassage {
                 : landing;
     }
 
-    private static void carry(ServerLevel target, Entity entity, Landing landing) {
+    private static void carry(ServerLevel target, Entity entity, Landing landing, Pair way) {
         entity.teleport(new TeleportTransition(target, landing.feet(), landing.motion(), landing.yaw(),
                 landing.pitch(), Set.of(), TeleportTransition.DO_NOTHING));
         entity.setDeltaMovement(landing.motion());
         entity.hurtMarked = true;
         entity.resetFallDistance();
-        // aim-and-shots-carry-through-linked-gates: watchers set the body where it came out, never sliding it there
+        // aim-and-shots-carry-through-linked-gates: watchers turn the body they draw through the same pair, never
+        // sliding it through the walls between
         EntityVisuals.sendToWatchers(entity, new GateCarriedPayload(entity.getId(), landing.feet(), landing.motion(),
-                landing.yaw(), landing.pitch()));
+                landing.yaw(), landing.pitch(), way.one(), way.other()));
     }
 
     /**
