@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.ability.quantum.ViewCone;
+import com.mercuriusxeno.goo.ability.quantum.ViewSize;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -251,6 +252,27 @@ public final class PortalView {
         return faces(mc, seen, near) && sees(seen, near.blocks().inflate(TOUCH));
     }
 
+    private static boolean worthDrawing(Minecraft mc, Seen seen, Gate near, int depth) {
+        return shows(mc, seen, near) && !tooSmall(mc, seen, near, depth);
+    }
+
+    /**
+     * Whether a nested view's gate shows too few pixels on screen to read,
+     * from the pass's eye at the main camera's field of view and the window's
+     * height; a gate the main frame sees directly is never too small.
+     * nested-views-skip-when-tiny-or-outside-the-parent-opening
+     *
+     * @param mc    the client
+     * @param seen  the pass looking
+     * @param near  the gate looked into
+     * @param depth how many views deep the view would stand
+     * @return true where the view is skipped
+     */
+    private static boolean tooSmall(Minecraft mc, Seen seen, Gate near, int depth) {
+        return ViewSize.skips(depth, ViewSize.pixelsAcross(seen.eye().position(), near,
+                mc.gameRenderer.getMainCamera().getFov(), mc.getWindow().getHeight()));
+    }
+
     private static boolean faces(Minecraft mc, Seen seen, Gate near) {
         Vec3 toEye = seen.eye().position().subtract(near.center());
         return near.dimension().equals(mc.level.dimension()) && toEye.dot(near.face().getUnitVec3()) > 0
@@ -315,7 +337,7 @@ public final class PortalView {
             reserved--;
         }
         boolean full = passes + (depth == 1 ? 0 : reserved) >= MOST_VIEWS;
-        if (full || from == PartnerView.Source.NONE || !shows(mc, seen, near)) {
+        if (full || from == PartnerView.Source.NONE || !worthDrawing(mc, seen, near, depth)) {
             return;
         }
         PortalTransform through = PortalTransform.between(near, far);
