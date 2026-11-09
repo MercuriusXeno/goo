@@ -1,14 +1,19 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+
 /**
- * The known items search bar's text.
+ * The known items search bar's text, held one code point to an entry, so backspace erases a whole
+ * character.
  * decision menu-lists-known-items-alphabetically-with-search-and-scroll
  */
 public final class SearchInput {
 
-    private static final int ONE_CODE_POINT_BACK = -1;
+    /** The characters join with nothing between them. */
+    private static final String NO_SEPARATOR = "";
 
-    private final StringBuilder typed = new StringBuilder();
+    private final Deque<String> typed = new ArrayDeque<>();
 
     /**
      * Types characters into the bar.
@@ -16,7 +21,7 @@ public final class SearchInput {
      * @param chars the characters typed
      */
     public void type(String chars) {
-        typed.append(chars);
+        chars.codePoints().mapToObj(Character::toString).forEach(typed::addLast);
     }
 
     /**
@@ -25,11 +30,7 @@ public final class SearchInput {
      * @return true when a character was erased
      */
     public boolean eraseLast() {
-        if (typed.isEmpty()) {
-            return false;
-        }
-        typed.setLength(typed.offsetByCodePoints(typed.length(), ONE_CODE_POINT_BACK));
-        return true;
+        return typed.pollLast() != null;
     }
 
     /**
@@ -38,6 +39,6 @@ public final class SearchInput {
      * @return the bar's text
      */
     public String text() {
-        return typed.toString();
+        return String.join(NO_SEPARATOR, typed);
     }
 }

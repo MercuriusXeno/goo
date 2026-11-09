@@ -17,12 +17,13 @@ public interface ICutawayMachine {
     boolean isCutawayHit(BlockHitResult hit);
 
     /**
-     * Whether a click in the cutaway is the machine's own, so a held canister's placement stands
-     * down there.
+     * Whether a hit is a click the machine's cutaway takes as its own, so a held canister's
+     * placement stands down there.
      *
-     * @return true unless the machine's cutaway takes no click
+     * @param hit the ray trace hit on this machine
+     * @return true for a hit in a cutaway that takes clicks
      */
-    default boolean cutawayTakesClicks() {
-        return true;
+    default boolean takesCutawayClick(BlockHitResult hit) {
+        return isCutawayHit(hit);
     }
 }

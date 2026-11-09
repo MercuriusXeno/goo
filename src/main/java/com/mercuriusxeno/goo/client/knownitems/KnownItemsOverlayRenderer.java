@@ -18,7 +18,7 @@ import java.util.Optional;
  * of every item whatever the search shows. The close button is the overlay's widget.
  * decision menu-is-a-darkening-overlay-not-a-screen
  * decision cancel-cell-clears-the-plexer-target
- * decision g-opens-the-known-items-menu-empty-handed
+ * decision right-click-on-the-plexer-opens-the-known-items-menu
  */
 public final class KnownItemsOverlayRenderer {
 

@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
  * The overlay's frame is one darkening fill over the whole screen, a search bar's flat box and typed
  * text above the grid, one icon per shown item, a flat track and thumb when the rows overflow, and the
  * hovered item's name beside the cursor, and nothing else; a click on an icon picks that item
- * (decisions menu-is-a-darkening-overlay-not-a-screen, menu-places-a-ghost-item-in-the-empty-hand,
+ * (decisions menu-is-a-darkening-overlay-not-a-screen, right-click-on-the-plexer-opens-the-known-items-menu,
  * menu-lists-known-items-alphabetically-with-search-and-scroll).
  */
 class KnownItemsOverlayRendererTest {
