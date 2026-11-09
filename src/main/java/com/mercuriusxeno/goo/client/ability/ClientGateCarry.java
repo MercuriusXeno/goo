@@ -56,9 +56,12 @@ public final class ClientGateCarry {
         }
         // A mob shows a few ticks behind the server, short of the gate as the carry arrives; turned through the
         // pair where it is drawn, its last tick with it, it is seen going on out of the partner unbroken.
+        // Turned by its middle and stood upright under it, as the server sets a body it carries, so a body coming
+        // out of a floor portal from a wall one is never laid half its height to the side of its landing.
         PortalTransform through = PortalTransform.between(carry.entered(), carry.exit());
-        Vec3 before = through.point(new Vec3(body.xo, body.yo, body.zo));
-        body.setPos(through.point(body.position()));
+        Vec3 halfUp = new Vec3(0, body.getBbHeight() * HALF, 0);
+        Vec3 before = through.point(new Vec3(body.xo, body.yo, body.zo).add(halfUp)).subtract(halfUp);
+        body.setPos(through.point(body.position().add(halfUp)).subtract(halfUp));
         body.xo = before.x();
         body.yo = before.y();
         body.zo = before.z();
@@ -116,6 +119,7 @@ public final class ClientGateCarry {
         return position.distanceTo(carried.landing()) < SAME_SPOT;
     }
 
+    private static final double HALF = 0.5;
     /** Ticks after a carry the server's word placing the body back at its landing is dropped. */
     private static final int STALE_TICKS = 6;
     /** How near its landing a move places a body to read as placing it back there. */

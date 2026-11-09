@@ -69,6 +69,32 @@ class ClientGateCarryTest {
         verify(slide).interpolateTo(CARRY.feet(), CARRY.yaw(), CARRY.pitch());
     }
 
+    /** A floor portal on the top of a block at y 64, its face the plane y 65. */
+    private static final Gate FLOOR = new Gate(OVERWORLD, new AABB(new BlockPos(0, 64, 0)).minmax(
+            new AABB(new BlockPos(0, 64, 1))), Direction.UP, Direction.NORTH.getUnitVec3());
+    private static final float HEIGHT = 1.0F;
+
+    /**
+     * A body carried from a wall portal out of a floor portal is turned
+     * through the pair by its middle and stands upright under it, as the
+     * server sets it, rather than by its feet, which the turn lays half its
+     * height off to the side, so it never jumps that far as it slides on.
+     */
+    @Test
+    void aBodyCarriedOutOfAFloorPortalStandsUprightUnderItsTurnedMiddle() {
+        Entity body = mock(Entity.class);
+        when(body.getInterpolation()).thenReturn(mock(InterpolationHandler.class));
+        when(body.position()).thenReturn(DRAWN);
+        when(body.getBbHeight()).thenReturn(HEIGHT);
+        GateCarriedPayload upOut = new GateCarriedPayload(BODY, new Vec3(0.5, 65.0, 1.0), Vec3.ZERO, 0F, 0F,
+                ENTERED, FLOOR);
+
+        ClientGateCarry.snap(body, upOut, CARRIED_AT);
+
+        Vec3 middle = PortalTransform.between(ENTERED, FLOOR).point(DRAWN.add(0, HEIGHT / 2, 0));
+        verify(body).setPos(middle.subtract(0, HEIGHT / 2, 0));
+    }
+
     @Test
     void theServersWordPlacingTheBodyBackAtTheLandingIsStale() {
         Entity body = mock(Entity.class);
