@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo;
 
 import com.mercuriusxeno.goo.entity.BlockHunk;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -88,5 +89,15 @@ public interface ISidedProxy {
      * @param at     where it plays
      */
     default void keepLoopAlive(Object key, Identifier sound, SoundSource source, float volume, Vec3 at) {
+    }
+
+    /**
+     * Opens the known items menu for the plexer at a position. Server: does nothing, since the menu
+     * is the client's and its pick reaches the server as a payload.
+     * decision right-click-on-the-plexer-opens-the-known-items-menu
+     *
+     * @param plexer the plexer's position
+     */
+    default void openPlexerMenu(BlockPos plexer) {
     }
 }
