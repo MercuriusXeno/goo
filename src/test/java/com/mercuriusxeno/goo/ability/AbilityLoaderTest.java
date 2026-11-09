@@ -468,7 +468,6 @@ class AbilityLoaderTest {
 
         private static final Map<String, String> SHIPPED_FORMULAS = Map.of(
                 "ender_blink", "200 + 100/block",
-                "deep_churn", "1K x r\u00B3",
                 "nether_black_hole", "1K x r\u00B3",
                 "unstable_explode", "1K x r\u00B3",
                 "rock_spire", "%s/m³",

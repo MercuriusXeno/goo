@@ -3,7 +3,7 @@
 #moj_import <minecraft:globals.glsl>
 
 // Reap's swell (decision reap-breeze-harvests-and-replants): a whole sphere of
-// Growth's breeze, torn green wisps over its surface churning as it swells out
+// Growth's breeze, torn green wisps over its surface swirling as it swells out
 // to Reap's radius, thinning away once it has reached it. Every pattern is noise
 // over the surface's direction and time, so nothing slides or bands. LIGHTNING
 // blend, so the swell glows.
@@ -19,7 +19,7 @@ const vec3 DEEP_GREEN = vec3(0.12, 0.55, 0.16);
 const vec3 LEAF_GREEN = vec3(0.30, 0.85, 0.28);
 const vec3 BRIGHT_GREEN = vec3(0.75, 1.00, 0.55);
 const float WISP_SCALE = 3.2;
-const float CHURN_PER_TICK = 0.06;
+const float SWIRL_PER_TICK = 0.06;
 const float WARP = 1.1;
 const float SURFACE_GLOW = 0.55;
 
@@ -55,9 +55,9 @@ float turbulence(vec3 p) {
 void main() {
     vec3 dir = normalize(surfaceDir);
     float ticks = GameTime * TICKS_PER_DAY;
-    vec3 churn = vec3(0.0, 0.0, ticks * CHURN_PER_TICK);
-    vec3 tear = vec3(noise(dir * 1.6 + churn * 0.4), noise(dir * 1.6 + 5.2 - churn * 0.3), 0.0) - 0.5;
-    float field = turbulence(dir * WISP_SCALE + churn + tear * WARP);
+    vec3 swirl = vec3(0.0, 0.0, ticks * SWIRL_PER_TICK);
+    vec3 tear = vec3(noise(dir * 1.6 + swirl * 0.4), noise(dir * 1.6 + 5.2 - swirl * 0.3), 0.0) - 0.5;
+    float field = turbulence(dir * WISP_SCALE + swirl + tear * WARP);
     float threshold = 0.3 + 0.25 * noise(dir * 2.0 + vec3(ticks * 0.03));
     float wisp = smoothstep(threshold, threshold + 0.35, field);
 

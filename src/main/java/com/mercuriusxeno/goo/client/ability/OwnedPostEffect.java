@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
@@ -24,6 +27,9 @@ import java.nio.ByteBuffer;
  * ({@code USAGE_UNIFORM | USAGE_COPY_DST}) and later writes stream into it.
  */
 final class OwnedPostEffect {
+
+    /** The name the main target is imported under into a chain's frame, as vanilla imports it. */
+    private static final String MAIN_TARGET_NAME = "main";
 
     private final Identifier chainId;
     private final String uniformBlock;
@@ -58,6 +64,29 @@ final class OwnedPostEffect {
         if (current == null) {
             mc.gameRenderer.setPostEffect(chainId);
         }
+    }
+
+    /**
+     * Writes the frame's uniform bytes into the chain and runs it on the main
+     * target now, holding no slot: for a chain that reads the level's depth,
+     * run before the game renderer clears that depth to draw the hand, which
+     * it does before the slot's chain runs.
+     *
+     * @param mc        the client instance
+     * @param bytes     the std140 bytes of the uniform block
+     * @param allocator the game renderer's resource pool
+     */
+    void runNow(Minecraft mc, ByteBuffer bytes, GraphicsResourceAllocator allocator) {
+        PostChain chain = mc.getShaderManager().getPostChain(chainId, LevelTargetBundle.MAIN_TARGETS);
+        if (chain == null) {
+            return;
+        }
+        writeUniforms(chain, bytes);
+        RenderTarget main = mc.getMainRenderTarget();
+        FrameGraphBuilder frame = new FrameGraphBuilder();
+        chain.addToFrame(frame, main.width, main.height,
+                PostChain.TargetBundle.of(PostChain.MAIN_TARGET_ID, frame.importExternal(MAIN_TARGET_NAME, main)));
+        frame.execute(allocator);
     }
 
     /**

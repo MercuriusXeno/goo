@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
+import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
@@ -445,6 +446,18 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Airborn.NONE)
                             .serialize(Airborn.CODEC, airborn -> airborn.expiresAt() > 0L)
                             .sync(GooAttachments::syncsToOwner, Airborn.STREAM_CODEC)
+                            .build());
+    /**
+     * The Sculker a player holds, saved while it stands and synced to the
+     * owning client, which swims it through solid blocks and draws the
+     * deep's vision.
+     * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
+     */
+    public static final Supplier<AttachmentType<Sculker>> SCULKER =
+            ATTACHMENT_TYPES.register("sculker",
+                    () -> AttachmentType.builder(() -> Sculker.NONE)
+                            .serialize(Sculker.CODEC, sculker -> sculker.expiresAt() > 0L)
+                            .sync(GooAttachments::syncsToOwner, Sculker.STREAM_CODEC)
                             .build());
 
     /**
