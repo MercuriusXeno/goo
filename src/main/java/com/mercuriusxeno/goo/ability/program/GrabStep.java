@@ -160,7 +160,10 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         if (inSight(player, from, to)) {
             return Optional.empty();
         }
+        // A way whose far leg is walled too reaches nothing, and the body would go round the pair for ever.
         return GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), from, to)
+                .filter(route -> inSight(player, route.out().center()
+                        .add(route.out().face().getUnitVec3().scale(HALF)), to))
                 .map(GateRay.Route::headFor);
     }
 
