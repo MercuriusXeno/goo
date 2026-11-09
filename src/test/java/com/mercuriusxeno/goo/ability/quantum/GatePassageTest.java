@@ -99,6 +99,26 @@ class GatePassageTest {
                 + "down should come out of a wall portal still looking down, pitched " + landing.pitch());
     }
 
+    /** A portal two tall on a wall's north face, its bottom edge the plane y 0, standing on the ground there. */
+    private static final Gate WALL_PORTAL = new Gate(OVERWORLD, new AABB(new BlockPos(0, 0, 0)).minmax(
+            new AABB(new BlockPos(0, 1, 0))), Direction.NORTH, Direction.UP.getUnitVec3());
+
+    /**
+     * A body dropping into the half of a floor portal its up points away
+     * from comes out of a wall partner standing in the opening, its feet no
+     * lower than the partner's bottom edge, rather than in the ground under
+     * it, which it would sink through.
+     */
+    @Test
+    void droppingThroughAFloorPortalsBottomHalfComesOutStandingInTheWallPartner() {
+        Vec3 middle = new Vec3(0.5, 64.95, 1.6);
+        GatePassage.Landing landing = GatePassage.landingThrough(FLOOR, WALL_PORTAL,
+                new GatePassage.Held(middle, 0.9), 1.8, new Vec3(0, -0.3, 0), 0F, 0F);
+        assertTrue(landing.feet().y() >= WALL_PORTAL.blocks().minY, "The body should come out standing in the wall "
+                + "portal, feet no lower than its bottom edge " + WALL_PORTAL.blocks().minY + ", stands at "
+                + landing.feet());
+    }
+
     /** The air time coming up out of a floor gate should give, in blocks risen. */
     private static final double ESCAPE_RISE = 2.0;
     /** A living body's gravity a tick, and the drag its upward speed keeps. */
