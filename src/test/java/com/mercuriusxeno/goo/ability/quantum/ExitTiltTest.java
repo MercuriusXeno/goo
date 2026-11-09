@@ -57,6 +57,23 @@ class ExitTiltTest {
         assertEquals(0.0, tilt.degreesAt(EASE_TICKS), CLOSE, "The tilt should be gone after about half a second");
     }
 
+    /**
+     * The swing upright reads as a swing, not a flicker: three ticks in, most
+     * of the turn is still to come, and halfway through the half second half
+     * of it is, as the operator found the turn gone almost at once.
+     */
+    @Test
+    void theSwingUprightIsSpreadOverTheWholeHalfSecond() {
+        ExitTilt tilt = ExitTilt.between(FLOOR, NORTH_WALL);
+        assertTrue(tilt.degreesAt(THREE_TICKS) >= QUARTER * MOST_STILL_TO_COME, "Three ticks in, most of the turn "
+                + "should be still to come, reads " + tilt.degreesAt(THREE_TICKS));
+        assertEquals(QUARTER / 2, tilt.degreesAt(EASE_TICKS / 2.0), 1.0, "Halfway through, half the turn should be "
+                + "still to come");
+    }
+
+    private static final int THREE_TICKS = 3;
+    private static final double MOST_STILL_TO_COME = 0.7;
+
     @Test
     void aWallGateIntoAWallGateFacingItTiltsNothing() {
         assertEquals(0.0, ExitTilt.between(NORTH_WALL, SOUTH_WALL).degreesAt(0), CLOSE);
