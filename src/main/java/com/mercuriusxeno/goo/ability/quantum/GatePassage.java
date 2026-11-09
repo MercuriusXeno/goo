@@ -288,12 +288,7 @@ public final class GatePassage {
             Vec3 middle = entity.getBoundingBox().getCenter();
             Vec3 before = lastMiddles.get(entity.getUUID());
             if (before != null && crossed(near, before, middle)) {
-                Landing landing = landingThrough(near, far, new Held(middle, entity.getBbHeight() * HALF),
-                        entity.getBbHeight(), entity.getDeltaMovement(), entity.getYRot(), entity.getXRot());
-                // aim-and-shots-carry-through-linked-gates: Grab moves a held body itself, so it comes out moving no
-                // way of its own, without the leap a floor gate gives a walker
-                carry(target, entity, GrabEvents.isHeld(entity) ? new Landing(landing.feet(), Vec3.ZERO,
-                        landing.yaw(), landing.pitch()) : landing);
+                carry(target, entity, bodyLanding(near, far, entity, middle));
             }
             seen.put(entity.getUUID(), middle);
         }
@@ -393,6 +388,25 @@ public final class GatePassage {
             return yaw;
         }
         return (float) Math.atan2(-facing.x(), facing.z()) * DEGREES;
+    }
+
+    /**
+     * How a body the server carries comes out of a pair, by its middle. A
+     * body Grab holds comes out moving no way of its own, without the leap a
+     * floor gate gives a walker, since Grab moves it itself.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param near   the gate crossed
+     * @param far    its partner
+     * @param entity the body
+     * @param middle the body's middle
+     * @return the landing
+     */
+    private static Landing bodyLanding(Gate near, Gate far, Entity entity, Vec3 middle) {
+        Landing landing = landingThrough(near, far, new Held(middle, entity.getBbHeight() * HALF),
+                entity.getBbHeight(), entity.getDeltaMovement(), entity.getYRot(), entity.getXRot());
+        return GrabEvents.isHeld(entity) ? new Landing(landing.feet(), Vec3.ZERO, landing.yaw(), landing.pitch())
+                : landing;
     }
 
     private static void carry(ServerLevel target, Entity entity, Landing landing) {
