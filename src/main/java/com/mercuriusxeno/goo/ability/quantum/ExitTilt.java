@@ -34,16 +34,22 @@ public record ExitTilt(Vec3 axis, double degrees) {
     }
 
     /**
-     * How far the body is still turned some ticks after it emerged, easing
-     * out to nothing over EASE_TICKS.
+     * How far the body is still turned some ticks after it emerged: an even
+     * swing over EASE_TICKS that starts and settles gently, smoothstep, so it
+     * reads as a swing to standing rather than a flicker gone in the first
+     * few ticks.
      *
      * @param ticksSince the ticks since it emerged, partial ticks and all
      * @return the degrees still turned
      */
     public double degreesAt(double ticksSince) {
-        double left = 1 - Math.clamp(ticksSince / EASE_TICKS, 0.0, 1.0);
-        return degrees * left * left;
+        double done = Math.clamp(ticksSince / EASE_TICKS, 0.0, 1.0);
+        return degrees * (1 - done * done * (SMOOTHSTEP_RISE - SMOOTHSTEP_BEND * done));
     }
+
+    /** Smoothstep's terms: 3t^2 - 2t^3. */
+    private static final double SMOOTHSTEP_RISE = 3.0;
+    private static final double SMOOTHSTEP_BEND = 2.0;
 
     /**
      * The tilt still left some ticks after the body emerged.
