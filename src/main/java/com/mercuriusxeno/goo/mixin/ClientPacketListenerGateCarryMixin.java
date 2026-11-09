@@ -5,6 +5,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
+import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -36,7 +37,8 @@ public abstract class ClientPacketListenerGateCarryMixin {
     @Inject(method = "handleEntityPositionSync", at = @At(value = "INVOKE", target = ON_THE_CLIENT_THREAD,
             shift = At.Shift.AFTER), cancellable = true)
     private void goo$dropStaleCarrySync(ClientboundEntityPositionSyncPacket packet, CallbackInfo ci) {
-        if (level != null && ClientGateCarry.staleSync(packet.id(), packet.values().position(), level.getGameTime())) {
+        Entity body = level == null ? null : level.getEntity(packet.id());
+        if (body != null && ClientGateCarry.dropStale(body, packet.values().position(), level.getGameTime())) {
             ci.cancel();
         }
     }
@@ -50,8 +52,9 @@ public abstract class ClientPacketListenerGateCarryMixin {
     @Inject(method = "handleTeleportEntity", at = @At(value = "INVOKE", target = ON_THE_CLIENT_THREAD,
             shift = At.Shift.AFTER), cancellable = true)
     private void goo$dropStaleCarryTeleport(ClientboundTeleportEntityPacket packet, CallbackInfo ci) {
-        if (level != null && packet.relatives().isEmpty()
-                && ClientGateCarry.staleSync(packet.id(), packet.change().position(), level.getGameTime())) {
+        Entity body = level == null ? null : level.getEntity(packet.id());
+        if (body != null && packet.relatives().isEmpty()
+                && ClientGateCarry.dropStale(body, packet.change().position(), level.getGameTime())) {
             ci.cancel();
         }
     }

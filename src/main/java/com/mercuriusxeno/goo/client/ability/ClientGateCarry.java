@@ -100,6 +100,27 @@ public final class ClientGateCarry {
     }
 
     /**
+     * Whether to drop a move the server sent placing a body back where a
+     * carry just set it, and where so, taking that place as the base the
+     * server's later small moves are read from, as the move itself would.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param body     the body
+     * @param position where the move places it
+     * @param gameTime the client's game time
+     * @return true for a stale move to drop
+     */
+    public static boolean dropStale(Entity body, Vec3 position, long gameTime) {
+        if (!staleSync(body.getId(), position, gameTime)) {
+            return false;
+        }
+        // The server reads its later small moves from this place; dropped whole, the client would read them from
+        // where the body stood before the carry, the pair's whole distance away.
+        body.getPositionCodec().setBase(position);
+        return true;
+    }
+
+    /**
      * Whether a move the server sent for a body only places it back where a
      * carry set it, just after the carry: the server's own word of the
      * teleport, which would pull the body back to its landing and stall it
