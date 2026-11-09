@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -54,11 +55,20 @@ public final class AfterimageRenderer {
     /** The fullscreen triangle's vertex count. */
     private static final int FULLSCREEN_VERTICES = 3;
 
+    /** A mask channel's fullest value, a body at full strength. */
+    private static final int FULL_MASK = 0xFF;
+
     /** The mask vertices' color, which the mask shader ignores for their alpha. */
     private static final int MASK_RGB = 0xFFFFFF;
 
     /** The edge pass's label in GPU debuggers. */
     private static final String PASS_LABEL = "Goo ripple perimeter";
+
+    /** The soft outline pass's label in GPU debuggers. */
+    private static final String SOFT_PASS_LABEL = "Goo soft outline";
+
+    /** The value the cleared depth takes, past everything, so a body's mask fills through walls. */
+    private static final double FARTHEST = 1.0;
 
     /** The uniform block carrying ColorModulator, the goo type's color. */
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
@@ -138,6 +148,64 @@ public final class AfterimageRenderer {
     }
 
     /**
+     * One body drawn with a soft outline.
+     *
+     * @param snapshot the body's render state this frame
+     * @param position the world point it stands at
+     * @param strength how strongly its glow shows, zero to one
+     */
+    public record SoftOutline(EntityRenderState snapshot, Vec3 position, float strength) {
+    }
+
+    /**
+     * Draws a soft blurred glow around bodies, seen through walls, each as
+     * strong as its strength: every body fills the ripple buffer's red
+     * channel at its strength, and one pass paints the blur of that mask
+     * over the frame, spreading out from each body's edge.
+     * decision sculker-sight-persists-where-echoes-have-touched
+     *
+     * @param event    the level render stage event
+     * @param outlines the bodies to outline
+     * @param rgb      the glow's color
+     */
+    public static void drawSoftOutlines(RenderLevelStageEvent.AfterLevel event, List<SoftOutline> outlines, int rgb) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || outlines.isEmpty()) {
+            return;
+        }
+        inRippleFrame(event, frame -> {
+            RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(frame.ripple().getColorTexture(),
+                    0, frame.ripple().getDepthTexture(), FARTHEST);
+            boolean drew = false;
+            for (SoftOutline outline : outlines) {
+                drew |= fillSoftMask(mc, frame, outline);
+            }
+            if (drew) {
+                paintThrough(GooRenderTypes.GOO_SOFT_OUTLINE, SOFT_PASS_LABEL, frame.main(), frame.ripple(), rgb);
+            }
+        });
+    }
+
+    /**
+     * Fills the red channel with one body at its strength.
+     *
+     * @param mc      the client
+     * @param frame   the frame's ripple state
+     * @param outline the body
+     * @return true where the body drew through a living renderer
+     */
+    private static boolean fillSoftMask(Minecraft mc, RippleFrame frame, SoftOutline outline) {
+        BodyPoseCapture body = captureBody(mc.getEntityRenderDispatcher(), outline.snapshot(), outline.position(),
+                frame.camera(), new PoseStack());
+        if (body == null || body.rootPose() == null) {
+            return false;
+        }
+        fillMasks(mc.renderBuffers().bufferSource(), body,
+                List.of(new Afterimages.Pulse(0f, Math.round(outline.strength() * FULL_MASK), 0f)));
+        return true;
+    }
+
+    /**
      * What one frame's ripples draw against.
      *
      * @param camera   the frame's camera
@@ -214,7 +282,8 @@ public final class AfterimageRenderer {
             Afterimages.Afterimage<EntityRenderState> afterimage, float gameTime, RenderTarget main,
             RenderTarget ripple) {
         List<Afterimages.Pulse> pulses = afterimage.pulses(gameTime);
-        BodyPoseCapture body = captureBody(mc.getEntityRenderDispatcher(), afterimage, camera, poseStack);
+        BodyPoseCapture body = captureBody(mc.getEntityRenderDispatcher(), afterimage.snapshot(),
+                afterimage.position(), camera, poseStack);
         if (pulses.isEmpty() || body == null || body.rootPose() == null) {
             return;
         }
@@ -224,25 +293,25 @@ public final class AfterimageRenderer {
     }
 
     /**
-     * Submits the echoed entity's frozen state through its own renderer at
-     * the ripple's point, keeping the body's pose.
+     * Submits an entity's state through its own renderer at a point,
+     * keeping the body's pose.
      *
      * @param dispatcher the entity render dispatcher
-     * @param afterimage the afterimage
+     * @param snapshot   the entity's render state
+     * @param position   the world point it stands at
      * @param camera     the frame's camera
      * @param poseStack  the level's pose stack
      * @return the capture, or null where the entity draws through no living renderer
      */
     private static @Nullable BodyPoseCapture captureBody(EntityRenderDispatcher dispatcher,
-            Afterimages.Afterimage<EntityRenderState> afterimage, CameraRenderState camera, PoseStack poseStack) {
-        EntityRenderState snapshot = afterimage.snapshot();
+            EntityRenderState snapshot, Vec3 position, CameraRenderState camera, PoseStack poseStack) {
         EntityRenderer<?, ?> renderer = dispatcher.getRenderer(snapshot);
         if (!(renderer instanceof LivingEntityRenderer<?, ?, ?> living)) {
             return null;
         }
         Model<?> model = living.getModel();
         BodyPoseCapture capture = new BodyPoseCapture(model);
-        Vec3 fromCamera = afterimage.position().subtract(camera.pos);
+        Vec3 fromCamera = position.subtract(camera.pos);
         dispatcher.submit(snapshot, camera, fromCamera.x, fromCamera.y, fromCamera.z, poseStack, capture);
         capture.poseBody();
         return capture;
@@ -280,12 +349,26 @@ public final class AfterimageRenderer {
      * @param rgb    the goo type's color
      */
     private static void paintPerimeter(RenderTarget main, RenderTarget ripple, int rgb) {
+        paintThrough(GooRenderTypes.GOO_RIPPLE_EDGE, PASS_LABEL, main, ripple, rgb);
+    }
+
+    /**
+     * Paints a fullscreen pass that reads the ripple buffer over the frame.
+     *
+     * @param pipeline the pass's pipeline
+     * @param label    the pass's label in GPU debuggers
+     * @param main     the main render target
+     * @param ripple   the ripple buffer holding the masks
+     * @param rgb      the color the pass paints in
+     */
+    private static void paintThrough(RenderPipeline pipeline, String label, RenderTarget main, RenderTarget ripple,
+            int rgb) {
         GpuBufferSlice tint = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(),
                 new Vector4f(ARGB.redFloat(rgb), ARGB.greenFloat(rgb), ARGB.blueFloat(rgb), 1f), new Vector3f(),
                 new Matrix4f());
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> PASS_LABEL, main.getColorTextureView(), OptionalInt.empty())) {
-            pass.setPipeline(GooRenderTypes.GOO_RIPPLE_EDGE);
+                .createRenderPass(() -> label, main.getColorTextureView(), OptionalInt.empty())) {
+            pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS_UNIFORM, tint);
             pass.bindTexture(MASK_SAMPLER, ripple.getColorTextureView(),
