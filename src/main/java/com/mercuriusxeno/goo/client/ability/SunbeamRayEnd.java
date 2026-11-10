@@ -1,8 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -65,6 +70,20 @@ final class SunbeamRayEnd {
         }
         BlockPos struck = BlockPos.containing(end.add(along.normalize().scale(INTO_THE_STRUCK)));
         return refractingPrismAt.test(struck) ? Vec3.atCenterOf(struck) : end;
+    }
+
+    /**
+     * Whether the ray ends in a prism: its hit is a block holding one, so its
+     * layers bloom out inside the prism rather than stop square.
+     * decision sunbeam-ray-blooms-out-inside-the-prism
+     *
+     * @param hit           what the ray's sight line struck, null where none was cast
+     * @param blockEntityAt the block entity at a position, null where none stands
+     * @return true for a ray ending in a prism
+     */
+    static boolean endsInPrism(@Nullable HitResult hit, Function<BlockPos, @Nullable BlockEntity> blockEntityAt) {
+        return hit instanceof BlockHitResult block && block.getType() == HitResult.Type.BLOCK
+                && blockEntityAt.apply(block.getBlockPos()) instanceof PrismBlockEntity;
     }
 
     /**
