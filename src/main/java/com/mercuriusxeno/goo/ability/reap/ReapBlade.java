@@ -38,10 +38,14 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     public static final double INNER_SHARE = 0.45;
     /** The farthest a blade stands to either side of the aim, in blocks. */
     static final double MAX_OFFSET = 1;
-    /** The farthest a blade stands above or below the aim, in blocks: a sliver, so the flurry fans sideways. */
-    static final double MAX_LIFT = 0.15;
-    /** The farthest a blade tilts from flat, in degrees, so it swings like a scythe. */
-    static final double MAX_TILT_DEGREES = 10;
+    /** How far below the aim a blade's middle stands, in blocks, so the whole blade swings under the eye line. */
+    static final double DROP = 0.9;
+    /** How far the drop varies either way, in blocks: a sliver, so the flurry fans sideways. */
+    static final double DROP_SPREAD = 0.05;
+    /** How far the blade's face tips up toward the eye from lying flat along the look, so its depth shows. */
+    static final double FACE_TIP = Math.toRadians(25);
+    /** The farthest a blade tilts from flat, in degrees, so it swings like a scythe and its far side stays under the eye line. */
+    static final double MAX_TILT_DEGREES = 5;
     /** The share of its full width and depth a blade starts at. */
     private static final double START_SHARE = 0.12;
     /** How far apart the samples across a blade lie, in blocks. */
@@ -125,9 +129,9 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
 
     /**
      * A blade swung from the slasher's eye along its look: its width tilted
-     * at random within ten degrees of flat, its middle standing at random
-     * within a block of the aim to the side and a sliver up or down, and
-     * starting on a random side.
+     * at random within five degrees of flat, its middle standing at random
+     * within a block of the aim to the side and just under it, so the whole
+     * blade swings below the eye line, and starting on a random side.
      *
      * @param eye    the slasher's eye
      * @param look   the slasher's unit look
@@ -138,7 +142,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     public static ReapBlade launch(Vec3 eye, Vec3 look, Shape shape, RandomSource random) {
         double tilt = Math.toRadians((random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TILT_DEGREES);
         double offset = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_OFFSET;
-        double lift = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_LIFT;
+        double lift = -DROP + (random.nextDouble() - HALF) * TIP_TO_TIP * DROP_SPREAD;
         int startSide = random.nextBoolean() ? ALONG_SIDE : AGAINST_SIDE;
         return new ReapBlade(eye, look, sideOf(look, tilt), offset, lift, startSide, shape);
     }
@@ -151,6 +155,17 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      */
     public Vec3 liftAxis() {
         return side.cross(forward).normalize();
+    }
+
+    /**
+     * The axis the blade's middle bows along: away from the slasher along the
+     * look, tipped up toward the eye, so the eye sees the crescent's depth
+     * rather than its edge.
+     *
+     * @return the unit depth axis
+     */
+    public Vec3 depthAxis() {
+        return forward.scale(Math.cos(FACE_TIP)).add(liftAxis().scale(Math.sin(FACE_TIP)));
     }
 
     /**
@@ -227,7 +242,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      */
     public Vec3 pointAt(double age, double across, double layer) {
         double bow = depthAt(age) * (1 - across * across) * layer;
-        return centreAt(age).add(side.scale(across * widthAt(age) * HALF)).add(forward.scale(bow));
+        return centreAt(age).add(side.scale(across * widthAt(age) * HALF)).add(depthAxis().scale(bow));
     }
 
     /**

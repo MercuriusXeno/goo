@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers Reap's blades: each flies along the slasher's look, centred on the
- * aim within a block to the side and a sliver up or down, lying within ten
+ * aim within a block to the side and just under it, wholly below the eye line, its face tipped to show its depth, lying within ten
  * degrees of flat; it forms ahead of the eye small, shallow and to one side,
  * grows its width and its depth at their own rates in view to a crescent
  * centred on its offset, drifting on all the while; it covers the cells
@@ -60,27 +60,53 @@ class ReapBladeTest {
         }
 
         @Test
-        void everyBladeStandsWithinABlockSidewaysAndASliverUpOrDown() {
+        void everyBladeStandsWithinABlockSidewaysAndJustUnderTheAim() {
             RandomSource random = RandomSource.create(7L);
             for (int i = 0; i < SAMPLES; i++) {
                 ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random);
                 assertTrue(Math.abs(blade.offset()) <= 1 + TOLERANCE, "offset " + blade.offset());
-                assertTrue(Math.abs(blade.lift()) <= 0.15 + TOLERANCE, "lift " + blade.lift());
+                assertTrue(blade.lift() >= -0.95 - TOLERANCE && blade.lift() <= -0.85 + TOLERANCE,
+                        "lift " + blade.lift());
             }
         }
 
         @Test
-        void bladesScatterWideSidewaysAndLittleUpAndDown() {
+        void bladesScatterWideSideways() {
             RandomSource random = RandomSource.create(9L);
-            double highest = 0;
             double widest = 0;
             for (int i = 0; i < SAMPLES; i++) {
-                ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random);
-                highest = Math.max(highest, Math.abs(blade.lift()));
-                widest = Math.max(widest, Math.abs(blade.offset()));
+                widest = Math.max(widest, Math.abs(ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random).offset()));
             }
             assertTrue(widest > 0.9, "offset " + widest);
-            assertTrue(highest > 0.1, "lift " + highest);
+        }
+
+        @Test
+        void everyBladeStandsWhollyBelowTheEyeLine() {
+            RandomSource random = RandomSource.create(13L);
+            ReapBlade.Shape deepest = new ReapBlade.Shape(0.75, 3, 2.5, 1.4, 6, 8, 3);
+            double highest = Double.NEGATIVE_INFINITY;
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, deepest, random);
+                for (int age = 0; age <= deepest.lifeTicks(); age++) {
+                    for (Vec3 point : blade.samplesAt(age)) {
+                        highest = Math.max(highest, point.y - EYE.y);
+                    }
+                }
+            }
+            assertTrue(highest < -0.15, "the highest point stands " + highest + " from the eye line");
+        }
+
+        @Test
+        void everyFullGrownBladeShowsItsDepthToTheEye() {
+            RandomSource random = RandomSource.create(15L);
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random);
+                double age = SHAPE.growTicks();
+                Vec3 toLead = blade.pointAt(age, 0, 1).subtract(EYE).normalize();
+                Vec3 toBack = blade.pointAt(age, 0, ReapBlade.INNER_SHARE).subtract(EYE).normalize();
+                double seen = Math.toDegrees(Math.acos(Math.clamp(toLead.dot(toBack), -1, 1)));
+                assertTrue(seen >= 3, "the shallowest full-grown blade seen " + seen + " degrees thick");
+            }
         }
 
         @Test
