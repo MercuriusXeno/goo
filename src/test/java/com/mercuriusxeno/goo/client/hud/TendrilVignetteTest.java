@@ -155,9 +155,9 @@ class TendrilVignetteTest {
     }
 
     /**
-     * Sculker's vignette grows a vein network in place of tendrils: thin
-     * veins forking into a web, rooted in uneven clumps with bare rim
-     * between, in a teal near the mist's (decisions
+     * Sculker's vignette grows a vein network in place of tendrils: lots of
+     * thin veins forking into a web, spread evenly around the rim, grown in
+     * as the vision starts and staying, in a teal near the mist's (decisions
      * sculker-tendrils-are-a-branching-vein-network,
      * sculker-veins-root-in-clusters-and-bare-gaps and
      * sculker-tendrils-blend-into-the-teal-haze).
@@ -165,9 +165,9 @@ class TendrilVignetteTest {
     @Nested
     class SculkerVeins {
 
-        private static final float CLUMP_SPAN = 0.06f;
-        private static final int CLUMP_ROOTS = 3;
-        private static final float BARE_OVER_MEAN = 3f;
+        private static final int MANY_VEINS = 48;
+        private static final float EVEN_OVER_MEAN = 2f;
+        private static final int SOON_AFTER_THE_START = 5;
 
         private static TendrilVignette veinedTo(int ticks) {
             TendrilVignette vignette = TendrilVignette.veined(SEED);
@@ -189,10 +189,9 @@ class TendrilVignetteTest {
         }
 
         @Test
-        void veinsRootInUnevenClumpsWithBareRimBetween() {
-            List<Float> gaps = new ArrayList<>();
-            boolean clumped = false;
+        void manyVeinsSpreadEvenlyAroundTheRim() {
             List<VeinNetwork.Vein> veins = veinedTo(SETTLED).veins();
+            List<Float> gaps = new ArrayList<>();
             for (int edge = 0; edge < 4; edge++) {
                 int onEdge = edge;
                 List<Float> roots = veins.stream().filter(vein -> vein.edge() == onEdge)
@@ -200,15 +199,22 @@ class TendrilVignetteTest {
                 for (int root = 1; root < roots.size(); root++) {
                     gaps.add(roots.get(root) - roots.get(root - 1));
                 }
-                for (int root = CLUMP_ROOTS - 1; root < roots.size(); root++) {
-                    clumped |= roots.get(root) - roots.get(root - CLUMP_ROOTS + 1) <= CLUMP_SPAN;
-                }
             }
             double mean = gaps.stream().mapToDouble(Float::doubleValue).average().orElse(0);
-            double widest = gaps.stream().mapToDouble(Float::doubleValue).max().orElse(0);
-            assertTrue(clumped, "some stretch of rim should hold " + CLUMP_ROOTS + " roots close together");
-            assertTrue(mean > 0 && widest >= BARE_OVER_MEAN * mean,
-                    "some stretch should stand bare, " + widest + " against a mean gap of " + mean);
+            double widest = gaps.stream().mapToDouble(Float::doubleValue).max().orElse(Double.MAX_VALUE);
+            assertTrue(veins.size() >= MANY_VEINS, "lots of veins should stand, " + veins.size() + " do");
+            assertTrue(widest <= EVEN_OVER_MEAN * mean,
+                    "no stretch of rim should stand bare, a gap of " + widest + " against a mean of " + mean);
+        }
+
+        @Test
+        void theVeinsGrownAtTheStartStayWhileTheVisionLasts() {
+            TendrilVignette vignette = veinedTo(SOON_AFTER_THE_START);
+            List<VeinNetwork.Vein> soon = List.copyOf(vignette.veins());
+            for (int tick = SOON_AFTER_THE_START + 1; tick <= SAMPLES_UNTIL; tick++) {
+                vignette.advance(tick);
+            }
+            assertEquals(soon, vignette.veins(), "the veins should stay where they grew");
         }
 
         @Test
