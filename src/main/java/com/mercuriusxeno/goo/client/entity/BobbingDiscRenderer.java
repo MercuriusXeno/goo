@@ -20,11 +20,14 @@ import net.minecraft.world.entity.Entity;
  * Draws a pseudo-item entity as a camera-facing textured disc, bobbing and
  * spinning like a dropped item and lit some levels above its surroundings,
  * so it reads round from every side: the compression sphere a black hole
- * leaves, and the feed Jelly's Feed lays.
+ * leaves, and the feed Jelly's Feed lays. Each entity names its own texture,
+ * so one renderer draws a compression sphere's maroon or green core.
+ * large-blast-gathers-its-mined-drops-into-a-green-cored-sphere
  *
  * @param <T> the entity drawn
  */
-public class BobbingDiscRenderer<T extends Entity> extends EntityRenderer<T, EntityRenderState> {
+public abstract class BobbingDiscRenderer<T extends Entity>
+        extends EntityRenderer<T, BobbingDiscRenderer.DiscRenderState> {
 
     private static final float HALF = 0.5f;
     private static final float LIFT = 0.15f;
@@ -36,20 +39,24 @@ public class BobbingDiscRenderer<T extends Entity> extends EntityRenderer<T, Ent
     /** The shadow spans this share of the disc's width. */
     private static final float SHADOW_SHARE = 0.4f;
 
-    private final RenderType renderType;
     private final float size;
     private final int glowLevels;
 
     /**
+     * The disc's render state: the entity's own, and the draw its texture takes.
+     */
+    public static final class DiscRenderState extends EntityRenderState {
+        /** The translucent draw on the texture the entity names. */
+        RenderType renderType;
+    }
+
+    /**
      * @param context    the renderer context
-     * @param texture    the disc's texture
      * @param size       the disc's width in blocks
      * @param glowLevels the light levels the disc stands lit above its surroundings
      */
-    protected BobbingDiscRenderer(EntityRendererProvider.Context context, Identifier texture, float size,
-                                  int glowLevels) {
+    protected BobbingDiscRenderer(EntityRendererProvider.Context context, float size, int glowLevels) {
         super(context);
-        this.renderType = GooSubmitter.translucentOn(texture);
         this.size = size;
         this.glowLevels = glowLevels;
         this.shadowRadius = size * SHADOW_SHARE;
@@ -60,13 +67,27 @@ public class BobbingDiscRenderer<T extends Entity> extends EntityRenderer<T, Ent
         return Mth.clamp(super.getBlockLightLevel(entity, blockPos) + glowLevels, 0, MAX_LIGHT);
     }
 
+    /**
+     * The texture the disc draws for this entity.
+     *
+     * @param entity the entity drawn
+     * @return its texture
+     */
+    protected abstract Identifier textureOf(T entity);
+
     @Override
-    public EntityRenderState createRenderState() {
-        return new EntityRenderState();
+    public DiscRenderState createRenderState() {
+        return new DiscRenderState();
     }
 
     @Override
-    public void submit(EntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
+    public void extractRenderState(T entity, DiscRenderState state, float partialTick) {
+        super.extractRenderState(entity, state, partialTick);
+        state.renderType = GooSubmitter.translucentOn(textureOf(entity));
+    }
+
+    @Override
+    public void submit(DiscRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                        CameraRenderState camera) {
         poseStack.pushPose();
         poseStack.translate(0, LIFT + Mth.sin(state.ageInTicks * BOB_RATE) * BOB_HEIGHT, 0);
@@ -74,7 +95,7 @@ public class BobbingDiscRenderer<T extends Entity> extends EntityRenderer<T, Ent
         poseStack.mulPose(Axis.ZP.rotationDegrees(state.ageInTicks * SPIN_DEGREES_PER_TICK));
         poseStack.scale(size, size, size);
         int light = state.lightCoords;
-        collector.submitCustomGeometry(poseStack, renderType, (pose, buffer) -> {
+        collector.submitCustomGeometry(poseStack, state.renderType, (pose, buffer) -> {
             vertex(buffer, pose, -HALF, -HALF, 0, 1, light);
             vertex(buffer, pose, HALF, -HALF, 1, 1, light);
             vertex(buffer, pose, HALF, HALF, 1, 0, light);
