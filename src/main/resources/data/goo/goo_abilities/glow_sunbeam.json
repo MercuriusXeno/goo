@@ -20,7 +20,6 @@
         { "type": "ailment_overlay", "kind": "glow", "duration": 200 }
       ],
       "impact": [
-        { "type": "particles", "id": "minecraft:end_rod", "count": "1 + at_least(held - 2 * floor(held / 2), 1)", "spread": 0.15, "speed": 0.12 },
         {
           "type": "branch",
           "when": "at_least(held - 3 * floor(held / 3), 2)",
