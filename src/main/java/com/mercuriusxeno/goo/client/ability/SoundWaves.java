@@ -4,7 +4,12 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ShriekParticleOption;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -12,27 +17,27 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Deep Click's sound wave: a ring of sculk motes leaving the glove and
- * travelling the straight line to the landing over the server's delay, so
- * it arrives on the tick the click sounds there, then widening and thinning
- * out at the landing while it fades
- * (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
+ * Deep Click's sound wave, as the operator ruled it: the sculk shrieker's
+ * shriek travelling the straight line from the glove to the landing over
+ * the server's delay, arriving on the tick the click sounds there, with the
+ * click itself trailing it in a fading reverb all the way to the target,
+ * quietly (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SoundWaves {
 
-    /** The ring's radius as it travels, in blocks. */
-    static final double RING_RADIUS = 0.35;
-    /** How far the ring widens past its radius while it fades at the landing, in blocks. */
-    static final double FADE_WIDENING = 0.9;
-    /** The motes around the ring as it travels. */
-    static final int RING_MOTES = 10;
-    private static final double TURN = Math.PI * 2;
-    private static final double MOSTLY_VERTICAL = 0.99;
-    private static final Vec3 UP = new Vec3(0, 1, 0);
-    private static final Vec3 EAST = new Vec3(1, 0, 0);
+    /** Ticks between one echo of the trailing click and the next. */
+    static final int REVERB_EVERY = 2;
+    /** The trailing click's volume as it leaves the glove, already quiet. */
+    static final float REVERB_LOUDEST = 0.3f;
+    /** The trailing click's volume as it reaches the target, barely there. */
+    static final float REVERB_QUIETEST = 0.05f;
+    /** The trailing click's pitch, falling a little as it travels, as an echo does. */
+    static final float REVERB_PITCH = 1.2f;
+    static final float REVERB_PITCH_FALL = 0.25f;
 
     private static final List<Travelling> TRAVELLING = new ArrayList<>();
 
@@ -59,7 +64,8 @@ public final class SoundWaves {
     }
 
     /**
-     * Draws each travelling wave's ring this tick and lets the faded ones go.
+     * Shrieks each travelling wave at the point it has reached this tick,
+     * trails its click there, and lets the arrived ones go.
      *
      * @param event the client tick event
      */
@@ -74,39 +80,34 @@ public final class SoundWaves {
             return;
         }
         long now = level.getGameTime();
-        TRAVELLING.removeIf(travelling -> now - travelling.start() > travelling.wave().ticks() + travelling.wave().fade());
+        TRAVELLING.removeIf(travelling -> now - travelling.start() > travelling.wave().ticks());
         for (Travelling travelling : TRAVELLING) {
-            drawRing(level, travelling.wave(), now - travelling.start());
+            travel(level, travelling.wave(), now - travelling.start());
         }
     }
 
-    private static void drawRing(ClientLevel level, ScanWavePayload wave, long age) {
-        Vec3 direction = wave.to().subtract(wave.from());
-        if (direction.lengthSqr() == 0) {
-            return;
-        }
-        Vec3 along = direction.normalize();
-        Vec3 across = along.cross(Math.abs(along.y) < MOSTLY_VERTICAL ? UP : EAST).normalize();
-        Vec3 around = along.cross(across);
-        Vec3 center = ScanWaveProgress.at(wave.from(), wave.to(), wave.ticks(), age);
-        double radius = RING_RADIUS + FADE_WIDENING * fadeShare(wave, age);
-        int motes = Math.max(1, (int) Math.round(RING_MOTES * (1 - fadeShare(wave, age))));
-        for (int mote = 0; mote < motes; mote++) {
-            double angle = TURN * mote / motes;
-            Vec3 at = center.add(across.scale(Math.cos(angle) * radius)).add(around.scale(Math.sin(angle) * radius));
-            level.addParticle(ParticleTypes.SCULK_CHARGE_POP, at.x, at.y, at.z, 0, 0, 0);
+    private static void travel(ClientLevel level, ScanWavePayload wave, long age) {
+        Vec3 at = ScanWaveProgress.at(wave.from(), wave.to(), wave.ticks(), age);
+        level.addParticle(new ShriekParticleOption(0), at.x, at.y, at.z, 0, 0, 0);
+        if (age % REVERB_EVERY == 0) {
+            float share = wave.ticks() <= 0 ? 1f : Math.min(1f, (float) age / wave.ticks());
+            wave.trail().flatMap(SoundWaves::soundOf).ifPresent(sound -> level.playLocalSound(at.x, at.y, at.z,
+                    sound, SoundSource.BLOCKS, reverbVolume(share), REVERB_PITCH - REVERB_PITCH_FALL * share, false));
         }
     }
 
     /**
-     * How far a wave has faded at its landing.
+     * How loud the trailing click echoes at a share of the way to the target:
+     * quiet as it leaves, fading to barely there as it arrives.
      *
-     * @param wave the wave
-     * @param age  the ticks since it left the glove
-     * @return 0 while it travels, rising to 1 as its fade runs out
+     * @param share how far along the line the wave stands, 0 to 1
+     * @return the echo's volume
      */
-    static double fadeShare(ScanWavePayload wave, long age) {
-        long faded = age - wave.ticks();
-        return faded <= 0 || wave.fade() <= 0 ? 0 : Math.min(1.0, (double) faded / wave.fade());
+    static float reverbVolume(float share) {
+        return REVERB_LOUDEST + (REVERB_QUIETEST - REVERB_LOUDEST) * share;
+    }
+
+    private static Optional<SoundEvent> soundOf(Identifier id) {
+        return BuiltInRegistries.SOUND_EVENT.get(id).map(Holder::value);
     }
 }

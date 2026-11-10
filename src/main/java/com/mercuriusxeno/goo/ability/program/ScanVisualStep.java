@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.Identifier;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -14,26 +15,24 @@ import java.util.stream.Stream;
  * reads it at the throw and has every watching client draw the visual from
  * the glove to the landing over the wave's delay, so the step itself does
  * nothing when the landing runs the program: the visual has played by then.
- * Deep's Click is {@code scan_visual visual=sound_wave fade=8}
+ * Deep's Click is {@code scan_visual visual=sound_wave trail=minecraft:block.comparator.click}
  * (decisions click-is-a-hit-scan-drawn-as-a-delayed-wave, ability-json-names-its-choreography).
  *
  * @param visual the visual's name, which a client renderer registers under
- * @param fade   the ticks the visual fades over at the landing
+ * @param trail  the sound the wave trails in a fading reverb on its way to the landing, empty for none
  */
-public record ScanVisualStep(String visual, int fade) implements TakesNoEntity {
+public record ScanVisualStep(String visual, Optional<Identifier> trail) implements TakesNoEntity {
 
     private static final String NAME = "scan_visual";
     private static final String FIELD_VISUAL = "visual";
-    private static final String FIELD_FADE = "fade";
-    /** The ticks a visual naming no fade fades over. */
-    static final int DEFAULT_FADE = 8;
+    private static final String FIELD_TRAIL = "trail";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<ScanVisualStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.STRING.fieldOf(FIELD_VISUAL).forGetter(ScanVisualStep::visual),
-            Codec.INT.optionalFieldOf(FIELD_FADE, DEFAULT_FADE).forGetter(ScanVisualStep::fade)
+            Identifier.CODEC.optionalFieldOf(FIELD_TRAIL).forGetter(ScanVisualStep::trail)
     ).apply(inst, ScanVisualStep::new));
 
     /**

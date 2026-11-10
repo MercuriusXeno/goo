@@ -90,7 +90,7 @@ public final class GooScanHandler {
      */
     static ScanWavePayload drawnWave(Vec3 hand, List<ScanWaves.Wave> sent, int now, ScanVisualStep visual) {
         ScanWaves.Wave last = sent.getLast();
-        return new ScanWavePayload(hand, last.landing(), last.arrivalTick() - now, visual.visual(), visual.fade());
+        return new ScanWavePayload(hand, last.landing(), last.arrivalTick() - now, visual.visual(), visual.trail());
     }
 
     /**
