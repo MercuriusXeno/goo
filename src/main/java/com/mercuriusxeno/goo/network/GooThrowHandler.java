@@ -273,7 +273,7 @@ public final class GooThrowHandler {
 
     /**
      * Sends a named ability by its delivery: a self ability to the player, a
-     * touch on an entity within reach, a flight otherwise.
+     * scan along the look, a touch on an entity within reach, a flight otherwise.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -284,6 +284,9 @@ public final class GooThrowHandler {
             AbilityDefinition ability) {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
             GooSelfHandler.deliver(player, gooType, ability);
+        } else if (ability.delivery().kind() == DeliveryKind.SCAN) {
+            // click-is-a-hit-scan-drawn-as-a-delayed-wave
+            GooScanHandler.scan(player, gooType, ability);
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.delivery().rolls()) {

@@ -63,7 +63,15 @@ public enum HostKind {
      * it, acted on in the tick the submit lands, with no driver for later
      * ticks (decision spire-grows-stone-out-of-the-top).
      */
-    FOOTPRINT("raised footprint", FootprintHost.class, Set.of());
+    FOOTPRINT("raised footprint", FootprintHost.class, Set.of()),
+    /**
+     * The point a scan's wave reaches: the world around it, a vibration
+     * carrying no source entity, a sound and particles there, acted on in the
+     * tick the wave arrives, with no target and no driver for later ticks
+     * (decisions click-is-a-hit-scan-drawn-as-a-delayed-wave,
+     * click-vibration-carries-no-source-entity).
+     */
+    WAVE("scan wave", WaveHost.class, Set.of());
 
     private final String label;
     private final Class<? extends StepHost> hostType;
