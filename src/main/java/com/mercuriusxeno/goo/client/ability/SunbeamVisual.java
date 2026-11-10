@@ -45,7 +45,7 @@ import java.util.Objects;
  * light ({@link GlowCore}).
  * decision sunbeam-splits-at-the-prism-with-a-glisten
  * decision diagnose-and-correct-the-sunbeam-prism-depth
- * decision sunbeam-ray-blooms-out-inside-the-prism
+ * decision reflector-rail-blooms-out-inside-the-prism
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SunbeamVisual {
@@ -262,7 +262,7 @@ public final class SunbeamVisual {
      * Draws one caster's ray: from the caster to where it ends, blooming out
      * there when it ends in a prism, and on to each mob a prism refracted it
      * toward, those stretches ending flat at the mob.
-     * decision sunbeam-ray-blooms-out-inside-the-prism
+     * decision reflector-rail-blooms-out-inside-the-prism
      *
      * @param poseStack the pose stack
      * @param consumer  the vertex consumer
@@ -284,7 +284,7 @@ public final class SunbeamVisual {
      * Draws one straight stretch of the beam between two camera-relative
      * points, each layer fading out past the end of a stretch ending in a
      * prism and stopping flat at the end of any other.
-     * decision sunbeam-ray-blooms-out-inside-the-prism
+     * decision reflector-rail-blooms-out-inside-the-prism
      *
      * @param poseStack   the pose stack
      * @param consumer    the vertex consumer

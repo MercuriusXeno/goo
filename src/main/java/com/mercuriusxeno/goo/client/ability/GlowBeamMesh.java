@@ -25,9 +25,9 @@ public final class GlowBeamMesh {
      * (operator ruling 2026-10-09), then made smaller with the layers drawn
      * tighter together (operator ruling 2026-11-08). Each fades out past a
      * prism-bound end by a depth, the core deepest, every depth under half a
-     * block so the bloom stays inside the prism's block whether the ray stops
-     * on its face or runs into its middle.
-     * decision sunbeam-ray-blooms-out-inside-the-prism
+     * block so the bloom stays inside the prism's block whether the beam stops
+     * on its face or runs into its middle, as a reflector rail does.
+     * decision reflector-rail-blooms-out-inside-the-prism
      */
     public static final List<Layer> LAYERS = List.of(
             new Layer(0.035f, ARGB.color(120, 0xFFF6C8), 0.45f),
@@ -61,7 +61,7 @@ public final class GlowBeamMesh {
      * Emits one layer that blooms out at its end: the tube to its length,
      * then a tail on past it by a depth, fading from the layer's alpha at the
      * length to nothing at the tail's far ring.
-     * decision sunbeam-ray-blooms-out-inside-the-prism
+     * decision reflector-rail-blooms-out-inside-the-prism
      *
      * @param pose   the pose, its +y along the beam
      * @param buffer the vertex consumer
@@ -76,6 +76,26 @@ public final class GlowBeamMesh {
         Ring end = ring(length, color, scroll);
         emitFaces(pose, buffer, radius, ring(0f, color, scroll), end);
         emitFaces(pose, buffer, radius, end, ring(length + depth, ARGB.color(0, color), scroll));
+    }
+
+    /**
+     * Emits one layer that blooms out at both ends: a tail fading back past
+     * its origin by a depth, the tube to its length, and a tail fading on past
+     * the length by the same depth, each tail from the layer's alpha to nothing.
+     * decision reflector-rail-blooms-out-inside-the-prism
+     *
+     * @param pose   the pose, its +y along the beam
+     * @param buffer the vertex consumer
+     * @param radius the tube's half-width in blocks
+     * @param color  the layer's packed ARGB color
+     * @param scroll the texture's scroll offset in [0, 1)
+     * @param length how far the tube reaches at full alpha, in blocks
+     * @param depth  how far past each end the tail fades out, in blocks
+     */
+    public static void emitLayerFadingAtBothEnds(PoseStack.Pose pose, VertexConsumer buffer, float radius,
+                                                 int color, float scroll, float length, float depth) {
+        emitFaces(pose, buffer, radius, ring(-depth, ARGB.color(0, color), scroll), ring(0f, color, scroll));
+        emitFadingLayer(pose, buffer, radius, color, scroll, length, depth);
     }
 
     private static Ring ring(float y, int color, float scroll) {
