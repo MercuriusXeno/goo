@@ -26,8 +26,11 @@ public final class GooAmountGrid implements ClientTooltipComponent {
     static final ExpressionLines.Run CLOSE = new ExpressionLines.Run(ExpressionLines.Kind.FLUSH_SYMBOL, ")", null);
     /** The grid a value draws no amount for: a plain number, a blank value or a failed evaluation. */
     static final GooAmountGrid NONE = new GooAmountGrid(new TooltipLine.GooAmounts(List.of()));
-    /** The room between one column's widest cell and the next column's icons. */
-    static final int COLUMN_GAP = 4;
+    /**
+     * The room between one column's widest cell and the next column's icons, which an in-world HUD's grid keeps too.
+     * decision one-class-lays-every-huds-goo-values
+     */
+    public static final int COLUMN_GAP = 4;
     private static final int ICON_GAP = 2;
     private static final int LINE_GAP = 2;
     private static final String NO_TYPE = "";
