@@ -20,16 +20,16 @@ import java.util.stream.Stream;
 /**
  * Reap's step, run on the player each tick of the held channel, slashing as
  * the Crissaegrim does in Symphony of the Night, its frames read: on the
- * hold's first tick, and then a random few ticks after each slash, a huge
- * thick leaf crescent appears out ahead along the look, hollow toward the
- * slasher and bulging away, rolled at random about the look and set off the
- * line of sight so its face shows, sized at random with its width and
- * thickness together; it appears whole and bright and dims as it drifts a
+ * hold's first tick, and then a random few ticks after each slash, a thick
+ * leaf crescent appears out ahead along the look, lying nearly flat under the
+ * line of sight so its face shows and it stays below the eye line, hollow
+ * toward the slasher and bulging away, sized at random with its width,
+ * thickness and bulge together; it appears whole and bright and dims as it drifts a
  * little outward, with one swish; and every ripe plant inside the box it cuts
  * is reaped and replanted and every living body there but the slasher cut
  * once. Leaf Reap is {@code slash fewest_ticks=2 most_ticks=3 near=1
- * narrowest=2.5 widest=3.5 thinnest=0.6 thickest=1.0 bulge=2 offset=0.8
- * drift=0.4 life_ticks=4 damage=0.5}.
+ * narrowest=1.5 widest=4.5 thinnest=0.5 thickest=1.5 bulge=0.55
+ * drop_least=0.6 drop_most=1.0 tilt=10 drift=0.4 life_ticks=4 damage=0.5}.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
  * @param fewestTicks the fewest held ticks from one slash to the next
@@ -39,15 +39,17 @@ import java.util.stream.Stream;
  * @param widest      the largest slash's width, in blocks
  * @param thinnest    the smallest slash's thickness, in blocks
  * @param thickest    the largest slash's thickness, in blocks
- * @param bulge       how far its middle bows out beyond its tips, in blocks
- * @param offset      how far its plane stands off the line of sight, in blocks
+ * @param bulge       how far its middle bows out beyond its tips, as a share of its width
+ * @param dropLeast   the least its plane stands under the line of sight, in blocks
+ * @param dropMost    the most its plane stands under the line of sight, in blocks
+ * @param tilt        the farthest it tilts from flat either way, in degrees
  * @param drift       how far it drifts outward over its life, in blocks
  * @param lifeTicks   the ticks from a slash appearing to its dimming away
  * @param damage      what each slash's cut deals
  */
 public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr near, Expr narrowest, Expr widest, Expr thinnest,
-                        Expr thickest, Expr bulge, Expr offset, Expr drift, Expr lifeTicks, Expr damage)
-        implements Step {
+                        Expr thickest, Expr bulge, Expr dropLeast, Expr dropMost, Expr tilt, Expr drift,
+                        Expr lifeTicks, Expr damage) implements Step {
 
     private static final String NAME = "slash";
     private static final float SWING_VOLUME = 0.4f;
@@ -65,7 +67,9 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr near, Expr narrow
             Expr.CODEC.fieldOf("thinnest").forGetter(SlashStep::thinnest),
             Expr.CODEC.fieldOf("thickest").forGetter(SlashStep::thickest),
             Expr.CODEC.fieldOf("bulge").forGetter(SlashStep::bulge),
-            Expr.CODEC.fieldOf("offset").forGetter(SlashStep::offset),
+            Expr.CODEC.fieldOf("drop_least").forGetter(SlashStep::dropLeast),
+            Expr.CODEC.fieldOf("drop_most").forGetter(SlashStep::dropMost),
+            Expr.CODEC.fieldOf("tilt").forGetter(SlashStep::tilt),
             Expr.CODEC.fieldOf("drift").forGetter(SlashStep::drift),
             Expr.CODEC.fieldOf("life_ticks").forGetter(SlashStep::lifeTicks),
             Expr.CODEC.fieldOf("damage").forGetter(SlashStep::damage)
@@ -100,7 +104,8 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr near, Expr narrow
     private ReapSlash.Shape shapeOf(StepContext context) {
         return new ReapSlash.Shape(near.evaluate(context), narrowest.evaluate(context), widest.evaluate(context),
                 thinnest.evaluate(context), thickest.evaluate(context), bulge.evaluate(context),
-                offset.evaluate(context), drift.evaluate(context), Math.max(1, lifeTicks.evaluateInt(context)));
+                dropLeast.evaluate(context), dropMost.evaluate(context), Math.toRadians(tilt.evaluate(context)),
+                drift.evaluate(context), Math.max(1, lifeTicks.evaluateInt(context)));
     }
 
     /**
@@ -123,8 +128,8 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr near, Expr narrow
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(fewestTicks, mostTicks, near, narrowest, widest, thinnest, thickest, bulge, offset, drift,
-                lifeTicks, damage);
+        return Stream.of(fewestTicks, mostTicks, near, narrowest, widest, thinnest, thickest, bulge, dropLeast,
+                dropMost, tilt, drift, lifeTicks, damage);
     }
 
     @Override
