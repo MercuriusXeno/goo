@@ -209,6 +209,37 @@ class TouchedUpAbilityIconsTest {
         }
     }
 
+    @Nested
+    class GoopIcon {
+
+        // goop-icon-is-a-block-with-slime-on-it
+        private static final Set<Integer> FORMER_SLIME = Set.of(0x2f6b24, 0xc9fece, 0x51a03e, 0x8cd782);
+        private static final int BLOCK_ROWS = 4;
+        private static final int LEAST_BLOCK_WIDTH = 8;
+
+        @Test
+        void keepsTheFormerSlime() throws IOException {
+            assertTrue(opaqueColors(read("weird_coat")).containsAll(FORMER_SLIME),
+                    "the Goop icon should keep the former slime's four colors");
+        }
+
+        @Test
+        void standsOnAStraightSidedBlock() throws IOException {
+            BufferedImage icon = read("weird_coat");
+            int bottom = lastOpaqueRow(icon);
+            List<int[]> base = opaqueRuns(icon, bottom);
+            int left = base.get(0)[0];
+            int right = base.get(base.size() - 1)[1];
+            assertTrue(right - left + 1 >= LEAST_BLOCK_WIDTH, "the block's base is too narrow");
+            for (int y = bottom - BLOCK_ROWS + 1; y <= bottom; y++) {
+                List<int[]> runs = opaqueRuns(icon, y);
+                assertEquals(1, runs.size(), "block row " + y + " should be one solid run");
+                assertEquals(left, runs.get(0)[0], "block row " + y + " should share the block's left edge");
+                assertEquals(right, runs.get(0)[1], "block row " + y + " should share the block's right edge");
+            }
+        }
+    }
+
     private static Set<Integer> opaqueColors(BufferedImage icon) {
         Set<Integer> colors = new HashSet<>();
         for (int y = 0; y < icon.getHeight(); y++) {
