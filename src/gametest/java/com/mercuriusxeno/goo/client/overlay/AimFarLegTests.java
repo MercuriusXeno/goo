@@ -38,12 +38,17 @@ public final class AimFarLegTests {
     private static final String GRAB_AIM_OUTLINES_THE_MOB_THROUGH_A_PORTAL =
             "grab_aim_outlines_the_mob_through_a_portal";
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
+    /**
+     * Where the aiming player stands for the far leg: fourteen blocks west of the bay, so the leg and its pig
+     * stand inside the bay's own barriers, where a neighbouring test's barriers never cut the pig from sight.
+     */
+    private static final Vec3 STAND_FAR = new Vec3(-13.5, 1, 2.5);
     /** Where the far leg starts, out of a partner standing well clear of the player. */
-    private static final Vec3 LEG_FROM = new Vec3(14.5, 1.5, 2.5);
+    private static final Vec3 LEG_FROM = new Vec3(0.5, 1.5, 2.5);
     /** Where the far leg ends, the reach it has left run on east. */
-    private static final Vec3 LEG_TO = new Vec3(22.5, 1.5, 2.5);
+    private static final Vec3 LEG_TO = new Vec3(5.5, 1.5, 2.5);
     /** The pig on the far leg, past the player's own surroundings. */
-    private static final BlockPos PIG_POS = new BlockPos(18, 1, 2);
+    private static final BlockPos PIG_POS = new BlockPos(3, 1, 2);
     private static final Identifier KINETIC_GRAB = Identifier.parse("goo:kinetic_grab");
 
     private AimFarLegTests() {
@@ -62,8 +67,8 @@ public final class AimFarLegTests {
     }
 
     /**
-     * A far leg running out of a partner fourteen blocks off picks the pig
-     * standing on it for Grab.
+     * A far leg running out of a partner fourteen blocks from the aiming
+     * player picks the pig standing on it for Grab.
      *
      * @param helper the gametest helper
      */
@@ -72,7 +77,7 @@ public final class AimFarLegTests {
         AbilityDefinition grab = AbilityRegistry.of(helper.getLevel()).getAbility(KINETIC_GRAB);
         helper.assertTrue(grab != null, "Ability registry must hold kinetic_grab");
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
+        Vec3 stand = helper.absoluteVec(STAND_FAR);
         player.setPos(stand.x, stand.y, stand.z);
         Pig pig = helper.spawn(EntityType.PIG, PIG_POS);
         AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(player, helper.absoluteVec(LEG_FROM),
