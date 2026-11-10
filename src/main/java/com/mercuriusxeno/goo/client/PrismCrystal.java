@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
@@ -58,6 +59,8 @@ public final class PrismCrystal {
     private static final int TOP_RIM = 2;
     private static final int TOP_CENTER = 3;
     private static final int RINGS = 4;
+    /** How near the base height, in model pixels, a corner counts as on the landing face. */
+    private static final double ON_THE_FACE = 1e-6;
 
     private PrismCrystal() {
     }
@@ -88,10 +91,28 @@ public final class PrismCrystal {
      */
     public static void submitColumn(PoseStack poseStack, SubmitNodeCollector nodeCollector, ColumnSides sides,
                                     double foldShare, CrystalClusterSubmitter.Look look, int light) {
+        submitColumn(poseStack, nodeCollector, GooSubmitter.renderType(), sides, foldShare, look, light);
+    }
+
+    /**
+     * Draws the column with its resting sides through a render type.
+     *
+     * @param poseStack     the pose, turned to stand on the landing face
+     * @param nodeCollector the submit collector
+     * @param renderType    the render type the column draws through, on the block atlas
+     * @param sides         the column's resting sides
+     * @param foldShare     how far a four-sided column has folded from six sides, 0 to 1
+     * @param look          the column's look
+     * @param light         the packed light
+     */
+    public static void submitColumn(PoseStack poseStack, SubmitNodeCollector nodeCollector, RenderType renderType,
+                                    ColumnSides sides, double foldShare, CrystalClusterSubmitter.Look look,
+                                    int light) {
         if (sides == ColumnSides.SIX) {
-            CrystalClusterSubmitter.submit(poseStack, nodeCollector, PRISMS, look, light);
+            CrystalClusterSubmitter.submit(poseStack, nodeCollector, renderType, PRISMS, look, light);
         } else {
-            CrystalClusterSubmitter.submitFaces(poseStack, nodeCollector, foldFaces(foldShare), look, light);
+            CrystalClusterSubmitter.submitFaces(poseStack, nodeCollector, renderType, foldFaces(foldShare), look,
+                    light);
         }
     }
 
@@ -205,7 +226,10 @@ public final class PrismCrystal {
 
     /**
      * The quads between each of four rings and the next: base centre, bottom
-     * rim, top rim and top centre, each a point per slice.
+     * rim, top rim and top centre, each a point per slice. A quad lying on the
+     * face the column stands on is left out, as the six-sided column carries
+     * no base: drawn there it fights the block's own face for depth and flickers.
+     * decision diagnose-and-correct-the-sunbeam-prism-depth
      *
      * @param rings the morph's rings, each a point per slice and the first repeated last
      * @return the quads between each ring and the next, wound outward
@@ -219,11 +243,30 @@ public final class PrismCrystal {
                 Vec3 upperRight = rings[band + 1][slice + 1];
                 Vec3 upperLeft = rings[band + 1][slice];
                 // The base band starts on its upper edge, so the center's repeat falls last and the normal holds.
-                faces.add(band == BASE_CENTER ? new Vec3[] {upperRight, upperLeft, lowerLeft, lowerRight}
-                        : new Vec3[] {lowerLeft, lowerRight, upperRight, upperLeft});
+                Vec3[] face = band == BASE_CENTER ? new Vec3[] {upperRight, upperLeft, lowerLeft, lowerRight}
+                        : new Vec3[] {lowerLeft, lowerRight, upperRight, upperLeft};
+                if (!liesOnTheLandingFace(face)) {
+                    faces.add(face);
+                }
             }
         }
         return faces;
+    }
+
+    /**
+     * Whether a quad lies on the face the column stands on: every corner at
+     * the base point's height.
+     *
+     * @param face the quad's corners, in model pixels
+     * @return true when it lies flat on the landing face
+     */
+    static boolean liesOnTheLandingFace(Vec3[] face) {
+        for (Vec3 corner : face) {
+            if (Math.abs(corner.y - PrismColumn.BASE_Y) > ON_THE_FACE) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

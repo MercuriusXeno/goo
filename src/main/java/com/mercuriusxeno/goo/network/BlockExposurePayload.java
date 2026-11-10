@@ -23,6 +23,14 @@ public record BlockExposurePayload(BlockPos pos, int toward, float share, int ti
     /** The tint of a mingled block drawn in its own colors. */
     public static final int UNTINTED = -1;
 
+    /**
+     * The mark of a block melting away: the client draws nothing while it
+     * heats, and on its step eats the old block away through the noise over
+     * what it melted into, as Blaze Melt eats stone into lava.
+     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     */
+    public static final int MELTS_AWAY = -2;
+
     /** Payload type ID for registration. */
     public static final Type<BlockExposurePayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "block_exposure"));

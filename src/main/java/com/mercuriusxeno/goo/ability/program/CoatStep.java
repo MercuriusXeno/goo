@@ -129,7 +129,7 @@ public record CoatStep(int ticks, int layers) implements TakesNoEntity {
             }
             // the coat mingles in wearing its own green
             PaintedHold.buildPaintedStates(host, CoatStep::coatOver, CoatStep::sameLayers, marks, 1f / ticks,
-                    OptionalInt.empty(), (pos, raw) -> { });
+                    raw -> OptionalInt.empty(), (pos, raw, into) -> host.transformBlock(pos, into));
         });
         return true;
     }

@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
-import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
@@ -175,7 +174,43 @@ final class PaintedHold {
     }
 
     /**
-     * Builds every painted block one tick toward the block it becomes.
+     * The step a painted block takes once full, whether the hold fills it or
+     * it finishes alone (decision blocks-that-cook-into-items-cook-like-blocks).
+     */
+    @FunctionalInterface
+    interface CellFinish {
+
+        /**
+         * Steps one block.
+         *
+         * @param pos  the block
+         * @param raw  the block painted there
+         * @param into the block it becomes
+         */
+        void finish(BlockPos pos, Block raw, Block into);
+    }
+
+    /**
+     * The step a painted cell takes once full, for a step whose next state
+     * follows the painted state rather than its block alone.
+     * slime-is-a-layered-cell-that-levels-out
+     */
+    @FunctionalInterface
+    interface StateFinish {
+
+        /**
+         * Steps one cell.
+         *
+         * @param pos  the cell
+         * @param raw  the state painted there
+         * @param into the state it becomes
+         */
+        void finish(BlockPos pos, BlockState raw, BlockState into);
+    }
+
+    /**
+     * Builds every painted block one tick toward the block it becomes, which
+     * it turns into once full.
      *
      * @param host  the channel host
      * @param next  the block a block becomes, empty where it becomes none
@@ -185,26 +220,45 @@ final class PaintedHold {
      */
     static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
                              OptionalInt tint) {
-        buildPainted(host, next, marks, rate, tint, (pos, raw) -> { });
+        buildPainted(host, next, marks, rate, tint,
+                (pos, raw, into) -> host.transformBlock(pos, into.defaultBlockState()));
     }
 
     /**
      * Builds every painted block one tick toward the block it becomes,
-     * telling the caller each block the hold steps. A block stepping to air
-     * is never left to finish alone, since only the hold tells the caller.
+     * stepping each through the finish the caller names, the hold's own step
+     * and a block left to finish alone alike.
      *
-     * @param host    the channel host
-     * @param next    the block a block becomes, empty where it becomes none
-     * @param marks   the hold's marks
-     * @param rate    the share one tick builds
-     * @param tint    the RGB the clients tint the mingled block by, empty for none
-     * @param stepped told the position and the block it was, each time the hold steps a block
+     * @param host   the channel host
+     * @param next   the block a block becomes, empty where it becomes none
+     * @param marks  the hold's marks
+     * @param rate   the share one tick builds
+     * @param tint   the RGB the clients tint the mingled block by, empty for none
+     * @param finish the step a full block takes
      */
     static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
-                             OptionalInt tint, BiConsumer<BlockPos, Block> stepped) {
+                             OptionalInt tint, CellFinish finish) {
+        buildPainted(host, next, marks, rate, raw -> tint, finish);
+    }
+
+    /**
+     * Builds every painted block one tick toward the block it becomes, each
+     * block's exposure carrying the tint its painted block names, so one hold
+     * can melt one block and cook another
+     * (decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
+     *
+     * @param host   the channel host
+     * @param next   the block a block becomes, empty where it becomes none
+     * @param marks  the hold's marks
+     * @param rate   the share one tick builds
+     * @param tintOf the tint or mark each painted block's exposure carries, empty for none
+     * @param finish the step a full block takes
+     */
+    static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
+                             Function<Block, OptionalInt> tintOf, CellFinish finish) {
         buildPaintedStates(host, raw -> next.apply(raw.getBlock()).map(Block::defaultBlockState),
-                (now, raw) -> now.getBlock() == raw.getBlock(), marks, rate, tint,
-                (pos, raw) -> stepped.accept(pos, raw.getBlock()));
+                (now, raw) -> now.getBlock() == raw.getBlock(), marks, rate, raw -> tintOf.apply(raw.getBlock()),
+                (pos, raw, into) -> finish.finish(pos, raw.getBlock(), into.getBlock()));
     }
 
     /**
@@ -213,18 +267,18 @@ final class PaintedHold {
      * alone, as a slime cell thickens by a layer.
      * slime-is-a-layered-cell-that-levels-out
      *
-     * @param host    the channel host
-     * @param next    the state a painted state becomes, empty where it becomes none
-     * @param stands  whether the cell's state now is still the painted one, so the hold builds on; false once it
-     *                finished alone or something else replaced it
-     * @param marks   the hold's marks
-     * @param rate    the share one tick builds
-     * @param tint    the RGB the clients tint the mingled block by, empty for none
-     * @param stepped told the position and the state it was, each time the hold steps a cell
+     * @param host   the channel host
+     * @param next   the state a painted state becomes, empty where it becomes none
+     * @param stands whether the cell's state now is still the painted one, so the hold builds on; false once it
+     *               finished alone or something else replaced it
+     * @param marks  the hold's marks
+     * @param rate   the share one tick builds
+     * @param tintOf the tint or mark each painted state's exposure carries, empty for none
+     * @param finish the step a full cell takes
      */
     static void buildPaintedStates(ChannelHost host, Function<BlockState, Optional<BlockState>> next,
                                    BiPredicate<BlockState, BlockState> stands, HoldMarks marks, float rate,
-                                   OptionalInt tint, BiConsumer<BlockPos, BlockState> stepped) {
+                                   Function<BlockState, OptionalInt> tintOf, StateFinish finish) {
         for (Map.Entry<BlockPos, BlockState> painted : Map.copyOf(marks.painted()).entrySet()) {
             BlockPos pos = painted.getKey();
             BlockState raw = painted.getValue();
@@ -233,25 +287,25 @@ final class PaintedHold {
                 marks.noteStepped(pos);
             } else if (!host.finishingAlone(pos)) {
                 next.apply(raw).ifPresentOrElse(into -> {
-                    if (build(host, pos, into, rate, tint)) {
+                    if (build(host, pos, into, rate, tintOf.apply(raw), () -> finish.finish(pos, raw, into))) {
                         marks.noteStepped(pos);
-                        stepped.accept(pos, raw);
                     }
                 }, () -> marks.unpaint(pos));
             }
         }
     }
 
-    private static boolean build(ChannelHost host, BlockPos pos, BlockState into, float rate, OptionalInt tint) {
+    private static boolean build(ChannelHost host, BlockPos pos, BlockState into, float rate, OptionalInt tint,
+                                 Runnable step) {
         float share = tint.isPresent()
                 ? host.exposeBlock(pos, into, rate, tint.getAsInt())
                 : host.exposeBlock(pos, into, rate);
         if (share >= 1f) {
-            host.transformBlock(pos, into);
+            step.run();
             return true;
         }
-        if (share > FINISHES_ALONE && !into.isAir()) {
-            host.finishBlockAlone(pos, rate);
+        if (share > FINISHES_ALONE) {
+            host.finishBlockAlone(pos, rate, step);
         }
         return false;
     }

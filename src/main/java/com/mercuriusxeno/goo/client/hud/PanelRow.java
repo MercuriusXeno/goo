@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -16,11 +15,47 @@ import java.util.function.ToIntFunction;
  * @param seeThrough whether the row draws over world geometry
  * @param floorText  the text whose width the row's text never measures under, or null for no floor
  * @param secondIcon the icon texture drawn after the first, or null for one icon
- * @param iconUv     the region of the first icon's texture drawn, or null for the whole texture
+ * @param iconItem   the item whose model the row draws as its icon in place of a texture, or null for none
+ * @param grid       the goo amounts the row lays as one grid block in place of icons and text, or null for none
  */
 public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
                        @Nullable String floorText, @Nullable Identifier secondIcon,
-                       GooRenderUtil.@Nullable UvRect iconUv) {
+                       @Nullable Identifier iconItem, @Nullable PanelAmountGrid grid) {
+
+    /**
+     * Builds a row of icons and text, no grid.
+     *
+     * @param icon       the icon texture, or null for a text-only header row
+     * @param segments   the text segments drawn left to right after the icon
+     * @param seeThrough whether the row draws over world geometry
+     * @param floorText  the text whose width the row's text never measures under, or null for no floor
+     * @param secondIcon the icon texture drawn after the first, or null for one icon
+     * @param iconItem   the item whose model the row draws as its icon in place of a texture, or null for none
+     */
+    public PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
+                    @Nullable String floorText, @Nullable Identifier secondIcon, @Nullable Identifier iconItem) {
+        this(icon, segments, seeThrough, floorText, secondIcon, iconItem, null);
+    }
+
+    /**
+     * Builds the block a panel lays its goo amounts in, as one grid.
+     * decision one-class-lays-every-huds-goo-values
+     *
+     * @param grid the goo amounts
+     * @return the grid row
+     */
+    public static PanelRow amounts(PanelAmountGrid grid) {
+        return new PanelRow(null, List.of(), false, null, null, null, grid);
+    }
+
+    /**
+     * Answers the row's height: one panel row, or the grid's rows for a grid block.
+     *
+     * @return the height in scaled pixels
+     */
+    public float height() {
+        return grid == null ? PanelPainter.ROW_HEIGHT : grid.height();
+    }
 
     /**
      * Builds a row whose icons each draw their whole texture.
@@ -75,13 +110,34 @@ public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, bo
     }
 
     /**
+     * Builds a row led by an item's model, drawn as the inventory draws it.
+     * decision all-huds-draw-an-items-model-as-the-inventory-does
+     *
+     * @param item     the item's registry id
+     * @param segments the text segments drawn left to right after the item
+     * @return the item row
+     */
+    public static PanelRow itemRow(Identifier item, List<TextSegment> segments) {
+        return new PanelRow(null, segments, false, null, null, item);
+    }
+
+    /**
+     * Answers whether an icon, a texture or an item, leads the row.
+     *
+     * @return true unless the row is text alone
+     */
+    public boolean hasIcon() {
+        return icon != null || iconItem != null;
+    }
+
+    /**
      * Returns the width the row's icons and their gaps take before the text.
      *
      * @return the icons' width in scaled pixels, 0 for a text-only row
      */
     public float iconsWidth() {
         float oneIcon = PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP;
-        if (icon == null) {
+        if (!hasIcon()) {
             return 0;
         }
         return secondIcon == null ? oneIcon : oneIcon + oneIcon;
@@ -118,6 +174,9 @@ public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, bo
      * @return the row width in scaled pixels
      */
     public float width(ToIntFunction<String> textWidth) {
+        if (grid != null) {
+            return grid.width(textWidth);
+        }
         float iconWidth = iconsWidth();
         float segmentsWidth = 0;
         for (TextSegment segment : segments) {

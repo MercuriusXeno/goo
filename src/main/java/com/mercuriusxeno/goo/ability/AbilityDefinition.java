@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.program.BloomStep;
 import com.mercuriusxeno.goo.ability.program.ColonizeStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
-import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FloorsStep;
@@ -70,8 +69,8 @@ import java.util.stream.Stream;
  * @param costMechanics the translation key to a format string explaining how an ability costing nothing up
  *                    front charges, empty for an ability naming none; its positional placeholders (%s) fill
  *                    in the order the ability's kind reads its numbers: a durative ability its upkeep a second; a blink
- *                    its per-block price, its wall price and its oculus percent; a Spire stone's goo value
- *                    per block; any other the names of the items it consumes
+ *                    its per-block price, its wall price and its oculus percent; a Spire its cost, the
+ *                    price per block grown; any other the names of the items it consumes
  *                    (decision zero-cost-field-formats-the-cost-mechanics)
  * @param costFormula the short formula a dynamically priced ability's petal reads in place of a
  *                    fixed cost, "200 + 100/block" for a blink, empty for a fixed-cost ability
@@ -721,7 +720,7 @@ public record AbilityDefinition(
             return previewAtMaxReach(area, behaviors);
         }
         double reach = firstExplosion(behaviors)
-                .map(step -> (double) ExplosionMarch.maxReach(step.power().evaluateFloat(Variables.NONE)))
+                .map(step -> step.reachAt(Variables.NONE))
                 .orElseGet(() -> widestRadius(behaviors));
         return reach > 0 ? new AbilityArea(AbilityArea.Shape.SPHERE, reach, 0) : area;
     }
@@ -764,8 +763,7 @@ public record AbilityDefinition(
             return area;
         }
         return firstExplosion(behaviors)
-                .map(step -> new AbilityArea(area.shape(),
-                        ExplosionMarch.maxReach(step.power().evaluateFloat(Variables.NONE)), area.angle()))
+                .map(step -> new AbilityArea(area.shape(), step.reachAt(Variables.NONE), area.angle()))
                 .orElse(area);
     }
 

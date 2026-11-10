@@ -46,7 +46,7 @@ const float GLINT_ANGLE_B = -0.9;
 const float FACET_CELLS = 24.0;
 const float FACET_EDGE = 0.08;
 const float FACET_FLASH_CYCLES_PER_DAY = 600.0;
-// Noise cells of the ender speckle across the skin's coordinates, and how fast it churns;
+// Noise cells of the ender speckle across the skin's coordinates, and how fast it swirls;
 // a cell spans four skin texels (decision mingle-noise-snaps-to-texels).
 const float SHIMMER_CELLS = 16.0;
 const float SHIMMER_CYCLES_PER_DAY = 900.0;
@@ -83,10 +83,10 @@ float facetField(vec2 uv, float time) {
     return max(edge, flash);
 }
 
-// Speckle churning in place, the ender warp's glitter.
+// Speckle swirling in place, the ender warp's glitter.
 float shimmerField(vec2 uv, float time) {
-    float churn = mingleValueNoise(vec3(uv * SHIMMER_CELLS, time * SHIMMER_CYCLES_PER_DAY));
-    return smoothstep(0.62, 0.85, churn);
+    float swirl = mingleValueNoise(vec3(uv * SHIMMER_CELLS, time * SHIMMER_CYCLES_PER_DAY));
+    return smoothstep(0.62, 0.85, swirl);
 }
 
 void main() {

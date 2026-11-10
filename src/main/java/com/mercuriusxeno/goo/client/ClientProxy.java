@@ -3,12 +3,14 @@ package com.mercuriusxeno.goo.client;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.client.ability.HunkCrumbles;
+import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlay;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -46,5 +48,10 @@ public final class ClientProxy implements ISidedProxy {
     public boolean syncedAbilityEats(String abilityId) {
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
         return ability != null && SelfEatRoute.eats(ability.delivery(), ability.badge());
+    }
+
+    @Override
+    public void openPlexerMenu(BlockPos plexer) {
+        KnownItemsOverlay.open(plexer);
     }
 }

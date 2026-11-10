@@ -86,7 +86,11 @@ final class StreamPrismCharge {
                 .findFirst()
                 .map(level::getBlockEntity).filter(PrismBlockEntity.class::isInstance).map(PrismBlockEntity.class::cast)
                 .filter(prism -> !prism.hasCombo())
-                .ifPresent(prism -> convert(prism, player, gooType, ability));
+                .ifPresent(prism -> {
+                    convert(prism, player, gooType, ability);
+                    // prism-conversion-creeps-over-the-hold: the ray's charge warms the prism as a stream's does
+                    warm(level, prism, ability, ability.delivery().ticksPerCharge());
+                });
     }
 
     /**
@@ -140,8 +144,8 @@ final class StreamPrismCharge {
             return false;
         }
         Delivery delivery = ability.delivery();
-        return !GooStreamHandler.nearestMob(GooStreamHandler.livingInCone(player.level(), player, apex,
-                player.getLookAngle(), delivery), apex).isEmpty();
+        return !GooStreamHandler.mostAlignedMob(GooStreamHandler.livingInCone(player.level(), player, apex,
+                player.getLookAngle(), delivery), player.getEyePosition(), player.getLookAngle()).isEmpty();
     }
 
     /**
@@ -162,12 +166,27 @@ final class StreamPrismCharge {
         // the operator's ruling: the prism is the gnats' homing target until it converts fully
         GooStreamHandler.sprayParticles(level, apex, moteAxis(apex, pos),
                 ability.delivery().withCone(ability.delivery().range(), 0), apex.distanceTo(Vec3.atCenterOf(pos)));
+        warm(level, prism, ability, hold);
+    }
+
+    /**
+     * Warms the charged prism toward its combo's tint by the share the
+     * charge has reached, so it restarts with a broken hold and clears once
+     * the prism converts.
+     * prism-conversion-creeps-over-the-hold
+     *
+     * @param level   the server level
+     * @param prism   the charged prism
+     * @param ability the channel ability
+     * @param hold    the ticks the conversion takes
+     */
+    private static void warm(ServerLevel level, PrismBlockEntity prism, AbilityDefinition ability, int hold) {
         OptionalInt tint = chargeTint(ability);
         if (tint.isPresent()) {
             // the converting tick holds the full share, so the prism never drops back to quartz before its combo draws
             float share = prism.hasCombo() ? 1f : prism.conversion().share(hold);
-            GooServerState.of(level.getServer()).blockExposures().setShare(level, pos, prism.getBlockState(), share,
-                    tint.getAsInt());
+            GooServerState.of(level.getServer()).blockExposures().setShare(level, prism.getBlockPos(),
+                    prism.getBlockState(), share, tint.getAsInt());
         }
     }
 

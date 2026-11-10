@@ -64,6 +64,8 @@ public final class GooTargetHighlighter {
      * arc stage draws the touch ring.
      */
     private static boolean cachedArcTouchesAtReach;
+    /** Whether the selected ability is drag-sized, so the arc stage draws no throw arc for it. */
+    private static boolean cachedArcDragSized;
     /**
      * Partial tick captured at the opaque stage.
      */
@@ -113,6 +115,7 @@ public final class GooTargetHighlighter {
         String abilityId = GloveAim.selectedAbilityId(mc.player);
         cachedArcDelivery = GloveThrowSender.selectedDelivery(abilityId);
         cachedArcTouchesAtReach = GloveThrowSender.selectedTouchesAtReach(abilityId);
+        cachedArcDragSized = GloveThrowSender.selectedDragSized(abilityId);
         cachedArcPartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
@@ -327,6 +330,7 @@ public final class GooTargetHighlighter {
         Delivery delivery = cachedArcDelivery;
         float partialTick = cachedArcPartialTick;
         boolean touchesAtReach = cachedArcTouchesAtReach;
+        boolean dragSized = cachedArcDragSized;
         clearCachedArc();
         if (target == null || type == null || delivery == null) {
             return;
@@ -337,7 +341,9 @@ public final class GooTargetHighlighter {
                     mc.gameRenderer.getMainCamera(), delivery, ClientGooTypes.highlight(type), partialTick);
             return;
         }
-        renderLineAim(event, target, type, delivery, partialTick, touchesAtReach);
+        if (drawsAimLine(delivery, dragSized)) {
+            renderLineAim(event, target, type, delivery, partialTick, touchesAtReach);
+        }
     }
 
     /**
@@ -354,9 +360,6 @@ public final class GooTargetHighlighter {
     private static void renderLineAim(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
                                       ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick,
                                       boolean touchesAtReach) {
-        if (!delivery.aimsALine()) {
-            return;
-        }
         if (touchesAtReach) {
             renderTouchRing(event, type, partialTick);
         }
@@ -385,6 +388,20 @@ public final class GooTargetHighlighter {
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
                 partialTick, grannyWeight(target, delivery), delivery.aimsStraight());
+    }
+
+    /**
+     * Whether the held glove draws the throw arc for the selected ability: a
+     * beam or a one-blob arc that is thrown, never a drag-sized ability,
+     * which opens where it is pinned and draws its drag ring alone.
+     * blast-draws-no-throw-arc
+     *
+     * @param delivery  the selected ability's delivery
+     * @param dragSized whether the selected ability is drag-sized
+     * @return true where the aim line draws
+     */
+    static boolean drawsAimLine(Delivery delivery, boolean dragSized) {
+        return delivery.aimsALine() && !dragSized;
     }
 
     /**
@@ -451,6 +468,7 @@ public final class GooTargetHighlighter {
         cachedArcType = null;
         cachedArcDelivery = null;
         cachedArcTouchesAtReach = false;
+        cachedArcDragSized = false;
         cachedArcPartialTick = 0f;
     }
 }

@@ -8,7 +8,7 @@
   "requires": ["minecraft:gunpowder"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "explode", "power": "0.75 * size", "interaction": "tnt" }
+    { "type": "explode", "power": "2.5 * (size + 0.5)", "reach": "size", "gathers": "at_least(size, 3)", "interaction": "tnt" }
   ],
   "tags": ["drag_sized"]
 }

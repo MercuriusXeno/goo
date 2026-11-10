@@ -21,6 +21,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -36,8 +37,8 @@ import java.util.function.Consumer;
  * tick and the throw a left click sends: holding it on a slab of stone lifts
  * the struck block and its stone neighbors out of the ground as one hunk,
  * charging their rock goo value, and a throw hucks the hunk into a
- * cobblestone wall, which it crushes before it breaks apart into its own
- * stone as items. The tear names a sound the registry holds.
+ * cobblestone wall, which it crushes before it breaks apart into what its
+ * blocks mine, cobblestone from stone. The tear names a sound the registry holds.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  * decision terrakinesis-tears-free-with-a-stone-tear-and-seam-dust
  */
@@ -45,7 +46,8 @@ import java.util.function.Consumer;
 public final class TerrakinesisTests {
     private static final String LIFTS_A_HUNK = "terrakinesis_lifts_a_hunk_of_stone";
     private static final String HUCKS_THROUGH_A_WALL = "terrakinesis_hucks_a_hunk_through_a_wall";
-    private static final String RELEASE_CANCELS = "terrakinesis_release_before_the_tear_lifts_nothing";
+    private static final String DROPS_WHAT_IT_MINES = "terrakinesis_hunk_drops_what_its_blocks_mine";
+    private static final String RELEASE_CANCELS ="terrakinesis_release_before_the_tear_lifts_nothing";
     private static final String GRABS_FROM_AFAR = "terrakinesis_grabs_from_eleven_blocks_away";
     private static final String WAITS_AFTER_A_THROW = "terrakinesis_waits_after_a_throw";
     private static final String RELEASE_PLACES = "terrakinesis_release_places_the_chunk_on_the_grid";
@@ -104,6 +106,9 @@ public final class TerrakinesisTests {
     private static final int SLAB_HIGH_Y = 2;
     private static final int SLAB_LOW_Z = 1;
     private static final int SLAB_HIGH_Z = 3;
+    /** The slab's middle bottom cell, below the struck block, and its top north cell, open to the air. */
+    private static final BlockPos COAL_CELL = new BlockPos(SLAB_X, SLAB_LOW_Y, 2);
+    private static final BlockPos GRASS_CELL = new BlockPos(SLAB_X, SLAB_HIGH_Y, SLAB_LOW_Z);
     /** The cobblestone wall the hunk is hucked into, across the bay's far side. */
     private static final int WALL_X = 5;
     private static final int WALL_LOW_Y = 1;
@@ -138,7 +143,8 @@ public final class TerrakinesisTests {
     private static final String CHARGED_WRONG = "The lift should spend %d mB of rock goo, spent %d";
     private static final String WALL_STANDS = "The wall at %s should be crushed, holds %s";
     private static final String HUNK_STANDS = "The hunk should break apart on impact";
-    private static final String DROPS_WRONG = "The hunk should drop its %d stone as items, dropped %d";
+    private static final String SILK_TOUCHED = "The hunk should drop what its blocks mine, not the blocks"
+            + " themselves; dropped %d %s";
     private static final String TORE_EARLY = "No hunk should stand before the wind-up completes, found %d";
     private static final String CELL_LIFTED = "The cell at %s should still hold stone after an early release, holds %s";
     private static final String SPENT_ON_RELEASE = "An early release should spend no rock goo, spent %d";
@@ -154,6 +160,7 @@ public final class TerrakinesisTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LIFTS_A_HUNK, TerrakinesisTests::liftsAHunkOfStone);
         GooTestFunctions.registerTest(registrar, HUCKS_THROUGH_A_WALL, TerrakinesisTests::hucksAHunkThroughAWall);
+        GooTestFunctions.registerTest(registrar, DROPS_WHAT_IT_MINES, TerrakinesisTests::hunkDropsWhatItsBlocksMine);
         GooTestFunctions.registerTest(registrar, RELEASE_CANCELS, TerrakinesisTests::releaseBeforeTheTearLiftsNothing);
         GooTestFunctions.registerTest(registrar, GRABS_FROM_AFAR, TerrakinesisTests::grabsFromElevenBlocksAway);
         GooTestFunctions.registerTest(registrar, WAITS_AFTER_A_THROW, TerrakinesisTests::waitsAfterAThrow);
@@ -223,40 +230,90 @@ public final class TerrakinesisTests {
     /**
      * A hunk hucked along the look into a cobblestone wall crushes the wall
      * where it strikes and breaks whole, every stone block it carried
-     * dropping on the same tick.
+     * dropping cobblestone on the same tick, and none dropping stone.
+     * decision diagnose-and-correct-the-hunks-silk-touch-drops
      *
      * @param helper the gametest helper
      */
     public static void hucksAHunkThroughAWall(GameTestHelper helper) {
         List<BlockPos> slab = placeSlab(helper);
-        for (int y = WALL_LOW_Y; y <= WALL_HIGH_Y; y++) {
-            for (int z = SLAB_LOW_Z; z <= SLAB_HIGH_Z; z++) {
-                helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.COBBLESTONE);
-            }
-        }
+        buildWall(helper);
         ServerPlayer player = caster(helper);
         holdFor(helper, player, HOLD_TICKS);
         helper.runAfterDelay(HOLD_TICKS + 1, () -> helper.assertTrue(GrabEvents.throwHeld(player),
                 "The player should hold the hunk to huck it"));
-        boolean[] firstDropSeen = {false};
+        // The crushed wall drops cobblestone on impact, ticks before the hunk's own blocks crumble, so the
+        // hunk's drop is the cobblestone that lands on the tick the hunk ends.
+        int[] cobblestoneBefore = {0};
+        boolean[] shattered = {false};
         for (int tick = HOLD_TICKS + 2; tick <= HOLD_TICKS + 1 + FLIGHT_TICKS + SHATTER_TICKS; tick++) {
             helper.runAfterDelay(tick, () -> {
-                int dropped = droppedStone(helper);
-                if (dropped > 0 && !firstDropSeen[0]) {
-                    firstDropSeen[0] = true;
-                    helper.assertTrue(dropped == slab.size(), "The hunk should break whole, dropping all "
-                            + slab.size() + " of its stone on one tick, dropped " + dropped);
+                int cobblestone = dropped(helper, Items.COBBLESTONE);
+                if (hunksIn(helper).isEmpty() && !shattered[0]) {
+                    shattered[0] = true;
+                    int landed = cobblestone - cobblestoneBefore[0];
+                    helper.assertTrue(landed == slab.size(), "The hunk should break whole, dropping "
+                            + slab.size() + " cobblestone on the tick it ends, dropped " + landed);
                 }
+                cobblestoneBefore[0] = cobblestone;
             });
         }
         helper.runAfterDelay(HOLD_TICKS + 2 + FLIGHT_TICKS + SHATTER_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(WALL_MIDDLE).isAir(),
                     String.format(WALL_STANDS, WALL_MIDDLE, helper.getBlockState(WALL_MIDDLE)));
             helper.assertTrue(hunksIn(helper).isEmpty(), HUNK_STANDS);
-            int dropped = droppedStone(helper);
-            helper.assertTrue(dropped == slab.size(), String.format(DROPS_WRONG, slab.size(), dropped));
+            int stone = dropped(helper, Items.STONE);
+            helper.assertTrue(stone == 0, String.format(SILK_TOUCHED, stone, Items.STONE));
             leave(helper, player);
         });
+    }
+
+    /**
+     * A hunk carrying a coal ore block and a grass block, hucked into the
+     * wall, crumbles into the loot Blast's break gives each: coal and dirt,
+     * and neither block itself.
+     * decision diagnose-and-correct-the-hunks-silk-touch-drops
+     *
+     * @param helper the gametest helper
+     */
+    public static void hunkDropsWhatItsBlocksMine(GameTestHelper helper) {
+        placeSlab(helper);
+        // Grass on the slab's top row, open to the air, so no random tick turns it to dirt before the tear.
+        helper.setBlock(COAL_CELL, Blocks.COAL_ORE);
+        helper.setBlock(GRASS_CELL, Blocks.GRASS_BLOCK);
+        buildWall(helper);
+        ServerPlayer player = caster(helper);
+        holdFor(helper, player, HOLD_TICKS);
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            List<BlockHunk> hunks = hunksIn(helper);
+            helper.assertTrue(hunks.size() == 1 && hunks.getFirst().blocks().stream()
+                    .anyMatch(block -> block.state().is(Blocks.COAL_ORE)) && hunks.getFirst().blocks().stream()
+                    .anyMatch(block -> block.state().is(Blocks.GRASS_BLOCK)),
+                    "One hunk should carry the coal ore and the grass block, found " + hunks.stream()
+                            .map(hunk -> hunk.blocks().stream().map(block -> block.state().getBlock()).toList())
+                            .toList());
+            helper.assertTrue(GrabEvents.throwHeld(player), "The player should hold the hunk to huck it");
+        });
+        helper.runAfterDelay(HOLD_TICKS + 2 + FLIGHT_TICKS + SHATTER_TICKS, () -> {
+            helper.assertTrue(hunksIn(helper).isEmpty(), HUNK_STANDS);
+            int coal = dropped(helper, Items.COAL);
+            int dirt = dropped(helper, Items.DIRT);
+            helper.assertTrue(coal > 0 && dirt > 0, "The coal ore should drop coal and the grass block dirt,"
+                    + " dropped " + coal + " coal and " + dirt + " dirt");
+            int coalOre = dropped(helper, Items.COAL_ORE);
+            helper.assertTrue(coalOre == 0, String.format(SILK_TOUCHED, coalOre, Items.COAL_ORE));
+            int grass = dropped(helper, Items.GRASS_BLOCK);
+            helper.assertTrue(grass == 0, String.format(SILK_TOUCHED, grass, Items.GRASS_BLOCK));
+            leave(helper, player);
+        });
+    }
+
+    private static void buildWall(GameTestHelper helper) {
+        for (int y = WALL_LOW_Y; y <= WALL_HIGH_Y; y++) {
+            for (int z = SLAB_LOW_Z; z <= SLAB_HIGH_Z; z++) {
+                helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.COBBLESTONE);
+            }
+        }
     }
 
     /**
@@ -847,9 +904,9 @@ public final class TerrakinesisTests {
         }
     }
 
-    private static int droppedStone(GameTestHelper helper) {
+    private static int dropped(GameTestHelper helper, Item item) {
         return helper.getLevel().getEntitiesOfClass(ItemEntity.class, bay(helper)).stream()
-                .filter(item -> item.getItem().is(Items.STONE)).mapToInt(item -> item.getItem().getCount()).sum();
+                .filter(entity -> entity.getItem().is(item)).mapToInt(entity -> entity.getItem().getCount()).sum();
     }
 
     /**

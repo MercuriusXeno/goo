@@ -34,6 +34,7 @@ import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
+import com.mercuriusxeno.goo.client.ability.RallyOutline;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -350,9 +351,10 @@ public final class GooClientSetup {
 
     /**
      * Registers the render state modifiers that stamp each entity's goo state
-     * onto its render state: the glove's target outline, the goo coat, the
-     * ailments, the phase, the stone and frost encasements, the frozen pose, the grab
-     * flail, the vine tangle, the transformation and the eldritch phase, in that order.
+     * onto its render state: the rally outline, the glove's target outline,
+     * which overrides it, the goo coat, the ailments, the phase, the stone and
+     * frost encasements, the frozen pose, the grab flail, the vine tangle, the
+     * transformation and the eldritch phase, in that order.
      *
      * @param event the event instance
      */
@@ -361,6 +363,7 @@ public final class GooClientSetup {
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
+                RallyOutline::stampOutline,
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,
                 AilmentOverlayLayer::stampAilments,

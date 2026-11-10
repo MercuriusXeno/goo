@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.PortableHole;
-import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -125,20 +124,13 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Calls a meteor down on the cell's center when the sky above the cell
-     * is clear, fizzling there otherwise; a throw at a roofed target was
-     * refused before it was paid for, so this fizzle meets a blob that
-     * landed somewhere other than it was aimed.
-     * decision meteo-needs-a-clear-sky
+     * Calls a meteor down toward the cell's center, crashing into whatever
+     * stands above it.
+     * decision meteo-crashes-through-whatever-is-above
      */
     @Override
-    public boolean callMeteor(float power, int fallTicks) {
-        if (!MeteorSky.clearAbove(level, cell)) {
-            MeteorSky.fizzle(level, cell);
-            return false;
-        }
+    public void callMeteor(float power, int fallTicks) {
         Meteor.call(level, Vec3.atCenterOf(cell), power, fallTicks);
-        return true;
     }
 
     /**
@@ -147,8 +139,9 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
      * drawn by its goo type (decision elemental-explosion-per-type).
      */
     @Override
-    public void explode(float power, ExplosionMode mode) {
-        GooExplosion.detonate(level, anchor(), power, mode, GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
+        GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode,
+                GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
     }
 
     @Override

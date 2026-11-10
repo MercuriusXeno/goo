@@ -21,6 +21,10 @@ public final class HoldMarks {
     private final Map<BlockPos, BlockState> painted = new HashMap<>();
     private final Set<BlockPos> stepped = new HashSet<>();
     private @Nullable Vec3 anchor;
+    /** The mob the swarm chases, or none yet. */
+    private int chasedId = GnatSeekPayload.NO_PREY;
+    /** The hold tick the swarm's gnats reach the mob they chase. */
+    private int reachedOn;
 
     /**
      * Paints a block, unless the hold already painted or stepped it.
@@ -82,5 +86,22 @@ public final class HoldMarks {
      */
     public boolean stepped(BlockPos pos) {
         return stepped.contains(pos);
+    }
+
+    /**
+     * Whether the swarm's gnats have reached the mob it chases this tick, so
+     * its bite may land.
+     *
+     * @param preyId   the mob the swarm chases
+     * @param held     the hold's tick count
+     * @param distance how far the mob stands from the glove, in blocks
+     * @return true once the gnats have had time to fly there
+     */
+    public boolean swarmReached(int preyId, int held, double distance) {
+        if (preyId != chasedId) {
+            chasedId = preyId;
+            reachedOn = held + (int) Math.ceil(distance / SwarmMotes.GNAT_SPEED);
+        }
+        return held >= reachedOn;
     }
 }

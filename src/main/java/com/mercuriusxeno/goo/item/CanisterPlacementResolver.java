@@ -106,12 +106,19 @@ public final class CanisterPlacementResolver {
     }
 
     private static boolean gooMachineTakesTheClick(BlockEntity aimed, BlockHitResult hit, ItemStack canister) {
-        if (aimed instanceof ICanisterHolder holder && holder.takesCanisterAt(hit, false)) {
-            return true;
-        }
-        if (aimed instanceof ICutawayMachine machine && machine.isCutawayHit(hit)) {
-            return true;
-        }
+        return holderTakesTheCanister(aimed, hit) || cutawayTakesTheClick(aimed, hit)
+                || takerTakesTheCanister(aimed, canister);
+    }
+
+    private static boolean holderTakesTheCanister(BlockEntity aimed, BlockHitResult hit) {
+        return aimed instanceof ICanisterHolder holder && holder.takesCanisterAt(hit, false);
+    }
+
+    private static boolean cutawayTakesTheClick(BlockEntity aimed, BlockHitResult hit) {
+        return aimed instanceof ICutawayMachine machine && machine.takesCutawayClick(hit);
+    }
+
+    private static boolean takerTakesTheCanister(BlockEntity aimed, ItemStack canister) {
         return aimed instanceof ICanisterClickTaker taker && taker.takesCanisterClick(canister);
     }
 

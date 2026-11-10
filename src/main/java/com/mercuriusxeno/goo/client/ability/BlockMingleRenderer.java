@@ -64,18 +64,19 @@ public final class BlockMingleRenderer {
             return;
         }
         float gameTime = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        drawAll(event.getPoseStack(), live, exposing, gameTime);
+        drawAll(event.getPoseStack(), level, live, exposing, gameTime);
     }
 
     /**
      * Draws the playing transforms and the partial exposures into one mingle batch.
      *
      * @param poseStack the level's pose stack, camera relative
+     * @param level     the client level the blocks stand in
      * @param live      the transforms playing
      * @param exposing  the blocks part way to their next rung
      * @param gameTime  the game time including the partial tick
      */
-    private static void drawAll(PoseStack poseStack, List<BlockTransforms.Transform> live,
+    private static void drawAll(PoseStack poseStack, ClientLevel level, List<BlockTransforms.Transform> live,
                                 List<BlockTransforms.Exposure> exposing, float gameTime) {
         Minecraft mc = Minecraft.getInstance();
         List<Mingle> mingles = new ArrayList<>();
@@ -85,12 +86,10 @@ public final class BlockMingleRenderer {
         }
         // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
         for (BlockTransforms.Exposure exposure : exposing) {
-            if (exposure.toward().isAir()) {
-                // broil-heat-wave-ring-cooks-ahead: a block cooking away to air has no next block to mingle in
-                continue;
-            }
-            mingles.add(new Mingle(exposure.pos(), exposure.toward(), 1f - exposure.share(),
-                    mingleColor(exposure.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
+            BlockTransforms.Mingling mingling = BlockTransforms.minglingOf(exposure,
+                    BlockTransforms.CLIENT.standingAt(exposure.pos(), level.getBlockState(exposure.pos())));
+            mingles.add(new Mingle(exposure.pos(), mingling.state(), mingling.dissolved(),
+                    mingleColor(mingling.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
         }
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
         drawPass(poseStack, mingles, GooRenderTypes.blockMingle(atlas), false);

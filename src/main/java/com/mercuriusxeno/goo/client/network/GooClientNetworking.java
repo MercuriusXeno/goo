@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
+import com.mercuriusxeno.goo.client.ability.GnatSeek;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
@@ -21,9 +22,9 @@ import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
-import com.mercuriusxeno.goo.network.DrinkPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
+import com.mercuriusxeno.goo.network.GnatSeekPayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.HeaterFlamePayload;
@@ -42,12 +43,12 @@ import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
 import com.mercuriusxeno.goo.network.PocketContentsPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
+import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
-import com.mercuriusxeno.goo.network.UnmadePayload;
 import com.mercuriusxeno.goo.network.WorkbenchReplyPayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -93,8 +94,7 @@ public final class GooClientNetworking {
     private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
-        event.register(DrinkPayload.TYPE, UnmakeHandler::handleDrink);
-        event.register(UnmadePayload.TYPE, UnmakeHandler::handleUnmade);
+        event.register(SculkerHeardPayload.TYPE, SculkerHeardHandler::handle);
         registerEffectHandlers(event);
     }
 
@@ -114,6 +114,7 @@ public final class GooClientNetworking {
         event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
+        event.register(GnatSeekPayload.TYPE, GnatSeek::handle);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
     }
 

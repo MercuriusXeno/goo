@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HeldEffectIconsTest {
 
     private static final String SIGHT_ICON = "textures/goo/ability/shroom_sight.png";
-    private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(GooTypes.DEEP,
+    private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(
             GooTypes.INFINITY, GooTypes.METAL, GooTypes.OPULENT, GooTypes.VOID, GooTypes.WEIRD);
 
     private static AbilityRegistry shipped;

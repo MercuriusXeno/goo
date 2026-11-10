@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
@@ -12,13 +13,16 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -218,15 +222,48 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
      */
     public static HitResult castFrom(Level level, Entity caster, Vec3 eye, Vec3 reach,
                                      Predicate<LivingEntity> strikes) {
-        // A prism stands no collision, so the ray stops on outlines to strike it.
-        BlockHitResult block = level.clip(new ClipContext(eye, reach, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, caster));
+        BlockHitResult block = clipStriking(level, eye, reach);
         Vec3 stop = block.getLocation();
         AABB swept = caster.getBoundingBox().expandTowards(stop.subtract(eye)).inflate(1);
         EntityHitResult entity = ProjectileUtil.getEntityHitResult(caster, eye, stop, swept,
                 candidate -> candidate instanceof LivingEntity living && living.isAlive() && strikes.test(living),
                 eye.distanceToSqr(stop));
         return entity != null ? entity : block;
+    }
+
+    /**
+     * Where a ray from a point toward its reach first meets a block it
+     * strikes ({@link #strikingShape}), or a miss at the reach.
+     *
+     * @param level the blocks the ray runs through
+     * @param from  where the ray starts
+     * @param to    the furthest point it reaches
+     * @return the block struck, or a miss
+     */
+    static BlockHitResult clipStriking(BlockGetter level, Vec3 from, Vec3 to) {
+        return BlockGetter.traverseBlocks(from, to, level,
+                (blocks, pos) -> strikingShape(blocks.getBlockState(pos), blocks, pos).clip(from, to, pos.immutable()),
+                blocks -> {
+                    Vec3 back = from.subtract(to);
+                    return BlockHitResult.miss(to, Direction.getApproximateNearest(back.x, back.y, back.z),
+                            BlockPos.containing(to));
+                });
+    }
+
+    /**
+     * The shape a ray strikes in a block: a prism's outline, since a prism
+     * stands no collision and the ray must strike it to refract, else the
+     * block's collision, so the ray passes through what has none, such as
+     * a sign or tall grass.
+     *
+     * @param state the block's state
+     * @param level the blocks around it
+     * @param pos   its position
+     * @return the shape the ray stops on
+     */
+    static VoxelShape strikingShape(BlockState state, BlockGetter level, BlockPos pos) {
+        return state.getBlock() instanceof PrismBlock ? state.getShape(level, pos)
+                : state.getCollisionShape(level, pos);
     }
 
     /**

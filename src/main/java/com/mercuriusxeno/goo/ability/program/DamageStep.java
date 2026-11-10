@@ -36,9 +36,11 @@ import java.util.stream.Stream;
  * @param source            the damage source
  * @param knockback         whether the hit may push the target
  * @param invulnerableTicks the immunity ticks the hit leaves, when set; none otherwise
+ * @param iFrames           whether the hit respects the target's i-frames, landing only as vanilla lets a hit land
+ *                          and leaving vanilla's immunity behind, rather than clearing it on both sides
  */
 public record DamageStep(Expr amount, DamageKind source, boolean knockback,
-                         Optional<Expr> invulnerableTicks) implements Step {
+                         Optional<Expr> invulnerableTicks, boolean iFrames) implements Step {
 
     /**
      * Expire's damage type, which the vanilla bypass tags name.
@@ -63,6 +65,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     private static final String FIELD_SOURCE = "source";
     private static final String FIELD_KNOCKBACK = "knockback";
     private static final String FIELD_INVULNERABLE_TICKS = "invulnerable_ticks";
+    private static final String FIELD_I_FRAMES = "i_frames";
 
     /**
      * Codec for the step's params.
@@ -71,7 +74,8 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             Expr.CODEC.fieldOf(FIELD_AMOUNT).forGetter(DamageStep::amount),
             DamageKind.CODEC.optionalFieldOf(FIELD_SOURCE, DamageKind.MAGIC).forGetter(DamageStep::source),
             Codec.BOOL.optionalFieldOf(FIELD_KNOCKBACK, true).forGetter(DamageStep::knockback),
-            Expr.CODEC.optionalFieldOf(FIELD_INVULNERABLE_TICKS).forGetter(DamageStep::invulnerableTicks)
+            Expr.CODEC.optionalFieldOf(FIELD_INVULNERABLE_TICKS).forGetter(DamageStep::invulnerableTicks),
+            Codec.BOOL.optionalFieldOf(FIELD_I_FRAMES, false).forGetter(DamageStep::iFrames)
     ).apply(inst, DamageStep::new));
 
     /**
@@ -91,6 +95,18 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
         this(amount, source, true, Optional.empty());
     }
 
+    /**
+     * Creates a damage step that clears the target's immunity on both sides of its hit.
+     *
+     * @param amount            the damage, evaluated when the step runs
+     * @param source            the damage source
+     * @param knockback         whether the hit may push the target
+     * @param invulnerableTicks the immunity ticks the hit leaves, when set; none otherwise
+     */
+    public DamageStep(Expr amount, DamageKind source, boolean knockback, Optional<Expr> invulnerableTicks) {
+        this(amount, source, knockback, invulnerableTicks, false);
+    }
+
     @Override
     public StepType<DamageStep> type() {
         return TYPE;
@@ -100,9 +116,12 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
         // A goo hit clears damage immunity on both sides, so a touch and the melee hit of the same
-        // attack-key press both land in full, in either order.
+        // attack-key press both land in full, in either order; a held bite respecting i-frames leaves it be.
         // decision attack-key-touches-plus-punches
-        target.invulnerableTime = 0;
+        // decision decay-gnats-degrade-each-block-once
+        if (!iFrames) {
+            target.invulnerableTime = 0;
+        }
         Vec3 before = target.getDeltaMovement();
         target.hurtServer((ServerLevel) target.level(), damageSource(target, context.hostAs(TargetHost.class).thrower()),
                 amount.evaluateFloat(context));
@@ -111,7 +130,9 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             target.setDeltaMovement(before);
             target.hurtMarked = false;
         }
-        target.invulnerableTime = invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0);
+        if (!iFrames) {
+            target.invulnerableTime = invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0);
+        }
         return true;
     }
 
