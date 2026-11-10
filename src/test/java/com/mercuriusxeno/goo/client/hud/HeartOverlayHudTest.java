@@ -137,6 +137,31 @@ class HeartOverlayHudTest {
         assertTrue(slotSprites(HeartKind.ANCIENT, 9, 1).isEmpty());
     }
 
+    // undead-normal-hearts-become-the-zombie-heart: the real hearts read zombie, the missing ones nether
+    @Test
+    void undeadDrawsItsPresentHalvesAsTheZombieHeart() {
+        assertEquals(List.of("goo:hud/heart/zombie_full"), slotSprites(HeartKind.UNDEAD, 0, 0, 2));
+        assertEquals(List.of("goo:hud/heart/zombie_half"), slotSprites(HeartKind.UNDEAD, 4, 0, 1));
+    }
+
+    @Test
+    void undeadStillFillsItsMissingHalvesWithNether() {
+        assertEquals(List.of("goo:hud/heart/nether_full"), slotSprites(HeartKind.UNDEAD, 6, 2, 0));
+        assertEquals(List.of("goo:hud/heart/nether_half"), slotSprites(HeartKind.UNDEAD, 6, 1, 0));
+    }
+
+    /** The nether beside a zombie half draws as the nether sprite's right columns, past the half heart. */
+    @Test
+    void undeadHalfHeartBesideNetherDrawsTheZombieHalf() {
+        assertEquals(List.of("goo:hud/heart/zombie_half"), slotSprites(HeartKind.UNDEAD, 4, 1, 1));
+        assertTrue(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.UNDEAD, 1, 1));
+    }
+
+    @Test
+    void stoneBesideAHalfHeartLaysNoWholeSprite() {
+        assertTrue(slotSprites(HeartKind.STONESKIN, 4, 1, 1).isEmpty());
+    }
+
     @Test
     void otherKindsDrawEverySlotAlike() {
         assertEquals(sprites(HeartKind.BARKSKIN, 2, 2),
@@ -214,7 +239,12 @@ class HeartOverlayHudTest {
     }
 
     private static List<String> slotSprites(HeartKind kind, int slot, int realHalves) {
-        return HeartOverlayHud.slotSprites(kind, slot, 0, realHalves).stream().map(Object::toString).toList();
+        return slotSprites(kind, slot, 0, realHalves);
+    }
+
+    private static List<String> slotSprites(HeartKind kind, int slot, int shieldHalves, int realHalves) {
+        return HeartOverlayHud.slotSprites(kind, slot, shieldHalves, realHalves).stream().map(Object::toString)
+                .toList();
     }
 
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {
