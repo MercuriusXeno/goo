@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers Reap's blades: each flies along the slasher's look, centred on the
- * aim within half a block to the side and up or down, lying within ten
+ * aim within a block to the side and a sliver up or down, lying within ten
  * degrees of flat; it forms ahead of the eye small, shallow and to one side,
  * grows its width and its depth at their own rates in view to a crescent
  * centred on its offset, drifting on all the while; it covers the cells
@@ -30,7 +30,7 @@ class ReapBladeTest {
 
     private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
     private static final Vec3 LEVEL_SOUTH = new Vec3(0, 0, 1);
-    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(1.5, 1, 2.5, 0.8, 6, 8, 3);
+    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(0.75, 3, 2.5, 0.8, 6, 8, 3);
     private static final int SAMPLES = 2000;
     private static final double TOLERANCE = 1e-6;
 
@@ -60,17 +60,17 @@ class ReapBladeTest {
         }
 
         @Test
-        void everyBladeStandsWithinHalfABlockOfTheAim() {
+        void everyBladeStandsWithinABlockSidewaysAndASliverUpOrDown() {
             RandomSource random = RandomSource.create(7L);
             for (int i = 0; i < SAMPLES; i++) {
                 ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random);
-                assertTrue(Math.abs(blade.offset()) <= 0.5 + TOLERANCE, "offset " + blade.offset());
-                assertTrue(Math.abs(blade.lift()) <= 0.5 + TOLERANCE, "lift " + blade.lift());
+                assertTrue(Math.abs(blade.offset()) <= 1 + TOLERANCE, "offset " + blade.offset());
+                assertTrue(Math.abs(blade.lift()) <= 0.15 + TOLERANCE, "lift " + blade.lift());
             }
         }
 
         @Test
-        void bladesScatterUpAndDownAsWellAsSideways() {
+        void bladesScatterWideSidewaysAndLittleUpAndDown() {
             RandomSource random = RandomSource.create(9L);
             double highest = 0;
             double widest = 0;
@@ -79,7 +79,8 @@ class ReapBladeTest {
                 highest = Math.max(highest, Math.abs(blade.lift()));
                 widest = Math.max(widest, Math.abs(blade.offset()));
             }
-            assertTrue(highest > 0.4 && widest > 0.4, "lift " + highest + ", offset " + widest);
+            assertTrue(widest > 0.9, "offset " + widest);
+            assertTrue(highest > 0.1, "lift " + highest);
         }
 
         @Test

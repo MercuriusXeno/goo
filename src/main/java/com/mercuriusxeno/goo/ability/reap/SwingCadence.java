@@ -7,10 +7,10 @@ import java.util.WeakHashMap;
 
 /**
  * The uneven cadence Reap's held channel swings at, so the blades come as a
- * flurry rather than a beat: a blade on the hold's first tick, then each next
- * blade a random few ticks after the last, between the fewest and the most
- * the JSON names. Each slasher's next swing is kept here for as long as the
- * slasher stands, and never saved.
+ * flurry rather than a beat: a swing on the hold's first tick, then each next
+ * swing a random few ticks after the last, between the fewest and the most
+ * the JSON names, each throwing a random few blades. Each slasher's next
+ * swing is kept here for as long as the slasher stands, and never saved.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 public final class SwingCadence {
@@ -52,6 +52,20 @@ public final class SwingCadence {
     static long nextSwingAt(long now, int fewest, int most, RandomSource random) {
         int least = Math.max(1, fewest);
         return now + least + random.nextInt(Math.max(least, most) - least + 1);
+    }
+
+    /**
+     * The blades one swing throws: a random count from the fewest to the
+     * most, both included, so the blades outnumber the swings' sounds.
+     *
+     * @param fewest the fewest blades a swing throws
+     * @param most   the most blades a swing throws
+     * @param random the random source
+     * @return the blades this swing throws
+     */
+    public static int bladesThisSwing(int fewest, int most, RandomSource random) {
+        int least = Math.max(1, fewest);
+        return least + random.nextInt(Math.max(least, most) - least + 1);
     }
 
     /**
