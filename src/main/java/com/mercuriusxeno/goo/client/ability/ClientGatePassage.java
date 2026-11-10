@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.quantum.ExitTilt;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.network.GateCrossedPayload;
@@ -85,7 +86,10 @@ public final class ClientGatePassage {
         float pitch = player.getXRot();
         GatePassage.Landing now = GatePassage.landingThrough(way.one(), way.other(), held.get(),
                 player.getBbHeight(), motion, yaw, pitch);
-        GatePassage.Landing before = landedBefore(player, way, held.get(), now);
+        GatePassage.Landing landedBefore = landedBefore(player, way, held.get(), now);
+        Vec3 look = Vec3.directionFromRotation(now.pitch(), now.yaw());
+        GatePassage.Landing before = new GatePassage.Landing(eyeClearOfTheFace(way.other(), landedBefore.feet(),
+                player.getEyeHeight(), look), landedBefore.motion(), landedBefore.yaw(), landedBefore.pitch());
         placeAt(player, now, before);
         recordTilt(player.getId(), way, player.level().getGameTime());
         player.connection.send(new ServerboundCustomPayloadPacket(new GateCrossedPayload(way.one(), feet, motion,
@@ -112,6 +116,32 @@ public final class ClientGatePassage {
                 player.getYRot(), player.getXRot()).feet());
         return new GatePassage.Landing(before.feet().add(setClear), before.motion(), before.yaw(), before.pitch());
     }
+
+    /**
+     * Where a player's feet stand so its eye, looking into the gate it came
+     * out of, stands far enough before that gate's face for the frame to
+     * draw it: closer than the camera's near plane, the face and the wall it
+     * lies on are cut away and the frame shows through the wall, as it did
+     * for one frame each time the operator backed out of a portal.
+     * portals-link-by-looking-through-portal-vision
+     *
+     * @param exit      the gate the player came out of
+     * @param feet      where its feet stand
+     * @param eyeHeight how high its eye stands over its feet
+     * @param look      where it looks
+     * @return the feet, set out from the face where the eye looks into it too near
+     */
+    static Vec3 eyeClearOfTheFace(Gate exit, Vec3 feet, double eyeHeight, Vec3 look) {
+        Vec3 normal = exit.face().getUnitVec3();
+        double out = exit.out(feet.add(0, eyeHeight, 0));
+        if (look.dot(normal) >= 0 || out >= NEAR_CLEAR) {
+            return feet;
+        }
+        return feet.add(normal.scale(NEAR_CLEAR - out));
+    }
+
+    /** How far before a face an eye looking into it stands at least: twice the camera's near plane. */
+    private static final double NEAR_CLEAR = 0.1;
 
     private static void placeAt(LocalPlayer player, GatePassage.Landing now, GatePassage.Landing before) {
         Vec3 feetBefore = before.feet();
