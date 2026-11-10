@@ -83,29 +83,26 @@ public final class PortalFaces {
      * mouth's torn edge. The halo's strength is the shader's own.
      */
     /**
-     * How far the swirl band stands off the face along its normal, in
-     * blocks: two sixteenths, the most the operator's reference stands out,
-     * tuned by eye.
+     * How far the swirl band's arch peaks off the face along its normal,
+     * right over the rim, in blocks: two sixteenths, the most the operator's
+     * reference stands out, tuned by eye.
      */
     static final double BAND_DEPTH = 2.0 / 16;
-    /**
-     * How far the swirl band leans outward past the rim as it rises, in
-     * blocks, so it shows as a band face on as well as from the side, tuned
-     * by eye.
-     */
-    static final double BAND_WIDTH = 2.0 / 16;
-    /** How many rings the swirl band rises in. */
-    private static final int BAND_RINGS = 4;
+    /** How far inside the rim the swirl band lands on the face, over the portal's view, in blocks, tuned by eye. */
+    static final double BAND_INSIDE = 2.0 / 16;
+    /** How far outside the rim the swirl band lands on the face, on the wall, in blocks, tuned by eye. */
+    static final double BAND_OUTSIDE = 2.0 / 16;
+    /** How many rings the swirl band's arch runs across in, from inside the rim to outside. */
+    private static final int BAND_RINGS = 6;
     /** How many segments each of the band's rings runs around the rim in, enough that it draws round. */
     private static final int BAND_SEGMENTS = 64;
     /**
-     * How far out a hole mouth's band starts on the face, as a share of the
-     * oval's radius: the deepest the mouth's tear bites, one less
-     * HOLE_TEAR_DEPTH in portal_texels.glsl. The band leans out past the
-     * oval as it rises, so it reaches the tear wherever the tear stands, and
-     * the swirl band shader cuts what lies inside it.
+     * Where a hole mouth's band arches over, as a share of the oval's
+     * radius: the middle of the mouth's tear, one less half HOLE_TEAR_DEPTH
+     * in portal_texels.glsl, so the band reaches the tear wherever the tear
+     * stands, and the swirl band shader cuts what lies inside it.
      */
-    private static final double TORN_BASE = 0.84;
+    private static final double TORN_MIDDLE = 0.92;
     /** The three in Ramanujan's reckoning of an oval's perimeter. */
     private static final double RAMANUJAN_THREE = 3;
     static final int CLEAN_EDGE = 0;
@@ -359,11 +356,26 @@ public final class PortalFaces {
      * @param camera  the camera's position
      * @param gates   the gates the frame draws
      */
+    /**
+     * The gates that wear a halo and swirl band in the pass drawing now:
+     * every gate, but inside a view through a pair, never the partner the
+     * view looks out of, whose own halo and band would ring the near gate's
+     * view in the partner's color, blue on the orange portal.
+     *
+     * @param gates        the gates the frame draws
+     * @param lookingOutOf the partner the view drawing now looks out of, empty outside a view
+     * @return the gates that wear theirs
+     */
+    static List<Drawn> wornIn(List<Drawn> gates, Optional<Gate> lookingOutOf) {
+        return gates.stream().filter(drawn -> lookingOutOf.filter(drawn.gate()::equals).isEmpty()).toList();
+    }
+
     private static void drawHalos(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
             List<Drawn> gates) {
-        emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE), gates, drawn -> drawn.drawnBox(camera));
+        List<Drawn> worn = wornIn(gates, PortalView.lookingOutOf());
+        emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE), worn, drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
-        emitSwirlBands(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE), gates,
+        emitSwirlBands(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE), worn,
                 drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
     }
@@ -371,8 +383,8 @@ public final class PortalFaces {
     /**
      * Emits the swirl band of every gate the frame draws, each portal and
      * each of a hole's two mouths, beside its surface glow, in its own color.
-     * A mouth's edge is marked torn and its band leans out from the deepest
-     * its tear bites, so the shader starts it at the tear.
+     * A mouth's edge is marked torn and its band arches over the middle of
+     * its tear, so the shader starts it at the tear.
      * tornadic-halo-spirals-out-from-the-rim
      * hole-mouths-wear-the-tornadic-halo
      *
@@ -384,31 +396,33 @@ public final class PortalFaces {
     static void emitSwirlBands(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            Tube tube = Tube.over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_BASE : 1);
-            emitSwirlBand(pose, consumer, tube, ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
+            Arch arch = Arch.over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_MIDDLE : 1);
+            emitSwirlBand(pose, consumer, arch, ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
         }
     }
 
     /**
-     * Emits a gate's swirl band: rings trace the rim's oval, each next one
-     * standing farther off the face along its normal up to the named depth
-     * and leaning farther out past the rim up to the named width. Each quad
-     * maps zero to one around the rim and up the band, and every vertex
-     * carries the texels around the rim and up the band at sixteen a block.
+     * Emits a gate's swirl band as an arch straddling the rim: rings trace
+     * the rim's oval from the named distance inside it to the named distance
+     * outside, rising off the face to the named depth right over the rim and
+     * landing on the face at both edges. Each quad maps zero to one around
+     * the rim and across the arch from inside to outside, and every vertex
+     * carries the texels around the rim and across the arch at sixteen a
+     * block.
      * tornadic-halo-spirals-out-from-the-rim
      *
      * @param pose     the pose
      * @param consumer the vertex consumer
-     * @param tube     the tube over the gate's face
+     * @param arch     the arch over the gate's rim
      * @param color    the packed ARGB color, its alpha the edge mark
      */
-    private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Tube tube, int color) {
+    private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Arch arch, int color) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-        int[] texels = tube.texels();
+        int[] texels = arch.texels();
         for (int level = 0; level < BAND_RINGS; level++) {
             for (int segment = 0; segment < BAND_SEGMENTS; segment++) {
                 for (int[] corner : corners) {
-                    Vec3 at = tube.point(segment + corner[0], level + corner[1]);
+                    Vec3 at = arch.point(segment + corner[0], level + corner[1]);
                     consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
                             .setUv((float) (segment + corner[0]) / BAND_SEGMENTS,
                                     (float) (level + corner[1]) / BAND_RINGS)
@@ -419,48 +433,46 @@ public final class PortalFaces {
     }
 
     /**
-     * The surface a gate's swirl band draws over: the rim's oval on the face,
-     * its half sizes across the face's two ways, rising off the face's plane
-     * and leaning out past the rim.
+     * The arch a gate's swirl band draws over: the rim's oval on the face,
+     * its half sizes across the face's two ways, the arch straddling it.
      *
      * @param center the oval's middle on the face's plane, lifted off it
      * @param side   the face
      * @param half   the oval's half size across the face's first way, then its second
-     * @param base   how far out the tube's first ring stands, as a share of the oval's radius
+     * @param base   where the arch peaks, as a share of the oval's radius
      */
-    private record Tube(Vec3 center, Direction side, double[] half, double base) {
+    private record Arch(Vec3 center, Direction side, double[] half, double base) {
 
         /**
          * @param box  the gate's blocks, camera-relative
          * @param side the face
-         * @param base how far out the tube's first ring stands, as a share of the oval's radius
-         * @return the tube
+         * @param base where the arch peaks, as a share of the oval's radius
+         * @return the arch
          */
-        static Tube over(AABB box, Direction side, double base) {
+        static Arch over(AABB box, Direction side, double base) {
             Vec3 middle = cornerOf(box, side, 0, 0).add(cornerOf(box, side, 1, 1)).scale(HALF_WAVE);
-            return new Tube(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
+            return new Arch(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
                     * HALF_WAVE, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * HALF_WAVE}, base);
         }
 
         /**
          * @param segment how many segments around the rim, of the named count
-         * @param level   how many rings up the tube, of the named count
-         * @return the tube's point there
+         * @param level   how many rings across the arch from inside the rim, of the named count
+         * @return the arch's point there
          */
         Vec3 point(int segment, int level) {
-            double up = (double) level / BAND_RINGS;
-            double spread = Mth.lerp(up, base, 1);
-            double lean = BAND_WIDTH * up;
+            double share = (double) level / BAND_RINGS;
+            double off = Mth.lerp(share, -BAND_INSIDE, BAND_OUTSIDE);
             double angle = Mth.TWO_PI * segment / BAND_SEGMENTS;
-            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), (half[0] * spread + lean) * Math.cos(angle))
-                    .with(secondAxisOf(side), (half[1] * spread + lean) * Math.sin(angle));
-            return center.add(across).add(side.getUnitVec3().scale(BAND_DEPTH * up));
+            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), (half[0] * base + off) * Math.cos(angle))
+                    .with(secondAxisOf(side), (half[1] * base + off) * Math.sin(angle));
+            return center.add(across).add(side.getUnitVec3().scale(BAND_DEPTH * Math.sin(Math.PI * share)));
         }
 
         /**
-         * @return the texels around the tube's first ring, by Ramanujan's
-         *         reckoning of an oval's perimeter, then up the tube, at
-         *         sixteen a block
+         * @return the texels around the arch's peak, by Ramanujan's reckoning
+         *         of an oval's perimeter, then across the arch from inside the
+         *         rim to outside, at sixteen a block
          */
         int[] texels() {
             double first = half[0] * base;
@@ -468,7 +480,7 @@ public final class PortalFaces {
             double around = Math.PI * (RAMANUJAN_THREE * (first + second) - Math.sqrt((RAMANUJAN_THREE * first
                     + second) * (first + RAMANUJAN_THREE * second)));
             return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
-                    (int) Math.round(BAND_DEPTH * TEXELS_PER_BLOCK)};
+                    (int) Math.round((BAND_INSIDE + BAND_OUTSIDE) * TEXELS_PER_BLOCK)};
         }
     }
 

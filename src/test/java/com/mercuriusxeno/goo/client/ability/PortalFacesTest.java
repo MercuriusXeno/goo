@@ -152,10 +152,10 @@ class PortalFacesTest {
     }
 
     /**
-     * Beside its surface glow, a placed portal wears a swirl band: a funnel that
-     * starts at its rim on the face and rises off the wall along the face's
-     * normal to the named height, in the portal's own color, its texel grid
-     * counting sixteen a block around the rim and up the funnel
+     * Beside its surface glow, a placed portal wears a swirl band: an arch that
+     * lands on the face inside and outside its rim and peaks off the wall
+     * right over the rim at the named depth, in the portal's own color, its
+     * texels counted sixteen a block around the rim and across the arch
      * (decision tornadic-halo-spirals-out-from-the-rim).
      */
     @Nested
@@ -168,16 +168,16 @@ class PortalFacesTest {
         private static final float FACE_Z = -0.01F;
         /** How far a vertex may stand from where the test reckons it, float rounding only. */
         private static final float NEAR = 1.0e-4F;
-        /** The rim's 4.84 blocks around a one by two oval and the tube's two texels up, at sixteen a block. */
-        private static final int[] AROUND_BY_UP = {78, 2};
+        /** The rim's 4.84 blocks around a one by two oval and the arch's four texels across, at sixteen a block. */
+        private static final int[] AROUND_BY_UP = {78, 4};
 
         @Test
-        void aWaitingPortalsSwirlBandRisesFromItsRimToTheNamedHeightInBlue() {
+        void aWaitingPortalsSwirlBandArchesOverItsRimToTheNamedDepthInBlue() {
             assertSwirlBandOff(PortalFaces.colorOf(WALL_PORTAL, List.of()), PortalFaces.BLUE_RGB);
         }
 
         @Test
-        void aLinkedExitsSwirlBandRisesFromItsRimToTheNamedHeightInOrange() {
+        void aLinkedExitsSwirlBandArchesOverItsRimToTheNamedDepthInOrange() {
             assertSwirlBandOff(PortalFaces.colorOf(WALL_PORTAL, List.of(new QuantumPortals.Link(OTHER_PORTAL,
                     WALL_PORTAL))), PortalFaces.ORANGE_RGB);
         }
@@ -195,25 +195,61 @@ class PortalFacesTest {
             int vertices = zs.getAllValues().size();
             float nearest = zs.getAllValues().stream().max(Float::compare).orElseThrow();
             float farthest = zs.getAllValues().stream().min(Float::compare).orElseThrow();
-            assertEquals(FACE_Z, nearest, NEAR, "The swirl band should start on the face");
+            assertEquals(FACE_Z, nearest, NEAR, "The swirl band should land on the face");
             assertEquals(FACE_Z - (float) PortalFaces.BAND_DEPTH, farthest, NEAR,
-                    "The swirl band should rise off the wall to the named height");
-            List<Float> atTheFace = new java.util.ArrayList<>();
+                    "The swirl band should peak off the wall at the named depth");
             for (int i = 0; i < vertices; i++) {
-                if (Math.abs(zs.getAllValues().get(i) - FACE_Z) < NEAR) {
-                    atTheFace.add(ovalRadius(xs.getAllValues().get(i), ys.getAllValues().get(i)));
+                float x = xs.getAllValues().get(i);
+                float y = ys.getAllValues().get(i);
+                float z = zs.getAllValues().get(i);
+                if (Math.abs(z - FACE_Z) < NEAR) {
+                    assertTrue(onOval(x - 0.5F, y - 65F, 0.5 - PortalFaces.BAND_INSIDE, 1 - PortalFaces.BAND_INSIDE)
+                            || onOval(x - 0.5F, y - 65F, 0.5 + PortalFaces.BAND_OUTSIDE,
+                                    1 + PortalFaces.BAND_OUTSIDE),
+                            "A vertex on the face should land the named distance inside or outside the rim, lands at "
+                                    + x + ", " + y);
+                } else if (Math.abs(z - farthest) < NEAR) {
+                    assertTrue(onOval(x - 0.5F, y - 65F, 0.5, 1), "The band's peak should stand right over the rim, "
+                            + "stands at " + x + ", " + y);
                 }
             }
-            assertTrue(!atTheFace.isEmpty() && atTheFace.stream().allMatch(radius -> Math.abs(radius - 1F) < NEAR),
-                    "Every vertex on the face should stand on the rim's oval, stands at " + atTheFace);
             verify(consumer, times(vertices)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE, expectedRgb));
             verify(consumer, times(vertices)).setUv2(AROUND_BY_UP[0], AROUND_BY_UP[1]);
         }
+    }
 
-        /** How far out a point on the north face stands on the frame's oval, one on its rim. */
-        private float ovalRadius(float x, float y) {
-            return (float) Math.hypot((x - 0.5F) / 0.5F, (y - 65F) / 1F);
-        }
+    /**
+     * @param first  a point's offset from an oval's middle across its first way
+     * @param second its offset across the second way
+     * @param half   the oval's half size across its first way
+     * @param other  its half size across its second way
+     * @return whether the point stands on the oval
+     */
+    private static boolean onOval(float first, float second, double half, double other) {
+        return Math.abs(Math.hypot(first / half, second / other) - 1) < 1.0e-3;
+    }
+
+    /**
+     * Inside a view through a pair, the partner the view looks out of wears
+     * no halo or swirl band, so the near portal's view is never ringed in the
+     * partner's color, blue showing on the orange one; every other gate the
+     * view sees wears its own.
+     */
+    @Test
+    void theViewThroughAPairLeavesOutThePartnersHaloAndBand() {
+        Gate blue = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 1, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
+        Gate orange = new Gate(Level.OVERWORLD, new AABB(9, 64, 0, 10, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
+        Gate seen = new Gate(Level.OVERWORLD, new AABB(20, 64, 0, 21, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
+        List<PortalFaces.Drawn> gates = List.of(new PortalFaces.Drawn(blue, PortalFaces.BLUE_RGB, false),
+                new PortalFaces.Drawn(orange, PortalFaces.ORANGE_RGB, false),
+                new PortalFaces.Drawn(seen, PortalFaces.BLUE_RGB, false));
+
+        List<Gate> worn = PortalFaces.wornIn(gates, java.util.Optional.of(blue)).stream()
+                .map(PortalFaces.Drawn::gate).toList();
+
+        assertEquals(List.of(orange, seen), worn, "Looking out of the blue portal, only the others wear theirs");
+        assertEquals(3, PortalFaces.wornIn(gates, java.util.Optional.empty()).size(),
+                "Outside a view, every gate wears its own");
     }
 
     /**
@@ -269,9 +305,9 @@ class PortalFacesTest {
 
     /**
      * Each of a wormhole's two mouths wears the portals' swirl band beside its
-     * surface glow, rising off the face along its normal to the same named
-     * height, in the mouth's own color, its edge marked torn and its funnel
-     * based on the deepest the tear bites, for the shader to start it at the
+     * surface glow, arching off the face along its normal to the same named
+     * depth, in the mouth's own color, its edge marked torn and its arch
+     * straddling the middle of the tear, for the shader to start it at the
      * tear (decision hole-mouths-wear-the-tornadic-halo).
      */
     @Nested
@@ -285,33 +321,39 @@ class PortalFacesTest {
                 Direction.UP, new Vec3(0, 0, 1));
         /** How far a vertex may stand from where the test reckons it, float rounding only. */
         private static final float NEAR = 1.0e-4F;
-        /** The deepest a mouth's tear bites, as a share of the oval's radius. */
-        private static final float TORN_BASE = 0.84F;
+        /** The middle of a mouth's tear, as a share of the oval's radius. */
+        private static final double TORN_MIDDLE = 0.92;
 
-        /** A three by three mouth's tube: 7.92 blocks around its torn base and two texels up, sixteen a block. */
+        /** A three by three mouth's arch: 8.67 blocks around the tear's middle and four texels across. */
         @Test
-        void aThreeByThreeMouthsSwirlBandRisesFromItsTearToTheNamedHeightInItsColor() {
-            Captured funnel = emitBoth(new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true));
+        void aThreeByThreeMouthsSwirlBandArchesOverItsTearToTheNamedDepthInItsColor() {
+            Captured band = emitBoth(new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true));
 
-            assertSpans(funnel.normals(), -0.01F, -0.01F - (float) PortalFaces.BAND_DEPTH);
-            assertOnTheTornBase(funnel.atTheBase((first, second) -> Math.hypot((first - 1.5F) / 1.5F,
-                    (second - 65.5F) / 1.5F), -0.01F));
-            verify(funnel.consumer(), times(funnel.vertices()))
+            assertSpans(band.normals(), -0.01F, -0.01F - (float) PortalFaces.BAND_DEPTH);
+            assertStraddlesTheTear(band.atTheFace(-0.01F), new float[] {1.5F, 65.5F}, new double[] {1.5, 1.5});
+            verify(band.consumer(), times(band.vertices()))
                     .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.BLUE_RGB));
-            verify(funnel.consumer(), times(funnel.vertices())).setUv2(127, 2);
+            verify(band.consumer(), times(band.vertices())).setUv2(139, 4);
         }
 
-        /** A one by two floor mouth's tube: 4.07 blocks around its torn base and two texels up, sixteen a block. */
+        /** A one by two floor mouth's arch: 4.46 blocks around the tear's middle and four texels across. */
         @Test
-        void aOneByTwoMouthsSwirlBandRisesFromItsTearToTheNamedHeightInItsColor() {
-            Captured funnel = emitBoth(new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true));
+        void aOneByTwoMouthsSwirlBandArchesOverItsTearToTheNamedDepthInItsColor() {
+            Captured band = emitBoth(new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true));
 
-            assertSpans(funnel.normals(), 64.01F, 64.01F + (float) PortalFaces.BAND_DEPTH);
-            assertOnTheTornBase(funnel.atTheBase((first, second) -> Math.hypot((first - 5.5F) / 0.5F,
-                    (second - 1F) / 1F), 64.01F));
-            verify(funnel.consumer(), times(funnel.vertices()))
+            assertSpans(band.normals(), 64.01F, 64.01F + (float) PortalFaces.BAND_DEPTH);
+            assertStraddlesTheTear(band.atTheFace(64.01F), new float[] {5.5F, 1F}, new double[] {0.5, 1});
+            verify(band.consumer(), times(band.vertices()))
                     .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
-            verify(funnel.consumer(), times(funnel.vertices())).setUv2(65, 2);
+            verify(band.consumer(), times(band.vertices())).setUv2(71, 4);
+        }
+
+        private void assertStraddlesTheTear(List<float[]> atTheFace, float[] middle, double[] half) {
+            assertTrue(!atTheFace.isEmpty() && atTheFace.stream().allMatch(at -> onOval(at[0] - middle[0],
+                    at[1] - middle[1], half[0] * TORN_MIDDLE - PortalFaces.BAND_INSIDE,
+                    half[1] * TORN_MIDDLE - PortalFaces.BAND_INSIDE) || onOval(at[0] - middle[0], at[1] - middle[1],
+                    half[0] * TORN_MIDDLE + PortalFaces.BAND_OUTSIDE, half[1] * TORN_MIDDLE + PortalFaces.BAND_OUTSIDE)),
+                    "Every vertex on the face should land the named distance inside or outside the tear's middle");
         }
 
         /**
@@ -335,18 +377,13 @@ class PortalFacesTest {
 
         private void assertSpans(List<Float> normals, float face, float far) {
             assertEquals(face, normals.stream().min((a, b) -> Float.compare(Math.abs(a - face), Math.abs(b - face)))
-                    .orElseThrow(), NEAR, "The swirl band should start on the face");
+                    .orElseThrow(), NEAR, "The swirl band should land on the face");
             assertEquals(far, normals.stream().min((a, b) -> Float.compare(Math.abs(a - far), Math.abs(b - far)))
-                    .orElseThrow(), NEAR, "The swirl band should rise off the face to the named height");
+                    .orElseThrow(), NEAR, "The swirl band should peak off the face at the named depth");
             float low = Math.min(face, far) - NEAR;
             float high = Math.max(face, far) + NEAR;
             assertTrue(normals.stream().allMatch(at -> at >= low && at <= high),
-                    "Every vertex should stand between the face and the named height");
-        }
-
-        private void assertOnTheTornBase(List<Double> radii) {
-            assertTrue(!radii.isEmpty() && radii.stream().allMatch(radius -> Math.abs(radius - TORN_BASE) < NEAR),
-                    "Every vertex on the face should stand on the deepest the tear bites, stands at " + radii);
+                    "Every vertex should stand between the face and the named depth");
         }
 
         /**
@@ -369,16 +406,16 @@ class PortalFacesTest {
                 return side.getAxis() == Direction.Axis.Y ? ys : zs;
             }
 
-            /** The oval radius of each vertex on the face, by its two coordinates across the face. */
-            List<Double> atTheBase(java.util.function.BiFunction<Float, Float, Double> radiusOf, float face) {
-                List<Double> radii = new java.util.ArrayList<>();
+            /** Each vertex on the face, by its two coordinates across the face. */
+            List<float[]> atTheFace(float face) {
+                List<float[]> points = new java.util.ArrayList<>();
                 for (int i = 0; i < vertices(); i++) {
                     if (Math.abs(normals().get(i) - face) < NEAR) {
-                        radii.add(side.getAxis() == Direction.Axis.Y ? radiusOf.apply(xs.get(i), zs.get(i))
-                                : radiusOf.apply(xs.get(i), ys.get(i)));
+                        points.add(side.getAxis() == Direction.Axis.Y ? new float[] {xs.get(i), zs.get(i)}
+                                : new float[] {xs.get(i), ys.get(i)});
                     }
                 }
-                return radii;
+                return points;
             }
         }
     }
