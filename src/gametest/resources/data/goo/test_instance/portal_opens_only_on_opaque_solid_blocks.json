@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:portal_opens_only_on_opaque_solid_blocks",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -3,7 +3,7 @@
   "displayName": "goo.ability.weird.coat",
   "badge": "channeled",
   "order": 0,
-  "cost": 1000,
+  "cost": 12,
   "delivery": {
     "kind": "stream",
     "range": 8,

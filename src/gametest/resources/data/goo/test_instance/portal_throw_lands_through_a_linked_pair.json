@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:portal_throw_lands_through_a_linked_pair",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

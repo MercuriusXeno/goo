@@ -37,7 +37,6 @@ import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
-import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -397,15 +396,6 @@ public final class GooAttachments {
                             .serialize(OutOfPhase.CODEC, OutOfPhase::laid)
                             .sync(GooAttachments::syncsToWatcher, OutOfPhase.STREAM_CODEC)
                             .build());
-
-    /**
-     * The quantum anchor a player last arrived at, held until they step away
-     * from it, so arriving never carries them straight back. Not saved.
-     * quantum-anchors-link-two-points
-     */
-    public static final Supplier<AttachmentType<Optional<GlobalPos>>> ANCHOR_ARRIVAL =
-            ATTACHMENT_TYPES.register("anchor_arrival",
-                    () -> AttachmentType.<Optional<GlobalPos>>builder(Optional::empty).build());
 
     /**
      * The swap body a player has standing, saved with the player while one stands.

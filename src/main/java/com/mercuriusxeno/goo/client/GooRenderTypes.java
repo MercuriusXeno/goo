@@ -1172,15 +1172,16 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Phase pipeline (decision phase-shares-a-plane-between-the-phased): a
-     * phased entity's body drawn in place of its own through the ghost vertex
-     * shader and {@code goo_phase.fsh}, its skin washed toward grey and
-     * translucent under the vertex alpha. Depth write on, as vanilla's
-     * translucent entity, so the body hides its own far side.
+     * Phase pipeline (decision phased-things-draw-as-a-ghostly-image): a
+     * phased entity's body drawn in place of its own through
+     * {@code goo_phase.vsh / .fsh}, its skin washed toward grey, translucent
+     * under the vertex alpha, with a faint pale outline at its silhouette.
+     * Depth write on, as vanilla's translucent entity, so the body hides its
+     * own far side.
      */
     public static final RenderPipeline GOO_PHASE = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_phase"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_phase"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_phase"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
@@ -1205,6 +1206,147 @@ public final class GooRenderTypes {
      */
     public static RenderType gooPhase(Identifier skin) {
         return GOO_PHASE_FACTORY.apply(skin);
+    }
+
+    /**
+     * Portal view pipeline (decision portals-link-by-looking-through-portal-vision):
+     * a linked portal's face drawn through {@code goo_portal_view.vsh / .fsh},
+     * sampling the partner side's render at the fragment's own screen point, so
+     * the view through lies flush with the frame. Depth tested and written, as
+     * the face stands in the world.
+     */
+    public static final RenderPipeline GOO_PORTAL_VIEW = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_view"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
+            .withSampler("Sampler0")
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            // portals-and-wormhole-draw-sixteen-texels-a-block: the rim's edge ring lets a quarter of the wall through
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    /**
+     * A hole's mouth showing the view through it: the far side see-through
+     * over the wall inside a torn, shifting edge
+     * (decision hole-closes-the-space-to-an-opening-ahead).
+     */
+    public static final RenderPipeline GOO_HOLE_VIEW = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_hole_view"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_hole_view"))
+            .withSampler("Sampler0")
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    private static final java.util.function.Function<Identifier, RenderType> GOO_HOLE_VIEW_FACTORY =
+            net.minecraft.util.Util.memoize(view -> RenderType.create("goo_hole_view",
+                    RenderSetup.builder(GOO_HOLE_VIEW)
+                            .withTexture("Sampler0", view)
+                            .setOutputTarget(OutputTarget.MAIN_TARGET)
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the hole view render type over a hole mouth's view texture.
+     *
+     * @param view the view texture's id
+     * @return memoized RenderType
+     */
+    public static RenderType gooHoleView(Identifier view) {
+        return GOO_HOLE_VIEW_FACTORY.apply(view);
+    }
+
+    /**
+     * Idle portal pipeline (decision portals-link-by-looking-through-portal-vision):
+     * a portal with no view to show drawn through {@code goo_portal_idle.vsh / .fsh},
+     * an oval of its color swirling in from a glowing rim toward a dark heart,
+     * blended over the wall, depth tested and written as the face stands in
+     * the world.
+     */
+    public static final RenderPipeline GOO_PORTAL_IDLE = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_idle"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    /** RenderType for an idle portal's swirl. */
+    public static final RenderType GOO_PORTAL_IDLE_TYPE = RenderType.create("goo_portal_idle",
+            RenderSetup.builder(GOO_PORTAL_IDLE).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+                    .createRenderSetup());
+
+    /**
+     * A portal's outline through blocks while its owner chooses a partner: a
+     * thin glowing ring at the oval's edge passing every depth test, so a
+     * hidden portal can be found without covering what stands before it
+     * (decision portals-link-by-looking-through-portal-vision).
+     */
+    public static final RenderPipeline GOO_PORTAL_OUTLINE = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_outline"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_outline"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /** RenderType for a portal's outline through blocks. */
+    public static final RenderType GOO_PORTAL_OUTLINE_TYPE = RenderType.create("goo_portal_outline",
+            RenderSetup.builder(GOO_PORTAL_OUTLINE).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+                    .createRenderSetup());
+
+    /**
+     * The idle swirl's twin passing every depth test, for portal vision:
+     * while a player chooses a partner, every portal of theirs shows its
+     * swirl through walls.
+     */
+    public static final RenderPipeline GOO_PORTAL_VISION = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_vision"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /** RenderType for portal vision's swirls through walls. */
+    public static final RenderType GOO_PORTAL_VISION_TYPE = RenderType.create("goo_portal_vision",
+            RenderSetup.builder(GOO_PORTAL_VISION).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+                    .createRenderSetup());
+
+    /** Per-view memoized render types on the portal view pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GOO_PORTAL_VIEW_FACTORY =
+            net.minecraft.util.Util.memoize(view -> RenderType.create(
+                    "goo_portal_view",
+                    RenderSetup.builder(GOO_PORTAL_VIEW)
+                            .withTexture("Sampler0", view)
+                            .setOutputTarget(OutputTarget.MAIN_TARGET)
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the portal view render type over a portal's view texture.
+     *
+     * @param view the view texture's id
+     * @return memoized RenderType
+     */
+    public static RenderType gooPortalView(Identifier view) {
+        return GOO_PORTAL_VIEW_FACTORY.apply(view);
     }
     /** The ripple mask shader pair's name, and the stem of each mask pipeline's. */
     private static final String RIPPLE_MASK = "goo_ripple_mask";
@@ -1460,6 +1602,11 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_SOFT_OUTLINE);
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GOO_PHASE);
+        event.registerPipeline(GOO_PORTAL_VIEW);
+        event.registerPipeline(GOO_PORTAL_IDLE);
+        event.registerPipeline(GOO_HOLE_VIEW);
+        event.registerPipeline(GOO_PORTAL_OUTLINE);
+        event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);

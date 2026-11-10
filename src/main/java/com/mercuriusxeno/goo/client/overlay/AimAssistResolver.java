@@ -139,7 +139,7 @@ final class AimAssistResolver {
      * @return candidate entities in the inflated search box
      */
     private static List<Entity> gatherCandidates(Player player, Vec3 from, Vec3 to, List<Step> behaviors) {
-        AABB searchBox = buildSearchBox(player, from, to);
+        AABB searchBox = buildSearchBox(from, to);
         return player.level().getEntities(player, searchBox, e -> isCandidate(e, behaviors));
     }
 
@@ -157,17 +157,18 @@ final class AimAssistResolver {
     }
 
     /**
-     * Builds the shared search bounding box used for both entity and marker
-     * candidate gathering.
+     * Builds the search box candidates are gathered in, swept along the ray
+     * from its own start, so a leg the aim carries on along out of a linked
+     * gate's partner gathers the mobs beside that leg wherever the partner
+     * stands. aim-and-shots-carry-through-linked-gates
      *
-     * @param player the aiming player
-     * @param from   ray start
-     * @param to     ray end
+     * @param from ray start
+     * @param to   ray end
      * @return the inflated search box
      */
-    private static AABB buildSearchBox(Player player, Vec3 from, Vec3 to) {
+    private static AABB buildSearchBox(Vec3 from, Vec3 to) {
         double coneRadius = MAX_RANGE * Math.tan(Math.toRadians(AIM_ASSIST_DEGREES));
-        return player.getBoundingBox()
+        return new AABB(from, from)
                 .expandTowards(to.subtract(from))
                 .inflate(coneRadius + 1.0);
     }

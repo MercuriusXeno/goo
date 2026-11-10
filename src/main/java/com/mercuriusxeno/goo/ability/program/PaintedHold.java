@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
@@ -166,7 +168,7 @@ final class PaintedHold {
                           HoldMarks marks) {
         for (BlockPos pos : seen) {
             if (!host.airAt(pos) && next.apply(host.blockAt(pos)).isPresent() && CalcifyStep.facesAir(host, pos)) {
-                marks.paint(pos, host.blockAt(pos));
+                marks.paint(pos, host.stateAt(pos));
             }
         }
     }
@@ -186,6 +188,24 @@ final class PaintedHold {
          * @param into the block it becomes
          */
         void finish(BlockPos pos, Block raw, Block into);
+    }
+
+    /**
+     * The step a painted cell takes once full, for a step whose next state
+     * follows the painted state rather than its block alone.
+     * slime-is-a-layered-cell-that-levels-out
+     */
+    @FunctionalInterface
+    interface StateFinish {
+
+        /**
+         * Steps one cell.
+         *
+         * @param pos  the cell
+         * @param raw  the state painted there
+         * @param into the state it becomes
+         */
+        void finish(BlockPos pos, BlockState raw, BlockState into);
     }
 
     /**
@@ -236,10 +256,33 @@ final class PaintedHold {
      */
     static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
                              Function<Block, OptionalInt> tintOf, CellFinish finish) {
-        for (Map.Entry<BlockPos, Block> painted : Map.copyOf(marks.painted()).entrySet()) {
+        buildPaintedStates(host, raw -> next.apply(raw.getBlock()).map(Block::defaultBlockState),
+                (now, raw) -> now.getBlock() == raw.getBlock(), marks, rate, raw -> tintOf.apply(raw.getBlock()),
+                (pos, raw, into) -> finish.finish(pos, raw.getBlock(), into.getBlock()));
+    }
+
+    /**
+     * Builds every painted cell one tick toward the state it becomes, for a
+     * step whose next state follows the painted state rather than its block
+     * alone, as a slime cell thickens by a layer.
+     * slime-is-a-layered-cell-that-levels-out
+     *
+     * @param host   the channel host
+     * @param next   the state a painted state becomes, empty where it becomes none
+     * @param stands whether the cell's state now is still the painted one, so the hold builds on; false once it
+     *               finished alone or something else replaced it
+     * @param marks  the hold's marks
+     * @param rate   the share one tick builds
+     * @param tintOf the tint or mark each painted state's exposure carries, empty for none
+     * @param finish the step a full cell takes
+     */
+    static void buildPaintedStates(ChannelHost host, Function<BlockState, Optional<BlockState>> next,
+                                   BiPredicate<BlockState, BlockState> stands, HoldMarks marks, float rate,
+                                   Function<BlockState, OptionalInt> tintOf, StateFinish finish) {
+        for (Map.Entry<BlockPos, BlockState> painted : Map.copyOf(marks.painted()).entrySet()) {
             BlockPos pos = painted.getKey();
-            Block raw = painted.getValue();
-            if (host.blockAt(pos) != raw) {
+            BlockState raw = painted.getValue();
+            if (!stands.test(host.stateAt(pos), raw)) {
                 // it finished alone, or something else replaced it
                 marks.noteStepped(pos);
             } else if (!host.finishingAlone(pos)) {
@@ -252,11 +295,11 @@ final class PaintedHold {
         }
     }
 
-    private static boolean build(ChannelHost host, BlockPos pos, Block into, float rate, OptionalInt tint,
+    private static boolean build(ChannelHost host, BlockPos pos, BlockState into, float rate, OptionalInt tint,
                                  Runnable step) {
         float share = tint.isPresent()
-                ? host.exposeBlock(pos, into.defaultBlockState(), rate, tint.getAsInt())
-                : host.exposeBlock(pos, into.defaultBlockState(), rate);
+                ? host.exposeBlock(pos, into, rate, tint.getAsInt())
+                : host.exposeBlock(pos, into, rate);
         if (share >= 1f) {
             step.run();
             return true;

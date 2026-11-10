@@ -3,9 +3,9 @@
   "displayName": "goo.ability.weird.bounce",
   "badge": "world",
   "order": 1,
-  "cost": 1000,
+  "cost": 48,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "place_block", "block": "goo:slime_coat" }
+    { "type": "coat", "layers": 4 }
   ]
 }
