@@ -69,7 +69,9 @@ class ClickRippleTest {
             ArgumentCaptor<Vec3> at = ArgumentCaptor.forClass(Vec3.class);
             ArgumentCaptor<GameEvent.Context> context = ArgumentCaptor.forClass(GameEvent.Context.class);
             verify(level, times(1)).gameEvent(any(Holder.class), at.capture(), context.capture());
-            verify(level, times(1)).playSound(nullable(Entity.class), anyDouble(), anyDouble(), anyDouble(),
+            // the click sounds on the way only as the client's trailing echoes, and from the server once, at the range
+            int clicks = tick == THROW_TICK + rippleTicks ? 1 : 0;
+            verify(level, times(clicks)).playSound(nullable(Entity.class), anyDouble(), anyDouble(), anyDouble(),
                     any(Holder.class), any(), anyFloat(), anyFloat());
             assertNull(context.getValue().sourceEntity());
             double along = at.getValue().subtract(EYE).dot(LOOK);
@@ -105,10 +107,10 @@ class ClickRippleTest {
         assertEquals(wallLanding, at.getValue());
     }
 
-    /** The waves carry the click's own program, the vibrate and the sound. */
+    /** The last ripple carries the click's whole program, and the ones before it all of it but the sound. */
     @Test
-    void eachRippleRunsTheClicksProgram() {
+    void theLastRippleRunsTheWholeProgram() {
         List<ScanWaves.Wave> waves = GooScanHandler.wavesFor(true, level, EYE, LOOK, wallLanding, click, THROW_TICK);
-        assertTrue(waves.stream().allMatch(wave -> wave.steps().equals(click.behaviors())));
+        assertEquals(click.behaviors(), waves.getLast().steps());
     }
 }

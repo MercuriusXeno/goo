@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
+import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -106,7 +108,8 @@ public final class GooScanHandler {
     /**
      * The waves a scan sends: from inside the ground, one each tick at the
      * point the wave has reached along the aimed line, through solid and open
-     * space alike, out to the range; from the surface, one to its landing.
+     * space alike, out to the range, each vibrating there and only the last
+     * sounding; from the surface, one to its landing.
      * submerged-click-ripples-through-the-ground-to-its-range
      *
      * @param submerged   whether the thrower clicks from inside the ground
@@ -127,10 +130,13 @@ public final class GooScanHandler {
         double range = ability.delivery().range();
         double speed = ability.delivery().blocksPerTick();
         int ticks = (int) Math.ceil(range / speed);
+        // the operator ruled a click every tick excessive: on the way the click sounds only as the trailing echoes
+        List<Step> silent = ability.behaviors().stream().filter(step -> !(step instanceof SoundStep)).toList();
         List<ScanWaves.Wave> ripple = new ArrayList<>(ticks);
         for (int tick = 1; tick <= ticks; tick++) {
             Vec3 reached = eye.add(look.scale(Math.min(speed * tick, range)));
-            ripple.add(new ScanWaves.Wave(currentTick + tick, level, reached, ability.id(), ability.behaviors()));
+            List<Step> steps = tick == ticks ? ability.behaviors() : silent;
+            ripple.add(new ScanWaves.Wave(currentTick + tick, level, reached, ability.id(), steps));
         }
         return ripple;
     }
