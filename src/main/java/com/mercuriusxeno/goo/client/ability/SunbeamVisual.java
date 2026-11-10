@@ -20,6 +20,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -27,6 +28,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +45,7 @@ import java.util.Objects;
  * light ({@link GlowCore}).
  * decision sunbeam-splits-at-the-prism-with-a-glisten
  * decision diagnose-and-correct-the-sunbeam-prism-depth
+ * decision sunbeam-ray-blooms-out-inside-the-prism
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SunbeamVisual {
@@ -128,13 +131,13 @@ public final class SunbeamVisual {
         for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
             Entity caster = Objects.requireNonNull(level.getEntity(entry.getKey()));
             Vec3 hand = GloveHand.of(mc, caster, partialTick);
-            Vec3 struck = drawnEnd(mc, caster, entry.getValue(), partialTick);
-            Vec3 gathered = SunbeamRayEnd.gathersAt(hand, struck, pos -> refractsAt(level, pos));
-            if (!gathered.equals(struck)) {
+            DrawnEnd struck = drawnEnd(mc, caster, entry.getValue(), partialTick);
+            Vec3 gathered = SunbeamRayEnd.gathersAt(hand, struck.point(), pos -> refractsAt(level, pos));
+            if (!gathered.equals(struck.point())) {
                 cores.add(gathered.subtract(camera));
             }
-            drawRay(poseStack, consumer, hand.subtract(camera), gathered.subtract(camera), entry.getValue(),
-                    camera, scroll);
+            drawRay(poseStack, consumer, new DrawnEnd(gathered.subtract(camera), struck.inPrism()),
+                    hand.subtract(camera), entry.getValue(), camera, scroll);
         }
         return cores;
     }
@@ -192,20 +195,24 @@ public final class SunbeamVisual {
      * @param caster      the casting entity
      * @param ray         the caster's latest ray from the server
      * @param partialTick the frame's partial tick
-     * @return the world point the ray ends at
+     * @return the world point the ray ends at, and whether it ends in a prism
      */
-    private static Vec3 drawnEnd(Minecraft mc, Entity caster, Ray ray, float partialTick) {
+    private static DrawnEnd drawnEnd(Minecraft mc, Entity caster, Ray ray, float partialTick) {
         double now = caster.level().getGameTime() + (double) partialTick;
+        Level level = caster.level();
         if (caster != mc.player || !(caster instanceof Player player)) {
-            burnWhereTheServerStruck(caster, ray, partialTick, now);
-            return ray.end();
+            HitResult struck = burnWhereTheServerStruck(caster, ray, partialTick, now);
+            return new DrawnEnd(ray.end(), SunbeamRayEnd.endsInPrism(struck, level::getBlockEntity));
         }
-        return SunbeamRayEnd.drawnEnd(ray.end(), ownAim(player, partialTick), ray.range(), (eye, reach) -> {
-            HitResult hit = RayStep.castFrom(caster.level(), caster, eye, reach, living -> true);
+        HitResult[] cast = new HitResult[1];
+        Vec3 end = SunbeamRayEnd.drawnEnd(ray.end(), ownAim(player, partialTick), ray.range(), (eye, reach) -> {
+            HitResult hit = RayStep.castFrom(level, caster, eye, reach, living -> true);
             // sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
             SunbeamScorch.burn(caster.getId(), hit, now);
+            cast[0] = hit;
             return hit.getLocation();
         });
+        return new DrawnEnd(end, SunbeamRayEnd.endsInPrism(cast[0], level::getBlockEntity));
     }
 
     /**
@@ -218,16 +225,19 @@ public final class SunbeamVisual {
      * @param ray         the caster's latest ray from the server
      * @param partialTick the frame's partial tick
      * @param now         the game time, in ticks, with the frame's partial tick
+     * @return what the sight line struck, null where the end sits on the eye
      */
-    private static void burnWhereTheServerStruck(Entity caster, Ray ray, float partialTick, double now) {
+    private static @Nullable HitResult burnWhereTheServerStruck(Entity caster, Ray ray, float partialTick,
+                                                                double now) {
         Vec3 eye = caster.getEyePosition(partialTick);
         Vec3 toEnd = ray.end().subtract(eye);
         if (toEnd.lengthSqr() < SHORTEST_SEGMENT) {
-            return;
+            return null;
         }
         Vec3 pastTheEnd = ray.end().add(toEnd.normalize().scale(PROBE_PAST_THE_END));
-        SunbeamScorch.burn(caster.getId(), RayStep.castFrom(caster.level(), caster, eye, pastTheEnd, living -> true),
-                now);
+        HitResult hit = RayStep.castFrom(caster.level(), caster, eye, pastTheEnd, living -> true);
+        SunbeamScorch.burn(caster.getId(), hit, now);
+        return hit;
     }
 
     /**
@@ -249,35 +259,42 @@ public final class SunbeamVisual {
     }
 
     /**
-     * Draws one caster's ray: from the caster to where it ends, and on to
-     * each mob a prism refracted it toward.
+     * Draws one caster's ray: from the caster to where it ends, blooming out
+     * there when it ends in a prism, and on to each mob a prism refracted it
+     * toward, those stretches ending flat at the mob.
+     * decision sunbeam-ray-blooms-out-inside-the-prism
      *
      * @param poseStack the pose stack
      * @param consumer  the vertex consumer
+     * @param end       where the ray ends, camera-relative, and whether it ends in a prism
      * @param from      where the ray leaves the caster, camera-relative
-     * @param end       where the ray ends, camera-relative
      * @param ray       the ray
      * @param camera    the camera's position
      * @param scroll    the texture's scroll offset
      */
-    private static void drawRay(PoseStack poseStack, VertexConsumer consumer, Vec3 from, Vec3 end, Ray ray,
+    private static void drawRay(PoseStack poseStack, VertexConsumer consumer, DrawnEnd end, Vec3 from, Ray ray,
                                 Vec3 camera, float scroll) {
-        drawSegment(poseStack, consumer, from, end, scroll);
+        drawSegment(poseStack, consumer, from, end.point(), scroll, end.inPrism());
         for (Vec3 refracted : ray.refracted()) {
-            drawSegment(poseStack, consumer, end, refracted.subtract(camera), scroll);
+            drawSegment(poseStack, consumer, end.point(), refracted.subtract(camera), scroll, false);
         }
     }
 
     /**
-     * Draws one straight stretch of the beam between two camera-relative points.
+     * Draws one straight stretch of the beam between two camera-relative
+     * points, each layer fading out past the end of a stretch ending in a
+     * prism and stopping flat at the end of any other.
+     * decision sunbeam-ray-blooms-out-inside-the-prism
      *
-     * @param poseStack the pose stack
-     * @param consumer  the vertex consumer
-     * @param from      where the stretch starts, camera-relative
-     * @param to        where it ends, camera-relative
-     * @param scroll    the texture's scroll offset
+     * @param poseStack   the pose stack
+     * @param consumer    the vertex consumer
+     * @param from        where the stretch starts, camera-relative
+     * @param to          where it ends, camera-relative
+     * @param scroll      the texture's scroll offset
+     * @param endsInPrism whether the stretch ends in a prism
      */
-    static void drawSegment(PoseStack poseStack, VertexConsumer consumer, Vec3 from, Vec3 to, float scroll) {
+    static void drawSegment(PoseStack poseStack, VertexConsumer consumer, Vec3 from, Vec3 to, float scroll,
+                            boolean endsInPrism) {
         Vec3 along = to.subtract(from);
         double length = along.length();
         if (length < SHORTEST_SEGMENT) {
@@ -287,8 +304,13 @@ public final class SunbeamVisual {
         poseStack.translate(from.x, from.y, from.z);
         poseStack.mulPose(GlowBeamMesh.alongBeam(along));
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
-            GlowBeamMesh.emitLayer(poseStack.last(), consumer, layer.radius() * RAY_WIDTH, layer.color(), scroll,
-                    (float) length);
+            float radius = layer.radius() * RAY_WIDTH;
+            if (endsInPrism) {
+                GlowBeamMesh.emitFadingLayer(poseStack.last(), consumer, radius, layer.color(), scroll,
+                        (float) length, layer.depth());
+            } else {
+                GlowBeamMesh.emitLayer(poseStack.last(), consumer, radius, layer.color(), scroll, (float) length);
+            }
         }
         poseStack.popPose();
     }
@@ -302,5 +324,14 @@ public final class SunbeamVisual {
      * @param arrivedAt the game time it arrived
      */
     record Ray(Vec3 end, List<Vec3> refracted, double range, long arrivedAt) {
+    }
+
+    /**
+     * Where a ray ends this frame.
+     *
+     * @param point   the point it ends at
+     * @param inPrism whether it ends in a prism
+     */
+    private record DrawnEnd(Vec3 point, boolean inPrism) {
     }
 }
