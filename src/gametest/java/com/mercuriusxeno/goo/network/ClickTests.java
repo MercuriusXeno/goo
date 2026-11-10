@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -47,6 +49,47 @@ public final class ClickTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, CLICK_TRICKS_THE_SCULK, ClickTests::clickTricksTheWardenAndTheSensor);
+        GooTestFunctions.registerTest(registrar, CLICK_FREE_UNDER_SCULKER, ClickTests::clickIsFreeUnderSculker);
+    }
+
+    private static final String CLICK_FREE_UNDER_SCULKER = "click_is_free_under_sculker";
+    private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
+    private static final String SHOULD_BE_FREE = "A click under Sculker should drain no deep, it drained %d mB";
+    private static final String SHOULD_COST_ONE = "A click without Sculker should drain 1 mB of deep, it drained %d mB";
+
+    /**
+     * A survival player holding Sculker from the glove clicks and its deep
+     * stands where it stood; with Sculker ended, the same click drains 1 mB.
+     * Each click goes through GooThrowHandler.execute in one tick, so no
+     * upkeep falls between the reads (decision click-costs-one-mb-and-nothing-under-sculker).
+     *
+     * @param helper the gametest helper
+     */
+    public static void clickIsFreeUnderSculker(GameTestHelper helper) {
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
+        int underSculker = drainOfAClick(player);
+        HeldEffectsEvents.end(player, DEEP_SCULKER);
+        int withoutSculker = drainOfAClick(player);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(underSculker == 0, String.format(SHOULD_BE_FREE, underSculker));
+        helper.assertTrue(withoutSculker == 1, String.format(SHOULD_COST_ONE, withoutSculker));
+        helper.succeed();
+    }
+
+    /**
+     * Clicks once through the real throw path.
+     *
+     * @param player the clicking player
+     * @return the deep the click drained, in mB
+     */
+    private static int drainOfAClick(ServerPlayer player) {
+        int before = deepHeld(player);
+        HeartOverlayTests.invoke(player, GooTypes.DEEP, DEEP_CLICK);
+        return before - deepHeld(player);
+    }
+
+    private static int deepHeld(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.DEEP, 0);
     }
 
     private static final Identifier DEEP_CLICK = Identifier.parse("goo:deep_click");

@@ -18,6 +18,8 @@ import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -30,6 +32,7 @@ import net.minecraft.resources.ResourceKey;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
@@ -75,6 +78,8 @@ import java.util.stream.Stream;
  * @param costFormula the short formula a dynamically priced ability's petal reads in place of a
  *                    fixed cost, "200 + 100/block" for a blink, empty for a fixed-cost ability
  *                    (decision dynamic-costs-keep-the-mb-quantity)
+ * @param freeWhile   the self ability whose standing on the thrower makes this one cost nothing, empty for none
+ *                    (decision click-costs-one-mb-and-nothing-under-sculker)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -99,8 +104,73 @@ public record AbilityDefinition(
         ArmPose pose,
         String description,
         Optional<String> costMechanics,
-        Optional<String> costFormula
+        Optional<String> costFormula,
+        Optional<Identifier> freeWhile
 ) {
+
+    /**
+     * An ability that no standing self ability makes free, every ability but Click.
+     *
+     * @param id            the datapack resource identifier
+     * @param gooType       the goo type this ability belongs to
+     * @param displayName   the translation key for the ability name
+     * @param icon          the texture path for the radial menu icon
+     * @param order         sort order within the type's ability list
+     * @param cost          what a throw costs
+     * @param delivery      how the ability leaves the glove
+     * @param behaviors     the step trees the ability runs
+     * @param tags          categorical tags
+     * @param badge         the target kind the radial marks on the icon
+     * @param requires      the items a player must know before the ability is theirs
+     * @param area          the area the glove draws while right click is held
+     * @param indicator     when the ability's indicator shows
+     * @param consumes      the items a throw takes, one of each
+     * @param onPrism       the steps a landing on a prism runs, empty for none
+     * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
+     * @param upkeep        what a held durative effect pays each tick it stands
+     * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
+     * @param distancePrice what a blink adds to the cost for the trip it makes
+     * @param pose          the arm pose the glove arm takes in place of the swing
+     * @param description   the translation key for what the ability does
+     * @param costMechanics the format key explaining how the ability charges, empty for none
+     * @param costFormula   the short formula a dynamic price reads on its petal, empty for none
+     */
+    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
+                             int order, AbilityPrice cost, Delivery delivery, List<Step> behaviors,
+                             List<String> tags, AbilityBadge badge, List<Identifier> requires, AbilityArea area,
+                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             List<Step> onBlocks, AbilityPrice upkeep, Optional<SoundCue> downSound,
+                             DistancePrice distancePrice, ArmPose pose, String description,
+                             Optional<String> costMechanics, Optional<String> costFormula) {
+        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
+                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice, pose, description,
+                costMechanics, costFormula, Optional.empty());
+    }
+
+    /**
+     * What a throw costs the thrower in exact mB: nothing while the self
+     * ability this one names stands on the thrower, the cost otherwise.
+     * click-costs-one-mb-and-nothing-under-sculker
+     *
+     * @param stands whether a self ability, by id, stands on the thrower now
+     * @param values the goo values the cost's items are priced in
+     * @return the exact cost
+     */
+    public GooFraction costFor(Predicate<Identifier> stands, IGooValueLookup values) {
+        return freeFor(stands) ? GooFraction.ZERO : cost.exactIn(values);
+    }
+
+    /**
+     * Whether a throw costs the thrower nothing, the self ability this one
+     * names standing on the thrower.
+     * click-costs-one-mb-and-nothing-under-sculker
+     *
+     * @param stands whether a self ability, by id, stands on the thrower now
+     * @return true while that ability stands
+     */
+    public boolean freeFor(Predicate<Identifier> stands) {
+        return freeWhile.filter(stands).isPresent();
+    }
 
     /**
      * An ability whose price reads no formula, every ability pricing a fixed cost.
@@ -470,6 +540,7 @@ public record AbilityDefinition(
     private static final Expr NO_UPKEEP_WRITTEN = Expr.literal(NO_UPKEEP);
     private static final String FIELD_COST_MECHANICS = "cost_mechanics";
     private static final String FIELD_COST_FORMULA = "cost_formula";
+    private static final String FIELD_FREE_WHILE = "free_while";
     private static final String UNFORMULATED_DYNAMIC_PRICE =
             "An ability costing nothing up front and paying no upkeep must name " + FIELD_COST_FORMULA
                     + ", the formula its petal reads";
@@ -535,12 +606,14 @@ public record AbilityDefinition(
      * @param distancePrice what a blink adds for its trip
      * @param costMechanics the format key explaining how the ability charges, empty for none
      * @param costFormula   the short formula a dynamic price reads on its petal, empty for none
+     * @param freeWhile     the self ability whose standing makes a throw free, empty for none
      */
     private record Price(Expr cost, DistancePrice distancePrice, Optional<String> costMechanics,
-                         Optional<String> costFormula) {
+                         Optional<String> costFormula, Optional<Identifier> freeWhile) {
 
         static Price of(AbilityDefinition def) {
-            return new Price(def.cost().amount(), def.distancePrice(), def.costMechanics(), def.costFormula());
+            return new Price(def.cost().amount(), def.distancePrice(), def.costMechanics(), def.costFormula(),
+                    def.freeWhile());
         }
     }
 
@@ -550,7 +623,9 @@ public record AbilityDefinition(
             // zero-cost-field-formats-the-cost-mechanics
             Codec.STRING.optionalFieldOf(FIELD_COST_MECHANICS).forGetter(Price::costMechanics),
             // dynamic-costs-keep-the-mb-quantity
-            Codec.STRING.optionalFieldOf(FIELD_COST_FORMULA).forGetter(Price::costFormula)
+            Codec.STRING.optionalFieldOf(FIELD_COST_FORMULA).forGetter(Price::costFormula),
+            // click-costs-one-mb-and-nothing-under-sculker
+            Identifier.CODEC.optionalFieldOf(FIELD_FREE_WHILE).forGetter(Price::freeWhile)
     ).apply(inst, Price::new)).validate(AbilityDefinition::explainedPrice);
 
     private static final MapCodec<HeldTraits> HELD_TRAITS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
@@ -634,7 +709,7 @@ public record AbilityDefinition(
                         steps, tags, badge, requires, area, shows, consumes, reactions.onPrism(),
                         reactions.onBlocks(), AbilityPrice.of(held.upkeep(), heading.gooType()), held.downSound(),
                         price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())),
-                        heading.descriptionKey(), price.costMechanics(), price.costFormula())));
+                        heading.descriptionKey(), price.costMechanics(), price.costFormula(), price.freeWhile())));
     }
 
     /**

@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -491,8 +492,8 @@ public final class GooThrowHandler {
             return GooFraction.of(AgingTable.priceOf(player.level().getBlockState(payload.targetPos()))
                     .orElse(REFUSED));
         }
-        // ability-cost-builds-as-a-one-type-by-type-value
-        return def.cost().exactIn(GooValues.of(player.level()));
+        // ability-cost-builds-as-a-one-type-by-type-value, click-costs-one-mb-and-nothing-under-sculker
+        return def.costFor(player.getData(GooAttachments.HELD_EFFECTS)::holds, GooValues.of(player.level()));
     }
 
     /**
