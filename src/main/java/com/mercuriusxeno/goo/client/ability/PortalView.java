@@ -32,6 +32,7 @@ import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.material.FogType;
@@ -369,7 +370,8 @@ public final class PortalView {
             CameraRenderState state = extractThrough(mc, delta, camera);
             bobAsTheFrameDoes(mc, state);
             Matrix4f unclipped = new Matrix4f(state.projectionMatrix);
-            clipAt(state.projectionMatrix, state.viewRotationMatrix, eye.position(), far);
+            clipAt(state.projectionMatrix, state.viewRotationMatrix, eye.position(), far,
+                    bodyBehindTheFace(far, drawnBox(mc.player, delta.getGameTimeDeltaPartialTick(false))));
             renderInto(mc, delta, targetFor(mc, pass - 1), state, unclipped);
         } finally {
             currentPass = MAIN_PASS;
@@ -705,19 +707,59 @@ public final class PortalView {
     }
 
     /**
+     * How far a body straddling a partner's face reaches behind it: a
+     * view's cut set back that far draws the body whole, where a cut at the
+     * face slices it open and shows its hollow inside, as the player saw its
+     * own face looking back through a portal while it backed against the
+     * partner. Nothing for a body wholly before or behind the face, or beside
+     * the opening.
+     * portals-link-by-looking-through-portal-vision
+     *
+     * @param far  the partner
+     * @param body the body's box
+     * @return the reach behind the face, with a hair to spare, or zero
+     */
+    static double bodyBehindTheFace(Gate far, AABB body) {
+        double depth = Math.abs(far.face().getUnitVec3().dot(new Vec3(body.getXsize(), body.getYsize(),
+                body.getZsize())));
+        double front = far.out(body.getCenter()) + depth * HALF;
+        double back = front - depth;
+        double across = Math.max(body.getXsize(), body.getZsize()) * HALF;
+        return front > 0 && back < 0 && far.withinOval(body.getCenter(), across) ? SPARE - back : 0;
+    }
+
+    /**
+     * The box a body is drawn in this frame, where the frame draws it between
+     * its last tick and this one.
+     *
+     * @param body    the body
+     * @param partial the frame's partial tick
+     * @return its drawn box
+     */
+    private static AABB drawnBox(Entity body, float partial) {
+        return body.getBoundingBox().move(body.getPosition(partial).subtract(body.position()));
+    }
+
+    private static final double HALF = 0.5;
+    /** How far past a straddling body's back a view's cut stands. */
+    private static final double SPARE = 0.02;
+
+    /**
      * Bends a projection's near plane onto the partner's face (the oblique
-     * near plane), so nothing between the mirrored eye and the partner draws.
+     * near plane), so nothing between the mirrored eye and the partner draws,
+     * set back by a reach behind the face.
      *
      * @param projection the projection, changed in place
      * @param viewRotation the camera's view rotation
      * @param eye        the mirrored eye
      * @param far        the partner portal
+     * @param reach      how far behind the face what draws still draws, zero for the face itself
      */
-    static void clipAt(Matrix4f projection, Matrix4f viewRotation, Vec3 eye, Gate far) {
+    static void clipAt(Matrix4f projection, Matrix4f viewRotation, Vec3 eye, Gate far, double reach) {
         Vec3 normal = far.face().getUnitVec3();
         Vector3f inView = viewRotation.transformDirection(new Vector3f((float) normal.x(), (float) normal.y(),
                 (float) normal.z()));
-        float distance = (float) normal.dot(eye.subtract(far.center())) - CLIP_OFFSET;
+        float distance = (float) (normal.dot(eye.subtract(far.center())) + reach) - CLIP_OFFSET;
         Vector4f plane = new Vector4f(inView.x(), inView.y(), inView.z(), distance);
         Vector4f corner = projection.invert(new Matrix4f())
                 .transform(new Vector4f(Math.signum(plane.x()), Math.signum(plane.y()), 1F, 1F));
