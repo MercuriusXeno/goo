@@ -17,9 +17,12 @@ import org.joml.Matrix3x2fStack;
  * @param font  the font
  * @param scale how large its glyphs draw against the font's own
  */
-record Lettering(Font font, float scale) {
-    /** The amount role's scale, the font's 8px glyphs reading 6px. */
-    static final float AMOUNT_SCALE = 0.75f;
+public record Lettering(Font font, float scale) {
+    /**
+     * The amount role's scale, the font's 8px glyphs reading 6px, which an in-world HUD's goo amounts read too.
+     * decision one-class-lays-every-huds-goo-values
+     */
+    public static final float AMOUNT_SCALE = 0.75f;
     private static final float FULL = 1f;
     // A font's line holds an empty row under its glyphs, so centering the ink centers one row lower than the line.
     private static final int GLYPH_GAP = 1;

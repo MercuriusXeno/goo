@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Supplies the crucible HUD panel's rows: the melting item's row led by its model, one
- * "reservoir / total" row per goo type, then a heat row per fuel holding heat or stock
+ * Supplies the crucible HUD panel's rows: the melting item's row led by its model, one grid
+ * of a "reservoir / total" cell per goo type, then a heat row per fuel holding heat or stock
  * (decisions one-panel-painter-takes-rows, heat-row-reads-seconds, pool-keeps-stacks-in-order).
  */
 final class CruciblePanelRows {
@@ -77,7 +77,8 @@ final class CruciblePanelRows {
     }
 
     /**
-     * Returns one row per type in the reservoir or the pool, then the heat rows.
+     * Returns one grid of the types in the reservoir or the pool, then the heat rows.
+     * decision one-class-lays-every-huds-goo-values
      *
      * @param reservoir the reservoir goo contents
      * @param pool      the melt pool goo contents
@@ -86,8 +87,12 @@ final class CruciblePanelRows {
      */
     static List<PanelRow> rows(GooContents reservoir, GooContents pool, List<PanelRow> heatRows) {
         List<PanelRow> rows = new ArrayList<>();
+        List<PanelAmountGrid.Cell> cells = new ArrayList<>();
         for (ResourceKey<GooTypeDefinition> type : allTypes(reservoir, pool)) {
-            rows.add(typeRow(type, volumeOf(reservoir, type), totalOf(reservoir, pool, type)));
+            cells.add(typeCell(type, volumeOf(reservoir, type), totalOf(reservoir, pool, type)));
+        }
+        if (!cells.isEmpty()) {
+            rows.add(PanelRow.amounts(new PanelAmountGrid(cells)));
         }
         rows.addAll(heatRows);
         return rows;
@@ -107,21 +112,22 @@ final class CruciblePanelRows {
     }
 
     /**
-     * Builds one type row: icon, reservoir volume, a dim separator, total volume,
+     * Builds one type's cell: icon, reservoir volume, a dim separator, total volume,
      * floored at the widest text under 10K so the panel holds still while draining.
      *
      * @param type         the goo type
      * @param reservoirVol the reservoir volume in mB
      * @param totalVol     the total volume in mB
-     * @return the row
+     * @return the cell
      */
-    private static PanelRow typeRow(ResourceKey<GooTypeDefinition> type, int reservoirVol, long totalVol) {
-        return new PanelRow(PanelPainter.gooIcon(type), List.of(
+    private static PanelAmountGrid.Cell typeCell(ResourceKey<GooTypeDefinition> type, int reservoirVol,
+                                                 long totalVol) {
+        return new PanelAmountGrid.Cell(PanelPainter.gooIcon(type), List.of(
                 new PanelRow.TextSegment(GooFormat.formatAmount(reservoirVol),
                         PanelPainter.TEXT_COLOR),
                 new PanelRow.TextSegment(VOLUME_SEPARATOR, SEPARATOR_COLOR),
                 new PanelRow.TextSegment(GooFormat.formatAmount(totalVol),
-                        PanelPainter.TEXT_COLOR)), false, SUB_TEN_THOUSAND_FLOOR_TEXT);
+                        PanelPainter.TEXT_COLOR)), SUB_TEN_THOUSAND_FLOOR_TEXT);
     }
 
     /**

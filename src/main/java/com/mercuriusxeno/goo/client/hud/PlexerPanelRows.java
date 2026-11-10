@@ -25,13 +25,16 @@ final class PlexerPanelRows {
      * @param itemName the target item's name
      * @param item     the target item's registry id, whose model the name row draws as its icon
      * @param value    the target's goo value, or null when the client holds none
-     * @return the name row, the item beside its name, then one cost row per type
+     * @return the name row, the item beside its name, then one grid of the costs
      */
     static List<PanelRow> rows(String itemName, Identifier item, @Nullable GooValue value) {
         List<PanelRow> rows = new ArrayList<>();
         rows.add(PanelRow.itemRow(item, List.of(new PanelRow.TextSegment(itemName, PanelPainter.TEXT_COLOR))));
         if (value != null) {
-            rows.addAll(costRows(value));
+            List<PanelAmountGrid.Cell> cells = costCells(value);
+            if (!cells.isEmpty()) {
+                rows.add(PanelRow.amounts(new PanelAmountGrid(cells)));
+            }
         }
         return rows;
     }
@@ -40,20 +43,20 @@ final class PlexerPanelRows {
      * The target's exact cost in each type, as a mixed number.
      * decision tooltip-and-plexer-hud-show-a-mixed-number
      * decision value-lists-order-highest-first-ties-by-type-key
+     * decision one-class-lays-every-huds-goo-values
      *
      * @param value the target's goo value
-     * @return one row per type, its icon beside its cost, the highest cost first, ties by type id
+     * @return one cell per type, its icon beside its cost, the highest cost first, ties by type id
      */
-    private static List<PanelRow> costRows(GooValue value) {
+    private static List<PanelAmountGrid.Cell> costCells(GooValue value) {
         return value.exactAll().entrySet().stream()
                 .filter(entry -> entry.getValue().isPositive())
                 .sorted(GooAmountOrder.highestFirst())
-                .map(PlexerPanelRows::costRow)
+                .map(PlexerPanelRows::costCell)
                 .toList();
     }
 
-    private static PanelRow costRow(Map.Entry<ResourceKey<GooTypeDefinition>, GooFraction> cost) {
-        return PanelRow.iconText(PanelPainter.gooIcon(cost.getKey()), GooFormat.formatMixed(cost.getValue()),
-                PanelPainter.TEXT_COLOR);
+    private static PanelAmountGrid.Cell costCell(Map.Entry<ResourceKey<GooTypeDefinition>, GooFraction> cost) {
+        return PanelAmountGrid.Cell.amount(cost.getKey(), GooFormat.formatMixed(cost.getValue()));
     }
 }

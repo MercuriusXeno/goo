@@ -49,18 +49,20 @@ class PlexerPanelRowsTest {
         assertEquals(PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP + 7 * 6, row.width(text -> text.length() * 6));
     }
 
+    /**
+     * The costs stand as one grid block after the name row, each cell the exact mixed number
+     * (decision one-class-lays-every-huds-goo-values).
+     */
     @Test
     void targetReadsItsExactCostAsAMixedNumberInEachType() {
         List<PanelRow> rows = PlexerPanelRows.rows("Carpet", CARPET,
                 fraction(GooTypes.LEAF, 64, 3, GooTypes.ROCK, 1, 3));
 
-        assertEquals(3, rows.size());
-        PanelRow leaf = rows.get(1);
-        assertEquals(PanelPainter.gooIcon(GooTypes.LEAF), leaf.icon());
-        assertEquals("21¹⁄₃", leaf.segments().getFirst().text());
-        PanelRow rock = rows.get(2);
-        assertEquals(PanelPainter.gooIcon(GooTypes.ROCK), rock.icon());
-        assertEquals("¹⁄₃", rock.segments().getFirst().text());
+        assertEquals(List.of(
+                rows.getFirst(),
+                PanelRow.amounts(new PanelAmountGrid(List.of(
+                        PanelAmountGrid.Cell.amount(GooTypes.LEAF, "21¹⁄₃"),
+                        PanelAmountGrid.Cell.amount(GooTypes.ROCK, "¹⁄₃"))))), rows);
     }
 
     /**
@@ -79,8 +81,9 @@ class PlexerPanelRowsTest {
 
         List<PanelRow> rows = PlexerPanelRows.rows("Carpet", CARPET, value);
 
+        assertEquals(2, rows.size());
         assertEquals(List.of(GooTypes.ROCK, GooTypes.BLAZE, GooTypes.GLOW, GooTypes.LEAF).stream()
-                .map(PanelPainter::gooIcon).toList(), rows.subList(1, rows.size()).stream().map(PanelRow::icon)
-                .toList());
+                .map(PanelPainter::gooIcon).toList(), rows.getLast().grid().cells().stream()
+                .map(PanelAmountGrid.Cell::icon).toList());
     }
 }
