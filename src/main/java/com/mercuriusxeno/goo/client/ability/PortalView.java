@@ -147,6 +147,30 @@ public final class PortalView {
     }
 
     /**
+     * Whether a view through a gate is extracting what it draws now, the
+     * render state of each body it shows among it.
+     *
+     * @return true while a view extracts
+     */
+    public static boolean extractingView() {
+        return extractingView;
+    }
+
+    /**
+     * The gate the view extracting now looks into, where that view is one the
+     * main frame sees directly; a view a portal deeper answers none.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @return the gate, null for the main frame and for a view a portal deeper
+     */
+    public static @Nullable Gate extractingGate() {
+        return extractingGate;
+    }
+
+    private static boolean extractingView;
+    private static @Nullable Gate extractingGate;
+
+    /**
      * The view through a gate drawn this frame.
      *
      * @param gate a gate: a portal's frame or a hole's mouth
@@ -367,7 +391,15 @@ public final class PortalView {
         currentNear = near;
         source = from;
         try {
-            CameraRenderState state = extractThrough(mc, delta, camera);
+            extractingView = true;
+            extractingGate = depth == 1 ? near : null;
+            CameraRenderState state;
+            try {
+                state = extractThrough(mc, delta, camera);
+            } finally {
+                extractingView = false;
+                extractingGate = null;
+            }
             bobAsTheFrameDoes(mc, state);
             Matrix4f unclipped = new Matrix4f(state.projectionMatrix);
             clipAt(state.projectionMatrix, state.viewRotationMatrix, eye.position(), far,
