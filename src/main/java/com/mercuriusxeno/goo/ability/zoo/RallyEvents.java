@@ -330,7 +330,8 @@ public final class RallyEvents {
 
     private static void fight(ServerLevel level, Mob mob, LivingEntity foe, float damage) {
         mob.setTarget(foe);
-        if (!mob.isWithinMeleeAttackRange(foe)) {
+        // a foe in reach behind a wall or fence takes no strike, as vanilla melee asks line of sight too
+        if (!mob.isWithinMeleeAttackRange(foe) || !mob.getSensing().hasLineOfSight(foe)) {
             mob.getNavigation().moveTo(foe, CHASE_SPEED);
             return;
         }
