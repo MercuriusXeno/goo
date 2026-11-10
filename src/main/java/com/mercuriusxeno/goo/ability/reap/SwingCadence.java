@@ -6,30 +6,33 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * The uneven cadence Reap's held channel swings at, so the blades come as a
- * flurry rather than a beat: a swing on the hold's first tick, then each next
- * swing a random few ticks after the last, between the fewest and the most
- * the JSON names, each throwing a random few blades. Each slasher's next
- * swing is kept here for as long as the slasher stands, and never saved.
+ * The cadence Reap's held channel slashes at, uneven so the slashes come as a
+ * flurry rather than a beat: a slash on the hold's first tick, then each next
+ * a random few ticks after the last, between the fewest and the most the JSON
+ * names; and the form each slash takes, a downward diagonal, an upward
+ * diagonal and a flat one in turn, as the Crissaegrim's do. Each slasher's
+ * next slash and form are kept here for as long as the slasher stands, and
+ * never saved.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 public final class SwingCadence {
 
     private static final Map<Entity, Long> NEXT_SWING = new WeakHashMap<>();
+    private static final Map<Entity, SlashForm> NEXT_FORM = new WeakHashMap<>();
 
     private SwingCadence() {
     }
 
     /**
-     * Whether a slasher's held tick swings a blade, setting the tick of the
-     * next swing when it does.
+     * Whether a slasher's held tick slashes, setting the tick of the next
+     * slash when it does.
      *
-     * @param slasher the entity swinging
+     * @param slasher the entity slashing
      * @param held    the hold's tick count, 1 on its first tick
      * @param now     the game tick
-     * @param fewest  the fewest ticks from one blade to the next
-     * @param most    the most ticks from one blade to the next
-     * @return true on a swinging tick
+     * @param fewest  the fewest ticks from one slash to the next
+     * @param most    the most ticks from one slash to the next
+     * @return true on a slashing tick
      */
     public static boolean dueToSwing(Entity slasher, int held, long now, int fewest, int most) {
         if (!swingsNow(held, now, NEXT_SWING.getOrDefault(slasher, now))) {
@@ -40,14 +43,26 @@ public final class SwingCadence {
     }
 
     /**
-     * The tick of the next swing: a random gap after this one, from the fewest
-     * ticks to the most, both included.
+     * The form a slasher's next slash takes, moving its cycle on.
      *
-     * @param now    the game tick of this swing
+     * @param slasher the entity slashing
+     * @return the slash's form
+     */
+    public static SlashForm takeForm(Entity slasher) {
+        SlashForm form = NEXT_FORM.getOrDefault(slasher, SlashForm.DOWN_DIAGONAL);
+        NEXT_FORM.put(slasher, form.next());
+        return form;
+    }
+
+    /**
+     * The tick of the next slash: a random gap after this one, from the
+     * fewest ticks to the most, both included.
+     *
+     * @param now    the game tick of this slash
      * @param fewest the fewest ticks of the gap
      * @param most   the most ticks of the gap
      * @param random the random source
-     * @return the next swing's game tick
+     * @return the next slash's game tick
      */
     static long nextSwingAt(long now, int fewest, int most, RandomSource random) {
         int least = Math.max(1, fewest);
@@ -55,27 +70,13 @@ public final class SwingCadence {
     }
 
     /**
-     * The blades one swing throws: a random count from the fewest to the
-     * most, both included, so the blades outnumber the swings' sounds.
-     *
-     * @param fewest the fewest blades a swing throws
-     * @param most   the most blades a swing throws
-     * @param random the random source
-     * @return the blades this swing throws
-     */
-    public static int bladesThisSwing(int fewest, int most, RandomSource random) {
-        int least = Math.max(1, fewest);
-        return least + random.nextInt(Math.max(least, most) - least + 1);
-    }
-
-    /**
-     * Whether a held tick swings: the hold's first does, and so does any tick
-     * the next swing has come due on.
+     * Whether a held tick slashes: the hold's first does, and so does any
+     * tick the next slash has come due on.
      *
      * @param held the hold's tick count, 1 on its first tick
      * @param now  the game tick
-     * @param due  the game tick the next swing comes due
-     * @return true on a swinging tick
+     * @param due  the game tick the next slash comes due
+     * @return true on a slashing tick
      */
     static boolean swingsNow(int held, long now, long due) {
         return held <= 1 || now >= due;

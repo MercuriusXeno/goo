@@ -1,8 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.ability.reap.BladeFlights;
-import com.mercuriusxeno.goo.ability.reap.ReapBlade;
 import com.mercuriusxeno.goo.ability.reap.Reaping;
+import com.mercuriusxeno.goo.ability.reap.SlashCuts;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.EntityType;
@@ -15,6 +14,7 @@ import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +22,10 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Leaf Reap: a blade reaps the ripe plants it covers as it
- * reaches them, the wheat replanted at age zero and the bush picked back to
- * age one, and leaves the ripe plants clear of it standing; and every blade
- * that reaches a mob cuts it, through its immunity, once.
+ * Gametests for Leaf Reap: a slash reaps the ripe plants inside the box it
+ * cuts, the wheat replanted at age zero and the bush picked back to age one,
+ * and leaves the ripe plants outside it standing; and every slash cuts each
+ * mob inside its box once, through its immunity.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @RegistersGameTests
@@ -40,44 +40,40 @@ public final class ReapTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, REAP_SLASH_REAPS, ReapTests::reapSlashReapsThePlantsOnItsPath);
+        GooTestFunctions.registerTest(registrar, REAP_SLASH_REAPS, ReapTests::reapSlashReapsThePlantsInItsBox);
         GooTestFunctions.registerTest(registrar, REAP_SETTLES_SEEDS, ReapTests::reapSettlesSeedsAgainstTheReplant);
-        GooTestFunctions.registerTest(registrar, REAP_SLASH_CUTS, ReapTests::reapSlashCutsTheMobOnItsPathEachTime);
+        GooTestFunctions.registerTest(registrar, REAP_SLASH_CUTS, ReapTests::reapSlashCutsTheMobInItsBoxEachTime);
     }
 
     private static final int GROUND_Y = 1;
-    private static final int PATH_START_X = 1;
-    private static final int PATH_END_X = 6;
-    /** The row the blade flies along, its middle over the centre of its cells. */
-    private static final int PATH_Z = 2;
-    /** A row clear of the blade's width. */
-    private static final int BESIDE_Z = 5;
-    private static final BlockPos ON_PATH = new BlockPos(3, GROUND_Y + 1, PATH_Z);
-    private static final BlockPos BESIDE_PATH = new BlockPos(3, GROUND_Y + 1, BESIDE_Z);
-    private static final BlockPos BUSH = new BlockPos(4, GROUND_Y + 1, PATH_Z);
-    /** leaf_reap.json's shallowest blade: forming 0.75 blocks out, drifting 3 more, 2.5 wide and 0.8 deep. */
-    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(0.75, 3, 2.5, 0.8, 6, 8, 6);
-    /** East, the way the blade flies along its row. */
-    private static final Vec3 EAST = new Vec3(1, 0, 0);
-    /** Across the row, the way the blade's width spans. */
-    private static final Vec3 ACROSS = new Vec3(0, 0, 1);
-    /** The blade's life, and a margin for its last tick to run. */
-    private static final int FLIGHT_DONE_TICKS = SHAPE.lifeTicks() + 3;
+    private static final int FIELD_START_X = 1;
+    private static final int FIELD_END_X = 6;
+    private static final int INSIDE_Z = 2;
+    /** A row clear of the slash's box. */
+    private static final int OUTSIDE_Z = 5;
+    private static final BlockPos INSIDE = new BlockPos(3, GROUND_Y + 1, INSIDE_Z);
+    private static final BlockPos OUTSIDE = new BlockPos(3, GROUND_Y + 1, OUTSIDE_Z);
+    private static final BlockPos BUSH = new BlockPos(4, GROUND_Y + 1, INSIDE_Z);
+    /** The box a slash cuts over the crop row: three cells long, the wheat and the bush inside it. */
+    private static final AABB CROP_BOX = new AABB(2.2, GROUND_Y + 1, 1.5, 4.8, GROUND_Y + 2.2, 3.5);
+    /** The box a slash cuts around the near cow, its body inside and the far cow's outside. */
+    private static final AABB COW_BOX = new AABB(2.5, GROUND_Y, 1.5, 4.5, GROUND_Y + 1.2, 3.5);
+    /** leaf_reap.json's slash life. */
+    private static final int LIFE_TICKS = 4;
+    /** The slash's life, and a margin for its last tick to run. */
+    private static final int SLASH_DONE_TICKS = LIFE_TICKS + 3;
     private static final double ITEM_SEARCH_RADIUS = 2;
     private static final String WHEAT_REPLANTED = "Ripe wheat at %s should stand replanted at age zero, stands %s";
-    private static final String WHEAT_LEFT_RIPE = "Ripe wheat clear of the blade at %s should stand ripe, stands %s";
+    private static final String WHEAT_LEFT_RIPE = "Ripe wheat outside the slash at %s should stand ripe, stands %s";
     private static final double CUT_X = 3.5;
-    /** How far above the floor the blade flies, through a cow's body. */
-    private static final double CUT_HEIGHT = 0.8;
     private static final int NO_SLASHER = -1;
     private static final float CUT_DAMAGE = 1;
-    /** Two swings, each of two blades, so a cut per blade would double the loss. */
-    private static final int SWINGS = 2;
-    /** The ticks from one swing to the next, past the first swing's second blade. */
-    private static final int SWING_GAP_TICKS = 3;
+    /** Two slashes over the same cow, the second while the first still stands. */
+    private static final int SLASHES = 2;
+    private static final int SLASH_GAP_TICKS = 2;
     private static final float HEALTH_TOLERANCE = 0.01f;
-    private static final String CUT_EACH = "The cow on the path should lose %s health, one cut a swing, lost %s";
-    private static final String LEFT_WHOLE = "The cow clear of the blade should stand whole, lost %s";
+    private static final String CUT_EACH = "The cow inside should lose %s health, one cut a slash, lost %s";
+    private static final String LEFT_WHOLE = "The cow outside the slash should stand whole, lost %s";
     private static final String BUSH_PICKED = "The ripe bush should be picked back to age one, stands at %d";
     private static final String SEEDS_SETTLED = "Drops holding %s should settle to %d seeds beside one wheat, settled %s";
 
@@ -85,90 +81,80 @@ public final class ReapTests {
     }
 
     /**
-     * A blade flown along a row reaps the ripe plants it covers: the wheat
-     * under it drops its wheat and stands replanted at age zero, the bush
-     * under it drops its berries and falls back to age one, and the ripe
-     * wheat in a row clear of its width stands ripe.
+     * A slash over a crop row reaps the ripe plants inside its box: the wheat
+     * there drops its wheat and stands replanted at age zero, the bush there
+     * drops its berries and falls back to age one, and the ripe wheat in a
+     * row outside the box stands ripe.
      *
      * @param helper the gametest helper
      */
-    public static void reapSlashReapsThePlantsOnItsPath(GameTestHelper helper) {
-        for (int x = PATH_START_X; x <= PATH_END_X; x++) {
-            for (int z = PATH_Z; z <= BESIDE_Z; z++) {
+    public static void reapSlashReapsThePlantsInItsBox(GameTestHelper helper) {
+        for (int x = FIELD_START_X; x <= FIELD_END_X; x++) {
+            for (int z = INSIDE_Z; z <= OUTSIDE_Z; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
                 helper.setBlock(new BlockPos(x, GROUND_Y, z), Blocks.FARMLAND.defaultBlockState()
                         .setValue(FarmlandBlock.MOISTURE, FarmlandBlock.MAX_MOISTURE));
             }
         }
         BlockState ripe = Blocks.WHEAT.defaultBlockState().setValue(CropBlock.AGE, CropBlock.MAX_AGE);
-        helper.setBlock(ON_PATH, ripe);
-        helper.setBlock(BESIDE_PATH, ripe);
+        helper.setBlock(INSIDE, ripe);
+        helper.setBlock(OUTSIDE, ripe);
         helper.setBlock(BUSH.below(), Blocks.GRASS_BLOCK);
         helper.setBlock(BUSH, Blocks.SWEET_BERRY_BUSH.defaultBlockState()
                 .setValue(SweetBerryBushBlock.AGE, SweetBerryBushBlock.MAX_AGE));
-        ReapBlade blade = rowBlade(helper, GROUND_Y + 1.5);
-        helper.runAfterDelay(1, () -> BladeFlights.launchSwing(helper.getLevel(), List.of(blade),
-                helper.getLevel().getGameTime(), NO_SLASHER, CUT_DAMAGE));
-        helper.runAfterDelay(1 + FLIGHT_DONE_TICKS, () -> {
-            BlockState reaped = helper.getBlockState(ON_PATH);
+        helper.runAfterDelay(1, () -> SlashCuts.launch(helper.getLevel(), absolute(helper, CROP_BOX),
+                helper.getLevel().getGameTime(), LIFE_TICKS, NO_SLASHER, CUT_DAMAGE));
+        helper.runAfterDelay(1 + SLASH_DONE_TICKS, () -> {
+            BlockState reaped = helper.getBlockState(INSIDE);
             helper.assertTrue(reaped.is(Blocks.WHEAT) && reaped.getValue(CropBlock.AGE) == 0,
-                    String.format(WHEAT_REPLANTED, ON_PATH, reaped));
-            BlockState beside = helper.getBlockState(BESIDE_PATH);
-            helper.assertTrue(beside.is(Blocks.WHEAT) && beside.getValue(CropBlock.AGE) == CropBlock.MAX_AGE,
-                    String.format(WHEAT_LEFT_RIPE, BESIDE_PATH, beside));
+                    String.format(WHEAT_REPLANTED, INSIDE, reaped));
+            BlockState outside = helper.getBlockState(OUTSIDE);
+            helper.assertTrue(outside.is(Blocks.WHEAT) && outside.getValue(CropBlock.AGE) == CropBlock.MAX_AGE,
+                    String.format(WHEAT_LEFT_RIPE, OUTSIDE, outside));
             int bushAge = helper.getBlockState(BUSH).getValue(SweetBerryBushBlock.AGE);
             helper.assertTrue(bushAge == 1, String.format(BUSH_PICKED, bushAge));
-            helper.assertItemEntityPresent(Items.WHEAT, ON_PATH, ITEM_SEARCH_RADIUS);
+            helper.assertItemEntityPresent(Items.WHEAT, INSIDE, ITEM_SEARCH_RADIUS);
             helper.assertItemEntityPresent(Items.SWEET_BERRIES, BUSH, ITEM_SEARCH_RADIUS);
             helper.succeed();
         });
     }
 
     /**
-     * Two swings of two blades each, flown along a row, cut the cow standing
-     * on the path once a swing, however many of a swing's blades reach it, the
-     * second swing's cut landing through the immunity the first left, and
-     * leave the cow standing clear of their width whole.
+     * Two slashes over a cow, the second while the first still stands, cut
+     * it once each, the second through the immunity the first left, though
+     * it stands inside each box for the whole of the slash's life; the cow
+     * outside the boxes stands whole.
      *
      * @param helper the gametest helper
      */
-    public static void reapSlashCutsTheMobOnItsPathEachTime(GameTestHelper helper) {
-        for (int x = PATH_START_X; x <= PATH_END_X; x++) {
-            for (int z = PATH_Z; z <= BESIDE_Z; z++) {
+    public static void reapSlashCutsTheMobInItsBoxEachTime(GameTestHelper helper) {
+        for (int x = FIELD_START_X; x <= FIELD_END_X; x++) {
+            for (int z = INSIDE_Z; z <= OUTSIDE_Z; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
             }
         }
-        Mob onPath = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, PATH_Z + 0.5));
-        Mob offPath = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, BESIDE_Z + 0.5));
-        List<ReapBlade> swing = List.of(rowBlade(helper, GROUND_Y + CUT_HEIGHT), rowBlade(helper, GROUND_Y + CUT_HEIGHT));
+        Mob inside = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, INSIDE_Z + 0.5));
+        Mob outside = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, OUTSIDE_Z + 0.5));
+        AABB box = absolute(helper, COW_BOX);
         helper.runAfterDelay(1, () -> {
             long now = helper.getLevel().getGameTime();
-            for (int launch = 0; launch < SWINGS; launch++) {
-                BladeFlights.launchSwing(helper.getLevel(), swing, now + (long) launch * SWING_GAP_TICKS, NO_SLASHER,
-                        CUT_DAMAGE);
+            for (int slash = 0; slash < SLASHES; slash++) {
+                SlashCuts.launch(helper.getLevel(), box, now + (long) slash * SLASH_GAP_TICKS, LIFE_TICKS,
+                        NO_SLASHER, CUT_DAMAGE);
             }
         });
-        helper.runAfterDelay(1 + SWING_GAP_TICKS + FLIGHT_DONE_TICKS + swing.size(), () -> {
-            float cut = onPath.getMaxHealth() - onPath.getHealth();
-            helper.assertTrue(Math.abs(cut - CUT_DAMAGE * SWINGS) < HEALTH_TOLERANCE,
-                    String.format(CUT_EACH, CUT_DAMAGE * SWINGS, cut));
-            float whole = offPath.getMaxHealth() - offPath.getHealth();
+        helper.runAfterDelay(1 + SLASH_GAP_TICKS + SLASH_DONE_TICKS, () -> {
+            float cut = inside.getMaxHealth() - inside.getHealth();
+            helper.assertTrue(Math.abs(cut - CUT_DAMAGE * SLASHES) < HEALTH_TOLERANCE,
+                    String.format(CUT_EACH, CUT_DAMAGE * SLASHES, cut));
+            float whole = outside.getMaxHealth() - outside.getHealth();
             helper.assertTrue(whole < HEALTH_TOLERANCE, String.format(LEFT_WHOLE, whole));
             helper.succeed();
         });
     }
 
-    /**
-     * A level blade launched from the row's start, flying east along it, its
-     * width spanning across the row and centred on it.
-     *
-     * @param helper the gametest helper
-     * @param height how far above the test's floor it flies
-     * @return the blade
-     */
-    private static ReapBlade rowBlade(GameTestHelper helper, double height) {
-        Vec3 origin = helper.absoluteVec(new Vec3(PATH_START_X + 0.5, height, PATH_Z + 0.5));
-        return new ReapBlade(origin, EAST, ACROSS, 0, 0, 1, 0, Vec3.ZERO, SHAPE);
+    private static AABB absolute(GameTestHelper helper, AABB relative) {
+        return new AABB(helper.absoluteVec(relative.getMinPosition()), helper.absoluteVec(relative.getMaxPosition()));
     }
 
     /**
