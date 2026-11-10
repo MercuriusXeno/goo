@@ -90,6 +90,13 @@ public final class PortalFaces {
     private static final int TORNADO_RINGS = 6;
     /** How many segments each of the funnel's rings runs around the rim in. */
     private static final int TORNADO_SEGMENTS = 32;
+    /**
+     * How far out a hole mouth's funnel starts, as a share of the oval's
+     * radius: the deepest the mouth's tear bites, one less HOLE_TEAR_DEPTH in
+     * portal_texels.glsl, so the funnel reaches in to the tear wherever it
+     * stands and the tornado shader cuts what lies inside it.
+     */
+    private static final double TORN_BASE = 0.84;
     /** The three in Ramanujan's reckoning of an oval's perimeter. */
     private static final double RAMANUJAN_THREE = 3;
     static final int CLEAN_EDGE = 0;
@@ -364,9 +371,12 @@ public final class PortalFaces {
      * @param boxOf    the box each gate draws over, camera-relative
      */
     /**
-     * Emits the tornadic halo of every portal the frame draws, beside its
-     * surface glow, in its own color.
+     * Emits the tornadic halo of every gate the frame draws, each portal and
+     * each of a hole's two mouths, beside its surface glow, in its own color.
+     * A mouth's edge is marked torn and its funnel based on the deepest its
+     * tear bites, so the shader starts it at the tear.
      * tornadic-halo-spirals-out-from-the-rim
+     * hole-mouths-wear-the-tornadic-halo
      *
      * @param pose     the pose
      * @param consumer the tornado pipeline's vertex consumer
@@ -376,10 +386,8 @@ public final class PortalFaces {
     static void emitTornadoes(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            if (!drawn.hole()) {
-                emitTornado(pose, consumer, boxOf.apply(drawn), drawn.gate().face(),
-                        ARGB.color(CLEAN_EDGE, drawn.rgb()));
-            }
+            Funnel funnel = Funnel.over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_BASE : 1);
+            emitTornado(pose, consumer, funnel, ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
         }
     }
 
@@ -394,13 +402,10 @@ public final class PortalFaces {
      *
      * @param pose     the pose
      * @param consumer the vertex consumer
-     * @param box      the gate's blocks, camera-relative
-     * @param side     the face
+     * @param funnel   the funnel over the gate's face
      * @param color    the packed ARGB color, its alpha the edge mark
      */
-    private static void emitTornado(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side,
-            int color) {
-        Funnel funnel = Funnel.over(box, side);
+    private static void emitTornado(PoseStack.Pose pose, VertexConsumer consumer, Funnel funnel, int color) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
         for (int ring = 0; ring < TORNADO_RINGS; ring++) {
             for (int segment = 0; segment < TORNADO_SEGMENTS; segment++) {
@@ -425,10 +430,17 @@ public final class PortalFaces {
      */
     private record Funnel(Vec3 center, Direction side, double[] half) {
 
-        static Funnel over(AABB box, Direction side) {
+        /**
+         * @param box  the gate's blocks, camera-relative
+         * @param side the face
+         * @param base how far out the funnel's first ring stands, as a share of the oval's radius
+         * @return the funnel
+         */
+        static Funnel over(AABB box, Direction side, double base) {
             Vec3 middle = cornerOf(box, side, 0, 0).add(cornerOf(box, side, 1, 1)).scale(HALF_WAVE);
+            double scale = HALF_WAVE * base;
             return new Funnel(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
-                    * HALF_WAVE, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * HALF_WAVE});
+                    * scale, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * scale});
         }
 
         /**
