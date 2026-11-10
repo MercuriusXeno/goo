@@ -25,9 +25,9 @@ out vec4 fragColor;
 const float HALO_MARGIN_TEXELS = 8.0;
 // How many texels out from the oval's edge the halo fades to nothing at its longest tongue's still
 // reach, short of the quad's border.
-const float HALO_REACH_TEXELS = 4.0;
+const float HALO_REACH_TEXELS = 2.5;
 // How strongly the halo glows on the texels touching the oval's edge.
-const float HALO_STRENGTH = 0.7;
+const float HALO_STRENGTH = 0.5;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day. Each
 // period below divides it whole, so the halo carries on unbroken as the day wraps.
 const float SECONDS_PER_DAY = 1200.0;
