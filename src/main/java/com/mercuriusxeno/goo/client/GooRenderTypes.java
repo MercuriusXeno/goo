@@ -539,6 +539,30 @@ public final class GooRenderTypes {
             RenderSetup.builder(GOO_PORTAL_HALO).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
                     .createRenderSetup());
 
+    /**
+     * A gate's tornadic halo: a funnel spiralling out from its rim in front
+     * of it, standing off the wall, banded on the sixteen-texel grid, blended
+     * additively and depth tested without writing depth, beside the surface
+     * glow.
+     * tornadic-halo-spirals-out-from-the-rim
+     */
+    public static final RenderPipeline GOO_PORTAL_TORNADO = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_tornado"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_tornado"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            // additive: SRC_ALPHA, ONE
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .withCull(false)
+            .build();
+
+    /** RenderType for a gate's tornadic halo. */
+    public static final RenderType GOO_PORTAL_TORNADO_TYPE = RenderType.create("goo_portal_tornado",
+            RenderSetup.builder(GOO_PORTAL_TORNADO).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+                    .createRenderSetup());
+
     /** Per-texture memoized render types on the glow beam pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GLOW_BEAM_FACTORY =
             net.minecraft.util.Util.memoize(texture -> RenderType.create(
@@ -1632,6 +1656,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_OUTLINE);
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GOO_PORTAL_HALO);
+        event.registerPipeline(GOO_PORTAL_TORNADO);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);

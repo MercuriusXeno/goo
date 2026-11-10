@@ -15,9 +15,14 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
+import org.mockito.ArgumentCaptor;
 import java.util.List;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,6 +45,12 @@ class PortalFacesTest {
     private static final int CORNERS = 4;
     /** A one by two face's sixteen by thirty-two texels and a halo's eight more each side. */
     private static final int[] THIRTY_TWO_BY_FORTY_EIGHT = {32, 48};
+    /** A wall portal on the north face of (0, 64, 0), its frame (0, 64, 0) to (1, 66, 1). */
+    private static final Portal WALL_PORTAL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(0, 64, 0)),
+            Direction.NORTH, Direction.UP);
+    /** The portal it links to, the entry of the pair. */
+    private static final Portal OTHER_PORTAL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(9, 64, 0)),
+            Direction.NORTH, Direction.UP);
     /** A drawn gate's box as its blocks stand, grown full open. */
     private static final Function<PortalFaces.Drawn, AABB> BLOCKS_OF = drawn -> drawn.gate().blocks();
 
@@ -137,6 +148,71 @@ class PortalFacesTest {
             }
             verify(consumer, times(CORNERS)).setColor(color);
             verify(consumer, times(CORNERS)).setUv2(THIRTY_TWO_BY_FORTY_EIGHT[0], THIRTY_TWO_BY_FORTY_EIGHT[1]);
+        }
+    }
+
+    /**
+     * Beside its surface glow, a placed portal wears a tornado: a funnel that
+     * starts at its rim on the face and rises off the wall along the face's
+     * normal to the named height, in the portal's own color, its texel grid
+     * counting sixteen a block around the rim and up the funnel
+     * (decision tornadic-halo-spirals-out-from-the-rim).
+     */
+    @Nested
+    class Tornado {
+
+        /** A wall portal on the north face of (0, 64, 0), its frame (0, 64, 0) to (1, 66, 1). */
+        private static final Gate FRAME = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 1, 66, 1), Direction.NORTH,
+                new Vec3(0, 1, 0));
+        /** The north face's plane, lifted off the frame toward the open side. */
+        private static final float FACE_Z = -0.01F;
+        /** How far a vertex may stand from where the test reckons it, float rounding only. */
+        private static final float NEAR = 1.0e-4F;
+        /** The rim's 4.84 blocks around a one by two oval and the funnel's one block up, at sixteen a block. */
+        private static final int[] AROUND_BY_UP = {78, 16};
+
+        @Test
+        void aWaitingPortalsTornadoRisesFromItsRimToTheNamedHeightInBlue() {
+            assertTornadoOff(PortalFaces.colorOf(WALL_PORTAL, List.of()), PortalFaces.BLUE_RGB);
+        }
+
+        @Test
+        void aLinkedExitsTornadoRisesFromItsRimToTheNamedHeightInOrange() {
+            assertTornadoOff(PortalFaces.colorOf(WALL_PORTAL, List.of(new QuantumPortals.Link(OTHER_PORTAL,
+                    WALL_PORTAL))), PortalFaces.ORANGE_RGB);
+        }
+
+        private void assertTornadoOff(int rgb, int expectedRgb) {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+            ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
+
+            PortalFaces.emitTornadoes(pose, consumer, List.of(new PortalFaces.Drawn(FRAME, rgb, false)), BLOCKS_OF);
+
+            verify(consumer, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
+            int vertices = zs.getAllValues().size();
+            float nearest = zs.getAllValues().stream().max(Float::compare).orElseThrow();
+            float farthest = zs.getAllValues().stream().min(Float::compare).orElseThrow();
+            assertEquals(FACE_Z, nearest, NEAR, "The tornado should start on the face");
+            assertEquals(FACE_Z - (float) PortalFaces.TORNADO_HEIGHT, farthest, NEAR,
+                    "The tornado should rise off the wall to the named height");
+            List<Float> atTheFace = new java.util.ArrayList<>();
+            for (int i = 0; i < vertices; i++) {
+                if (Math.abs(zs.getAllValues().get(i) - FACE_Z) < NEAR) {
+                    atTheFace.add(ovalRadius(xs.getAllValues().get(i), ys.getAllValues().get(i)));
+                }
+            }
+            assertTrue(!atTheFace.isEmpty() && atTheFace.stream().allMatch(radius -> Math.abs(radius - 1F) < NEAR),
+                    "Every vertex on the face should stand on the rim's oval, stands at " + atTheFace);
+            verify(consumer, times(vertices)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE, expectedRgb));
+            verify(consumer, times(vertices)).setUv2(AROUND_BY_UP[0], AROUND_BY_UP[1]);
+        }
+
+        /** How far out a point on the north face stands on the frame's oval, one on its rim. */
+        private float ovalRadius(float x, float y) {
+            return (float) Math.hypot((x - 0.5F) / 0.5F, (y - 65F) / 1F);
         }
     }
 

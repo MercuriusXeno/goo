@@ -82,6 +82,16 @@ public final class PortalFaces {
      * shader starts from: none for a portal's clean oval, whole for a hole
      * mouth's torn edge. The halo's strength is the shader's own.
      */
+    /** How far the tornadic halo stands off the face along its normal, in blocks, tuned by eye. */
+    static final double TORNADO_HEIGHT = 1.0;
+    /** How much wider than the rim the tornado flares at its far end, as a share of the rim's size, tuned by eye. */
+    private static final double TORNADO_FLARE = 0.6;
+    /** How many rings the tornado's funnel rises in. */
+    private static final int TORNADO_RINGS = 6;
+    /** How many segments each of the funnel's rings runs around the rim in. */
+    private static final int TORNADO_SEGMENTS = 32;
+    /** The three in Ramanujan's reckoning of an oval's perimeter. */
+    private static final double RAMANUJAN_THREE = 3;
     static final int CLEAN_EDGE = 0;
     static final int TORN_EDGE = 255;
 
@@ -322,9 +332,11 @@ public final class PortalFaces {
     /**
      * Draws the halo of every placed portal, waiting or linked, blinking or
      * not, and of both mouths of each hole, glowing onto the wall around its
-     * edge in its own color.
+     * edge in its own color, and beside it each portal's tornado rising off
+     * the wall.
      * portal-halo-glows-additively-onto-the-wall
      * hole-mouths-wear-the-portal-halo
+     * tornadic-halo-spirals-out-from-the-rim
      *
      * @param pose    the pose
      * @param buffers the frame's buffers
@@ -335,6 +347,9 @@ public final class PortalFaces {
             List<Drawn> gates) {
         emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE), gates, drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
+        emitTornadoes(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_TORNADO_TYPE), gates,
+                drawn -> drawn.drawnBox(camera));
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_TORNADO_TYPE);
     }
 
     /**
@@ -348,6 +363,101 @@ public final class PortalFaces {
      * @param gates    the gates the frame draws
      * @param boxOf    the box each gate draws over, camera-relative
      */
+    /**
+     * Emits the tornadic halo of every portal the frame draws, beside its
+     * surface glow, in its own color.
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param pose     the pose
+     * @param consumer the tornado pipeline's vertex consumer
+     * @param gates    the gates the frame draws
+     * @param boxOf    the box each gate draws over, camera-relative
+     */
+    static void emitTornadoes(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+            Function<Drawn, AABB> boxOf) {
+        for (Drawn drawn : gates) {
+            if (!drawn.hole()) {
+                emitTornado(pose, consumer, boxOf.apply(drawn), drawn.gate().face(),
+                        ARGB.color(CLEAN_EDGE, drawn.rgb()));
+            }
+        }
+    }
+
+    /**
+     * Emits a gate's tornado as a funnel of rings: the first traces the
+     * rim's oval on the face, each next one stands farther off it along the
+     * face's normal and flares wider, up to the named height. Each quad maps
+     * zero to one around the rim and up the funnel, and every vertex carries
+     * the texels around the rim and up its height at sixteen a block, for the
+     * shader's grid.
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param box      the gate's blocks, camera-relative
+     * @param side     the face
+     * @param color    the packed ARGB color, its alpha the edge mark
+     */
+    private static void emitTornado(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side,
+            int color) {
+        Funnel funnel = Funnel.over(box, side);
+        int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+        for (int ring = 0; ring < TORNADO_RINGS; ring++) {
+            for (int segment = 0; segment < TORNADO_SEGMENTS; segment++) {
+                for (int[] corner : corners) {
+                    Vec3 at = funnel.point(segment + corner[0], ring + corner[1]);
+                    consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
+                            .setUv((float) (segment + corner[0]) / TORNADO_SEGMENTS,
+                                    (float) (ring + corner[1]) / TORNADO_RINGS)
+                            .setUv2(funnel.texels()[0], funnel.texels()[1]).setColor(color);
+                }
+            }
+        }
+    }
+
+    /**
+     * The funnel a gate's tornado draws over: the rim's oval on the face,
+     * its half sizes across the face's two ways, rising off the face's plane.
+     *
+     * @param center the oval's middle on the face's plane, lifted off it
+     * @param side   the face
+     * @param half   the oval's half size across the face's first way, then its second
+     */
+    private record Funnel(Vec3 center, Direction side, double[] half) {
+
+        static Funnel over(AABB box, Direction side) {
+            Vec3 middle = cornerOf(box, side, 0, 0).add(cornerOf(box, side, 1, 1)).scale(HALF_WAVE);
+            return new Funnel(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
+                    * HALF_WAVE, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * HALF_WAVE});
+        }
+
+        /**
+         * @param segment how many segments around the rim, of the named count
+         * @param ring    how many rings up the funnel, of the named count
+         * @return the funnel's point there
+         */
+        Vec3 point(int segment, int ring) {
+            double up = (double) ring / TORNADO_RINGS;
+            double spread = 1 + TORNADO_FLARE * up * up;
+            double angle = Mth.TWO_PI * segment / TORNADO_SEGMENTS;
+            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), half[0] * spread * Math.cos(angle))
+                    .with(secondAxisOf(side), half[1] * spread * Math.sin(angle));
+            return center.add(across).add(side.getUnitVec3().scale(TORNADO_HEIGHT * up));
+        }
+
+        /**
+         * @return the texels around the rim, by Ramanujan's reckoning of an
+         *         oval's perimeter, then up the funnel, at sixteen a block
+         */
+        int[] texels() {
+            double sum = half[0] + half[1];
+            double around = Math.PI * (RAMANUJAN_THREE * sum - Math.sqrt((RAMANUJAN_THREE * half[0] + half[1])
+                    * (half[0] + RAMANUJAN_THREE * half[1])));
+            return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
+                    (int) Math.round(TORNADO_HEIGHT * TEXELS_PER_BLOCK)};
+        }
+    }
+
     static void emitHalos(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
