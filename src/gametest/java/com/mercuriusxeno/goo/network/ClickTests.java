@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -55,6 +56,80 @@ public final class ClickTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, CLICK_TRICKS_THE_SCULK, ClickTests::clickTricksTheWardenAndTheSensor);
         GooTestFunctions.registerTest(registrar, CLICK_FREE_UNDER_SCULKER, ClickTests::clickIsFreeUnderSculker);
+        GooTestFunctions.registerTest(registrar, CLICK_RIPPLES_FROM_STONE, ClickTests::clickRipplesFromInsideStone);
+    }
+
+    private static final String CLICK_RIPPLES_FROM_STONE = "click_ripples_from_inside_stone";
+    /** How far east of the diver the buried sensor sits on the eye line. */
+    private static final int BURIED_SENSOR_EAST = 9;
+    /** How far below the diver's eye the client's camera sits, so its aim from inside stone starts a hair low. */
+    private static final double CAMERA_BELOW_EYE = 0.05;
+    private static final String SHOULD_TRIP_BURIED = "A click from inside stone should ripple east and trip the sensor buried %d blocks along the look";
+
+    /**
+     * A diver under Sculker, eyes inside stone and facing east, clicks with
+     * the point the glove aims from inside a block: the camera's own spot, a
+     * hair below the eye, where the aim ray meets the block it starts in. The
+     * ripple runs east along the look through the stone and trips a sculk
+     * sensor buried nine blocks along it
+     * (decision submerged-click-ripples-through-the-ground-to-its-range).
+     *
+     * @param helper the gametest helper
+     */
+    public static void clickRipplesFromInsideStone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos stand = helper.absolutePos(BlockPos.ZERO.above()).offset(FAR_OFF, 0, -FAR_OFF);
+        BlockPos sensor = stand.above().east(BURIED_SENSOR_EAST);
+        boolean[] tripped = new boolean[1];
+        ServerPlayer[] player = new ServerPlayer[1];
+        helper.startSequence()
+                .thenExecute(() -> buryScene(level, stand, sensor, true))
+                .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(stand), SHOULD_TICK))
+                .thenExecute(() -> {
+                    player[0] = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
+                    player[0].setData(GooAttachments.SCULKER,
+                            player[0].getData(GooAttachments.SCULKER).withDiving(true));
+                    player[0].teleportTo(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
+                    player[0].setYRot(FACING_EAST);
+                    player[0].setXRot(0);
+                    clickAt(player[0], player[0].getEyePosition().add(0, -CAMERA_BELOW_EYE, 0));
+                })
+                .thenExecuteFor(WATCH_TICKS, () -> {
+                    BlockState state = level.getBlockState(sensor);
+                    tripped[0] |= state.is(Blocks.SCULK_SENSOR)
+                            && SculkSensorBlock.getPhase(state) == SculkSensorPhase.ACTIVE;
+                })
+                .thenExecute(() -> {
+                    level.getServer().getPlayerList().remove(player[0]);
+                    buryScene(level, stand, sensor, false);
+                    helper.assertTrue(tripped[0], String.format(SHOULD_TRIP_BURIED, BURIED_SENSOR_EAST));
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * Lays the stone the diver clicks from, with the sensor buried in it, or
+     * clears it, holding its chunks loaded while it stands.
+     *
+     * @param level  the level
+     * @param stand  the cell the diver's feet stand in
+     * @param sensor the buried sensor's cell
+     * @param laying true to lay the scene, false to clear it
+     */
+    private static void buryScene(ServerLevel level, BlockPos stand, BlockPos sensor, boolean laying) {
+        if (laying) {
+            forceChunks(level, stand, true);
+        }
+        BlockState fill = laying ? Blocks.STONE.defaultBlockState() : Blocks.AIR.defaultBlockState();
+        for (BlockPos cell : BlockPos.betweenClosed(stand.offset(-2, -2, -2),
+                stand.offset(BURIED_SENSOR_EAST + 3, 3, 2))) {
+            level.setBlock(cell, fill, Block.UPDATE_CLIENTS);
+        }
+        level.setBlock(sensor, laying ? Blocks.SCULK_SENSOR.defaultBlockState() : Blocks.AIR.defaultBlockState(),
+                Block.UPDATE_ALL);
+        if (!laying) {
+            forceChunks(level, stand, false);
+        }
     }
 
     private static final String CLICK_FREE_UNDER_SCULKER = "click_is_free_under_sculker";
