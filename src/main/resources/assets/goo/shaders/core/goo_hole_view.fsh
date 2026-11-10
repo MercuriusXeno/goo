@@ -41,7 +41,8 @@ void main() {
         discard;
     }
     vec3 view = texture(Sampler0, gl_FragCoord.xy / ScreenSize).rgb;
-    float band = portalTexelRim(portalTexelsInside(across, texels, edge));
+    float inside = portalTexelsInside(across, texels, edge);
+    float band = portalTexelRim(inside);
     vec3 color = mix(view, frameColor.rgb * 1.4, band);
-    fragColor = vec4(color, mix(VIEW_OPACITY, 1.0, band));
+    fragColor = vec4(color, min(mix(VIEW_OPACITY, 1.0, band), portalTexelEdgeAlpha(inside)));
 }

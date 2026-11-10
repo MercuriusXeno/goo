@@ -14,15 +14,15 @@ in vec4 frameColor;
 
 out vec4 fragColor;
 
-
 void main() {
     vec2 across = portalTexelCenter(frameCoord, texels) * 2.0 - 1.0;
     if (length(across) > 1.0) {
         discard;
     }
-    float glow = portalTexelRim(portalTexelsInside(across, texels, 1.0));
+    float inside = portalTexelsInside(across, texels, 1.0);
+    float glow = portalTexelRim(inside);
     if (glow <= 0.0) {
         discard;
     }
-    fragColor = vec4(frameColor.rgb * 1.3, frameColor.a * glow);
+    fragColor = vec4(frameColor.rgb * 1.3, frameColor.a * glow * portalTexelEdgeAlpha(inside));
 }

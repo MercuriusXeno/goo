@@ -1203,6 +1203,8 @@ public final class GooRenderTypes {
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
             .withSampler("Sampler0")
             .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            // portals-and-wormhole-draw-sixteen-texels-a-block: the rim's edge ring lets a quarter of the wall through
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
             .build();

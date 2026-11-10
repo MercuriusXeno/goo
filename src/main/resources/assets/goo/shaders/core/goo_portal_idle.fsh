@@ -33,9 +33,10 @@ void main() {
     float seconds = GameTime * SECONDS_PER_DAY;
     float angle = atan(across.y, across.x);
     float swirl = 0.5 + 0.5 * sin(angle * ARMS + out_ * WIND - seconds * TURN);
-    float rim = portalTexelRim(portalTexelsInside(across, texels, 1.0));
+    float inside = portalTexelsInside(across, texels, 1.0);
+    float rim = portalTexelRim(inside);
     vec3 heart = vec3(HEART);
     vec3 arms = frameColor.rgb * swirl * out_ * 0.8;
     vec3 glow = frameColor.rgb * rim * 1.6;
-    fragColor = vec4(heart + arms + glow, frameColor.a);
+    fragColor = vec4(heart + arms + glow, frameColor.a * portalTexelEdgeAlpha(inside));
 }
