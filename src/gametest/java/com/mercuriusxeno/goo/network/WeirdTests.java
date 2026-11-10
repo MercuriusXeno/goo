@@ -21,9 +21,14 @@ import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -121,7 +126,10 @@ public final class WeirdTests {
     private static final String BREAKING_SLIME_DROPS = "breaking_slime_drops_its_goo";
     private static final int BROKEN_LAYERS = 3;
     private static final String RECLAIM_WRONG = "A broken slime cell should drop %d mb of weird goo, dropped %d in %s";
-    private static final String BOUNCE_REQUIRED = "Ability registry must hold goo:weird_bounce";
+    private static final String PLACING_KEEPS_GOO = "placing_a_block_keeps_the_slimes_goo";
+    private static final String PLACED_OVER_SLIME = "A block placed against a slime cell should leave it at %d layers"
+            + " or drop %d mb of weird goo; the cell holds %s and %d mb dropped";
+    private static final String BOUNCE_REQUIRED ="Ability registry must hold goo:weird_bounce";
     private static final String NO_SPLASH_LAYERS = "weird_bounce.json should name a coat step laying layers";
     private static final String SPLASH_WRONG = "Bounce's splash should leave %d layers over the landing cell and"
             + " its four side neighbours, left %d";
@@ -146,6 +154,7 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
         GooTestFunctions.registerTest(registrar, BOUNCE_SPLASHES, WeirdTests::bounceSplashesKLayers);
         GooTestFunctions.registerTest(registrar, BREAKING_SLIME_DROPS, WeirdTests::breakingSlimeDropsItsGoo);
+        GooTestFunctions.registerTest(registrar, PLACING_KEEPS_GOO, WeirdTests::placingABlockKeepsTheSlimesGoo);
         GooTestFunctions.registerTest(registrar, SLIME_LEVELS_OUT, WeirdTests::slimeLevelsOutBesideAnOpenTop);
         GooTestFunctions.registerTest(registrar, SLIME_POURS_OFF_A_LEDGE, WeirdTests::slimePoursOffALedge);
         GooTestFunctions.registerTest(registrar, COAT_ADDS_A_LAYER, WeirdTests::coatAddsALayerToStandingSlime);
@@ -273,6 +282,35 @@ public final class WeirdTests {
                 .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
         int owed = BROKEN_LAYERS * SlimeCoatBlock.MB_PER_LAYER;
         helper.assertTrue(weird == owed, String.format(RECLAIM_WRONG, owed, weird, drops));
+        helper.succeed();
+    }
+
+    /**
+     * A survival player uses a stone block item against a three layer slime
+     * cell, walled in so nothing pours: the cell keeps all its weird goo,
+     * standing at three layers or dropping what they cost.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     *
+     * @param helper the gametest helper
+     */
+    public static void placingABlockKeepsTheSlimesGoo(GameTestHelper helper) {
+        stoneUnder(helper, FLOW_CELL);
+        wallSidesBut(helper, FLOW_CELL, null);
+        helper.setBlock(FLOW_CELL, slimeOf(BROKEN_LAYERS));
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack stone = new ItemStack(Items.STONE);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stone);
+        BlockPos cell = helper.absolutePos(FLOW_CELL);
+        Vec3 slimeTop = Vec3.atBottomCenterOf(cell).add(0, (double) BROKEN_LAYERS / FULL_CELL, 0);
+        stone.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND,
+                new BlockHitResult(slimeTop, Direction.UP, cell, false)));
+        int standing = SlimeCoatBlock.layersOf(helper.getBlockState(FLOW_CELL));
+        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, FLOW_CELL, 1.0);
+        int weird = drops.stream().map(ItemEntity::getItem)
+                .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
+        int owed = BROKEN_LAYERS * SlimeCoatBlock.MB_PER_LAYER;
+        helper.assertTrue(standing == BROKEN_LAYERS || weird == owed,
+                String.format(PLACED_OVER_SLIME, BROKEN_LAYERS, owed, helper.getBlockState(FLOW_CELL), weird));
         helper.succeed();
     }
 

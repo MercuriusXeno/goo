@@ -237,6 +237,18 @@ public class SlimeCoatBlock extends Block {
         return liesOn(level, pos);
     }
 
+    /**
+     * Refuses a placed block the cell, so building on slime sets the block
+     * over it rather than deleting the goo its layers hold; the cell stays
+     * replaceable for the coat step and the rules that read
+     * BlockState.canBeReplaced().
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     */
+    @Override
+    protected boolean canBeReplaced(@NonNull BlockState state, @NonNull BlockPlaceContext context) {
+        return false;
+    }
+
     @Override
     public @Nullable BlockState getStateForPlacement(@NonNull BlockPlaceContext context) {
         return fittedTo(defaultBlockState(), context.getLevel(), context.getClickedPos());
