@@ -24,15 +24,16 @@ import java.util.Set;
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
  * @param origin    the slasher's eye, where the blade swings from
- * @param forward   its unit heading, the slasher's look turned within 22.5 degrees to either side
+ * @param forward   its unit heading, the slasher's look turned within 17.5 degrees to either side
  * @param side      the unit axis its width spans, nearly flat
  * @param offset    how far its middle stands to the side of the aim once full grown, in blocks
  * @param lift      how far its middle stands above the aim, below it where negative, in blocks
  * @param startSide the side it starts on, 1 along the side axis and -1 against it
+ * @param carry     the slasher's velocity at the swing, in blocks a tick, which the blade moves with
  * @param shape     its size and timing
  */
 public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, double lift, int startSide,
-                        Shape shape) {
+                        Vec3 carry, Shape shape) {
 
     /** The share of the leading edge's bow the trailing edge bows, so the two meet at the tips. */
     public static final double INNER_SHARE = 0.45;
@@ -44,8 +45,8 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     static final double DROP_SPREAD = 0.05;
     /** How far the blade's face tips up toward the eye from lying flat along the look, so its depth shows. */
     static final double FACE_TIP = Math.toRadians(15);
-    /** The farthest a blade's heading turns from the look to either side, so the flurry fans out in a 45 degree cone. */
-    static final double MAX_TURN = Math.toRadians(22.5);
+    /** The farthest a blade's heading turns from the look to either side, so the flurry fans out in a 35 degree cone. */
+    static final double MAX_TURN = Math.toRadians(17.5);
     /** The farthest a blade tilts from flat, in degrees, so it swings like a scythe and its far side stays under the eye line. */
     static final double MAX_TILT_DEGREES = 5;
     /** The share of its full width and depth a blade starts at. */
@@ -73,6 +74,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
             ByteBufCodecs.DOUBLE, ReapBlade::offset,
             ByteBufCodecs.DOUBLE, ReapBlade::lift,
             ByteBufCodecs.VAR_INT, ReapBlade::startSide,
+            Vec3.STREAM_CODEC, ReapBlade::carry,
             Shape.STREAM_CODEC, ReapBlade::shape,
             ReapBlade::new);
 
@@ -131,7 +133,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
 
     /**
      * A blade swung from the slasher's eye: its heading turned at random
-     * within 22.5 degrees to either side of the look, keeping the look's
+     * within 17.5 degrees to either side of the look, keeping the look's
      * pitch, so the blades fan out rather than converge; its width tilted
      * at random within five degrees of flat, its middle standing at random
      * within a block of the aim to the side and just under it, so the whole
@@ -139,17 +141,18 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      *
      * @param eye    the slasher's eye
      * @param look   the slasher's unit look
+     * @param carry  the slasher's velocity at the swing, in blocks a tick
      * @param shape  its size and timing
      * @param random the random source
      * @return the blade
      */
-    public static ReapBlade launch(Vec3 eye, Vec3 look, Shape shape, RandomSource random) {
+    public static ReapBlade launch(Vec3 eye, Vec3 look, Vec3 carry, Shape shape, RandomSource random) {
         Vec3 heading = look.yRot((float) ((random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TURN));
         double tilt = Math.toRadians((random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TILT_DEGREES);
         double offset = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_OFFSET;
         double lift = -DROP + (random.nextDouble() - HALF) * TIP_TO_TIP * DROP_SPREAD;
         int startSide = random.nextBoolean() ? ALONG_SIDE : AGAINST_SIDE;
-        return new ReapBlade(eye, heading, sideOf(heading, tilt), offset, lift, startSide, shape);
+        return new ReapBlade(eye, heading, sideOf(heading, tilt), offset, lift, startSide, carry, shape);
     }
 
     /**
@@ -163,14 +166,18 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     }
 
     /**
-     * The axis the blade's middle bows along: away from the slasher along the
-     * look, tipped up toward the eye, so the eye sees the crescent's depth
-     * rather than its edge.
+     * The axis the blade's middle bows along: the way the blade travels over
+     * its life, its drift along the heading with the slide its one-sided
+     * growth makes across it, tipped up toward the eye, so the crescent faces
+     * where it goes and the eye sees its depth rather than its edge.
      *
      * @return the unit depth axis
      */
     public Vec3 depthAxis() {
-        return forward.scale(Math.cos(FACE_TIP)).add(liftAxis().scale(Math.sin(FACE_TIP)));
+        double slide = -startSide * shape.width() * (1 - START_SHARE) * HALF;
+        Vec3 travel = forward.scale(shape.drift()).add(side.scale(slide));
+        Vec3 along = travel.lengthSqr() > VERTICAL_HEADING ? travel.normalize() : forward;
+        return along.scale(Math.cos(FACE_TIP)).add(liftAxis().scale(Math.sin(FACE_TIP)));
     }
 
     /**
@@ -234,7 +241,8 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      */
     public Vec3 centreAt(double age) {
         double lateral = offset + startSide * (shape.width() - widthAt(age)) * HALF;
-        return origin.add(forward.scale(distanceAt(age))).add(side.scale(lateral)).add(liftAxis().scale(lift));
+        return origin.add(forward.scale(distanceAt(age))).add(side.scale(lateral)).add(liftAxis().scale(lift))
+                .add(carry.scale(age));
     }
 
     /**
