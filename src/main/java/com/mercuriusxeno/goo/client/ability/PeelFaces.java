@@ -19,7 +19,7 @@ import java.util.List;
  * lays on that face, or its particle texture where the model lays none, and
  * the biome tint the world gives that face, so a grass block's chunks wear a
  * green top and dirt sides.
- * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
+ * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  */
 final class PeelFaces {
 
@@ -35,20 +35,20 @@ final class PeelFaces {
      * @param state the block
      * @return how each of its faces looks, by {@link Direction#get3DDataValue()}
      */
-    static DrinkPeels.FaceLook[] of(ClientLevel level, BlockPos pos, BlockState state) {
+    static BlockPeels.FaceLook[] of(ClientLevel level, BlockPos pos, BlockState state) {
         Minecraft mc = Minecraft.getInstance();
         List<BlockStateModelPart> parts = new ArrayList<>();
         mc.getModelManager().getBlockStateModelSet().get(state).collectParts(level, pos, state,
                 RandomSource.create(state.getSeed(pos)), parts);
         TextureAtlasSprite particle = mc.getModelManager().getBlockStateModelSet().getParticleMaterial(state, level,
                 pos).sprite();
-        DrinkPeels.FaceLook[] faces = new DrinkPeels.FaceLook[Direction.values().length];
+        BlockPeels.FaceLook[] faces = new BlockPeels.FaceLook[Direction.values().length];
         for (Direction face : Direction.values()) {
             BakedQuad quad = quadFacing(parts, face);
             TextureAtlasSprite sprite = quad == null || !quad.materialInfo().sprite().atlasLocation()
                     .equals(particle.atlasLocation()) ? particle : quad.materialInfo().sprite();
             int tint = quad == null ? OPAQUE_WHITE : tintOf(level, pos, state, quad.materialInfo().tintIndex());
-            faces[face.get3DDataValue()] = DrinkPeels.FaceLook.of(new SpriteCrop(sprite.getU0(), sprite.getU1(),
+            faces[face.get3DDataValue()] = BlockPeels.FaceLook.of(new SpriteCrop(sprite.getU0(), sprite.getU1(),
                     sprite.getV0(), sprite.getV1()), tint);
         }
         return faces;

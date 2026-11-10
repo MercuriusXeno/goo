@@ -7,8 +7,8 @@ import net.neoforged.neoforge.attachment.IAttachmentHolder;
 
 /**
  * The remainder ledger a player serves through GooCapabilities.REMAINDER_ENTITY,
- * held in their remainders attachment, which unmake's payout credits and ability
- * costs debit.
+ * held in their remainders attachment, which an offline payout credits on
+ * login and ability costs debit.
  * decision every-producer-consumer-and-container-holds-a-remainder-buffer
  * decision one-remainder-capability-injected-into-every-fluid-capability
  */

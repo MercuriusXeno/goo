@@ -102,8 +102,6 @@ public final class HeartOverlayHud {
     private static final float POINTS_PER_HEART = 2.0f;
     /** The seed multiplier vanilla's health bar seeds its jiggle with. */
     private static final int JIGGLE_SEED = 312_871;
-    /** Vanilla jiggles the bar at or under two hearts of health and absorption. */
-    private static final int JIGGLE_HEALTH = 4;
     private static final int REGEN_BOUNCE_PAD = 5;
     private static final int REGEN_BOUNCE = 2;
 
@@ -517,8 +515,9 @@ public final class HeartOverlayHud {
         int health = Mth.ceil(player.getHealth());
         float maxHealth = Math.max((float) player.getAttributeValue(Attributes.MAX_HEALTH), health);
         int absorption = Mth.ceil(player.getAbsorptionAmount());
+        // health-bar-stays-steady-while-filled-hearts-stand: the overlay shakes only when vanilla's hearts under it do
         int[] jiggle = jiggle(gui.getGuiTicks(), Mth.ceil(maxHealth / POINTS_PER_HEART)
-                + Mth.ceil(absorption / POINTS_PER_HEART), health + absorption <= JIGGLE_HEALTH);
+                + Mth.ceil(absorption / POINTS_PER_HEART), LowHealthJiggle.jiggles(player));
         int bounceSlot = player.hasEffect(MobEffects.REGENERATION)
                 ? gui.getGuiTicks() % Mth.ceil(maxHealth + REGEN_BOUNCE_PAD) : NO_BOUNCE;
         return new BarLayout(graphics.guiWidth() / HALF - BAR_HALF_WIDTH, graphics.guiHeight() - leftHeightBefore,

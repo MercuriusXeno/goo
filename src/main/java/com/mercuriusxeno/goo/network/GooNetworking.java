@@ -64,8 +64,6 @@ public final class GooNetworking {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(LurkerPulsePayload.TYPE, LurkerPulsePayload.STREAM_CODEC);
         r.playToClient(SculkerHeardPayload.TYPE, SculkerHeardPayload.STREAM_CODEC);
-        r.playToClient(DrinkPayload.TYPE, DrinkPayload.STREAM_CODEC);
-        r.playToClient(UnmadePayload.TYPE, UnmadePayload.STREAM_CODEC);
         registerClientEffectPayloads(r);
     }
 
@@ -125,6 +123,7 @@ public final class GooNetworking {
         r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
         r.playToServer(GlovePosePayload.TYPE, GlovePosePayload.STREAM_CODEC, GooThrowHandler::handleGlovePose);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
+        r.playToServer(PlexerTargetPickPayload.TYPE, PlexerTargetPickPayload.STREAM_CODEC, PlexerTargetPickHandler::handle);
         r.playToServer(WorkbenchRequestPayload.TYPE, WorkbenchRequestPayload.STREAM_CODEC,
                 WorkbenchRequestHandler::handle);
         r.playToServer(PortalChoosePayload.TYPE, PortalChoosePayload.STREAM_CODEC, PortalChoosePayload::handle);

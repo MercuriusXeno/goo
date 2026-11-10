@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A drink paying after its player has left keeps the part under 1 mB for that
+ * A payout after its player has left keeps the part under 1 mB for that
  * player, handed to their own ledger when they return.
  * decision every-producer-consumer-and-container-holds-a-remainder-buffer
  */
@@ -22,9 +22,13 @@ class OfflineRemaindersTest {
     private final UUID absent = UUID.randomUUID();
     private final OfflineRemainders offline = new OfflineRemainders();
 
+    private GooContents payAbsent() {
+        return new GooContents(offline.ledgerOf(absent).creditAllExact(fraction(GooTypes.ROCK, 64, 3).exactAll()));
+    }
+
     @Test
     void anAbsentPlayersPayoutDropsTheWholeAndKeepsTheRemainderForThem() {
-        GooContents dropped = Drinks.payoutThrough(fraction(GooTypes.ROCK, 64, 3), offline.ledgerOf(absent));
+        GooContents dropped = payAbsent();
 
         assertEquals(Map.of(GooTypes.ROCK, 21), dropped.getAll());
         assertEquals(GooFraction.of(1, 3), offline.ledgerOf(absent).remainders().of(GooTypes.ROCK));
@@ -32,7 +36,7 @@ class OfflineRemaindersTest {
 
     @Test
     void aReturningPlayerReadsTheKeptRemainderOnTheirOwnLedger() {
-        Drinks.payoutThrough(fraction(GooTypes.ROCK, 64, 3), offline.ledgerOf(absent));
+        payAbsent();
         RemainderLedger returning = new RemainderLedger();
 
         GooContents paid = offline.handOver(absent, returning);
@@ -44,7 +48,7 @@ class OfflineRemaindersTest {
 
     @Test
     void keptAndHeldRemaindersMakingAWholeMbPayIt() {
-        Drinks.payoutThrough(fraction(GooTypes.ROCK, 64, 3), offline.ledgerOf(absent));
+        payAbsent();
         RemainderLedger returning = new RemainderLedger(GooRemainders.EMPTY.with(GooTypes.ROCK, GooFraction.of(2, 3)));
 
         GooContents paid = offline.handOver(absent, returning);
