@@ -66,7 +66,7 @@ class PlexerPanelTargetTest {
     }
 
     /**
-     * A target costing every registered goo type reads one row per type under its name, and
+     * A target costing every registered goo type reads one grid cell per type under its name, and
      * that tallest panel stands whole above the plexer: its bottom edge just above the plexer's
      * top, its rows stacking upward, so it covers no cutaway and meets no ground.
      */
@@ -82,7 +82,8 @@ class PlexerPanelTargetTest {
         PanelPlacement placement = PlexerPanelTarget.placement(PLEXER, facing, 0f, 1f);
         double bottom = placement.anchor().y - PanelPainter.hangDrop(placement, size) * InWorldHud.PIXEL_SCALE;
 
-        assertEquals(GooTypes.order().size() + 1, rows.size());
+        assertEquals(2, rows.size());
+        assertEquals(GooTypes.order().size(), rows.getLast().grid().cells().size());
         assertTrue(bottom > PLEXER.getY() + 1,
                 "The panel's bottom edge stands at " + (bottom - PLEXER.getY()) + " blocks, under the plexer's top");
         assertEquals(placement.anchor().y, bottom, EPSILON, "The panel should grow upward from its anchor");
