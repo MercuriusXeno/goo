@@ -21,8 +21,9 @@ import java.util.UUID;
 
 /**
  * The Quantum portals a server holds: every portal each player placed, as
- * many as they like, and the one pair each player has linked, the portal they
- * chose from the blue entry portal. A player choosing a partner for a portal
+ * many as they like, and every pair each player has linked, as many as they
+ * like, each portal in one pair at most, the portal they chose from the blue
+ * entry portal. A player choosing a partner for a portal
  * is held here too, unsaved. Saved in the overworld's data, so portals and
  * links outlive unloads and restarts.
  * portals-link-by-looking-through-portal-vision
@@ -40,7 +41,8 @@ public class QuantumPortals extends SavedData {
             Identifier.fromNamespaceAndPath("goo", "quantum_portals"), QuantumPortals::new, CODEC);
 
     private final Map<UUID, List<Portal>> placed = new HashMap<>();
-    private final Map<UUID, Link> links = new HashMap<>();
+    /** Every linked pair, with the player who linked it; a portal stands in one at most. */
+    private final List<Linked> links = new ArrayList<>();
     private final Map<UUID, Portal> choosing = new HashMap<>();
     /** The portal each player placed last, kept after it breaks so no older portal stands in for it. */
     private final Map<UUID, Portal> lastPlaced = new HashMap<>();
@@ -54,14 +56,14 @@ public class QuantumPortals extends SavedData {
      * Creates a server's portals from what it saved.
      *
      * @param placed each player's placed portals
-     * @param linked each player's linked pair
+     * @param linked every pair a player linked
      */
     public QuantumPortals(List<Placed> placed, List<Linked> linked) {
         placed.forEach(entry -> {
             this.placed.put(entry.owner(), new ArrayList<>(entry.portals()));
             entry.last().ifPresent(last -> lastPlaced.put(entry.owner(), last));
         });
-        linked.forEach(entry -> links.put(entry.owner(), entry.link()));
+        links.addAll(linked);
     }
 
     /**
@@ -113,7 +115,7 @@ public class QuantumPortals extends SavedData {
     }
 
     /**
-     * A player's linked pair, as saved.
+     * A pair a player linked, as saved.
      *
      * @param owner the player
      * @param link  the pair
@@ -199,13 +201,14 @@ public class QuantumPortals extends SavedData {
 
     /**
      * Links the portal a player is choosing for to another of theirs in the
-     * same dimension: the chosen-from portal is the entry, and the pair the
-     * player linked before is unlinked, so a player holds one pair at a time.
-     * Choosing ends. A portal in another dimension is refused, and choosing holds.
+     * same dimension: the chosen-from portal is the entry. A portal links to
+     * one other alone, so the pairs either portal stood in are unlinked;
+     * every other pair the player linked stands. Choosing ends. A portal in
+     * another dimension is refused, and choosing holds.
      *
      * @param owner  the player
      * @param target the portal right clicked as the partner
-     * @return the pair unlinked, and the pair now standing; empty where no link lands
+     * @return the pairs unlinked, and the pair now standing; empty where no link lands
      */
     public Optional<Relink> link(UUID owner, Portal target) {
         Portal from = choosing.get(owner);
@@ -214,27 +217,30 @@ public class QuantumPortals extends SavedData {
             return Optional.empty();
         }
         choosing.remove(owner);
+        List<Link> before = links.stream().map(Linked::link)
+                .filter(link -> link.otherEnd(from).isPresent() || link.otherEnd(target).isPresent()).toList();
+        links.removeIf(linked -> before.contains(linked.link()));
         Link now = new Link(from, target);
-        Optional<Link> before = Optional.ofNullable(links.put(owner, now));
+        links.add(new Linked(owner, now));
         setDirty();
         return Optional.of(new Relink(before, now));
     }
 
     /**
-     * A link landing: the pair it unlinked and the pair standing.
+     * A link landing: the pairs it unlinked and the pair standing.
      *
-     * @param before the pair unlinked, empty for none
+     * @param before the pairs unlinked, either portal's old pair, empty for none
      * @param now    the pair now linked
      */
-    public record Relink(Optional<Link> before, Link now) {
+    public record Relink(List<Link> before, Link now) {
     }
 
     /**
      * @param owner a player
-     * @return the pair they linked, empty for none
+     * @return every pair they linked, in the order linked
      */
-    public Optional<Link> linkOf(UUID owner) {
-        return Optional.ofNullable(links.get(owner));
+    public List<Link> linksOf(UUID owner) {
+        return links.stream().filter(linked -> linked.owner().equals(owner)).map(Linked::link).toList();
     }
 
     /**
@@ -244,7 +250,7 @@ public class QuantumPortals extends SavedData {
      * @return its partner, empty for a portal no link holds
      */
     public Optional<Portal> partnerOf(Portal portal) {
-        return links.values().stream().flatMap(link -> link.otherEnd(portal).stream()).findFirst();
+        return links.stream().flatMap(linked -> linked.link().otherEnd(portal).stream()).findFirst();
     }
 
     /**
@@ -262,27 +268,26 @@ public class QuantumPortals extends SavedData {
     }
 
     /**
-     * @return every link, keyed by the player who linked it
+     * @return every linked pair, whoever linked it
      */
-    public Map<UUID, Link> links() {
-        return Map.copyOf(links);
+    public List<Link> links() {
+        return links.stream().map(Linked::link).toList();
     }
 
     /**
      * Drops a portal that no longer stands, with the link holding it.
      *
      * @param portal the fallen portal
-     * @return the owner whose link the portal took down, empty where it was in no link
+     * @return the pair the portal took down, with who linked it, empty where it was in no link
      */
-    public Optional<UUID> fall(Portal portal) {
+    public Optional<Linked> fall(Portal portal) {
         placed.values().forEach(owned -> owned.remove(portal));
         choosing.values().remove(portal);
-        Optional<UUID> owner = links.entrySet().stream()
-                .filter(entry -> entry.getValue().otherEnd(portal).isPresent())
-                .map(Map.Entry::getKey).findFirst();
-        owner.ifPresent(links::remove);
+        Optional<Linked> fallen = links.stream().filter(linked -> linked.link().otherEnd(portal).isPresent())
+                .findFirst();
+        fallen.ifPresent(links::remove);
         setDirty();
-        return owner;
+        return fallen;
     }
 
     /**
@@ -298,6 +303,6 @@ public class QuantumPortals extends SavedData {
     }
 
     private List<Linked> linkedList() {
-        return links.entrySet().stream().map(entry -> new Linked(entry.getKey(), entry.getValue())).toList();
+        return List.copyOf(links);
     }
 }

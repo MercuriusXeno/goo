@@ -63,12 +63,12 @@ public final class PortalDisplacedTests {
         Portal near = wallPortal(helper, owner, NEAR_PORTAL, Direction.WEST);
         Portal far = wallPortal(helper, owner, FAR_PORTAL, Direction.EAST);
         QuantumPortals portals = QuantumPortals.get(helper.getLevel());
-        helper.assertTrue(portals.linkOf(owner).isPresent(), "The two portals should stand linked");
+        helper.assertTrue(!portals.linksOf(owner).isEmpty(), "The two portals should stand linked");
         helper.setBlock(NEAR_PORTAL.above().west(), Blocks.STONE);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(portals.portalAt(near.block(), near.face()).isEmpty(),
                     "A stone placed before the portal should break it");
-            helper.assertTrue(portals.linkOf(owner).isEmpty(), "The broken portal's link should go with it");
+            helper.assertTrue(portals.linksOf(owner).isEmpty(), "The broken portal's link should go with it");
             PortalChoice.breakAt(helper.getLevel(), far.block().pos(), far.face());
             helper.succeed();
         });

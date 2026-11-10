@@ -72,11 +72,23 @@ public final class PortalChoice {
         QuantumPortals portals = QuantumPortals.get(level);
         Optional<Portal> choosing = portals.choosing(owner);
         portals.choose(owner, Optional.of(entry));
-        portals.link(owner, exit).ifPresent(relink -> {
-            relink.before().ifPresent(unlinked -> PortalTether.tie(level.getServer(), owner, unlinked, false));
-            PortalTether.tie(level.getServer(), owner, relink.now(), true);
-        });
+        portals.link(owner, exit).ifPresent(relink -> retether(level.getServer(), owner, relink.before()));
         portals.choose(owner, choosing.filter(held -> portals.portalsOf(owner).contains(held)));
+    }
+
+    /**
+     * Lets go the chunks of pairs a player no longer holds, then holds the
+     * chunks of every pair the player still links: two pairs may share a
+     * chunk, and letting one go must not let the other's go.
+     *
+     * @param server   the server
+     * @param owner    the player
+     * @param unlinked the pairs no longer linked
+     */
+    private static void retether(MinecraftServer server, UUID owner, List<QuantumPortals.Link> unlinked) {
+        unlinked.forEach(link -> PortalTether.tie(server, owner, link, false));
+        QuantumPortals.get(server.overworld()).linksOf(owner).forEach(link -> PortalTether.tie(server, owner, link,
+                true));
     }
 
     /**
@@ -102,8 +114,7 @@ public final class PortalChoice {
     public static void link(ServerPlayer player, Portal target) {
         UUID owner = player.getUUID();
         QuantumPortals.get(player.level()).link(owner, target).ifPresent(relink -> {
-            relink.before().ifPresent(before -> PortalTether.tie(player.level().getServer(), owner, before, false));
-            PortalTether.tie(player.level().getServer(), owner, relink.now(), true);
+            retether(player.level().getServer(), owner, relink.before());
             sound(player, relink.now().entry().faceCenter(), LINK_PITCH);
             sound(player, relink.now().exit().faceCenter(), LINK_PITCH);
         });
@@ -126,9 +137,8 @@ public final class PortalChoice {
         if (hit.isEmpty()) {
             return false;
         }
-        Map<UUID, QuantumPortals.Link> before = portals.links();
-        portals.fall(hit.get()).ifPresent(owner -> PortalTether.tie(level.getServer(), owner, before.get(owner),
-                false));
+        portals.fall(hit.get()).ifPresent(fallen -> retether(level.getServer(), fallen.owner(),
+                List.of(fallen.link())));
         // operator ruling: no vanilla particles as a portal breaks, its wind-down sound alone
         Vec3 at = hit.get().faceCenter();
         level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS,
@@ -181,11 +191,10 @@ public final class PortalChoice {
         QuantumPortals portals = QuantumPortals.get(player.level());
         UUID owner = player.getUUID();
         // linked-partner-chunks-stream-to-any-viewer
-        List<QuantumPortals.Link> links = portals.links().values().stream()
+        List<QuantumPortals.Link> links = portals.links().stream()
                 .filter(link -> link.entry().block().dimension().equals(player.level().dimension()))
                 .toList();
-        return new PortalsSyncPayload(portals.portalsOf(owner), portals.linkOf(owner), portals.choosing(owner),
-                links);
+        return new PortalsSyncPayload(portals.portalsOf(owner), portals.choosing(owner), links);
     }
 
     /**
