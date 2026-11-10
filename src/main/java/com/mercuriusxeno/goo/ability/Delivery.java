@@ -333,17 +333,6 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
-     * Whether the use sends no target from the client: a self ability runs on
-     * the player, and a scan reads its landing along the look on the server.
-     * click-is-a-hit-scan-drawn-as-a-delayed-wave
-     *
-     * @return true for a self or a scan delivery
-     */
-    public boolean sendsNoTarget() {
-        return kind == DeliveryKind.SELF || kind == DeliveryKind.SCAN;
-    }
-
-    /**
      * The ticks a scan's wave takes to reach its landing at the delivery's
      * speed, the delay before its program runs there.
      * click-is-a-hit-scan-drawn-as-a-delayed-wave

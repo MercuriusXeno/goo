@@ -49,8 +49,7 @@ class ClickRippleTest {
 
     private final AbilityDefinition click = AbilityJson.decode("deep_click");
     private final ServerLevel level = mock(ServerLevel.class);
-    private final Vec3 wallLanding = GooScanHandler.landing(LOOK, WALL, null,
-            EYE.add(LOOK.scale(click.delivery().range())));
+    private final Vec3 wallLanding = GooScanHandler.landingAt(EYE, WALL.getLocation(), click.delivery().range());
     private final int rippleTicks = (int) Math.ceil(click.delivery().range() / click.delivery().blocksPerTick());
 
     private ScanWaves thrown(boolean submerged) {

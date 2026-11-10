@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
@@ -105,8 +106,7 @@ public final class GloveThrowSender {
         if (delivery.charges()) {
             return sendCharge(player, gooType, abilityId, heldTicks);
         }
-        // click-is-a-hit-scan-drawn-as-a-delayed-wave: a scan's landing is the server's to read
-        return delivery.sendsNoTarget()
+        return delivery.kind() == DeliveryKind.SELF
                 ? sendSelf(player, gooType, abilityId)
                 : sendAimed(player, gooType, abilityId);
     }
@@ -329,10 +329,8 @@ public final class GloveThrowSender {
      */
     private static boolean sendSelf(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        // click-costs-one-mb-and-nothing-under-sculker: a throw a standing ability waives needs no goo held
-        boolean free = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
         if (!affordsThrow(ability, BlinkAim.trip(player, ability, 1f),
-                amount -> free || GooSourceScanner.hasEnough(player, gooType, amount),
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
@@ -385,8 +383,10 @@ public final class GloveThrowSender {
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         GooThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        // click-costs-one-mb-and-nothing-under-sculker: a throw a standing ability waives needs no goo held
+        boolean free = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
         if (payload == null || refusesStruck(player, payload, ability) || !affordsThrow(ability,
-                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                amount -> free || GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
         }

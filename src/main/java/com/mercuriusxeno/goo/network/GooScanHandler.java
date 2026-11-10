@@ -15,23 +15,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Sends a scan ability: the server reads the landing along the thrower's look
- * the tick the use fires, the first block face or entity within the
- * delivery's range, and queues the wave that runs the ability's program there
- * once it arrives. Nothing leaves the hand and nothing plays at the thrower
+ * Sends a scan ability: it aims as every free-aim ability does, at the point
+ * the glove's reticule marks, and lands there the tick the use fires, capped
+ * onto the delivery's range; the wave that runs the ability's program there
+ * arrives after the delay its speed gives the distance. No goo leaves the
+ * hand and nothing plays at the thrower
  * (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
  */
 public final class GooScanHandler {
@@ -48,14 +41,16 @@ public final class GooScanHandler {
     }
 
     /**
-     * Prices, pays and sends a scan from the player's eye along the look.
+     * Prices, pays and sends a scan from the player's eye to the point the
+     * glove aimed, as every free-aim ability lands at its reticule, capped
+     * onto the delivery's range along the same line.
      *
      * @param player  the throwing player
-     * @param origin  the glove hand the client drew from, which the drawn wave leaves
+     * @param payload the throw: the glove hand and the aimed point
      * @param gooType the ability's goo type
      * @param ability the scan ability
      */
-    static void scan(ServerPlayer player, Vec3 origin, ResourceKey<GooTypeDefinition> gooType,
+    static void scan(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType,
                      AbilityDefinition ability) {
         ServerLevel level = player.level();
         if (!AbilityCharges.charge(player, gooType, priceFor(player, ability))) {
@@ -66,13 +61,14 @@ public final class GooScanHandler {
         }
         GooThrowHandler.consumeReagents(player, ability.id().toString(), gooType);
         Vec3 eye = player.getEyePosition();
-        Vec3 look = player.getLookAngle();
-        Vec3 landing = landingAlong(player, eye, look, ability.delivery().range());
+        Vec3 line = payload.targetPoint().subtract(eye);
+        Vec3 along = line.lengthSqr() == 0 ? player.getLookAngle() : line.normalize();
+        Vec3 landing = landingAt(eye, payload.targetPoint(), ability.delivery().range());
         ScanWaves waves = GooServerState.of(level.getServer()).scanWaves();
         int now = level.getServer().getTickCount();
-        List<ScanWaves.Wave> sent = wavesFor(submerged(player), level, eye, look, landing, ability, now);
+        List<ScanWaves.Wave> sent = wavesFor(submerged(player), level, eye, along, landing, ability, now);
         sent.forEach(waves::schedule);
-        Vec3 hand = ThrowArc.clampToReach(eye, origin, ThrowArc.HAND_REACH * player.getScale());
+        Vec3 hand = ThrowArc.clampToReach(eye, payload.origin(), ThrowArc.HAND_REACH * player.getScale());
         ScanVisualStep.in(ability.behaviors()).ifPresent(visual -> EntityVisuals.sendToWatchers(player,
                 drawnWave(hand, sent, now, visual)));
     }
@@ -109,14 +105,14 @@ public final class GooScanHandler {
 
     /**
      * The waves a scan sends: from inside the ground, one each tick at the
-     * point the wave has reached along the look, through solid and open space
-     * alike, out to the range; from the surface, one to its landing.
+     * point the wave has reached along the aimed line, through solid and open
+     * space alike, out to the range; from the surface, one to its landing.
      * submerged-click-ripples-through-the-ground-to-its-range
      *
      * @param submerged   whether the thrower clicks from inside the ground
      * @param level       the level thrown in
      * @param eye         the thrower's eye
-     * @param look        the thrower's unit look
+     * @param look        the unit line from the eye toward the aimed point
      * @param landing     where a surfaced scan lands
      * @param ability     the scan ability
      * @param currentTick the server tick the use fired on
@@ -153,54 +149,21 @@ public final class GooScanHandler {
     }
 
     /**
-     * Reads where a look lands within a range: the first block face it meets,
-     * or a body before that face.
+     * Where a scan lands for the point the glove aimed: that point, stood back
+     * off the face or the body it sits on toward the eye, when it lies within
+     * the range; the range's end along the same line when it lies past it.
      *
-     * @param thrower the player looking, whom the look passes through
-     * @param eye     the thrower's eye
-     * @param look    the thrower's unit look
-     * @param range   how far the look reads, in blocks
+     * @param eye   the thrower's eye
+     * @param aimed the point the glove's reticule aimed at
+     * @param range the scan's reach, in blocks
      * @return the landing
      */
-    private static Vec3 landingAlong(ServerPlayer thrower, Vec3 eye, Vec3 look, double range) {
-        Vec3 end = eye.add(look.scale(range));
-        BlockHitResult block = thrower.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, thrower));
-        Vec3 stop = block.getType() == HitResult.Type.BLOCK ? block.getLocation() : end;
-        EntityHitResult body = ProjectileUtil.getEntityHitResult(thrower, eye, stop, new AABB(eye, stop).inflate(1),
-                candidate -> stopsTheScan(candidate, thrower), eye.distanceToSqr(stop));
-        return landing(look, block, body, end);
-    }
-
-    /**
-     * Where a scan lands: the body struck, else the block face struck, else the
-     * range's end, each stood back along the look off what it struck.
-     *
-     * @param look  the thrower's unit look
-     * @param block what the look's clip met
-     * @param body  the body the look met before that block, or null
-     * @param end   the point the range ends at
-     * @return the landing
-     */
-    static Vec3 landing(Vec3 look, BlockHitResult block, @Nullable EntityHitResult body, Vec3 end) {
-        if (body != null) {
-            return standOff(body.getLocation(), look);
+    static Vec3 landingAt(Vec3 eye, Vec3 aimed, double range) {
+        Vec3 capped = GooThrowHandler.capToRange(eye, aimed, range);
+        Vec3 line = aimed.subtract(eye);
+        if (!capped.equals(aimed) || line.lengthSqr() == 0) {
+            return capped;
         }
-        return block.getType() == HitResult.Type.BLOCK ? standOff(block.getLocation(), look) : end;
-    }
-
-    private static Vec3 standOff(Vec3 struck, Vec3 look) {
-        return struck.subtract(look.scale(STAND_OFF));
-    }
-
-    /**
-     * Whether an entity may stop a scan: any entity but the one looking.
-     *
-     * @param candidate the entity the look crosses
-     * @param thrower   the entity looking
-     * @return true where the look lands on it
-     */
-    static boolean stopsTheScan(Entity candidate, Entity thrower) {
-        return candidate != thrower && candidate.isPickable();
+        return aimed.subtract(line.normalize().scale(STAND_OFF));
     }
 }
