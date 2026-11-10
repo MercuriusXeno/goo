@@ -11,15 +11,18 @@ import java.util.stream.Stream;
  * over the host, one value for a single throw; a written reach caps the
  * sphere the explosion cuts apart from its power, which otherwise sets it.
  *
- * @param power the explosion power, evaluated when the step runs
- * @param reach the radius the explosion cuts at most, empty for the power's own open-air reach
- * @param mode  how blocks are treated
+ * @param power   the explosion power, evaluated when the step runs
+ * @param reach   the radius the explosion cuts at most, empty for the power's own open-air reach
+ * @param gathers when the explosion gathers its mined drops into one sphere, true when nonzero; empty for never
+ * @param mode    how blocks are treated
  */
-public record ExplodeStep(Expr power, Optional<Expr> reach, ExplosionMode mode) implements Step {
+public record ExplodeStep(Expr power, Optional<Expr> reach, Optional<Expr> gathers, ExplosionMode mode)
+        implements Step {
 
     private static final String NAME = "explode";
     private static final String FIELD_POWER = "power";
     private static final String FIELD_REACH = "reach";
+    private static final String FIELD_GATHERS = "gathers";
     private static final String FIELD_INTERACTION = "interaction";
 
     /**
@@ -28,6 +31,7 @@ public record ExplodeStep(Expr power, Optional<Expr> reach, ExplosionMode mode) 
     public static final MapCodec<ExplodeStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Expr.CODEC.fieldOf(FIELD_POWER).forGetter(ExplodeStep::power),
             Expr.CODEC.optionalFieldOf(FIELD_REACH).forGetter(ExplodeStep::reach),
+            Expr.CODEC.optionalFieldOf(FIELD_GATHERS).forGetter(ExplodeStep::gathers),
             ExplosionMode.CODEC.optionalFieldOf(FIELD_INTERACTION, ExplosionMode.TNT).forGetter(ExplodeStep::mode)
     ).apply(inst, ExplodeStep::new));
 
@@ -37,13 +41,13 @@ public record ExplodeStep(Expr power, Optional<Expr> reach, ExplosionMode mode) 
     public static final StepType<ExplodeStep> TYPE = new StepType<>(NAME, CODEC);
 
     /**
-     * An explosion whose power sets its reach.
+     * An explosion whose power sets its reach and whose drops pop in place.
      *
      * @param power the explosion power
      * @param mode  how blocks are treated
      */
     public ExplodeStep(Expr power, ExplosionMode mode) {
-        this(power, Optional.empty(), mode);
+        this(power, Optional.empty(), Optional.empty(), mode);
     }
 
     /**
@@ -59,6 +63,18 @@ public record ExplodeStep(Expr power, Optional<Expr> reach, ExplosionMode mode) 
                 .orElseGet(() -> ExplosionMarch.maxReach(power.evaluateFloat(variables)));
     }
 
+    /**
+     * Whether the explosion gathers its mined drops into one compression
+     * sphere at its center under these variables.
+     * large-blast-gathers-its-mined-drops-into-a-green-cored-sphere
+     *
+     * @param variables the host's variables
+     * @return true when the written expression reads nonzero
+     */
+    public boolean gathersAt(Variables variables) {
+        return gathers.map(written -> written.evaluate(variables) != 0).orElse(false);
+    }
+
     @Override
     public StepType<ExplodeStep> type() {
         return TYPE;
@@ -66,13 +82,14 @@ public record ExplodeStep(Expr power, Optional<Expr> reach, ExplosionMode mode) 
 
     @Override
     public boolean tick(StepContext context) {
-        context.hostAs(ExplodeHost.class).explode(power.evaluateFloat(context), reachAt(context), mode);
+        context.hostAs(ExplodeHost.class).explode(power.evaluateFloat(context), reachAt(context), gathersAt(context),
+                mode);
         return true;
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.concat(Stream.of(power), reach.stream());
+        return Stream.concat(Stream.concat(Stream.of(power), reach.stream()), gathers.stream());
     }
 
     @Override
