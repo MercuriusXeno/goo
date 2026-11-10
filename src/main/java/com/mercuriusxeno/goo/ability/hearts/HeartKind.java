@@ -101,6 +101,24 @@ public enum HeartKind {
             // heart-effects-crawl-while-held: crystal crawls at bark's pace, a crystal heart every 5 seconds
             return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
         }
+    },
+    /**
+     * Yore Ancient: lays no shield, and marks the bar so the HUD draws the
+     * leftmost heart, the last one lost, as the ancient heart. As a heart
+     * overlay it ends, and is ended by, every other heart effect
+     * (decision one-heart-overlay-at-a-time). Appended last, since ordinals are synced.
+     * hud-draws-the-leftmost-heart-as-ancient
+     */
+    ANCIENT(1.0f, false) {
+        @Override
+        long regrowInterval(int shieldHalves) {
+            return 0L;
+        }
+
+        @Override
+        public boolean laysShields() {
+            return false;
+        }
     };
 
     /**
@@ -141,6 +159,15 @@ public enum HeartKind {
      */
     public boolean fillsMissing() {
         return false;
+    }
+
+    /**
+     * Answers whether the kind lays shields over the bar and grows them back.
+     *
+     * @return false for a kind that only marks the bar
+     */
+    public boolean laysShields() {
+        return true;
     }
 
     /**
