@@ -87,13 +87,30 @@ public final class PanelPainter {
      * @param rows      the rows top to bottom
      */
     public static void paint(PoseStack poseStack, Camera camera, PanelPlacement placement, List<PanelRow> rows) {
+        paint(poseStack, camera, placement, rows, Double.POSITIVE_INFINITY);
+    }
+
+    /**
+     * Places the panel in the world and paints its rows on a nine-slice background, shrunk
+     * by the one shrink rule to the screen's height cap and to a world height both.
+     * decision one-class-lays-every-huds-goo-values
+     *
+     * @param poseStack   the pose stack for rendering
+     * @param camera      the render camera
+     * @param placement   where and how the panel stands
+     * @param rows        the rows top to bottom
+     * @param worldBound  the most height the panel takes in blocks, infinite for no bound
+     */
+    public static void paint(PoseStack poseStack, Camera camera, PanelPlacement placement, List<PanelRow> rows,
+                             double worldBound) {
         Minecraft minecraft = Minecraft.getInstance();
         Font font = minecraft.font;
         double distance = camera.position().distanceTo(placement.anchor());
         double fovDegrees = minecraft.options.fov().get();
         PanelLayout layout = layOut(rows, font::width, distance, fovDegrees);
-        float shrink = (float) shrinkFactor(
-                projectedFraction(layout.size().height() * InWorldHud.PIXEL_SCALE, distance, fovDegrees));
+        double worldHeight = layout.size().height() * InWorldHud.PIXEL_SCALE;
+        float shrink = (float) Math.min(shrinkFactor(projectedFraction(worldHeight, distance, fovDegrees)),
+                shrinkFactor(worldHeight, worldBound));
         poseStack.pushPose();
         orient(poseStack, camera, placement);
         // scales about the bottom center, the anchor (decision panel-wraps-to-two-columns-then-shrinks)

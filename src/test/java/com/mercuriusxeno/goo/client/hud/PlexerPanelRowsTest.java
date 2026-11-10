@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
 import java.util.LinkedHashMap;
@@ -15,62 +14,30 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the plexer panel's rows: the target item's icon beside its name, then what it
- * costs to make in each type as a mixed number (decision tooltip-and-plexer-hud-show-a-mixed-number).
+ * Covers the plexer panel's rows: the cost of one operation alone, one grid of its positive costs in each type as a
+ * mixed number (decisions plexer-hud-shows-the-cost-alone and tooltip-and-plexer-hud-show-a-mixed-number).
  */
 class PlexerPanelRowsTest {
 
-    private static final Identifier OAK_LOG = Identifier.fromNamespaceAndPath("minecraft", "oak_log");
-    private static final Identifier CARPET = Identifier.fromNamespaceAndPath("minecraft", "white_carpet");
-
-    /**
-     * The name row carries the target item itself as its icon, so the painter draws its model
-     * as the inventory does rather than one flat sprite (decision all-huds-draw-an-items-model-as-the-inventory-does).
-     */
-    @Test
-    void targetReadsAsOneRowOfItsItemBesideItsName() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Oak Log", OAK_LOG, null);
-
-        assertEquals(1, rows.size());
-        PanelRow row = rows.getFirst();
-        assertEquals(OAK_LOG, row.iconItem());
-        assertNull(row.icon());
-        assertEquals(List.of(new PanelRow.TextSegment("Oak Log", PanelPainter.TEXT_COLOR)), row.segments());
-    }
-
-    /** The item leading the name row takes one icon's width and its gap before the name. */
-    @Test
-    void targetItemMeasuresOneIconBeforeItsName() {
-        PanelRow row = PlexerPanelRows.rows("Oak Log", OAK_LOG, null).getFirst();
-
-        assertEquals(PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP + 7 * 6, row.width(text -> text.length() * 6));
-    }
-
-    /**
-     * The costs stand as one grid block after the name row, each cell the exact mixed number
-     * (decision one-class-lays-every-huds-goo-values).
-     */
+    /** The panel reads one grid block of the costs and nothing else: no item model, no item name. */
     @Test
     void targetReadsItsExactCostAsAMixedNumberInEachType() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", CARPET,
-                fraction(GooTypes.LEAF, 64, 3, GooTypes.ROCK, 1, 3));
+        List<PanelRow> rows = PlexerPanelRows.rows(fraction(GooTypes.LEAF, 64, 3, GooTypes.ROCK, 1, 3));
 
-        assertEquals(List.of(
-                rows.getFirst(),
-                PanelRow.amounts(new PanelAmountGrid(List.of(
-                        PanelAmountGrid.Cell.amount(GooTypes.LEAF, "21¹⁄₃"),
-                        PanelAmountGrid.Cell.amount(GooTypes.ROCK, "¹⁄₃"))))), rows);
+        assertEquals(List.of(PanelRow.amounts(new PanelAmountGrid(List.of(
+                PanelAmountGrid.Cell.amount(GooTypes.LEAF, "21¹⁄₃"),
+                PanelAmountGrid.Cell.amount(GooTypes.ROCK, "¹⁄₃"))))), rows);
     }
 
     /**
-     * The cost rows read the highest amount first, ties alphabetical by type key, in place of the type-id order
+     * The cost cells read the highest amount first, ties alphabetical by type key, in place of the type-id order
      * (decision value-lists-order-highest-first-ties-by-type-key).
      */
     @Test
-    void costRowsReadHighestFirstTiesByTypeKey() {
+    void costCellsReadHighestFirstTiesByTypeKey() {
         Map<ResourceKey<GooTypeDefinition>, GooFraction> byTypeId = new LinkedHashMap<>();
         byTypeId.put(GooTypes.GLOW, GooFraction.of(2));
         byTypeId.put(GooTypes.LEAF, GooFraction.of(1, 3));
@@ -79,11 +46,17 @@ class PlexerPanelRowsTest {
         GooValue value = mock(GooValue.class);
         when(value.exactAll()).thenReturn(byTypeId);
 
-        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", CARPET, value);
+        List<PanelRow> rows = PlexerPanelRows.rows(value);
 
-        assertEquals(2, rows.size());
+        assertEquals(1, rows.size());
         assertEquals(List.of(GooTypes.ROCK, GooTypes.BLAZE, GooTypes.GLOW, GooTypes.LEAF).stream()
-                .map(PanelPainter::gooIcon).toList(), rows.getLast().grid().cells().stream()
+                .map(PanelPainter::gooIcon).toList(), rows.getFirst().grid().cells().stream()
                 .map(PanelAmountGrid.Cell::icon).toList());
+    }
+
+    /** A target the client holds no value for lays no row, so no panel paints. */
+    @Test
+    void targetWithNoValueLaysNoRow() {
+        assertTrue(PlexerPanelRows.rows(null).isEmpty());
     }
 }
