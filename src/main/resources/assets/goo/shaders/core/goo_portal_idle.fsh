@@ -1,12 +1,15 @@
 #version 330
 
 #moj_import <minecraft:globals.glsl>
+#moj_import "portal_texels.glsl"
 
 // A portal with no view to show (decision portals-link-by-looking-through-portal-vision): an
 // oval filling the frame, near black at its heart, the portal's color swirling in from a bright
-// glowing rim, so it reads as open but leading nowhere yet.
+// glowing rim, so it reads as open but leading nowhere yet. All of it draws on sixteen texels a
+// block; the swirl turns smoothly in time (decision portals-and-wormhole-draw-sixteen-texels-a-block).
 
 in vec2 frameCoord;
+flat in vec2 texels;
 in vec4 frameColor;
 
 out vec4 fragColor;
@@ -24,7 +27,7 @@ const float RIM_START = 0.78;
 const float HEART = 0.03;
 
 void main() {
-    vec2 across = frameCoord * 2.0 - 1.0;
+    vec2 across = portalTexelCenter(frameCoord, texels) * 2.0 - 1.0;
     float out_ = length(across);
     if (out_ > 1.0) {
         discard;

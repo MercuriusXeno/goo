@@ -1,10 +1,14 @@
 #version 330
 
+#moj_import "portal_texels.glsl"
+
 // A portal hidden behind blocks while its owner chooses a partner (decision
 // portals-link-by-looking-through-portal-vision): only a thin glowing ring at the oval's edge,
 // drawn through the blocks, so the portal can be found without covering what stands before it.
+// The ring draws on sixteen texels a block (decision portals-and-wormhole-draw-sixteen-texels-a-block).
 
 in vec2 frameCoord;
+flat in vec2 texels;
 in vec4 frameColor;
 
 out vec4 fragColor;
@@ -13,7 +17,7 @@ out vec4 fragColor;
 const float RING_START = 0.9;
 
 void main() {
-    float out_ = length(frameCoord * 2.0 - 1.0);
+    float out_ = length(portalTexelCenter(frameCoord, texels) * 2.0 - 1.0);
     if (out_ > 1.0 || out_ < RING_START) {
         discard;
     }

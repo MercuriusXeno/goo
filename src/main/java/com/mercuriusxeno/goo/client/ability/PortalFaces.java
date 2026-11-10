@@ -51,6 +51,8 @@ public final class PortalFaces {
     static final int BLUE_RGB = 0x3A7BFF;
     /** The orange portal's color: the exit. */
     static final int ORANGE_RGB = 0xFF8A1E;
+    /** A block texture's texels a side, the grid a gate's face draws on. */
+    private static final int TEXELS_PER_BLOCK = 16;
     private static final int OPAQUE = 255;
     /** The idle swirl's alpha: nearly solid, a little of the wall showing through its dark heart. */
     private static final int SWIRL_ALPHA = 235;
@@ -295,7 +297,10 @@ public final class PortalFaces {
 
     /**
      * Emits a gate's face as a quad standing a lift off it, its corners
-     * mapped zero to one across each way, for the shader to fill as an oval.
+     * mapped zero to one across each way, for the shader to fill as an oval,
+     * each corner carrying the face's texel count, so the shader draws the
+     * oval on a grid of sixteen texels a block.
+     * portals-and-wormhole-draw-sixteen-texels-a-block
      *
      * @param pose     the pose
      * @param consumer the vertex consumer
@@ -305,11 +310,38 @@ public final class PortalFaces {
      */
     static void emitOval(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int color) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+        int[] texels = texelsAcross(box, side);
         for (int[] corner : corners) {
             Vec3 at = cornerOf(box, side, corner[0], corner[1]);
             consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z()).setUv(corner[0], corner[1])
-                    .setColor(color);
+                    .setUv2(texels[0], texels[1]).setColor(color);
         }
+    }
+
+    /**
+     * How many texels a gate's face runs across each of its two ways, at
+     * sixteen a block as a block's texture does, the ways in the order its
+     * corners map zero to one.
+     * portals-and-wormhole-draw-sixteen-texels-a-block
+     *
+     * @param box  the gate's blocks
+     * @param side the face
+     * @return the texels across its first way, then its second
+     */
+    static int[] texelsAcross(AABB box, Direction side) {
+        return new int[] {texelsAlong(box, firstAxisOf(side)), texelsAlong(box, secondAxisOf(side))};
+    }
+
+    private static int texelsAlong(AABB box, Direction.Axis axis) {
+        return (int) Math.round((box.max(axis) - box.min(axis)) * TEXELS_PER_BLOCK);
+    }
+
+    private static Direction.Axis firstAxisOf(Direction side) {
+        return side.getAxis() == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
+    }
+
+    private static Direction.Axis secondAxisOf(Direction side) {
+        return side.getAxis() == Direction.Axis.Z ? Direction.Axis.Y : Direction.Axis.Z;
     }
 
     /**
@@ -323,8 +355,8 @@ public final class PortalFaces {
      */
     private static Vec3 cornerOf(AABB box, Direction side, int first, int second) {
         Direction.Axis axis = side.getAxis();
-        Direction.Axis firstAxis = axis == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
-        Direction.Axis secondAxis = axis == Direction.Axis.Z ? Direction.Axis.Y : Direction.Axis.Z;
+        Direction.Axis firstAxis = firstAxisOf(side);
+        Direction.Axis secondAxis = secondAxisOf(side);
         double plane = side.getAxisDirection() == Direction.AxisDirection.POSITIVE
                 ? box.max(axis) + FACE_LIFT : box.min(axis) - FACE_LIFT;
         double[] xyz = new double[Direction.Axis.values().length];
