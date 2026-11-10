@@ -12,6 +12,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -36,6 +38,45 @@ public final class PhaseTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PHASED_PLAYER_IGNORED, PhaseTests::phasedPlayerIgnoredByZombie);
         GooTestFunctions.registerTest(registrar, PHASED_PAIR_HURT, PhaseTests::phasedPairHurtEachOther);
+        GooTestFunctions.registerTest(registrar, PHASED_MOB_PASSES_THROUGH, PhaseTests::phasedMobPassesThrough);
+    }
+
+    private static final String PHASED_MOB_PASSES_THROUGH = "phased_mob_passes_through_an_unphased_one";
+    /** How far apart, across, two overlapping zombies start, so a push between them has a side to go. */
+    private static final double OVERLAP_OFFSET = 0.1;
+    /** Ticks two overlapping zombies are given to push each other apart. */
+    private static final int PUSH_TICKS = 20;
+    /** How far a zombie may drift and still count as unpushed. */
+    private static final double UNPUSHED = 0.02;
+
+    /**
+     * A zombie the phase shift struck and a plain zombie standing in the same
+     * spot do not push each other apart: bodies on opposite sides of phase
+     * pass through each other.
+     *
+     * @param helper the gametest helper
+     */
+    public static void phasedMobPassesThrough(GameTestHelper helper) {
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                helper.setBlock(ZOMBIE_POS.below().offset(x, 0, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.QUANTUM, PHASE);
+        Mob phased = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        strike(helper, phased, player);
+        Mob plain = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        plain.setPos(phased.getX() + OVERLAP_OFFSET, phased.getY(), phased.getZ());
+        Vec3 phasedStart = phased.position();
+        Vec3 plainStart = plain.position();
+        helper.runAfterDelay(PUSH_TICKS, () -> {
+            helper.assertTrue(phased.position().distanceTo(phasedStart) < UNPUSHED,
+                    "A phased zombie should pass through a plain one, moved to " + phased.position());
+            helper.assertTrue(plain.position().distanceTo(plainStart) < UNPUSHED,
+                    "A plain zombie should pass through a phased one, moved to " + plain.position());
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
     }
 
 

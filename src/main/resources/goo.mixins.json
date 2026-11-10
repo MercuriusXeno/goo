@@ -3,7 +3,10 @@
   "package": "com.mercuriusxeno.goo.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "BlockStateGatePassageMixin",
     "ContainerShiftClickMergeMixin",
+    "EntityGatePassageMixin",
+    "EntityPhasePassMixin",
     "EntitySculkerSilenceMixin",
     "EntitySlimeCoatUnderfootMixin",
     "FoodDataLifetapMixin",
@@ -28,6 +31,9 @@
     "ClientLevelMeltKeepsMixin",
     "CloudRendererSculkerMixin",
     "ClientPacketListenerGooMixin",
+    "ClientPacketListenerGateCarryMixin",
+    "GameRendererPortalViewMixin",
+    "InterpolationHandlerGateCarryMixin",
     "LevelRendererSculkerCullMixin",
     "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
@@ -35,6 +41,7 @@
     "GooQuickCraftScreenMixin",
     "GuiLowHealthJiggleMixin",
     "PlayerModelAbilityPoseMixin",
+    "ScreenEffectRendererGateMixin",
     "EntityScryOutlineColorMixin",
     "MinecraftScryOutlineMixin"
   ]

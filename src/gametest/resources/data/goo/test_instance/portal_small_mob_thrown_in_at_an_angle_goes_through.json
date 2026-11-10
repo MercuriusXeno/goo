@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:portal_small_mob_thrown_in_at_an_angle_goes_through",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

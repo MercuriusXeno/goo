@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:unpaired_portal_breaks_when_a_block_fills_its_front",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
+import com.mercuriusxeno.goo.client.ability.ExitTiltLook;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
@@ -241,7 +242,6 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
-        event.registerBlockEntityRenderer(GooBlockEntities.PHASED_BLOCK.get(), PhasedBlockRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
@@ -355,7 +355,7 @@ public final class GooClientSetup {
      * onto its render state: the rally outline, the glove's target outline,
      * which overrides it, the goo coat, the ailments, the phase, the stone and
      * frost encasements, the frozen pose, the grab flail, the vine tangle, the
-     * transformation and the eldritch phase, in that order.
+     * transformation, the eldritch phase and the exit tilt, in that order.
      *
      * @param event the event instance
      */
@@ -375,7 +375,8 @@ public final class GooClientSetup {
                 GrabFlail::stampFlail,
                 VineTangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation,
-                EldritchSight::stampPhase);
+                EldritchSight::stampPhase,
+                ExitTiltLook::stampTilt);
         for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
             event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
             }, stamp);
