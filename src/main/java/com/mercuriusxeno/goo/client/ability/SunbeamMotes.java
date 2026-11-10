@@ -47,7 +47,7 @@ final class SunbeamMotes {
             if (length < SHORTEST_SEGMENT) {
                 continue;
             }
-            int count = countFor(length, random);
+            int count = countFor(length * MOTES_PER_BLOCK, random);
             for (int mote = 0; mote < count; mote++) {
                 motes.add(new Mote(spawnPoint(segment.from(), along, radius, random), riseVelocity(random)));
             }
@@ -56,17 +56,27 @@ final class SunbeamMotes {
     }
 
     /**
-     * How many motes a segment sheds this tick: its length times the rate,
-     * the fraction left over shed by chance.
+     * How many motes to shed this tick for an average: its whole part, and
+     * one more by chance for the fraction left over.
      *
-     * @param length the segment's length, in blocks
-     * @param random the random source
+     * @param expected the motes shed per tick on average
+     * @param random   the random source
      * @return the motes to shed
      */
-    private static int countFor(double length, RandomSource random) {
-        double expected = length * MOTES_PER_BLOCK;
+    static int countFor(double expected, RandomSource random) {
         int whole = (int) expected;
         return random.nextDouble() < expected - whole ? whole + 1 : whole;
+    }
+
+    /**
+     * A unit direction across an axis, square to it.
+     *
+     * @param axis the unit axis
+     * @return a unit direction perpendicular to it
+     */
+    static Vec3 across(Vec3 axis) {
+        Vec3 reference = Math.abs(axis.dot(UP)) > NEARLY_VERTICAL ? EAST : UP;
+        return axis.cross(reference).normalize();
     }
 
     /**
@@ -81,8 +91,7 @@ final class SunbeamMotes {
      */
     private static Vec3 spawnPoint(Vec3 from, Vec3 along, double radius, RandomSource random) {
         Vec3 axis = along.normalize();
-        Vec3 reference = Math.abs(axis.dot(UP)) > NEARLY_VERTICAL ? EAST : UP;
-        Vec3 across = axis.cross(reference).normalize();
+        Vec3 across = across(axis);
         Vec3 acrossToo = axis.cross(across);
         double angle = random.nextDouble() * TWO_PI;
         double distance = radius * Math.sqrt(random.nextDouble());

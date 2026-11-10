@@ -19,8 +19,10 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -43,10 +45,12 @@ import java.util.Objects;
  * last one the server sent. A ray a prism refracts runs into the prism's
  * middle and its refracted beams leave from there, out of a soft core of
  * light ({@link GlowCore}). Each client tick the segments last drawn shed
- * light motes rising out of the beam ({@link SunbeamMotes}).
+ * light motes rising out of the beam ({@link SunbeamMotes}) and scattering
+ * off each surface it struck ({@link SunbeamStrike}).
  * decision sunbeam-splits-at-the-prism-with-a-glisten
  * decision diagnose-and-correct-the-sunbeam-prism-depth
  * decision sunbeam-sheds-motes-rising-from-the-beam
+ * decision sunbeam-motes-scatter-away-from-struck-surfaces
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SunbeamVisual {
@@ -60,17 +64,19 @@ public final class SunbeamVisual {
     private static final double HALF = 0.5;
     /** How far past the server's end a sight line probes for the face another caster's ray burnt, in blocks. */
     private static final double PROBE_PAST_THE_END = 0.25;
+    /** How far before a ray's end its strike probes start, in blocks. */
+    private static final double PROBE_BEFORE_THE_END = 0.5;
 
     /** The beam's outermost layer's radius as drawn, in blocks: the motes spawn inside it. */
     private static final double DRAWN_RADIUS = GlowBeamMesh.LAYERS.getLast().radius() * RAY_WIDTH;
 
     private static final Map<Integer, Ray> RAYS = new HashMap<>();
     /**
-     * Each showing ray's segments as the last frame drew them, world space:
-     * the client tick sheds motes from these, so the rate follows the tick
-     * and not the frame rate.
+     * Each showing ray as the last frame drew it: the client tick sheds and
+     * scatters motes from these, so the rate follows the tick and not the
+     * frame rate.
      */
-    private static final Map<Integer, List<SunbeamMotes.Segment>> DRAWN = new HashMap<>();
+    private static final Map<Integer, DrawnRay> DRAWN = new HashMap<>();
 
     private SunbeamVisual() {
     }
@@ -148,7 +154,8 @@ public final class SunbeamVisual {
             if (!gathered.equals(struck)) {
                 cores.add(gathered.subtract(camera));
             }
-            DRAWN.put(entry.getKey(), segmentsOf(hand, gathered, entry.getValue()));
+            DRAWN.put(entry.getKey(),
+                    new DrawnRay(segmentsOf(hand, gathered, entry.getValue()), !gathered.equals(struck)));
             drawRay(poseStack, consumer, hand.subtract(camera), gathered.subtract(camera), entry.getValue(),
                     camera, scroll);
         }
@@ -174,7 +181,9 @@ public final class SunbeamVisual {
     }
 
     /**
-     * Sheds this tick's light motes out of every ray the last frame drew.
+     * Sheds this tick's light motes out of every ray the last frame drew, and
+     * scatters more off each surface it struck.
+     * decision sunbeam-motes-scatter-away-from-struck-surfaces
      *
      * @param event the event instance
      */
@@ -185,12 +194,86 @@ public final class SunbeamVisual {
         if (level == null || mc.isPaused() || DRAWN.isEmpty()) {
             return;
         }
-        for (List<SunbeamMotes.Segment> segments : DRAWN.values()) {
-            for (SunbeamMotes.Mote mote : SunbeamMotes.shedAlong(segments, DRAWN_RADIUS, level.getRandom())) {
-                level.addParticle(GooParticles.LIGHT_MOTE.get(), mote.at().x, mote.at().y, mote.at().z,
-                        mote.velocity().x, mote.velocity().y, mote.velocity().z);
+        DRAWN.forEach((casterId, drawn) -> shedAndScatter(level, casterId, drawn));
+    }
+
+    /**
+     * Sheds one ray's motes along its beam and scatters more off each surface it struck.
+     *
+     * @param level    the level
+     * @param casterId the caster's entity id
+     * @param drawn    the ray as the last frame drew it
+     */
+    private static void shedAndScatter(ClientLevel level, int casterId, DrawnRay drawn) {
+        RandomSource random = level.getRandom();
+        spawnMotes(level, SunbeamMotes.shedAlong(drawn.segments(), DRAWN_RADIUS, random));
+        Entity caster = level.getEntity(casterId);
+        if (caster == null) {
+            return;
+        }
+        for (SunbeamStrike.Surface surface : surfacesStruck(caster, drawn)) {
+            spawnMotes(level, SunbeamStrike.scatterOff(surface, random));
+        }
+    }
+
+    private static void spawnMotes(ClientLevel level, List<SunbeamMotes.Mote> motes) {
+        for (SunbeamMotes.Mote mote : motes) {
+            level.addParticle(GooParticles.LIGHT_MOTE.get(), mote.at().x, mote.at().y, mote.at().z,
+                    mote.velocity().x, mote.velocity().y, mote.velocity().z);
+        }
+    }
+
+    /**
+     * The surfaces a drawn ray struck: where the main ray ends on a block or
+     * mob, and each refracted beam's mob. A ray gathered into a refracting
+     * prism strikes nothing there, and one that misses finds nothing.
+     *
+     * @param caster the casting entity, never struck
+     * @param drawn  the ray as the last frame drew it
+     * @return each struck surface
+     */
+    private static List<SunbeamStrike.Surface> surfacesStruck(Entity caster, DrawnRay drawn) {
+        List<SunbeamStrike.Surface> surfaces = new ArrayList<>();
+        List<SunbeamMotes.Segment> segments = drawn.segments();
+        SunbeamMotes.Segment main = segments.getFirst();
+        if (!drawn.gathersInPrism()) {
+            surfaces.addAll(SunbeamStrike.surfacesStruck(probeTheEnd(caster, main), main.from()));
+        }
+        for (SunbeamMotes.Segment refracted : segments.subList(1, segments.size())) {
+            surfaces.addAll(SunbeamStrike.surfacesStruck(
+                    SunbeamStrike.refractedEndProbes(refracted.from(), refracted.to(), DRAWN_RADIUS),
+                    refracted.from()));
+        }
+        return surfaces;
+    }
+
+    /**
+     * Casts the nine probes across a segment's end, each parallel to the
+     * beam from a little before the end to a little past it.
+     *
+     * @param caster  the casting entity, never struck
+     * @param segment the segment whose end is probed
+     * @return each probe that struck a block face or a mob
+     */
+    private static List<SunbeamStrike.Probe> probeTheEnd(Entity caster, SunbeamMotes.Segment segment) {
+        Vec3 along = segment.to().subtract(segment.from());
+        if (along.length() < SHORTEST_SEGMENT) {
+            return List.of();
+        }
+        Vec3 axis = along.normalize();
+        Vec3 before = segment.to().subtract(axis.scale(PROBE_BEFORE_THE_END));
+        Vec3 past = segment.to().add(axis.scale(PROBE_PAST_THE_END));
+        List<SunbeamStrike.Probe> probes = new ArrayList<>();
+        for (Vec3 offset : SunbeamStrike.probeOffsets(axis, DRAWN_RADIUS)) {
+            HitResult hit = RayStep.castFrom(caster.level(), caster, before.add(offset), past.add(offset),
+                    living -> true);
+            if (hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK) {
+                probes.add(SunbeamStrike.Probe.onBlock(hit.getLocation(), block.getDirection()));
+            } else if (hit.getType() == HitResult.Type.ENTITY) {
+                probes.add(SunbeamStrike.Probe.onMob(hit.getLocation()));
             }
         }
+        return probes;
     }
 
     /**
@@ -356,5 +439,14 @@ public final class SunbeamVisual {
      * @param arrivedAt the game time it arrived
      */
     record Ray(Vec3 end, List<Vec3> refracted, double range, long arrivedAt) {
+    }
+
+    /**
+     * One caster's ray as the last frame drew it.
+     *
+     * @param segments       the hand to where it gathers, then on to each refracted end, world space
+     * @param gathersInPrism whether the main ray runs into a refracting prism's core
+     */
+    record DrawnRay(List<SunbeamMotes.Segment> segments, boolean gathersInPrism) {
     }
 }

@@ -211,7 +211,10 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
     /**
      * What a ray from the eye toward its reach strikes first: a living mob
      * the filter keeps, else the block outline it meets. The client casts
-     * the same ray each frame to draw its own (decision diagnose-and-correct-the-sunbeam-jitter).
+     * the same ray each frame to draw its own (decision diagnose-and-correct-the-sunbeam-jitter),
+     * and probes where a beam strikes from points far from the caster, so the
+     * mobs searched lie around the ray's own line
+     * (decision sunbeam-motes-scatter-away-from-struck-surfaces).
      *
      * @param level   the level the ray runs in
      * @param caster  the channeling entity, never struck
@@ -224,7 +227,7 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
                                      Predicate<LivingEntity> strikes) {
         BlockHitResult block = clipStriking(level, eye, reach);
         Vec3 stop = block.getLocation();
-        AABB swept = caster.getBoundingBox().expandTowards(stop.subtract(eye)).inflate(1);
+        AABB swept = new AABB(eye, stop).inflate(1);
         EntityHitResult entity = ProjectileUtil.getEntityHitResult(caster, eye, stop, swept,
                 candidate -> candidate instanceof LivingEntity living && living.isAlive() && strikes.test(living),
                 eye.distanceToSqr(stop));
