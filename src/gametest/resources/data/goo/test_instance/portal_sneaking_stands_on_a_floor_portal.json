@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:portal_sneaking_stands_on_a_floor_portal",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

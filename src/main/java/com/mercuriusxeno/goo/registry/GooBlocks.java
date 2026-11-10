@@ -17,7 +17,6 @@ import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
-import com.mercuriusxeno.goo.block.quantum.PhasedBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
@@ -206,11 +205,6 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
 
     /**
-     * A block out of phase, holding the block it stood as until it steps back
-     * (decision portable-hole-phases-blocks-for-a-while). Nothing collides with
-     * it or mines it, and it drops nothing.
-     */
-    /**
      * Voidstone: the unbreakable block at the center of each Outsider room,
      * the one block there nothing can take away (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
@@ -230,10 +224,6 @@ public class GooBlocks {
                     .noCollision().noOcclusion().noLootTable().pushReaction(PushReaction.BLOCK)
                     .lightLevel(state -> DOOR_GLOW));
 
-    public static final DeferredBlock<PhasedBlock> PHASED_BLOCK = BLOCKS.registerBlock(
-            "phased_block", PhasedBlock::new,
-            () -> BlockBehaviour.Properties.of().noCollision().noOcclusion().strength(-1.0F, 3_600_000.0F)
-                    .noLootTable().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK));
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed
      * permanently by the frost cold snap. Visually, audibly, and

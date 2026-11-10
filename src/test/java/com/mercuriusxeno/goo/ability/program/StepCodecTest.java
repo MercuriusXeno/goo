@@ -188,10 +188,10 @@ class StepCodecTest {
                     List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
             Map.entry("charm", new CharmStep()),
             Map.entry("phase", new PhaseStep(Optional.of(Expr.literal(600)))),
-            Map.entry("quantum_anchor", new QuantumAnchorStep()),
-            Map.entry("quantum_swap", new QuantumSwapStep()),
+            Map.entry("quantum_portal", new PortalStep()),
+            Map.entry("quantum_swap", new QuantumSwapStep(Expr.literal(32))),
             Map.entry("quantum_link", new QuantumLinkStep(Expr.literal(1200))),
-            Map.entry("phase_blocks", new PhaseBlocksStep(Expr.literal(3), Expr.literal(1), Expr.literal(200))),
+            Map.entry("wormhole", new WormholeStep(Expr.literal(16), Expr.literal(200))),
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
                     Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
