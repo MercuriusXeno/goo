@@ -46,6 +46,7 @@ import java.util.Objects;
  * decision sunbeam-splits-at-the-prism-with-a-glisten
  * decision diagnose-and-correct-the-sunbeam-prism-depth
  * decision reflector-rail-blooms-out-inside-the-prism
+ * decision every-glow-beam-breathes-in-brightness
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SunbeamVisual {
@@ -105,8 +106,9 @@ public final class SunbeamVisual {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
-        float scroll = Mth.frac(-(now + partialTick) * SCROLL_PER_TICK);
-        List<Vec3> cores = drawRays(mc, level, event.getPoseStack(), consumer, partialTick, scroll);
+        BeamPhase phase = new BeamPhase(Mth.frac(-(now + partialTick) * SCROLL_PER_TICK),
+                GlowBeamMesh.breath(now + (double) partialTick));
+        List<Vec3> cores = drawRays(mc, level, event.getPoseStack(), consumer, partialTick, phase);
         buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         drawCores(event.getPoseStack(), buffers, cores);
     }
@@ -121,11 +123,11 @@ public final class SunbeamVisual {
      * @param poseStack   the pose stack
      * @param consumer    the beam's vertex consumer
      * @param partialTick the frame's partial tick
-     * @param scroll      the texture's scroll offset
+     * @param phase       the beam's scroll and breath this frame
      * @return each core's middle, camera-relative
      */
     private static List<Vec3> drawRays(Minecraft mc, ClientLevel level, PoseStack poseStack, VertexConsumer consumer,
-                                       float partialTick, float scroll) {
+                                       float partialTick, BeamPhase phase) {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         List<Vec3> cores = new ArrayList<>();
         for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
@@ -137,7 +139,7 @@ public final class SunbeamVisual {
                 cores.add(gathered.subtract(camera));
             }
             drawRay(poseStack, consumer, new DrawnEnd(gathered.subtract(camera), struck.inPrism()),
-                    hand.subtract(camera), entry.getValue(), camera, scroll);
+                    hand.subtract(camera), entry.getValue(), camera, phase);
         }
         return cores;
     }
@@ -270,21 +272,24 @@ public final class SunbeamVisual {
      * @param from      where the ray leaves the caster, camera-relative
      * @param ray       the ray
      * @param camera    the camera's position
-     * @param scroll    the texture's scroll offset
+     * @param phase     the beam's scroll and breath this frame
      */
     private static void drawRay(PoseStack poseStack, VertexConsumer consumer, DrawnEnd end, Vec3 from, Ray ray,
-                                Vec3 camera, float scroll) {
-        drawSegment(poseStack, consumer, from, end.point(), scroll, end.inPrism());
+                                Vec3 camera, BeamPhase phase) {
+        drawSegment(poseStack, consumer, from, end.point(), phase.scroll(), end.inPrism(), phase.breath());
         for (Vec3 refracted : ray.refracted()) {
-            drawSegment(poseStack, consumer, end.point(), refracted.subtract(camera), scroll, false);
+            drawSegment(poseStack, consumer, end.point(), refracted.subtract(camera), phase.scroll(), false,
+                    phase.breath());
         }
     }
 
     /**
      * Draws one straight stretch of the beam between two camera-relative
      * points, each layer fading out past the end of a stretch ending in a
-     * prism and stopping flat at the end of any other.
+     * prism and stopping flat at the end of any other, its alpha scaled by
+     * the beam's breath and its width held.
      * decision reflector-rail-blooms-out-inside-the-prism
+     * decision every-glow-beam-breathes-in-brightness
      *
      * @param poseStack   the pose stack
      * @param consumer    the vertex consumer
@@ -292,9 +297,10 @@ public final class SunbeamVisual {
      * @param to          where it ends, camera-relative
      * @param scroll      the texture's scroll offset
      * @param endsInPrism whether the stretch ends in a prism
+     * @param breath      the alpha share {@link GlowBeamMesh#breath} answered
      */
     static void drawSegment(PoseStack poseStack, VertexConsumer consumer, Vec3 from, Vec3 to, float scroll,
-                            boolean endsInPrism) {
+                            boolean endsInPrism, float breath) {
         Vec3 along = to.subtract(from);
         double length = along.length();
         if (length < SHORTEST_SEGMENT) {
@@ -305,11 +311,12 @@ public final class SunbeamVisual {
         poseStack.mulPose(GlowBeamMesh.alongBeam(along));
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             float radius = layer.radius() * RAY_WIDTH;
+            int color = GlowBeamMesh.breathed(layer.color(), breath);
             if (endsInPrism) {
-                GlowBeamMesh.emitFadingLayer(poseStack.last(), consumer, radius, layer.color(), scroll,
-                        (float) length, layer.depth());
+                GlowBeamMesh.emitFadingLayer(poseStack.last(), consumer, radius, color, scroll, (float) length,
+                        layer.depth());
             } else {
-                GlowBeamMesh.emitLayer(poseStack.last(), consumer, radius, layer.color(), scroll, (float) length);
+                GlowBeamMesh.emitLayer(poseStack.last(), consumer, radius, color, scroll, (float) length);
             }
         }
         poseStack.popPose();
@@ -324,6 +331,15 @@ public final class SunbeamVisual {
      * @param arrivedAt the game time it arrived
      */
     record Ray(Vec3 end, List<Vec3> refracted, double range, long arrivedAt) {
+    }
+
+    /**
+     * Where the beam's moving look stands this frame.
+     *
+     * @param scroll the texture's scroll offset in [0, 1)
+     * @param breath the alpha share {@link GlowBeamMesh#breath} answered
+     */
+    private record BeamPhase(float scroll, float breath) {
     }
 
     /**

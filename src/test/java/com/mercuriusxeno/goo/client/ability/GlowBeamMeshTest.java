@@ -11,9 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * GlowBeamMesh: each layer is a tube reaching the length it is given, the
  * layers widen and fade from the core out so they bloom, and a fading layer
- * runs on past its length to nothing, the core deepest.
+ * runs on past its length to nothing, the core deepest; the beam's breath
+ * swells and eases in a slight band below one.
  * decisions bulb-one-model-max-light-beacon-combo, sunbeam-splits-at-the-prism-with-a-glisten
  * decision reflector-rail-blooms-out-inside-the-prism
+ * decision every-glow-beam-breathes-in-brightness
  */
 class GlowBeamMeshTest {
 
@@ -22,6 +24,10 @@ class GlowBeamMeshTest {
     private static final float TOLERANCE = 1e-5f;
     private static final int VERTICES_PER_TUBE = 16;
     private static final float LENGTH = 37.5f;
+    private static final int BREATH_SAMPLES = 64;
+    private static final double START_TICKS = 123_456.25;
+    /** A breath dims a beam by a fifth of its alpha at most. */
+    private static final float MOST_A_BREATH_DIMS = 0.8f;
 
     @Test
     void layerIsATubeFromTheOriginToItsLength() {
@@ -78,6 +84,24 @@ class GlowBeamMeshTest {
             assertTrue(layers.get(i).depth() < layers.get(i - 1).depth(),
                     "layer " + i + " should fade out shallower than the one inside it");
         }
+    }
+
+    @Test
+    void breathSwellsAndEasesInItsSlightBandAndReturnsAfterAPeriod() {
+        float period = GlowBeamMesh.BREATH_PERIOD_TICKS;
+        float highest = -Float.MAX_VALUE;
+        float lowest = Float.MAX_VALUE;
+        for (int sample = 0; sample <= BREATH_SAMPLES; sample++) {
+            double ticks = START_TICKS + period * sample / BREATH_SAMPLES;
+            float breath = GlowBeamMesh.breath(ticks);
+            assertTrue(breath <= 1f, "breath at " + ticks + " rose above one: " + breath);
+            assertTrue(breath >= GlowBeamMesh.BREATH_FLOOR, "breath at " + ticks + " fell below its floor: " + breath);
+            assertEquals(breath, GlowBeamMesh.breath(ticks + period), TOLERANCE, "breath returns a period later");
+            highest = Math.max(highest, breath);
+            lowest = Math.min(lowest, breath);
+        }
+        assertTrue(highest > lowest, "breath swells and eases across a period");
+        assertTrue(GlowBeamMesh.BREATH_FLOOR >= MOST_A_BREATH_DIMS, "the band stays slight");
     }
 
     private static List<RecordingVertexConsumer.Vertex> emit() {

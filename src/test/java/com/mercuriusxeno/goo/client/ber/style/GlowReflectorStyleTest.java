@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.client.BeamSamples;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.ability.GlowBeamMesh;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -13,9 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 /**
  * GlowReflectorStyle: one end of each link draws its beam, the beam draws
  * brighter the more light the network carries, and each of its layers fades
- * out past both prisms' middles rather than stopping square.
+ * out past both prisms' middles rather than stopping square, breathing in
+ * alpha on top of the light share while its width holds.
  * decision reflector-rails-carry-the-brightest-light
  * decision reflector-rail-blooms-out-inside-the-prism
+ * decision every-glow-beam-breathes-in-brightness
  */
 class GlowReflectorStyleTest {
 
@@ -32,12 +35,30 @@ class GlowReflectorStyleTest {
         }
     }
 
+    private static List<RecordingVertexConsumer.Vertex> emitRail(float share, float breath) {
+        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
+        GlowReflectorStyle.emitBeam(new PoseStack().last(), consumer, RAIL_LENGTH, share, 0f, breath);
+        return consumer.vertices();
+    }
+
+    @Test
+    void theRailBreathesInAlphaOnTopOfTheLightShareWhileItsWidthHolds() {
+        float share = GlowReflectorStyle.lightShare(RAIL_LIGHT);
+        List<RecordingVertexConsumer.Vertex> peak = emitRail(share, GlowBeamMesh.breath(0));
+        List<RecordingVertexConsumer.Vertex> trough =
+                emitRail(share, GlowBeamMesh.breath(GlowBeamMesh.BREATH_PERIOD_TICKS / 2));
+
+        assertNotEquals(BeamSamples.alphas(peak), BeamSamples.alphas(trough), "the rail's alpha breathes");
+        assertEquals(BeamSamples.extents(peak), BeamSamples.extents(trough), "the rail's width holds");
+        int coreAtPeak = Math.round(ARGB.alpha(GlowBeamMesh.LAYERS.getFirst().color()) * share);
+        assertEquals(coreAtPeak, peak.stream().mapToInt(v -> ARGB.alpha(v.color())).max().orElseThrow(),
+                "the peak's alpha is the layer's alpha times the share");
+    }
+
     @Test
     void eachRailLayerFadesOutPastBothPrismMiddles() {
         float share = GlowReflectorStyle.lightShare(RAIL_LIGHT);
-        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        GlowReflectorStyle.emitBeam(new PoseStack().last(), consumer, RAIL_LENGTH, share, 0f);
-        List<RecordingVertexConsumer.Vertex> vertices = consumer.vertices();
+        List<RecordingVertexConsumer.Vertex> vertices = emitRail(share, 1f);
 
         float width = GlowReflectorStyle.DIMMEST_WIDTH + (1f - GlowReflectorStyle.DIMMEST_WIDTH) * share;
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
