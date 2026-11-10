@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.deep;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -39,6 +40,14 @@ class SculkerAbilityTest {
         JsonObject sculker = sculker();
         assertEquals("goo.ability.deep.sculker", sculker.get("displayName").getAsString());
         assertEquals("durative", sculker.get("badge").getAsString());
+    }
+
+    /** Decision sculker-unlocks-with-the-echo-shard-recipe. */
+    @Test
+    void unlocksWithTheEchoShard() throws IOException {
+        JsonArray requires = sculker().getAsJsonArray("requires");
+        assertEquals(1, requires.size());
+        assertEquals("minecraft:echo_shard", requires.get(0).getAsString());
     }
 
     @Test
