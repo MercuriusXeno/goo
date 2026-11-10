@@ -1,9 +1,13 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.mercuriusxeno.goo.client.ability.SculkerSenses;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -147,6 +151,116 @@ class TendrilVignetteTest {
             assertTrue(highest <= TendrilVignette.DEEPEST_FRINGE + 1e-6f, "the fringe reached too deep, " + highest);
             assertTrue(highest - lowest >= TendrilVignette.FRINGE_BASE / 4,
                     "the fringe should undulate along edge " + edge + ", it spans " + lowest + " to " + highest);
+        }
+    }
+
+    /**
+     * Sculker's vignette grows a vein network in place of tendrils: lots of
+     * thin veins forking into a web, spread evenly around the rim, grown in
+     * as the vision starts and staying, in a teal near the mist's (decisions
+     * sculker-tendrils-are-a-branching-vein-network,
+     * sculker-veins-root-in-clusters-and-bare-gaps and
+     * sculker-tendrils-blend-into-the-teal-haze).
+     */
+    @Nested
+    class SculkerVeins {
+
+        private static final int MANY_VEINS = 100;
+        private static final double LINKED_SHARE = 0.6;
+        private static final float EVEN_OVER_MEAN = 2f;
+        private static final int SOON_AFTER_THE_START = 5;
+
+        private static TendrilVignette veinedTo(int ticks) {
+            TendrilVignette vignette = TendrilVignette.veined(SEED);
+            for (int tick = 0; tick <= ticks; tick++) {
+                vignette.advance(tick);
+            }
+            return vignette;
+        }
+
+        @Test
+        void veinsForkAndTheirForksForkAgainEachOneThinLine() {
+            List<VeinNetwork.Vein> veins = veinedTo(SETTLED).veins();
+            assertTrue(veins.stream().anyMatch(vein -> vein.deepestFork() >= 2),
+                    "some vein should hold a fork that itself forks");
+            int widest = veins.stream().flatMap(vein -> vein.branches().stream())
+                    .mapToInt(VeinNetwork.Branch::stroke).max().orElse(Integer.MAX_VALUE);
+            assertEquals(VeinNetwork.THIN_STROKE, widest, "every vein should draw one thin line wide");
+            assertEquals(1, VeinNetwork.THIN_STROKE, "the thin stroke is one pixel");
+        }
+
+        @Test
+        void manyVeinsSpreadEvenlyAroundTheRim() {
+            List<VeinNetwork.Vein> veins = veinedTo(SETTLED).veins();
+            List<Float> gaps = new ArrayList<>();
+            for (int edge = 0; edge < 4; edge++) {
+                int onEdge = edge;
+                List<Float> roots = veins.stream().filter(vein -> vein.edge() == onEdge)
+                        .map(VeinNetwork.Vein::along).sorted().toList();
+                for (int root = 1; root < roots.size(); root++) {
+                    gaps.add(roots.get(root) - roots.get(root - 1));
+                }
+            }
+            double mean = gaps.stream().mapToDouble(Float::doubleValue).average().orElse(0);
+            double widest = gaps.stream().mapToDouble(Float::doubleValue).max().orElse(Double.MAX_VALUE);
+            assertTrue(veins.size() >= MANY_VEINS, "lots of veins should stand, " + veins.size() + " do");
+            assertTrue(widest <= EVEN_OVER_MEAN * mean,
+                    "no stretch of rim should stand bare, a gap of " + widest + " against a mean of " + mean);
+        }
+
+        @Test
+        void linksJoinMostNeighbouringVeinsIntoOneWeb() {
+            TendrilVignette vignette = veinedTo(SETTLED);
+            List<VeinNetwork.Vein> veins = vignette.veins();
+            List<VeinNetwork.Link> links = vignette.veinLinks();
+            long neighbourPairs = veins.size() - 4L;
+            assertTrue(links.size() >= LINKED_SHARE * neighbourPairs,
+                    links.size() + " links join " + neighbourPairs + " neighbouring pairs");
+            for (VeinNetwork.Link link : links) {
+                assertEquals(link.from().edge(), link.to().edge(), "a link should join veins on one edge");
+                long between = veins.stream().filter(vein -> vein.edge() == link.from().edge()
+                        && vein.along() > Math.min(link.from().along(), link.to().along())
+                        && vein.along() < Math.max(link.from().along(), link.to().along())).count();
+                assertEquals(0, between, "a link should join neighbours, with no vein rooted between them");
+            }
+        }
+
+        /**
+         * The frame's time can step back a little: the server's time sync
+         * resets the client's game time, and a frame's partial tick can run
+         * ahead of the tick it belongs to.
+         */
+        @Test
+        void theVeinsStayWhenTheFramesTimeStepsBack() {
+            TendrilVignette vignette = veinedTo(SOON_AFTER_THE_START);
+            List<VeinNetwork.Vein> soon = List.copyOf(vignette.veins());
+            vignette.advance(SOON_AFTER_THE_START + 0.9f);
+            vignette.advance(SOON_AFTER_THE_START - 1f);
+            assertEquals(soon, vignette.veins(), "a step back in time should not regrow the web");
+        }
+
+        @Test
+        void theVeinsGrownAtTheStartStayWhileTheVisionLasts() {
+            TendrilVignette vignette = veinedTo(SOON_AFTER_THE_START);
+            List<VeinNetwork.Vein> soon = List.copyOf(vignette.veins());
+            for (int tick = SOON_AFTER_THE_START + 1; tick <= SAMPLES_UNTIL; tick++) {
+                vignette.advance(tick);
+            }
+            assertEquals(soon, vignette.veins(), "the veins should stay where they grew");
+        }
+
+        @Test
+        void veinsDrawNearerTheMistsTealThanSculkTeal() {
+            int mist = SculkerVignetteLayer.LOOK.mistRgb();
+            assertTrue(rgbDistance(SculkerVignetteLayer.LOOK.tendrilRgb(), mist)
+                    < rgbDistance(SculkerSenses.SCULK_RGB, mist), "the veins should sit inside the haze");
+        }
+
+        private static double rgbDistance(int one, int other) {
+            int red = (one >> 16 & 0xFF) - (other >> 16 & 0xFF);
+            int green = (one >> 8 & 0xFF) - (other >> 8 & 0xFF);
+            int blue = (one & 0xFF) - (other & 0xFF);
+            return Math.sqrt(red * red + green * green + blue * blue);
         }
     }
 

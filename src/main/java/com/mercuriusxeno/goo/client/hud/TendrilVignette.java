@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,8 +12,9 @@ import java.util.SplittableRandom;
 /**
  * The tendril vignette a sight draws over the camera: the screen's rim fills
  * with a breathing mist, and tendrils curl in from the edges, each sight in
- * its own colors; Fungal Sight draws it in magenta, Sculker in sculk teal.
- * The tendrils are a live population, not a fixed set: they sprout at random
+ * its own colors; Fungal Sight draws it in magenta, Sculker in sculk teal,
+ * and Sculker's rim grows a forking vein network ({@link VeinNetwork}) where
+ * Fungal Sight's grows tendrils. The tendrils are a live population, not a fixed set: they sprout at random
  * places along the edges at random times, never on top of one another, each
  * a thin, wispy vein with its own length, thickness and wiggling path that
  * often forks, heading mostly inward from its edge rather than along it. A tendril grows the way a root does, each stretch fading in
@@ -123,14 +125,20 @@ public final class TendrilVignette {
     private final SplittableRandom random;
     private final List<Tendril> live = new ArrayList<>();
     private final List<Wave> fringe;
+    private final @Nullable VeinNetwork veins;
     private float lastTime = NO_TIME;
 
     /**
      * @param seed the seed this vignette's tendrils sprout from and its fringe's waves are laid from
      */
     public TendrilVignette(long seed) {
+        this(seed, null);
+    }
+
+    private TendrilVignette(long seed, @Nullable VeinNetwork veins) {
         this.random = new SplittableRandom(seed);
         this.fringe = layFringe(new SplittableRandom(~seed));
+        this.veins = veins;
     }
 
     /**
@@ -278,6 +286,32 @@ public final class TendrilVignette {
     }
 
     /**
+     * A vignette whose rim grows Sculker's vein network in place of tendrils,
+     * its mist and fringe as every sight's.
+     * decision sculker-tendrils-are-a-branching-vein-network
+     *
+     * @param seed the seed its veins sprout from and its fringe's waves are laid from
+     * @return the vignette
+     */
+    public static TendrilVignette veined(long seed) {
+        return new TendrilVignette(seed, new VeinNetwork(seed));
+    }
+
+    /**
+     * @return the veins standing now, none for a vignette that grows tendrils
+     */
+    List<VeinNetwork.Vein> veins() {
+        return veins == null ? List.of() : veins.live();
+    }
+
+    /**
+     * @return the links joining neighbouring veins now, none for a vignette that grows tendrils
+     */
+    List<VeinNetwork.Link> veinLinks() {
+        return veins == null ? List.of() : veins.links();
+    }
+
+    /**
      * @return the tendrils standing now
      */
     List<Tendril> live() {
@@ -291,6 +325,14 @@ public final class TendrilVignette {
      * @param time the game time
      */
     void advance(float time) {
+        if (veins != null) {
+            veins.advance(time);
+        } else {
+            advanceTendrils(time);
+        }
+    }
+
+    private void advanceTendrils(float time) {
         if (Float.isNaN(lastTime) || time < lastTime) {
             lastTime = time;
         }
@@ -377,12 +419,20 @@ public final class TendrilVignette {
     public void draw(GuiGraphicsExtractor graphics, float time, float strength, Look look) {
         advance(time);
         if (strength <= 0f) {
+            if (veins != null) {
+                // sculker-veins-root-in-clusters-and-bare-gaps: the next vision grows a fresh web
+                veins.hide();
+            }
             return;
         }
         drawMist(graphics, time, strength, look.mistRgb());
         drawFringe(graphics, time, strength, look.mistRgb());
-        Brush brush = new Brush(graphics, new Screen(graphics.guiWidth(), graphics.guiHeight()), time, strength,
-                look.tendrilRgb());
+        Screen screen = new Screen(graphics.guiWidth(), graphics.guiHeight());
+        if (veins != null) {
+            veins.draw(graphics, screen, time, strength, look.tendrilRgb());
+            return;
+        }
+        Brush brush = new Brush(graphics, screen, time, strength, look.tendrilRgb());
         live.forEach(brush::draw);
     }
 
@@ -521,7 +571,7 @@ public final class TendrilVignette {
      * @param width  the screen's width
      * @param height the screen's height
      */
-    private record Screen(int width, int height) {
+    record Screen(int width, int height) {
 
         int[] from(int edge, float along, float inward, float side) {
             return switch (edge) {

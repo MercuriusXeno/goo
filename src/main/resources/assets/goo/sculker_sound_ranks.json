@@ -1,0 +1,20 @@
+{
+  "ranks": [
+    {
+      "rank": 9,
+      "sounds": [
+        "minecraft:entity.*.ambient",
+        "minecraft:entity.*.ambient_*",
+        "minecraft:entity.ghast.scream",
+        "minecraft:entity.ghast.warn"
+      ]
+    },
+    {
+      "rank": 15,
+      "sounds": [
+        "minecraft:block.sculk_shrieker.shriek",
+        "goo:ability.click"
+      ]
+    }
+  ]
+}

@@ -37,6 +37,13 @@ public final class GooSoundIds {
      */
     public static final Identifier EARTH_RUMBLE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.earth_rumble");
 
+    /**
+     * Click's click: vanilla's comparator click under an id of the mod's own,
+     * so Sculker's sub-rank table rings it at 15 and a real comparator keeps
+     * its own rank (decision sculker-echo-intensity-follows-vibration-rank).
+     */
+    public static final Identifier CLICK = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click");
+
     private GooSoundIds() {
     }
 }
