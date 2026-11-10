@@ -168,7 +168,7 @@ public final class ReapTests {
      */
     private static ReapBlade rowBlade(GameTestHelper helper, double height) {
         Vec3 origin = helper.absoluteVec(new Vec3(PATH_START_X + 0.5, height, PATH_Z + 0.5));
-        return new ReapBlade(origin, EAST, ACROSS, 0, 0, 1, SHAPE);
+        return new ReapBlade(origin, EAST, ACROSS, 0, 0, 1, Vec3.ZERO, SHAPE);
     }
 
     /**

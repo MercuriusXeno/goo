@@ -122,7 +122,8 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Exp
             ReapBlade.Shape shape = new ReapBlade.Shape(start.evaluate(context), drift.evaluate(context),
                     sizes.widthAt(size), sizes.depthAt(size), Math.max(1, widthTicks.evaluateInt(context)),
                     Math.max(1, depthTicks.evaluateInt(context)), Math.max(1, fadeTicks.evaluateInt(context)));
-            blades.add(ReapBlade.launch(slasher.getEyePosition(), slasher.getLookAngle(), shape, random));
+            blades.add(ReapBlade.launch(slasher.getEyePosition(), slasher.getLookAngle(), slasher.getKnownMovement(), shape,
+                    random));
         }
         return blades;
     }
