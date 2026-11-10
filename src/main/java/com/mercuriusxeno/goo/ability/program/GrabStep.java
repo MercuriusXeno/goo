@@ -234,10 +234,38 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
     private Vec3 holdPoint(ServerPlayer player, Entity held) {
         double distance = holdDistance(player.getXRot(), near, far);
         Vec3 eye = player.getEyePosition();
-        Vec3 middle = lookEndThroughGates(GatePassage.pairsOf(player.level().getServer()),
-                player.level().dimension(), eye, eye.add(player.getLookAngle().scale(distance)));
-        return middle.subtract(0, held.getBbHeight() * HALF, 0);
+        List<GatePassage.Pair> pairs = GatePassage.pairsOf(player.level().getServer());
+        Vec3 middle = lookEndThroughGates(pairs, player.level().dimension(), eye,
+                eye.add(player.getLookAngle().scale(distance)));
+        return clearOfTheFaces(pairs, middle, held.getBbWidth()).subtract(0, held.getBbHeight() * HALF, 0);
     }
+
+    /**
+     * Where a held body's middle hangs so its box stands clear of each
+     * linked gate's face it would hang at: a middle at the face crosses it
+     * as it is held there and goes round the pair every tick, as the
+     * operator found a slime held at the portal's edge looping.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param pairs  the linked pairs
+     * @param middle where the look would hang the body's middle
+     * @param width  the body's width
+     * @return the middle, set out from any face it stood too near
+     */
+    static Vec3 clearOfTheFaces(List<GatePassage.Pair> pairs, Vec3 middle, double width) {
+        double clear = width * HALF + FACE_CLEARANCE;
+        Vec3 held = middle;
+        for (Gate gate : pairs.stream().flatMap(pair -> Stream.of(pair.one(), pair.other())).toList()) {
+            double out = gate.out(held);
+            if (out > -clear && out < clear && gate.withinOval(held, width * HALF)) {
+                held = held.add(gate.face().getUnitVec3().scale(clear - out));
+            }
+        }
+        return held;
+    }
+
+    /** How far past half its width a held body's middle hangs before a linked gate's face. */
+    private static final double FACE_CLEARANCE = 0.1;
 
     /**
      * Where a look ends carried through each linked gate it passes, a few at
