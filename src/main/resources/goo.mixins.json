@@ -33,6 +33,7 @@
     "ClientPacketListenerGooMixin",
     "ClientPacketListenerGateCarryMixin",
     "GameRendererPortalViewMixin",
+    "InterpolationHandlerGateCarryMixin",
     "LevelRendererSculkerCullMixin",
     "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
