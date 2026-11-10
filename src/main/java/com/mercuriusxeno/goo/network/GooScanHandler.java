@@ -3,10 +3,12 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
+import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -49,10 +51,12 @@ public final class GooScanHandler {
      * Prices, pays and sends a scan from the player's eye along the look.
      *
      * @param player  the throwing player
+     * @param origin  the glove hand the client drew from, which the drawn wave leaves
      * @param gooType the ability's goo type
      * @param ability the scan ability
      */
-    static void scan(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
+    static void scan(ServerPlayer player, Vec3 origin, ResourceKey<GooTypeDefinition> gooType,
+                     AbilityDefinition ability) {
         ServerLevel level = player.level();
         if (!AbilityCharges.charge(player, gooType, priceFor(player, ability))) {
             if (Goo.LOGGER.isDebugEnabled()) {
@@ -65,8 +69,28 @@ public final class GooScanHandler {
         Vec3 look = player.getLookAngle();
         Vec3 landing = landingAlong(player, eye, look, ability.delivery().range());
         ScanWaves waves = GooServerState.of(level.getServer()).scanWaves();
-        wavesFor(submerged(player), level, eye, look, landing, ability, level.getServer().getTickCount())
-                .forEach(waves::schedule);
+        int now = level.getServer().getTickCount();
+        List<ScanWaves.Wave> sent = wavesFor(submerged(player), level, eye, look, landing, ability, now);
+        sent.forEach(waves::schedule);
+        Vec3 hand = ThrowArc.clampToReach(eye, origin, ThrowArc.HAND_REACH * player.getScale());
+        ScanVisualStep.in(ability.behaviors()).ifPresent(visual -> EntityVisuals.sendToWatchers(player,
+                drawnWave(hand, sent, now, visual)));
+    }
+
+    /**
+     * The wave every watching client draws: from the glove hand to the last
+     * point the scan reaches, over the ticks the server waits to get there.
+     * click-is-a-hit-scan-drawn-as-a-delayed-wave
+     *
+     * @param hand   the glove hand
+     * @param sent   the waves the scan scheduled, the last reaching farthest
+     * @param now    the server tick the use fired on
+     * @param visual the visual the ability's choreography names
+     * @return the payload
+     */
+    static ScanWavePayload drawnWave(Vec3 hand, List<ScanWaves.Wave> sent, int now, ScanVisualStep visual) {
+        ScanWaves.Wave last = sent.getLast();
+        return new ScanWavePayload(hand, last.landing(), last.arrivalTick() - now, visual.visual(), visual.fade());
     }
 
     /**

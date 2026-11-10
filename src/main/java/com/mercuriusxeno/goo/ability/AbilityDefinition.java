@@ -109,45 +109,6 @@ public record AbilityDefinition(
 ) {
 
     /**
-     * An ability that no standing self ability makes free, every ability but Click.
-     *
-     * @param id            the datapack resource identifier
-     * @param gooType       the goo type this ability belongs to
-     * @param displayName   the translation key for the ability name
-     * @param icon          the texture path for the radial menu icon
-     * @param order         sort order within the type's ability list
-     * @param cost          what a throw costs
-     * @param delivery      how the ability leaves the glove
-     * @param behaviors     the step trees the ability runs
-     * @param tags          categorical tags
-     * @param badge         the target kind the radial marks on the icon
-     * @param requires      the items a player must know before the ability is theirs
-     * @param area          the area the glove draws while right click is held
-     * @param indicator     when the ability's indicator shows
-     * @param consumes      the items a throw takes, one of each
-     * @param onPrism       the steps a landing on a prism runs, empty for none
-     * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
-     * @param upkeep        what a held durative effect pays each tick it stands
-     * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
-     * @param distancePrice what a blink adds to the cost for the trip it makes
-     * @param pose          the arm pose the glove arm takes in place of the swing
-     * @param description   the translation key for what the ability does
-     * @param costMechanics the format key explaining how the ability charges, empty for none
-     * @param costFormula   the short formula a dynamic price reads on its petal, empty for none
-     */
-    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
-                             int order, AbilityPrice cost, Delivery delivery, List<Step> behaviors,
-                             List<String> tags, AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
-                             List<Step> onBlocks, AbilityPrice upkeep, Optional<SoundCue> downSound,
-                             DistancePrice distancePrice, ArmPose pose, String description,
-                             Optional<String> costMechanics, Optional<String> costFormula) {
-        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice, pose, description,
-                costMechanics, costFormula, Optional.empty());
-    }
-
-    /**
      * What a throw costs the thrower in exact mB: nothing while the self
      * ability this one names stands on the thrower, the cost otherwise.
      * click-costs-one-mb-and-nothing-under-sculker
@@ -207,7 +168,7 @@ public record AbilityDefinition(
                              Optional<String> costMechanics) {
         this(id, gooType, displayName, icon, order, AbilityPrice.flat(cost), delivery, behaviors, tags, badge,
                 requires, area, indicator, consumes, onPrism, onBlocks, AbilityPrice.flat(upkeep), downSound,
-                distancePrice, pose, description, costMechanics, Optional.empty());
+                distancePrice, pose, description, costMechanics, Optional.empty(), Optional.empty());
     }
 
     /**
