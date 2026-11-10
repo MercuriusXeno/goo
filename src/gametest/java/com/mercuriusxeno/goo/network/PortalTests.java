@@ -24,6 +24,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.ItemStack;
@@ -74,6 +75,9 @@ public final class PortalTests {
                 PortalTests::placingLinksToTheLastPlaced);
         GooTestFunctions.registerTest(registrar, NOT_IN_A_WALL_WHILE_PASSING, PortalTests::passingBodyIsNotInAWall);
         GooTestFunctions.registerTest(registrar, OTHER_ENTITIES_GO_THROUGH, PortalTests::otherEntitiesGoThrough);
+        GooTestFunctions.registerTest(registrar, THROWN_IN_AT_AN_ANGLE,
+                PortalTests::smallMobThrownInAtAnAngleGoesThrough);
+        GooTestFunctions.registerTest(registrar, IN_BY_THE_EDGE, PortalTests::smallMobInByTheEdgeGoesThrough);
         GooTestFunctions.registerTest(registrar, BROKEN_LAST_LINKS_NOTHING,
                 PortalTests::placedAfterTheLastBrokeStandsInert);
         GooTestFunctions.registerTest(registrar, LINKING_BY_HAND_COSTS_GOO, PortalTests::linkingByHandCostsGoo);
@@ -466,6 +470,93 @@ public final class PortalTests {
                     "A pig shoved into a wall portal should come out of its partner, stands at " + pig.position());
             level.getServer().getPlayerList().remove(owner);
             level.getServer().getPlayerList().remove(other);
+            helper.succeed();
+        });
+    }
+
+    private static final String THROWN_IN_AT_AN_ANGLE = "portal_small_mob_thrown_in_at_an_angle_goes_through";
+    /** How far the mob starts to the side of the gate's middle, its path aimed back across at the middle. */
+    private static final double TO_THE_SIDE = 0.95;
+    /** How hard the mob is thrown, in blocks a tick along each of its two axes: forty-five degrees off square. */
+    private static final double THROWN = 0.4;
+    /**
+     * How far before the face the mob's middle starts: its second tick starts with its middle beside the oval,
+     * seen square on, and ends with its box at the face.
+     */
+    private static final double BEFORE_THE_FACE = 0.95;
+    /** How high over the gate's lower block the mob's feet start, so its middle passes inside the oval. */
+    private static final double OFF_THE_GROUND = 0.6;
+
+    /**
+     * A small mob thrown at forty-five degrees into a wall portal set in a
+     * wall, its path meeting the gate's middle, goes through and comes out of
+     * the partner rather than stopping against the wall as against solid
+     * stone, as the operator found a slime thrown at any angle but dead on
+     * did (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void smallMobThrownInAtAnAngleGoesThrough(GameTestHelper helper) {
+        throwIntoAWalledPortal(helper, new Vec3(TO_THE_SIDE, OFF_THE_GROUND, BEFORE_THE_FACE),
+                new Vec3(-THROWN * TO_THE_SIDE / BEFORE_THE_FACE, 0, -THROWN), "thrown in at an angle");
+    }
+
+    private static final String IN_BY_THE_EDGE = "portal_small_mob_in_by_the_edge_goes_through";
+    /** How far to the side of the gate's middle the mob goes in: its middle inside the oval, its side on the stone. */
+    private static final double BY_THE_EDGE = 0.4;
+    /** How high over the gate's lower block the mob's feet stand, its middle level with the gate's middle. */
+    private static final double MIDDLE_HIGH = 0.85;
+
+    /**
+     * A small mob thrown square into a wall portal by its edge, its middle
+     * inside the oval and its side over the stone beside the portal, goes
+     * through rather than stopping against that stone, as the operator found
+     * a held slime thrown from just inside the oval's edge did
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void smallMobInByTheEdgeGoesThrough(GameTestHelper helper) {
+        throwIntoAWalledPortal(helper, new Vec3(BY_THE_EDGE, MIDDLE_HIGH, BEFORE_THE_FACE),
+                new Vec3(0, 0, -THROWN), "thrown in by the opening's edge");
+    }
+
+    /**
+     * Throws a small mob at the first wall portal, set in a stone wall and
+     * linked to the second, and checks it comes out of the second.
+     *
+     * @param helper the gametest helper
+     * @param from   where its feet start: across from the gate's middle, up from its lower block and out of its face
+     * @param motion how it is thrown, in blocks a tick
+     * @param how    how it was thrown, for the failure
+     */
+    private static void throwIntoAWalledPortal(GameTestHelper helper, Vec3 from, Vec3 motion, String how) {
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        KnownRecipes.teachRequires(owner, AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, owner, Vec3.atBottomCenterOf(AWAY));
+        for (BlockPos side : List.of(FIRST.west(), FIRST.east(), FIRST.west().above(), FIRST.east().above(),
+                FIRST.above(2), FIRST.west().above(2), FIRST.east().above(2))) {
+            helper.setBlock(side, Blocks.STONE);
+        }
+        Portal in = castAt(helper, owner, FIRST, Direction.SOUTH);
+        Portal out = castAt(helper, owner, SECOND, Direction.NORTH);
+        helper.assertTrue(QuantumPortals.get(helper.getLevel()).partnerOf(in).equals(Optional.of(out)),
+                "The pair should stand linked");
+        Vec3 feet = helper.absoluteVec(new Vec3(FIRST.getX() + 0.5 + from.x(), FIRST.getY() + from.y(), 0))
+                .with(Direction.Axis.Z, in.gate().center().z() + from.z());
+        // A silverfish stands in for the operator's small slime, its box alike: a slime here would be found by the
+        // slime-spawning test beside it, which reads the first slime anywhere near as the one it threw.
+        Mob thrown = helper.spawnWithNoFreeWill(EntityType.SILVERFISH, helper.relativeVec(feet));
+        thrown.setNoGravity(true);
+        thrown.snapTo(feet.x(), feet.y(), feet.z(), 0, 0);
+        thrown.setDeltaMovement(motion);
+        helper.runAfterDelay(THROUGH, () -> {
+            Vec3 at = thrown.position();
+            thrown.discard();
+            helper.getLevel().getServer().getPlayerList().remove(owner);
+            helper.assertTrue(at.distanceTo(helper.absoluteVec(Vec3.atCenterOf(SECOND)))
+                    < at.distanceTo(helper.absoluteVec(Vec3.atCenterOf(FIRST))), "A mob " + how
+                    + " should come out of the partner, stands at " + at + ", thrown from " + feet);
             helper.succeed();
         });
     }
