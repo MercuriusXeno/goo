@@ -21,7 +21,7 @@ out vec4 fragColor;
 
 // The rim runs whole over the edge's own texel, then fades inward over this many texels.
 const float RIM_SOLID = 1.0;
-const float RIM_FEATHER = 3.0;
+const float RIM_FEATHER = 1.0;
 
 void main() {
     vec2 across = portalTexelCenter(frameCoord, texels) * 2.0 - 1.0;

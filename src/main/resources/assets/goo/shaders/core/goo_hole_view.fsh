@@ -26,7 +26,7 @@ const float TEAR_DEPTH = 0.16;
 // The band of color along the tear runs whole over the edge's own texel, then fades inward over
 // this many texels, measured in texels so it runs unbroken all round.
 const float BAND_SOLID = 1.0;
-const float BAND_FEATHER = 3.0;
+const float BAND_FEATHER = 1.0;
 // How fast the tear shifts; GameTime runs once a day, so this sets turns per day.
 const float TEAR_SPEED = 2400.0;
 

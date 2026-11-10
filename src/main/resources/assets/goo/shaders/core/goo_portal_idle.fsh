@@ -24,7 +24,7 @@ const float WIND = 9.0;
 const float TURN = 2.5;
 // The rim glows whole over the edge's own texel, then fades inward over this many texels.
 const float RIM_SOLID = 1.0;
-const float RIM_FEATHER = 4.0;
+const float RIM_FEATHER = 2.0;
 const float HEART = 0.03;
 
 void main() {
