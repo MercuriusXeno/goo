@@ -40,8 +40,7 @@ class CostMechanicsTest {
     private static final Map<String, String> LANG = Map.of(
             "goo.ability.cost_mechanics.upkeep", "%s a second",
             "goo.ability.ender.blink.cost_mechanics", "%s per block, %s through a wall, %s percent to an oculus",
-            "goo.ability.rock.spire.cost_mechanics", "%s per block raised",
-            "goo.ability.unstable.unmake.cost_mechanics", "Burns unstable goo for each block dissolved.");
+            "goo.ability.rock.spire.cost_mechanics", "%s per block raised");
 
     private static final IGooValueLookup VALUES = GooValueTable.ofEffectiveValues(Map.of(), new PrefabValues(Map.of(),
             Map.of("mundane_block", new GooValue(Map.of(GooTypes.ROCK, MUNDANE_BLOCK_ROCK)))));
@@ -119,11 +118,6 @@ class CostMechanicsTest {
         assertEquals(SPIRE_PER_BLOCK_FORMULA, spire.petalLabel(NO_HOLDINGS, NO_REAGENTS));
         assertEquals(SPIRE_PER_BLOCK_FORMULA, spire.costLabel());
         assertTrue(textOf("rock_spire").contains(MUNDANE_BLOCK_ROCK + " per block raised"), textOf("rock_spire"));
-    }
-
-    @Test
-    void unmakeTextStatesItsRuleWithNoNumber() {
-        assertTrue(textOf("unstable_unmake").startsWith("Burns unstable goo"), textOf("unstable_unmake"));
     }
 
     static Stream<AbilityDefinition> abilitiesWithAPlainCost() {

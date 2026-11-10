@@ -18,7 +18,7 @@ import java.util.UUID;
 /**
  * The remainders owed to players who left before a payout reached them, saved in
  * the overworld's data and handed to each player's own ledger when they return,
- * so a drink finishing after its player logs out loses nothing under 1 mB.
+ * so a payout finishing after its player logs out loses nothing under 1 mB.
  * decision every-producer-consumer-and-container-holds-a-remainder-buffer
  */
 public class OfflineRemainders extends SavedData {
