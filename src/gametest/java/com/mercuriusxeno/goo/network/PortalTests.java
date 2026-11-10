@@ -78,6 +78,8 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, THROWN_IN_AT_AN_ANGLE,
                 PortalTests::smallMobThrownInAtAnAngleGoesThrough);
         GooTestFunctions.registerTest(registrar, IN_BY_THE_EDGE, PortalTests::smallMobInByTheEdgeGoesThrough);
+        GooTestFunctions.registerTest(registrar, PLAYER_BY_THE_EDGE_MOVES_AS_ITS_CLIENT_DOES,
+                PortalTests::playerByTheEdgeMovesAsItsClientDoes);
         GooTestFunctions.registerTest(registrar, NOT_HURT_BY_THE_WALL_BESIDE,
                 PortalTests::smallMobByTheEdgeIsNotHurtByTheWall);
         GooTestFunctions.registerTest(registrar, BROKEN_LAST_LINKS_NOTHING,
@@ -609,6 +611,53 @@ public final class PortalTests {
             helper.getLevel().getServer().getPlayerList().remove(owner);
             helper.assertTrue(now == health, "A mob by the portal's edge should take no harm, went from " + health
                     + " to " + now + " hurt by " + hurtBy + ", its middle at " + at);
+            helper.succeed();
+        });
+    }
+
+    private static final String PLAYER_BY_THE_EDGE_MOVES_AS_ITS_CLIENT_DOES =
+            "portal_player_by_the_edge_moves_as_its_client_does";
+    /** How far to the side of the gate's middle the player walks in: its middle inside the oval, its side past it. */
+    private static final double PLAYER_BY_THE_EDGE = 0.35;
+    /** How far before the face the player's middle starts, its box a hair off the face. */
+    private static final double PLAYER_BEFORE_THE_FACE = 0.32;
+    /** The step the player takes square into the portal. */
+    private static final double STEP_IN = 0.2;
+
+    /**
+     * A player stepping into a wall portal by its edge, its side over the
+     * stone beside it, ends the step in the same place whatever motion the
+     * server holds for it: the server checks a player's move with the motion
+     * it last heard of, stale beside the motion the player's own client moved
+     * it by, and where the stone gave way to the one and not the other the
+     * server set the player back, as the operator found walking into a
+     * portal's edge rubber band (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void playerByTheEdgeMovesAsItsClientDoes(GameTestHelper helper) {
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        Portal in = walledPair(helper, owner);
+        Vec3 start = in.gate().center().add(in.gate().right().scale(PLAYER_BY_THE_EDGE))
+                .add(in.gate().face().getUnitVec3().scale(PLAYER_BEFORE_THE_FACE)).subtract(0, 1, 0);
+        Vec3 step = in.gate().face().getUnitVec3().scale(-STEP_IN);
+        ServerPlayer walker = helper.makeMockServerPlayerInLevel();
+        // The server gathers its linked pairs at the end of each tick, so the step waits a tick for the pair.
+        helper.runAfterDelay(1, () -> {
+            walker.setPos(start);
+            walker.setDeltaMovement(step);
+            walker.move(net.minecraft.world.entity.MoverType.PLAYER, step);
+            Vec3 asItsClientMoves = walker.position();
+            walker.setPos(start);
+            walker.setDeltaMovement(Vec3.ZERO);
+            walker.move(net.minecraft.world.entity.MoverType.PLAYER, step);
+            Vec3 asTheServerChecks = walker.position();
+            helper.getLevel().getServer().getPlayerList().remove(walker);
+            helper.getLevel().getServer().getPlayerList().remove(owner);
+            helper.assertTrue(asItsClientMoves.distanceTo(asTheServerChecks) < 1.0E-6, "The step should end in the "
+                    + "same place whatever motion the server holds, ends at " + asItsClientMoves + " moving and "
+                    + asTheServerChecks + " still");
             helper.succeed();
         });
     }
