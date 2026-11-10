@@ -10,12 +10,13 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * GlowReflectorStyle: one end of each link draws its beam, the beam draws
  * brighter the more light the network carries, and each of its layers fades
  * out past both prisms' middles rather than stopping square, breathing in
- * alpha on top of the light share while its width holds.
+ * alpha on top of the light share and shrinking slightly at the ease.
  * decision reflector-rails-carry-the-brightest-light
  * decision reflector-rail-blooms-out-inside-the-prism
  * decision every-glow-beam-breathes-in-brightness
@@ -42,14 +43,17 @@ class GlowReflectorStyleTest {
     }
 
     @Test
-    void theRailBreathesInAlphaOnTopOfTheLightShareWhileItsWidthHolds() {
+    void theRailBreathesInAlphaOnTopOfTheLightShareAndShrinksSlightlyAtTheEase() {
         float share = GlowReflectorStyle.lightShare(RAIL_LIGHT);
         List<RecordingVertexConsumer.Vertex> peak = emitRail(share, GlowBeamMesh.breath(0));
         List<RecordingVertexConsumer.Vertex> trough =
                 emitRail(share, GlowBeamMesh.breath(GlowBeamMesh.BREATH_PERIOD_TICKS / 2));
 
         assertNotEquals(BeamSamples.alphas(peak), BeamSamples.alphas(trough), "the rail's alpha breathes");
-        assertEquals(BeamSamples.extents(peak), BeamSamples.extents(trough), "the rail's width holds");
+        float width = GlowReflectorStyle.DIMMEST_WIDTH + (1f - GlowReflectorStyle.DIMMEST_WIDTH) * share;
+        assertEquals(GlowBeamMesh.LAYERS.getLast().radius() * width, BeamSamples.widest(peak), TOLERANCE,
+                "the rail is never fatter than its own width");
+        assertTrue(BeamSamples.widest(trough) < BeamSamples.widest(peak), "the rail shrinks slightly at the ease");
         int coreAtPeak = Math.round(ARGB.alpha(GlowBeamMesh.LAYERS.getFirst().color()) * share);
         assertEquals(coreAtPeak, peak.stream().mapToInt(v -> ARGB.alpha(v.color())).max().orElseThrow(),
                 "the peak's alpha is the layer's alpha times the share");

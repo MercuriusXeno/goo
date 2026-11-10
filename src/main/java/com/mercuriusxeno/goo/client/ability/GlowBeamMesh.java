@@ -1,23 +1,20 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import java.util.List;
 
 /**
  * Glow's beam of light, shared by Bulb's prism beacon, Reflector's rails and Sunbeam's ray: a
- * thin near-white core inside wider, fainter glow-yellow shells, each a flat
- * strip turned to face the camera and feathered at its sides, blended
- * additively so the layers stack into a bloom and stay see-through.
+ * thin near-white core inside wider, fainter glow-yellow shells, each a
+ * square tube blended additively so the layers stack into a bloom and stay
+ * see-through.
  * decisions bulb-one-model-max-light-beacon-combo, sunbeam-splits-at-the-prism-with-a-glisten
  */
 public final class GlowBeamMesh {
@@ -26,27 +23,17 @@ public final class GlowBeamMesh {
      * The beam's layers from the core out, each wider and fainter than the
      * last; slimmed and dimmed after UAT found them too bright and too thick
      * (operator ruling 2026-10-09), then made smaller with the layers drawn
-     * tighter together (operator ruling 2026-11-08), then widened by half
-     * again once each layer became one feathered strip and read too skinny
-     * beside the tube it replaced (operator UAT 2026-11-10). Each fades out past a
+     * tighter together (operator ruling 2026-11-08). Each fades out past a
      * prism-bound end by a depth, the core deepest, every depth under half a
      * block so the bloom stays inside the prism's block whether the beam stops
      * on its face or runs into its middle, as a reflector rail does.
      * decision reflector-rail-blooms-out-inside-the-prism
      */
     public static final List<Layer> LAYERS = List.of(
-            new Layer(0.0525f, ARGB.color(120, 0xFFF6C8), 0.45f),
-            new Layer(0.09f, ARGB.color(66, 0xFFE628), 0.35f),
-            new Layer(0.1425f, ARGB.color(27, 0xFFD700), 0.25f),
-            new Layer(0.21f, ARGB.color(11, 0xFFD700), 0.15f));
-    /**
-     * Glow's soft beam texture, transparent at both side columns and opaque
-     * at mid-width, which every face runs across its whole width so the
-     * beam's silhouette feathers instead of stair-stepping.
-     * decision every-glow-beam-feathers-to-transparent
-     */
-    public static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(Goo.MODID,
-            "textures/entity/glow_beam.png");
+            new Layer(0.035f, ARGB.color(120, 0xFFF6C8), 0.45f),
+            new Layer(0.06f, ARGB.color(66, 0xFFE628), 0.35f),
+            new Layer(0.095f, ARGB.color(27, 0xFFD700), 0.25f),
+            new Layer(0.14f, ARGB.color(11, 0xFFD700), 0.15f));
     /**
      * Ticks one breath of the beam's brightness takes, swell to swell: ten
      * seconds, after UAT asked for a very gentle, delicate wave rather than a
@@ -62,8 +49,6 @@ public final class GlowBeamMesh {
     /** Blocks of beam one tile of the texture spans. */
     private static final float BLOCKS_PER_TILE = 1f;
     private static final double HALF = 0.5;
-    /** Below this squared distance off the beam's axis the camera gives the strip no turn. */
-    private static final float ON_THE_AXIS_SQUARED = 1e-8f;
     /** One whole turn of the breath's cosine, in radians. */
     private static final double FULL_TURN = 2 * Math.PI;
     private static final Vector3f UP = new Vector3f(0f, 1f, 0f);
@@ -98,7 +83,7 @@ public final class GlowBeamMesh {
     }
 
     /**
-     * Emits one layer: a flat strip turned to the camera along the pose's +y
+     * Emits one layer: a square tube of four faces around the pose's +y
      * axis, from its origin out to a length.
      *
      * @param pose   the pose, its +y along the beam
@@ -159,40 +144,24 @@ public final class GlowBeamMesh {
     }
 
     /**
-     * Emits one flat strip along the pose's +y axis, from a near ring to a far
-     * one, turned about the axis to face the camera: its feathered side
-     * columns always sit on the beam's outline and its opaque middle down the
-     * beam's centre, where a square tube's transparent corners showed a
-     * see-through seam whenever a corner faced the camera (operator UAT 2026-11-10).
-     * decision every-glow-beam-feathers-to-transparent
+     * Emits four faces around the pose's +y axis, from a near ring to a far one.
      *
-     * @param pose   the pose, its +y along the beam, its parent space centred on the camera
+     * @param pose   the pose, its +y along the beam
      * @param buffer the vertex consumer
-     * @param radius the strip's half-width in blocks
-     * @param near   the ring the strip starts at
-     * @param far    the ring the strip ends at
+     * @param radius the faces' half-width in blocks
+     * @param near   the ring the faces start at
+     * @param far    the ring the faces end at
      */
     private static void emitFaces(PoseStack.Pose pose, VertexConsumer buffer, float radius, Ring near, Ring far) {
-        Vector3f side = sideFacingTheCamera(pose).mul(radius);
-        vertex(pose, buffer, near.color(), -side.x, near.y(), -side.z, 0f, near.v());
-        vertex(pose, buffer, near.color(), side.x, near.y(), side.z, 1f, near.v());
-        vertex(pose, buffer, far.color(), side.x, far.y(), side.z, 1f, far.v());
-        vertex(pose, buffer, far.color(), -side.x, far.y(), -side.z, 0f, far.v());
-    }
-
-    /**
-     * The unit direction across the beam that faces the camera: square to
-     * the beam's +y axis and to the camera's offset from that axis, with the
-     * camera at the origin of the pose's parent space; +x where the camera
-     * sits on the axis itself.
-     *
-     * @param pose the pose, its +y along the beam
-     * @return the strip's half-width direction in the pose's space
-     */
-    private static Vector3f sideFacingTheCamera(PoseStack.Pose pose) {
-        Vector3f camera = new Matrix4f(pose.pose()).invert().transformPosition(new Vector3f());
-        Vector3f side = new Vector3f(camera.z, 0f, -camera.x);
-        return side.lengthSquared() < ON_THE_AXIS_SQUARED ? new Vector3f(1f, 0f, 0f) : side.normalize();
+        float[][] corners = {{-radius, -radius}, {radius, -radius}, {radius, radius}, {-radius, radius}};
+        for (int side = 0; side < corners.length; side++) {
+            float[] from = corners[side];
+            float[] to = corners[(side + 1) % corners.length];
+            vertex(pose, buffer, near.color(), from[0], near.y(), from[1], 0f, near.v());
+            vertex(pose, buffer, near.color(), to[0], near.y(), to[1], 1f, near.v());
+            vertex(pose, buffer, far.color(), to[0], far.y(), to[1], 1f, far.v());
+            vertex(pose, buffer, far.color(), from[0], far.y(), from[1], 0f, far.v());
+        }
     }
 
     private static void vertex(PoseStack.Pose pose, VertexConsumer buffer, int color, float x, float y, float z,

@@ -15,6 +15,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -104,11 +105,11 @@ public final class SunbeamVisual {
                 || now - entry.getValue().arrivedAt() > LINGER_TICKS);
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE));
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         BeamPhase phase = new BeamPhase(Mth.frac(-(now + partialTick) * SCROLL_PER_TICK),
                 GlowBeamMesh.breath(now + (double) partialTick));
         List<Vec3> cores = drawRays(mc, level, event.getPoseStack(), consumer, partialTick, phase);
-        buffers.endBatch(GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE));
+        buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         drawCores(event.getPoseStack(), buffers, cores);
     }
 
@@ -286,7 +287,7 @@ public final class SunbeamVisual {
      * Draws one straight stretch of the beam between two camera-relative
      * points, each layer fading out past the end of a stretch ending in a
      * prism and stopping flat at the end of any other, its alpha scaled by
-     * the beam's breath and its width held.
+     * the beam's breath and its width slimmed by it.
      * decision reflector-rail-blooms-out-inside-the-prism
      * decision every-glow-beam-breathes-in-brightness
      *
@@ -296,7 +297,7 @@ public final class SunbeamVisual {
      * @param to          where it ends, camera-relative
      * @param scroll      the texture's scroll offset
      * @param endsInPrism whether the stretch ends in a prism
-     * @param breath      the alpha share {@link GlowBeamMesh#breath} answered
+     * @param breath      the share of alpha and width {@link GlowBeamMesh#breath} answered
      */
     static void drawSegment(PoseStack poseStack, VertexConsumer consumer, Vec3 from, Vec3 to, float scroll,
                             boolean endsInPrism, float breath) {
@@ -309,7 +310,7 @@ public final class SunbeamVisual {
         poseStack.translate(from.x, from.y, from.z);
         poseStack.mulPose(GlowBeamMesh.alongBeam(along));
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
-            float radius = layer.radius() * RAY_WIDTH;
+            float radius = layer.radius() * RAY_WIDTH * breath;
             int color = GlowBeamMesh.breathed(layer.color(), breath);
             if (endsInPrism) {
                 GlowBeamMesh.emitFadingLayer(poseStack.last(), consumer, radius, color, scroll, (float) length,
@@ -336,7 +337,7 @@ public final class SunbeamVisual {
      * Where the beam's moving look stands this frame.
      *
      * @param scroll the texture's scroll offset in [0, 1)
-     * @param breath the alpha share {@link GlowBeamMesh#breath} answered
+     * @param breath the share of alpha and width {@link GlowBeamMesh#breath} answered
      */
     private record BeamPhase(float scroll, float breath) {
     }

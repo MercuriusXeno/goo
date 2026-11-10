@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * SunbeamVisual's stretch of beam: one ending in a prism runs on past its end
  * and fades to nothing there, one ending anywhere else stops flat at its end,
- * and every stretch breathes in alpha while its width holds.
+ * and every stretch breathes in alpha and shrinks slightly at the ease.
  * decision reflector-rail-blooms-out-inside-the-prism
  * decision every-glow-beam-breathes-in-brightness
  */
@@ -36,13 +36,15 @@ class SunbeamVisualTest {
     }
 
     @Test
-    void theRayBreathesInAlphaWhileItsWidthHolds() {
+    void theRayBreathesInAlphaAndShrinksSlightlyAtTheEase() {
         List<RecordingVertexConsumer.Vertex> peak = drawSegment(false, GlowBeamMesh.breath(0));
         List<RecordingVertexConsumer.Vertex> trough =
                 drawSegment(false, GlowBeamMesh.breath(GlowBeamMesh.BREATH_PERIOD_TICKS / 2));
 
         assertNotEquals(BeamSamples.alphas(peak), BeamSamples.alphas(trough), "the ray's alpha breathes");
-        assertEquals(BeamSamples.extents(peak), BeamSamples.extents(trough), "the ray's width holds");
+        assertEquals(GlowBeamMesh.LAYERS.getLast().radius() * SunbeamVisual.RAY_WIDTH, BeamSamples.widest(peak),
+                TOLERANCE, "the ray is never fatter than its own width");
+        assertTrue(BeamSamples.widest(trough) < BeamSamples.widest(peak), "the ray shrinks slightly at the ease");
     }
 
     private static float highestY(List<RecordingVertexConsumer.Vertex> vertices) {
