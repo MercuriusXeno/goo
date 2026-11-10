@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
-import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
@@ -86,7 +86,7 @@ class AbilityTextsLangTest {
     void costMechanicsTextFillsWithNoPlaceholderLeft(AbilityDefinition definition) {
         ClientAbility client = ClientAbility.fromEntry(
                 AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)).getFirst());
-        CostMechanicsLookup enUs = new CostMechanicsLookup(AbilityTextsLangTest::valueOf, item -> GooFraction.of(1));
+        CostMechanicsLookup enUs = new CostMechanicsLookup(AbilityTextsLangTest::valueOf, () -> GooValueTable.EMPTY);
 
         String text = client.costMechanics(enUs).orElseThrow();
 
