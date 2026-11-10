@@ -7,7 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.world.level.Level;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
@@ -45,9 +45,38 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
 
     /**
      * The frame a cast lays on a struck face, where two solid blocks lie with
-     * open cells in front: on a wall, the struck block and the one below it,
-     * else the one above; on a floor or ceiling, the struck block and the next
-     * along the caster's facing, else the one behind.
+     * open cells in front and no standing portal on the same face of either:
+     * on a wall, the struck block and the one below it, else the one above;
+     * on a floor or ceiling, the struck block and the next along the caster's
+     * facing, else the one behind. Two portals on one face would lie one over
+     * the other and draw fighting, as the operator found a portal thrown at
+     * the block above a standing one did.
+     *
+     * @param solid  whether a block stands solid to hold a frame
+     * @param open   whether a cell holds nothing a body collides with
+     * @param taken  whether a standing portal covers a block's struck face
+     * @param struck the struck block
+     * @param face   the struck face
+     * @param facing the caster's horizontal facing
+     * @return the frame, empty where none fits
+     */
+    public static Optional<Portal> frameAt(Predicate<BlockPos> solid, Predicate<BlockPos> open,
+            Predicate<BlockPos> taken, GlobalPos struck, Direction face, Direction facing) {
+        Direction along = face.getAxis().isHorizontal() ? Direction.UP : facing;
+        BlockPos pos = struck.pos();
+        // A wall frame opens down from the struck block, so one thrown level with the eye opens before the
+        // caster, and up from it only where there is no room below.
+        Stream<BlockPos> firsts = face.getAxis().isHorizontal() ? Stream.of(pos.below(), pos)
+                : Stream.of(pos, pos.relative(along.getOpposite()));
+        return firsts
+                .map(first -> new Portal(GlobalPos.of(struck.dimension(), first), face, along))
+                .filter(frame -> Stream.of(frame.block().pos(), frame.second())
+                        .allMatch(cell -> solid.test(cell) && open.test(cell.relative(face)) && !taken.test(cell)))
+                .findFirst();
+    }
+
+    /**
+     * The frame a cast lays on a struck face where no portal stands yet.
      *
      * @param solid  whether a block stands solid to hold a frame
      * @param open   whether a cell holds nothing a body collides with
@@ -58,23 +87,14 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
      */
     public static Optional<Portal> frameAt(Predicate<BlockPos> solid, Predicate<BlockPos> open, GlobalPos struck,
             Direction face, Direction facing) {
-        Direction along = face.getAxis().isHorizontal() ? Direction.UP : facing;
-        BlockPos pos = struck.pos();
-        // A wall frame opens down from the struck block, so one thrown level with the eye opens before the
-        // caster, and up from it only where there is no room below.
-        Stream<BlockPos> firsts = face.getAxis().isHorizontal() ? Stream.of(pos.below(), pos)
-                : Stream.of(pos, pos.relative(along.getOpposite()));
-        return firsts
-                .map(first -> new Portal(GlobalPos.of(struck.dimension(), first), face, along))
-                .filter(frame -> Stream.of(frame.block().pos(), frame.second())
-                        .allMatch(cell -> solid.test(cell) && open.test(cell.relative(face))))
-                .findFirst();
+        return frameAt(solid, open, pos -> false, struck, face, facing);
     }
 
     /**
      * The frame a cast lays on a struck face of a level: its two blocks
      * opaque and solid, the cells before them holding nothing a body
-     * collides with.
+     * collides with, no portal anyone placed standing on the same face of
+     * either.
      *
      * @param level  the level
      * @param struck the struck block
@@ -82,9 +102,11 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
      * @param facing the caster's horizontal facing
      * @return the frame, empty where none fits
      */
-    public static Optional<Portal> frameOn(Level level, BlockPos struck, Direction face, Direction facing) {
+    public static Optional<Portal> frameOn(ServerLevel level, BlockPos struck, Direction face, Direction facing) {
+        QuantumPortals standing = QuantumPortals.get(level);
         return frameAt(pos -> level.getBlockState(pos).isSolidRender(),
                 pos -> level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
+                pos -> standing.portalAt(GlobalPos.of(level.dimension(), pos), face).isPresent(),
                 GlobalPos.of(level.dimension(), struck), face, facing);
     }
 

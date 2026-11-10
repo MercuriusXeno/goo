@@ -39,6 +39,40 @@ class PortalTest {
         assertEquals(Optional.of(new Portal(AT, Direction.SOUTH, Direction.UP)), frame);
     }
 
+    /** A wall portal standing on the two blocks below the struck one's. */
+    private static final Set<BlockPos> STANDING_BELOW = Set.of(STRUCK.below(), STRUCK.below(2));
+
+    /**
+     * A wall portal thrown at the block above one already standing opens up
+     * from the struck block rather than down over the standing one's top,
+     * which the two would share and draw fighting over, as the operator found
+     * (decision portals-link-by-looking-through-portal-vision).
+     */
+    @Test
+    void aWallPortalThrownAboveAStandingOneOpensUpClearOfIt() {
+        Optional<Portal> frame = Portal.frameAt(pos -> true, pos -> true, STANDING_BELOW::contains, AT,
+                Direction.SOUTH, Direction.NORTH);
+        assertEquals(Optional.of(new Portal(AT, Direction.SOUTH, Direction.UP)), frame);
+    }
+
+    /** A wall portal thrown at a standing one's top block finds no frame clear of it, and opens none. */
+    @Test
+    void aWallPortalThrownAtAStandingOnesTopOpensNone() {
+        Optional<Portal> frame = Portal.frameAt(pos -> true, pos -> true, STANDING_BELOW::contains,
+                GlobalPos.of(OVERWORLD, STRUCK.below()), Direction.SOUTH, Direction.NORTH);
+        assertEquals(Optional.empty(), frame);
+    }
+
+    /** A floor portal thrown along a standing floor portal's end finds the frame beyond it. */
+    @Test
+    void aFloorPortalThrownAtAStandingOnesEndOpensBeyondIt() {
+        Set<BlockPos> standing = Set.of(STRUCK.south(), STRUCK.south(2));
+        Optional<Portal> frame = Portal.frameAt(pos -> true, pos -> true, standing::contains, AT, Direction.UP,
+                Direction.SOUTH);
+        assertEquals(Optional.of(new Portal(GlobalPos.of(OVERWORLD, STRUCK.north()), Direction.UP, Direction.SOUTH)),
+                frame);
+    }
+
     @Test
     void aFloorPortalThrownNorthOrSouthHasNorthUp() {
         for (Direction facing : new Direction[] {Direction.NORTH, Direction.SOUTH}) {
