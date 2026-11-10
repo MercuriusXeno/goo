@@ -344,7 +344,7 @@ public final class GatePassage {
 
     private static List<Pair> gather(MinecraftServer server) {
         List<Pair> pairs = new ArrayList<>();
-        QuantumPortals.get(server.overworld()).links().values()
+        QuantumPortals.get(server.overworld()).links()
                 .forEach(link -> pairs.add(new Pair(link.entry().gate(), link.exit().gate())));
         OpenHoles.open().forEach(hole -> pairs.add(new Pair(hole.entry(), hole.exit())));
         return pairs;

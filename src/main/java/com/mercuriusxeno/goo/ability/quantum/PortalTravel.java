@@ -36,7 +36,7 @@ public final class PortalTravel {
         QuantumPortals portals = QuantumPortals.get(server.overworld());
         List<Portal> fallen = Stream.concat(
                 portals.owners().stream().flatMap(owner -> portals.portalsOf(owner).stream()),
-                portals.links().values().stream().flatMap(link -> Stream.of(link.entry(), link.exit())))
+                portals.links().stream().flatMap(link -> Stream.of(link.entry(), link.exit())))
                 .distinct().filter(portal -> fallen(server, portal)).toList();
         for (Portal portal : fallen) {
             PortalChoice.breakAt(server.getLevel(portal.block().dimension()), portal.block().pos(), portal.face());

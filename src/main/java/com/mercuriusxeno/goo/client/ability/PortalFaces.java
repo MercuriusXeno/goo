@@ -75,14 +75,15 @@ public final class PortalFaces {
     }
 
     /**
-     * The color a portal draws in: orange for the linked exit, blue for every other.
+     * The color a portal draws in: orange for the exit of any linked pair,
+     * blue for every other, an entry or an inert portal.
      *
      * @param portal the portal
-     * @param link   the player's linked pair, empty for none
+     * @param links  every linked pair
      * @return 0xRRGGBB
      */
-    static int colorOf(Portal portal, Optional<QuantumPortals.Link> link) {
-        return link.isPresent() && link.get().exit().equals(portal) ? ORANGE_RGB : BLUE_RGB;
+    static int colorOf(Portal portal, List<QuantumPortals.Link> links) {
+        return links.stream().anyMatch(link -> link.exit().equals(portal)) ? ORANGE_RGB : BLUE_RGB;
     }
 
     /**
@@ -182,7 +183,7 @@ public final class PortalFaces {
         for (Portal portal : blinking) {
             int alpha = blinkAlpha(aimed.isPresent() && aimed.get().equals(portal), time);
             emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
-                    ARGB.color(alpha, colorOf(portal, ClientPortals.link())));
+                    ARGB.color(alpha, colorOf(portal, ClientPortals.links())));
         }
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
     }
@@ -209,7 +210,7 @@ public final class PortalFaces {
                 int alpha = blinking.contains(portal)
                         ? blinkAlpha(aimed.isPresent() && aimed.get().equals(portal), time) : OUTLINE_ALPHA;
                 emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
-                        ARGB.color(alpha, colorOf(portal, ClientPortals.link())));
+                        ARGB.color(alpha, colorOf(portal, ClientPortals.links())));
             }
         }
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_OUTLINE_TYPE);
@@ -225,7 +226,7 @@ public final class PortalFaces {
     private static List<Drawn> gatesIn(ResourceKey<Level> dimension) {
         List<Drawn> gates = new ArrayList<>();
         ClientPortals.portals().forEach(portal -> gates.add(new Drawn(portal.gate(),
-                colorOf(portal, ClientPortals.link()), false)));
+                colorOf(portal, ClientPortals.links()), false)));
         // linked-partner-chunks-stream-to-any-viewer
         ClientPortals.links().stream()
                 .filter(link -> !ClientPortals.portals().contains(link.entry()))

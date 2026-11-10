@@ -118,7 +118,7 @@ public final class PartnerStreaming {
         if (server.getTickCount() % STREAM_EVERY != 0) {
             return;
         }
-        Collection<QuantumPortals.Link> links = QuantumPortals.get(server.overworld()).links().values();
+        Collection<QuantumPortals.Link> links = QuantumPortals.get(server.overworld()).links();
         boolean resend = server.getTickCount() % RESEND_EVERY == 0;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             stream(player, links, resend);

@@ -15,8 +15,8 @@ import java.util.stream.Stream;
 
 /**
  * The local player's Quantum portals as the server last told them: every
- * portal they placed, the pair they linked and the portal they are choosing
- * a partner for.
+ * portal they placed, the portal they are choosing a partner for, and every
+ * pair linked in their level, theirs among them, as many as they linked.
  * portals-link-by-looking-through-portal-vision
  */
 public final class ClientPortals {
@@ -27,7 +27,6 @@ public final class ClientPortals {
     private static final double FACE_SLACK = 0.01;
 
     private static List<Portal> portals = List.of();
-    private static Optional<QuantumPortals.Link> link = Optional.empty();
     private static Optional<Portal> choosing = Optional.empty();
     private static List<QuantumPortals.Link> links = List.of();
     /** How far each portal has grown open since it was first told of. */
@@ -47,7 +46,6 @@ public final class ClientPortals {
     public static void handle(PortalsSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             portals = List.copyOf(payload.portals());
-            link = payload.link();
             choosing = payload.choosing();
             links = List.copyOf(payload.links());
             Minecraft mc = Minecraft.getInstance();
@@ -80,13 +78,6 @@ public final class ClientPortals {
      */
     public static List<Portal> portals() {
         return portals;
-    }
-
-    /**
-     * @return the pair the local player linked, empty for none
-     */
-    public static Optional<QuantumPortals.Link> link() {
-        return link;
     }
 
     /**

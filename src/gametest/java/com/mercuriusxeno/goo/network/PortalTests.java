@@ -105,7 +105,8 @@ public final class PortalTests {
      * Placing pairs unpaired portals: a portal placed alone stands inert; the
      * next pairs with it, the older the blue entry and the newer the orange
      * exit; a third, every other portal already paired, stands inert and the
-     * pair stands; a fourth pairs with the unpaired third
+     * pair stands; a fourth pairs with the unpaired third, and the first pair
+     * stays linked beside it, as many pairs as the player places
      * (decision portals-link-by-looking-through-portal-vision).
      *
      * @param helper the gametest helper
@@ -119,16 +120,18 @@ public final class PortalTests {
         Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
         helper.assertTrue(portals.partnerOf(first).isEmpty(), "A portal placed alone should stand inert");
         Portal second = castAt(helper, player, SECOND, Direction.NORTH);
-        helper.assertTrue(portals.linkOf(player.getUUID()).equals(Optional.of(new QuantumPortals.Link(first, second))),
+        helper.assertTrue(portals.linksOf(player.getUUID()).equals(List.of(new QuantumPortals.Link(first, second))),
                 "The next portal placed should pair with the unpaired first, the older blue and the newer orange, "
-                        + "holds " + portals.linkOf(player.getUUID()));
+                        + "holds " + portals.linksOf(player.getUUID()));
         Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
         helper.assertTrue(portals.partnerOf(third).isEmpty() && portals.partnerOf(first).equals(Optional.of(second)),
                 "A portal placed with every other portal paired should stand inert, the pair standing; holds "
-                        + portals.linkOf(player.getUUID()));
+                        + portals.linksOf(player.getUUID()));
         Portal fourth = castAt(helper, player, FOURTH, Direction.SOUTH);
-        helper.assertTrue(portals.linkOf(player.getUUID()).equals(Optional.of(new QuantumPortals.Link(third, fourth))),
-                "A fourth portal should pair with the unpaired third, holds " + portals.linkOf(player.getUUID()));
+        helper.assertTrue(portals.linksOf(player.getUUID()).equals(List.of(new QuantumPortals.Link(first, second),
+                new QuantumPortals.Link(third, fourth))), "A fourth portal should pair with the unpaired third, the "
+                + "first pair still linked beside it, holds " + portals.linksOf(player.getUUID()));
+        assertTethered(helper, player, first);
         assertTethered(helper, player, fourth);
         level.getServer().getPlayerList().remove(player);
         helper.succeed();
@@ -183,7 +186,7 @@ public final class PortalTests {
         Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
         helper.assertTrue(portals.partnerOf(third).isEmpty() && portals.partnerOf(first).isEmpty(),
                 "A portal placed after the last placed broke should stand inert, holds "
-                        + portals.linkOf(player.getUUID()));
+                        + portals.linksOf(player.getUUID()));
         level.getServer().getPlayerList().remove(player);
         helper.succeed();
     }
@@ -1063,8 +1066,8 @@ public final class PortalTests {
         helper.assertTrue(portals.choosing(player.getUUID()).equals(Optional.of(first)),
                 "Right clicking a portal with Portal in hand should enter choosing for it");
         PortalChoice.link(player, second);
-        helper.assertTrue(portals.linkOf(player.getUUID()).map(QuantumPortals.Link::entry).equals(Optional.of(first)),
-                "The portal chosen from should be the blue entry portal");
+        helper.assertTrue(portals.linksOf(player.getUUID()).contains(new QuantumPortals.Link(first, second)),
+                "The portal chosen from should be the blue entry portal, holds " + portals.linksOf(player.getUUID()));
         helper.assertTrue(portals.partnerOf(first).equals(Optional.of(second)),
                 "Linking should pair the chosen portal with the one right clicked");
         helper.assertTrue(portals.choosing(player.getUUID()).isEmpty(), "A link landing should end choosing");
