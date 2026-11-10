@@ -257,6 +257,8 @@ class ClientGateCarryTest {
 
         assertEquals(QUARTER_TURN, ClientExitTilts.tiltOf(DROPPED + 1, CARRIED_AT).map(tilt -> tilt.degrees())
                 .orElse(0.0), 1.0E-6, "The player should hold a quarter-turn tilt from the tick it emerged");
+        assertTrue(ClientExitTilts.tiltOf(DROPPED + 1, CARRIED_AT + EASE_TICKS).isEmpty(),
+                "The player's tilt should leave once it has eased to nothing");
     }
 
     private static final double QUARTER_TURN = 90.0;

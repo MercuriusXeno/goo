@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.quantum;
 
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -102,14 +103,18 @@ public record ViewCone(List<Bound> bounds) {
     }
 
     /**
-     * Whether a nested gate shows through a parent gate's opening to an eye.
+     * Whether a gate a pass looks at shows within the cone that pass sees
+     * through its openings: the main frame's cone is none and holds every
+     * gate; a view's is the cone through its gate's opening, met with every
+     * parent's, so a nested gate off to the side of the opening draws no view.
+     * nested-views-skip-when-tiny-or-outside-the-parent-opening
      *
-     * @param eye       the seeing eye
-     * @param parent    the gate looked through
-     * @param candidate the nested gate
-     * @return true where some of the candidate's blocks stand within the parent opening's cone
+     * @param cone      the cone the pass sees through, null for the main frame
+     * @param candidate the gate looked at
+     * @param touch     how far around the gate's blocks a sliver of it still counts
+     * @return true where some of the gate stands within the cone
      */
-    public static boolean showsThrough(Vec3 eye, Gate parent, Gate candidate) {
-        return through(eye, parent).holds(candidate.blocks());
+    public static boolean shows(@Nullable ViewCone cone, Gate candidate, double touch) {
+        return cone == null || cone.holds(candidate.blocks().inflate(touch));
     }
 }
