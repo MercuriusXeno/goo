@@ -19,8 +19,11 @@ float portalTexelsInside(vec2 across, vec2 texels, float edge) {
     return (edge - out_) / length(across / out_ * 2.0 / texels);
 }
 
-// A rim's strength at a point some texels inside the edge: whole on the edge's own texel, easing
-// to nothing a few texels in, one step a texel.
-float portalTexelRim(float texelsInside, float solid, float feather) {
-    return 1.0 - smoothstep(solid, solid + feather, texelsInside);
+// How faintly the texel just inside the rim takes its color.
+const float PORTAL_RIM_FAINT = 0.3;
+
+// A rim's strength at a texel: whole on the one ring of texels on the edge, faint on the ring just
+// inside it, nothing further in.
+float portalTexelRim(float texelsInside) {
+    return texelsInside < 1.0 ? 1.0 : (texelsInside < 2.0 ? PORTAL_RIM_FAINT : 0.0);
 }
