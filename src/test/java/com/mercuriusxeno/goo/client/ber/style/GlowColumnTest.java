@@ -9,7 +9,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import com.mercuriusxeno.goo.client.ability.GlowBeamMesh;
+import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
@@ -121,7 +121,7 @@ class GlowColumnTest {
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
         OrderedSubmitNodeCollector later = mock(OrderedSubmitNodeCollector.class);
         when(collector.order(anyInt())).thenReturn(later);
-        RenderType beam = GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE);
+        RenderType beam = GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION);
         submit.accept(collector);
         verify(collector, never()).submitCustomGeometry(any(PoseStack.class), eq(beam), any());
         verify(later, atLeastOnce()).submitCustomGeometry(any(PoseStack.class), eq(beam), any());

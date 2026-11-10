@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -49,7 +50,7 @@ public final class GlowReflectorStyle implements PrismComboStyle {
                 poseStack.mulPose(GlowBeamMesh.alongBeam(link));
                 float length = (float) link.length();
                 nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
-                        GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE),
+                        GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
                         (pose, buffer) -> emitBeam(pose, buffer, length, share, scroll, breath));
                 poseStack.popPose();
             }
@@ -94,14 +95,14 @@ public final class GlowReflectorStyle implements PrismComboStyle {
      * @param length how far the linked prism's middle lies, in blocks
      * @param share  the network's light as a share of the brightest
      * @param scroll the texture's scroll offset in [0, 1)
-     * @param breath the alpha share {@link GlowBeamMesh#breath} answered, on top of the light share
+     * @param breath the share of alpha and width {@link GlowBeamMesh#breath} answered, on top of the light share
      */
     static void emitBeam(PoseStack.Pose pose, VertexConsumer buffer, float length, float share, float scroll,
                          float breath) {
         float width = DIMMEST_WIDTH + (1f - DIMMEST_WIDTH) * share;
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             int color = GlowBeamMesh.breathed(layer.color(), share * breath);
-            GlowBeamMesh.emitLayerFadingAtBothEnds(pose, buffer, layer.radius() * width, color, scroll, length,
+            GlowBeamMesh.emitLayerFadingAtBothEnds(pose, buffer, layer.radius() * width * breath, color, scroll, length,
                     layer.depth());
         }
     }

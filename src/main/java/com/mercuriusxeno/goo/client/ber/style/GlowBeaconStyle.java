@@ -39,15 +39,16 @@ public final class GlowBeaconStyle implements PrismComboStyle {
         float breath = GlowBeamMesh.breath(state.animationTime);
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
-                    GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE),
+                    GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
                     (pose, buffer) -> emitBeaconLayer(pose, buffer, layer, state.beamRadiusScale, scroll, breath));
         }
         poseStack.popPose();
     }
 
     /**
-     * Emits one layer of the beacon's beam, its alpha scaled by the breath
-     * and its width left as the radius scale makes it.
+     * Emits one layer of the beacon's beam, its alpha and its width both
+     * scaled by the breath, so the whole beam dims and slims slightly at the
+     * ease and never grows past its own width (operator UAT 2026-11-10).
      * decision every-glow-beam-breathes-in-brightness
      *
      * @param pose        the pose at the beam's foot, its +y along the beam
@@ -55,12 +56,12 @@ public final class GlowBeaconStyle implements PrismComboStyle {
      * @param layer       the layer
      * @param radiusScale the factor the layer's radius takes
      * @param scroll      the texture's scroll offset in [0, 1)
-     * @param breath      the alpha share {@link GlowBeamMesh#breath} answered
+     * @param breath      the share of alpha and width {@link GlowBeamMesh#breath} answered
      */
     static void emitBeaconLayer(PoseStack.Pose pose, VertexConsumer buffer, GlowBeamMesh.Layer layer,
                                 float radiusScale, float scroll, float breath) {
-        GlowBeamMesh.emitLayer(pose, buffer, layer.radius() * radiusScale, GlowBeamMesh.breathed(layer.color(), breath),
-                scroll, BEAM_REACH);
+        GlowBeamMesh.emitLayer(pose, buffer, layer.radius() * radiusScale * breath,
+                GlowBeamMesh.breathed(layer.color(), breath), scroll, BEAM_REACH);
     }
 
     @Override
