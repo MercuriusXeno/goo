@@ -46,6 +46,23 @@ class PortalFacesTest {
         }
     }
 
+    /**
+     * A hole's mouth draws through the same oval, each corner carrying the
+     * count of its own box: a 3x3 mouth 48 by 48, a 1x2 mouth 16 by 32 and a
+     * 1x1 mouth 16 by 16.
+     */
+    @Test
+    void everyHolesMouthCarriesTheTexelCountOfItsOwnBox() {
+        for (Object[] mouth : new Object[][] {{THREE_BY_THREE, 48, 48}, {ONE_BY_TWO_WALL, 16, 32},
+                {new AABB(0, 64, 0, 1, 65, 1), 16, 16}}) {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+
+            PortalFaces.emitOval(new PoseStack().last(), consumer, (AABB) mouth[0], Direction.NORTH, -1);
+
+            verify(consumer, times(CORNERS)).setUv2((int) mouth[1], (int) mouth[2]);
+        }
+    }
+
     @Test
     void everyCornerOfAnOvalCarriesItsFacesTexelCount() {
         VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
