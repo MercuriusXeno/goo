@@ -1,33 +1,27 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * How a drained block peels into chunks that fly to the hand: the block's
- * outline cut into a grid of cells, neighbouring cells merged at random into
- * rigid chunks of mixed size, half a block, a slab, a bar or a lone cell, so
- * the block breaks into a few irregular chunks rather than a staircase of
- * little cubes; each cell's face wears its own cell of the block's face, so
- * the chunks standing together are the block. The chunks crumble off in
- * random order, each from the outside of what still stands, so the block
- * erodes unevenly rather than sweeping off in a staircase, their turns
- * spread over the drain from the square landing to the block drained, so the
- * block is seen coming apart and the last chunk leaves before the drain
- * ends; each then flies
- * straight from its place toward the glove at the stream's base pace,
- * following the glove as it moves, and is done at the glove. A cell's face
- * shows only where it bounds its chunk and no standing chunk covers it, so a
- * whole block draws as its shell.
- * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
- * decision unmake-drink-is-a-stream-of-break-particles
+ * How a block comes apart into chunks: the block's outline cut into a grid of
+ * cells, neighbouring cells merged at random into rigid chunks of mixed size,
+ * half a block, a slab, a bar or a lone cell, so the block breaks into a few
+ * irregular chunks rather than a staircase of little cubes; each cell's face
+ * wears its own cell of the block's face, so the chunks standing together are
+ * the block. The chunks crumble off in random order, each from the outside of
+ * what still stands, so the block erodes unevenly rather than sweeping off in
+ * a staircase, their turns spread over the crumble. A cell's face shows only
+ * where it bounds its chunk and no standing chunk covers it, so a whole block
+ * draws as its shell.
+ * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  */
-public final class DrinkRide {
+public final class BlockBreakup {
 
     /** Cells along each edge of the block, and along each edge of each of its faces' textures. */
     public static final int CELLS_ACROSS = 4;
@@ -35,8 +29,6 @@ public final class DrinkRide {
     public static final int CELLS = CELLS_ACROSS * CELLS_ACROSS * CELLS_ACROSS;
     /** The most cells a chunk spans along any edge. */
     public static final int LONGEST_SPAN = 2;
-    /** The share of its way to its blob left at which a shrinking chunk is gone. */
-    static final double VANISH_SHARE = 0.25;
     private static final double HALF = 0.5;
     private static final int X = 0;
     private static final int Y = 1;
@@ -50,16 +42,15 @@ public final class DrinkRide {
     };
     /**
      * The chance each of {@link #SHAPES} is taken where it fits: high for the big ones, so a block breaks into few
-     * chunks and a blob's converging chunks never crowd into a dark, tearing knot.
-     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
+     * chunks.
      */
     private static final double[] CHANCES = {0.6, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 1};
 
-    private DrinkRide() {
+    private BlockBreakup() {
     }
 
     /**
-     * One chunk of a peeling block: a box of the block's cells.
+     * One chunk of a block coming apart: a box of the block's cells.
      *
      * @param place   its middle while it stands in the block
      * @param least   the grid place of its least cell, along x, y and z
@@ -142,25 +133,26 @@ public final class DrinkRide {
     }
 
     /**
-     * @param block   the block peeling
+     * @param pos     where the block stands
+     * @param start   the game time its first chunk leaves
+     * @param end     the game time the crumble ends
      * @param outline the block's outline, within its cell
      * @param random  the random that merges its cells and picks which crumbles off next
      * @return how the block breaks up: its cells merged into chunks filling its outline, crumbling off in random
-     *         order, each from the outside of what still stands, their turns spread over the drain, every one before
-     *         the block is drained
+     *         order, each from the outside of what still stands, their turns spread from start, every one before end
      */
-    public static Breakup chunksOf(DrinkTree.Block block, AABB outline, RandomSource random) {
-        AABB box = outline.move(block.pos());
+    public static Breakup chunksOf(BlockPos pos, long start, long end, AABB outline, RandomSource random) {
+        AABB box = outline.move(pos);
         Vec3 least = new Vec3(box.minX, box.minY, box.minZ);
         Vec3 cellSize = new Vec3(box.getXsize(), box.getYsize(), box.getZsize()).scale(1.0 / CELLS_ACROSS);
         List<int[][]> boxes = crumbleOrder(mergedCells(random), random);
-        double drain = Math.max(1, block.end() - block.start());
+        double crumble = Math.max(1, end - start);
         List<Chunk> chunks = new ArrayList<>(boxes.size());
         int[] chunkOfCell = new int[CELLS];
         for (int turn = 0; turn < boxes.size(); turn++) {
             int[][] cells = boxes.get(turn);
             chunks.add(new Chunk(middleOf(least, cellSize, cells), cells[0], cells[1],
-                    block.start() + drain * turn / boxes.size()));
+                    start + crumble * turn / boxes.size()));
             claim(chunkOfCell, cells, turn);
         }
         return new Breakup(chunks, chunkOfCell, least, cellSize);
@@ -190,7 +182,6 @@ public final class DrinkRide {
      * from those on the outside of what still stands, touching the block's
      * outline or a box already gone, so the block erodes unevenly rather than
      * sweeping off in steps.
-     * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
      *
      * @param boxes  the merged boxes, in any order
      * @param random the random that picks each next box
@@ -331,21 +322,6 @@ public final class DrinkRide {
     /**
      * @param chunks a block's chunks
      * @param now    the game time, with the partial tick
-     * @return how many of them still stand in the block
-     */
-    public static int standingAt(List<Chunk> chunks, double now) {
-        int standing = 0;
-        for (Chunk chunk : chunks) {
-            if (stands(chunk, now)) {
-                standing++;
-            }
-        }
-        return standing;
-    }
-
-    /**
-     * @param chunks a block's chunks
-     * @param now    the game time, with the partial tick
      * @return by chunk index, whether that chunk still stands
      */
     public static boolean[] standingOf(List<Chunk> chunks, double now) {
@@ -442,62 +418,5 @@ public final class DrinkRide {
         public int down(int[] place, int last) {
             return downAgainst ? last - place[downAxis] : place[downAxis];
         }
-    }
-
-    /**
-     * @param release the game time its turn comes
-     * @param now     the game time, with the partial tick
-     * @return blocks it has flown from its place: none before its turn, then as far as the base pace carries it in
-     *         the time since
-     */
-    public static double distanceOf(double release, double now) {
-        return now < release ? 0 : DrinkStream.FLOW * (now - release);
-    }
-
-    /**
-     * @param from     where its flight leaves from
-     * @param glove    the drinker's glove
-     * @param distance blocks it has flown
-     * @return whether it has reached the glove
-     */
-    public static boolean done(Vec3 from, Vec3 glove, double distance) {
-        return distance >= from.distanceTo(glove);
-    }
-
-    /**
-     * How large a chunk flies at: whole in its place and as it leaves, then
-     * by what is left of its way, so the chunks taper into their blob, and
-     * gone for the last {@link #VANISH_SHARE} of it, so the many tiny chunks
-     * nearly there never crowd the blob into a dark, tearing knot.
-     * unmake-converges-near-the-unmade-blocks-into-a-goo-item
-     *
-     * @param chunk the chunk
-     * @param blob  where its blob stands now
-     * @param now   the game time, with the partial tick
-     * @return 1 for its whole size, 0 at the blob
-     */
-    public static double shrinkOf(Chunk chunk, Vec3 blob, double now) {
-        double way = chunk.place().distanceTo(blob);
-        double left = way <= 0 ? 0 : Math.clamp(1 - distanceOf(chunk.release(), now) / way, 0, 1);
-        return left < VANISH_SHARE ? 0 : left;
-    }
-
-    /**
-     * @param chunk the chunk
-     * @param glove the drinker's glove now
-     * @param now   the game time, with the partial tick
-     * @return where its middle stands: in its place before its turn, then on the line from there to the glove; or
-     *         null once it has reached the glove
-     */
-    public static @Nullable Vec3 pointOf(Chunk chunk, Vec3 glove, double now) {
-        Vec3 from = chunk.place();
-        double distance = distanceOf(chunk.release(), now);
-        if (distance == 0) {
-            return from;
-        }
-        if (done(from, glove, distance)) {
-            return null;
-        }
-        return from.lerp(glove, distance / from.distanceTo(glove));
     }
 }
