@@ -19,6 +19,22 @@ float portalTexelsInside(vec2 across, vec2 texels, float edge) {
     return (edge - out_) / length(across / out_ * 2.0 / texels);
 }
 
+// How deep a hole mouth's tear bites into the oval, as a share of its radius.
+const float HOLE_TEAR_DEPTH = 0.16;
+// How fast the tear shifts; GameTime runs once a day, so this sets turns per day.
+const float HOLE_TEAR_SPEED = 2400.0;
+
+// How far out a hole mouth's torn, shifting edge stands at an angle around the oval, one for a clean
+// oval's edge (decision hole-closes-the-space-to-an-opening-ahead). The mouth's own shader and its
+// halo both read it, so the halo starts where the tear ends (decision hole-mouths-wear-the-portal-halo).
+float holeTornEdge(float angle, float gameTime) {
+    float time = gameTime * HOLE_TEAR_SPEED;
+    float tear = 0.5 * sin(angle * 5.0 + time * 1.7)
+        + 0.3 * sin(angle * 11.0 - time * 2.9)
+        + 0.2 * sin(angle * 23.0 + time * 4.3);
+    return 1.0 - HOLE_TEAR_DEPTH * (0.5 + 0.5 * tear);
+}
+
 // How faintly the texel just inside the rim takes its color.
 const float PORTAL_RIM_FAINT = 0.3;
 

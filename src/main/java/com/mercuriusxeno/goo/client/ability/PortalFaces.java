@@ -28,6 +28,7 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Draws every gate as an oval on the face it covers, blue or orange: the
@@ -76,6 +77,13 @@ public final class PortalFaces {
      * shader's HALO_MARGIN_TEXELS counts the same reach in texels.
      */
     static final double HALO_MARGIN = 0.5;
+    /**
+     * A halo vertex's alpha marks the edge its oval draws, which the halo
+     * shader starts from: none for a portal's clean oval, whole for a hole
+     * mouth's torn edge. The halo's strength is the shader's own.
+     */
+    static final int CLEAN_EDGE = 0;
+    static final int TORN_EDGE = 255;
 
     private PortalFaces() {
     }
@@ -313,8 +321,10 @@ public final class PortalFaces {
 
     /**
      * Draws the halo of every placed portal, waiting or linked, blinking or
-     * not, glowing onto the wall around its oval in its own color.
+     * not, and of both mouths of each hole, glowing onto the wall around its
+     * edge in its own color.
      * portal-halo-glows-additively-onto-the-wall
+     * hole-mouths-wear-the-portal-halo
      *
      * @param pose    the pose
      * @param buffers the frame's buffers
@@ -323,13 +333,26 @@ public final class PortalFaces {
      */
     private static void drawHalos(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
             List<Drawn> gates) {
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
-        for (Drawn drawn : gates) {
-            if (!drawn.hole()) {
-                emitHalo(pose, consumer, drawn.drawnBox(camera), drawn.gate().face(), drawn.rgb());
-            }
-        }
+        emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE), gates, drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
+    }
+
+    /**
+     * Emits the halo of every gate the frame draws, each portal and each of
+     * a hole's two mouths, in its own color, a mouth's edge marked torn.
+     * portal-halo-glows-additively-onto-the-wall
+     * hole-mouths-wear-the-portal-halo
+     *
+     * @param pose     the pose
+     * @param consumer the halo pipeline's vertex consumer
+     * @param gates    the gates the frame draws
+     * @param boxOf    the box each gate draws over, camera-relative
+     */
+    static void emitHalos(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+            Function<Drawn, AABB> boxOf) {
+        for (Drawn drawn : gates) {
+            emitHalo(pose, consumer, boxOf.apply(drawn), drawn.gate().face(), drawn.rgb(), drawn.hole());
+        }
     }
 
     /**
@@ -369,7 +392,7 @@ public final class PortalFaces {
      * past its blocks on each way across the face, its corners mapped zero to
      * one across that wider quad and carrying its texel count, so the halo
      * shader draws on the same sixteen-texel grid as the rim and starts where
-     * the oval ends.
+     * the gate's edge ends.
      * portal-halo-glows-additively-onto-the-wall
      *
      * @param pose     the pose
@@ -377,12 +400,14 @@ public final class PortalFaces {
      * @param box      the gate's blocks, camera-relative
      * @param side     the face
      * @param rgb      the gate's color, 0xRRGGBB
+     * @param torn     whether the gate is a hole's mouth, its edge torn
      */
-    static void emitHalo(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int rgb) {
+    private static void emitHalo(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int rgb,
+            boolean torn) {
         Direction.Axis normal = side.getAxis();
         AABB halo = box.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN, normal == Direction.Axis.Y ? 0 : HALO_MARGIN,
                 normal == Direction.Axis.Z ? 0 : HALO_MARGIN);
-        emitOval(pose, consumer, halo, side, ARGB.color(OPAQUE, rgb));
+        emitOval(pose, consumer, halo, side, ARGB.color(torn ? TORN_EDGE : CLEAN_EDGE, rgb));
     }
 
     /**

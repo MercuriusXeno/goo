@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -10,10 +11,12 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import java.util.List;
+import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -35,7 +38,10 @@ class PortalFacesTest {
     private static final int[] SIXTEEN_BY_THIRTY_TWO = {16, 32};
     private static final int[] FORTY_EIGHT_SQUARE = {48, 48};
     private static final int CORNERS = 4;
-    private static final int OPAQUE = 255;
+    /** A one by two face's sixteen by thirty-two texels and a halo's eight more each side. */
+    private static final int[] THIRTY_TWO_BY_FORTY_EIGHT = {32, 48};
+    /** A drawn gate's box as its blocks stand, grown full open. */
+    private static final Function<PortalFaces.Drawn, AABB> BLOCKS_OF = drawn -> drawn.gate().blocks();
 
     @Test
     void aOneByTwoFaceRunsSixteenByThirtyTwoTexelsOnAWallAFloorAndACeiling() {
@@ -96,8 +102,6 @@ class PortalFacesTest {
         /** The portal it links to, the entry of the pair. */
         private static final Portal ENTRY = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(9, 64, 0)),
                 Direction.NORTH, Direction.UP);
-        /** The frame's sixteen by thirty-two texels and eight more each side. */
-        private static final int[] THIRTY_TWO_BY_FORTY_EIGHT = {32, 48};
         /** The frame's corners on x, half a block out each side. */
         private static final float[] XS = {-0.5F, 1.5F};
         /** The frame's corners on y, half a block out each end. */
@@ -109,21 +113,22 @@ class PortalFacesTest {
         void aWaitingPortalsHaloReachesTheMarginPastItsFrameInBlue() {
             int rgb = PortalFaces.colorOf(WALL, List.of());
 
-            assertHaloAround(rgb, ARGB.color(PortalFacesTest.OPAQUE, PortalFaces.BLUE_RGB));
+            assertHaloAround(rgb, ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.BLUE_RGB));
         }
 
         @Test
         void aLinkedExitsHaloReachesTheMarginPastItsFrameInOrange() {
             int rgb = PortalFaces.colorOf(WALL, List.of(new QuantumPortals.Link(ENTRY, WALL)));
 
-            assertHaloAround(rgb, ARGB.color(PortalFacesTest.OPAQUE, PortalFaces.ORANGE_RGB));
+            assertHaloAround(rgb, ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.ORANGE_RGB));
         }
 
         private void assertHaloAround(int rgb, int color) {
             VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
             PoseStack.Pose pose = new PoseStack().last();
+            Gate frame = new Gate(Level.OVERWORLD, WALL.blocks(), WALL.face(), new Vec3(0, 1, 0));
 
-            PortalFaces.emitHalo(pose, consumer, WALL.blocks(), WALL.face(), rgb);
+            PortalFaces.emitHalos(pose, consumer, List.of(new PortalFaces.Drawn(frame, rgb, false)), BLOCKS_OF);
 
             for (float x : XS) {
                 for (float y : YS) {
@@ -131,6 +136,57 @@ class PortalFacesTest {
                 }
             }
             verify(consumer, times(CORNERS)).setColor(color);
+            verify(consumer, times(CORNERS)).setUv2(THIRTY_TWO_BY_FORTY_EIGHT[0], THIRTY_TWO_BY_FORTY_EIGHT[1]);
+        }
+    }
+
+    /**
+     * Each of a wormhole's two mouths wears the portals' halo, the same
+     * margin past its own box, in the mouth's own color, its edge marked
+     * torn so the halo starts at the tear
+     * (decision hole-mouths-wear-the-portal-halo).
+     */
+    @Nested
+    class MouthHalo {
+
+        /** A three by three mouth on the north face of (0, 64, 0) to (3, 67, 1). */
+        private static final Gate THREE_BY_THREE_MOUTH = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 3, 67, 1),
+                Direction.NORTH, new Vec3(0, 1, 0));
+        /** A one by two mouth on the floor of (5, 63, 0) to (6, 64, 2). */
+        private static final Gate ONE_BY_TWO_MOUTH = new Gate(Level.OVERWORLD, new AABB(5, 63, 0, 6, 64, 2),
+                Direction.UP, new Vec3(0, 0, 1));
+
+        @Test
+        void aThreeByThreeMouthsHaloReachesTheMarginPastItsBoxInItsColor() {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+
+            PortalFaces.emitHalos(pose, consumer,
+                    List.of(new PortalFaces.Drawn(THREE_BY_THREE_MOUTH, PortalFaces.BLUE_RGB, true)), BLOCKS_OF);
+
+            for (float x : new float[] {-0.5F, 3.5F}) {
+                for (float y : new float[] {63.5F, 67.5F}) {
+                    verify(consumer).addVertex(pose, x, y, -0.01F);
+                }
+            }
+            verify(consumer, times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.BLUE_RGB));
+            verify(consumer, times(CORNERS)).setUv2(64, 64);
+        }
+
+        @Test
+        void aOneByTwoMouthsHaloReachesTheMarginPastItsBoxInItsColor() {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+
+            PortalFaces.emitHalos(pose, consumer,
+                    List.of(new PortalFaces.Drawn(ONE_BY_TWO_MOUTH, PortalFaces.ORANGE_RGB, true)), BLOCKS_OF);
+
+            for (float x : new float[] {4.5F, 6.5F}) {
+                for (float z : new float[] {-0.5F, 2.5F}) {
+                    verify(consumer).addVertex(pose, x, 64.01F, z);
+                }
+            }
+            verify(consumer, times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
             verify(consumer, times(CORNERS)).setUv2(THIRTY_TWO_BY_FORTY_EIGHT[0], THIRTY_TWO_BY_FORTY_EIGHT[1]);
         }
     }

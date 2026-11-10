@@ -10,6 +10,9 @@
 // The halo breaks into feathered tongues that circle the oval like a vortex while its outer reach
 // ripples in and out, never resting; every term reads the snapped texel center, so the motion steps
 // texel to texel (decision portal-halo-turns-and-ripples).
+// A hole's mouth wears the same halo, starting at the torn edge its own shader draws rather than a
+// clean oval, so the band along the tear stays as it draws; the vertex alpha marks the torn edge,
+// nothing for a portal and whole for a mouth (decision hole-mouths-wear-the-portal-halo).
 
 in vec2 frameCoord;
 flat in vec2 texels;
@@ -54,15 +57,17 @@ float tongues(float angle) {
 void main() {
     vec2 oval = texels - 2.0 * HALO_MARGIN_TEXELS;
     vec2 across = (portalTexelCenter(frameCoord, texels) * texels - HALO_MARGIN_TEXELS) / oval * 2.0 - 1.0;
-    float beyond = -portalTexelsInside(across, oval, 1.0);
+    float around = atan(across.y, across.x);
+    float edge = mix(1.0, holeTornEdge(around, GameTime), frameColor.a);
+    float beyond = -portalTexelsInside(across, oval, edge);
     if (beyond <= 0.0) {
         discard;
     }
     float seconds = GameTime * SECONDS_PER_DAY;
-    float angle = atan(across.y, across.x) + seconds * TAU / HALO_TURN_SECONDS;
+    float angle = around + seconds * TAU / HALO_TURN_SECONDS;
     float ripple = sin(seconds * TAU / HALO_RIPPLE_SECONDS) * HALO_RIPPLE_TEXELS;
     float tongue = mix(HALO_GAP_REACH, 1.0, tongues(angle));
     float reach = min(HALO_REACH_TEXELS * tongue + ripple, HALO_REACH_LIMIT);
     float fade = max(1.0 - beyond / max(reach, 1.0), 0.0);
-    fragColor = vec4(frameColor.rgb, frameColor.a * HALO_STRENGTH * fade * fade);
+    fragColor = vec4(frameColor.rgb, HALO_STRENGTH * fade * fade);
 }
