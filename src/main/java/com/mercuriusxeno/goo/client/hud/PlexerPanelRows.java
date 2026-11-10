@@ -5,16 +5,15 @@ import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * The plexer panel's rows over plain values: the target item's model beside its name
- * (decision plexer-target-shows-in-a-hud-element), then what the target costs to make.
+ * The plexer panel's rows over plain values: what one operation on the target costs, alone, since
+ * the cutaway already shows the item (decisions plexer-target-shows-in-a-hud-element and
+ * plexer-hud-shows-the-cost-alone).
  */
 final class PlexerPanelRows {
 
@@ -22,21 +21,12 @@ final class PlexerPanelRows {
     }
 
     /**
-     * @param itemName the target item's name
-     * @param item     the target item's registry id, whose model the name row draws as its icon
-     * @param value    the target's goo value, or null when the client holds none
-     * @return the name row, the item beside its name, then one grid of the costs
+     * @param value the target's goo value, or null when the client holds none
+     * @return one grid of the costs, or no row when the target costs nothing the client knows
      */
-    static List<PanelRow> rows(String itemName, Identifier item, @Nullable GooValue value) {
-        List<PanelRow> rows = new ArrayList<>();
-        rows.add(PanelRow.itemRow(item, List.of(new PanelRow.TextSegment(itemName, PanelPainter.TEXT_COLOR))));
-        if (value != null) {
-            List<PanelAmountGrid.Cell> cells = costCells(value);
-            if (!cells.isEmpty()) {
-                rows.add(PanelRow.amounts(new PanelAmountGrid(cells)));
-            }
-        }
-        return rows;
+    static List<PanelRow> rows(@Nullable GooValue value) {
+        List<PanelAmountGrid.Cell> cells = value == null ? List.of() : costCells(value);
+        return cells.isEmpty() ? List.of() : List.of(PanelRow.amounts(new PanelAmountGrid(cells)));
     }
 
     /**
