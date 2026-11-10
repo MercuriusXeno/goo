@@ -141,7 +141,7 @@ public final class GatePassage {
      * @return true where the gate opens the block to the body
      */
     private static boolean opensTo(Gate gate, Entity entity, BlockPos pos, Vec3 middle) {
-        return gate.dimension().equals(entity.level().dimension()) && givesWay(gate, pos, entity.getDeltaMovement())
+        return gate.dimension().equals(entity.level().dimension()) && givesWay(gate, pos, entity)
                 && opensToPath(gate, middle, entity.getDeltaMovement(), entity.getBbWidth()) && !standsOn(gate, entity);
     }
 
@@ -150,16 +150,21 @@ public final class GatePassage {
      * lies on, or one framing it while the body moves in, so a body whose
      * middle goes in by the opening's edge is never stopped by its side on
      * the wall beside, as the operator found a slime thrown from just inside
-     * the oval's edge was.
+     * the oval's edge was. A player's framing blocks never give way: the
+     * server checks a player's step with the motion it last heard of, stale
+     * beside the motion its client stepped by, and where the stone gave way
+     * to the one and not the other the server set the player back, as the
+     * operator found walking into a portal's edge rubber band.
      * aim-and-shots-carry-through-linked-gates
      *
-     * @param gate   the gate
-     * @param pos    the block
-     * @param motion the body's motion this tick
+     * @param gate the gate
+     * @param pos  the block
+     * @param body the body
      * @return true where the block may give way
      */
-    static boolean givesWay(Gate gate, BlockPos pos, Vec3 motion) {
-        return gate.covers(pos) || gate.frames(pos) && motion.dot(gate.face().getUnitVec3()) < 0;
+    static boolean givesWay(Gate gate, BlockPos pos, Entity body) {
+        return gate.covers(pos) || gate.frames(pos) && !(body instanceof Player)
+                && body.getDeltaMovement().dot(gate.face().getUnitVec3()) < 0;
     }
 
     /**
