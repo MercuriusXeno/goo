@@ -20,8 +20,10 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import org.jspecify.annotations.Nullable;
@@ -33,11 +35,14 @@ import java.util.UUID;
 /**
  * Runs a rallied mob for its caster until the rally fades: it walks to the
  * caster's nearest enemy and strikes it with the rally's damage on every
- * strike interval; when the rally fades its buffs come off. While the
+ * strike interval, a player who attacked the caster first, and with no enemy
+ * in reach it follows the caster; when the rally fades its buffs come off. While the
  * caster's held effect stands, the rally re-runs around the caster, and when
  * the held effect ends every mob it rallied stands down.
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
+ * rallied-mobs-follow-the-player-who-rallied-them
+ * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RallyEvents {
@@ -51,6 +56,10 @@ public final class RallyEvents {
     /** Ticks between one strike and the next, a melee goal's cooldown. */
     static final int STRIKE_INTERVAL_TICKS = 20;
     private static final double CHASE_SPEED = 1.2;
+    /** The pace a rallied mob walks to its rallier at, its buffed speed carrying it. */
+    private static final double FOLLOW_SPEED = 1.0;
+    /** Ticks between one path to a moving rallier and the next. */
+    private static final int REPATH_TICKS = 10;
     /** Ticks between one re-run of a held rally and the next, well inside zoo_rally.json's duration. */
     static final int REFRESH_TICKS = 20;
     private static final String LOG_RALLY_REFUSED = "Rally {} refused its re-run: {}";
@@ -77,7 +86,79 @@ public final class RallyEvents {
             return;
         }
         if (caster instanceof LivingEntity living) {
-            nearestFoe(mob, living).ifPresent(foe -> fight(level, mob, foe, rally.damage()));
+            act(level, mob, living, rally);
+        }
+    }
+
+    /**
+     * Fights the caster's foe in reach, or with none follows the caster.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     *
+     * @param level  the mob's level
+     * @param mob    the rallied mob
+     * @param caster the entity that rallied it
+     * @param rally  the mob's rally
+     */
+    private static void act(ServerLevel level, Mob mob, LivingEntity caster, Rallied rally) {
+        List<RallyFoes.Candidate<LivingEntity>> nearby = candidatesNear(mob, caster);
+        Optional<LivingEntity> foe = RallyFoes.pick(caster.getUUID(), standingAttacker(mob, rally, nearby),
+                uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()), nearby);
+        switch (RallyFollow.choose(foe.isPresent(), mob.distanceToSqr(caster))) {
+            case FIGHT -> fight(level, mob, foe.orElseThrow(), rally.damage());
+            case FOLLOW -> follow(mob, caster);
+            case HOLD -> mob.getNavigation().stop();
+        }
+    }
+
+    /**
+     * The attacker the rally records while it stands as a foe, clearing the
+     * record once the attacker has died or left the mob's reach.
+     * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
+     *
+     * @param mob    the rallied mob
+     * @param rally  the mob's rally
+     * @param nearby the mobs in the rallied mob's reach
+     * @return the attacker's UUID, or null for none
+     */
+    private static @Nullable UUID standingAttacker(Mob mob, Rallied rally,
+                                                   List<RallyFoes.Candidate<LivingEntity>> nearby) {
+        UUID attacker = rally.attacker().orElse(null);
+        if (attacker != null && !RallyFoes.attackerStands(attacker, nearby)) {
+            mob.setData(GooAttachments.RALLIED, rally.withoutAttacker());
+            return null;
+        }
+        return attacker;
+    }
+
+    /**
+     * Records another player who damages a rallier, in melee or by a
+     * projectile, as the attacker on every mob that rallier rallied, so each
+     * turns on the attacker ahead of other foes.
+     * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
+     *
+     * @param event the damage event, after the damage landed
+     */
+    @SubscribeEvent
+    public static void onRallierHurt(LivingDamageEvent.Post event) {
+        if (event.getEntity() instanceof ServerPlayer rallier
+                && event.getSource().getEntity() instanceof Player attacker && attacker != rallier) {
+            UUID attackerId = attacker.getUUID();
+            for (Mob mob : ralliedBy(rallier)) {
+                mob.setData(GooAttachments.RALLIED, mob.getData(GooAttachments.RALLIED).withAttacker(attackerId));
+            }
+        }
+    }
+
+    /**
+     * Walks a rallied mob toward its rallier, re-pathing as the rallier moves.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     *
+     * @param mob     the rallied mob
+     * @param rallier the entity that rallied it
+     */
+    private static void follow(Mob mob, LivingEntity rallier) {
+        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
+            mob.getNavigation().moveTo(rallier, FOLLOW_SPEED);
         }
     }
 
@@ -124,6 +205,16 @@ public final class RallyEvents {
      * @param player the holder
      */
     public static void standDown(ServerPlayer player) {
+        ralliedBy(player).forEach(RallyEvents::endRally);
+    }
+
+    /**
+     * Every loaded mob a player rallied.
+     *
+     * @param player the rallier
+     * @return the mobs whose rally names the player as caster
+     */
+    private static List<Mob> ralliedBy(ServerPlayer player) {
         UUID holder = player.getUUID();
         List<Mob> rallied = new ArrayList<>();
         for (Entity entity : player.level().getAllEntities()) {
@@ -132,7 +223,7 @@ public final class RallyEvents {
                 rallied.add(mob);
             }
         }
-        rallied.forEach(RallyEvents::endRally);
+        return rallied;
     }
 
     /**
@@ -233,11 +324,10 @@ public final class RallyEvents {
         }
     }
 
-    private static Optional<LivingEntity> nearestFoe(Mob mob, LivingEntity caster) {
-        return RallyFoes.pick(caster.getUUID(), uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()),
-                mob.level().getEntitiesOfClass(LivingEntity.class, mob.getBoundingBox().inflate(FOE_REACH),
-                                near -> near != mob && near != caster && !near.hasData(GooAttachments.RALLIED))
-                        .stream().map(near -> candidate(mob, near)).toList());
+    private static List<RallyFoes.Candidate<LivingEntity>> candidatesNear(Mob mob, LivingEntity caster) {
+        return mob.level().getEntitiesOfClass(LivingEntity.class, mob.getBoundingBox().inflate(FOE_REACH),
+                        near -> near != mob && near != caster && !near.hasData(GooAttachments.RALLIED))
+                .stream().map(near -> candidate(mob, near)).toList();
     }
 
     private static RallyFoes.Candidate<LivingEntity> candidate(Mob rallied, LivingEntity near) {

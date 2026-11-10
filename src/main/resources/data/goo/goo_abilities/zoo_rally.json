@@ -13,8 +13,7 @@
       "radius": 12,
       "where": ["living", "peaceful"],
       "steps": [
-        { "type": "rally", "duration": 100, "damage": 6, "health": 1.5, "speed": 0.5 },
-        { "type": "ailment_overlay", "kind": "zoo", "duration": 100 }
+        { "type": "rally", "duration": 100, "damage": 6, "health": 1.5, "speed": 0.5 }
       ]
     }
   ],
