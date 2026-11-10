@@ -83,10 +83,10 @@ class AbilityBadgeTest {
 
     /**
      * The badges a shipped ability may wear, read from its own fields: channeled for a stream or for any delivery that charges or writes a hold's ticks
-     * per charge, durative for a self delivery paying upkeep, instant or free for any other self
-     * delivery, and for a thrown ability mob where it targets entities and world elsewhere. Free
-     * and prism are carried by the badge alone, since no field marks them, so a thrown ability
-     * wearing either passes on its badge, and a self delivery passes wearing free.
+     * per charge, durative for a self delivery paying upkeep, instant for any other self delivery,
+     * and for a thrown ability mob where it targets entities and world elsewhere. Free and
+     * prism are carried by the badge alone, since no field marks them, so a thrown ability
+     * wearing either passes on its badge.
      *
      * @param definition the shipped ability
      * @param delivery   the ability's delivery block as written in its JSON
@@ -97,10 +97,8 @@ class AbilityBadgeTest {
         return switch (definition.delivery().kind()) {
             case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);
             // self-effects-trickle-until-ended
-            case SELF -> definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP
-                    ? EnumSet.of(AbilityBadge.DURATIVE)
-                    // reap-is-crissaegrim-slashes-that-harvest-and-cut
-                    : holds ? EnumSet.of(AbilityBadge.CHANNELED) : EnumSet.of(AbilityBadge.SELF, AbilityBadge.FREE);
+            case SELF -> EnumSet.of(definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP ? AbilityBadge.DURATIVE
+                    : holds ? AbilityBadge.CHANNELED : AbilityBadge.SELF);
             default -> holds ? EnumSet.of(AbilityBadge.CHANNELED)
                     : EnumSet.of(definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD,
                             AbilityBadge.FREE, AbilityBadge.PRISM);

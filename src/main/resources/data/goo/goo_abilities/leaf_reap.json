@@ -1,15 +1,14 @@
 {
   "gooType": "leaf",
   "displayName": "goo.ability.leaf.reap",
-  "badge": "free",
+  "badge": "channeled",
   "order": 3,
   "cost": 1000,
   "requires": ["minecraft:wheat", "minecraft:wheat_seeds"],
-  "delivery": { "kind": "self" },
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "slash", "slashes": 5, "cone": 100, "reach": 6, "flight_ticks": 5, "stagger_ticks": 2,
-      "damage": 4, "invulnerable_ticks": 2 },
-    { "type": "sound", "id": "minecraft:entity.player.attack.sweep", "at": "target", "source": "players", "volume": 1, "pitch": 1.2 }
+    { "type": "slash", "every_ticks": 3, "travel": 2, "drift": 1, "width": 2.5, "depth": 0.8,
+      "width_ticks": 3, "depth_ticks": 5, "drift_ticks": 3, "damage": 1 }
   ],
   "tags": ["self"],
   "pose": "swung"
