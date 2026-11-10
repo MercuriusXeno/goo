@@ -44,16 +44,22 @@ class VatPanelRowsTest {
         assertTrue(rows.isEmpty());
     }
 
-    /** A stack holding goo and water paints one goo row per type, then the water bucket row the canister draws. */
+    /**
+     * A stack holding goo and water paints its goo as one grid block in the contents' order, then the water bucket
+     * row the canister draws (decision one-class-lays-every-huds-goo-values).
+     */
     @Test
     void stackHoldingGooAndWaterPaintsBoth() {
         GooContents goo = new GooContents(Map.of(GooTypes.ROCK, 1000, GooTypes.BLAZE, 500));
         List<PanelRow> rows = VatPanelRows.rows(vat(goo, WATER, ContainerCapacity.VAT_BASE));
 
-        List<PanelRow> gooRows = rows.subList(0, 2);
-        assertEquals(4, rows.size());
-        assertFalse(gooRows.stream().anyMatch(PanelRow::seeThrough));
-        assertEquals(PanelPainter.waterRow(WATER), rows.get(2));
+        List<PanelAmountGrid.Cell> cells = goo.getAll().entrySet().stream()
+                .map(entry -> PanelAmountGrid.Cell.amount(entry.getKey(), GooFormat.formatAmount(entry.getValue())))
+                .toList();
+        assertEquals(3, rows.size());
+        assertEquals(PanelRow.amounts(new PanelAmountGrid(cells)), rows.getFirst());
+        assertFalse(rows.getFirst().seeThrough());
+        assertEquals(PanelPainter.waterRow(WATER), rows.get(1));
     }
 
     /** The last row reads the goo and water together against the capacity the stack's void grows. */
@@ -81,7 +87,8 @@ class VatPanelRowsTest {
         assertEquals(List.of(
                 PanelPainter.labelRow(TANK),
                 PanelPainter.gooLabelRow(GooTypes.BLAZE),
-                PanelPainter.gooRow(GooTypes.BLAZE, GooFormat.formatAmount(BLAZE)),
+                PanelRow.amounts(new PanelAmountGrid(List.of(
+                        PanelAmountGrid.Cell.amount(GooTypes.BLAZE, GooFormat.formatAmount(BLAZE))))),
                 PanelPainter.fillRow(BLAZE, ContainerCapacity.VAT_BASE)), rows);
     }
 
@@ -93,7 +100,8 @@ class VatPanelRowsTest {
 
         assertEquals(List.of(
                 PanelPainter.labelRow(TANK),
-                PanelPainter.gooRow(GooTypes.BLAZE, GooFormat.formatAmount(BLAZE)),
+                PanelRow.amounts(new PanelAmountGrid(List.of(
+                        PanelAmountGrid.Cell.amount(GooTypes.BLAZE, GooFormat.formatAmount(BLAZE))))),
                 PanelPainter.fillRow(BLAZE, ContainerCapacity.VAT_BASE)), rows);
     }
 
