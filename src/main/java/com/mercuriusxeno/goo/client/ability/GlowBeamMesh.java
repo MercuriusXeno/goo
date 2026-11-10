@@ -26,17 +26,19 @@ public final class GlowBeamMesh {
      * The beam's layers from the core out, each wider and fainter than the
      * last; slimmed and dimmed after UAT found them too bright and too thick
      * (operator ruling 2026-10-09), then made smaller with the layers drawn
-     * tighter together (operator ruling 2026-11-08). Each fades out past a
+     * tighter together (operator ruling 2026-11-08), then widened by half
+     * again once each layer became one feathered strip and read too skinny
+     * beside the tube it replaced (operator UAT 2026-11-10). Each fades out past a
      * prism-bound end by a depth, the core deepest, every depth under half a
      * block so the bloom stays inside the prism's block whether the beam stops
      * on its face or runs into its middle, as a reflector rail does.
      * decision reflector-rail-blooms-out-inside-the-prism
      */
     public static final List<Layer> LAYERS = List.of(
-            new Layer(0.035f, ARGB.color(120, 0xFFF6C8), 0.45f),
-            new Layer(0.06f, ARGB.color(66, 0xFFE628), 0.35f),
-            new Layer(0.095f, ARGB.color(27, 0xFFD700), 0.25f),
-            new Layer(0.14f, ARGB.color(11, 0xFFD700), 0.15f));
+            new Layer(0.0525f, ARGB.color(120, 0xFFF6C8), 0.45f),
+            new Layer(0.09f, ARGB.color(66, 0xFFE628), 0.35f),
+            new Layer(0.1425f, ARGB.color(27, 0xFFD700), 0.25f),
+            new Layer(0.21f, ARGB.color(11, 0xFFD700), 0.15f));
     /**
      * Glow's soft beam texture, transparent at both side columns and opaque
      * at mid-width, which every face runs across its whole width so the
