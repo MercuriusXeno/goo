@@ -20,8 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * frames show it: a thick crescent lying nearly flat in a plane along the
  * look, wholly below the eye line, hollow toward the slasher and bulging
  * away, its tips about a block out and its bulge growing with its size, which
- * varies three-fold with its thickness; appearing whole and dimming as it
- * drifts a little outward; the box it cuts; and the shipped Reap channeled
+ * runs from small to huge with its thickness, as often small or huge as middling;
+ * appearing whole, then shrinking to nothing as it travels outward, a thinner
+ * outer blade running out ahead of it; the box it cuts; and the shipped Reap channeled
  * with nothing thrown.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
@@ -29,8 +30,8 @@ class ReapSlashTest {
 
     private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
     private static final Vec3 LEVEL_SOUTH = new Vec3(0, 0, 1);
-    private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(1, 1.5, 4.5, 0.5, 1.5, 0.55, 0.6, 1.0,
-            Math.toRadians(10), 0.4, 4);
+    private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(1, 0.8, 6, 0.3, 2.0, 0.55, 0.6, 1.0,
+            Math.toRadians(10), 1.5, 2.5, 6);
     private static final int SAMPLES = 2000;
     private static final double TOLERANCE = 1e-6;
 
@@ -82,10 +83,11 @@ class ReapSlashTest {
             double highest = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < SAMPLES; i++) {
                 ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
-                for (double age : new double[] {0, SHAPE.lifeTicks()}) {
+                for (double age : new double[] {0, SHAPE.lifeTicks() / 2.0, SHAPE.lifeTicks()}) {
                     for (int step = 0; step <= 20; step++) {
                         for (double layer : new double[] {0, 1}) {
                             highest = Math.max(highest, slash.pointAt(age, step / 20.0, layer).y - EYE.y);
+                            highest = Math.max(highest, slash.outerPointAt(age, step / 20.0, layer).y - EYE.y);
                         }
                     }
                 }
@@ -106,7 +108,7 @@ class ReapSlashTest {
         }
 
         @Test
-        void itsSizeRunsFromOneAndAHalfToFourAndAHalfAcrossThickeningWithIt() {
+        void itsSizeRunsFromUnderABlockToSixAcrossThickeningWithIt() {
             RandomSource random = RandomSource.create(5L);
             double narrowest = Double.MAX_VALUE;
             double widest = 0;
@@ -114,12 +116,32 @@ class ReapSlashTest {
                 ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
                 double width = slash.pointAt(0, 0, 1).distanceTo(slash.pointAt(0, 1, 1));
                 double thickness = slash.pointAt(0, 0.5, 1).distanceTo(slash.pointAt(0, 0.5, 0));
-                assertTrue(width >= 1.5 - TOLERANCE && width <= 4.5 + TOLERANCE, "width " + width);
-                assertEquals((width - 1.5) / 3, (thickness - 0.5) / 1.0, 0.001, "width " + width + ", thick " + thickness);
+                assertTrue(width >= 0.8 - TOLERANCE && width <= 6 + TOLERANCE, "width " + width);
+                assertEquals((width - 0.8) / 5.2, (thickness - 0.3) / 1.7, 0.001, "width " + width + ", thick " + thickness);
                 narrowest = Math.min(narrowest, width);
                 widest = Math.max(widest, width);
             }
-            assertTrue(narrowest < 1.7 && widest > 4.3, "sizes " + narrowest + " to " + widest);
+            assertTrue(narrowest < 1.0 && widest > 5.8, "sizes " + narrowest + " to " + widest);
+        }
+
+        @Test
+        void smallAndHugeSlashesComeUpAsOftenAsMiddlingOnes() {
+            RandomSource random = RandomSource.create(8L);
+            int small = 0;
+            int middling = 0;
+            int huge = 0;
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
+                double share = (slash.width() - 0.8) / 5.2;
+                if (share < 1 / 3.0) {
+                    small++;
+                } else if (share > 2 / 3.0) {
+                    huge++;
+                } else {
+                    middling++;
+                }
+            }
+            assertTrue(small >= middling && huge >= middling, "small " + small + ", middling " + middling + ", huge " + huge);
         }
 
         @Test
@@ -144,12 +166,28 @@ class ReapSlashTest {
         }
 
         @Test
-        void itDriftsALittleOutwardAsItDims() {
-            double drifted = ahead(slash.pointAt(SHAPE.lifeTicks(), 0.5, 1)) - ahead(slash.pointAt(0, 0.5, 1));
-            assertEquals(0.4, drifted, TOLERANCE);
+        void itTravelsOutwardAsItShrinksToNothing() {
+            double half = SHAPE.lifeTicks() / 2.0;
+            double travelled = ahead(slash.pointAt(SHAPE.lifeTicks(), 0.5, 1)) - ahead(slash.pointAt(0, 0.5, 1));
+            assertEquals(1.5, travelled, TOLERANCE);
+            assertEquals(slash.width() / 2, slash.pointAt(half, 0, 1).distanceTo(slash.pointAt(half, 1, 1)), TOLERANCE);
+            assertEquals(slash.thickness() / 2, slash.pointAt(half, 0.5, 1).distanceTo(slash.pointAt(half, 0.5, 0)),
+                    TOLERANCE);
+            assertEquals(0, slash.pointAt(SHAPE.lifeTicks(), 0, 1).distanceTo(slash.pointAt(SHAPE.lifeTicks(), 1, 1)),
+                    TOLERANCE);
+        }
+
+        @Test
+        void aThinnerOuterBladeRunsOutAheadOfItFartherAndShrinksToo() {
+            double life = SHAPE.lifeTicks();
+            assertTrue(ahead(slash.outerPointAt(0, 0.5, 1)) > ahead(slash.pointAt(0, 0.5, 1)), "it starts beyond the body");
+            double outerThickness = slash.outerPointAt(0, 0.5, 1).distanceTo(slash.outerPointAt(0, 0.5, 0));
+            assertEquals(slash.thickness() * 0.25, outerThickness, TOLERANCE);
+            double travelled = ahead(slash.outerPointAt(life, 0.5, 1)) - ahead(slash.outerPointAt(0, 0.5, 1));
+            assertEquals(2.5, travelled, TOLERANCE);
+            assertEquals(0, slash.outerPointAt(life, 0, 1).distanceTo(slash.outerPointAt(life, 1, 1)), TOLERANCE);
         }
     }
-
     @Nested
     class Box {
 
@@ -159,6 +197,7 @@ class ReapSlashTest {
             AABB box = slash.box();
             assertTrue(box.contains(slash.pointAt(0, 0.5, 0.5)), "the crescent's middle");
             assertTrue(box.contains(slash.pointAt(SHAPE.lifeTicks(), 0.5, 1)), "its bulge once drifted");
+            assertTrue(box.contains(slash.outerPointAt(SHAPE.lifeTicks(), 0.5, 1)), "its outer blade once run out");
             assertFalse(box.contains(EYE.add(0, 0, -1)), "behind the slasher");
         }
     }
@@ -182,12 +221,12 @@ class ReapSlashTest {
         }
 
         @Test
-        void reapsSlashesRunOneAndAHalfToFourAndAHalfAcrossFlatAndUnderTheEye() {
+        void reapsSlashesRunUnderABlockToSixAcrossFlatAndUnderTheEye() {
             SlashStep step = (SlashStep) reap.behaviors().getFirst();
-            assertEquals(1.5, step.narrowest().evaluate(null), TOLERANCE);
-            assertEquals(4.5, step.widest().evaluate(null), TOLERANCE);
-            assertEquals(0.5, step.thinnest().evaluate(null), TOLERANCE);
-            assertEquals(1.5, step.thickest().evaluate(null), TOLERANCE);
+            assertEquals(0.8, step.narrowest().evaluate(null), TOLERANCE);
+            assertEquals(6, step.widest().evaluate(null), TOLERANCE);
+            assertEquals(0.3, step.thinnest().evaluate(null), TOLERANCE);
+            assertEquals(2.0, step.thickest().evaluate(null), TOLERANCE);
             assertEquals(10, step.tilt().evaluate(null), TOLERANCE);
             assertEquals(0.6, step.dropLeast().evaluate(null), TOLERANCE);
             assertEquals(1.0, step.dropMost().evaluate(null), TOLERANCE);

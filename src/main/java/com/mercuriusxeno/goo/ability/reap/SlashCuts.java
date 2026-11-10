@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockVisuals;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
@@ -36,7 +35,6 @@ public final class SlashCuts {
 
     /** The ticks a reaped plant's afterimage takes to fade. */
     static final int AFTERIMAGE_TICKS = 12;
-    private static final double BODY_MIDDLE = 0.5;
     /** Trimmed off a box's far faces so a box ending on a cell's face holds none of that cell. */
     private static final double FACE_TRIM = 1e-6;
 
@@ -133,8 +131,7 @@ public final class SlashCuts {
 
     /**
      * Cuts a body with the magic Leaf's toxin hurts with, clearing its
-     * immunity on both sides so every slash's cut lands and flashes, and puffs
-     * a sweep where the slash connects.
+     * immunity on both sides so every slash's cut lands and flashes.
      *
      * @param level  the server level
      * @param body   the body cut
@@ -144,7 +141,5 @@ public final class SlashCuts {
         body.invulnerableTime = 0;
         body.hurtServer(level, level.damageSources().magic(), damage);
         body.invulnerableTime = 0;
-        level.sendParticles(ParticleTypes.SWEEP_ATTACK, body.getX(), body.getY() + body.getBbHeight() * BODY_MIDDLE,
-                body.getZ(), 1, 0, 0, 0, 0);
     }
 }
