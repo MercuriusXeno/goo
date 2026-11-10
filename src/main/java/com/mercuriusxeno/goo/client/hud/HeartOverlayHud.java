@@ -37,7 +37,9 @@ import java.util.Optional;
  * and barkskin-bark-hearts-thorn-and-burn), and while Stoneskin stands each
  * missing heart it fills reads stone (decision
  * stoneskin-stone-hearts-block-regeneration), and while Ancient stands the
- * leftmost heart reads ancient (decision hud-draws-the-leftmost-heart-as-ancient).
+ * leftmost heart reads ancient (decision hud-draws-the-leftmost-heart-as-ancient),
+ * and while Undead stands each real heart reads zombie under the nether
+ * filling the missing ones (decision undead-normal-hearts-become-the-zombie-heart).
  * While Reserve stands, its banked
  * hearts draw in their own sprite as a row behind vanilla's, before
  * vanilla draws, and each half heart the drain takes travels from the bar to
@@ -68,6 +70,8 @@ public final class HeartOverlayHud {
     private static final Identifier CRYSTAL_HALF = sprite("crystal_half");
     private static final Identifier ANCIENT_FULL = sprite("ancient_full");
     private static final Identifier ANCIENT_HALF = sprite("ancient_half");
+    private static final Identifier ZOMBIE_FULL = sprite("zombie_full");
+    private static final Identifier ZOMBIE_HALF = sprite("zombie_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
     private static final Identifier RESERVE_HALF = sprite("reserve_half");
     /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
@@ -299,25 +303,39 @@ public final class HeartOverlayHud {
     }
 
     /**
-     * The sprites a heart slot draws, bottom first: Ancient's ancient heart
-     * over the leftmost slot alone, every other kind's sprites alike in every slot.
+     * The whole sprites a heart slot draws, bottom first: Ancient's ancient
+     * heart over the leftmost slot alone, Undead's zombie heart over the real
+     * halves with nether over the missing ones, and every other kind's sprites
+     * alike in every slot. A filled half beside a half heart draws as columns
+     * instead (stoneBesideHalfHeart), so it lays no whole sprite here.
      *
      * @param kind         the overlay's kind
      * @param slot         the heart slot, from the left
      * @param shieldHalves the half hearts of shield over the slot
-     * @param realHalves   the half hearts of real health in the slot, one or two
+     * @param realHalves   the half hearts of real health in the slot, zero to two
      * @return the sprites, bottom first
      */
     static List<Identifier> slotSprites(HeartKind kind, int slot, int shieldHalves, int realHalves) {
-        if (kind != HeartKind.ANCIENT) {
-            return heartSprites(kind, shieldHalves, realHalves);
-        }
         List<Identifier> sprites = new ArrayList<>();
+        if (kind == HeartKind.ANCIENT) {
+            addAncient(sprites, slot, realHalves);
+            return sprites;
+        }
+        if (kind == HeartKind.UNDEAD) {
+            // undead-normal-hearts-become-the-zombie-heart: the real hearts read zombie under the nether fill
+            addHalves(sprites, realHalves, ZOMBIE_HALF, ZOMBIE_FULL);
+        }
+        if (!stoneBesideHalfHeart(kind, shieldHalves, realHalves)) {
+            sprites.addAll(heartSprites(kind, shieldHalves, realHalves));
+        }
+        return sprites;
+    }
+
+    private static void addAncient(List<Identifier> sprites, int slot, int realHalves) {
         if (slot == 0) {
             // hud-draws-the-leftmost-heart-as-ancient: the last heart lost reads ancient
             addHalves(sprites, realHalves, ANCIENT_HALF, ANCIENT_FULL);
         }
-        return sprites;
     }
 
     /**
@@ -566,14 +584,13 @@ public final class HeartOverlayHud {
                                Optional<RegrowCrawl.Crawl> crawl, float alpha, float fade) {
 
         void paint(int slot, int x, int y, int realHalves) {
+            for (Identifier sprite : slotSprites(overlay.kind(), slot, overlay.shieldAt(slot), realHalves)) {
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
+            }
             if (stoneBesideHalfHeart(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
                 // heart-effects-crawl-while-held: stone fills the empty half beside a half heart
                 blitColumns(graphics, missingFull(overlay.kind()), x, y, x + halfStart(1), x + halfEnd(1),
                         Math.round(alpha * OPAQUE_ALPHA) << ALPHA_SHIFT | WHITE_RGB);
-            } else {
-                for (Identifier sprite : slotSprites(overlay.kind(), slot, overlay.shieldAt(slot), realHalves)) {
-                    graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
-                }
             }
             // wood-crawls-across-regrowing-heart: the same crawl, bark creeping evenly over a bare half
             // heart-effects-crawl-while-held: stone crawls into a missing heart, where no real half stands

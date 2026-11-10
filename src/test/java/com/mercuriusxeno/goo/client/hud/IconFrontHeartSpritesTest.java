@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -10,14 +11,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Covers that the HUD's ancient heart is the heart the Ancient icon draws in
- * front, whole and halved as the other HUD hearts are
- * (decision hud-draws-the-leftmost-heart-as-ancient).
+ * Covers that a HUD heart drawn from an ability icon is the heart that icon
+ * draws in front, whole and halved as the other HUD hearts are: the ancient
+ * heart from the Ancient icon (decision hud-draws-the-leftmost-heart-as-ancient)
+ * and the zombie heart from the Undead icon (decision undead-normal-hearts-become-the-zombie-heart).
  */
-class AncientHeartSpritesTest {
+class IconFrontHeartSpritesTest {
 
     private static final String HEARTS = "/assets/goo/textures/gui/sprites/hud/heart/";
-    private static final String ANCIENT_ICON = "/assets/goo/textures/goo/ability/yore_ancient.png";
+    private static final String ICONS = "/assets/goo/textures/goo/ability/";
     private static final int SPRITE_SIDE = 9;
     /** The 7x7 heart's texels inside the 9x9 sprite. */
     private static final int HEART_FIRST = 1;
@@ -39,10 +41,11 @@ class AncientHeartSpritesTest {
     private static final int ICON_SHIFT_X = -1;
     private static final int ICON_SHIFT_Y = 8;
 
-    @Test
-    void ancientFullIsTheIconsFrontHeart() throws IOException {
-        BufferedImage full = read(HEARTS + "ancient_full.png");
-        BufferedImage icon = read(ANCIENT_ICON);
+    @ParameterizedTest
+    @CsvSource({"ancient, yore_ancient", "zombie, nether_undead"})
+    void fullHeartIsTheIconsFrontHeart(String heart, String ability) throws IOException {
+        BufferedImage full = read(HEARTS + heart + "_full.png");
+        BufferedImage icon = read(ICONS + ability + ".png");
         assertEquals(SPRITE_SIDE, full.getWidth());
         assertEquals(SPRITE_SIDE, full.getHeight());
         for (int y = 0; y < SPRITE_SIDE; y++) {
@@ -57,15 +60,11 @@ class AncientHeartSpritesTest {
         }
     }
 
-    private static boolean inHeart(int x, int y) {
-        return y >= HEART_FIRST && y <= HEART_LAST && x >= HEART_FIRST && x <= HEART_LAST
-                && HEART[y - HEART_FIRST].charAt(x - HEART_FIRST) == '#';
-    }
-
-    @Test
-    void ancientHalfIsTheLeftHalfOfTheFullHeart() throws IOException {
-        BufferedImage full = read(HEARTS + "ancient_full.png");
-        BufferedImage half = read(HEARTS + "ancient_half.png");
+    @ParameterizedTest
+    @CsvSource({"ancient", "zombie"})
+    void halfHeartIsTheLeftHalfOfTheFullHeart(String heart) throws IOException {
+        BufferedImage full = read(HEARTS + heart + "_full.png");
+        BufferedImage half = read(HEARTS + heart + "_half.png");
         assertEquals(SPRITE_SIDE, half.getWidth());
         assertEquals(SPRITE_SIDE, half.getHeight());
         for (int y = 0; y < SPRITE_SIDE; y++) {
@@ -78,8 +77,13 @@ class AncientHeartSpritesTest {
         }
     }
 
+    private static boolean inHeart(int x, int y) {
+        return y >= HEART_FIRST && y <= HEART_LAST && x >= HEART_FIRST && x <= HEART_LAST
+                && HEART[y - HEART_FIRST].charAt(x - HEART_FIRST) == '#';
+    }
+
     private static BufferedImage read(String path) throws IOException {
-        try (InputStream in = AncientHeartSpritesTest.class.getResourceAsStream(path)) {
+        try (InputStream in = IconFrontHeartSpritesTest.class.getResourceAsStream(path)) {
             assertNotNull(in, path + " is missing");
             return ImageIO.read(in);
         }
