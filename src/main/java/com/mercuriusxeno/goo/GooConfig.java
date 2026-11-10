@@ -74,7 +74,7 @@ public class GooConfig {
         builder.push("abilities");
 
         RADIANT_LIGHT_THRESHOLD = builder
-            .comment("Radiant leaves a wisp of light only in air whose light level is under this.")
+            .comment("Wisps leaves a wisp of light only in air whose light level is under this.")
             .defineInRange("radiantLightThreshold", DEFAULT_RADIANT_LIGHT_THRESHOLD, 0, MAX_LIGHT + 1);
 
         builder.pop();
