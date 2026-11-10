@@ -483,10 +483,11 @@ class AbilityLoaderTest {
 
         @Test
         void zeroCostAbilityNamingCostMechanicsAndNoFormulaFailsNamingTheField() {
-            String json = AbilityJson.read("rock_spire").replaceAll("\\s*\"cost_formula\"\\s*:\\s*\"[^\"]*\",?", "");
+            String json = AbilityJson.read("rock_terrakinesis")
+                    .replaceAll("\\s*\"cost_formula\"\\s*:\\s*\"[^\"]*\",?", "");
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText("rock_spire", json));
+                    () -> AbilityJson.decodeText("rock_terrakinesis", json));
 
             assertTrue(refusal.getMessage().contains("cost_formula"), refusal.getMessage());
         }
@@ -500,39 +501,39 @@ class AbilityLoaderTest {
     @Nested
     class CostMechanics {
 
-        private static final String SPIRE = "rock_spire";
-        private static final String NAMED_KEY = "\"cost_mechanics\": \"goo.ability.rock.spire.cost_mechanics\",";
+        private static final String TERRAKINESIS = "rock_terrakinesis";
+        private static final String TERRAKINESIS_KEY = "goo.ability.rock.terrakinesis.cost_mechanics";
+        private static final String NAMED_KEY = "\"cost_mechanics\": \"" + TERRAKINESIS_KEY + "\",";
 
-        private static String spireNamingNoCostMechanics() {
-            return AbilityJson.read(SPIRE).replaceAll("\\s*\"cost_mechanics\"\\s*:\\s*\"[^\"]*\",?", "");
+        private static String terrakinesisNamingNoCostMechanics() {
+            return AbilityJson.read(TERRAKINESIS).replaceAll("\\s*\"cost_mechanics\"\\s*:\\s*\"[^\"]*\",?", "");
         }
 
         @Test
         void zeroCostAbilityNamingNoCostMechanicsFailsNamingTheField() {
-            String json = spireNamingNoCostMechanics();
+            String json = terrakinesisNamingNoCostMechanics();
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText(SPIRE, json));
+                    () -> AbilityJson.decodeText(TERRAKINESIS, json));
 
             assertTrue(refusal.getMessage().contains("cost_mechanics"), refusal.getMessage());
         }
 
         @Test
         void absentCostNamingNoCostMechanicsFailsNamingTheField() {
-            String json = spireNamingNoCostMechanics().replaceAll("\"cost\"\\s*:\\s*0,", "");
+            String json = terrakinesisNamingNoCostMechanics().replaceAll("\"cost\"\\s*:\\s*0,", "");
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText(SPIRE, json));
+                    () -> AbilityJson.decodeText(TERRAKINESIS, json));
 
             assertTrue(refusal.getMessage().contains("cost_mechanics"), refusal.getMessage());
         }
 
         @Test
         void zeroCostAbilityNamingCostMechanicsLoadsWithThatKey() {
-            String json = spireNamingNoCostMechanics().replaceFirst("\\{", "{ " + NAMED_KEY);
+            String json = terrakinesisNamingNoCostMechanics().replaceFirst("\\{", "{ " + NAMED_KEY);
 
-            assertEquals(Optional.of("goo.ability.rock.spire.cost_mechanics"),
-                    AbilityJson.decodeText(SPIRE, json).costMechanics());
+            assertEquals(Optional.of(TERRAKINESIS_KEY), AbilityJson.decodeText(TERRAKINESIS, json).costMechanics());
         }
 
         @Test
