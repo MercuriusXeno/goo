@@ -88,14 +88,6 @@ public final class PortalFaces {
      * stands out, tuned by eye.
      */
     static final double TORNADO_HEIGHT = 2.0 / 16;
-    /**
-     * How far the hairs on the tube's front lip reach outward, in blocks,
-     * tuned by eye. Kept equal to the tube's depth, the shader's TUBE_SHARE
-     * splitting the tube from the lip at half.
-     */
-    private static final double TORNADO_HAIR_LENGTH = TORNADO_HEIGHT;
-    /** The share of the way along the tube and its lip where the tube ends: goo_portal_tornado.fsh's TUBE_SHARE. */
-    private static final double TUBE_SHARE = TORNADO_HEIGHT / (TORNADO_HEIGHT + TORNADO_HAIR_LENGTH);
     /** How many rings the tornado's tube rises in. */
     private static final int TORNADO_RINGS = 4;
     /** How many segments each of the tube's rings runs around the rim in, enough that it draws round. */
@@ -392,13 +384,11 @@ public final class PortalFaces {
     }
 
     /**
-     * Emits a gate's tornado as a rifled tube with a lip of hairs: rings
-     * trace the rim's oval, each next one standing farther off the face
-     * along its normal up to the named height, then one more ring flares out
-     * from the tube's front edge by the hair length. Each quad maps zero to
-     * one around the rim, and up the tube to TUBE_SHARE then out the lip to
-     * one, and every vertex carries the blocks around the rim and along the
-     * tube and lip at sixteen a block, for the shader's proportions.
+     * Emits a gate's tornado as a rifled tube: rings trace the rim's oval,
+     * each next one standing farther off the face along its normal up to the
+     * named height. Each quad maps zero to one around the rim and up the
+     * tube, and every vertex carries the texels around the rim and up the
+     * tube at sixteen a block.
      * tornadic-halo-spirals-out-from-the-rim
      *
      * @param pose     the pose
@@ -409,12 +399,13 @@ public final class PortalFaces {
     private static void emitTornado(PoseStack.Pose pose, VertexConsumer consumer, Tube tube, int color) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
         int[] texels = tube.texels();
-        for (int level = 0; level <= TORNADO_RINGS; level++) {
+        for (int level = 0; level < TORNADO_RINGS; level++) {
             for (int segment = 0; segment < TORNADO_SEGMENTS; segment++) {
                 for (int[] corner : corners) {
                     Vec3 at = tube.point(segment + corner[0], level + corner[1]);
                     consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
-                            .setUv((float) (segment + corner[0]) / TORNADO_SEGMENTS, Tube.along(level + corner[1]))
+                            .setUv((float) (segment + corner[0]) / TORNADO_SEGMENTS,
+                                    (float) (level + corner[1]) / TORNADO_RINGS)
                             .setUv2(texels[0], texels[1]).setColor(color);
                 }
             }
@@ -445,32 +436,23 @@ public final class PortalFaces {
         }
 
         /**
-         * @param level how many rings up the tube, of the named count, one more the lip's outer edge
-         * @return how far along the tube and lip the level stands, the tube zero to TUBE_SHARE, the lip on to one
-         */
-        static float along(int level) {
-            return level > TORNADO_RINGS ? 1F : (float) (TUBE_SHARE * level / TORNADO_RINGS);
-        }
-
-        /**
          * @param segment how many segments around the rim, of the named count
-         * @param level   how many rings up the tube, of the named count, one more the lip's outer edge
+         * @param level   how many rings up the tube, of the named count
          * @return the tube's point there
          */
         Vec3 point(int segment, int level) {
-            double up = Math.min((double) level / TORNADO_RINGS, 1);
+            double up = (double) level / TORNADO_RINGS;
             double spread = Mth.lerp(up, base, 1);
-            double hair = level > TORNADO_RINGS ? TORNADO_HAIR_LENGTH : 0;
             double angle = Mth.TWO_PI * segment / TORNADO_SEGMENTS;
-            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), (half[0] * spread + hair) * Math.cos(angle))
-                    .with(secondAxisOf(side), (half[1] * spread + hair) * Math.sin(angle));
+            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), half[0] * spread * Math.cos(angle))
+                    .with(secondAxisOf(side), half[1] * spread * Math.sin(angle));
             return center.add(across).add(side.getUnitVec3().scale(TORNADO_HEIGHT * up));
         }
 
         /**
          * @return the texels around the tube's first ring, by Ramanujan's
-         *         reckoning of an oval's perimeter, then along the tube and
-         *         its lip, at sixteen a block
+         *         reckoning of an oval's perimeter, then up the tube, at
+         *         sixteen a block
          */
         int[] texels() {
             double first = half[0] * base;
@@ -478,7 +460,7 @@ public final class PortalFaces {
             double around = Math.PI * (RAMANUJAN_THREE * (first + second) - Math.sqrt((RAMANUJAN_THREE * first
                     + second) * (first + RAMANUJAN_THREE * second)));
             return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
-                    (int) Math.round((TORNADO_HEIGHT + TORNADO_HAIR_LENGTH) * TEXELS_PER_BLOCK)};
+                    (int) Math.round(TORNADO_HEIGHT * TEXELS_PER_BLOCK)};
         }
     }
 
