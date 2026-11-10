@@ -54,11 +54,11 @@ public final class GlowBeamMesh {
      */
     public static final float BREATH_PERIOD_TICKS = 200f;
     /**
-     * The share of its alpha a beam keeps at the trough of its breath: a very
-     * shallow dip, after UAT asked for a very gentle, delicate wave (operator
-     * ruling 2026-11-10).
+     * The share of its alpha a beam keeps at the trough of its breath: 0.86,
+     * deep enough to see the slow swell after 0.96 read as no wave at all
+     * (operator UAT 2026-11-10).
      */
-    public static final float BREATH_FLOOR = 0.96f;
+    public static final float BREATH_FLOOR = 0.86f;
     /** Blocks of beam one tile of the texture spans. */
     private static final float BLOCKS_PER_TILE = 1f;
     private static final double HALF = 0.5;
