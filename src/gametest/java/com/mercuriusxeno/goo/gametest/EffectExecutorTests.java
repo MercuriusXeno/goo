@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.entity.CompressedHoard;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooDragCastHandler;
@@ -26,7 +27,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.pig.Pig;
@@ -38,6 +41,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -67,6 +72,9 @@ public final class EffectExecutorTests {
     private static final String BLACK_HOLE_LEAVES_A_SPHERE = "black_hole_leaves_a_sphere";
     private static final String BLACK_HOLE_CUTS_PLAYERS = "black_hole_cuts_players_to_half_a_heart";
     private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
+    private static final String LARGE_BLAST_LEAVES_A_GREEN_SPHERE = "large_blast_leaves_a_green_sphere";
+    private static final String SMALL_BLAST_POPS_ITS_DROPS = "small_blast_pops_its_drops";
+    private static final String GREEN_SPHERE_KEEPS_ITS_CORE = "green_sphere_keeps_its_core";
     private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
     private static final String FX_CRYSTAL_CLOUD_SHREDS_PLAYER = "fx_crystal_cloud_shreds_walking_player";
     private static final String FX_LANDED_METAL_SPIKES = "fx_landed_metal_spikes_live";
@@ -100,6 +108,9 @@ public final class EffectExecutorTests {
         GooTestFunctions.registerTest(registrar, BLACK_HOLE_LEAVES_A_SPHERE, EffectExecutorTests::blackHoleLeavesASphere);
         GooTestFunctions.registerTest(registrar, BLACK_HOLE_CUTS_PLAYERS, EffectExecutorTests::blackHoleCutsPlayersToHalfAHeart);
         GooTestFunctions.registerTest(registrar, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
+        GooTestFunctions.registerTest(registrar, LARGE_BLAST_LEAVES_A_GREEN_SPHERE, EffectExecutorTests::largeBlastLeavesAGreenSphere);
+        GooTestFunctions.registerTest(registrar, SMALL_BLAST_POPS_ITS_DROPS, EffectExecutorTests::smallBlastPopsItsDrops);
+        GooTestFunctions.registerTest(registrar, GREEN_SPHERE_KEEPS_ITS_CORE, EffectExecutorTests::greenSphereKeepsItsCoreThroughASave);
         GooTestFunctions.registerTest(registrar, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_CRYSTAL_CLOUD_SHREDS_PLAYER, EffectExecutorTests::crystalCloudShredsAWalkingPlayer);
         GooTestFunctions.registerTest(registrar, FX_LANDED_METAL_SPIKES, EffectExecutorTests::metalSpikesLiveAfterLanding);
@@ -227,6 +238,23 @@ public final class EffectExecutorTests {
     private static final int SPILLED_STONE = 70;
     private static final String SPHERE_STAYED_SHUT = "The touched sphere is still standing";
     private static final String SPHERE_SPILLED_WRONG = "The touched sphere spilled other than 70 stone and a diamond: ";
+    private static final String HOLE_SPHERE_NOT_MAROON = "The black hole's sphere should draw the maroon core, draws %s";
+    private static final String ABILITY_BLAST_DRAGGED = "goo:unstable_explode";
+    /** The radius a Blast gathers its drops from, the smallest the decision names. */
+    private static final double GATHERING_BLAST_SIZE = 3;
+    /** A radius under the gathering one, whose drops pop in place. */
+    private static final double POPPING_BLAST_SIZE = 2;
+    /** The unstable the Blast's caster holds, more than the radius 3 price. */
+    private static final int CASTER_UNSTABLE = 5000;
+    private static final String BLAST_LEFT_SPHERES = "The radius 3 Blast left %d compression spheres, not one";
+    private static final String BLAST_HELD_NO_COBBLESTONE = "The Blast's sphere holds no cobblestone for the stone it mined: ";
+    private static final String BLAST_SPHERE_NOT_GREEN = "The Blast's sphere should draw the green core, draws %s";
+    private static final String BLAST_TOOK_THE_DIAMOND = "The diamond lying in the Blast no longer lies loose: ";
+    private static final String BLAST_LEFT_LOOSE_COBBLESTONE = "Cobblestone lies loose in the radius 3 Blast's crater: ";
+    private static final String SMALL_BLAST_LEFT_A_SPHERE = "The radius 2 Blast left a compression sphere";
+    private static final String SMALL_BLAST_POPPED_NOTHING = "No cobblestone lies in the radius 2 Blast's crater: ";
+    private static final String SPHERE_RELOAD_LOST = "The saved compression sphere did not load back as one";
+    private static final String RELOADED_SPHERE_NOT_GREEN = "The reloaded green sphere draws %s";
 
     /** The floor a falling marker lands on. */
     private static final BlockPos FALL_FLOOR_POS = new BlockPos(3, 1, 3);
@@ -647,8 +675,114 @@ public final class EffectExecutorTests {
             helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.STONE)), HOLE_HELD_NO_STONE + held);
             helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.DIAMOND)), HOLE_HELD_NO_DIAMOND + held);
             helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_LEFT_LOOSE_ITEMS);
+            SphereCore core = spheres.getFirst().core();
+            helper.assertTrue(core == SphereCore.MAROON, String.format(HOLE_SPHERE_NOT_MAROON, core));
             helper.succeed();
         });
+    }
+
+    /**
+     * A Blast dragged to radius 3 against a stone wall on a barrier floor,
+     * with a diamond lying inside its radius, gathers the cobblestone it mined
+     * into one green-cored compression sphere at its origin, and leaves the
+     * diamond loose and no cobblestone in the crater
+     * (decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere).
+     *
+     * @param helper the gametest helper
+     */
+    public static void largeBlastLeavesAGreenSphere(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
+        fillWall(helper, Blocks.STONE);
+        layBarrierFloor(helper);
+        helper.spawnItem(Items.DIAMOND, Vec3.atBottomCenterOf(STANDING_PIG_POS));
+        helper.runAfterDelay(SHORT_WAIT, () -> castDraggedBlast(helper, GATHERING_BLAST_SIZE));
+        helper.runAfterDelay(SHORT_WAIT + SHORT_WAIT, () -> {
+            List<CompressionSphere> spheres = spheresAroundMarker(helper);
+            helper.assertTrue(spheres.size() == 1, String.format(BLAST_LEFT_SPHERES, spheres.size()));
+            List<ItemStack> held = spheres.getFirst().hoard().stacks();
+            helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.COBBLESTONE)),
+                    BLAST_HELD_NO_COBBLESTONE + held);
+            SphereCore core = spheres.getFirst().core();
+            helper.assertTrue(core == SphereCore.GREEN, String.format(BLAST_SPHERE_NOT_GREEN, core));
+            List<ItemStack> loose = itemsAroundMarker(helper).stream().map(ItemEntity::getItem).toList();
+            helper.assertTrue(loose.stream().anyMatch(stack -> stack.is(Items.DIAMOND)), BLAST_TOOK_THE_DIAMOND + loose);
+            helper.assertTrue(loose.stream().noneMatch(stack -> stack.is(Items.COBBLESTONE)),
+                    BLAST_LEFT_LOOSE_COBBLESTONE + loose);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A Blast dragged to radius 2 against the same stone wall pops its drops
+     * in place: cobblestone lies loose in the crater and no compression
+     * sphere stands (decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere).
+     *
+     * @param helper the gametest helper
+     */
+    public static void smallBlastPopsItsDrops(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
+        fillWall(helper, Blocks.STONE);
+        layBarrierFloor(helper);
+        helper.runAfterDelay(SHORT_WAIT, () -> castDraggedBlast(helper, POPPING_BLAST_SIZE));
+        helper.runAfterDelay(SHORT_WAIT + SHORT_WAIT, () -> {
+            helper.assertTrue(spheresAroundMarker(helper).isEmpty(), SMALL_BLAST_LEFT_A_SPHERE);
+            List<ItemStack> loose = itemsAroundMarker(helper).stream().map(ItemEntity::getItem).toList();
+            helper.assertTrue(loose.stream().anyMatch(stack -> stack.is(Items.COBBLESTONE)),
+                    SMALL_BLAST_POPPED_NOTHING + loose);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A green-cored compression sphere saved the way a chunk unload saves it
+     * loads back green (decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere).
+     *
+     * @param helper the gametest helper
+     */
+    public static void greenSphereKeepsItsCoreThroughASave(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
+        CompressedHoard hoard = new CompressedHoard();
+        hoard.add(new ItemStack(Items.COBBLESTONE, SPILLED_STONE));
+        CompressionSphere.leave(helper.getLevel(), helper.absoluteVec(Vec3.atCenterOf(MARKER_POS)), hoard,
+                SphereCore.GREEN);
+        CompressionSphere sphere = spheresAroundMarker(helper).getFirst();
+        TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
+                helper.getLevel().registryAccess());
+        sphere.save(saved);
+        sphere.discard();
+        Entity loaded = EntityType.loadEntityRecursive(TagValueInput.create(ProblemReporter.DISCARDING,
+                helper.getLevel().registryAccess(), saved.buildResult()), helper.getLevel(), EntitySpawnReason.LOAD,
+                entity -> entity);
+        helper.assertTrue(loaded instanceof CompressionSphere, SPHERE_RELOAD_LOST);
+        SphereCore core = ((CompressionSphere) loaded).core();
+        helper.assertTrue(core == SphereCore.GREEN, String.format(RELOADED_SPHERE_NOT_GREEN, core));
+        helper.succeed();
+    }
+
+    /**
+     * Casts Blast the way a drag's release does: a survival player holding a
+     * glove and unstable goo, standing well clear, pins the stone's south face
+     * and drags the Blast to a radius, which explodes at once at the pin.
+     *
+     * @param helper the gametest helper
+     * @param size   the radius dragged
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static void castDraggedBlast(GameTestHelper helper, double size) {
+        helper.setBlock(MARKER_POS.north(), Blocks.STONE);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        Vec3 stand = helper.absoluteVec(Vec3.atBottomCenterOf(MARKER_POS.south(CASTER_DISTANCE)));
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, CASTER_UNSTABLE));
+        AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_BLAST_DRAGGED));
+        helper.assertTrue(blast != null, ABILITIES_REQUIRED);
+        KnownRecipes.teachRequires(player, blast);
+        BlockPos pin = helper.absolutePos(MARKER_POS.north());
+        GooDragCastHandler.cast(player, new GooDragCastPayload(GooTypes.id(GooTypes.UNSTABLE), ABILITY_BLAST_DRAGGED,
+                pin, Direction.SOUTH.get3DDataValue(), Vec3.atCenterOf(pin).relative(Direction.SOUTH, HALF_BLOCK),
+                size));
+        helper.getLevel().getServer().getPlayerList().remove(player);
     }
 
     /**
@@ -744,7 +878,8 @@ public final class EffectExecutorTests {
         CompressedHoard hoard = new CompressedHoard();
         hoard.add(new ItemStack(Items.STONE, SPILLED_STONE));
         hoard.add(new ItemStack(Items.DIAMOND));
-        CompressionSphere.leave(helper.getLevel(), helper.absoluteVec(Vec3.atCenterOf(MARKER_POS)), hoard);
+        CompressionSphere.leave(helper.getLevel(), helper.absoluteVec(Vec3.atCenterOf(MARKER_POS)), hoard,
+                SphereCore.MAROON);
         CompressionSphere sphere = spheresAroundMarker(helper).getFirst();
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         sphere.playerTouch(player);

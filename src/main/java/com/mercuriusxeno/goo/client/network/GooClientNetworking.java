@@ -22,7 +22,6 @@ import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
-import com.mercuriusxeno.goo.network.DrinkPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import com.mercuriusxeno.goo.network.GnatSeekPayload;
@@ -50,7 +49,6 @@ import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
-import com.mercuriusxeno.goo.network.UnmadePayload;
 import com.mercuriusxeno.goo.network.WorkbenchReplyPayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -97,8 +95,6 @@ public final class GooClientNetworking {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
         event.register(SculkerHeardPayload.TYPE, SculkerHeardHandler::handle);
-        event.register(DrinkPayload.TYPE, UnmakeHandler::handleDrink);
-        event.register(UnmadePayload.TYPE, UnmakeHandler::handleUnmade);
         registerEffectHandlers(event);
     }
 
