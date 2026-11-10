@@ -65,11 +65,6 @@ public enum HostCapability {
      */
     WATCH(WatchHost.class),
     /**
-     * A held channel that drinks the face under its cursor into the glove
-     * (decision unmake-waves-dissolve-by-crucible-cost).
-     */
-    SIPHON(SiphonHost.class),
-    /**
      * A landing where a blob can grow a shroom network
      * (decision colonize-blob-grows-the-network).
      */
@@ -100,15 +95,10 @@ public enum HostCapability {
      */
     LEVEL(LevelHost.class),
     /**
-     * A spot a mob from the host's chunk can be pulled to (decision
-     * convoke-blob-throbs-until-a-mob-arrives).
+     * A spot a sculk call rings out from, every mob it crosses walking to it (decision
+     * shriek-is-a-sculk-call-that-draws-every-mob-it-reaches).
      */
-    CONVOKE(ConvokeHost.class),
-    /**
-     * A column under the landed block that can churn (decision
-     * churn-rotates-a-plus-shaped-column).
-     */
-    CHURN(ChurnHost.class),
+    SHRIEK(ShriekHost.class),
     /**
      * A struck surface an End gate can open over (decision
      * end-clears-blocks-and-opens-a-portal).
@@ -130,8 +120,8 @@ public enum HostCapability {
      */
     OUTSIDER(OutsiderHost.class),
     /**
-     * A landing a meteor can be called down on (decision
-     * meteo-needs-a-clear-sky).
+     * A landing a meteor can be called down toward (decision
+     * meteo-crashes-through-whatever-is-above).
      */
     METEOR(MeteorHost.class),
     /**
@@ -164,7 +154,6 @@ public enum HostCapability {
      * (decision relay-prism-carries-the-signal-through-air).
      */
     RELAY(RelayHost.class),
-    /**
     /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).

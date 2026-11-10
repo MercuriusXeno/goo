@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -17,7 +18,11 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
  * of cells within the edge, so the light spreads out from the holder at a
  * steady pace while the channel holds, up to its range or the bounds of
  * its visited cells. A holder walking on carries the flood with them.
+ * Each dark, sighted cell the walk reaches takes a wisp only by a chance,
+ * the density, so the lit cells scatter among the dark rather than fall
+ * on a grid, and the walk goes on through the cells it skipped.
  * decision radiant-wisps-where-light-is-low
+ * decision radiant-scatters-wisps-at-random-among-the-dark
  * operator rulings 2026-10-10: wisps flood out from the eyes nearest first to 64 blocks, the edge at 16 blocks a second
  */
 public final class WispFlood {
@@ -32,11 +37,14 @@ public final class WispFlood {
     static final int CLEAR_OF_THE_EYES = 2;
     /** The most cells one flood remembers, so open sky never grows it without end. */
     static final int MOST_VISITED = 300_000;
+    /** The density a flood lights every dark, sighted cell at. */
+    static final double EVERY_DARK_CELL = 1.0;
 
     private final BlockPos origin;
     private final double range;
     private final double growth;
     private final int litSteps;
+    private final double density;
     private double edge;
     private final Deque<BlockPos> frontier = new ArrayDeque<>();
     private final LongOpenHashSet visited = new LongOpenHashSet();
@@ -51,22 +59,25 @@ public final class WispFlood {
      * @param growth how many blocks the edge grows each tick it walks; zero or less reaches the range at once
      */
     public WispFlood(BlockPos origin, double range, double growth) {
-        this(origin, range, growth, LIT_STEPS);
+        this(origin, range, growth, LIT_STEPS, EVERY_DARK_CELL);
     }
 
     /**
-     * Starts a flood at a cell, its wisps' light reaching a given number of steps.
+     * Starts a flood at a cell, its wisps' light reaching a given number of
+     * steps, each dark, sighted cell taking a wisp by a chance.
      *
      * @param origin   the holder's eye cell
      * @param range    how far from the origin a cell may be, in blocks
      * @param growth   how many blocks the edge grows each tick it walks; zero or less reaches the range at once
      * @param litSteps how many steps out a placed wisp's light keeps a cell lit
+     * @param density  the chance, from 0 to 1, that a dark, sighted cell the walk reaches takes a wisp
      */
-    public WispFlood(BlockPos origin, double range, double growth, int litSteps) {
+    public WispFlood(BlockPos origin, double range, double growth, int litSteps, double density) {
         this.origin = origin.immutable();
         this.range = range;
         this.growth = growth;
         this.litSteps = litSteps;
+        this.density = density;
         frontier.add(this.origin);
         visited.add(this.origin.asLong());
     }
@@ -83,7 +94,7 @@ public final class WispFlood {
      * @return the flood from there
      */
     public WispFlood movedTo(BlockPos eyes) {
-        WispFlood moved = new WispFlood(eyes, range, growth, litSteps);
+        WispFlood moved = new WispFlood(eyes, range, growth, litSteps, density);
         moved.edge = edge;
         // a wisp left past the new flood's reach lights none of its cells, so the walk forgets it
         double kept = range + litSteps;
@@ -134,14 +145,15 @@ public final class WispFlood {
      *
      * @param budget how many cells to walk
      * @param cells  what the world says of each cell
+     * @param random the roll each dark, sighted cell takes against the density
      * @return how many wisps it placed
      */
-    public int walk(int budget, Cells cells) {
+    public int walk(int budget, Cells cells, RandomSource random) {
         edge = growth <= 0 ? range : Math.min(range, edge + growth);
         int placedNow = 0;
         for (int walked = 0; walked < budget && withinTheEdge(frontier.peek()); walked++) {
             BlockPos cell = frontier.poll();
-            if (takes(cell, cells)) {
+            if (takes(cell, cells, random)) {
                 cells.place(cell);
                 placed.add(cell);
                 placedNow++;
@@ -170,9 +182,24 @@ public final class WispFlood {
         return edge;
     }
 
-    private boolean takes(BlockPos cell, Cells cells) {
-        return cell.distManhattan(origin) > CLEAR_OF_THE_EYES && cells.dark(cell) && !litByThisFlood(cell)
-                && cells.seen(cell);
+    private boolean takes(BlockPos cell, Cells cells, RandomSource random) {
+        return cell.distManhattan(origin) > CLEAR_OF_THE_EYES && !litByThisFlood(cell)
+                && picks(cell, cells, random, density);
+    }
+
+    /**
+     * Whether a cell the walk reaches is picked for a wisp: dark, a roll
+     * under the density, and in the holder's sight, the sight asked last
+     * since it is the dearest to answer.
+     *
+     * @param cell    the cell
+     * @param cells   what the world says of the cell
+     * @param random  the roll
+     * @param density the chance, from 0 to 1, that a dark, sighted cell is picked
+     * @return true when the cell takes a wisp
+     */
+    static boolean picks(BlockPos cell, Cells cells, RandomSource random, double density) {
+        return cells.dark(cell) && random.nextDouble() < density && cells.seen(cell);
     }
 
     private void spread(BlockPos cell, Cells cells) {

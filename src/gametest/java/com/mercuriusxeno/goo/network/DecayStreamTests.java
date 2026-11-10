@@ -38,6 +38,12 @@ public final class DecayStreamTests {
     private static final String DECAY_BITES_THE_MOB = "decay_bites_the_mob_and_spares_the_blocks";
     private static final String DECAY_PAINTS_CROSSHAIR = "decay_paints_the_crosshair_block_off_center";
     private static final String DECAY_STEPS_THROUGH_A_BITE = "decay_painted_block_steps_through_a_bite";
+    private static final String DECAY_BITES_OFF_THE_AIM = "decay_bites_a_mob_off_the_aim";
+    private static final String DECAY_BITES_PAST_THE_BLOCK_REACH = "decay_bites_a_mob_past_the_block_reach";
+    private static final String SHOULD_BITE_PAST_THE_BLOCK_REACH =
+            "Decay's swarm should bite the zombie seven blocks off, inside its eight-block seek";
+    private static final String SHOULD_BITE_OFF_THE_AIM =
+            "Decay's swarm should bite the zombie about 34 degrees off the aim, inside its 45 either side";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -52,6 +58,9 @@ public final class DecayStreamTests {
         GooTestFunctions.registerTest(registrar, DECAY_BITES_THE_MOB, DecayStreamTests::decayBitesTheMobAndSparesTheBlocks);
         GooTestFunctions.registerTest(registrar, DECAY_PAINTS_CROSSHAIR, DecayStreamTests::decayPaintsTheCrosshairBlockOffCenter);
         GooTestFunctions.registerTest(registrar, DECAY_STEPS_THROUGH_A_BITE, DecayStreamTests::decayPaintedBlockStepsThroughABite);
+        GooTestFunctions.registerTest(registrar, DECAY_BITES_OFF_THE_AIM, DecayStreamTests::decayBitesAMobOffTheAim);
+        GooTestFunctions.registerTest(registrar, DECAY_BITES_PAST_THE_BLOCK_REACH,
+                DecayStreamTests::decayBitesAMobPastTheBlockReach);
     }
 
 
@@ -78,12 +87,25 @@ public final class DecayStreamTests {
     private static final Identifier NETHER_DECAY = Identifier.parse("goo:nether_decay");
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
     private static final String SHOULD_BITE = "Decay's swarm should bite the zombie in its cone";
-    private static final String SHOULD_BITE_AT_HIVES_RATE = "Decay's swarm bit %.2f health, Hive's rate gives %.2f";
-    /** The hive's bite in nether_decay.json's on_prism, 2 every 4 ticks, as health a tick. */
-    private static final float HIVE_RATE = 2f / 4f;
+    private static final String SHOULD_BITE_THROUGH_I_FRAMES =
+            "Decay's swarm bit %.2f health, one 2-point bite each half second of i-frames gives %.2f";
+    /** nether_decay.json's bite. */
+    private static final float BITE = 2f;
+    /** Vanilla's i-frames: a mob hit takes no hit of the same size again for half a second. */
+    private static final int I_FRAME_TICKS = 10;
     private static final float HEALTH_SLACK = 0.01f;
     /** A zombie stands two blocks out, in the cone the player aims at the stone three out. */
     private static final BlockPos IN_THE_CONE = STAND_POS.east(2);
+    /**
+     * Three blocks out and two to the player's left as it faces east: its
+     * middle stands about 34 degrees off the aim at the stone, inside the
+     * seek's 45 degrees either side and outside a 60-degree cone's 30.
+     */
+    private static final BlockPos OFF_THE_AIM = STAND_POS.east(3).north(2);
+    /** Seven blocks out, past the six the swarm paints blocks within and inside the eight it seeks a mob within. */
+    private static final BlockPos PAST_THE_BLOCK_REACH = STAND_POS.east(7);
+    /** Pitch down from the eye onto the middle of a zombie seven blocks off. */
+    private static final float LOOKING_AT_FAR_ZOMBIE = 5.3f;
     /**
      * Pitch down onto the middle of a zombie four blocks off; the stone five
      * off, behind it, lies under three degrees from that line, inside the cone.
@@ -187,13 +209,17 @@ public final class DecayStreamTests {
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         ServerPlayer player = decayer(helper);
         player.setXRot(LOOKING_AT_ZOMBIE);
+        // decay-gnats-degrade-each-block-once: the first bite waits while the gnats fly the gap
+        int flight = (int) Math.ceil(player.getEyePosition().distanceTo(zombie.getBoundingBox().getCenter())
+                / SwarmMotes.GNAT_SPEED);
         hold(helper, player, 1, FINISH_TICKS);
         helper.runAfterDelay(FINISH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            // decay-gnats-degrade-each-block-once: the swarm bites at Hive's rate, 2 every 4 ticks, half a tick
+            // then it bites 2 a bite, as often as the zombie's i-frames allow
             float bitten = zombie.getMaxHealth() - zombie.getHealth();
-            helper.assertTrue(Math.abs(bitten - HIVE_RATE * FINISH_TICKS) < HEALTH_SLACK,
-                    String.format(SHOULD_BITE_AT_HIVES_RATE, bitten, HIVE_RATE * FINISH_TICKS));
+            float expected = BITE * bitesWithin(FINISH_TICKS - flight);
+            helper.assertTrue(Math.abs(bitten - expected) < HEALTH_SLACK,
+                    String.format(SHOULD_BITE_THROUGH_I_FRAMES, bitten, expected));
             helper.assertBlockPresent(Blocks.STONE, BEHIND_ZOMBIE);
             helper.succeed();
         });
@@ -223,6 +249,58 @@ public final class DecayStreamTests {
             helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
             helper.succeed();
         });
+    }
+
+    /**
+     * A mock player holds decay on stone with a zombie standing well off the
+     * aim, about 34 degrees to its left: the swarm seeks it out and bites it
+     * (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayBitesAMobOffTheAim(GameTestHelper helper) {
+        ServerPlayer player = decayerOverStone(helper);
+        helper.setBlock(OFF_THE_AIM.below(), Blocks.BEDROCK);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, OFF_THE_AIM);
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        hold(helper, player, 1, FINISH_TICKS);
+        helper.runAfterDelay(FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE_OFF_THE_AIM);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holds decay on a zombie seven blocks off, past the six
+     * blocks it paints within: the swarm still seeks the zombie out and bites
+     * it (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayBitesAMobPastTheBlockReach(GameTestHelper helper) {
+        helper.setBlock(PAST_THE_BLOCK_REACH.below(), Blocks.BEDROCK);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, PAST_THE_BLOCK_REACH);
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        ServerPlayer player = decayer(helper);
+        player.setXRot(LOOKING_AT_FAR_ZOMBIE);
+        hold(helper, player, 1, FINISH_TICKS);
+        helper.runAfterDelay(FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE_PAST_THE_BLOCK_REACH);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * How many bites land in a hold: the first tick's, then one each time the
+     * mob's i-frames run out.
+     *
+     * @param ticks the ticks of the hold
+     * @return the bites that land
+     */
+    private static int bitesWithin(int ticks) {
+        return (ticks + I_FRAME_TICKS - 1) / I_FRAME_TICKS;
     }
 
     /**

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
@@ -19,6 +20,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +30,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -95,6 +100,8 @@ class AbilityDefinitionTest {
     class Costs {
 
         private static final Identifier GLOWSTONE = Identifier.withDefaultNamespace("glowstone_dust");
+        private static final String MUNDANE_BLOCK = "mundane_block";
+        private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
 
         private static AbilityDefinition costing(String cost, String upkeep) {
             return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
@@ -151,6 +158,28 @@ class AbilityDefinitionTest {
             when(values.prefabs()).thenReturn(new PrefabValues(Map.of("third", GooFraction.of(1, 3)), Map.of()));
 
             assertEquals(GooFraction.of(7, 6), priced.cost().exactIn(values));
+        }
+
+        /**
+         * Spire prices each cubic meter of stone it grows at $mundane_block, read in rock from the shipped values.
+         * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
+         */
+        @Test
+        void spireCostReadsMundaneBlockInRockFromTheShippedValues() throws IOException {
+            AbilityPrice spireCost = AbilityJson.decode("rock_spire").cost();
+            IGooValueLookup shipped = GooBaseValuesPreview.registry(shippedBaseValues()).table();
+            GooFraction mundaneBlock = shipped.prefabs().in(MUNDANE_BLOCK, GooTypes.ROCK);
+
+            assertEquals("$" + MUNDANE_BLOCK, spireCost.source());
+            assertTrue(mundaneBlock != null && !mundaneBlock.isZero(), "$mundane_block prices no rock");
+            assertEquals(mundaneBlock, spireCost.exactIn(shipped));
+        }
+
+        private static String shippedBaseValues() throws IOException {
+            try (InputStream stream = AbilityDefinitionTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(stream, SHIPPED_BASE_VALUES);
+                return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            }
         }
     }
 

@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.block.ValuedStack;
 import com.mercuriusxeno.goo.block.crucible.CrucibleHeat;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
 import com.mercuriusxeno.goo.block.crucible.FuelGrade;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -57,7 +56,8 @@ class CruciblePanelRowsTest {
      */
     private static List<PanelRow> heatRowsFor(CrucibleHeat heat, GooContents reservoir) {
         List<PanelRow> rows = rowsFor(heat, reservoir);
-        return rows.subList(reservoir.getAll().size(), rows.size());
+        // the goo amounts stand as one grid block ahead of the heat rows
+        return rows.subList(reservoir.isEmpty() ? 0 : 1, rows.size());
     }
 
     /** A map-backed reservoir the heat burns from. */
@@ -105,12 +105,13 @@ class CruciblePanelRowsTest {
         return row.segments().stream().map(PanelRow.TextSegment::text).collect(Collectors.joining());
     }
 
-    /** A 16 mB diamond one tick into its 4-tick clock ahead of a waiting log reads its icon, "25%" and a dim "+1". */
+    /**
+     * A 16 mB diamond one tick into its 4-tick clock ahead of a waiting log reads the diamond itself as its icon,
+     * "25%" and a dim "+1" (decision all-huds-draw-an-items-model-as-the-inventory-does).
+     */
     @Test
-    void meltRowShowsHeadIconFractionAndWaitingCount() {
+    void meltRowShowsHeadItemFractionAndWaitingCount() {
         Identifier diamond = Identifier.fromNamespaceAndPath("minecraft", "diamond");
-        Identifier atlas = Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/items.png");
-        GooRenderUtil.UvRect diamondUv = new GooRenderUtil.UvRect(0.25f, 0.5f, 0.375f, 0.625f);
         CrucibleMeltQueue queue = new CrucibleMeltQueue();
         GooContents diamondUnit = GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, 16);
         queue.appendAll(List.of(new ValuedStack(diamond, 1, diamondUnit),
@@ -118,11 +119,10 @@ class CruciblePanelRowsTest {
                         GooContents.EMPTY.withAdded(GooTypes.LEAF, 40))));
         queue.advanceNext(GooConfig.DEFAULT_UNSTABLE_MELT_EXPONENT, diamondUnit, (type, amount, simulate) -> amount);
 
-        PanelRow row = CruciblePanelRows.meltRow(queue.head(), queue.waiting().size(),
-                item -> item.equals(diamond) ? new CruciblePanelRows.ItemIcon(atlas, diamondUv) : null);
+        PanelRow row = CruciblePanelRows.meltRow(queue.head(), queue.waiting().size());
 
-        assertEquals(atlas, row.icon());
-        assertEquals(diamondUv, row.iconUv());
+        assertEquals(diamond, row.iconItem());
+        assertNull(row.icon());
         assertEquals("25% +1", textOf(row));
         assertEquals(PanelPainter.TEXT_COLOR, row.segments().getFirst().color());
         assertEquals(0xFF888888, row.segments().getLast().color());
@@ -131,7 +131,32 @@ class CruciblePanelRowsTest {
     /** An empty queue paints no melting row. */
     @Test
     void emptyQueuePaintsNoMeltRow() {
-        assertNull(CruciblePanelRows.meltRow(null, 0, item -> null));
+        assertNull(CruciblePanelRows.meltRow(null, 0));
+    }
+
+    /**
+     * The reservoir and the pool lay as one grid block, a cell per type in the reservoir's order then the pool's,
+     * each reading "reservoir / total" floored at the widest text under 10K
+     * (decision one-class-lays-every-huds-goo-values).
+     */
+    @Test
+    void reservoirAndPoolLayAsOneGridOfReservoirOverTotal() {
+        GooContents reservoir = new GooContents(Map.of(GooTypes.ROCK, 500));
+        GooContents pool = new GooContents(Map.of(GooTypes.ROCK, 250, GooTypes.LEAF, 40));
+
+        List<PanelRow> rows = CruciblePanelRows.rows(reservoir, pool, List.of());
+
+        assertEquals(1, rows.size());
+        List<PanelAmountGrid.Cell> cells = rows.getFirst().grid().cells();
+        assertEquals(List.of(PanelPainter.gooIcon(GooTypes.ROCK), PanelPainter.gooIcon(GooTypes.LEAF)),
+                cells.stream().map(PanelAmountGrid.Cell::icon).toList());
+        assertEquals(List.of("500 / 750", "0 / 40"), cells.stream().map(CruciblePanelRowsTest::cellTextOf).toList());
+        assertEquals(CruciblePanelRows.SUB_TEN_THOUSAND_FLOOR_TEXT, cells.getFirst().floorText());
+        assertEquals(0xFF888888, cells.getFirst().segments().get(1).color());
+    }
+
+    private static String cellTextOf(PanelAmountGrid.Cell cell) {
+        return cell.segments().stream().map(PanelRow.TextSegment::text).collect(Collectors.joining());
     }
 
     /** A type full in both the reservoir and the pool reads their long sum. */

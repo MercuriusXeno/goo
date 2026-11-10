@@ -17,9 +17,12 @@ import org.joml.Matrix3x2fStack;
  * @param font  the font
  * @param scale how large its glyphs draw against the font's own
  */
-record Lettering(Font font, float scale) {
-    /** The amount role's scale, the font's 8px glyphs reading 6px. */
-    static final float AMOUNT_SCALE = 0.75f;
+public record Lettering(Font font, float scale) {
+    /**
+     * The amount role's scale, the font's 8px glyphs reading 6px, which an in-world HUD's goo amounts read too.
+     * decision one-class-lays-every-huds-goo-values
+     */
+    public static final float AMOUNT_SCALE = 0.75f;
     private static final float FULL = 1f;
     // A font's line holds an empty row under its glyphs, so centering the ink centers one row lower than the line.
     private static final int GLYPH_GAP = 1;
@@ -49,7 +52,7 @@ record Lettering(Font font, float scale) {
      * @param font the font
      * @return the font at a goo amount's small scale
      */
-    static Lettering amount(Font font) {
+    public static Lettering amount(Font font) {
         return new Lettering(font, AMOUNT_SCALE);
     }
 
@@ -64,7 +67,7 @@ record Lettering(Font font, float scale) {
      * @param text words
      * @return the width they take at this scale, rounded up to a whole pixel
      */
-    int width(String text) {
+    public int width(String text) {
         return isFull() ? font.width(text) : (int) Math.ceil(font.width(text) * scale);
     }
 
@@ -166,7 +169,7 @@ record Lettering(Font font, float scale) {
      * @param width the room they may take at this scale
      * @return the longest start of the words that fits the room
      */
-    String fitting(String text, int width) {
+    public String fitting(String text, int width) {
         return font.plainSubstrByWidth(text, isFull() ? width : (int) Math.floor(width / scale));
     }
 
@@ -228,7 +231,7 @@ record Lettering(Font font, float scale) {
      * @param y        their top
      * @param color    their color
      */
-    void draw(GuiGraphicsExtractor graphics, String text, int x, int y, int color) {
+    public void draw(GuiGraphicsExtractor graphics, String text, int x, int y, int color) {
         if (isFull()) {
             graphics.text(font, text, x, y, color);
             return;

@@ -6,7 +6,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
+import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
@@ -55,12 +57,25 @@ public record FlattenStep(TagKey<Block> breaks) implements TakesNoEntity {
      * @param aim  the hold's aim this tick
      */
     private void breakUnderCursor(ChannelHost host, ChannelAim aim) {
-        for (BlockPos pos : aim.swathOutermostFirst(aim.aimedBlock(host.eye()))) {
-            if (host.blockIn(pos, breaks) && host.reaches(pos)) {
-                host.breakBlock(pos);
-                return;
-            }
-        }
+        breaksAhead(aim, aim.aimedBlock(host.eye()), pos -> host.blockIn(pos, breaks) && host.reaches(pos), 1)
+                .forEach(host::breakBlock);
+    }
+
+    /**
+     * The blocks the swath breaks over the coming ticks while the cursor
+     * rests, one a tick, outermost first: the same pick its tick breaks by,
+     * so a client shakes the blocks the server is about to break.
+     * decision only-the-blocks-about-to-break-shake-briefly-and-gently
+     *
+     * @param aim       the hold's aim
+     * @param aimed     the block the cursor rests on
+     * @param breakable whether a cell holds a block in the tag and in reach
+     * @param ticks     how many ticks ahead to read
+     * @return the blocks, in breaking order
+     */
+    public static List<BlockPos> breaksAhead(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable,
+                                             int ticks) {
+        return aim.swathOutermostFirst(aimed).stream().filter(breakable).limit(ticks).toList();
     }
 
     @Override

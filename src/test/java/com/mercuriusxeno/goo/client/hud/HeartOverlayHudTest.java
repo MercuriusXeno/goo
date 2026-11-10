@@ -124,6 +124,50 @@ class HeartOverlayHudTest {
         assertEquals("goo:hud/heart/crystal_full", HeartOverlayHud.crawlSprite(HeartKind.SCALES).toString());
     }
 
+    // hud-draws-the-leftmost-heart-as-ancient: the leftmost heart, the last one lost, reads ancient
+    @Test
+    void ancientDrawsTheLeftmostHeartAsTheAncientHeart() {
+        assertEquals(List.of("goo:hud/heart/ancient_full"), slotSprites(HeartKind.ANCIENT, 0, 2));
+        assertEquals(List.of("goo:hud/heart/ancient_half"), slotSprites(HeartKind.ANCIENT, 0, 1));
+    }
+
+    @Test
+    void ancientLeavesEveryOtherHeartToVanilla() {
+        assertTrue(slotSprites(HeartKind.ANCIENT, 1, 2).isEmpty());
+        assertTrue(slotSprites(HeartKind.ANCIENT, 9, 1).isEmpty());
+    }
+
+    // undead-normal-hearts-become-the-zombie-heart: the real hearts read zombie, the missing ones nether
+    @Test
+    void undeadDrawsItsPresentHalvesAsTheZombieHeart() {
+        assertEquals(List.of("goo:hud/heart/zombie_full"), slotSprites(HeartKind.UNDEAD, 0, 0, 2));
+        assertEquals(List.of("goo:hud/heart/zombie_half"), slotSprites(HeartKind.UNDEAD, 4, 0, 1));
+    }
+
+    @Test
+    void undeadStillFillsItsMissingHalvesWithNether() {
+        assertEquals(List.of("goo:hud/heart/nether_full"), slotSprites(HeartKind.UNDEAD, 6, 2, 0));
+        assertEquals(List.of("goo:hud/heart/nether_half"), slotSprites(HeartKind.UNDEAD, 6, 1, 0));
+    }
+
+    /** The nether beside a zombie half draws as the nether sprite's right columns, past the half heart. */
+    @Test
+    void undeadHalfHeartBesideNetherDrawsTheZombieHalf() {
+        assertEquals(List.of("goo:hud/heart/zombie_half"), slotSprites(HeartKind.UNDEAD, 4, 1, 1));
+        assertTrue(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.UNDEAD, 1, 1));
+    }
+
+    @Test
+    void stoneBesideAHalfHeartLaysNoWholeSprite() {
+        assertTrue(slotSprites(HeartKind.STONESKIN, 4, 1, 1).isEmpty());
+    }
+
+    @Test
+    void otherKindsDrawEverySlotAlike() {
+        assertEquals(sprites(HeartKind.BARKSKIN, 2, 2),
+                HeartOverlayHud.slotSprites(HeartKind.BARKSKIN, 0, 2, 2).stream().map(Object::toString).toList());
+    }
+
     /** After the heart effect ends, the overlay it last drew lingers and fades over a second (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends). */
     @Nested
     class AfterTheEffectEnds {
@@ -192,6 +236,15 @@ class HeartOverlayHudTest {
                     REPLACED_AT + Afterglow.FADE_TICKS);
             assertEquals(List.of(new HeartOverlayHud.PaintedOverlay(barked, 1f)), painted);
         }
+    }
+
+    private static List<String> slotSprites(HeartKind kind, int slot, int realHalves) {
+        return slotSprites(kind, slot, 0, realHalves);
+    }
+
+    private static List<String> slotSprites(HeartKind kind, int slot, int shieldHalves, int realHalves) {
+        return HeartOverlayHud.slotSprites(kind, slot, shieldHalves, realHalves).stream().map(Object::toString)
+                .toList();
     }
 
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {

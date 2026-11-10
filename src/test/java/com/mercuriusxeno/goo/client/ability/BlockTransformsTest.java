@@ -3,8 +3,10 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -65,17 +67,127 @@ class BlockTransformsTest {
         assertEquals(0, transforms.exposing(START + 1 + BlockTransforms.BUILT_HOLD_TICKS + 1).size());
     }
 
-    // broil-heat-wave-ring-cooks-ahead: a log cooked into charcoal dissolves away once, from the log
+    // blocks-that-cook-into-items-cook-like-blocks: a log cooked into charcoal dissolves away from its charred face
     @Test
-    void aStepOnAnExposureTowardAirDissolvesFromTheOldBlock() {
+    void aStepOnAnExposureTowardAirDissolvesFromTheCharredFace() {
         BlockState log = mock(BlockState.class);
         BlockState air = mock(BlockState.class);
         when(air.isAir()).thenReturn(true);
         BlockTransforms transforms = new BlockTransforms();
         transforms.expose(GRAVEL, air, 0.9f, START, BlockTransforms.UNTINTED);
         transforms.start(GRAVEL, log, START + 1);
-        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, log, START + 1)), transforms.live(START + 1));
+        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, log, START + 1, BlockTransforms.CHARRED)),
+                transforms.live(START + 1));
         assertEquals(0, transforms.exposing(START + 1).size());
+    }
+
+    // blocks-that-cook-into-items-cook-like-blocks: a log mingles in its charred face from the cook's first tick
+    @Test
+    void anExposureTowardAirMinglesTheStandingBlockCharredFromItsFirstShare() {
+        BlockState log = mock(BlockState.class);
+        BlockState air = mock(BlockState.class);
+        when(air.isAir()).thenReturn(true);
+        BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, air, 0.025f, START,
+                BlockTransforms.UNTINTED);
+
+        assertEquals(new BlockTransforms.Mingling(log, BlockTransforms.CHARRED, 1f - 0.025f),
+                BlockTransforms.minglingOf(firstTick, log));
+    }
+
+    /**
+     * A melt eats the block it was away by the share over what it melts into,
+     * the client's copy of the cell swapped from the first share and put back
+     * if the share cools to nothing
+     * (decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
+     */
+    @Nested
+    class Melting {
+
+        private final BlockState ice = mock(BlockState.class);
+        private final BlockState water = mock(BlockState.class);
+        private final BlockTransforms transforms = new BlockTransforms();
+
+        @Test
+        void aMeltingExposureEatsTheIceAwayByTheShare() {
+            BlockTransforms.Exposure heating = new BlockTransforms.Exposure(GRAVEL, water, 0.25f, START,
+                    BlockTransforms.MELTS_AWAY);
+
+            assertEquals(new BlockTransforms.Mingling(ice, BlockTransforms.UNTINTED, 0.25f),
+                    BlockTransforms.minglingOf(heating, ice));
+        }
+
+        @Test
+        void aMeltingSnowLayerIsEatenAwayUncharred() {
+            BlockState snow = mock(BlockState.class);
+            BlockState air = mock(BlockState.class);
+            when(air.isAir()).thenReturn(true);
+            BlockTransforms.Exposure heating = new BlockTransforms.Exposure(GRAVEL, air, 0.25f, START,
+                    BlockTransforms.MELTS_AWAY);
+
+            assertEquals(new BlockTransforms.Mingling(snow, BlockTransforms.UNTINTED, 0.25f),
+                    BlockTransforms.minglingOf(heating, snow));
+        }
+
+        @Test
+        void theFirstMeltShareSwapsTheClientsCellToItsWater() {
+            assertEquals(Optional.of(water), transforms.meltSwap(GRAVEL, water, 0.025f, ice));
+            assertEquals(ice, transforms.standingAt(GRAVEL, water));
+            assertEquals(Optional.empty(), transforms.meltSwap(GRAVEL, water, 0.05f, water));
+        }
+
+        @Test
+        void aMeltCooledBackToNothingPutsTheIceBack() {
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+
+            assertEquals(Optional.of(ice), transforms.meltSwap(GRAVEL, water, 0f, water));
+            assertEquals(water, transforms.standingAt(GRAVEL, water));
+        }
+
+        @Test
+        void aMeltCooledBackLeavesACellTheServerChanged() {
+            BlockState stone = mock(BlockState.class);
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+
+            assertEquals(Optional.empty(), transforms.meltSwap(GRAVEL, water, 0f, stone));
+        }
+
+        @Test
+        void theServerResendingTheIceItWasLeavesTheMeltDrawn() {
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+
+            assertEquals(true, transforms.keepsMelt(GRAVEL, ice));
+        }
+
+        @Test
+        void anyOtherServerStateAtAMeltingCellGoesThrough() {
+            BlockState stone = mock(BlockState.class);
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+
+            assertEquals(false, transforms.keepsMelt(GRAVEL, water));
+            assertEquals(false, transforms.keepsMelt(GRAVEL, stone));
+            assertEquals(false, transforms.keepsMelt(GRAVEL.above(), ice));
+        }
+
+        @Test
+        void aMeltsStepPlaysNoSecondDissolve() {
+            transforms.meltSwap(GRAVEL, water, 0.025f, ice);
+            transforms.expose(GRAVEL, water, 0.97f, START, BlockTransforms.MELTS_AWAY);
+            transforms.start(GRAVEL, ice, START + 1);
+
+            assertEquals(List.of(), transforms.live(START + 1));
+            assertEquals(0, transforms.exposing(START + 1).size());
+            assertEquals(water, transforms.standingAt(GRAVEL, water));
+        }
+    }
+
+    @Test
+    void anExposureTowardABlockMinglesThatBlockInItsOwnTint() {
+        BlockState sand = mock(BlockState.class);
+        BlockState glass = mock(BlockState.class);
+        BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, glass, 0.025f, START, MAROON);
+
+        assertEquals(new BlockTransforms.Mingling(glass, MAROON, 1f - 0.025f),
+                BlockTransforms.minglingOf(firstTick, sand));
     }
 
     @Test

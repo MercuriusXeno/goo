@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.entity.CompressedHoard;
+import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.SphereCore;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ExplosionParticleInfo;
@@ -20,6 +23,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ExplosionDamageCalculator;
 import net.minecraft.world.level.ServerExplosion;
 import net.minecraft.world.level.block.BaseFireBlock;
@@ -32,14 +36,15 @@ import net.neoforged.neoforge.event.EventHooks;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 
 /**
  * An explosion marching Goo's rays ({@link ExplosionMarch}) in place of
  * vanilla's, standing on {@link ServerExplosion} so blocks' explosion hooks,
  * the explosion damage source and NeoForge's explosion events still see an
  * explosion. Entities within the max reach take vanilla's damage and
- * knockback, item entities aside, and every broken block drops whole at its
- * own position.
+ * knockback, item entities aside, and every broken block drops whole, at its
+ * own position or, for a gathering explosion, into one sphere at the center.
  * goo-ray-diminishes-block-resistance
  * preview-sphere-is-max-reach
  */
@@ -56,10 +61,14 @@ public final class GooExplosion extends ServerExplosion {
     private static final int FIRE_ONE_IN = 3;
 
     private final boolean lightsFires;
+    private final double reach;
+    private final boolean gathers;
 
-    private GooExplosion(ServerLevel level, Vec3 center, float power, ExplosionMode mode) {
+    private GooExplosion(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode) {
         super(level, null, null, DAMAGE_CALCULATOR, center, power, mode == ExplosionMode.FIRE, blockInteraction(mode));
         this.lightsFires = mode == ExplosionMode.FIRE;
+        this.reach = cut.reach();
+        this.gathers = cut.gathers();
     }
 
     /**
@@ -110,7 +119,34 @@ public final class GooExplosion extends ServerExplosion {
      * @param look   how the explosion shows and sounds
      */
     public static void detonate(ServerLevel level, Vec3 center, float power, ExplosionMode mode, Look look) {
-        GooExplosion explosion = new GooExplosion(level, center, power, mode);
+        detonate(level, center, power, new Cut(ExplosionMarch.maxReach(power), false), mode, look);
+    }
+
+    /**
+     * How far an explosion cuts and where the drops of what it breaks go.
+     *
+     * @param reach   the radius the explosion cuts at most, which a blast holds to the ring it draws
+     *                while its power digs through stone (decision blast-fills-its-drawn-radius)
+     * @param gathers true to gather the mined drops into one green-cored compression sphere at the
+     *                center, false to pop each where its block stood
+     *                (decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere)
+     */
+    public record Cut(double reach, boolean gathers) {
+    }
+
+    /**
+     * Detonates a Goo explosion cutting at most the reach given.
+     *
+     * @param level  the server level
+     * @param center the explosion center
+     * @param power  the power every ray starts with
+     * @param cut    how far it cuts and whether it gathers its drops
+     * @param mode   how blocks are treated
+     * @param look   how the explosion shows and sounds
+     */
+    public static void detonate(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode,
+                                Look look) {
+        GooExplosion explosion = new GooExplosion(level, center, power, cut, mode);
         if (EventHooks.onExplosionStart(level, explosion)) {
             return;
         }
@@ -140,7 +176,8 @@ public final class GooExplosion extends ServerExplosion {
     @Override
     public int explode() {
         level().gameEvent(null, GameEvent.EXPLODE, center());
-        List<BlockPos> marked = new ArrayList<>(ExplosionMarch.markedCells(center(), radius(), this::resistanceAt));
+        List<BlockPos> marked = new ArrayList<>(ExplosionMarch.markedCells(center(), radius(), reach,
+                this::resistanceAt));
         hurtEntitiesWithinReach(marked);
         if (getBlockInteraction() != BlockInteraction.KEEP) {
             breakBlocks(marked);
@@ -184,19 +221,30 @@ public final class GooExplosion extends ServerExplosion {
         return DAMAGE_CALCULATOR.getBlockExplosionResistance(this, level, pos, state, level.getFluidState(pos));
     }
 
+    /**
+     * Breaks every marked block, popping each drop where its block stood, or,
+     * for a gathering explosion, taking every drop into one hoard left as a
+     * green-cored compression sphere at the center.
+     * large-blast-gathers-its-mined-drops-into-a-green-cored-sphere
+     *
+     * @param marked the cells the explosion's rays reached
+     */
     private void breakBlocks(List<BlockPos> marked) {
         ServerLevel level = level();
         Util.shuffle(marked, level.getRandom());
+        CompressedHoard gathered = new CompressedHoard();
+        BiConsumer<ItemStack, BlockPos> dropped = gathers
+                ? (stack, at) -> gathered.add(stack)
+                : (stack, at) -> Block.popResource(level, at, stack);
         for (BlockPos pos : marked) {
-            level.getBlockState(pos).onExplosionHit(level, pos, this,
-                    (stack, at) -> Block.popResource(level, at, stack));
+            level.getBlockState(pos).onExplosionHit(level, pos, this, dropped);
         }
+        CompressionSphere.leave(level, center(), gathered, SphereCore.GREEN);
     }
 
     private void hurtEntitiesWithinReach(List<BlockPos> marked) {
         ServerLevel level = level();
         Vec3 center = center();
-        double reach = ExplosionMarch.maxReach(radius());
         if (reach <= 0) {
             return;
         }

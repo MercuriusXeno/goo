@@ -5,9 +5,9 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
-import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Gametests for Goo's explosion through the landing path: Blast landed at its
@@ -98,8 +99,7 @@ public final class GooExplosionTests {
         ExplodeStep explode = ability.behaviors().stream().filter(ExplodeStep.class::isInstance)
                 .map(ExplodeStep.class::cast).findFirst().orElse(null);
         helper.assertTrue(explode != null, NO_EXPLODE_STEP);
-        double reach = ExplosionMarch.maxReach(explode.power().evaluateFloat(
-                HostVariables.sized(DragSize.REFERENCE_RADIUS)));
+        double reach = explode.reachAt(HostVariables.sized(DragSize.REFERENCE_RADIUS));
         layFloor(helper, Blocks.STONE);
 
         strike(helper, ability);
@@ -115,7 +115,9 @@ public final class GooExplosionTests {
 
     /**
      * Blast struck into a dirt bed drops one dirt item for every dirt block
-     * it removes, none lost to drop decay.
+     * it removes, none lost to drop decay, counting the dirt a radius 3 Blast
+     * gathers into its compression sphere
+     * (decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere).
      *
      * @param helper the gametest helper
      */
@@ -127,8 +129,11 @@ public final class GooExplosionTests {
         strike(helper, ability);
 
         long removed = before - countFloor(helper, Blocks.DIRT);
-        int dropped = helper.getEntities(EntityType.ITEM).stream().map(ItemEntity::getItem)
-                .filter(stack -> stack.is(Items.DIRT)).mapToInt(ItemStack::getCount).sum();
+        Stream<ItemStack> loose = helper.getEntities(EntityType.ITEM).stream().map(ItemEntity::getItem);
+        Stream<ItemStack> gathered = helper.getLevel().getEntitiesOfClass(CompressionSphere.class, helper.getBounds())
+                .stream().flatMap(sphere -> sphere.hoard().stacks().stream());
+        int dropped = Stream.concat(loose, gathered).filter(stack -> stack.is(Items.DIRT))
+                .mapToInt(ItemStack::getCount).sum();
         helper.assertTrue(removed > 0, NOTHING_REMOVED);
         helper.assertTrue(removed == dropped, String.format(DIRT_LOST, removed, dropped));
         helper.succeed();

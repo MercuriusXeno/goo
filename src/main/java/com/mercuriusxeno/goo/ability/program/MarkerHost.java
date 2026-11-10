@@ -6,16 +6,15 @@ import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import com.mercuriusxeno.goo.block.ability.MarkerProgramState;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -42,8 +41,8 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, WatchHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
-        BeatHost, RelayHost, FrostHost, GreeningHost, ChurnHost {
+        FieldEffectHost, PhasedHost, WatchHost, HoardHost, StateWriteHost, LevelHost, ShriekHost, PowerEmitHost,
+        BeatHost, RelayHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -94,9 +93,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      * here as it explodes rather than when the blob landed.
      */
     @Override
-    public void explode(float power, ExplosionMode mode) {
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
         burnout().sendToTracking(level);
-        GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, mode,
+        GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, new GooExplosion.Cut(reach, gathers), mode,
                 GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
     }
 
@@ -226,7 +225,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         ShellWalk.Cursor next = HoardedBlocks.takeSome(level, pos, state.takeRadius(), state.takeCursor(),
                 BLOCKS_TAKEN_PER_TICK, state.hoard());
         if (state.tookTo(next)) {
-            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard());
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard(), SphereCore.MAROON);
         }
     }
 
@@ -238,7 +237,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void dropSphere() {
         if (!be.programState().putOffDrop()) {
-            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard());
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.MAROON);
         }
     }
 
@@ -253,24 +252,14 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Pulls a mob from the marker's chunk to stand in the marker's cell.
-     * decision convoke-blob-throbs-until-a-mob-arrives
+     * Shrieks from the marker's cell, where called mobs walk to.
+     * decision shriek-blob-cries-once-and-calls-earshot
      */
     @Override
-    public boolean convokeFromChunk(ResourceKey<GooTypeDefinition> goo) {
-        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos), goo);
+    public void shriek(double reach) {
+        SculkCall.shriek(level, pos, reach);
     }
 
-    /**
-     * Turns the column under the block the marker landed on, that block one
-     * of the core's four middle cells.
-     * decision churn-rotates-a-plus-shaped-column
-     */
-    @Override
-    public void churnColumn(int depth) {
-        BlockPos landed = pos.relative(be.getPlacedFace().getOpposite());
-        ChurnColumn.turn(ChurnMap.originUnder(landed), depth, new LevelChurnCells(level));
-    }
 
     @Override
     public void placeBlock(Identifier block, Map<String, String> state) {

@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.PhaseStep;
 import com.mercuriusxeno.goo.ability.program.RallyStep;
+import com.mercuriusxeno.goo.ability.program.SculkerStep;
 import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -42,7 +43,7 @@ public enum LaidState {
     LUX,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
-    /** Shifter (decision shifter-blinks-along-the-cursor-on-hit). */
+    /** Elude (decision elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage). */
     SHIFTER,
     /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
     EXTENDER,
@@ -61,7 +62,9 @@ public enum LaidState {
     /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
     PHASE,
     /** Zoo's Rally over the peaceful mobs around the holder (decision zoo-rally-holds-for-the-brew). */
-    RALLY;
+    RALLY,
+    /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
+    SCULKER;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -103,7 +106,8 @@ public enum LaidState {
             Map.entry(BusterStep.class, BUSTER),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE),
-            Map.entry(RallyStep.class, RALLY));
+            Map.entry(RallyStep.class, RALLY),
+            Map.entry(SculkerStep.class, SCULKER));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

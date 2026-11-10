@@ -4,7 +4,7 @@ package com.mercuriusxeno.goo.client.ability;
  * The window of a block's particle sprite a chunk of the block wears: its own
  * cell of the sprite, cut into a grid of equal cells, so the chunks standing
  * together show the block's texture.
- * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
+ * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  *
  * @param u0 the window's left edge in the atlas
  * @param u1 its right edge

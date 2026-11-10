@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
 import java.util.LinkedHashMap;
@@ -16,57 +14,30 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the plexer panel's rows: the target item's icon beside its name, then what it
- * costs to make in each type as a mixed number (decision tooltip-and-plexer-hud-show-a-mixed-number).
+ * Covers the plexer panel's rows: the cost of one operation alone, one grid of its positive costs in each type as a
+ * mixed number (decisions plexer-hud-shows-the-cost-alone and tooltip-and-plexer-hud-show-a-mixed-number).
  */
 class PlexerPanelRowsTest {
 
-    private static final Identifier ATLAS = Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/items.png");
-    private static final GooRenderUtil.UvRect DIAMOND_UV = new GooRenderUtil.UvRect(0.25f, 0.5f, 0.375f, 0.625f);
-
-    @Test
-    void targetReadsAsOneRowOfItsIconBesideItsName() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Diamond", new CruciblePanelRows.ItemIcon(ATLAS, DIAMOND_UV), null);
-
-        assertEquals(1, rows.size());
-        PanelRow row = rows.getFirst();
-        assertEquals(ATLAS, row.icon());
-        assertEquals(DIAMOND_UV, row.iconUv());
-        assertEquals(List.of(new PanelRow.TextSegment("Diamond", PanelPainter.TEXT_COLOR)), row.segments());
-    }
-
-    @Test
-    void targetWithoutAnIconReadsItsNameAlone() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Diamond", null, null);
-
-        assertEquals(1, rows.size());
-        assertNull(rows.getFirst().icon());
-        assertEquals("Diamond", rows.getFirst().segments().getFirst().text());
-    }
-
+    /** The panel reads one grid block of the costs and nothing else: no item model, no item name. */
     @Test
     void targetReadsItsExactCostAsAMixedNumberInEachType() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", null,
-                fraction(GooTypes.LEAF, 64, 3, GooTypes.ROCK, 1, 3));
+        List<PanelRow> rows = PlexerPanelRows.rows(fraction(GooTypes.LEAF, 64, 3, GooTypes.ROCK, 1, 3));
 
-        assertEquals(3, rows.size());
-        PanelRow leaf = rows.get(1);
-        assertEquals(PanelPainter.gooIcon(GooTypes.LEAF), leaf.icon());
-        assertEquals("21¹⁄₃", leaf.segments().getFirst().text());
-        PanelRow rock = rows.get(2);
-        assertEquals(PanelPainter.gooIcon(GooTypes.ROCK), rock.icon());
-        assertEquals("¹⁄₃", rock.segments().getFirst().text());
+        assertEquals(List.of(PanelRow.amounts(new PanelAmountGrid(List.of(
+                PanelAmountGrid.Cell.amount(GooTypes.LEAF, "21¹⁄₃"),
+                PanelAmountGrid.Cell.amount(GooTypes.ROCK, "¹⁄₃"))))), rows);
     }
 
     /**
-     * The cost rows read the highest amount first, ties alphabetical by type key, in place of the type-id order
+     * The cost cells read the highest amount first, ties alphabetical by type key, in place of the type-id order
      * (decision value-lists-order-highest-first-ties-by-type-key).
      */
     @Test
-    void costRowsReadHighestFirstTiesByTypeKey() {
+    void costCellsReadHighestFirstTiesByTypeKey() {
         Map<ResourceKey<GooTypeDefinition>, GooFraction> byTypeId = new LinkedHashMap<>();
         byTypeId.put(GooTypes.GLOW, GooFraction.of(2));
         byTypeId.put(GooTypes.LEAF, GooFraction.of(1, 3));
@@ -75,10 +46,17 @@ class PlexerPanelRowsTest {
         GooValue value = mock(GooValue.class);
         when(value.exactAll()).thenReturn(byTypeId);
 
-        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", null, value);
+        List<PanelRow> rows = PlexerPanelRows.rows(value);
 
+        assertEquals(1, rows.size());
         assertEquals(List.of(GooTypes.ROCK, GooTypes.BLAZE, GooTypes.GLOW, GooTypes.LEAF).stream()
-                .map(PanelPainter::gooIcon).toList(), rows.subList(1, rows.size()).stream().map(PanelRow::icon)
-                .toList());
+                .map(PanelPainter::gooIcon).toList(), rows.getFirst().grid().cells().stream()
+                .map(PanelAmountGrid.Cell::icon).toList());
+    }
+
+    /** A target the client holds no value for lays no row, so no panel paints. */
+    @Test
+    void targetWithNoValueLaysNoRow() {
+        assertTrue(PlexerPanelRows.rows(null).isEmpty());
     }
 }

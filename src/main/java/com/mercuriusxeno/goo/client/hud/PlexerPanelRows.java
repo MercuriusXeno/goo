@@ -7,13 +7,13 @@ import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * The plexer panel's rows over plain values: the target item's icon beside its name
- * (decision plexer-target-shows-in-a-hud-element), then what the target costs to make.
+ * The plexer panel's rows over plain values: what one operation on the target costs, alone, since
+ * the cutaway already shows the item (decisions plexer-target-shows-in-a-hud-element and
+ * plexer-hud-shows-the-cost-alone).
  */
 final class PlexerPanelRows {
 
@@ -21,47 +21,32 @@ final class PlexerPanelRows {
     }
 
     /**
-     * @param itemName the target item's name
-     * @param icon     the target item's particle icon, or null when its model has none
-     * @param value    the target's goo value, or null when the client holds none
-     * @return the name row, the icon beside the name or the name alone, then one cost row per type
+     * @param value the target's goo value, or null when the client holds none
+     * @return one grid of the costs, or no row when the target costs nothing the client knows
      */
-    static List<PanelRow> rows(String itemName, CruciblePanelRows.@Nullable ItemIcon icon,
-                               @Nullable GooValue value) {
-        List<PanelRow> rows = new ArrayList<>();
-        rows.add(nameRow(itemName, icon));
-        if (value != null) {
-            rows.addAll(costRows(value));
-        }
-        return rows;
-    }
-
-    private static PanelRow nameRow(String itemName, CruciblePanelRows.@Nullable ItemIcon icon) {
-        List<PanelRow.TextSegment> segments = List.of(new PanelRow.TextSegment(itemName, PanelPainter.TEXT_COLOR));
-        if (icon == null) {
-            return new PanelRow(null, segments, false);
-        }
-        return new PanelRow(icon.texture(), segments, false, null, null, icon.uv());
+    static List<PanelRow> rows(@Nullable GooValue value) {
+        List<PanelAmountGrid.Cell> cells = value == null ? List.of() : costCells(value);
+        return cells.isEmpty() ? List.of() : List.of(PanelRow.amounts(new PanelAmountGrid(cells)));
     }
 
     /**
      * The target's exact cost in each type, as a mixed number.
      * decision tooltip-and-plexer-hud-show-a-mixed-number
      * decision value-lists-order-highest-first-ties-by-type-key
+     * decision one-class-lays-every-huds-goo-values
      *
      * @param value the target's goo value
-     * @return one row per type, its icon beside its cost, the highest cost first, ties by type id
+     * @return one cell per type, its icon beside its cost, the highest cost first, ties by type id
      */
-    private static List<PanelRow> costRows(GooValue value) {
+    private static List<PanelAmountGrid.Cell> costCells(GooValue value) {
         return value.exactAll().entrySet().stream()
                 .filter(entry -> entry.getValue().isPositive())
                 .sorted(GooAmountOrder.highestFirst())
-                .map(PlexerPanelRows::costRow)
+                .map(PlexerPanelRows::costCell)
                 .toList();
     }
 
-    private static PanelRow costRow(Map.Entry<ResourceKey<GooTypeDefinition>, GooFraction> cost) {
-        return PanelRow.iconText(PanelPainter.gooIcon(cost.getKey()), GooFormat.formatMixed(cost.getValue()),
-                PanelPainter.TEXT_COLOR);
+    private static PanelAmountGrid.Cell costCell(Map.Entry<ResourceKey<GooTypeDefinition>, GooFraction> cost) {
+        return PanelAmountGrid.Cell.amount(cost.getKey(), GooFormat.formatMixed(cost.getValue()));
     }
 }

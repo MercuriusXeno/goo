@@ -12,10 +12,12 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
@@ -26,12 +28,16 @@ import org.joml.Vector3fc;
  * Meteo's meteor: it appears high above its target and falls straight
  * down from rest over its fall time, gathering speed, trailing fire and smoke, and explodes there through Goo's explosion
  * with a flash, breaking blocks into a crater every watching client
- * scorches. Its whole path is synced, so clients draw it smoothly down.
+ * scorches. Its target is the first block in its path over the hit point,
+ * the cover where something stands above it, while the blob's splat stays
+ * on the hit point. Its whole path is synced, so clients draw it smoothly down.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  * decision meteo-needs-a-clear-sky
+ * decision meteo-crashes-through-whatever-is-above
  */
 public class Meteor extends Entity {
 
+    private static final String TAG_MARK = "Mark";
     private static final String TAG_TARGET = "Target";
     private static final String TAG_START = "Start";
     private static final String TAG_POWER = "Power";
@@ -45,12 +51,15 @@ public class Meteor extends Entity {
             SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.VECTOR3);
     private static final EntityDataAccessor<Vector3fc> DATA_TARGET =
             SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<Vector3fc> DATA_MARK =
+            SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.VECTOR3);
     private static final EntityDataAccessor<Integer> DATA_FALL_TICKS =
             SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Long> DATA_CALLED_AT =
             SynchedEntityData.defineId(Meteor.class, EntityDataSerializers.LONG);
 
     private Vec3 start = Vec3.ZERO;
+    private Vec3 mark = Vec3.ZERO;
     private Vec3 target = Vec3.ZERO;
     private float power;
     private int fallTicks = 1;
@@ -68,19 +77,21 @@ public class Meteor extends Entity {
     }
 
     /**
-     * Calls a meteor down on a point: it appears above the point, as high as
-     * the fall height allows, and falls from rest, gathering speed, landing
-     * after the fall time.
+     * Calls a meteor down toward a hit point: it appears high above the
+     * first block in its path down the hit point's column, falls from rest,
+     * gathering speed, and strikes that block after the fall time.
      *
      * @param level     the server level
-     * @param at        the point it strikes
+     * @param hitPoint  the point it is called down toward, where the splat lies
      * @param power     the explosion's power
      * @param fallTicks the ticks it falls for
      */
-    public static void call(ServerLevel level, Vec3 at, float power, int fallTicks) {
+    public static void call(ServerLevel level, Vec3 hitPoint, float power, int fallTicks) {
         Meteor meteor = new Meteor(GooEntities.METEOR.get(), level);
-        meteor.target = at;
-        meteor.start = MeteorFall.startAbove(at);
+        meteor.mark = hitPoint;
+        meteor.target = MeteorFall.strikePoint(hitPoint,
+                level.getHeight(Heightmap.Types.MOTION_BLOCKING, Mth.floor(hitPoint.x), Mth.floor(hitPoint.z)));
+        meteor.start = MeteorFall.startAbove(meteor.target);
         meteor.power = power;
         meteor.fallTicks = Math.max(1, fallTicks);
         meteor.setPos(meteor.start);
@@ -92,6 +103,7 @@ public class Meteor extends Entity {
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
         entityData.define(DATA_START, new Vector3f());
         entityData.define(DATA_TARGET, new Vector3f());
+        entityData.define(DATA_MARK, new Vector3f());
         entityData.define(DATA_FALL_TICKS, 0);
         entityData.define(DATA_CALLED_AT, 0L);
     }
@@ -106,18 +118,19 @@ public class Meteor extends Entity {
     private void syncPath(long calledAt) {
         entityData.set(DATA_START, start.toVector3f());
         entityData.set(DATA_TARGET, target.toVector3f());
+        entityData.set(DATA_MARK, mark.toVector3f());
         entityData.set(DATA_FALL_TICKS, fallTicks);
         entityData.set(DATA_CALLED_AT, calledAt);
     }
 
     /**
-     * The point the meteor strikes, read from the path the server synced,
-     * where the blob that called it waits glowing until it lands.
+     * The hit point the meteor was called toward, read from what the server
+     * synced, where the blob that called it lies as a splat until it lands.
      *
      * @return the point, or the meteor's own position before its path arrives
      */
-    public Vec3 syncedTarget() {
-        return entityData.get(DATA_FALL_TICKS) <= 0 ? position() : new Vec3(entityData.get(DATA_TARGET));
+    public Vec3 syncedMark() {
+        return entityData.get(DATA_FALL_TICKS) <= 0 ? position() : new Vec3(entityData.get(DATA_MARK));
     }
 
     /**
@@ -188,6 +201,7 @@ public class Meteor extends Entity {
     protected void readAdditionalSaveData(ValueInput input) {
         start = input.read(TAG_START, Vec3.CODEC).orElse(position());
         target = input.read(TAG_TARGET, Vec3.CODEC).orElse(position());
+        mark = input.read(TAG_MARK, Vec3.CODEC).orElse(target);
         power = input.read(TAG_POWER, Codec.FLOAT).orElse(0f);
         fallTicks = Math.max(1, input.getIntOr(TAG_FALL_TICKS, 1));
         age = input.getIntOr(TAG_AGE, 0);
@@ -198,6 +212,7 @@ public class Meteor extends Entity {
     protected void addAdditionalSaveData(ValueOutput output) {
         output.store(TAG_START, Vec3.CODEC, start);
         output.store(TAG_TARGET, Vec3.CODEC, target);
+        output.store(TAG_MARK, Vec3.CODEC, mark);
         output.store(TAG_POWER, Codec.FLOAT, power);
         output.putInt(TAG_FALL_TICKS, fallTicks);
         output.putInt(TAG_AGE, age);

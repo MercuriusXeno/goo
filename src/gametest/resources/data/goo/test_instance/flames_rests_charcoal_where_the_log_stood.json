@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:flames_rests_charcoal_where_the_log_stood",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

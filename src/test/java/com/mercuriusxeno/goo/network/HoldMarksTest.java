@@ -2,9 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -47,5 +49,49 @@ class HoldMarksTest {
         marks.paint(BLOCK, cobblestone);
 
         assertEquals(Map.of(BLOCK, cobblestone), marks.painted());
+    }
+
+    /**
+     * The swarm's bite waits for its gnats: a mob two blocks off is reached
+     * once the gnats have flown two blocks at their speed, and a new mob
+     * starts the wait over (decision decay-gnats-degrade-each-block-once).
+     */
+    @Nested
+    class SwarmReach {
+
+        private static final int ZOMBIE = 7;
+        private static final int SKELETON = 9;
+        private static final double TWO_BLOCKS = 2.0;
+        private static final double THREE_AND_A_HALF = 3.5;
+
+        private final HoldMarks marks = new HoldMarks();
+
+        private int flightTicks(double distance) {
+            return (int) Math.ceil(distance / SwarmMotes.GNAT_SPEED);
+        }
+
+        @Test
+        void aMobTheGnatsHaveNotYetReachedIsNotBitten() {
+            int first = 1;
+            for (int held = first; held < first + flightTicks(TWO_BLOCKS); held++) {
+                assertFalse(marks.swarmReached(ZOMBIE, held, TWO_BLOCKS), "bitten on tick " + held);
+            }
+        }
+
+        @Test
+        void aMobIsBittenOnceTheGnatsHaveFlownTheGap() {
+            int first = 1;
+            marks.swarmReached(ZOMBIE, first, TWO_BLOCKS);
+            assertTrue(marks.swarmReached(ZOMBIE, first + flightTicks(TWO_BLOCKS), TWO_BLOCKS));
+        }
+
+        @Test
+        void aNewMobStartsTheWaitOver() {
+            int first = 1;
+            marks.swarmReached(ZOMBIE, first, TWO_BLOCKS);
+            int switched = first + flightTicks(TWO_BLOCKS);
+            assertFalse(marks.swarmReached(SKELETON, switched, THREE_AND_A_HALF));
+            assertTrue(marks.swarmReached(SKELETON, switched + flightTicks(THREE_AND_A_HALF), THREE_AND_A_HALF));
+        }
     }
 }
