@@ -28,9 +28,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * The ground shake jitters the blocks within its radius of the working point
- * and leaves the rest still, and a held bore and a held flatten each play it
- * (decisions bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera,
+ * The ground shake jitters only the blocks a bore or a flatten breaks within
+ * its lead, gently, and leaves the rest still (decision
+ * only-the-blocks-about-to-break-shake-briefly-and-gently), a held bore and a
+ * held flatten each play it (decisions
+ * bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera,
  * flatten-plays-bores-ground-shake), and a winding-up Terrakinesis shakes the
  * cells it would lift (decision terrakinesis-shakes-the-blocks-before-the-tear).
  */
@@ -43,7 +45,10 @@ class GroundShakeTest {
     private static final double STILL = 1e-9;
     private static final Vec3 EYE = new Vec3(0.5, 64.5, 0.5);
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
-    private static final double BORE_RANGE = 4;
+    private static final double BORE_RANGE = 8;
+    private static final double BORE_CONE_DEGREES = 15;
+    /** The jitter's amplitude before this change, read from GroundShake.AMPLITUDE at 128a57da7. */
+    private static final double PREVIOUS_AMPLITUDE = 0.04;
     /** A hold long past any wind-up. */
     private static final int HELD_LONG = 100;
     private static final TerrakinesisStep TERRAKINESIS = new TerrakinesisStep(6, 1.5, 2.5, 3.5, 1.5, 1000);
@@ -70,29 +75,70 @@ class GroundShakeTest {
     }
 
     @Nested
-    class Jitter {
+    class BoreZone {
+
+        /** A row of breakable stone straight ahead of the eye, and one breakable block under the row, out of the cone. */
+        private final Set<BlockPos> stone = Set.of(new BlockPos(1, 64, 0), new BlockPos(2, 64, 0),
+                new BlockPos(3, 64, 0), new BlockPos(4, 64, 0), new BlockPos(5, 64, 0), new BlockPos(6, 64, 0),
+                new BlockPos(7, 64, 0), new BlockPos(2, 62, 0));
+        private final GroundShake.Zone zone = GroundShake.boreZone(new BoreStep(BREAKABLE, 1), EYE,
+                new ChannelAim(EYE.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES),
+                cell -> !stone.contains(cell), stone::contains);
 
         @Test
-        void aBlockBesideTheBoreTunnelShakesWithinTheAmplitude() {
-            GroundShake.Zone tunnel = GroundShake.boreZone(EYE, LOOK_EAST, BORE_RANGE);
-            double swing = widestSwing(new BlockPos(2, 63, 0), tunnel);
-            assertTrue(swing > 0, "a block under the tunnel never moves");
-            assertTrue(swing <= GroundShake.AMPLITUDE * Math.sqrt(3), "a block swings past the amplitude");
+        void theBlocksTheBoreBreaksWithinTheLeadShakeWithinTheAmplitude() {
+            for (int x = 1; x <= GroundShake.SHAKE_LEAD_TICKS; x++) {
+                double swing = widestSwing(new BlockPos(x, 64, 0), zone);
+                assertTrue(swing > 0, "x " + x + " breaks within the lead and never moves");
+                assertTrue(swing <= GroundShake.AMPLITUDE * Math.sqrt(3), "x " + x + " swings past the amplitude");
+            }
         }
 
         @Test
-        void aBlockPastTheRadiusStaysStill() {
-            GroundShake.Zone tunnel = GroundShake.boreZone(EYE, LOOK_EAST, BORE_RANGE);
-            assertEquals(0, widestSwing(new BlockPos(2, 54, 0), tunnel), STILL);
+        void aBreakableBlockPastTheLeadStaysStillUntilItsTurnNears() {
+            // One block a tick: the sixth in the row breaks after the lead runs out.
+            assertEquals(0, widestSwing(new BlockPos(GroundShake.SHAKE_LEAD_TICKS + 1, 64, 0), zone), STILL);
         }
 
         @Test
-        void flattenShakesTheSwathItBreaks() {
-            ChannelAim.FacePlane floor = new ChannelAim.FacePlane(new BlockPos(0, 63, 0), Direction.UP);
-            GroundShake.Zone swath = GroundShake.flattenZone(floor, new BlockPos(0, 63, 0));
-            assertTrue(widestSwing(new BlockPos(1, 64, 1), swath) > 0, "a block in the swath never moves");
-            assertEquals(0, widestSwing(new BlockPos(0, 76, 0), swath), STILL);
+        void aBlockBesideTheTunnelThatNeverBreaksStaysStill() {
+            assertEquals(0, widestSwing(new BlockPos(2, 62, 0), zone), STILL);
+            assertEquals(0, widestSwing(new BlockPos(2, 63, 0), zone), STILL);
         }
+    }
+
+    @Nested
+    class FlattenZone {
+
+        private final ChannelAim.FacePlane floor = new ChannelAim.FacePlane(new BlockPos(0, 63, 0), Direction.UP);
+        /** The swath's first layer standing on the floor, every other layer air, and the floor itself. */
+        private final Set<BlockPos> ground = Set.of(new BlockPos(-1, 64, -1), new BlockPos(0, 64, -1),
+                new BlockPos(1, 64, -1), new BlockPos(1, 64, 0), new BlockPos(1, 64, 1), new BlockPos(0, 64, 1),
+                new BlockPos(-1, 64, 1), new BlockPos(-1, 64, 0), new BlockPos(0, 64, 0), new BlockPos(0, 63, 0));
+        private final GroundShake.Zone zone = GroundShake.flattenZone(new ChannelAim(Vec3.ZERO, floor),
+                new BlockPos(0, 63, 0), ground::contains);
+
+        @Test
+        void theSwathBlocksFlattenBreaksWithinTheLeadShake() {
+            // The layer breaks ring in: the corner and its ring neighbours go first.
+            for (BlockPos next : List.of(new BlockPos(-1, 64, -1), new BlockPos(0, 64, -1), new BlockPos(1, 64, -1),
+                    new BlockPos(1, 64, 0), new BlockPos(1, 64, 1))) {
+                assertTrue(widestSwing(next, zone) > 0, next + " breaks within the lead and never moves");
+            }
+        }
+
+        @Test
+        void aSwathBlockBreakingAfterTheLeadAndTheFloorUnderTheSwathStayStill() {
+            assertEquals(0, widestSwing(new BlockPos(0, 64, 0), zone), STILL);
+            assertEquals(0, widestSwing(new BlockPos(0, 63, 0), zone), STILL);
+            assertEquals(0, widestSwing(new BlockPos(2, 64, 0), zone), STILL);
+        }
+    }
+
+    @Test
+    void theJitterIsHalfTheAmplitudeItPlayedAtBefore() {
+        // decision only-the-blocks-about-to-break-shake-briefly-and-gently: the ground swung 0.04 at 128a57da7.
+        assertEquals(PREVIOUS_AMPLITUDE / 2, GroundShake.AMPLITUDE, STILL);
     }
 
     @Test
