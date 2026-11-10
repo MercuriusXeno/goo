@@ -8,7 +8,7 @@ import com.mojang.serialization.Codec;
  * delivery block names (decision delivery-block-in-ability-json). Each kind
  * ships with one bundled ability proving it: glow laser and glow crystal the
  * beam, blaze flames the stream, ender blink and typhoon propulsion the
- * self, every other ability the arc. A further
+ * self, deep click the scan, every other ability the arc. A further
  * ability is data, a goo_abilities JSON naming one of these kinds and its
  * params, and needs no new Java (decision one-proving-ability-per-kind).
  */
@@ -20,7 +20,14 @@ public enum DeliveryKind {
     /** A held cone spat from the glove for as long as the use is held. */
     STREAM,
     /** A program run on the invoking player, sending nothing from the hand. */
-    SELF;
+    SELF,
+    /**
+     * A hit scan the server reads along the look the tick the use fires, its
+     * program running at the landing once a wave drawn at the delivery's speed
+     * reaches it; no goo leaves the hand.
+     * decision click-is-a-hit-scan-drawn-as-a-delayed-wave
+     */
+    SCAN;
 
     private static final String WHAT = "delivery kind";
 

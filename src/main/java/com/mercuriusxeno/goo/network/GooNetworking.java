@@ -46,6 +46,11 @@ public final class GooNetworking {
         r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
         r.playToClient(OpenValuesManagerPayload.TYPE, OpenValuesManagerPayload.STREAM_CODEC);
         r.playToClient(WorkbenchReplyPayload.TYPE, WorkbenchReplyPayload.STREAM_CODEC);
+        r.playToClient(PortalsSyncPayload.TYPE, PortalsSyncPayload.STREAM_CODEC);
+        r.playToClient(HolesSyncPayload.TYPE, HolesSyncPayload.STREAM_CODEC);
+        r.playToClient(GateCarriedPayload.TYPE, GateCarriedPayload.STREAM_CODEC);
+        r.playToClient(PartnerChunkPayload.TYPE, PartnerChunkPayload.STREAM_CODEC);
+        r.playToClient(PartnerChunksDropPayload.TYPE, PartnerChunksDropPayload.STREAM_CODEC);
         r.playToClient(PocketContentsPayload.TYPE, PocketContentsPayload.STREAM_CODEC);
         registerAbilityVisualPayloads(r);
     }
@@ -73,6 +78,7 @@ public final class GooNetworking {
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
+        r.playToClient(ScanWavePayload.TYPE, ScanWavePayload.STREAM_CODEC);
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);
         r.playToClient(ModelShrinkPayload.TYPE, ModelShrinkPayload.STREAM_CODEC);
         r.playToClient(GhostTrailPayload.TYPE, GhostTrailPayload.STREAM_CODEC);
@@ -121,5 +127,8 @@ public final class GooNetworking {
         r.playToServer(PlexerTargetPickPayload.TYPE, PlexerTargetPickPayload.STREAM_CODEC, PlexerTargetPickHandler::handle);
         r.playToServer(WorkbenchRequestPayload.TYPE, WorkbenchRequestPayload.STREAM_CODEC,
                 WorkbenchRequestHandler::handle);
+        r.playToServer(PortalChoosePayload.TYPE, PortalChoosePayload.STREAM_CODEC, PortalChoosePayload::handle);
+        r.playToServer(PortalLinkPayload.TYPE, PortalLinkPayload.STREAM_CODEC, PortalLinkPayload::handle);
+        r.playToServer(GateCrossedPayload.TYPE, GateCrossedPayload.STREAM_CODEC, GateCrossedPayload::handle);
     }
 }

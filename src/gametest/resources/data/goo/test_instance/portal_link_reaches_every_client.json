@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:portal_link_reaches_every_client",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

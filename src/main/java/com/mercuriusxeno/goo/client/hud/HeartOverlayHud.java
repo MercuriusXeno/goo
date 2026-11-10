@@ -36,7 +36,11 @@ import java.util.Optional;
  * overlay-hearts-are-an-elemental-overshield, kindle-ember-hearts-ash-and-retaliate
  * and barkskin-bark-hearts-thorn-and-burn), and while Stoneskin stands each
  * missing heart it fills reads stone (decision
- * stoneskin-stone-hearts-block-regeneration). While Reserve stands, its banked
+ * stoneskin-stone-hearts-block-regeneration), and while Ancient stands the
+ * leftmost heart reads ancient (decision hud-draws-the-leftmost-heart-as-ancient),
+ * and while Undead stands each real heart reads zombie under the nether
+ * filling the missing ones (decision undead-normal-hearts-become-the-zombie-heart).
+ * While Reserve stands, its banked
  * hearts draw in their own sprite as a row behind vanilla's, before
  * vanilla draws, and each half heart the drain takes travels from the bar to
  * that row (decision reserve-hearts-sit-behind-the-bar). The layer wraps vanilla's health
@@ -64,6 +68,10 @@ public final class HeartOverlayHud {
     private static final Identifier ICE_HALF = sprite("ice_half");
     private static final Identifier CRYSTAL_FULL = sprite("crystal_full");
     private static final Identifier CRYSTAL_HALF = sprite("crystal_half");
+    private static final Identifier ANCIENT_FULL = sprite("ancient_full");
+    private static final Identifier ANCIENT_HALF = sprite("ancient_half");
+    private static final Identifier ZOMBIE_FULL = sprite("zombie_full");
+    private static final Identifier ZOMBIE_HALF = sprite("zombie_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
     private static final Identifier RESERVE_HALF = sprite("reserve_half");
     /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
@@ -102,8 +110,6 @@ public final class HeartOverlayHud {
     private static final float POINTS_PER_HEART = 2.0f;
     /** The seed multiplier vanilla's health bar seeds its jiggle with. */
     private static final int JIGGLE_SEED = 312_871;
-    /** Vanilla jiggles the bar at or under two hearts of health and absorption. */
-    private static final int JIGGLE_HEALTH = 4;
     private static final int REGEN_BOUNCE_PAD = 5;
     private static final int REGEN_BOUNCE = 2;
 
@@ -292,6 +298,42 @@ public final class HeartOverlayHud {
             case SCALES -> Optional.of(new Identifier[]{CRYSTAL_HALF, CRYSTAL_FULL});
             default -> Optional.empty();
         };
+    }
+
+    /**
+     * The whole sprites a heart slot draws, bottom first: Ancient's ancient
+     * heart over the leftmost slot alone, Undead's zombie heart over the real
+     * halves with nether over the missing ones, and every other kind's sprites
+     * alike in every slot. A filled half beside a half heart draws as columns
+     * instead (stoneBesideHalfHeart), so it lays no whole sprite here.
+     *
+     * @param kind         the overlay's kind
+     * @param slot         the heart slot, from the left
+     * @param shieldHalves the half hearts of shield over the slot
+     * @param realHalves   the half hearts of real health in the slot, zero to two
+     * @return the sprites, bottom first
+     */
+    static List<Identifier> slotSprites(HeartKind kind, int slot, int shieldHalves, int realHalves) {
+        List<Identifier> sprites = new ArrayList<>();
+        if (kind == HeartKind.ANCIENT) {
+            addAncient(sprites, slot, realHalves);
+            return sprites;
+        }
+        if (kind == HeartKind.UNDEAD) {
+            // undead-normal-hearts-become-the-zombie-heart: the real hearts read zombie under the nether fill
+            addHalves(sprites, realHalves, ZOMBIE_HALF, ZOMBIE_FULL);
+        }
+        if (!stoneBesideHalfHeart(kind, shieldHalves, realHalves)) {
+            sprites.addAll(heartSprites(kind, shieldHalves, realHalves));
+        }
+        return sprites;
+    }
+
+    private static void addAncient(List<Identifier> sprites, int slot, int realHalves) {
+        if (slot == 0) {
+            // hud-draws-the-leftmost-heart-as-ancient: the last heart lost reads ancient
+            addHalves(sprites, realHalves, ANCIENT_HALF, ANCIENT_FULL);
+        }
     }
 
     /**
@@ -517,8 +559,9 @@ public final class HeartOverlayHud {
         int health = Mth.ceil(player.getHealth());
         float maxHealth = Math.max((float) player.getAttributeValue(Attributes.MAX_HEALTH), health);
         int absorption = Mth.ceil(player.getAbsorptionAmount());
+        // health-bar-stays-steady-while-filled-hearts-stand: the overlay shakes only when vanilla's hearts under it do
         int[] jiggle = jiggle(gui.getGuiTicks(), Mth.ceil(maxHealth / POINTS_PER_HEART)
-                + Mth.ceil(absorption / POINTS_PER_HEART), health + absorption <= JIGGLE_HEALTH);
+                + Mth.ceil(absorption / POINTS_PER_HEART), LowHealthJiggle.jiggles(player));
         int bounceSlot = player.hasEffect(MobEffects.REGENERATION)
                 ? gui.getGuiTicks() % Mth.ceil(maxHealth + REGEN_BOUNCE_PAD) : NO_BOUNCE;
         return new BarLayout(graphics.guiWidth() / HALF - BAR_HALF_WIDTH, graphics.guiHeight() - leftHeightBefore,
@@ -540,14 +583,13 @@ public final class HeartOverlayHud {
                                Optional<RegrowCrawl.Crawl> crawl, float alpha, float fade) {
 
         void paint(int slot, int x, int y, int realHalves) {
+            for (Identifier sprite : slotSprites(overlay.kind(), slot, overlay.shieldAt(slot), realHalves)) {
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
+            }
             if (stoneBesideHalfHeart(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
                 // heart-effects-crawl-while-held: stone fills the empty half beside a half heart
                 blitColumns(graphics, missingFull(overlay.kind()), x, y, x + halfStart(1), x + halfEnd(1),
                         Math.round(alpha * OPAQUE_ALPHA) << ALPHA_SHIFT | WHITE_RGB);
-            } else {
-                for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
-                    graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
-                }
             }
             // wood-crawls-across-regrowing-heart: the same crawl, bark creeping evenly over a bare half
             // heart-effects-crawl-while-held: stone crawls into a missing heart, where no real half stands
