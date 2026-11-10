@@ -33,11 +33,13 @@ import java.util.UUID;
 /**
  * Runs a rallied mob for its caster until the rally fades: it walks to the
  * caster's nearest enemy and strikes it with the rally's damage on every
- * strike interval; when the rally fades its buffs come off. While the
+ * strike interval, and with no enemy in reach it follows the caster; when
+ * the rally fades its buffs come off. While the
  * caster's held effect stands, the rally re-runs around the caster, and when
  * the held effect ends every mob it rallied stands down.
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
+ * rallied-mobs-follow-the-player-who-rallied-them
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RallyEvents {
@@ -51,6 +53,10 @@ public final class RallyEvents {
     /** Ticks between one strike and the next, a melee goal's cooldown. */
     static final int STRIKE_INTERVAL_TICKS = 20;
     private static final double CHASE_SPEED = 1.2;
+    /** The pace a rallied mob walks to its rallier at, its buffed speed carrying it. */
+    private static final double FOLLOW_SPEED = 1.0;
+    /** Ticks between one path to a moving rallier and the next. */
+    private static final int REPATH_TICKS = 10;
     /** Ticks between one re-run of a held rally and the next, well inside zoo_rally.json's duration. */
     static final int REFRESH_TICKS = 20;
     private static final String LOG_RALLY_REFUSED = "Rally {} refused its re-run: {}";
@@ -77,7 +83,38 @@ public final class RallyEvents {
             return;
         }
         if (caster instanceof LivingEntity living) {
-            nearestFoe(mob, living).ifPresent(foe -> fight(level, mob, foe, rally.damage()));
+            act(level, mob, living, rally.damage());
+        }
+    }
+
+    /**
+     * Fights the caster's foe in reach, or with none follows the caster.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     *
+     * @param level  the mob's level
+     * @param mob    the rallied mob
+     * @param caster the entity that rallied it
+     * @param damage the damage one strike deals
+     */
+    private static void act(ServerLevel level, Mob mob, LivingEntity caster, float damage) {
+        Optional<LivingEntity> foe = nearestFoe(mob, caster);
+        switch (RallyFollow.choose(foe.isPresent(), mob.distanceToSqr(caster))) {
+            case FIGHT -> fight(level, mob, foe.orElseThrow(), damage);
+            case FOLLOW -> follow(mob, caster);
+            case HOLD -> mob.getNavigation().stop();
+        }
+    }
+
+    /**
+     * Walks a rallied mob toward its rallier, re-pathing as the rallier moves.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     *
+     * @param mob     the rallied mob
+     * @param rallier the entity that rallied it
+     */
+    private static void follow(Mob mob, LivingEntity rallier) {
+        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
+            mob.getNavigation().moveTo(rallier, FOLLOW_SPEED);
         }
     }
 
