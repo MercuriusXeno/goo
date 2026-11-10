@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
+import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.network.PlexerTargetPickPayload;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -16,6 +18,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +33,7 @@ import java.util.Locale;
  * decision right-click-on-the-plexer-opens-the-known-items-menu
  * decision cancel-cell-clears-the-plexer-target
  * decision menu-lists-known-items-alphabetically-with-search-and-scroll
+ * decision menu-header-reserves-the-target
  */
 public final class KnownItemsOverlay extends Screen {
 
@@ -40,6 +44,7 @@ public final class KnownItemsOverlay extends Screen {
     private static final int ROW_DOWN = 1;
 
     private final BlockPos plexer;
+    private final ItemStack target;
     private final List<KnownItemsOverlayRenderer.KnownItem> ordered;
     private final Locale locale;
     private final SearchInput search;
@@ -47,9 +52,11 @@ public final class KnownItemsOverlay extends Screen {
     private KnownItemsOverlayRenderer.@Nullable Drawn drawn;
     private boolean draggingThumb;
 
-    private KnownItemsOverlay(BlockPos plexer, List<KnownItemsOverlayRenderer.KnownItem> ordered, Locale locale) {
+    private KnownItemsOverlay(BlockPos plexer, ItemStack target, List<KnownItemsOverlayRenderer.KnownItem> ordered,
+                              Locale locale) {
         super(Component.empty());
         this.plexer = plexer;
+        this.target = target;
         this.ordered = ordered;
         this.locale = locale;
         this.search = new SearchInput();
@@ -69,7 +76,24 @@ public final class KnownItemsOverlay extends Screen {
                         new ItemStack(BuiltInRegistries.ITEM.getValue(id))))
                 .filter(item -> !item.stack().isEmpty())
                 .toList();
-        mc.setScreen(new KnownItemsOverlay(plexer, KnownItemsListing.order(known, locale), locale));
+        mc.setScreen(new KnownItemsOverlay(plexer, targetOf(mc.level, plexer), KnownItemsListing.order(known, locale),
+                locale));
+    }
+
+    /**
+     * Reads the plexer's current target from the client level, which the plexer's block entity sync keeps current.
+     * decision menu-header-reserves-the-target
+     *
+     * @param level  the client level, or null before one loads
+     * @param plexer the plexer's position
+     * @return a copy of the plexer's target, empty when none is set or no plexer stands there
+     */
+    private static ItemStack targetOf(@Nullable Level level, BlockPos plexer) {
+        if (level == null) {
+            return ItemStack.EMPTY;
+        }
+        return level.getBlockEntity(plexer, GooBlockEntities.PLEXER.get()).map(PlexerBlockEntity::getTargetItem)
+                .map(ItemStack::copy).orElse(ItemStack.EMPTY);
     }
 
     /**
@@ -94,7 +118,8 @@ public final class KnownItemsOverlay extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float frameDelta) {
         drawn = KnownItemsOverlayRenderer.render(graphics, font, new KnownItemsOverlayRenderer.Frame(width, height,
-                KnownItemsListing.filter(ordered, search.text(), locale), search.text(), firstRow, mouseX, mouseY));
+                target, KnownItemsListing.filter(ordered, search.text(), locale), search.text(), firstRow, mouseX,
+                mouseY));
         firstRow = drawn.scroll().firstRow();
         KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
     }
