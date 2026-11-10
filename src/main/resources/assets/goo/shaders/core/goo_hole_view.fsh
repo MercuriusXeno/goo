@@ -23,8 +23,10 @@ out vec4 fragColor;
 const float VIEW_OPACITY = 0.6;
 // How deep the tear bites into the oval, as a share of its radius.
 const float TEAR_DEPTH = 0.16;
-// How wide the band of color along the tear runs, as a share of the radius.
-const float BAND = 0.12;
+// The band of color along the tear runs whole over the edge's own texel, then fades inward over
+// this many texels, measured in texels so it runs unbroken all round.
+const float BAND_SOLID = 1.0;
+const float BAND_FEATHER = 3.0;
 // How fast the tear shifts; GameTime runs once a day, so this sets turns per day.
 const float TEAR_SPEED = 2400.0;
 
@@ -43,7 +45,7 @@ void main() {
         discard;
     }
     vec3 view = texture(Sampler0, gl_FragCoord.xy / ScreenSize).rgb;
-    float band = smoothstep(edge - BAND, edge, out_);
+    float band = portalTexelRim(portalTexelsInside(across, texels, edge), BAND_SOLID, BAND_FEATHER);
     vec3 color = mix(view, frameColor.rgb * 1.4, band);
     fragColor = vec4(color, mix(VIEW_OPACITY, 1.0, band));
 }

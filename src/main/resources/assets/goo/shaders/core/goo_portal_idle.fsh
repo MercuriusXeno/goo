@@ -22,8 +22,9 @@ const float ARMS = 3.0;
 const float WIND = 9.0;
 // How fast the swirl turns, radians per second.
 const float TURN = 2.5;
-// Where across the oval the rim starts to glow, zero the heart and one the edge.
-const float RIM_START = 0.78;
+// The rim glows whole over the edge's own texel, then fades inward over this many texels.
+const float RIM_SOLID = 1.0;
+const float RIM_FEATHER = 4.0;
 const float HEART = 0.03;
 
 void main() {
@@ -35,7 +36,7 @@ void main() {
     float seconds = GameTime * SECONDS_PER_DAY;
     float angle = atan(across.y, across.x);
     float swirl = 0.5 + 0.5 * sin(angle * ARMS + out_ * WIND - seconds * TURN);
-    float rim = smoothstep(RIM_START, 1.0, out_);
+    float rim = portalTexelRim(portalTexelsInside(across, texels, 1.0), RIM_SOLID, RIM_FEATHER);
     vec3 heart = vec3(HEART);
     vec3 arms = frameColor.rgb * swirl * out_ * 0.8;
     vec3 glow = frameColor.rgb * rim * 1.6;
