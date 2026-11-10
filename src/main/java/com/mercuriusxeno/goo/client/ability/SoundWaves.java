@@ -2,10 +2,10 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
+import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;
-import net.minecraft.core.particles.ShriekParticleOption;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
@@ -21,7 +21,8 @@ import java.util.Optional;
 
 /**
  * Deep Click's sound wave, as the operator ruled it: the sculk shrieker's
- * shriek travelling the straight line from the glove to the landing over
+ * shriek rings, held square to the line rather than flat and rising, travelling
+ * the straight line from the glove to the landing over
  * the server's delay, arriving on the tick the click sounds there, with the
  * click itself trailing it in a fading reverb all the way to the target,
  * quietly (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
@@ -88,7 +89,9 @@ public final class SoundWaves {
 
     private static void travel(ClientLevel level, ScanWavePayload wave, long age) {
         Vec3 at = ScanWaveProgress.at(wave.from(), wave.to(), wave.ticks(), age);
-        level.addParticle(new ShriekParticleOption(0), at.x, at.y, at.z, 0, 0, 0);
+        // the shriek ring held square to the line, its spawn speed naming the line it faces along
+        Vec3 along = wave.to().subtract(wave.from());
+        level.addParticle(GooParticles.CLICK_WAVE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
         if (age % REVERB_EVERY == 0) {
             float share = wave.ticks() <= 0 ? 1f : Math.min(1f, (float) age / wave.ticks());
             wave.trail().flatMap(SoundWaves::soundOf).ifPresent(sound -> level.playLocalSound(at.x, at.y, at.z,
