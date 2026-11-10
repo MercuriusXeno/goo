@@ -1,10 +1,9 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
+import com.mercuriusxeno.goo.client.tooltip.GooTooltipLines;
 import com.mercuriusxeno.goo.client.tooltip.GooValuesKey;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
-import com.mercuriusxeno.goo.data.GooAmountOrder;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -231,11 +230,8 @@ public final class GooTooltipHandler {
      * @param value    the item's goo value
      */
     static void appendMeltRows(List<Either<FormattedText, TooltipComponent>> elements, GooValue value) {
-        // Decision value-lists-order-highest-first-ties-by-type-key.
-        value.exactAll().entrySet().stream().filter(entry -> entry.getValue().isPositive())
-                .sorted(GooAmountOrder.highestFirst())
-                .forEach(entry -> elements.add(Either.right(new GooValueTooltipComponent(entry.getKey(),
-                        entry.getValue()))));
+        // decision menu-tooltip-carries-the-goo-cost
+        GooTooltipLines.valueLines(value).forEach(line -> elements.add(Either.right(line)));
     }
 
     /**
@@ -247,9 +243,8 @@ public final class GooTooltipHandler {
      */
     static void appendGooRows(List<Either<FormattedText, TooltipComponent>> elements,
             Map<ResourceKey<GooTypeDefinition>, Integer> rows) {
-        // Decision value-lists-order-highest-first-ties-by-type-key.
-        rows.entrySet().stream().sorted(GooAmountOrder.highestFirst()).forEach(row ->
-                elements.add(Either.right(new GooValueTooltipComponent(row.getKey(), row.getValue()))));
+        // decision menu-tooltip-carries-the-goo-cost
+        GooTooltipLines.volumeLines(rows).forEach(line -> elements.add(Either.right(line)));
     }
 
     /**
