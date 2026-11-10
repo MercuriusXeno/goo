@@ -25,7 +25,7 @@ out vec4 fragColor;
 const float HALO_MARGIN_TEXELS = 8.0;
 // How many texels out from the oval's edge the halo fades to nothing at its longest tongue's still
 // reach, short of the quad's border.
-const float HALO_REACH_TEXELS = 6.0;
+const float HALO_REACH_TEXELS = 4.0;
 // How strongly the halo glows on the texels touching the oval's edge.
 const float HALO_STRENGTH = 0.7;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day. Each
@@ -37,13 +37,20 @@ const float HALO_TURN_SECONDS = 8.0;
 // How many seconds the outer reach takes to ripple out and back once, tuned by eye.
 const float HALO_RIPPLE_SECONDS = 1.0;
 // How many texels the outer reach ripples in and out by.
-const float HALO_RIPPLE_TEXELS = 1.5;
+const float HALO_RIPPLE_TEXELS = 0.5;
 // How many tongues the halo breaks into around the oval, the coarsest of its noise's three layers.
 const float HALO_TONGUES = 5.0;
 // The share of the reach a tongue's gap still keeps, so the halo thins between tongues and never parts.
 const float HALO_GAP_REACH = 0.45;
 // The texel distance a ripple never carries the reach past: the quad's border, half a texel in.
 const float HALO_REACH_LIMIT = HALO_MARGIN_TEXELS - 0.5;
+// How deep the turning noise breaks the glow's strength between tongues, the band by the rim among it,
+// as a share of full strength, so no texel of the glow sits still (decision
+// surface-glow-reaches-shorter-and-moves-inside). Tuned by eye.
+const float HALO_INNER_BREAK = 0.7;
+// How many times finer the break-up's tongues run than the reach's, so the band by the rim breaks
+// into its own flickering pieces rather than copying the outer edge.
+const float HALO_INNER_FINENESS = 2.0;
 
 // A noise taken over the angle around the oval, nothing to one, its layers whole multiples of the
 // tongue count, so it closes on itself all round.
@@ -69,5 +76,6 @@ void main() {
     float tongue = mix(HALO_GAP_REACH, 1.0, tongues(angle));
     float reach = min(HALO_REACH_TEXELS * tongue + ripple, HALO_REACH_LIMIT);
     float fade = max(1.0 - beyond / max(reach, 1.0), 0.0);
-    fragColor = vec4(frameColor.rgb, HALO_STRENGTH * fade * fade);
+    float breakup = mix(1.0 - HALO_INNER_BREAK, 1.0, tongues(angle * HALO_INNER_FINENESS));
+    fragColor = vec4(frameColor.rgb, HALO_STRENGTH * fade * fade * breakup);
 }
