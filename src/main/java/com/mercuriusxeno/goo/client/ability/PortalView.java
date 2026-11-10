@@ -147,6 +147,18 @@ public final class PortalView {
     }
 
     /**
+     * The partner the view being drawn now looks out of, so what stands
+     * round that partner's own rim, its halo and swirl band, stays out of the
+     * view: drawn into it, they would ring the near gate's view in the
+     * partner's color.
+     *
+     * @return the partner, empty outside a view's pass
+     */
+    public static Optional<Gate> lookingOutOf() {
+        return drawing ? Optional.ofNullable(currentFar) : Optional.empty();
+    }
+
+    /**
      * Whether a view through a gate is extracting what it draws now, the
      * render state of each body it shows among it.
      *
