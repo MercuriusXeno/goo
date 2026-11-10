@@ -83,21 +83,29 @@ public final class PortalFaces {
      * mouth's torn edge. The halo's strength is the shader's own.
      */
     /**
-     * How far the tornadic halo stands off the face along its normal, in
-     * blocks: two texels, the most the operator's reference stands out.
+     * How far the tornado's rifled tube stands off the face along its
+     * normal, in blocks: two sixteenths, the most the operator's reference
+     * stands out, tuned by eye.
      */
     static final double TORNADO_HEIGHT = 2.0 / 16;
-    /** How much wider than the rim the tornado flares at its far end, as a share of the rim's size, tuned by eye. */
-    private static final double TORNADO_FLARE = 0.15;
-    /** How many rings the tornado's funnel rises in. */
-    private static final int TORNADO_RINGS = 6;
-    /** How many segments each of the funnel's rings runs around the rim in. */
-    private static final int TORNADO_SEGMENTS = 32;
     /**
-     * How far out a hole mouth's funnel starts, as a share of the oval's
-     * radius: the deepest the mouth's tear bites, one less HOLE_TEAR_DEPTH in
-     * portal_texels.glsl, so the funnel reaches in to the tear wherever it
-     * stands and the tornado shader cuts what lies inside it.
+     * How far the hairs on the tube's front lip reach outward, in blocks,
+     * tuned by eye. Kept equal to the tube's depth, the shader's TUBE_SHARE
+     * splitting the tube from the lip at half.
+     */
+    private static final double TORNADO_HAIR_LENGTH = TORNADO_HEIGHT;
+    /** The share of the way along the tube and its lip where the tube ends: goo_portal_tornado.fsh's TUBE_SHARE. */
+    private static final double TUBE_SHARE = TORNADO_HEIGHT / (TORNADO_HEIGHT + TORNADO_HAIR_LENGTH);
+    /** How many rings the tornado's tube rises in. */
+    private static final int TORNADO_RINGS = 4;
+    /** How many segments each of the tube's rings runs around the rim in, enough that it draws round. */
+    private static final int TORNADO_SEGMENTS = 64;
+    /**
+     * How far out a hole mouth's tube starts on the face, as a share of the
+     * oval's radius: the deepest the mouth's tear bites, one less
+     * HOLE_TEAR_DEPTH in portal_texels.glsl. The tube leans out to the oval
+     * as it rises, so it reaches the tear wherever the tear stands, and the
+     * tornado shader cuts what lies inside it.
      */
     private static final double TORN_BASE = 0.84;
     /** The three in Ramanujan's reckoning of an oval's perimeter. */
@@ -363,21 +371,10 @@ public final class PortalFaces {
     }
 
     /**
-     * Emits the halo of every gate the frame draws, each portal and each of
-     * a hole's two mouths, in its own color, a mouth's edge marked torn.
-     * portal-halo-glows-additively-onto-the-wall
-     * hole-mouths-wear-the-portal-halo
-     *
-     * @param pose     the pose
-     * @param consumer the halo pipeline's vertex consumer
-     * @param gates    the gates the frame draws
-     * @param boxOf    the box each gate draws over, camera-relative
-     */
-    /**
      * Emits the tornadic halo of every gate the frame draws, each portal and
      * each of a hole's two mouths, beside its surface glow, in its own color.
-     * A mouth's edge is marked torn and its funnel based on the deepest its
-     * tear bites, so the shader starts it at the tear.
+     * A mouth's edge is marked torn and its tube leans out from the deepest
+     * its tear bites, so the shader starts it at the tear.
      * tornadic-halo-spirals-out-from-the-rim
      * hole-mouths-wear-the-tornadic-halo
      *
@@ -389,90 +386,113 @@ public final class PortalFaces {
     static void emitTornadoes(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            Funnel funnel = Funnel.over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_BASE : 1);
-            emitTornado(pose, consumer, funnel, ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
+            Tube tube = Tube.over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_BASE : 1);
+            emitTornado(pose, consumer, tube, ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
         }
     }
 
     /**
-     * Emits a gate's tornado as a funnel of rings: the first traces the
-     * rim's oval on the face, each next one stands farther off it along the
-     * face's normal and flares wider, up to the named height. Each quad maps
-     * zero to one around the rim and up the funnel, and every vertex carries
-     * the texels around the rim and up its height at sixteen a block, for the
-     * shader's grid.
+     * Emits a gate's tornado as a rifled tube with a lip of hairs: rings
+     * trace the rim's oval, each next one standing farther off the face
+     * along its normal up to the named height, then one more ring flares out
+     * from the tube's front edge by the hair length. Each quad maps zero to
+     * one around the rim, and up the tube to TUBE_SHARE then out the lip to
+     * one, and every vertex carries the blocks around the rim and along the
+     * tube and lip at sixteen a block, for the shader's proportions.
      * tornadic-halo-spirals-out-from-the-rim
      *
      * @param pose     the pose
      * @param consumer the vertex consumer
-     * @param funnel   the funnel over the gate's face
+     * @param tube     the tube over the gate's face
      * @param color    the packed ARGB color, its alpha the edge mark
      */
-    private static void emitTornado(PoseStack.Pose pose, VertexConsumer consumer, Funnel funnel, int color) {
+    private static void emitTornado(PoseStack.Pose pose, VertexConsumer consumer, Tube tube, int color) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-        for (int ring = 0; ring < TORNADO_RINGS; ring++) {
+        int[] texels = tube.texels();
+        for (int level = 0; level <= TORNADO_RINGS; level++) {
             for (int segment = 0; segment < TORNADO_SEGMENTS; segment++) {
                 for (int[] corner : corners) {
-                    Vec3 at = funnel.point(segment + corner[0], ring + corner[1]);
+                    Vec3 at = tube.point(segment + corner[0], level + corner[1]);
                     consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
-                            .setUv((float) (segment + corner[0]) / TORNADO_SEGMENTS,
-                                    (float) (ring + corner[1]) / TORNADO_RINGS)
-                            .setUv2(funnel.texels()[0], funnel.texels()[1]).setColor(color);
+                            .setUv((float) (segment + corner[0]) / TORNADO_SEGMENTS, Tube.along(level + corner[1]))
+                            .setUv2(texels[0], texels[1]).setColor(color);
                 }
             }
         }
     }
 
     /**
-     * The funnel a gate's tornado draws over: the rim's oval on the face,
-     * its half sizes across the face's two ways, rising off the face's plane.
+     * The tube a gate's tornado draws over: the rim's oval on the face, its
+     * half sizes across the face's two ways, standing off the face's plane.
      *
      * @param center the oval's middle on the face's plane, lifted off it
      * @param side   the face
      * @param half   the oval's half size across the face's first way, then its second
+     * @param base   how far out the tube's first ring stands, as a share of the oval's radius
      */
-    private record Funnel(Vec3 center, Direction side, double[] half) {
+    private record Tube(Vec3 center, Direction side, double[] half, double base) {
 
         /**
          * @param box  the gate's blocks, camera-relative
          * @param side the face
-         * @param base how far out the funnel's first ring stands, as a share of the oval's radius
-         * @return the funnel
+         * @param base how far out the tube's first ring stands, as a share of the oval's radius
+         * @return the tube
          */
-        static Funnel over(AABB box, Direction side, double base) {
+        static Tube over(AABB box, Direction side, double base) {
             Vec3 middle = cornerOf(box, side, 0, 0).add(cornerOf(box, side, 1, 1)).scale(HALF_WAVE);
-            double scale = HALF_WAVE * base;
-            return new Funnel(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
-                    * scale, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * scale});
+            return new Tube(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
+                    * HALF_WAVE, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * HALF_WAVE}, base);
+        }
+
+        /**
+         * @param level how many rings up the tube, of the named count, one more the lip's outer edge
+         * @return how far along the tube and lip the level stands, the tube zero to TUBE_SHARE, the lip on to one
+         */
+        static float along(int level) {
+            return level > TORNADO_RINGS ? 1F : (float) (TUBE_SHARE * level / TORNADO_RINGS);
         }
 
         /**
          * @param segment how many segments around the rim, of the named count
-         * @param ring    how many rings up the funnel, of the named count
-         * @return the funnel's point there
+         * @param level   how many rings up the tube, of the named count, one more the lip's outer edge
+         * @return the tube's point there
          */
-        Vec3 point(int segment, int ring) {
-            double up = (double) ring / TORNADO_RINGS;
-            double spread = 1 + TORNADO_FLARE * up * up;
+        Vec3 point(int segment, int level) {
+            double up = Math.min((double) level / TORNADO_RINGS, 1);
+            double spread = Mth.lerp(up, base, 1);
+            double hair = level > TORNADO_RINGS ? TORNADO_HAIR_LENGTH : 0;
             double angle = Mth.TWO_PI * segment / TORNADO_SEGMENTS;
-            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), half[0] * spread * Math.cos(angle))
-                    .with(secondAxisOf(side), half[1] * spread * Math.sin(angle));
+            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), (half[0] * spread + hair) * Math.cos(angle))
+                    .with(secondAxisOf(side), (half[1] * spread + hair) * Math.sin(angle));
             return center.add(across).add(side.getUnitVec3().scale(TORNADO_HEIGHT * up));
         }
 
         /**
-         * @return the texels around the rim, by Ramanujan's reckoning of an
-         *         oval's perimeter, then up the funnel, at sixteen a block
+         * @return the texels around the tube's first ring, by Ramanujan's
+         *         reckoning of an oval's perimeter, then along the tube and
+         *         its lip, at sixteen a block
          */
         int[] texels() {
-            double sum = half[0] + half[1];
-            double around = Math.PI * (RAMANUJAN_THREE * sum - Math.sqrt((RAMANUJAN_THREE * half[0] + half[1])
-                    * (half[0] + RAMANUJAN_THREE * half[1])));
+            double first = half[0] * base;
+            double second = half[1] * base;
+            double around = Math.PI * (RAMANUJAN_THREE * (first + second) - Math.sqrt((RAMANUJAN_THREE * first
+                    + second) * (first + RAMANUJAN_THREE * second)));
             return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
-                    (int) Math.round(TORNADO_HEIGHT * TEXELS_PER_BLOCK)};
+                    (int) Math.round((TORNADO_HEIGHT + TORNADO_HAIR_LENGTH) * TEXELS_PER_BLOCK)};
         }
     }
 
+    /**
+     * Emits the halo of every gate the frame draws, each portal and each of
+     * a hole's two mouths, in its own color, a mouth's edge marked torn.
+     * portal-halo-glows-additively-onto-the-wall
+     * hole-mouths-wear-the-portal-halo
+     *
+     * @param pose     the pose
+     * @param consumer the halo pipeline's vertex consumer
+     * @param gates    the gates the frame draws
+     * @param boxOf    the box each gate draws over, camera-relative
+     */
     static void emitHalos(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {

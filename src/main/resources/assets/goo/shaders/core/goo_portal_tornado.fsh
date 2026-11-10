@@ -3,16 +3,15 @@
 #moj_import <minecraft:globals.glsl>
 #moj_import "portal_texels.glsl"
 
-// A gate's tornadic halo (decision tornadic-halo-spirals-out-from-the-rim): a funnel standing off
-// the wall in front of the portal, beside its surface glow. Translucent bands wind around the
-// funnel's axis and travel outward along it with time, so they read as rifling out of the portal,
-// fading to nothing at the funnel's far end. frameCoord runs zero to one around the rim, then zero
-// to one up the funnel from the face; every term reads the snapped texel center, sixteen texels a
-// block like the rim. The funnel's height and flare are PortalFaces' TORNADO_HEIGHT and
-// TORNADO_FLARE.
+// A gate's tornadic halo (decision tornadic-halo-spirals-out-from-the-rim): the rim drawn as a short
+// tube standing at most 2/16 of a block off the wall, like a barrel's mouth, its inner wall glowing
+// with tight spiral grooves that turn slowly the screw way, and its front lip bristling with fine
+// slanted hairs. It draws smooth and blended, reading the face coordinate unsnapped, off the texel
+// grid the rim and surface glow keep. frameCoord runs zero to one around the rim, then zero to
+// TUBE_SHARE up the tube and on to one out across the lip.
 // A hole's mouth wears the same tornado (decision hole-mouths-wear-the-tornadic-halo): its vertex
-// alpha marks the torn edge, its funnel starts at the deepest the tear bites, and every part of it
-// lying inside the tear holeTornEdge draws is cut, so the tornado starts at the tear.
+// alpha marks the torn edge, its tube leans out from the deepest the tear bites, and every part of it
+// inside the tear holeTornEdge draws is cut, so the tornado starts at the tear.
 
 in vec2 frameCoord;
 flat in vec2 texels;
@@ -21,40 +20,66 @@ in vec4 frameColor;
 out vec4 fragColor;
 
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day. Each
-// period below divides it whole, so the bands carry on unbroken as the day wraps.
+// period below divides it whole, so the tornado carries on unbroken as the day wraps.
 const float SECONDS_PER_DAY = 1200.0;
 const float TAU = 6.28318530718;
-// How many thin strands wind around the funnel, a tightly wound vortex flattened against the rim.
-const float TORNADO_BANDS = 24.0;
-// How many turns a band winds around the funnel from the face to its far end: the rifling's twist,
-// tuned by eye.
-const float TORNADO_TWIST = 1.25;
-// How many seconds a band takes to travel from the rim to the funnel's far end, tuned by eye.
-const float TORNADO_RIFLE_SECONDS = 6.0;
-// How sharply a band stands out from the gaps between, higher thinner.
-const float TORNADO_BAND_SHARPNESS = 6.0;
-// How strongly the bands glow at the rim.
-const float TORNADO_STRENGTH = 0.55;
-// How much a finer turbulence frays the bands, as a share of their strength.
-const float TORNADO_FRAY = 0.35;
-// How many finer wisps the turbulence breaks each band into around the funnel.
-const float TORNADO_WISPS = 37.0;
-// How much wider than its first ring the funnel flares at its far end: PortalFaces.TORNADO_FLARE.
-const float TORNADO_FLARE = 0.15;
+// The share of the way along the tube and its lip where the tube ends: PortalFaces.TUBE_SHARE.
+const float TUBE_SHARE = 0.5;
+// How many grooves rifle the tube's inner wall.
+const float TORNADO_GROOVES = 24.0;
+// How many turns a groove winds over the tube's depth: the rifling's twist, tuned by eye.
+const float TORNADO_TWIST = 0.25;
+// How many seconds the rifling and the hairs take to turn once around, tuned by eye.
+const float TORNADO_TURN_SECONDS = 8.0;
+// How sharply a groove stands out from the wall between, higher thinner.
+const float TORNADO_GROOVE_SHARPNESS = 4.0;
+// How strongly the tube's wall glows between grooves, and how much more along a groove.
+const float TUBE_GLOW = 0.3;
+const float TUBE_GROOVE_GLOW = 0.55;
+// How many fine hairs bristle off the lip around the rim.
+const float TORNADO_HAIRS = 96.0;
+// How far around a hair slants as it runs out to its tip, in hairs, the screw way.
+const float TORNADO_HAIR_SLANT = 0.8;
+// A hair's half width, as a share of the spacing between hairs.
+const float TORNADO_HAIR_WIDTH = 0.12;
+// How strongly a hair glows at its root.
+const float TORNADO_HAIR_STRENGTH = 0.6;
+// The shortest a hair runs, as a share of the lip's reach; the rest vary up to the whole reach.
+const float TORNADO_HAIR_SHORTEST = 0.3;
+// How strongly a soft mist glows under the hairs, fading out across the lip.
+const float TORNADO_MIST = 0.15;
 
-void main() {
-    vec2 at = portalTexelCenter(frameCoord, texels);
-    float around = at.x * TAU;
-    float along = at.y;
-    float spread = mix(1.0, 1.0 - HOLE_TEAR_DEPTH, frameColor.a) * (1.0 + TORNADO_FLARE * along * along);
+// A value nothing to one fixed for each whole number, the same at every frame.
+float hash(float n) {
+    return fract(sin(n * 12.9898) * 43758.5453);
+}
+
+float tube(float around, float inner, float seconds) {
+    float spread = mix(mix(1.0, 1.0 - HOLE_TEAR_DEPTH, frameColor.a), 1.0, inner);
     if (frameColor.a > 0.5 && spread < holeTornEdge(around, GameTime)) {
         discard;
     }
+    float turned = around - seconds * TAU / TORNADO_TURN_SECONDS;
+    float rifling = turned * TORNADO_GROOVES + inner * TORNADO_TWIST * TAU;
+    float groove = pow(0.5 + 0.5 * sin(rifling), TORNADO_GROOVE_SHARPNESS);
+    return (TUBE_GLOW + TUBE_GROOVE_GLOW * groove) * mix(0.7, 1.0, inner);
+}
+
+float hairs(float around, float out_, float seconds) {
+    float turned = around - seconds * TAU / TORNADO_TURN_SECONDS;
+    float strand = turned / TAU * TORNADO_HAIRS + out_ * TORNADO_HAIR_SLANT;
+    float off = abs(fract(strand) - 0.5);
+    float line = 1.0 - smoothstep(TORNADO_HAIR_WIDTH, TORNADO_HAIR_WIDTH + fwidth(strand), off);
+    float reach = mix(TORNADO_HAIR_SHORTEST, 1.0, hash(mod(floor(strand), TORNADO_HAIRS)));
+    float hair = TORNADO_HAIR_STRENGTH * line * (1.0 - smoothstep(reach * 0.5, reach, out_));
+    return hair + TORNADO_MIST * (1.0 - out_) * (1.0 - out_);
+}
+
+void main() {
+    float around = frameCoord.x * TAU;
     float seconds = GameTime * SECONDS_PER_DAY;
-    float travel = along - seconds / TORNADO_RIFLE_SECONDS;
-    float rifling = around * TORNADO_BANDS + travel * TORNADO_TWIST * TAU;
-    float band = pow(0.5 + 0.5 * sin(rifling), TORNADO_BAND_SHARPNESS);
-    float fray = 0.5 + 0.5 * sin(around * TORNADO_WISPS - travel * TORNADO_TWIST * TAU * 2.0);
-    float fade = (1.0 - along) * (1.0 - along);
-    fragColor = vec4(frameColor.rgb, TORNADO_STRENGTH * band * mix(1.0 - TORNADO_FRAY, 1.0, fray) * fade);
+    float glow = frameCoord.y < TUBE_SHARE
+            ? tube(around, frameCoord.y / TUBE_SHARE, seconds)
+            : hairs(around, (frameCoord.y - TUBE_SHARE) / (1.0 - TUBE_SHARE), seconds);
+    fragColor = vec4(frameColor.rgb, glow);
 }
