@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.entity;
 
 import com.mercuriusxeno.goo.registry.GooEntities;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -16,14 +18,19 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * The compression sphere a black hole leaves at its origin: a pseudo-item
- * that falls to the ground below and never enters an inventory; a player
- * touching it pops it open, spilling every stack it holds there as
- * ordinary item entities (decision black-hole-leaves-a-compression-sphere).
+ * The compression sphere a black hole or a large Blast leaves at its origin:
+ * a pseudo-item that falls to the ground below and never enters an
+ * inventory; a player touching it pops it open, spilling every stack it
+ * holds there as ordinary item entities. Its core tells who left it.
+ * decision black-hole-leaves-a-compression-sphere
+ * decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere
  */
 public class CompressionSphere extends Entity {
 
+    private static final EntityDataAccessor<Integer> DATA_CORE =
+            SynchedEntityData.defineId(CompressionSphere.class, EntityDataSerializers.INT);
     private static final String TAG_HOARD = "Hoard";
+    private static final String TAG_CORE = "Core";
     private static final double GRAVITY = 0.04;
     private static final double AIR_DRAG = 0.98;
     private static final double GROUND_FRICTION = 0.6;
@@ -47,14 +54,16 @@ public class CompressionSphere extends Entity {
      * @param level the server level
      * @param at    where the sphere appears
      * @param held  the hoard it takes; emptied into the sphere
+     * @param core  the core it draws, telling who left it
      */
-    public static void leave(ServerLevel level, Vec3 at, CompressedHoard held) {
+    public static void leave(ServerLevel level, Vec3 at, CompressedHoard held, SphereCore core) {
         if (held.isEmpty()) {
             return;
         }
         CompressionSphere sphere = new CompressionSphere(GooEntities.COMPRESSION_SPHERE.get(), level);
         sphere.setPos(at);
         sphere.hoard.takeAll(held);
+        sphere.setCore(core);
         level.addFreshEntity(sphere);
     }
 
@@ -65,9 +74,20 @@ public class CompressionSphere extends Entity {
         return hoard;
     }
 
+    /**
+     * @return the core the sphere draws, read from its synched data so the client sees it too
+     */
+    public SphereCore core() {
+        return SphereCore.byOrdinal(entityData.get(DATA_CORE));
+    }
+
+    private void setCore(SphereCore core) {
+        entityData.set(DATA_CORE, core.ordinal());
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
-        // the client draws an orb and reads nothing the server holds
+        entityData.define(DATA_CORE, SphereCore.MAROON.ordinal());
     }
 
     @Override
@@ -119,10 +139,12 @@ public class CompressionSphere extends Entity {
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         hoard = input.read(TAG_HOARD, CompressedHoard.CODEC).orElseGet(CompressedHoard::new);
+        setCore(input.read(TAG_CORE, SphereCore.CODEC).orElse(SphereCore.MAROON));
     }
 
     @Override
     protected void addAdditionalSaveData(ValueOutput output) {
         output.store(TAG_HOARD, CompressedHoard.CODEC, hoard);
+        output.store(TAG_CORE, SphereCore.CODEC, core());
     }
 }

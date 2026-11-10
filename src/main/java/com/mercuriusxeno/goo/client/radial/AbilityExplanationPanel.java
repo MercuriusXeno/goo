@@ -8,11 +8,9 @@ import com.mercuriusxeno.goo.client.hud.WordWrap;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToIntFunction;
@@ -61,11 +59,10 @@ final class AbilityExplanationPanel {
         if (offered.locked()) {
             return;
         }
-        ResourceKey<GooTypeDefinition> type = frame.types().get(wheel.selectedType());
         int left = frame.centerX() + frame.radius() + WHEEL_GAP;
         int textWidth = textWidth(frame.centerX() * HALF - EDGE_MARGIN - left);
         ToIntFunction<String> widthOf = text -> font.width(Component.literal(text));
-        List<PanelRow> rows = rows(offered.ability(), frame.look().costMechanicsLookup(type), textWidth, widthOf);
+        List<PanelRow> rows = rows(offered.ability(), frame.look().costMechanicsLookup(), textWidth, widthOf);
         PanelPainter.PanelSize size = PanelPainter.measure(rows, widthOf);
         int top = frame.centerY() - Math.round(size.height()) / HALF;
         NineSlice.blit(graphics, new PanelRectangle(left, top, Math.round(size.width()), Math.round(size.height())));
