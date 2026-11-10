@@ -115,6 +115,43 @@ class TouchedUpAbilityIconsTest {
         }
     }
 
+    @Nested
+    class GluttonyIcon {
+
+        // gluttony-icon-redrawn-at-native-texels
+        private static final int BLOCK = 2;
+
+        /** A sprite scaled up from any offset fills the 2x2 grid of one phase with one-color blocks. */
+        @ParameterizedTest
+        @ValueSource(ints = {0, 1, 2, 3})
+        void isNotATwiceScaledSprite(int phase) throws IOException {
+            BufferedImage icon = read("jelly_gluttony");
+            int drawnBlocks = 0;
+            int uniformBlocks = 0;
+            for (int y = phase / BLOCK; y + 1 < icon.getHeight(); y += BLOCK) {
+                for (int x = phase % BLOCK; x + 1 < icon.getWidth(); x += BLOCK) {
+                    if (isDrawn(icon, x, y)) {
+                        drawnBlocks++;
+                        uniformBlocks += isUniform(icon, x, y) ? 1 : 0;
+                    }
+                }
+            }
+            assertTrue(uniformBlocks * 2 < drawnBlocks, uniformBlocks + " of " + drawnBlocks
+                    + " drawn 2x2 blocks at phase " + phase + " are one color, a scaled-up sprite");
+        }
+
+        private boolean isDrawn(BufferedImage icon, int x, int y) {
+            return isOpaque(icon.getRGB(x, y)) || isOpaque(icon.getRGB(x + 1, y))
+                    || isOpaque(icon.getRGB(x, y + 1)) || isOpaque(icon.getRGB(x + 1, y + 1));
+        }
+
+        private boolean isUniform(BufferedImage icon, int x, int y) {
+            int corner = icon.getRGB(x, y);
+            return icon.getRGB(x + 1, y) == corner && icon.getRGB(x, y + 1) == corner
+                    && icon.getRGB(x + 1, y + 1) == corner;
+        }
+    }
+
     private static Set<Integer> opaqueColors(BufferedImage icon) {
         Set<Integer> colors = new HashSet<>();
         for (int y = 0; y < icon.getHeight(); y++) {
