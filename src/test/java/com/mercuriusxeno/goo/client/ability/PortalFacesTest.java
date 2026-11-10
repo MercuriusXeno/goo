@@ -266,4 +266,120 @@ class PortalFacesTest {
             verify(consumer, times(CORNERS)).setUv2(THIRTY_TWO_BY_FORTY_EIGHT[0], THIRTY_TWO_BY_FORTY_EIGHT[1]);
         }
     }
+
+    /**
+     * Each of a wormhole's two mouths wears the portals' tornado beside its
+     * surface glow, rising off the face along its normal to the same named
+     * height, in the mouth's own color, its edge marked torn and its funnel
+     * based on the deepest the tear bites, for the shader to start it at the
+     * tear (decision hole-mouths-wear-the-tornadic-halo).
+     */
+    @Nested
+    class MouthTornado {
+
+        /** A three by three mouth on the north face of (0, 64, 0) to (3, 67, 1), its face the plane z 0. */
+        private static final Gate WALL_MOUTH = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 3, 67, 1),
+                Direction.NORTH, new Vec3(0, 1, 0));
+        /** A one by two mouth on the floor of (5, 63, 0) to (6, 64, 2), its face the plane y 64. */
+        private static final Gate FLOOR_MOUTH = new Gate(Level.OVERWORLD, new AABB(5, 63, 0, 6, 64, 2),
+                Direction.UP, new Vec3(0, 0, 1));
+        /** How far a vertex may stand from where the test reckons it, float rounding only. */
+        private static final float NEAR = 1.0e-4F;
+        /** The deepest a mouth's tear bites, as a share of the oval's radius. */
+        private static final float TORN_BASE = 0.84F;
+
+        /** A three by three mouth's funnel: 7.92 blocks around its torn base and one block up, sixteen a block. */
+        @Test
+        void aThreeByThreeMouthsTornadoRisesFromItsTearToTheNamedHeightInItsColor() {
+            Captured funnel = emitBoth(new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true));
+
+            assertSpans(funnel.normals(), -0.01F, -0.01F - (float) PortalFaces.TORNADO_HEIGHT);
+            assertOnTheTornBase(funnel.atTheBase((first, second) -> Math.hypot((first - 1.5F) / 1.5F,
+                    (second - 65.5F) / 1.5F), -0.01F));
+            verify(funnel.consumer(), times(funnel.vertices()))
+                    .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.BLUE_RGB));
+            verify(funnel.consumer(), times(funnel.vertices())).setUv2(127, 16);
+        }
+
+        /** A one by two floor mouth's funnel: 4.07 blocks around its torn base and one block up, sixteen a block. */
+        @Test
+        void aOneByTwoMouthsTornadoRisesFromItsTearToTheNamedHeightInItsColor() {
+            Captured funnel = emitBoth(new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true));
+
+            assertSpans(funnel.normals(), 64.01F, 64.01F + (float) PortalFaces.TORNADO_HEIGHT);
+            assertOnTheTornBase(funnel.atTheBase((first, second) -> Math.hypot((first - 5.5F) / 0.5F,
+                    (second - 1F) / 1F), 64.01F));
+            verify(funnel.consumer(), times(funnel.vertices()))
+                    .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
+            verify(funnel.consumer(), times(funnel.vertices())).setUv2(65, 16);
+        }
+
+        /**
+         * Emits a mouth's surface glow and its tornado into one consumer, as
+         * the frame does, and captures the tornado's vertices.
+         */
+        private Captured emitBoth(PortalFaces.Drawn mouth) {
+            VertexConsumer glow = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+            PortalFaces.emitHalos(pose, glow, List.of(mouth), BLOCKS_OF);
+            ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
+            VertexConsumer tornado = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PortalFaces.emitTornadoes(pose, tornado, List.of(mouth), BLOCKS_OF);
+            verify(tornado, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
+            verify(glow, times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, mouth.rgb()));
+            return new Captured(tornado, mouth.gate().face(), xs.getAllValues(), ys.getAllValues(),
+                    zs.getAllValues());
+        }
+
+        private void assertSpans(List<Float> normals, float face, float far) {
+            assertEquals(face, normals.stream().min((a, b) -> Float.compare(Math.abs(a - face), Math.abs(b - face)))
+                    .orElseThrow(), NEAR, "The tornado should start on the face");
+            assertEquals(far, normals.stream().min((a, b) -> Float.compare(Math.abs(a - far), Math.abs(b - far)))
+                    .orElseThrow(), NEAR, "The tornado should rise off the face to the named height");
+            float low = Math.min(face, far) - NEAR;
+            float high = Math.max(face, far) + NEAR;
+            assertTrue(normals.stream().allMatch(at -> at >= low && at <= high),
+                    "Every vertex should stand between the face and the named height");
+        }
+
+        private void assertOnTheTornBase(List<Double> radii) {
+            assertTrue(!radii.isEmpty() && radii.stream().allMatch(radius -> Math.abs(radius - TORN_BASE) < NEAR),
+                    "Every vertex on the face should stand on the deepest the tear bites, stands at " + radii);
+        }
+
+        /**
+         * A tornado's captured vertices.
+         *
+         * @param consumer the tornado's consumer
+         * @param side     the face
+         * @param xs       each vertex's x
+         * @param ys       each vertex's y
+         * @param zs       each vertex's z
+         */
+        private record Captured(VertexConsumer consumer, Direction side, List<Float> xs,
+                List<Float> ys, List<Float> zs) {
+
+            int vertices() {
+                return zs.size();
+            }
+
+            List<Float> normals() {
+                return side.getAxis() == Direction.Axis.Y ? ys : zs;
+            }
+
+            /** The oval radius of each vertex on the face, by its two coordinates across the face. */
+            List<Double> atTheBase(java.util.function.BiFunction<Float, Float, Double> radiusOf, float face) {
+                List<Double> radii = new java.util.ArrayList<>();
+                for (int i = 0; i < vertices(); i++) {
+                    if (Math.abs(normals().get(i) - face) < NEAR) {
+                        radii.add(side.getAxis() == Direction.Axis.Y ? radiusOf.apply(xs.get(i), zs.get(i))
+                                : radiusOf.apply(xs.get(i), ys.get(i)));
+                    }
+                }
+                return radii;
+            }
+        }
+    }
 }

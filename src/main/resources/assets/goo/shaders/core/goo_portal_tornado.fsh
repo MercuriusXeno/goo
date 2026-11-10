@@ -10,6 +10,9 @@
 // to one up the funnel from the face; every term reads the snapped texel center, sixteen texels a
 // block like the rim. The funnel's height and flare are PortalFaces' TORNADO_HEIGHT and
 // TORNADO_FLARE.
+// A hole's mouth wears the same tornado (decision hole-mouths-wear-the-tornadic-halo): its vertex
+// alpha marks the torn edge, its funnel starts at the deepest the tear bites, and every part of it
+// lying inside the tear holeTornEdge draws is cut, so the tornado starts at the tear.
 
 in vec2 frameCoord;
 flat in vec2 texels;
@@ -36,11 +39,17 @@ const float TORNADO_STRENGTH = 0.55;
 const float TORNADO_FRAY = 0.35;
 // How many finer wisps the turbulence breaks each band into around the funnel.
 const float TORNADO_WISPS = 11.0;
+// How much wider than its first ring the funnel flares at its far end: PortalFaces.TORNADO_FLARE.
+const float TORNADO_FLARE = 0.6;
 
 void main() {
     vec2 at = portalTexelCenter(frameCoord, texels);
     float around = at.x * TAU;
     float along = at.y;
+    float spread = mix(1.0, 1.0 - HOLE_TEAR_DEPTH, frameColor.a) * (1.0 + TORNADO_FLARE * along * along);
+    if (frameColor.a > 0.5 && spread < holeTornEdge(around, GameTime)) {
+        discard;
+    }
     float seconds = GameTime * SECONDS_PER_DAY;
     float travel = along - seconds / TORNADO_RIFLE_SECONDS;
     float rifling = around * TORNADO_BANDS + travel * TORNADO_TWIST * TAU;
