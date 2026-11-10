@@ -6,7 +6,8 @@ import java.util.List;
 
 /**
  * Supplies the vat HUD panel's rows: label, stack size, then the stack's goo
- * rows (decision one-panel-painter-takes-rows), then its water row, then the
+ * as one grid (decisions one-panel-painter-takes-rows and
+ * one-class-lays-every-huds-goo-values), then its water row, then the
  * total against the capacity the held void grows (decision
  * each-void-mb-adds-n-plus-one-capacity).
  */

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import com.mercuriusxeno.goo.block.ability.MarkerProgramState;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -92,9 +93,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      * here as it explodes rather than when the blob landed.
      */
     @Override
-    public void explode(float power, double reach, ExplosionMode mode) {
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
         burnout().sendToTracking(level);
-        GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, reach, mode,
+        GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, new GooExplosion.Cut(reach, gathers), mode,
                 GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
     }
 
@@ -224,7 +225,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         ShellWalk.Cursor next = HoardedBlocks.takeSome(level, pos, state.takeRadius(), state.takeCursor(),
                 BLOCKS_TAKEN_PER_TICK, state.hoard());
         if (state.tookTo(next)) {
-            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard());
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard(), SphereCore.MAROON);
         }
     }
 
@@ -236,7 +237,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void dropSphere() {
         if (!be.programState().putOffDrop()) {
-            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard());
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.MAROON);
         }
     }
 
