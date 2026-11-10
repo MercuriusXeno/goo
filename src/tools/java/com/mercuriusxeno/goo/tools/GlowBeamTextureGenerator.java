@@ -27,8 +27,12 @@ public final class GlowBeamTextureGenerator {
     static final int HEIGHT = 64;
     private static final Path OUTPUT = Path.of("src/main/resources/assets/goo/textures/entity/glow_beam.png");
     private static final int OPAQUE = 255;
-    /** The share of full brightness the band dims to at its darkest row. */
-    private static final double BAND_DEPTH = 0.3;
+    /**
+     * The share of full brightness the band dims by at its darkest row; near
+     * flat, since a deeper band scrolling down the beam read as fast pulses
+     * (operator UAT 2026-11-10).
+     */
+    private static final double BAND_DEPTH = 0.04;
     private static final double HALF = 0.5;
 
     private GlowBeamTextureGenerator() {

@@ -29,9 +29,12 @@ class GlowBeamMeshTest {
     private static final float RADIUS = 0.25f;
     private static final int COLOR = 0x80FFE628;
     private static final float TOLERANCE = 1e-5f;
-    private static final int VERTICES_PER_TUBE = 16;
+    private static final int VERTICES_PER_STRIP = 4;
     private static final float LENGTH = 37.5f;
     private static final int VERTICES_PER_FACE = 4;
+    /** The camera sits corner-on to a square tube: this far off the beam on x and on z. */
+    private static final float CAMERA_ACROSS = 3f;
+    private static final float CAMERA_ALONG = 2f;
     private static final int OPAQUE = 255;
     private static final int BREATH_SAMPLES = 64;
     private static final double START_TICKS = 123_456.25;
@@ -39,10 +42,10 @@ class GlowBeamMeshTest {
     private static final float MOST_A_BREATH_DIMS = 0.8f;
 
     @Test
-    void layerIsATubeFromTheOriginToItsLength() {
+    void layerIsAStripFromTheOriginToItsLength() {
         List<RecordingVertexConsumer.Vertex> vertices = emit();
 
-        assertEquals(VERTICES_PER_TUBE, vertices.size());
+        assertEquals(VERTICES_PER_STRIP, vertices.size());
         float lowest = Float.MAX_VALUE;
         float highest = -Float.MAX_VALUE;
         for (RecordingVertexConsumer.Vertex v : vertices) {
@@ -53,6 +56,22 @@ class GlowBeamMeshTest {
         }
         assertEquals(0f, lowest, TOLERANCE);
         assertEquals(LENGTH, highest, TOLERANCE);
+    }
+
+    @Test
+    void eachLayerIsAFlatStripTurnedToTheCameraSoItsMiddleNeverSeesThrough() {
+        PoseStack cameraRelative = new PoseStack();
+        cameraRelative.translate(-CAMERA_ACROSS, -CAMERA_ALONG, -CAMERA_ACROSS);
+        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
+        GlowBeamMesh.emitLayer(cameraRelative.last(), consumer, RADIUS, COLOR, 0f, LENGTH);
+
+        for (RecordingVertexConsumer.Vertex v : consumer.vertices()) {
+            float offsetX = v.x() + CAMERA_ACROSS;
+            float offsetZ = v.z() + CAMERA_ACROSS;
+            assertEquals(0f, offsetX * CAMERA_ACROSS + offsetZ * CAMERA_ACROSS, TOLERANCE,
+                    "a vertex at " + offsetX + "," + offsetZ + " leaves the strip turned to the camera");
+            assertEquals(RADIUS, (float) Math.hypot(offsetX, offsetZ), TOLERANCE, "the strip spans the layer's width");
+        }
     }
 
     @Test
