@@ -11,10 +11,14 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -40,6 +44,8 @@ public final class RallyTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, RALLY_COW_ATTACKS_THE_ZOMBIE, RallyTests::rallyCowAttacksTheZombie);
         GooTestFunctions.registerTest(registrar, RALLY_SURVIVES_A_RELOAD, RallyTests::rallySurvivesAReload);
+        GooTestFunctions.registerTest(registrar, RALLY_COW_STRIKES_NOTHING_THROUGH_A_WALL,
+                RallyTests::rallyCowStrikesNothingThroughAWall);
         GooTestFunctions.registerTest(registrar, RALLY_TAKES_A_LATECOMER, RallyTests::rallyTakesALatecomer);
         GooTestFunctions.registerTest(registrar, RALLY_HOLDS_PAST_THE_OLD_RALLY, RallyTests::rallyHoldsPastTheOldRally);
         GooTestFunctions.registerTest(registrar, RALLY_STANDS_DOWN_WITH_THE_BREW,
@@ -68,10 +74,24 @@ public final class RallyTests {
     private static final String COW_NOT_RALLIED = "The cow near the caster should hold the rally";
     private static final String ZOMBIE_UNHURT = "The rallied cow should strike the zombie that hurt the caster";
     private static final String COW_NOT_BUFFED = "The rallied cow's max health should be zoo_rally.json's 2.5 times, stands %s";
-    /** zoo_rally.json's damage of six, under what a zombie's two armor points take off it. */
+    /** zoo_rally.json's damage of six, under what a zombie's two armor points and its helmet's one take off it. */
     private static final float LEAST_STRIKE = 5f;
     /** A cow's max health of ten, lifted by zoo_rally.json's health share of 1.5. */
     private static final float RALLIED_COW_MAX_HEALTH = 25f;
+
+    private static final String RALLY_COW_STRIKES_NOTHING_THROUGH_A_WALL = "rally_cow_strikes_nothing_through_a_wall";
+    /** The wall's block, between the cow's and the zombie's. */
+    private static final BlockPos WALL_POS = new BlockPos(3, 1, 3);
+    /** The cow's centre off the wall block's west edge, its side against the post spanning 0.25 to 0.75. */
+    private static final double COW_OFF_THE_POST = 0.25 - 0.46;
+    /** The zombie's centre off the wall block's west edge, its side against the post's east face. */
+    private static final double ZOMBIE_OFF_THE_POST = 0.75 + 0.31;
+    private static final double BLOCK_CENTER = 0.5;
+    /** Ticks for a cow in range to have struck several times over at 15 ticks a strike. */
+    private static final int THROUGH_THE_WALL_TICKS = 40;
+    private static final String COW_OUT_OF_RANGE = "The cow and zombie should stand in melee range across the wall";
+    private static final String STRUCK_THROUGH_THE_WALL =
+            "The zombie across the wall took %s, last from %s, by the cow: %s";
 
     private static final String RELOADED_LOST = "The saved cow should load back as a mob";
     private static final String RELOADED_UNRALLIED = "The reloaded cow should still hold the rally";
@@ -95,6 +115,8 @@ public final class RallyTests {
         caster.connection.markClientLoaded();
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        // the bay stands open to the sky, and a bare-headed zombie's sunburn would pass for the cow's strike
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         caster.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), ZOMBIE_HIT);
 
         HeartOverlayTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
@@ -105,6 +127,46 @@ public final class RallyTests {
                     String.format(COW_NOT_BUFFED, cow.getMaxHealth()));
             helper.assertTrue(zombie.getMaxHealth() - zombie.getHealth() >= LEAST_STRIKE, ZOMBIE_UNHURT);
             helper.getLevel().getServer().getPlayerList().remove(caster);
+        });
+    }
+
+    /**
+     * A rallied cow and the zombie that hurt the caster stand within melee
+     * range of each other on either side of a cobblestone wall two blocks
+     * high, and the cow lands no strike through it, the wall blocking its
+     * line of sight (decision rallied-mobs-follow-the-player-who-rallied-them).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyCowStrikesNothingThroughAWall(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        caster.setGameMode(GameType.SURVIVAL);
+        caster.connection.markClientLoaded();
+        helper.setBlock(WALL_POS, Blocks.COBBLESTONE_WALL);
+        helper.setBlock(WALL_POS.above(), Blocks.COBBLESTONE_WALL);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        // the bay stands open to the sky, so a bare-headed zombie burns and its health reads more than strikes
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        // placed from the wall's world block on the world X axis, since the bay may stand rotated
+        BlockPos wall = helper.absolutePos(WALL_POS);
+        cow.setPos(wall.getX() + COW_OFF_THE_POST, wall.getY(), wall.getZ() + BLOCK_CENTER);
+        // a cow with no free will still walks its path, and would round the post to strike in the open
+        cow.setNoAi(true);
+        zombie.setPos(wall.getX() + ZOMBIE_OFF_THE_POST, wall.getY(), wall.getZ() + BLOCK_CENTER);
+        caster.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), ZOMBIE_HIT);
+        helper.assertTrue(cow.isWithinMeleeAttackRange(zombie), COW_OUT_OF_RANGE);
+
+        HeartOverlayTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
+
+        helper.runAfterDelay(THROUGH_THE_WALL_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(cow.hasData(GooAttachments.RALLIED), COW_NOT_RALLIED);
+            helper.assertTrue(zombie.getHealth() == zombie.getMaxHealth(),
+                    String.format(STRUCK_THROUGH_THE_WALL, zombie.getMaxHealth() - zombie.getHealth(),
+                            zombie.getLastDamageSource() == null ? "none" : zombie.getLastDamageSource().getMsgId(),
+                            zombie.getLastHurtByMob() == cow));
+            helper.succeed();
         });
     }
 
