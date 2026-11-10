@@ -9,13 +9,14 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Grants the host's target shifter and finishes: each hit it would
- * take blinks it the distance along its look instead. Cast from the glove
- * it stands as a held effect, paying its upkeep until ended. Shifter is
- * {@code shifter distance=8} (decisions shifter-blinks-along-the-cursor-on-hit
- * and self-effects-trickle-until-ended).
+ * Grants the host's target Elude and finishes: each mob or projectile hit it
+ * would take moves it instead to a random safe spot within the distance. Cast
+ * from the glove it stands as a held effect, paying its upkeep until ended.
+ * Elude is {@code shifter distance=8} (decisions
+ * elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage and
+ * self-effects-trickle-until-ended).
  *
- * @param distance how far each hit blinks the target, evaluated when the step runs
+ * @param distance the radius each escape lands within, evaluated when the step runs
  */
 public record ShifterStep(Expr distance) implements Step {
 

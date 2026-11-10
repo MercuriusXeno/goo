@@ -94,7 +94,6 @@ class AbilityPoseTableTest {
             Map.entry("unstable_buster", ArmPose.HELD_UP),
             Map.entry("unstable_explode", ArmPose.SWUNG),
             Map.entry("unstable_lurker", ArmPose.SWUNG),
-            Map.entry("unstable_unmake", ArmPose.HELD_OUT),
             Map.entry("void_erase", ArmPose.SWUNG),
             Map.entry("void_outsider", ArmPose.HELD_OUT),
             Map.entry("void_pocket", ArmPose.HELD_UP),

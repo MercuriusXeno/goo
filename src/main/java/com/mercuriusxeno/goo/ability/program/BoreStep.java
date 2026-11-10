@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
@@ -78,12 +79,43 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
     @Override
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
+        Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
-            List<BlockPos> tunnel = tunnelOrder(host, host.eye(), aim);
-            boreAlong(host, tunnel);
+            List<BlockPos> tunnel = tunnelOrder(host.eye(), aim, host::airAt, breakable);
+            firstBreakable(tunnel, breakable, count).forEach(host::breakBlock);
             strikeIn(host, tunnel);
         });
         return true;
+    }
+
+    /**
+     * The blocks the bore breaks over the coming ticks while the aim holds,
+     * in the order they break, the count a tick: the same pick its tick
+     * breaks by, so a client shakes the blocks the server is about to break.
+     * decision only-the-blocks-about-to-break-shake-briefly-and-gently
+     *
+     * @param eye       the eye the tunnel runs from
+     * @param aim       the stream's aim: its reach along the look and its cone
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block in the tag
+     * @param ticks     how many ticks ahead to read
+     * @return the blocks, nearest the eye first
+     */
+    public List<BlockPos> breaksAhead(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air,
+                                      Predicate<BlockPos> breakable, int ticks) {
+        return firstBreakable(tunnelOrder(eye, aim, air, breakable), breakable, count * ticks);
+    }
+
+    /**
+     * The first breakable cells of an order.
+     *
+     * @param order     the cells in breaking order
+     * @param breakable whether a cell holds a block the step may break
+     * @param most      the most cells taken
+     * @return the cells, in the order's order
+     */
+    private static List<BlockPos> firstBreakable(List<BlockPos> order, Predicate<BlockPos> breakable, int most) {
+        return order.stream().filter(breakable).limit(most).toList();
     }
 
     /**
@@ -100,25 +132,6 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
     }
 
     /**
-     * Breaks the next blocks of the tunnel in its order, up to the count.
-     *
-     * @param host   the channel host
-     * @param tunnel the tunnel's cells in breaking order
-     */
-    private void boreAlong(ChannelHost host, List<BlockPos> tunnel) {
-        int broken = 0;
-        for (BlockPos pos : tunnel) {
-            if (broken >= count) {
-                return;
-            }
-            if (host.blockIn(pos, breaks)) {
-                host.breakBlock(pos);
-                broken++;
-            }
-        }
-    }
-
-    /**
      * The tunnel's blocks in the order they break, nearest the eye first: the
      * blocks whose centers stand inside the stream's cone, and every block
      * the eye line crosses so the block under the crosshair always breaks,
@@ -126,14 +139,16 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
      * the tag on the eye line.
      * decision bore-breaks-a-15-degree-cone
      *
-     * @param host the channel host
-     * @param eye  the eye the tunnel runs from
-     * @param aim  the stream's aim: its reach along the look and its cone
+     * @param eye       the eye the tunnel runs from
+     * @param aim       the stream's aim: its reach along the look and its cone
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block in the tag
      * @return the blocks, each once
      */
-    private List<BlockPos> tunnelOrder(ChannelHost host, Vec3 eye, ChannelAim aim) {
+    private static List<BlockPos> tunnelOrder(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air,
+                                              Predicate<BlockPos> breakable) {
         List<BlockPos> line = blocksAlong(eye, aim.aimPoint());
-        int stop = stoppingIndex(host, line);
+        int stop = stoppingIndex(line, air, breakable);
         double stopDistance = stop < line.size()
                 ? Vec3.atCenterOf(line.get(stop)).distanceTo(eye) : Double.POSITIVE_INFINITY;
         Set<BlockPos> tunnel = new LinkedHashSet<>(line.subList(1, stop));
@@ -151,13 +166,14 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
      * Where the eye line meets the first solid block outside the tag, past
      * the eye's own block.
      *
-     * @param host the channel host
-     * @param line the blocks the eye line crosses, the eye's own first
+     * @param line      the blocks the eye line crosses, the eye's own first
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block in the tag
      * @return the stopping block's index on the line, or the line's length where none stands
      */
-    private int stoppingIndex(ChannelHost host, List<BlockPos> line) {
+    private static int stoppingIndex(List<BlockPos> line, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
         for (int i = 1; i < line.size(); i++) {
-            if (!host.airAt(line.get(i)) && !host.blockIn(line.get(i), breaks)) {
+            if (!air.test(line.get(i)) && !breakable.test(line.get(i))) {
                 return i;
             }
         }

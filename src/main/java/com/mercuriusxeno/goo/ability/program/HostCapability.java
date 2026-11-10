@@ -65,11 +65,6 @@ public enum HostCapability {
      */
     WATCH(WatchHost.class),
     /**
-     * A held channel that drinks the face under its cursor into the glove
-     * (decision unmake-waves-dissolve-by-crucible-cost).
-     */
-    SIPHON(SiphonHost.class),
-    /**
      * A landing where a blob can grow a shroom network
      * (decision colonize-blob-grows-the-network).
      */
@@ -159,7 +154,6 @@ public enum HostCapability {
      * (decision relay-prism-carries-the-signal-through-air).
      */
     RELAY(RelayHost.class),
-    /**
     /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).

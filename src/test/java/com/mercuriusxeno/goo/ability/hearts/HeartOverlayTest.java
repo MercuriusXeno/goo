@@ -101,6 +101,22 @@ class HeartOverlayTest {
             assertEquals(FULL_HALVES, tickedThrough(held, FULL_HEALTH, NOW + 100L * DURATION).shieldHalves());
         }
 
+        // hud-draws-the-leftmost-heart-as-ancient: Ancient's overlay marks the bar and shields nothing
+        @Test
+        void ancientLaysNoShieldAndGrowsNone() {
+            HeartOverlay ancient = HeartOverlay.NONE.hold(HeartKind.ANCIENT, 10f, FULL_HEALTH,
+                    HeartOverlay.WHOLE_HIT, NOW);
+            assertTrue(ancient.stands());
+            assertEquals(0, tickedThrough(ancient, 10f, NOW + DURATION).shieldHalves());
+        }
+
+        @Test
+        void ancientPassesEveryHitWhole() {
+            HeartOverlay ancient = HeartOverlay.NONE.hold(HeartKind.ANCIENT, 10f, FULL_HEALTH,
+                    HeartOverlay.WHOLE_HIT, NOW);
+            assertEquals(3f, ancient.drain(3f, NOW).remainder(), DELTA);
+        }
+
         @Test
         void sameKindHeldAgainLeavesItUnchanged() {
             HeartOverlay held = HeartOverlay.NONE.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH,
