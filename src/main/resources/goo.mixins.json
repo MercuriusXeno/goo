@@ -33,6 +33,7 @@
     "LivingEntityRendererPhaseMixin",
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",
+    "GuiLowHealthJiggleMixin",
     "PlayerModelAbilityPoseMixin",
     "EntityScryOutlineColorMixin",
     "MinecraftScryOutlineMixin"
