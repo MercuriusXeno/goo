@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:unmake_drinks_a_column_not_the_wall",
+  "function": "goo:large_blast_leaves_a_green_sphere",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 140,
+  "max_ticks": 40,
   "setup_ticks": 0,
   "required": true
 }

@@ -1,18 +1,18 @@
 package com.mercuriusxeno.goo.client.network;
 
-import com.mercuriusxeno.goo.data.GooFraction;
-import net.minecraft.resources.Identifier;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * What a cost-mechanics format string fills from on the client: the lang
- * resolving its key and the goo value of an item in the ability's own type.
+ * resolving its key and the goo values the ability's prices read.
  * decision zero-cost-field-formats-the-cost-mechanics
  *
- * @param lang  resolves a translation key to its text
- * @param value the exact goo value of an item in the ability's type
+ * @param lang   resolves a translation key to its text
+ * @param values the goo values an ability's price reads its items and prefabs from
  */
-public record CostMechanicsLookup(Function<String, String> lang, Function<Identifier, GooFraction> value) {
+public record CostMechanicsLookup(Function<String, String> lang, Supplier<? extends IGooValueLookup> values) {
 
     /**
      * The text a translation key resolves to.
@@ -22,16 +22,5 @@ public record CostMechanicsLookup(Function<String, String> lang, Function<Identi
      */
     public String translate(String key) {
         return lang.apply(key);
-    }
-
-    /**
-     * The exact goo value of an item in the ability's type.
-     * decision tooltip-and-plexer-hud-show-a-mixed-number
-     *
-     * @param item the item id
-     * @return the exact value
-     */
-    public GooFraction valueOf(Identifier item) {
-        return value.apply(item);
     }
 }
