@@ -17,66 +17,79 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers Reap's blades: each stands centred in front of the slasher within
- * half a block sideways, lies nearly flat, and pitches between level and the
- * dive that meets the ground at its reach; it starts small, shallow and to
- * one side, grows its width and its depth at their own rates to a crescent
- * centred on its offset, then drifts on; it covers the cells under it and
- * not those beside it; and the shipped Reap is channeled with nothing thrown.
+ * Covers Reap's blades: each flies along the slasher's look, centred on the
+ * aim within half a block to the side and up or down, lying within ten
+ * degrees of flat; it forms ahead of the eye small, shallow and to one side,
+ * grows its width and its depth at their own rates in view to a crescent
+ * centred on its offset, drifting on all the while; it covers the cells
+ * under it and not those beside it; and the shipped Reap is channeled with
+ * nothing thrown.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 class ReapBladeTest {
 
-    private static final double CHEST_HEIGHT = 1.08;
-    private static final Vec3 CHEST = new Vec3(0.5, 1.08, 0.5);
-    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(2, 1, 2.5, 0.8, 3, 5, 3);
+    private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
+    private static final Vec3 LEVEL_SOUTH = new Vec3(0, 0, 1);
+    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(1.5, 1, 2.5, 0.8, 6, 8, 3);
     private static final int SAMPLES = 2000;
     private static final double TOLERANCE = 1e-6;
-    /** Due south in Minecraft's yaw, where the look runs along positive z. */
-    private static final float SOUTH = 0f;
 
-    private static ReapBlade flatBlade(double offset, int startSide) {
-        return new ReapBlade(CHEST, new Vec3(0, 0, 1), new Vec3(-1, 0, 0), offset, startSide, SHAPE);
+    private static ReapBlade flatBlade(double offset, double lift, int startSide) {
+        return new ReapBlade(EYE, LEVEL_SOUTH, new Vec3(-1, 0, 0), offset, lift, startSide, SHAPE);
+    }
+
+    /** The blade shape leaf_reap.json ships. */
+    private static ReapBlade.Shape shippedShape() {
+        SlashStep step = (SlashStep) AbilityJson.decode("leaf_reap").behaviors().getFirst();
+        return new ReapBlade.Shape(step.start().evaluate(null), step.drift().evaluate(null),
+                step.width().evaluate(null), step.depth().evaluate(null), step.widthTicks().evaluateInt(null),
+                step.depthTicks().evaluateInt(null), step.fadeTicks().evaluateInt(null));
     }
 
     @Nested
     class Launch {
 
         @Test
-        void everyBladeStandsWithinHalfABlockOfTheLook() {
+        void everyBladeFliesAlongTheLook() {
+            RandomSource random = RandomSource.create(5L);
+            Vec3 look = new Vec3(0.3, -0.5, 0.8).normalize();
+            for (int i = 0; i < SAMPLES; i++) {
+                Vec3 forward = ReapBlade.launch(EYE, look, SHAPE, random).forward();
+                assertEquals(0, forward.distanceTo(look), TOLERANCE, "forward " + forward);
+            }
+        }
+
+        @Test
+        void everyBladeStandsWithinHalfABlockOfTheAim() {
             RandomSource random = RandomSource.create(7L);
             for (int i = 0; i < SAMPLES; i++) {
-                ReapBlade blade = ReapBlade.launch(CHEST, CHEST_HEIGHT, SOUTH, SHAPE, random);
+                ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random);
                 assertTrue(Math.abs(blade.offset()) <= 0.5 + TOLERANCE, "offset " + blade.offset());
-                assertEquals(0, blade.forward().x, TOLERANCE, "the heading runs along the look");
+                assertTrue(Math.abs(blade.lift()) <= 0.5 + TOLERANCE, "lift " + blade.lift());
             }
+        }
+
+        @Test
+        void bladesScatterUpAndDownAsWellAsSideways() {
+            RandomSource random = RandomSource.create(9L);
+            double highest = 0;
+            double widest = 0;
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random);
+                highest = Math.max(highest, Math.abs(blade.lift()));
+                widest = Math.max(widest, Math.abs(blade.offset()));
+            }
+            assertTrue(highest > 0.4 && widest > 0.4, "lift " + highest + ", offset " + widest);
         }
 
         @Test
         void everyBladeLiesWithinTenDegreesOfFlat() {
             RandomSource random = RandomSource.create(11L);
             for (int i = 0; i < SAMPLES; i++) {
-                Vec3 side = ReapBlade.launch(CHEST, CHEST_HEIGHT, SOUTH, SHAPE, random).side();
+                Vec3 side = ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random).side();
                 double tilt = Math.toDegrees(Math.asin(Math.abs(side.y)));
                 assertTrue(tilt <= 10 + TOLERANCE, "tilt " + tilt);
             }
-        }
-
-        @Test
-        void everyBladePitchesBetweenLevelAndTheGroundDive() {
-            RandomSource random = RandomSource.create(13L);
-            double limit = ReapBlade.dropLimit(CHEST_HEIGHT, SHAPE.travel() + SHAPE.drift());
-            for (int i = 0; i < SAMPLES; i++) {
-                Vec3 forward = ReapBlade.launch(CHEST, CHEST_HEIGHT, SOUTH, SHAPE, random).forward();
-                double pitch = Math.toDegrees(Math.asin(-forward.y));
-                assertTrue(pitch >= -TOLERANCE && pitch <= limit + TOLERANCE, "pitch " + pitch);
-            }
-        }
-
-        @Test
-        void theGroundDiveMeetsTheGroundAtTheReach() {
-            double limit = Math.toRadians(ReapBlade.dropLimit(CHEST_HEIGHT, 3));
-            assertEquals(CHEST_HEIGHT, 3 * Math.tan(limit), TOLERANCE);
         }
 
         @Test
@@ -84,7 +97,7 @@ class ReapBladeTest {
             RandomSource random = RandomSource.create(17L);
             long right = 0;
             for (int i = 0; i < SAMPLES; i++) {
-                right += ReapBlade.launch(CHEST, CHEST_HEIGHT, SOUTH, SHAPE, random).startSide() > 0 ? 1 : 0;
+                right += ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random).startSide() > 0 ? 1 : 0;
             }
             assertTrue(right > SAMPLES / 4 && right < SAMPLES * 3 / 4, "right " + right);
         }
@@ -93,7 +106,7 @@ class ReapBladeTest {
     @Nested
     class Growth {
 
-        private final ReapBlade blade = flatBlade(0.3, 1);
+        private final ReapBlade blade = flatBlade(0.3, -0.2, 1);
 
         @Test
         void itStartsSmallAndShallow() {
@@ -103,7 +116,7 @@ class ReapBladeTest {
 
         @Test
         void itStartsToOneSide() {
-            double lateral = blade.centreAt(0).subtract(CHEST).dot(blade.side());
+            double lateral = blade.centreAt(0).subtract(EYE).dot(blade.side());
             assertTrue(lateral > 0.3 + SHAPE.width() / 4, "lateral " + lateral);
         }
 
@@ -115,16 +128,31 @@ class ReapBladeTest {
         }
 
         @Test
-        void fullGrownItStandsCentredOnItsOffset() {
-            double lateral = blade.centreAt(SHAPE.depthTicks()).subtract(CHEST).dot(blade.side());
-            assertEquals(0.3, lateral, TOLERANCE);
+        void fullGrownItStandsCentredOnItsOffsetAndLift() {
+            Vec3 fromEye = blade.centreAt(SHAPE.depthTicks()).subtract(EYE);
+            assertEquals(0.3, fromEye.dot(blade.side()), TOLERANCE);
+            assertEquals(-0.2, fromEye.y, TOLERANCE);
         }
 
         @Test
         void fullGrownItStillDriftsForward() {
-            double grown = blade.centreAt(SHAPE.depthTicks()).z;
+            double grown = blade.centreAt(SHAPE.growTicks()).z;
             double drifted = blade.centreAt(SHAPE.lifeTicks()).z;
-            assertEquals(SHAPE.drift(), drifted - grown, TOLERANCE);
+            assertTrue(drifted - grown > 0.1, "drift " + (drifted - grown));
+            assertEquals(SHAPE.drift(), blade.centreAt(SHAPE.lifeTicks()).z - blade.centreAt(0).z, TOLERANCE);
+        }
+
+        @Test
+        void theShippedBladeGrowsInViewForFiveTicksOrMore() {
+            ReapBlade shipped = ReapBlade.launch(EYE, LEVEL_SOUTH, shippedShape(), RandomSource.create(1L));
+            int growingInView = 0;
+            for (int age = 0; age <= shipped.shape().lifeTicks(); age++) {
+                double ahead = shipped.centreAt(age).subtract(EYE).dot(LEVEL_SOUTH);
+                boolean growing = shipped.widthAt(age) < shipped.shape().width()
+                        || shipped.depthAt(age) < shipped.shape().depth();
+                growingInView += ahead >= 1 && growing ? 1 : 0;
+            }
+            assertTrue(growingInView >= 5, "ticks it grows a block or more ahead: " + growingInView);
         }
 
         @Test
@@ -143,8 +171,8 @@ class ReapBladeTest {
     @Nested
     class Cover {
 
-        private final ReapBlade blade = new ReapBlade(new Vec3(0.5, 1.5, 0.5), new Vec3(0, 0, 1),
-                new Vec3(-1, 0, 0), 0, 1, SHAPE);
+        private final ReapBlade blade = new ReapBlade(new Vec3(0.5, 1.5, 0.5), LEVEL_SOUTH, new Vec3(-1, 0, 0),
+                0, 0, 1, SHAPE);
 
         private boolean covers(BlockPos cell) {
             for (int age = 0; age <= SHAPE.lifeTicks(); age++) {
