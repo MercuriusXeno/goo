@@ -34,7 +34,7 @@ import java.util.stream.Stream;
  * replanted, and every living body the swing's blades reach but the slasher
  * is cut once for the swing. Leaf Reap is {@code slash fewest_ticks=2
  * most_ticks=3 fewest_blades=1 most_blades=2 start=0.75 drift=3 width=1.2
- * widest=3.2 depth=0.5 deepest=1.8 width_ticks=6 depth_ticks=8 fade_ticks=3
+ * widest=3.2 depth=0.5 deepest=1.8 width_ticks=6 depth_ticks=8 fade_ticks=6
  * damage=0.5}.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
@@ -50,7 +50,7 @@ import java.util.stream.Stream;
  * @param deepest      the widest blade's full depth, in blocks
  * @param widthTicks   the ticks its width takes to grow full
  * @param depthTicks   the ticks its depth takes to grow full
- * @param fadeTicks    the ticks it fades once full grown
+ * @param fadeTicks    the ticks it decays to nothing once full grown
  * @param damage       what each swing's cut deals
  */
 public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Expr mostBlades, Expr start,
