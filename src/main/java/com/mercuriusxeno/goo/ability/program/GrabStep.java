@@ -146,10 +146,12 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
     }
 
     /**
-     * Where a body Grab draws heads for where walls stand between it and the
-     * end and a linked pair offers a way: through the middle of the gate's
-     * opening, so the body crosses its face and the pair carries it out on
-     * the holder's side rather than dragging it at the walls between.
+     * Where a body Grab draws heads where a linked pair offers the shorter
+     * way to the end, the pair read as ordinary space: through the middle of
+     * the gate's opening, so the body crosses its face and the pair carries
+     * it out, rather than dragged the long way round, across the room and
+     * through the holder, or at the walls between, as the operator found a
+     * slime pulled back out of a portal come at them from behind.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param player the holding player
@@ -159,11 +161,11 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
      * @return where it heads through a gate, empty where it heads straight for the end
      */
     private static Optional<Vec3> throughGates(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {
-        if (inSight(player, from, to)) {
-            return Optional.empty();
-        }
+        boolean straightOpen = inSight(player, from, to);
+        double straight = from.distanceTo(to);
         // A way whose far leg is walled too reaches nothing, and the body would go round the pair for ever.
         return GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), from, to)
+                .filter(route -> !straightOpen || route.length() < straight)
                 .filter(route -> inSight(player, route.out().center()
                         .add(route.out().face().getUnitVec3().scale(HALF)), to))
                 .map(GateRay.Route::headFor);
