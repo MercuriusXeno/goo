@@ -52,7 +52,7 @@ public record Lettering(Font font, float scale) {
      * @param font the font
      * @return the font at a goo amount's small scale
      */
-    static Lettering amount(Font font) {
+    public static Lettering amount(Font font) {
         return new Lettering(font, AMOUNT_SCALE);
     }
 
@@ -67,7 +67,7 @@ public record Lettering(Font font, float scale) {
      * @param text words
      * @return the width they take at this scale, rounded up to a whole pixel
      */
-    int width(String text) {
+    public int width(String text) {
         return isFull() ? font.width(text) : (int) Math.ceil(font.width(text) * scale);
     }
 
@@ -169,7 +169,7 @@ public record Lettering(Font font, float scale) {
      * @param width the room they may take at this scale
      * @return the longest start of the words that fits the room
      */
-    String fitting(String text, int width) {
+    public String fitting(String text, int width) {
         return font.plainSubstrByWidth(text, isFull() ? width : (int) Math.floor(width / scale));
     }
 
@@ -231,7 +231,7 @@ public record Lettering(Font font, float scale) {
      * @param y        their top
      * @param color    their color
      */
-    void draw(GuiGraphicsExtractor graphics, String text, int x, int y, int color) {
+    public void draw(GuiGraphicsExtractor graphics, String text, int x, int y, int color) {
         if (isFull()) {
             graphics.text(font, text, x, y, color);
             return;
