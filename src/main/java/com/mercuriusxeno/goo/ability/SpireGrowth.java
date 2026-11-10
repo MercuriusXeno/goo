@@ -2,13 +2,10 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
-import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.BlockGetter;
 import java.util.ArrayList;
@@ -21,10 +18,11 @@ import java.util.OptionalInt;
  * footprint cell, from one above the ground through the rise, and the ground
  * stays as it stood. A column grows only where every cell it would fill can
  * be replaced; the rest of the footprint grows nothing and costs nothing.
- * The rock goo spent is stone's exact goo value for every stone block grown,
- * charged through the caster's ledger. The client prices its preview through
- * the same plan the server grows by.
+ * The goo spent is the ability's exact per-block price for every stone block
+ * grown, charged through the caster's ledger. The client prices its preview
+ * through the same plan the server grows by.
  * decision spire-grows-stone-out-of-the-top
+ * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
  * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
  *
  * @param footprint the footprint at the rise planned
@@ -33,27 +31,22 @@ import java.util.OptionalInt;
  */
 public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooFraction exactCost) {
 
-    /** The item stone's goo value is looked up by, the block every Spire grows. */
-    private static final Identifier STONE_ITEM = Identifier.withDefaultNamespace("stone");
-
     /**
      * Plans a footprint's growth at its rise.
      *
-     * @param blocks    the world the footprint stands in
-     * @param footprint the footprint
-     * @param values    the goo values the stone is priced by
-     * @param gooType   the goo type the cost is paid in
+     * @param blocks        the world the footprint stands in
+     * @param footprint     the footprint
+     * @param pricePerBlock the exact goo each stone block grown costs, the ability's cost resolved in its type
      * @return the plan, empty of columns where nothing can grow
      */
-    public static SpireGrowth plan(BlockGetter blocks, SpireFootprint footprint, IGooValueLookup values,
-                                   ResourceKey<GooTypeDefinition> gooType) {
+    public static SpireGrowth plan(BlockGetter blocks, SpireFootprint footprint, GooFraction pricePerBlock) {
         List<BlockPos> columns = new ArrayList<>();
         for (BlockPos ground : footprint.groundCells()) {
             if (columnOpen(blocks, ground, footprint.rise())) {
                 columns.add(ground);
             }
         }
-        GooFraction cost = stonePrice(values, gooType).times((long) columns.size() * footprint.rise());
+        GooFraction cost = pricePerBlock.times((long) columns.size() * footprint.rise());
         return new SpireGrowth(footprint, List.copyOf(columns), cost);
     }
 
@@ -62,19 +55,19 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
      * asked, lowered a block at a time until its stone costs no more than the
      * holdings, where some column still grows.
      *
-     * @param blocks    the world the footprint stands in
-     * @param footprint the footprint at the rise asked
-     * @param values    the goo values the stone is priced by
-     * @param gooType    the goo type the cost is paid in
-     * @param remainders the caster's remainders, which pay first
-     * @param holdings   the mB of that type the caster holds
+     * @param blocks        the world the footprint stands in
+     * @param footprint     the footprint at the rise asked
+     * @param pricePerBlock the exact goo each stone block grown costs
+     * @param gooType       the goo type the cost is paid in
+     * @param remainders    the caster's remainders, which pay first
+     * @param holdings      the mB of that type the caster holds
      * @return the plan, or empty where no rise grows a column the holdings pay for
      */
     public static Optional<SpireGrowth> affordable(BlockGetter blocks, SpireFootprint footprint,
-                                                   IGooValueLookup values, ResourceKey<GooTypeDefinition> gooType,
+                                                   GooFraction pricePerBlock, ResourceKey<GooTypeDefinition> gooType,
                                                    GooRemainders remainders, int holdings) {
         for (int rise = footprint.rise(); rise >= SpireFootprint.MIN_RISE; rise--) {
-            SpireGrowth growth = plan(blocks, footprint.withRise(rise), values, gooType);
+            SpireGrowth growth = plan(blocks, footprint.withRise(rise), pricePerBlock);
             // decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
             boolean paidFor = new RemainderLedger(remainders).debitExact(gooType, growth.exactCost(), holdings)
                     .isPresent();
@@ -115,10 +108,5 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
             }
         }
         return true;
-    }
-
-    private static GooFraction stonePrice(IGooValueLookup values, ResourceKey<GooTypeDefinition> gooType) {
-        GooValue value = values.lookup(STONE_ITEM);
-        return value == null ? GooFraction.ZERO : value.exact(gooType);
     }
 }

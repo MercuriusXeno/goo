@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
-import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -14,7 +14,6 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -38,9 +37,10 @@ import java.util.function.Consumer;
  * submits it: a 3x1 footprint at rise 3 over ground of dirt, stone and
  * deepslate raises a 3x1x3 wall of stone as one rising hunk, its cells empty
  * while it rises, settles the stone into them once the rise time passes,
- * leaves every ground block as it stood, and spends stone's rock goo value
- * per stone block grown.
+ * leaves every ground block as it stood, and spends the ability's cost, its
+ * per-block price in rock, for each stone block grown.
  * decision spire-grows-stone-out-of-the-top
+ * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
  */
 @RegistersGameTests
@@ -66,7 +66,7 @@ public final class SpireTests {
     private static final String ABILITY_REQUIRED = "goo:rock_spire must be loaded";
     private static final String STONE_MISSING = "The cell at %s should hold %s, holds %s";
     private static final String GROUND_MOVED = "The ground at %s should still hold %s, holds %s";
-    private static final String UNPRICED = "Stone should carry a rock goo value for Spire to spend";
+    private static final String UNPRICED = "Spire's cost should price each block grown above zero rock goo";
     private static final String CHARGED_WRONG = "The growth should spend %d mB of rock goo, spent %d";
     private static final String CELL_FILLED_EARLY = "The cell at %s should stand empty while the stone rises, holds %s";
     private static final String NO_HUNK = "One rising hunk should carry the %d stone blocks, found %s";
@@ -128,9 +128,9 @@ public final class SpireTests {
                 }
             }
             groundBefore.forEach((ground, before) -> assertHolds(helper, ground, before, GROUND_MOVED));
-            int stoneValue = stoneRockValue(helper);
-            helper.assertTrue(stoneValue > 0, UNPRICED);
-            int expected = stoneValue * GROUND.size() * RISE;
+            GooFraction perBlock = spire(helper).cost().exactIn(GooValues.of(helper.getLevel()));
+            helper.assertTrue(!perBlock.isZero(), UNPRICED);
+            int expected = perBlock.times((long) GROUND.size() * RISE).ceiling();
             helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
         });
         helper.runAfterDelay(SpireStep.RISE_TICKS + BlockHunk.SETTLE_LINGER_TICKS + SETTLE_SLACK_TICKS + 1, () -> {
@@ -291,11 +291,6 @@ public final class SpireTests {
     private static void assertHolds(GameTestHelper helper, BlockPos pos, BlockState expected, String message) {
         BlockState actual = helper.getBlockState(pos);
         helper.assertTrue(actual.equals(expected), String.format(message, pos, expected, actual));
-    }
-
-    private static int stoneRockValue(GameTestHelper helper) {
-        GooValue value = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Blocks.STONE.asItem()));
-        return value == null ? 0 : value.fabricateCeiling(GooTypes.ROCK);
     }
 
     private static AbilityDefinition spire(GameTestHelper helper) {

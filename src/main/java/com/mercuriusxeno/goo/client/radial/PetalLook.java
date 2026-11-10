@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
-import com.mercuriusxeno.goo.data.GooFraction;
-import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
@@ -55,24 +53,19 @@ interface PetalLook {
         }
 
         @Override
-        public CostMechanicsLookup costMechanicsLookup(ResourceKey<GooTypeDefinition> type) {
-            return new CostMechanicsLookup(Language.getInstance()::getOrDefault,
-                    item -> {
-                        GooValue value = ClientGooValues.current().lookup(item);
-                        return value == null ? GooFraction.ZERO : value.exact(type);
-                    });
+        public CostMechanicsLookup costMechanicsLookup() {
+            return new CostMechanicsLookup(Language.getInstance()::getOrDefault, ClientGooValues::current);
         }
     };
 
     /**
      * What the explanation panel resolves its texts through: the lang and
-     * the open type's goo values.
+     * the client's goo values, which each ability's price reads in its own type.
      * decision zero-cost-field-formats-the-cost-mechanics
      *
-     * @param type the open type, whose goo values price the ability
      * @return the lookup
      */
-    CostMechanicsLookup costMechanicsLookup(ResourceKey<GooTypeDefinition> type);
+    CostMechanicsLookup costMechanicsLookup();
 
     /**
      * The texture a whole-file sprite, such as an ability icon or a badge,
