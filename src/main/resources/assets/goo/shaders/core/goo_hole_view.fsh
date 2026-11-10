@@ -1,15 +1,19 @@
 #version 330
 
 #moj_import <minecraft:globals.glsl>
+#moj_import "portal_texels.glsl"
 
 // A hole's mouth showing the view through it (decision hole-closes-the-space-to-an-opening-ahead):
-// the far side rendered from the camera mirrored through the pair, sampled at this fragment's own
-// screen point, laid over the wall see-through, inside an edge torn and shifting rather than a
-// clean oval, a band of the mouth's color along the tear.
+// the far side rendered from the camera mirrored through the pair, sampled at its texel's center,
+// laid over the wall see-through, inside an edge torn and shifting rather than a clean oval, a band
+// of the mouth's color along the tear. All of it draws on sixteen texels a block, each texel inside
+// or outside the mouth whole, while the tear keeps shifting in time
+// (decision portals-and-wormhole-draw-sixteen-texels-a-block).
 
 uniform sampler2D Sampler0;
 
 in vec2 frameCoord;
+flat in vec2 texels;
 in vec4 frameColor;
 
 out vec4 fragColor;
@@ -30,14 +34,15 @@ float tear(float angle, float time) {
 }
 
 void main() {
-    vec2 across = frameCoord * 2.0 - 1.0;
+    PortalTexel texel = portalTexel(frameCoord, texels, gl_FragCoord.xy);
+    vec2 across = texel.center * 2.0 - 1.0;
     float out_ = length(across);
     float time = GameTime * TEAR_SPEED;
     float edge = 1.0 - TEAR_DEPTH * (0.5 + 0.5 * tear(atan(across.y, across.x), time));
     if (out_ > edge) {
         discard;
     }
-    vec3 view = texture(Sampler0, gl_FragCoord.xy / ScreenSize).rgb;
+    vec3 view = texelFetch(Sampler0, ivec2(clamp(texel.screenPoint, vec2(0.0), ScreenSize - 1.0)), 0).rgb;
     float band = smoothstep(edge - BAND, edge, out_);
     vec3 color = mix(view, frameColor.rgb * 1.4, band);
     fragColor = vec4(color, mix(VIEW_OPACITY, 1.0, band));
