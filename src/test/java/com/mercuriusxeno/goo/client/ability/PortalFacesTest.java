@@ -1,11 +1,19 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
+import net.minecraft.util.ARGB;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -27,6 +35,7 @@ class PortalFacesTest {
     private static final int[] SIXTEEN_BY_THIRTY_TWO = {16, 32};
     private static final int[] FORTY_EIGHT_SQUARE = {48, 48};
     private static final int CORNERS = 4;
+    private static final int OPAQUE = 255;
 
     @Test
     void aOneByTwoFaceRunsSixteenByThirtyTwoTexelsOnAWallAFloorAndACeiling() {
@@ -70,5 +79,59 @@ class PortalFacesTest {
         PortalFaces.emitOval(new PoseStack().last(), consumer, ONE_BY_TWO_WALL, Direction.NORTH, -1);
 
         verify(consumer, times(CORNERS)).setUv2(SIXTEEN_BY_THIRTY_TWO[0], SIXTEEN_BY_THIRTY_TWO[1]);
+    }
+
+    /**
+     * A placed portal's halo reaches half a block past its frame on each way
+     * across its face, in the portal's own color, its grid counting sixteen
+     * texels a block over the frame and that margin
+     * (decision portal-halo-glows-additively-onto-the-wall).
+     */
+    @Nested
+    class Halo {
+
+        /** A wall portal on the north face of (0, 64, 0), its frame (0, 64, 0) to (1, 66, 1). */
+        private static final Portal WALL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(0, 64, 0)),
+                Direction.NORTH, Direction.UP);
+        /** The portal it links to, the entry of the pair. */
+        private static final Portal ENTRY = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(9, 64, 0)),
+                Direction.NORTH, Direction.UP);
+        /** The frame's sixteen by thirty-two texels and eight more each side. */
+        private static final int[] THIRTY_TWO_BY_FORTY_EIGHT = {32, 48};
+        /** The frame's corners on x, half a block out each side. */
+        private static final float[] XS = {-0.5F, 1.5F};
+        /** The frame's corners on y, half a block out each end. */
+        private static final float[] YS = {63.5F, 66.5F};
+        /** The north face's plane, lifted off the frame toward the open side. */
+        private static final float FACE_Z = -0.01F;
+
+        @Test
+        void aWaitingPortalsHaloReachesTheMarginPastItsFrameInBlue() {
+            int rgb = PortalFaces.colorOf(WALL, List.of());
+
+            assertHaloAround(rgb, ARGB.color(PortalFacesTest.OPAQUE, PortalFaces.BLUE_RGB));
+        }
+
+        @Test
+        void aLinkedExitsHaloReachesTheMarginPastItsFrameInOrange() {
+            int rgb = PortalFaces.colorOf(WALL, List.of(new QuantumPortals.Link(ENTRY, WALL)));
+
+            assertHaloAround(rgb, ARGB.color(PortalFacesTest.OPAQUE, PortalFaces.ORANGE_RGB));
+        }
+
+        private void assertHaloAround(int rgb, int color) {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+
+            PortalFaces.emitHalo(pose, consumer, WALL.blocks(), WALL.face(), rgb);
+
+            for (float x : XS) {
+                for (float y : YS) {
+                    verify(consumer).addVertex(pose, x, y, FACE_Z);
+                }
+            }
+            verify(consumer, times(CORNERS)).setColor(color);
+            verify(consumer, times(CORNERS)).setUv2(THIRTY_TWO_BY_FORTY_EIGHT[0], THIRTY_TWO_BY_FORTY_EIGHT[1]);
+        }
     }
 }
