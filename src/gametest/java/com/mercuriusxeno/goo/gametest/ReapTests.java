@@ -2,8 +2,11 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.program.SlashStep;
 import com.mercuriusxeno.goo.ability.reap.Reaping;
+import com.mercuriusxeno.goo.ability.reap.SlashCuts;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -28,6 +31,7 @@ import java.util.function.Consumer;
 public final class ReapTests {
     private static final String REAP_SLASH_REAPS = "reap_slash_reaps_the_plants_on_its_path";
     private static final String REAP_SETTLES_SEEDS = "reap_settles_seeds_against_the_replant";
+    private static final String REAP_SLASH_CUTS = "reap_slash_cuts_the_mob_on_its_path_once";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -37,6 +41,7 @@ public final class ReapTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, REAP_SLASH_REAPS, ReapTests::reapSlashReapsThePlantsOnItsPath);
         GooTestFunctions.registerTest(registrar, REAP_SETTLES_SEEDS, ReapTests::reapSettlesSeedsAgainstTheReplant);
+        GooTestFunctions.registerTest(registrar, REAP_SLASH_CUTS, ReapTests::reapSlashCutsTheMobOnItsPathOnce);
     }
 
     private static final int GROUND_Y = 1;
@@ -55,6 +60,18 @@ public final class ReapTests {
     private static final double ITEM_SEARCH_RADIUS = 2;
     private static final String WHEAT_REPLANTED = "Ripe wheat at %s should stand replanted at age zero, stands %s";
     private static final String WHEAT_LEFT_RIPE = "Ripe wheat beside the path at %s should stand ripe, stands %s";
+    /** The row a cow stands in clear of the slash and its blade. */
+    private static final int OFF_PATH_Z = 5;
+    private static final double CUT_X = 3.5;
+    /** How far above the floor the slash flies, through a cow's body. */
+    private static final double CUT_HEIGHT = 0.8;
+    private static final int NO_SLASHER = -1;
+    private static final float CUT_DAMAGE = 3;
+    /** Wider than the second slash's whole flight, so every tick it crosses the cow falls inside it. */
+    private static final int CUT_WINDOW = 10;
+    private static final float HEALTH_TOLERANCE = 0.01f;
+    private static final String CUT_ONCE = "The cow on the path should lose %s health to one cut, lost %s";
+    private static final String LEFT_WHOLE = "The cow off the path should stand whole, lost %s";
     private static final String BUSH_PICKED = "The ripe bush should be picked back to age one, stands at %d";
     private static final String SEEDS_SETTLED = "Drops holding %s should settle to %d seeds beside one wheat, settled %s";
 
@@ -98,6 +115,39 @@ public final class ReapTests {
             helper.assertTrue(bushAge == 1, String.format(BUSH_PICKED, bushAge));
             helper.assertItemEntityPresent(Items.WHEAT, ON_PATH, ITEM_SEARCH_RADIUS);
             helper.assertItemEntityPresent(Items.SWEET_BERRIES, BUSH, ITEM_SEARCH_RADIUS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Two slashes flown along a row inside one cow's invulnerability window
+     * cut the cow standing on the path once, for the slash's damage, and
+     * leave the cow standing off the path whole.
+     *
+     * @param helper the gametest helper
+     */
+    public static void reapSlashCutsTheMobOnItsPathOnce(GameTestHelper helper) {
+        for (int x = PATH_START_X; x <= PATH_END_X; x++) {
+            for (int z = PATH_Z; z <= OFF_PATH_Z; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+            }
+        }
+        Mob onPath = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, PATH_Z + 0.5));
+        Mob offPath = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, OFF_PATH_Z + 0.5));
+        Vec3 origin = helper.absoluteVec(new Vec3(PATH_START_X + 0.5, GROUND_Y + CUT_HEIGHT, PATH_Z + 0.5));
+        Vec3 path = new Vec3(PATH_END_X - PATH_START_X, 0, 0);
+        helper.runAfterDelay(1, () -> {
+            long now = helper.getLevel().getGameTime();
+            SlashCuts.launch(helper.getLevel(), new SlashCuts.Cut(NO_SLASHER, origin, path, now, FLIGHT_TICKS,
+                    CUT_DAMAGE, CUT_WINDOW));
+            SlashCuts.launch(helper.getLevel(), new SlashCuts.Cut(NO_SLASHER, origin, path, now + 1, FLIGHT_TICKS,
+                    CUT_DAMAGE, CUT_WINDOW));
+        });
+        helper.runAfterDelay(1 + FLIGHT_DONE_TICKS, () -> {
+            float cut = onPath.getMaxHealth() - onPath.getHealth();
+            helper.assertTrue(Math.abs(cut - CUT_DAMAGE) < HEALTH_TOLERANCE, String.format(CUT_ONCE, CUT_DAMAGE, cut));
+            float whole = offPath.getMaxHealth() - offPath.getHealth();
+            helper.assertTrue(whole < HEALTH_TOLERANCE, String.format(LEFT_WHOLE, whole));
             helper.succeed();
         });
     }
