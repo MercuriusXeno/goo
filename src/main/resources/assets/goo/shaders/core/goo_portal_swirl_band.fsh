@@ -39,8 +39,11 @@ const float BAND_GLOW = 0.35;
 const float BAND_STREAK_GLOW = 0.65;
 // How far the brightest streaks at the core burn toward white.
 const float BAND_HOT = 0.6;
-// How far in from each edge of the band its glow feathers up to full, as a share of its width.
+// How far in from the band's inner edge its glow feathers up to full, as a share of its width.
 const float BAND_FEATHER = 0.35;
+// How quickly the band thins to a ghost from the rim outward onto the wall, higher sooner, so its
+// exterior reads immaterial rather than as a crisp edge. Tuned by eye.
+const float BAND_GHOST = 2.5;
 // How wide the hot core over the rim runs, as a share of the band's width.
 const float BAND_CORE = 0.2;
 
@@ -82,7 +85,8 @@ void main() {
     float streaks = 0.65 * streakNoise(at, BAND_STREAKS_AROUND)
             + 0.35 * streakNoise(at * 2.0, BAND_STREAKS_AROUND * 2.0);
     streaks = streaks * streaks;
-    float feather = smoothstep(0.0, BAND_FEATHER, across) * (1.0 - smoothstep(1.0 - BAND_FEATHER, 1.0, across));
+    float outward = clamp((across - 0.5) * 2.0, 0.0, 1.0);
+    float feather = smoothstep(0.0, BAND_FEATHER, across) * pow(1.0 - outward, BAND_GHOST);
     float core = exp(-pow((across - 0.5) / BAND_CORE, 2.0));
     float glow = feather * (BAND_GLOW + BAND_STREAK_GLOW * streaks);
     vec3 color = mix(frameColor.rgb, vec3(1.0), BAND_HOT * core * streaks);
