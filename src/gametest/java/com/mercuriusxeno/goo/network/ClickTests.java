@@ -1,11 +1,16 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -88,11 +93,27 @@ public final class ClickTests {
         return before - deepHeld(player);
     }
 
+    /**
+     * Clicks at a point as the glove does for a free-aim ability: the throw
+     * names the point its reticule marks, through the real throw path.
+     *
+     * @param player the clicking player, holding the glove
+     * @param aimed  the point the reticule marks
+     */
+    private static void clickAt(ServerPlayer player, Vec3 aimed) {
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(DEEP_CLICK));
+        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.DEEP, DEEP_CLICK));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.DEEP), NO_ENTITY,
+                BlockPos.containing(aimed), Direction.WEST.ordinal(), false, DEEP_CLICK.toString(),
+                player.getEyePosition(), aimed));
+    }
+
     private static int deepHeld(ServerPlayer player) {
         return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.DEEP, 0);
     }
 
     private static final Identifier DEEP_CLICK = Identifier.parse("goo:deep_click");
+    private static final int NO_ENTITY = -1;
     /** How far off its own bay the scene lies on each horizontal axis, past every other test and ShriekTests' scene. */
     private static final int FAR_OFF = 4096;
     /** How far east of the player the wall stands. */
@@ -146,7 +167,7 @@ public final class ClickTests {
                 .thenExecute(() -> {
                     warden[0] = spawnWarden(helper, wardenAt);
                     player[0] = clicker(helper, stand);
-                    HeartOverlayTests.invoke(player[0], GooTypes.DEEP, DEEP_CLICK);
+                    clickAt(player[0], new Vec3(wall.getX(), player[0].getEyeY(), wall.getZ() + 0.5));
                 })
                 .thenExecuteFor(WATCH_TICKS, () -> watched.read(level, warden[0], player[0], sensor, shrieker))
                 .thenExecute(() -> {

@@ -37,7 +37,6 @@ class ScanWavesTest {
 
     private static final int THROW_TICK = 400;
     private static final Vec3 EYE = new Vec3(0.5, 65.62, 0.5);
-    private static final Vec3 LOOK = new Vec3(0, 0, 1);
     /** The face of the wall the look meets, ten blocks south of the eye's cell. */
     private static final BlockHitResult WALL = new BlockHitResult(new Vec3(0.5, 65.62, 10), Direction.NORTH,
             new BlockPos(0, 65, 10), false);
@@ -46,8 +45,7 @@ class ScanWavesTest {
 
     private final AbilityDefinition click = AbilityJson.decode("deep_click");
     private final ServerLevel level = mock(ServerLevel.class);
-    private final Vec3 landing = GooScanHandler.landing(LOOK, WALL, null,
-            EYE.add(LOOK.scale(click.delivery().range())));
+    private final Vec3 landing = GooScanHandler.landingAt(EYE, WALL.getLocation(), click.delivery().range());
     private final int delay = click.delivery().waveTicks(EYE.distanceTo(landing));
 
     private ScanWaves thrownAtTheWall() {
