@@ -55,8 +55,8 @@ public final class ReapTests {
     private static final BlockPos ON_PATH = new BlockPos(3, GROUND_Y + 1, PATH_Z);
     private static final BlockPos BESIDE_PATH = new BlockPos(3, GROUND_Y + 1, BESIDE_Z);
     private static final BlockPos BUSH = new BlockPos(4, GROUND_Y + 1, PATH_Z);
-    /** leaf_reap.json's blade: forming 1.5 blocks out, drifting 1 more, 2.5 wide and 0.8 deep. */
-    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(1.5, 1, 2.5, 0.8, 6, 8, 3);
+    /** leaf_reap.json's shallowest blade: forming 0.75 blocks out, drifting 3 more, 2.5 wide and 0.8 deep. */
+    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(0.75, 3, 2.5, 0.8, 6, 8, 3);
     /** East, the way the blade flies along its row. */
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     /** Across the row, the way the blade's width spans. */
@@ -71,9 +71,12 @@ public final class ReapTests {
     private static final double CUT_HEIGHT = 0.8;
     private static final int NO_SLASHER = -1;
     private static final float CUT_DAMAGE = 1;
-    private static final int BLADES = 2;
+    /** Two swings, each of two blades, so a cut per blade would double the loss. */
+    private static final int SWINGS = 2;
+    /** The ticks from one swing to the next, past the first swing's second blade. */
+    private static final int SWING_GAP_TICKS = 3;
     private static final float HEALTH_TOLERANCE = 0.01f;
-    private static final String CUT_EACH = "The cow on the path should lose %s health to two cuts, lost %s";
+    private static final String CUT_EACH = "The cow on the path should lose %s health, one cut a swing, lost %s";
     private static final String LEFT_WHOLE = "The cow clear of the blade should stand whole, lost %s";
     private static final String BUSH_PICKED = "The ripe bush should be picked back to age one, stands at %d";
     private static final String SEEDS_SETTLED = "Drops holding %s should settle to %d seeds beside one wheat, settled %s";
@@ -104,8 +107,8 @@ public final class ReapTests {
         helper.setBlock(BUSH, Blocks.SWEET_BERRY_BUSH.defaultBlockState()
                 .setValue(SweetBerryBushBlock.AGE, SweetBerryBushBlock.MAX_AGE));
         ReapBlade blade = rowBlade(helper, GROUND_Y + 1.5);
-        helper.runAfterDelay(1, () -> BladeFlights.launch(helper.getLevel(), blade, helper.getLevel().getGameTime(),
-                NO_SLASHER, CUT_DAMAGE));
+        helper.runAfterDelay(1, () -> BladeFlights.launchSwing(helper.getLevel(), List.of(blade),
+                helper.getLevel().getGameTime(), NO_SLASHER, CUT_DAMAGE));
         helper.runAfterDelay(1 + FLIGHT_DONE_TICKS, () -> {
             BlockState reaped = helper.getBlockState(ON_PATH);
             helper.assertTrue(reaped.is(Blocks.WHEAT) && reaped.getValue(CropBlock.AGE) == 0,
@@ -122,9 +125,10 @@ public final class ReapTests {
     }
 
     /**
-     * Two blades flown along a row a tick apart both cut the cow standing on
-     * the path, each once, the second landing through the immunity the first
-     * left, and leave the cow standing clear of their width whole.
+     * Two swings of two blades each, flown along a row, cut the cow standing
+     * on the path once a swing, however many of a swing's blades reach it, the
+     * second swing's cut landing through the immunity the first left, and
+     * leave the cow standing clear of their width whole.
      *
      * @param helper the gametest helper
      */
@@ -136,17 +140,18 @@ public final class ReapTests {
         }
         Mob onPath = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, PATH_Z + 0.5));
         Mob offPath = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, BESIDE_Z + 0.5));
-        ReapBlade blade = rowBlade(helper, GROUND_Y + CUT_HEIGHT);
+        List<ReapBlade> swing = List.of(rowBlade(helper, GROUND_Y + CUT_HEIGHT), rowBlade(helper, GROUND_Y + CUT_HEIGHT));
         helper.runAfterDelay(1, () -> {
             long now = helper.getLevel().getGameTime();
-            for (int launch = 0; launch < BLADES; launch++) {
-                BladeFlights.launch(helper.getLevel(), blade, now + launch, NO_SLASHER, CUT_DAMAGE);
+            for (int launch = 0; launch < SWINGS; launch++) {
+                BladeFlights.launchSwing(helper.getLevel(), swing, now + (long) launch * SWING_GAP_TICKS, NO_SLASHER,
+                        CUT_DAMAGE);
             }
         });
-        helper.runAfterDelay(1 + FLIGHT_DONE_TICKS, () -> {
+        helper.runAfterDelay(1 + SWING_GAP_TICKS + FLIGHT_DONE_TICKS + swing.size(), () -> {
             float cut = onPath.getMaxHealth() - onPath.getHealth();
-            helper.assertTrue(Math.abs(cut - CUT_DAMAGE * BLADES) < HEALTH_TOLERANCE,
-                    String.format(CUT_EACH, CUT_DAMAGE * BLADES, cut));
+            helper.assertTrue(Math.abs(cut - CUT_DAMAGE * SWINGS) < HEALTH_TOLERANCE,
+                    String.format(CUT_EACH, CUT_DAMAGE * SWINGS, cut));
             float whole = offPath.getMaxHealth() - offPath.getHealth();
             helper.assertTrue(whole < HEALTH_TOLERANCE, String.format(LEFT_WHOLE, whole));
             helper.succeed();

@@ -36,8 +36,10 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
 
     /** The share of the leading edge's bow the trailing edge bows, so the two meet at the tips. */
     public static final double INNER_SHARE = 0.45;
-    /** The farthest a blade stands to either side of the look, in blocks. */
-    static final double MAX_OFFSET = 0.5;
+    /** The farthest a blade stands to either side of the aim, in blocks. */
+    static final double MAX_OFFSET = 1;
+    /** The farthest a blade stands above or below the aim, in blocks: a sliver, so the flurry fans sideways. */
+    static final double MAX_LIFT = 0.15;
     /** The farthest a blade tilts from flat, in degrees, so it swings like a scythe. */
     static final double MAX_TILT_DEGREES = 10;
     /** The share of its full width and depth a blade starts at. */
@@ -124,8 +126,8 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     /**
      * A blade swung from the slasher's eye along its look: its width tilted
      * at random within ten degrees of flat, its middle standing at random
-     * within half a block of the aim to the side and up or down, and starting
-     * on a random side.
+     * within a block of the aim to the side and a sliver up or down, and
+     * starting on a random side.
      *
      * @param eye    the slasher's eye
      * @param look   the slasher's unit look
@@ -136,7 +138,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     public static ReapBlade launch(Vec3 eye, Vec3 look, Shape shape, RandomSource random) {
         double tilt = Math.toRadians((random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TILT_DEGREES);
         double offset = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_OFFSET;
-        double lift = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_OFFSET;
+        double lift = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_LIFT;
         int startSide = random.nextBoolean() ? ALONG_SIDE : AGAINST_SIDE;
         return new ReapBlade(eye, look, sideOf(look, tilt), offset, lift, startSide, shape);
     }

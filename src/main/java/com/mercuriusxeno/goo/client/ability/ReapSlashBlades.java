@@ -69,7 +69,7 @@ public final class ReapSlashBlades {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                LIVE.add(new Swing(payload.blade(), mc.level.getGameTime()));
+                LIVE.add(new Swing(payload.blade(), mc.level.getGameTime() + payload.delayTicks()));
             }
         });
     }
@@ -98,7 +98,10 @@ public final class ReapSlashBlades {
                 buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
         int leaf = ClientGooTypes.color(GooTypes.LEAF);
         for (Swing swing : LIVE) {
-            drawBlade(quads, swing.blade(), time - swing.launchTick(), camera, leaf);
+            double age = time - swing.launchTick();
+            if (age >= 0) {
+                drawBlade(quads, swing.blade(), age, camera, leaf);
+            }
         }
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }

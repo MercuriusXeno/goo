@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the uneven cadence Reap's held channel swings at: a blade on the
- * hold's first tick, then each next blade a random two or three ticks after
- * the last, both gaps turning up.
+ * hold's first tick, then each next swing a random two or three ticks after
+ * the last, both gaps turning up, each swing throwing two or three blades.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 class SwingCadenceTest {
@@ -28,6 +28,16 @@ class SwingCadenceTest {
             gaps.add(SwingCadence.nextSwingAt(NOW, FEWEST, MOST, random) - NOW);
         }
         assertEquals(Set.of(2L, 3L), gaps);
+    }
+
+    @Test
+    void everySwingThrowsTwoOrThreeBladesAndBothTurnUp() {
+        RandomSource random = RandomSource.create(5L);
+        Set<Integer> counts = new HashSet<>();
+        for (int i = 0; i < 500; i++) {
+            counts.add(SwingCadence.bladesThisSwing(2, 3, random));
+        }
+        assertEquals(Set.of(2, 3), counts);
     }
 
     @Test

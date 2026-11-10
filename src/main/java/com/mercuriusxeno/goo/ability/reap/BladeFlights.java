@@ -28,8 +28,9 @@ import java.util.WeakHashMap;
  * and reaches the bodies its shape stands over, from the half tick before to
  * this one. It reaps and replants every ripe plant it covers, leaving the
  * afterimage of how it stood, and cuts every living body it reaches but its
- * slasher, once a blade, each cut landing through the body's immunity so
- * every blade connects. The blades live a few ticks and are never saved.
+ * slasher, once a swing however many of the swing's blades reach it, each
+ * cut landing through the body's immunity so every swing connects in step
+ * with its sound. The blades live a few ticks and are never saved.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -54,7 +55,7 @@ public final class BladeFlights {
      * @param launchedAt the game tick it swung
      * @param slasherId  the id of the entity swinging, which the blade never cuts
      * @param damage     what its cut deals
-     * @param struck     the ids of the bodies it has cut
+     * @param struck     the ids of the bodies its swing has cut, shared by the swing's blades
      */
     private record Flight(ReapBlade blade, long launchedAt, int slasherId, float damage, Set<Integer> struck) {
     }
@@ -73,17 +74,23 @@ public final class BladeFlights {
     }
 
     /**
-     * Sets a blade swinging to reap and cut.
+     * Sets one swing's blades flying, a tick apart, to reap and cut as one
+     * attack: they share the bodies they have cut, so a body any of them
+     * reaches is cut once for the swing.
      *
      * @param level      the server level
-     * @param blade      the blade
-     * @param launchedAt the game tick it swings
+     * @param blades     the swing's blades, in the order they fly
+     * @param launchedAt the game tick the swing's first blade flies
      * @param slasherId  the id of the entity swinging
-     * @param damage     what its cut deals
+     * @param damage     what the swing's cut deals
      */
-    public static void launch(ServerLevel level, ReapBlade blade, long launchedAt, int slasherId, float damage) {
-        FLYING.computeIfAbsent(level, key -> new ArrayList<>())
-                .add(new Flight(blade, launchedAt, slasherId, damage, new HashSet<>()));
+    public static void launchSwing(ServerLevel level, List<ReapBlade> blades, long launchedAt, int slasherId,
+                                   float damage) {
+        List<Flight> flights = FLYING.computeIfAbsent(level, key -> new ArrayList<>());
+        Set<Integer> struck = new HashSet<>();
+        for (int blade = 0; blade < blades.size(); blade++) {
+            flights.add(new Flight(blades.get(blade), launchedAt + blade, slasherId, damage, struck));
+        }
     }
 
     /**
