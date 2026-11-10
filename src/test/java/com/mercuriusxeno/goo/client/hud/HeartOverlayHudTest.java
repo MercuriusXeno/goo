@@ -124,6 +124,25 @@ class HeartOverlayHudTest {
         assertEquals("goo:hud/heart/crystal_full", HeartOverlayHud.crawlSprite(HeartKind.SCALES).toString());
     }
 
+    // hud-draws-the-leftmost-heart-as-ancient: the leftmost heart, the last one lost, reads ancient
+    @Test
+    void ancientDrawsTheLeftmostHeartAsTheAncientHeart() {
+        assertEquals(List.of("goo:hud/heart/ancient_full"), slotSprites(HeartKind.ANCIENT, 0, 2));
+        assertEquals(List.of("goo:hud/heart/ancient_half"), slotSprites(HeartKind.ANCIENT, 0, 1));
+    }
+
+    @Test
+    void ancientLeavesEveryOtherHeartToVanilla() {
+        assertTrue(slotSprites(HeartKind.ANCIENT, 1, 2).isEmpty());
+        assertTrue(slotSprites(HeartKind.ANCIENT, 9, 1).isEmpty());
+    }
+
+    @Test
+    void otherKindsDrawEverySlotAlike() {
+        assertEquals(sprites(HeartKind.BARKSKIN, 2, 2),
+                HeartOverlayHud.slotSprites(HeartKind.BARKSKIN, 0, 2, 2).stream().map(Object::toString).toList());
+    }
+
     /** After the heart effect ends, the overlay it last drew lingers and fades over a second (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends). */
     @Nested
     class AfterTheEffectEnds {
@@ -192,6 +211,10 @@ class HeartOverlayHudTest {
                     REPLACED_AT + Afterglow.FADE_TICKS);
             assertEquals(List.of(new HeartOverlayHud.PaintedOverlay(barked, 1f)), painted);
         }
+    }
+
+    private static List<String> slotSprites(HeartKind kind, int slot, int realHalves) {
+        return HeartOverlayHud.slotSprites(kind, slot, 0, realHalves).stream().map(Object::toString).toList();
     }
 
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {

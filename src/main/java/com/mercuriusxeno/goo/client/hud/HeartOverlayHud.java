@@ -36,7 +36,9 @@ import java.util.Optional;
  * overlay-hearts-are-an-elemental-overshield, kindle-ember-hearts-ash-and-retaliate
  * and barkskin-bark-hearts-thorn-and-burn), and while Stoneskin stands each
  * missing heart it fills reads stone (decision
- * stoneskin-stone-hearts-block-regeneration). While Reserve stands, its banked
+ * stoneskin-stone-hearts-block-regeneration), and while Ancient stands the
+ * leftmost heart reads ancient (decision hud-draws-the-leftmost-heart-as-ancient).
+ * While Reserve stands, its banked
  * hearts draw in their own sprite as a row behind vanilla's, before
  * vanilla draws, and each half heart the drain takes travels from the bar to
  * that row (decision reserve-hearts-sit-behind-the-bar). The layer wraps vanilla's health
@@ -64,6 +66,8 @@ public final class HeartOverlayHud {
     private static final Identifier ICE_HALF = sprite("ice_half");
     private static final Identifier CRYSTAL_FULL = sprite("crystal_full");
     private static final Identifier CRYSTAL_HALF = sprite("crystal_half");
+    private static final Identifier ANCIENT_FULL = sprite("ancient_full");
+    private static final Identifier ANCIENT_HALF = sprite("ancient_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
     private static final Identifier RESERVE_HALF = sprite("reserve_half");
     /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
@@ -292,6 +296,28 @@ public final class HeartOverlayHud {
             case SCALES -> Optional.of(new Identifier[]{CRYSTAL_HALF, CRYSTAL_FULL});
             default -> Optional.empty();
         };
+    }
+
+    /**
+     * The sprites a heart slot draws, bottom first: Ancient's ancient heart
+     * over the leftmost slot alone, every other kind's sprites alike in every slot.
+     *
+     * @param kind         the overlay's kind
+     * @param slot         the heart slot, from the left
+     * @param shieldHalves the half hearts of shield over the slot
+     * @param realHalves   the half hearts of real health in the slot, one or two
+     * @return the sprites, bottom first
+     */
+    static List<Identifier> slotSprites(HeartKind kind, int slot, int shieldHalves, int realHalves) {
+        if (kind != HeartKind.ANCIENT) {
+            return heartSprites(kind, shieldHalves, realHalves);
+        }
+        List<Identifier> sprites = new ArrayList<>();
+        if (slot == 0) {
+            // hud-draws-the-leftmost-heart-as-ancient: the last heart lost reads ancient
+            addHalves(sprites, realHalves, ANCIENT_HALF, ANCIENT_FULL);
+        }
+        return sprites;
     }
 
     /**
@@ -545,7 +571,7 @@ public final class HeartOverlayHud {
                 blitColumns(graphics, missingFull(overlay.kind()), x, y, x + halfStart(1), x + halfEnd(1),
                         Math.round(alpha * OPAQUE_ALPHA) << ALPHA_SHIFT | WHITE_RGB);
             } else {
-                for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
+                for (Identifier sprite : slotSprites(overlay.kind(), slot, overlay.shieldAt(slot), realHalves)) {
                     graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
                 }
             }
