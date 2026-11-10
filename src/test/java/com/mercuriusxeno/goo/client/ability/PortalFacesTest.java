@@ -168,8 +168,8 @@ class PortalFacesTest {
         private static final float FACE_Z = -0.01F;
         /** How far a vertex may stand from where the test reckons it, float rounding only. */
         private static final float NEAR = 1.0e-4F;
-        /** The rim's 4.84 blocks around a one by two oval and the funnel's two texels up, at sixteen a block. */
-        private static final int[] AROUND_BY_UP = {78, 2};
+        /** The rim's 4.84 blocks around a one by two oval, the tube's two texels up and its lip's two out. */
+        private static final int[] AROUND_BY_UP = {78, 4};
 
         @Test
         void aWaitingPortalsTornadoRisesFromItsRimToTheNamedHeightInBlue() {
@@ -288,7 +288,7 @@ class PortalFacesTest {
         /** The deepest a mouth's tear bites, as a share of the oval's radius. */
         private static final float TORN_BASE = 0.84F;
 
-        /** A three by three mouth's funnel: 7.92 blocks around its torn base and two texels up, sixteen a block. */
+        /** A three by three mouth's tube: 7.92 blocks around its torn base, two texels up and its lip's two out. */
         @Test
         void aThreeByThreeMouthsTornadoRisesFromItsTearToTheNamedHeightInItsColor() {
             Captured funnel = emitBoth(new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true));
@@ -298,10 +298,10 @@ class PortalFacesTest {
                     (second - 65.5F) / 1.5F), -0.01F));
             verify(funnel.consumer(), times(funnel.vertices()))
                     .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.BLUE_RGB));
-            verify(funnel.consumer(), times(funnel.vertices())).setUv2(127, 2);
+            verify(funnel.consumer(), times(funnel.vertices())).setUv2(127, 4);
         }
 
-        /** A one by two floor mouth's funnel: 4.07 blocks around its torn base and two texels up, sixteen a block. */
+        /** A one by two floor mouth's tube: 4.07 blocks around its torn base, two texels up and its lip's two out. */
         @Test
         void aOneByTwoMouthsTornadoRisesFromItsTearToTheNamedHeightInItsColor() {
             Captured funnel = emitBoth(new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true));
@@ -311,7 +311,7 @@ class PortalFacesTest {
                     (second - 1F) / 1F), 64.01F));
             verify(funnel.consumer(), times(funnel.vertices()))
                     .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
-            verify(funnel.consumer(), times(funnel.vertices())).setUv2(65, 2);
+            verify(funnel.consumer(), times(funnel.vertices())).setUv2(65, 4);
         }
 
         /**
