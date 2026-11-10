@@ -7,7 +7,8 @@
   "requires": ["minecraft:wheat", "minecraft:wheat_seeds"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "slash", "slashes": 5, "cone": 100, "reach": 6, "flight_ticks": 5, "stagger_ticks": 2 },
+    { "type": "slash", "slashes": 5, "cone": 100, "reach": 6, "flight_ticks": 5, "stagger_ticks": 2,
+      "damage": 4, "invulnerable_ticks": 2 },
     { "type": "sound", "id": "minecraft:entity.player.attack.sweep", "at": "target", "source": "players", "volume": 1, "pitch": 1.2 }
   ],
   "tags": ["self"],
