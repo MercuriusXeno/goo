@@ -46,15 +46,17 @@ public final class GlowBeamMesh {
     public static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(Goo.MODID,
             "textures/entity/glow_beam.png");
     /**
-     * Ticks one breath of the beam's brightness takes, swell to swell; slowed
-     * from three seconds after UAT found it too fast (operator ruling 2026-11-10).
+     * Ticks one breath of the beam's brightness takes, swell to swell: ten
+     * seconds, after UAT asked for a very gentle, delicate wave rather than a
+     * pulse (operator ruling 2026-11-10).
      */
-    public static final float BREATH_PERIOD_TICKS = 160f;
+    public static final float BREATH_PERIOD_TICKS = 200f;
     /**
-     * The share of its alpha a beam keeps at the trough of its breath; raised
-     * from 0.85 after UAT found the swing too strong (operator ruling 2026-11-10).
+     * The share of its alpha a beam keeps at the trough of its breath: a very
+     * shallow dip, after UAT asked for a very gentle, delicate wave (operator
+     * ruling 2026-11-10).
      */
-    public static final float BREATH_FLOOR = 0.93f;
+    public static final float BREATH_FLOOR = 0.96f;
     /** Blocks of beam one tile of the texture spans. */
     private static final float BLOCKS_PER_TILE = 1f;
     private static final double HALF = 0.5;
