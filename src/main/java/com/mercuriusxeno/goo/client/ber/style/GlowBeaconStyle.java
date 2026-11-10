@@ -39,7 +39,7 @@ public final class GlowBeaconStyle implements PrismComboStyle {
         float breath = GlowBeamMesh.breath(state.animationTime);
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
-                    GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
+                    GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE),
                     (pose, buffer) -> emitBeaconLayer(pose, buffer, layer, state.beamRadiusScale, scroll, breath));
         }
         poseStack.popPose();

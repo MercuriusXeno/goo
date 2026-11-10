@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -35,6 +36,14 @@ public final class GlowBeamMesh {
             new Layer(0.06f, ARGB.color(66, 0xFFE628), 0.35f),
             new Layer(0.095f, ARGB.color(27, 0xFFD700), 0.25f),
             new Layer(0.14f, ARGB.color(11, 0xFFD700), 0.15f));
+    /**
+     * Glow's soft beam texture, transparent at both side columns and opaque
+     * at mid-width, which every face runs across its whole width so the
+     * beam's silhouette feathers instead of stair-stepping.
+     * decision every-glow-beam-feathers-to-transparent
+     */
+    public static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(Goo.MODID,
+            "textures/entity/glow_beam.png");
     /** Ticks one breath of the beam's brightness takes, swell to swell. */
     public static final float BREATH_PERIOD_TICKS = 60f;
     /** The share of its alpha a beam keeps at the trough of its breath. */
@@ -42,6 +51,8 @@ public final class GlowBeamMesh {
     /** Blocks of beam one tile of the texture spans. */
     private static final float BLOCKS_PER_TILE = 1f;
     private static final double HALF = 0.5;
+    /** One whole turn of the breath's cosine, in radians. */
+    private static final double FULL_TURN = 2 * Math.PI;
     private static final Vector3f UP = new Vector3f(0f, 1f, 0f);
 
     private GlowBeamMesh() {
@@ -57,7 +68,7 @@ public final class GlowBeamMesh {
      * @return the alpha share, from the floor to one
      */
     public static float breath(double ticks) {
-        double eased = (1 - Math.cos(ticks / BREATH_PERIOD_TICKS * Mth.TWO_PI)) * HALF;
+        double eased = (1 - Math.cos(ticks / BREATH_PERIOD_TICKS * FULL_TURN)) * HALF;
         return (float) (1 - (1 - BREATH_FLOOR) * eased);
     }
 

@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -50,7 +49,7 @@ public final class GlowReflectorStyle implements PrismComboStyle {
                 poseStack.mulPose(GlowBeamMesh.alongBeam(link));
                 float length = (float) link.length();
                 nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
-                        GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
+                        GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE),
                         (pose, buffer) -> emitBeam(pose, buffer, length, share, scroll, breath));
                 poseStack.popPose();
             }

@@ -267,6 +267,15 @@ tasks.register('generateTextures', JavaExec) {
     workingDir = project.projectDir
 }
 
+// Glow's soft beam texture (decision every-glow-beam-feathers-to-transparent)
+tasks.register('generateGlowBeamTexture', JavaExec) {
+    description = 'Regenerates the soft glow beam texture'
+    group = 'goo'
+    classpath = sourceSets.tools.runtimeClasspath
+    mainClass = 'com.mercuriusxeno.goo.tools.GlowBeamTextureGenerator'
+    workingDir = project.projectDir
+}
+
 // The Goo Lab template tracked at dev/lab/ (decision lab-built-from-code)
 tasks.register('generateLabTemplate', JavaExec) {
     description = 'Rewrites the Goo Lab level template under dev/lab/'
