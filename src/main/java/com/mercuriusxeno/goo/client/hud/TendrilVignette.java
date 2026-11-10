@@ -412,6 +412,10 @@ public final class TendrilVignette {
     public void draw(GuiGraphicsExtractor graphics, float time, float strength, Look look) {
         advance(time);
         if (strength <= 0f) {
+            if (veins != null) {
+                // sculker-veins-root-in-clusters-and-bare-gaps: the next vision grows a fresh web
+                veins.hide();
+            }
             return;
         }
         drawMist(graphics, time, strength, look.mistRgb());
