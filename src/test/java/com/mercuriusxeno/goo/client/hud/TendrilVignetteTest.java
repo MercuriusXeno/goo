@@ -165,7 +165,8 @@ class TendrilVignetteTest {
     @Nested
     class SculkerVeins {
 
-        private static final int MANY_VEINS = 48;
+        private static final int MANY_VEINS = 100;
+        private static final double LINKED_SHARE = 0.6;
         private static final float EVEN_OVER_MEAN = 2f;
         private static final int SOON_AFTER_THE_START = 5;
 
@@ -205,6 +206,23 @@ class TendrilVignetteTest {
             assertTrue(veins.size() >= MANY_VEINS, "lots of veins should stand, " + veins.size() + " do");
             assertTrue(widest <= EVEN_OVER_MEAN * mean,
                     "no stretch of rim should stand bare, a gap of " + widest + " against a mean of " + mean);
+        }
+
+        @Test
+        void linksJoinMostNeighbouringVeinsIntoOneWeb() {
+            TendrilVignette vignette = veinedTo(SETTLED);
+            List<VeinNetwork.Vein> veins = vignette.veins();
+            List<VeinNetwork.Link> links = vignette.veinLinks();
+            long neighbourPairs = veins.size() - 4L;
+            assertTrue(links.size() >= LINKED_SHARE * neighbourPairs,
+                    links.size() + " links join " + neighbourPairs + " neighbouring pairs");
+            for (VeinNetwork.Link link : links) {
+                assertEquals(link.from().edge(), link.to().edge(), "a link should join veins on one edge");
+                long between = veins.stream().filter(vein -> vein.edge() == link.from().edge()
+                        && vein.along() > Math.min(link.from().along(), link.to().along())
+                        && vein.along() < Math.max(link.from().along(), link.to().along())).count();
+                assertEquals(0, between, "a link should join neighbours, with no vein rooted between them");
+            }
         }
 
         @Test

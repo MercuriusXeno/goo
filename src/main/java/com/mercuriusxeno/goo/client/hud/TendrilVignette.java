@@ -305,6 +305,13 @@ public final class TendrilVignette {
     }
 
     /**
+     * @return the links joining neighbouring veins now, none for a vignette that grows tendrils
+     */
+    List<VeinNetwork.Link> veinLinks() {
+        return veins == null ? List.of() : veins.links();
+    }
+
+    /**
      * @return the tendrils standing now
      */
     List<Tendril> live() {
