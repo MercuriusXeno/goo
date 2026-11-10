@@ -55,9 +55,14 @@ class ThrowCostTest {
     void everyThrowPricesAtTheJsonsCost(Path file) throws IOException {
         String resource = ABILITIES + file.getFileName();
         JsonObject json = read(resource).getAsJsonObject();
+        AbilityDefinition definition = AbilityJson.decode(file);
+        // ability-cost-builds-as-a-one-type-by-type-value: an expression cost loads as written
+        if (json.has("cost") && json.getAsJsonPrimitive("cost").isString()) {
+            assertEquals(json.get("cost").getAsString(), definition.cost().source(), definition.id().toString());
+            return;
+        }
         // self-effects-trickle-until-ended: a held effect names an upkeep and no cost
         int jsonCost = json.has("cost") ? json.get("cost").getAsInt() : 0;
-        AbilityDefinition definition = AbilityJson.decode(file);
 
         assertEquals(jsonCost, definition.cost().in(GooValueTable.EMPTY), definition.id().toString());
     }

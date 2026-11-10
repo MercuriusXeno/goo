@@ -124,7 +124,7 @@ class StreamHoldsTest {
         }
     }
 
-    /** Each block a stream holds counts its own hold (decision unmake-waves-dissolve-by-crucible-cost). */
+    /** A stream's cost drains in whole shares over its hold (decision stream-delivery-held-cone). */
     @Nested
     class ShareAt {
 
