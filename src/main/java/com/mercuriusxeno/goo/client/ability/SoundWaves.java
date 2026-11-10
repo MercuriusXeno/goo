@@ -47,13 +47,28 @@ public final class SoundWaves {
     private SoundWaves() {
     }
 
-    /**
-     * One wave on its way to its landing.
-     *
-     * @param wave  the wave the server sent
-     * @param start the client game tick it left the glove
-     */
-    record Travelling(ScanWavePayload wave, long start) {
+    /** One wave on its way to its landing, and how many of its echoes have sounded. */
+    static final class Travelling {
+        private final ScanWavePayload wave;
+        private final long start;
+        private int echoesSounded;
+
+        /**
+         * @param wave  the wave the server sent
+         * @param start the client game tick it left the glove
+         */
+        Travelling(ScanWavePayload wave, long start) {
+            this.wave = wave;
+            this.start = start;
+        }
+
+        ScanWavePayload wave() {
+            return wave;
+        }
+
+        long start() {
+            return start;
+        }
     }
 
     /**
@@ -83,18 +98,22 @@ public final class SoundWaves {
             return;
         }
         long now = level.getGameTime();
-        TRAVELLING.removeIf(travelling -> now - travelling.start() > travelling.wave().ticks());
         for (Travelling travelling : TRAVELLING) {
-            travel(level, travelling.wave(), now - travelling.start());
+            travel(level, travelling, Math.max(0, now - travelling.start()));
         }
+        // the last echo sounds before its wave goes, however far the clock jumped past the arrival
+        TRAVELLING.removeIf(travelling -> now - travelling.start() >= travelling.wave().ticks());
     }
 
-    private static void travel(ClientLevel level, ScanWavePayload wave, long age) {
+    private static void travel(ClientLevel level, Travelling travelling, long age) {
+        ScanWavePayload wave = travelling.wave();
         Vec3 at = ScanWaveProgress.at(wave.from(), wave.to(), wave.ticks(), age);
         // the shriek ring held square to the line, its spawn speed naming the line it faces along
         Vec3 along = wave.to().subtract(wave.from());
         level.addParticle(GooParticles.CLICK_WAVE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
-        if (echoesAt(age, wave.ticks())) {
+        int due = echoesDue(age, wave.ticks());
+        if (due > travelling.echoesSounded) {
+            travelling.echoesSounded = due;
             float share = wave.ticks() <= 0 ? 1f : Math.min(1f, (float) age / wave.ticks());
             wave.trail().flatMap(SoundWaves::soundOf).ifPresent(sound -> level.playLocalSound(at.x, at.y, at.z,
                     sound, SoundSource.BLOCKS, reverbVolume(share), REVERB_PITCH - REVERB_PITCH_FALL * share, false));
@@ -102,26 +121,27 @@ public final class SoundWaves {
     }
 
     /**
-     * Whether the trailing click echoes on a tick of the wave's travel: at most
-     * {@link #MOST_ECHOES} times, at least {@link #LEAST_ECHO_GAP} ticks apart,
-     * spread evenly from the glove to the target, the first as it leaves.
+     * How many echoes of the trailing click are due by an age of the wave's
+     * travel: at most {@link #MOST_ECHOES}, at least {@link #LEAST_ECHO_GAP}
+     * ticks apart, spread evenly from the glove to the target, the first as it
+     * leaves. Counting what is due, rather than matching an echo's own tick,
+     * lets a clock that skips a tick, as the client's does when the server
+     * re-syncs it, sound the echo a tick late instead of not at all.
      *
      * @param age   the ticks since the wave left the glove
      * @param ticks the ticks the wave takes to arrive
-     * @return true on an echo's tick
+     * @return the echoes due by that age
      */
-    static boolean echoesAt(long age, int ticks) {
+    static int echoesDue(long age, int ticks) {
         int echoes = Math.max(1, Math.min(MOST_ECHOES, ticks / LEAST_ECHO_GAP + 1));
-        if (echoes == 1) {
-            return age == 0;
-        }
-        double gap = (double) ticks / (echoes - 1);
+        double gap = echoes == 1 ? 0 : (double) ticks / (echoes - 1);
+        int due = 0;
         for (int echo = 0; echo < echoes; echo++) {
-            if (Math.round(echo * gap) == age) {
-                return true;
+            if (Math.round(echo * gap) <= age) {
+                due++;
             }
         }
-        return false;
+        return due;
     }
 
     /**

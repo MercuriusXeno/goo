@@ -14,12 +14,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class SoundWavesTest {
 
+    /** The ticks each echo first falls due on, read tick by tick. */
     private static List<Integer> echoTicks(int ticks) {
         List<Integer> echoes = new ArrayList<>();
+        int due = 0;
         for (int age = 0; age <= ticks; age++) {
-            if (SoundWaves.echoesAt(age, ticks)) {
+            int now = SoundWaves.echoesDue(age, ticks);
+            if (now > due) {
                 echoes.add(age);
             }
+            due = now;
         }
         return echoes;
     }
@@ -27,6 +31,23 @@ class SoundWavesTest {
     @Test
     void aFullWaveEchoesFourTimesSpreadToTheTarget() {
         assertEquals(List.of(0, 5, 11, 16), echoTicks(16));
+    }
+
+    /**
+     * The client's game time can jump past a tick when the server re-syncs
+     * it, and a wave's first tick may come a tick late: every echo still
+     * sounds, each once, when the ages it is read at skip the echo's own tick.
+     */
+    @Test
+    void everyEchoSoundsOnceWhenTheClockSkipsTicks() {
+        int sounded = 0;
+        int due = 0;
+        for (int age = 1; age <= 17; age += 2) {
+            int now = SoundWaves.echoesDue(age, 16);
+            sounded += now - due;
+            due = now;
+        }
+        assertEquals(SoundWaves.MOST_ECHOES, sounded);
     }
 
     @ParameterizedTest
