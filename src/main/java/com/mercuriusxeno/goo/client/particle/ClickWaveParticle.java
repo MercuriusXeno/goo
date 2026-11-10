@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
@@ -28,6 +29,9 @@ public final class ClickWaveParticle extends SingleQuadParticle {
     private static final float HALF_TURN = (float) Math.PI;
     /** The axis a quad faces before it is turned. */
     private static final Vec3 QUAD_NORMAL = new Vec3(0, 0, 1);
+    /** The translucent particle layer, drawn on the pipeline that passes every depth test. */
+    private static final Layer THROUGH_BLOCKS = new Layer(true, Layer.TRANSLUCENT.textureAtlasLocation(),
+            GooRenderTypes.CLICK_WAVE_THROUGH_BLOCKS);
 
     private final Quaternionf facing;
 
@@ -71,9 +75,14 @@ public final class ClickWaveParticle extends SingleQuadParticle {
         extractRotatedQuad(state, camera, new Quaternionf(facing).rotateY(HALF_TURN), partialTick);
     }
 
+    /**
+     * Draws through blocks: a submerged Click's rings stand inside the stone
+     * the diver swims in, where the depth test would hide every one of them
+     * (decision submerged-click-ripples-through-the-ground-to-its-range).
+     */
     @Override
     public Layer getLayer() {
-        return Layer.TRANSLUCENT;
+        return THROUGH_BLOCKS;
     }
 
     /**

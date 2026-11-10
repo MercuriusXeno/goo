@@ -111,6 +111,25 @@ public final class GooRenderTypes {
             .build();
 
     /**
+     * Deep Click's shriek rings drawn through blocks: vanilla's translucent
+     * particle pipeline passing every depth test and writing no depth, so a
+     * Click rippling through stone shows to the diver inside it
+     * (decision submerged-click-ripples-through-the-ground-to-its-range).
+     */
+    public static final RenderPipeline CLICK_WAVE_THROUGH_BLOCKS =
+            RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
+                    .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "click_wave_through_blocks"))
+                    .withVertexShader("core/particle")
+                    .withFragmentShader("core/particle")
+                    .withSampler("Sampler0")
+                    .withSampler("Sampler2")
+                    .withVertexFormat(DefaultVertexFormat.PARTICLE, VertexFormat.Mode.QUADS)
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withCull(false)
+                    .build();
+
+    /**
      * Sight's fungus glow (decision sight-lengthens-shift-and-outlines-fungus):
      * the x-ray's quads blended additively, so a swollen copy of each fungus
      * glows like a lamp behind the wall.
@@ -1396,6 +1415,7 @@ public final class GooRenderTypes {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(LINES_ADDITIVE_GLOW_THROUGH_BLOCKS);
         event.registerPipeline(FUNGUS_XRAY);
+        event.registerPipeline(CLICK_WAVE_THROUGH_BLOCKS);
         event.registerPipeline(SCULKER_GLASS);
         event.registerPipeline(FUNGUS_GLOW);
         event.registerPipeline(SPORE_SHELL);
