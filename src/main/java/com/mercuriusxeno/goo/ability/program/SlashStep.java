@@ -20,30 +20,37 @@ import java.util.stream.Stream;
 /**
  * Reap's step, run on the player each tick of the held channel, slashing as
  * the Crissaegrim does in Symphony of the Night: on the hold's first tick,
- * and then a random few ticks after each slash, a fixed leaf crescent appears
- * ahead of the eye below the eye line, facing the slasher, in the next of its
- * three forms; a bright band sweeps its arc from one tip to the other and the
- * arc wipes away behind it, with one swish; and every ripe plant inside the
- * box it cuts is reaped and replanted and every living body there but the
+ * and then a random few ticks after each slash, a fixed leaf crescent stands
+ * upright across the view, facing the slasher, out along the look and
+ * centred just under the aim, at its own tilt, sweep, sideways place and
+ * size; a bright band sweeps its arc from one tip to the other and the arc
+ * wipes away behind it, with one swish; and every ripe plant inside the box
+ * it cuts is reaped and replanted and every living body there but the
  * slasher cut once. Leaf Reap is {@code slash fewest_ticks=2 most_ticks=3
- * radius=1.5 span=100 thickness=0.45 drop=0.75 tilt=25 life_ticks=4
- * box_width=1.4 box_height=1.2 damage=0.5}.
+ * distance=2.5 narrowest=2.5 widest=3.5 thinnest=0.6 thickest=1.0
+ * sideways=0.6 drop=0.3 tilt=35 life_ticks=4 box_near=1 box_far=3.5
+ * box_height=1.5 damage=0.5}.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
  * @param fewestTicks the fewest held ticks from one slash to the next
  * @param mostTicks   the most held ticks from one slash to the next
- * @param radius      how far the crescent's outer edge stands from the slasher, in blocks
- * @param span        the angle its arc spans around the slasher, in degrees
- * @param thickness   how thick its middle is, tapering to its tips, in blocks
- * @param drop        how far below the eye its arc's hub stands, in blocks
- * @param tilt        how far a diagonal form slopes from flat, in degrees
+ * @param distance    how far out along the look a slash stands, in blocks
+ * @param narrowest   the smallest slash's width, in blocks
+ * @param widest      the largest slash's width, in blocks
+ * @param thinnest    the smallest slash's thickness, in blocks
+ * @param thickest    the largest slash's thickness, in blocks
+ * @param sideways    the farthest a slash stands to either side of the aim, in blocks
+ * @param drop        how far under the aim a slash's middle stands, in blocks
+ * @param tilt        the farthest a slash tilts from level either way, in degrees
  * @param lifeTicks   the ticks from a slash appearing to its wiping away
- * @param boxWidth    the width and depth of the box a slash cuts, in blocks
- * @param boxHeight   the height of the box, in blocks
+ * @param boxNear     how far ahead of the eye the box a slash cuts starts, in blocks
+ * @param boxFar      how far ahead of the eye it reaches, in blocks
+ * @param boxHeight   its height, in blocks
  * @param damage      what each slash's cut deals
  */
-public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr radius, Expr span, Expr thickness, Expr drop,
-                        Expr tilt, Expr lifeTicks, Expr boxWidth, Expr boxHeight, Expr damage) implements Step {
+public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr distance, Expr narrowest, Expr widest,
+                        Expr thinnest, Expr thickest, Expr sideways, Expr drop, Expr tilt, Expr lifeTicks,
+                        Expr boxNear, Expr boxFar, Expr boxHeight, Expr damage) implements Step {
 
     private static final String NAME = "slash";
     private static final float SWING_VOLUME = 0.4f;
@@ -55,13 +62,17 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr radius, Expr span
     public static final MapCodec<SlashStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Expr.CODEC.fieldOf("fewest_ticks").forGetter(SlashStep::fewestTicks),
             Expr.CODEC.fieldOf("most_ticks").forGetter(SlashStep::mostTicks),
-            Expr.CODEC.fieldOf("radius").forGetter(SlashStep::radius),
-            Expr.CODEC.fieldOf("span").forGetter(SlashStep::span),
-            Expr.CODEC.fieldOf("thickness").forGetter(SlashStep::thickness),
+            Expr.CODEC.fieldOf("distance").forGetter(SlashStep::distance),
+            Expr.CODEC.fieldOf("narrowest").forGetter(SlashStep::narrowest),
+            Expr.CODEC.fieldOf("widest").forGetter(SlashStep::widest),
+            Expr.CODEC.fieldOf("thinnest").forGetter(SlashStep::thinnest),
+            Expr.CODEC.fieldOf("thickest").forGetter(SlashStep::thickest),
+            Expr.CODEC.fieldOf("sideways").forGetter(SlashStep::sideways),
             Expr.CODEC.fieldOf("drop").forGetter(SlashStep::drop),
             Expr.CODEC.fieldOf("tilt").forGetter(SlashStep::tilt),
             Expr.CODEC.fieldOf("life_ticks").forGetter(SlashStep::lifeTicks),
-            Expr.CODEC.fieldOf("box_width").forGetter(SlashStep::boxWidth),
+            Expr.CODEC.fieldOf("box_near").forGetter(SlashStep::boxNear),
+            Expr.CODEC.fieldOf("box_far").forGetter(SlashStep::boxFar),
             Expr.CODEC.fieldOf("box_height").forGetter(SlashStep::boxHeight),
             Expr.CODEC.fieldOf("damage").forGetter(SlashStep::damage)
     ).apply(inst, SlashStep::new));
@@ -88,14 +99,15 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr radius, Expr span
     }
 
     /**
-     * The shape the step's params give a slash.
+     * The sizes and timing the step's params draw slashes from.
      *
      * @param context the step's context
      * @return the shape
      */
     private ReapSlash.Shape shapeOf(StepContext context) {
-        return new ReapSlash.Shape(radius.evaluate(context), Math.toRadians(span.evaluate(context)),
-                thickness.evaluate(context), drop.evaluate(context), Math.toRadians(tilt.evaluate(context)),
+        return new ReapSlash.Shape(distance.evaluate(context), narrowest.evaluate(context), widest.evaluate(context),
+                thinnest.evaluate(context), thickest.evaluate(context), sideways.evaluate(context),
+                drop.evaluate(context), Math.toRadians(tilt.evaluate(context)),
                 Math.max(1, lifeTicks.evaluateInt(context)));
     }
 
@@ -109,19 +121,19 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr radius, Expr span
      */
     private void slash(ServerLevel level, LivingEntity slasher, StepContext context) {
         Vec3 eye = slasher.getEyePosition();
-        ReapSlash slash = ReapSlash.launch(eye, slasher.getLookAngle(), SwingCadence.takeForm(slasher),
-                shapeOf(context));
+        ReapSlash slash = ReapSlash.launch(eye, slasher.getLookAngle(), shapeOf(context), slasher.getRandom());
         BlockVisuals.sendToWatchers(level, BlockPos.containing(eye), new ReapSlashPayload(slash));
-        SlashCuts.launch(level, slash.box(boxWidth.evaluate(context), boxHeight.evaluate(context)),
-                level.getGameTime(), slash.lifeTicks(), slasher.getId(), damage.evaluateFloat(context));
+        SlashCuts.launch(level, slash.box(boxNear.evaluate(context), boxFar.evaluate(context),
+                boxHeight.evaluate(context)), level.getGameTime(), slash.lifeTicks(), slasher.getId(),
+                damage.evaluateFloat(context));
         level.playSound(null, eye.x, eye.y, eye.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS,
                 SWING_VOLUME, SWING_PITCH);
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(fewestTicks, mostTicks, radius, span, thickness, drop, tilt, lifeTicks, boxWidth,
-                boxHeight, damage);
+        return Stream.of(fewestTicks, mostTicks, distance, narrowest, widest, thinnest, thickest, sideways, drop,
+                tilt, lifeTicks, boxNear, boxFar, boxHeight, damage);
     }
 
     @Override

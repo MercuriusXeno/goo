@@ -9,16 +9,13 @@ import java.util.WeakHashMap;
  * The cadence Reap's held channel slashes at, uneven so the slashes come as a
  * flurry rather than a beat: a slash on the hold's first tick, then each next
  * a random few ticks after the last, between the fewest and the most the JSON
- * names; and the form each slash takes, a downward diagonal, an upward
- * diagonal and a flat one in turn, as the Crissaegrim's do. Each slasher's
- * next slash and form are kept here for as long as the slasher stands, and
- * never saved.
+ * names. Each slasher's next slash is kept here for as long as the slasher
+ * stands, and never saved.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 public final class SwingCadence {
 
     private static final Map<Entity, Long> NEXT_SWING = new WeakHashMap<>();
-    private static final Map<Entity, SlashForm> NEXT_FORM = new WeakHashMap<>();
 
     private SwingCadence() {
     }
@@ -40,18 +37,6 @@ public final class SwingCadence {
         }
         NEXT_SWING.put(slasher, nextSwingAt(now, fewest, most, slasher.getRandom()));
         return true;
-    }
-
-    /**
-     * The form a slasher's next slash takes, moving its cycle on.
-     *
-     * @param slasher the entity slashing
-     * @return the slash's form
-     */
-    public static SlashForm takeForm(Entity slasher) {
-        SlashForm form = NEXT_FORM.getOrDefault(slasher, SlashForm.DOWN_DIAGONAL);
-        NEXT_FORM.put(slasher, form.next());
-        return form;
     }
 
     /**

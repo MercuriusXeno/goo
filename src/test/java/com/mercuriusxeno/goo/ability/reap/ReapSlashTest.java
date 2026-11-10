@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.SlashStep;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -16,116 +17,139 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers Reap's slash, the Crissaegrim's from Symphony of the Night: a fixed
- * crescent standing about 1.5 blocks ahead of the eye, facing the slasher,
- * wholly below the eye line; a bright band sweeping its arc from one tip to
- * the other and the arc wiping away behind it, the crescent itself never
- * moving; the three forms it takes in turn; the box it cuts; and the shipped
- * Reap channeled with nothing thrown.
+ * crescent standing upright across the view, facing the slasher, about 2.5
+ * blocks out along the look and centred just under the aim; each slash drawn
+ * at its own tilt, sweep, sideways place and size, its width and thickness
+ * together; a bright band sweeping its arc from one tip to the other and the
+ * arc wiping away behind it, the crescent never moving; the box it cuts; and
+ * the shipped Reap channeled with nothing thrown.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 class ReapSlashTest {
 
     private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
     private static final Vec3 LEVEL_SOUTH = new Vec3(0, 0, 1);
-    private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(1.5, Math.toRadians(100), 0.45, 0.75,
-            Math.toRadians(25), 4);
-    private static final int STEPS = 40;
+    private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(2.5, 2.5, 3.5, 0.6, 1.0, 0.6, 0.3,
+            Math.toRadians(35), 4);
+    private static final int SAMPLES = 2000;
     private static final double TOLERANCE = 1e-6;
 
-    private static ReapSlash slash(SlashForm form) {
-        return ReapSlash.launch(EYE, LEVEL_SOUTH, form, SHAPE);
+    private static ReapSlash slash(long seed) {
+        return ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, RandomSource.create(seed));
+    }
+
+    /** The middle of a slash's band, halfway between its edges at mid-arc. */
+    private static Vec3 middleOf(ReapSlash slash) {
+        return slash.pointAt(0.5, 1).add(slash.pointAt(0.5, 0)).scale(0.5);
     }
 
     @Nested
     class Crescent {
 
         @Test
-        void itsMiddleStandsAboutABlockAndAHalfAheadOfTheEye() {
-            for (SlashForm form : SlashForm.values()) {
-                Vec3 middle = slash(form).pointAt(0.5, 1);
-                double ahead = middle.subtract(EYE).dot(LEVEL_SOUTH);
-                assertEquals(1.5, ahead, 0.1, form + " ahead " + ahead);
+        void itStandsUprightAcrossTheViewFacingTheSlasher() {
+            for (long seed = 0; seed < 50; seed++) {
+                ReapSlash slash = slash(seed);
+                assertEquals(0, slash.across().dot(LEVEL_SOUTH), TOLERANCE, "across " + slash.across());
+                assertEquals(0, slash.rise().dot(LEVEL_SOUTH), TOLERANCE, "rise " + slash.rise());
             }
         }
 
         @Test
-        void itFacesTheSlasherItsArcCurvingAroundTheEye() {
-            ReapSlash flat = slash(SlashForm.FLAT);
-            for (int step = 0; step <= STEPS; step++) {
-                double t = (double) step / STEPS;
-                Vec3 point = flat.pointAt(t, 1);
-                Vec3 flatFromEye = new Vec3(point.x - EYE.x, 0, point.z - EYE.z);
-                assertEquals(1.5, flatFromEye.length(), 0.01, "outer edge at " + t);
+        void itStandsAboutTwoAndAHalfBlocksOutCentredJustUnderTheAim() {
+            RandomSource random = RandomSource.create(3L);
+            for (int i = 0; i < SAMPLES; i++) {
+                Vec3 fromEye = middleOf(ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random)).subtract(EYE);
+                assertEquals(2.5, fromEye.z, 0.01, "ahead " + fromEye.z);
+                assertTrue(Math.abs(fromEye.x) <= 0.6 + TOLERANCE, "sideways " + fromEye.x);
+                assertEquals(-0.3, fromEye.y, 0.01, "under the aim " + fromEye.y);
             }
-            assertTrue(flat.pointAt(0, 1).subtract(EYE).dot(LEVEL_SOUTH) < flat.pointAt(0.5, 1).subtract(EYE)
-                    .dot(LEVEL_SOUTH), "the tips curve back toward the slasher");
         }
 
         @Test
-        void itSpansAboutTwoAndAThirdBlocksAcross() {
-            ReapSlash flat = slash(SlashForm.FLAT);
-            assertEquals(2.3, flat.pointAt(0, 1).distanceTo(flat.pointAt(1, 1)), 0.1);
+        void itsSizeRunsFromTwoAndAHalfToThreeAndAHalfAcrossThickeningWithIt() {
+            RandomSource random = RandomSource.create(5L);
+            double narrowest = Double.MAX_VALUE;
+            double widest = 0;
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
+                double width = slash.pointAt(0, 1).distanceTo(slash.pointAt(1, 1));
+                double thickness = slash.pointAt(0.5, 1).distanceTo(slash.pointAt(0.5, 0));
+                assertTrue(width >= 2.5 - 0.01 && width <= 3.5 + 0.01, "width " + width);
+                assertEquals((width - 2.5) / 1.0, (thickness - 0.6) / 0.4, 0.02, "width " + width + ", thick " + thickness);
+                narrowest = Math.min(narrowest, width);
+                widest = Math.max(widest, width);
+            }
+            assertTrue(narrowest < 2.6 && widest > 3.4, "sizes " + narrowest + " to " + widest);
+        }
+
+        @Test
+        void eachSlashTiltsItsOwnWayWithinThirtyFiveDegrees() {
+            RandomSource random = RandomSource.create(7L);
+            double steepestDown = 0;
+            double steepestUp = 0;
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
+                Vec3 right = new Vec3(-1, 0, 0);
+                double tilt = Math.toDegrees(Math.atan2(slash.across().y, slash.across().dot(right)));
+                assertTrue(Math.abs(tilt) <= 35 + TOLERANCE, "tilt " + tilt);
+                steepestDown = Math.min(steepestDown, tilt);
+                steepestUp = Math.max(steepestUp, tilt);
+            }
+            assertTrue(steepestDown < -30 && steepestUp > 30, "tilts " + steepestDown + " to " + steepestUp);
+        }
+
+        @Test
+        void slashesSweepFromEitherTip() {
+            RandomSource random = RandomSource.create(9L);
+            int fromLeft = 0;
+            for (int i = 0; i < SAMPLES; i++) {
+                fromLeft += ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random).sweep() > 0 ? 1 : 0;
+            }
+            assertTrue(fromLeft > SAMPLES / 4 && fromLeft < SAMPLES * 3 / 4, "from the left " + fromLeft);
         }
 
         @Test
         void itIsThickestMidArcAndItsTipsMeet() {
-            ReapSlash flat = slash(SlashForm.FLAT);
-            assertEquals(0, flat.pointAt(0, 1).distanceTo(flat.pointAt(0, 0)), TOLERANCE);
-            assertEquals(0, flat.pointAt(1, 1).distanceTo(flat.pointAt(1, 0)), TOLERANCE);
-            double middle = flat.pointAt(0.5, 1).distanceTo(flat.pointAt(0.5, 0));
-            assertEquals(0.45, middle, TOLERANCE);
-            assertTrue(flat.pointAt(0.25, 1).distanceTo(flat.pointAt(0.25, 0)) < middle);
+            ReapSlash slash = slash(11L);
+            assertEquals(0, slash.pointAt(0, 1).distanceTo(slash.pointAt(0, 0)), TOLERANCE);
+            assertEquals(0, slash.pointAt(1, 1).distanceTo(slash.pointAt(1, 0)), TOLERANCE);
+            double middle = slash.pointAt(0.5, 1).distanceTo(slash.pointAt(0.5, 0));
+            assertTrue(slash.pointAt(0.25, 1).distanceTo(slash.pointAt(0.25, 0)) < middle);
         }
 
         @Test
-        void everyFormStandsWhollyBelowTheEyeLine() {
-            for (SlashForm form : SlashForm.values()) {
-                ReapSlash formed = slash(form);
-                for (int step = 0; step <= STEPS; step++) {
-                    for (double layer : new double[] {0, 0.5, 1}) {
-                        double above = formed.pointAt((double) step / STEPS, layer).y - EYE.y;
-                        assertTrue(above < -0.15, form + " stands " + above + " from the eye line");
-                    }
-                }
-            }
-        }
-
-        @Test
-        void theDiagonalsSlopeOppositeWaysAndTheFlatOneLiesLevel() {
-            double down = slash(SlashForm.DOWN_DIAGONAL).pointAt(1, 1).y - slash(SlashForm.DOWN_DIAGONAL).pointAt(0, 1).y;
-            double up = slash(SlashForm.UP_DIAGONAL).pointAt(1, 1).y - slash(SlashForm.UP_DIAGONAL).pointAt(0, 1).y;
-            double flat = slash(SlashForm.FLAT).pointAt(1, 1).y - slash(SlashForm.FLAT).pointAt(0, 1).y;
-            assertTrue(down < -0.5, "down " + down);
-            assertTrue(up > 0.5, "up " + up);
-            assertEquals(0, flat, TOLERANCE);
+        void itBowsAwayFromItsChord() {
+            ReapSlash slash = slash(13L);
+            Vec3 chordMiddle = slash.pointAt(0, 1).add(slash.pointAt(1, 1)).scale(0.5);
+            assertTrue(slash.pointAt(0.5, 1).subtract(chordMiddle).dot(slash.rise()) > 0.3, "the arc bows");
         }
     }
 
     @Nested
     class Sweep {
 
-        private final ReapSlash flat = slash(SlashForm.FLAT);
+        private final ReapSlash slash = slash(17L);
 
         @Test
         void aBrightBandSweepsFromOneTipToTheOther() {
-            assertEquals(0, flat.headAt(0), TOLERANCE);
-            assertTrue(flat.headAt(1) > 0 && flat.headAt(1) < 1, "head " + flat.headAt(1));
-            assertEquals(1, flat.headAt(SHAPE.lifeTicks()), TOLERANCE);
+            assertEquals(0, slash.headAt(0), TOLERANCE);
+            assertTrue(slash.headAt(1) > 0 && slash.headAt(1) < 1, "head " + slash.headAt(1));
+            assertEquals(1, slash.headAt(SHAPE.lifeTicks()), TOLERANCE);
         }
 
         @Test
         void theArcWipesAwayBehindItFromTheFirstTip() {
-            assertEquals(0, flat.tailAt(1), TOLERANCE);
+            assertEquals(0, slash.tailAt(1), TOLERANCE);
             double late = SHAPE.lifeTicks() - 1;
-            assertTrue(flat.tailAt(late) > 0 && flat.tailAt(late) < flat.headAt(late), "tail " + flat.tailAt(late));
-            assertEquals(1, flat.tailAt(SHAPE.lifeTicks()), TOLERANCE);
+            assertTrue(slash.tailAt(late) > 0 && slash.tailAt(late) < slash.headAt(late), "tail " + slash.tailAt(late));
+            assertEquals(1, slash.tailAt(SHAPE.lifeTicks()), TOLERANCE);
         }
 
         @Test
         void theCrescentNeverMoves() {
-            Vec3 first = flat.pointAt(0.5, 1);
-            assertEquals(first, ReapSlash.launch(EYE, LEVEL_SOUTH, SlashForm.FLAT, SHAPE).pointAt(0.5, 1));
-            assertTrue(flat.lifeTicks() == SHAPE.lifeTicks());
+            assertEquals(slash.pointAt(0.5, 1), slash(17L).pointAt(0.5, 1));
+            assertEquals(SHAPE.lifeTicks(), slash.lifeTicks());
         }
     }
 
@@ -133,14 +157,14 @@ class ReapSlashTest {
     class Box {
 
         @Test
-        void itCutsInFrontOfTheSlasherBelowTheEyeLine() {
-            AABB box = slash(SlashForm.FLAT).box(1.4, 1.2);
-            assertEquals(1.4, box.getXsize(), TOLERANCE);
-            assertEquals(1.2, box.getYsize(), TOLERANCE);
-            assertTrue(box.maxY < EYE.y, "top " + (box.maxY - EYE.y));
-            assertTrue(box.getCenter().subtract(EYE).dot(LEVEL_SOUTH) > 0.5, "the box stands ahead");
-            assertTrue(box.contains(EYE.add(0, -1, 1.3)), "a body ahead at chest height is inside");
-            assertFalse(box.contains(EYE.add(0, -1, -1)), "a body behind is outside");
+        void itReachesFromABlockToThreeAndAHalfAhead() {
+            AABB box = slash(19L).box(1, 3.5, 1.5);
+            assertTrue(box.contains(EYE.add(0, -0.3, 1.2)), "near the slasher");
+            assertTrue(box.contains(EYE.add(0, -0.3, 3.3)), "out at its reach");
+            assertTrue(box.contains(EYE.add(0, -0.9, 2.5)), "a body's middle under the slash");
+            assertFalse(box.contains(EYE.add(0, -0.3, 0.5)), "too close");
+            assertFalse(box.contains(EYE.add(0, -0.3, -1)), "behind");
+            assertFalse(box.contains(EYE.add(0, -0.3, 4)), "past its reach");
         }
     }
 
