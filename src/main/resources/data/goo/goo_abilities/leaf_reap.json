@@ -7,9 +7,9 @@
   "requires": ["minecraft:wheat", "minecraft:wheat_seeds"],
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "slash", "fewest_ticks": 2, "most_ticks": 3, "near": 1, "narrowest": 2.5, "widest": 3.5,
-      "thinnest": 0.6, "thickest": 1.0, "bulge": 2, "offset": 0.8, "drift": 0.4, "life_ticks": 4,
-      "damage": 0.5 }
+    { "type": "slash", "fewest_ticks": 2, "most_ticks": 3, "near": 1, "narrowest": 1.5, "widest": 4.5,
+      "thinnest": 0.5, "thickest": 1.5, "bulge": 0.55, "drop_least": 0.6, "drop_most": 1.0, "tilt": 10,
+      "drift": 0.4, "life_ticks": 4, "damage": 0.5 }
   ],
   "tags": ["self"],
   "pose": "swung"
