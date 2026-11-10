@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
+import com.mercuriusxeno.goo.client.tooltip.GooTooltipLines;
 import com.mercuriusxeno.goo.client.workbench.Lettering;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -446,23 +448,29 @@ public final class KnownItemsOverlayRenderer {
     }
 
     /**
-     * Names the cell under the cursor beside it: an item by its name, the Cancel cell as Cancel.
+     * Names the cell under the cursor beside it: an item by its name then its goo cost, the Cancel cell as Cancel.
+     * The item's tooltip gathers with no stack, so the in-world item tooltip's own lines never join it twice.
+     * decision menu-tooltip-carries-the-goo-cost
      *
      * @param graphics the GUI graphics extractor
      * @param font     the font
      * @param drawn    what the frame drew
      * @param cursorX  the cursor's x
      * @param cursorY  the cursor's y
+     * @param values   the goo values the client holds
      */
     public static void nameWhatTheCursorRestsOn(GuiGraphicsExtractor graphics, Font font, Drawn drawn,
-                                                int cursorX, int cursorY) {
+                                                int cursorX, int cursorY, IGooValueLookup values) {
         if (drawn.cancel() != null && inCell(drawn.cancel(), cursorX, cursorY)) {
             graphics.setTooltipForNextFrame(font, Component.translatable(CANCEL_KEY), cursorX, cursorY);
             return;
         }
         ItemIcon hovered = itemUnder(drawn.icons(), cursorX, cursorY);
         if (hovered != null) {
-            graphics.setTooltipForNextFrame(font, hovered.item().stack().getHoverName(), cursorX, cursorY);
+            KnownItem item = hovered.item();
+            graphics.setComponentTooltipFromElementsForNextFrame(font,
+                    GooTooltipLines.named(item.stack().getHoverName(), values.lookup(item.id())), cursorX, cursorY,
+                    ItemStack.EMPTY);
         }
     }
 

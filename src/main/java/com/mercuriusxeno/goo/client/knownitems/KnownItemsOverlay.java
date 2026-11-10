@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
+import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.network.PlexerTargetPickPayload;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -121,7 +122,8 @@ public final class KnownItemsOverlay extends Screen {
                 target, KnownItemsListing.filter(ordered, search.text(), locale), search.text(), firstRow, mouseX,
                 mouseY));
         firstRow = drawn.scroll().firstRow();
-        KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
+        KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY,
+                ClientGooValues.current());
     }
 
     @Override
