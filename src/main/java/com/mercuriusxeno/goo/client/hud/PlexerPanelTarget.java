@@ -9,8 +9,8 @@ import java.util.function.Predicate;
 /**
  * Which plexer the panel follows and where its panel stands: the plexer the crosshair
  * rests on, anywhere on the block, while it holds a target, with the panel flat on the
- * plexer's front, the face its cutaway opens on, standing above the plexer
- * (decision plexer-target-shows-in-a-hud-element).
+ * plexer's front, the face its cutaway opens on (decision plexer-target-shows-in-a-hud-element),
+ * floating in the mouth under the cutaway.
  */
 final class PlexerPanelTarget {
 
@@ -18,10 +18,11 @@ final class PlexerPanelTarget {
     /** How far past the front face the panel stands, in blocks, so the face never cuts it. */
     private static final double FACE_STAND_OFF = 0.01;
     /**
-     * The panel's bottom edge, in blocks: just above the plexer's top edge, so its rows stack
-     * upward into the air above, never covering the cutaway or meeting the ground.
+     * The mouth's height, in blocks: the strip of the front face from the plexer's bottom
+     * (model y 0) to the cutaway's bottom (CutawayInteractionHelper's CUTAWAY_MIN_Y, 8/16).
      */
-    private static final double PANEL_BOTTOM = 1 + 1.0 / 32.0;
+    static final double MOUTH_HEIGHT = 8.0 / 16.0;
+    private static final double HALF = 2.0;
 
     private PlexerPanelTarget() {
     }
@@ -47,26 +48,46 @@ final class PlexerPanelTarget {
     }
 
     /**
-     * @param pos    the plexer's position
-     * @param facing the plexer's FACING
-     * @return the panel's anchor, its bottom center, a stand-off past the front face's horizontal middle
+     * The panel's scale: the one shrink rule held to the mouth's height, so the panel shrinks
+     * only when its laid height outgrows the mouth and never stretches to fill it.
+     * decision plexer-panel-floats-in-the-mouth
+     *
+     * @param laidHeight the laid out panel's height in blocks, before any scale
+     * @return the mouth's height over the laid height past it, 1 at or under it
      */
-    static Vec3 anchor(BlockPos pos, Direction facing) {
+    static double scale(double laidHeight) {
+        return PanelPainter.shrinkFactor(laidHeight, MOUTH_HEIGHT);
+    }
+
+    /**
+     * The panel's anchor, its bottom center: a stand-off past the front face's horizontal middle, and
+     * low enough that the drawn panel's vertical center stands at the mouth's center, floating between
+     * the plexer's bottom and the cutaway's bottom.
+     * decision plexer-panel-floats-in-the-mouth
+     *
+     * @param pos        the plexer's position
+     * @param facing     the plexer's FACING
+     * @param laidHeight the laid out panel's height in blocks, before any scale
+     * @return the panel's anchor
+     */
+    static Vec3 anchor(BlockPos pos, Direction facing, double laidHeight) {
         Direction front = front(facing);
         double out = BLOCK_CENTER + FACE_STAND_OFF;
+        double drawnHeight = laidHeight * scale(laidHeight);
         return new Vec3(pos.getX() + BLOCK_CENTER + front.getStepX() * out,
-                pos.getY() + PANEL_BOTTOM,
+                pos.getY() + (MOUTH_HEIGHT - drawnHeight) / HALF,
                 pos.getZ() + BLOCK_CENTER + front.getStepZ() * out);
     }
 
     /**
-     * @param pos     the plexer's position
-     * @param facing  the plexer's FACING
-     * @param pitch   the billboard pitch factor [0, 1]
-     * @param opacity the fade factor [0, 1]
+     * @param pos        the plexer's position
+     * @param facing     the plexer's FACING
+     * @param laidHeight the laid out panel's height in blocks, before any scale
+     * @param pitch      the billboard pitch factor [0, 1]
+     * @param opacity    the fade factor [0, 1]
      * @return where and how the panel stands on the plexer's front
      */
-    static PanelPlacement placement(BlockPos pos, Direction facing, float pitch, float opacity) {
-        return PanelPlacement.onFace(anchor(pos, facing), front(facing), false, pitch, opacity);
+    static PanelPlacement placement(BlockPos pos, Direction facing, double laidHeight, float pitch, float opacity) {
+        return PanelPlacement.onFace(anchor(pos, facing, laidHeight), front(facing), false, pitch, opacity);
     }
 }

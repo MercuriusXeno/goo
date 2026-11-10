@@ -159,8 +159,8 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * A player's remainders, each goo type's part under 1 mB that unmake pays
-     * and ability costs draw, saved with the player and kept through death.
+     * A player's remainders, each goo type's part under 1 mB that a payout
+     * leaves and ability costs draw, saved with the player and kept through death.
      * decision every-producer-consumer-and-container-holds-a-remainder-buffer
      */
     public static final Supplier<AttachmentType<GooRemainders>> REMAINDERS =

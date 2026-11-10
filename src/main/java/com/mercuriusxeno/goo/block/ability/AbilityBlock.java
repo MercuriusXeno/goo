@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.Waterlogging;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -264,7 +265,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         if (!(server.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return;
         }
-        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard());
+        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.MAROON);
     }
 
     /**
