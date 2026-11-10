@@ -3,16 +3,21 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.SpireFootprint;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.SpireCast;
+import com.mercuriusxeno.goo.throwing.GateArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -99,6 +104,10 @@ public final class GooTargetHighlighter {
      */
     @SubscribeEvent
     public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+        if (PortalView.drawing()) {
+            drawMarksThroughTheGate(event);
+            return;
+        }
         clearCachedArc();
         reticuleDrawn = false;
         Minecraft mc = Minecraft.getInstance();
@@ -119,8 +128,36 @@ public final class GooTargetHighlighter {
         cachedArcPartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
-        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)), frame);
+        if (drawsMarks(false, null, target.passage())) {
+            renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)), frame);
+        }
         renderHeldDome(target, abilityId, frame);
+    }
+
+    /**
+     * In a view through a gate, draws the marks of a target the aim reached
+     * through that gate, seen from the view's camera, so the outline and the
+     * ripple show on the far side through the view; the line and the held
+     * ghost stay the frame's own.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param event the view pass's render stage event
+     */
+    private static void drawMarksThroughTheGate(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+        Minecraft mc = Minecraft.getInstance();
+        TargetResult target = AimTracker.currentTarget();
+        if (mc.player == null || !mc.options.getCameraType().isFirstPerson()
+                || !drawsMarks(true, PortalView.viewedGate(), target.passage())) {
+            return;
+        }
+        ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(mc.player);
+        if (selectedType == null) {
+            return;
+        }
+        String abilityId = GloveAim.selectedAbilityId(mc.player);
+        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)),
+                new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(), PortalView.camera(), mc,
+                        selectedType));
     }
 
     /**
@@ -144,6 +181,19 @@ public final class GooTargetHighlighter {
         }
         HeldDomeRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), target, ability,
                 frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+    }
+
+    /**
+     * Whether the aim target's marks draw in the pass drawing now.
+     *
+     * @param viewDrawing whether a view through a gate is drawing, rather than the main frame
+     * @param viewGate    the gate the drawing view looks into, null in the main frame
+     * @param passage     the gate the aim passed to reach its target, null for a near-side target
+     * @return true where the marks draw in this pass
+     */
+    static boolean drawsMarks(boolean viewDrawing, @Nullable Gate viewGate, TargetResult.@Nullable Passage passage) {
+        // aim-and-shots-carry-through-linked-gates: a far-side target is seen through the gate the aim passed
+        return passage == null ? !viewDrawing : viewDrawing && passage.gate().equals(viewGate);
     }
 
     /**
@@ -325,6 +375,10 @@ public final class GooTargetHighlighter {
      */
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        if (PortalView.drawing()) {
+            drawFarLegThroughTheGate(event);
+            return;
+        }
         TargetResult target = cachedArcTarget;
         ResourceKey<GooTypeDefinition> type = cachedArcType;
         Delivery delivery = cachedArcDelivery;
@@ -385,9 +439,66 @@ public final class GooTargetHighlighter {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
+        Optional<GateArc.Hop> hop = hopOf(target);
+        if (hop.isPresent()) {
+            // aim-and-shots-carry-through-linked-gates: the frame draws the near leg, ending on the gate's face
+            Camera camera = mc.gameRenderer.getMainCamera();
+            ArcRenderer.renderGateLeg(event.getPoseStack(), mc.renderBuffers().bufferSource(), camera,
+                    GloveAim.handPosition(camera), hop.get(), end, false,
+                    new ArcRenderer.LineStyle(ClientGooTypes.highlight(type), partialTick,
+                            grannyWeight(target, delivery), delivery.aimsStraight()));
+            return;
+        }
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
                 partialTick, grannyWeight(target, delivery), delivery.aimsStraight());
+    }
+
+    /**
+     * The hop through a gate the aim line makes to reach a target, empty for
+     * a target on the near side.
+     *
+     * @param target the target this frame aims at
+     * @return the hop
+     */
+    private static Optional<GateArc.Hop> hopOf(TargetResult target) {
+        TargetResult.Passage passage = target.passage();
+        return passage == null ? Optional.empty()
+                : GateRay.hopThrough(GatePassage.clientPairs(), passage.gate(), passage.facePoint());
+    }
+
+    /**
+     * In a view through a gate, draws the aim line's far leg, from the
+     * partner to the target, where the aim passed that gate, so the line is
+     * seen carrying on through it.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param event the view pass's render stage event
+     */
+    private static void drawFarLegThroughTheGate(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        Minecraft mc = Minecraft.getInstance();
+        TargetResult target = AimTracker.currentTarget();
+        Optional<GateArc.Hop> hop = hopOf(target);
+        Vec3 end = aimLineEnd(target);
+        boolean seenHere = drawsMarks(true, PortalView.viewedGate(), target.passage());
+        if (mc.player == null || hop.isEmpty() || end == null || !seenHere) {
+            return;
+        }
+        ResourceKey<GooTypeDefinition> type = GloveAim.selectedGooType(mc.player);
+        String abilityId = GloveAim.selectedAbilityId(mc.player);
+        Delivery delivery = GloveThrowSender.selectedDelivery(abilityId);
+        if (type == null || delivery == null || !drawsAimLine(delivery, GloveThrowSender.selectedDragSized(abilityId))) {
+            return;
+        }
+        if (!mc.options.getCameraType().isFirstPerson()
+                || KnifeAimLineRenderer.showsLines(delivery, GloveUseTracker.showsArea())) {
+            return;
+        }
+        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        ArcRenderer.renderGateLeg(event.getPoseStack(), mc.renderBuffers().bufferSource(), PortalView.camera(),
+                GloveAim.handPosition(mc.gameRenderer.getMainCamera()), hop.get(), end, true,
+                new ArcRenderer.LineStyle(ClientGooTypes.highlight(type), partialTick,
+                        grannyWeight(target, delivery), delivery.aimsStraight()));
     }
 
     /**

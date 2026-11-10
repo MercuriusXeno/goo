@@ -83,12 +83,12 @@ class FaceBullseyeRendererTest {
 
         @Test
         void glowCrystalDrawsNoBullseye() {
-            assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.GlowCrystalTarget(POS, Direction.UP)));
+            assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.GlowCrystalTarget(POS, Direction.UP, null)));
         }
 
         @Test
         void entityDrawsNoBullseye() {
-            assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.EntityTarget(null, Vec3.ZERO)));
+            assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.EntityTarget(null, Vec3.ZERO, null)));
         }
     }
 }
