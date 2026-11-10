@@ -82,7 +82,7 @@ public enum ArmPose {
     public static ArmPose defaultFor(DeliveryKind kind) {
         return switch (kind) {
             case ARC -> SWUNG;
-            case BEAM, STREAM -> HELD_OUT;
+            case BEAM, STREAM, SCAN -> HELD_OUT;
             case SELF -> HELD_UP;
         };
     }

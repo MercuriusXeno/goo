@@ -184,7 +184,12 @@ public enum HostCapability {
      * A landing that melts the stone it struck into lava (decision
      * melt-blob-absorbs-into-lava).
      */
-    MELT(MeltHost.class);
+    MELT(MeltHost.class),
+    /**
+     * A spot a vibration carrying no source entity can go off at (decision
+     * click-vibration-carries-no-source-entity).
+     */
+    VIBRATE(VibrationHost.class);
 
     private final Class<? extends StepHost> hostType;
 

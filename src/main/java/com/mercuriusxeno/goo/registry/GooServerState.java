@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
+import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
@@ -30,6 +31,7 @@ public final class GooServerState {
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
     private final GlacialFields glacialFields = new GlacialFields();
+    private final ScanWaves scanWaves = new ScanWaves();
 
     /**
      * Answers the state the server holds.
@@ -57,6 +59,15 @@ public final class GooServerState {
      */
     public GooEffectScheduler gooEffects() {
         return gooEffects;
+    }
+
+    /**
+     * The scan waves yet to reach their landings (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
+     *
+     * @return the scan waves
+     */
+    public ScanWaves scanWaves() {
+        return scanWaves;
     }
 
     /**
@@ -144,6 +155,9 @@ public final class GooServerState {
         if (markerFalls.hasPending()) {
             markerFalls.drainArrivedFalls(currentTick);
         }
+        if (scanWaves.hasPending()) {
+            scanWaves.drainArrived(currentTick);
+        }
         drinks.tick(server);
         unmakeDrops.dropArrived(currentTick);
         morphBirths.bearArrived(currentTick);
@@ -163,5 +177,6 @@ public final class GooServerState {
         morphBirths.clear();
         drinks.clear();
         glacialFields.clear();
+        scanWaves.clear();
     }
 }

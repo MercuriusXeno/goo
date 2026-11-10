@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
@@ -105,7 +104,8 @@ public final class GloveThrowSender {
         if (delivery.charges()) {
             return sendCharge(player, gooType, abilityId, heldTicks);
         }
-        return delivery.kind() == DeliveryKind.SELF
+        // click-is-a-hit-scan-drawn-as-a-delayed-wave: a scan's landing is the server's to read
+        return delivery.sendsNoTarget()
                 ? sendSelf(player, gooType, abilityId)
                 : sendAimed(player, gooType, abilityId);
     }
