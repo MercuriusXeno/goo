@@ -24,8 +24,29 @@ class RallyFoesTest {
     private static final UUID BYSTANDER = new UUID(0, 5);
     private static final UUID ATTACKER = new UUID(0, 7);
 
+    private static final UUID HOSTILE = new UUID(0, 8);
+
     private static RallyFoes.Candidate<String> near(String name, UUID id, UUID target, double distanceSqr) {
-        return new RallyFoes.Candidate<>(name, id, true, target, distanceSqr);
+        return new RallyFoes.Candidate<>(name, id, true, false, target, distanceSqr);
+    }
+
+    private static RallyFoes.Candidate<String> hostile(String name, UUID id, double distanceSqr) {
+        return new RallyFoes.Candidate<>(name, id, true, true, null, distanceSqr);
+    }
+
+    /** rallied-mobs-follow-the-player-who-rallied-them: a hostile near the rallier is a foe though it targets no one. */
+    @Test
+    void aHostileInReachIsAFoeWhenNoHigherFoeStands() {
+        assertEquals(Optional.of("near hostile"), RallyFoes.pick(CASTER, null, null, null,
+                List.of(near("bystander", BYSTANDER, null, 1), hostile("far hostile", new UUID(0, 9), 16),
+                        hostile("near hostile", HOSTILE, 4))));
+    }
+
+    /** rallied-mobs-follow-the-player-who-rallied-them */
+    @Test
+    void theMobTheCasterStruckComesBeforeANearerHostile() {
+        assertEquals(Optional.of("struck"), RallyFoes.pick(CASTER, null, null, STRUCK,
+                List.of(hostile("hostile", HOSTILE, 1), near("struck", STRUCK, null, 16))));
     }
 
     /** rallied-mobs-turn-on-a-player-who-attacks-their-rallier */
@@ -47,7 +68,7 @@ class RallyFoesTest {
     @Test
     void theAttackerFallsWhenDeadOrOutOfReach() {
         assertFalse(RallyFoes.attackerStands(ATTACKER,
-                List.of(new RallyFoes.Candidate<>("dead attacker", ATTACKER, false, null, 1))));
+                List.of(new RallyFoes.Candidate<>("dead attacker", ATTACKER, false, false, null, 1))));
         assertFalse(RallyFoes.attackerStands(ATTACKER, List.of(near("bystander", BYSTANDER, null, 1))));
     }
 
@@ -77,6 +98,6 @@ class RallyFoesTest {
     void aBystanderIsNoFoe() {
         assertEquals(Optional.empty(), RallyFoes.pick(CASTER, null, HURTER, STRUCK,
                 List.of(near("bystander", BYSTANDER, null, 1),
-                        new RallyFoes.Candidate<>("dead hurter", HURTER, false, null, 1))));
+                        new RallyFoes.Candidate<>("dead hurter", HURTER, false, false, null, 1))));
     }
 }

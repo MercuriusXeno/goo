@@ -17,9 +17,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -34,9 +36,10 @@ import java.util.UUID;
 
 /**
  * Runs a rallied mob for its caster until the rally fades: it walks to the
- * caster's nearest enemy and strikes it with the rally's damage on every
- * strike interval, a player who attacked the caster first, and with no enemy
- * in reach it follows the caster; when the rally fades its buffs come off. While the
+ * caster's nearest enemy within reach of the caster, a player who attacked the
+ * caster first, and strikes it with the rally's damage on reaching it and every
+ * strike interval after; with no enemy in reach it follows the caster; when
+ * the rally fades its buffs come off. While the
  * caster's held effect stands, the rally re-runs around the caster, and when
  * the held effect ends every mob it rallied stands down.
  * zoo-rally-arms-the-peaceful
@@ -51,10 +54,10 @@ public final class RallyEvents {
     public static final Identifier HEALTH_MODIFIER = Identifier.fromNamespaceAndPath(Goo.MODID, "rally_health");
     /** The modifier a rally lifts movement speed with. */
     public static final Identifier SPEED_MODIFIER = Identifier.fromNamespaceAndPath(Goo.MODID, "rally_speed");
-    /** How far around itself a rallied mob looks for the caster's enemies. */
-    private static final double FOE_REACH = 16.0;
-    /** Ticks between one strike and the next, a melee goal's cooldown. */
-    static final int STRIKE_INTERVAL_TICKS = 20;
+    /** How far around its rallier a rallied mob looks for the rallier's enemies, keeping it near the rallier. */
+    private static final double FOE_REACH = 8.0;
+    /** Ticks between one strike and the next, three quarters of a second. */
+    static final int STRIKE_INTERVAL_TICKS = 15;
     private static final double CHASE_SPEED = 1.2;
     /** The pace a rallied mob walks to its rallier at, its buffed speed carrying it. */
     private static final double FOLLOW_SPEED = 1.0;
@@ -192,6 +195,20 @@ public final class RallyEvents {
      * @param now       the game time
      * @return true on a refresh tick
      */
+    /**
+     * Answers whether a rallied mob in melee range strikes this tick: once a
+     * full cooldown has passed since its last strike, so a mob that has not
+     * struck lately strikes the tick it reaches its foe.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     *
+     * @param tickCount      the mob's tick count
+     * @param lastStrikeTick the mob's tick count at its last strike, 0 for none
+     * @return true on a strike tick
+     */
+    static boolean strikeReady(int tickCount, int lastStrikeTick) {
+        return tickCount - lastStrikeTick >= STRIKE_INTERVAL_TICKS;
+    }
+
     static boolean refreshesOn(long startedAt, long now) {
         long since = now - startedAt;
         return since > 0 && since % REFRESH_TICKS == 0;
@@ -318,22 +335,45 @@ public final class RallyEvents {
             return;
         }
         mob.getLookControl().setLookAt(foe);
-        if (mob.tickCount % STRIKE_INTERVAL_TICKS == 0) {
+        if (strikeReady(mob.tickCount, mob.getLastHurtMobTimestamp())) {
             mob.swing(mob.getUsedItemHand());
             foe.hurtServer(level, mob.damageSources().mobAttack(mob), damage);
+            // the strike stamps the mob's last-hurt tick, which strikeReady counts the cooldown from
+            mob.setLastHurtMob(foe);
         }
     }
 
+    /**
+     * The foes a rallied mob weighs: the living entities within reach of its
+     * rallier, so it fights near the rallier, each weighed by its distance
+     * from the rallied mob.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     *
+     * @param mob    the rallied mob
+     * @param caster the entity that rallied it
+     * @return the candidates, the mob, the caster and every rallied mob left out
+     */
     private static List<RallyFoes.Candidate<LivingEntity>> candidatesNear(Mob mob, LivingEntity caster) {
-        return mob.level().getEntitiesOfClass(LivingEntity.class, mob.getBoundingBox().inflate(FOE_REACH),
+        return mob.level().getEntitiesOfClass(LivingEntity.class, caster.getBoundingBox().inflate(FOE_REACH),
                         near -> near != mob && near != caster && !near.hasData(GooAttachments.RALLIED))
                 .stream().map(near -> candidate(mob, near)).toList();
     }
 
     private static RallyFoes.Candidate<LivingEntity> candidate(Mob rallied, LivingEntity near) {
         LivingEntity target = near instanceof Mob nearMob ? nearMob.getTarget() : null;
-        return new RallyFoes.Candidate<>(near, near.getUUID(), near.isAlive(),
+        return new RallyFoes.Candidate<>(near, near.getUUID(), near.isAlive(), isUnprovokedHostile(near),
                 target == null ? null : target.getUUID(), rallied.distanceToSqr(near));
+    }
+
+    /**
+     * Whether an entity is a monster hostile to players before it aggresses:
+     * an Enemy that is neither neutral until provoked nor charmed, as Charm weighs it.
+     *
+     * @param near the entity
+     * @return true for a hostile monster
+     */
+    private static boolean isUnprovokedHostile(LivingEntity near) {
+        return near instanceof Enemy && !(near instanceof NeutralMob) && !near.hasData(GooAttachments.CHARMED);
     }
 
     private static @Nullable UUID uuidOf(@Nullable LivingEntity entity) {

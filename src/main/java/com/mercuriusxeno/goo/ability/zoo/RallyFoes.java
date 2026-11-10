@@ -11,7 +11,8 @@ import java.util.function.Predicate;
  * Whom a rallied mob fights: the caster's enemies, the player the rally
  * records as the caster's attacker first, else the living mob that last hurt
  * the caster, else the nearest living mob targeting the caster, else the
- * living mob the caster last struck.
+ * living mob the caster last struck, else the nearest hostile mob near the
+ * caster.
  * zoo-rally-arms-the-peaceful
  * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
  */
@@ -26,11 +27,13 @@ public final class RallyFoes {
      * @param mob         the mob
      * @param id          its UUID
      * @param alive       whether it still lives
+     * @param hostile     whether it is a monster hostile to players before it aggresses
      * @param target      the UUID of the entity it targets, or null for none
      * @param distanceSqr its squared distance from the rallied mob
      * @param <T>         the mob's type
      */
-    public record Candidate<T>(T mob, UUID id, boolean alive, @Nullable UUID target, double distanceSqr) {
+    public record Candidate<T>(T mob, UUID id, boolean alive, boolean hostile, @Nullable UUID target,
+                               double distanceSqr) {
     }
 
     /**
@@ -49,7 +52,9 @@ public final class RallyFoes {
         return nearest(nearby, candidate -> candidate.id().equals(attacker))
                 .or(() -> nearest(nearby, candidate -> candidate.id().equals(hurtCaster)))
                 .or(() -> nearest(nearby, candidate -> caster.equals(candidate.target())))
-                .or(() -> nearest(nearby, candidate -> candidate.id().equals(casterStruck)));
+                .or(() -> nearest(nearby, candidate -> candidate.id().equals(casterStruck)))
+                // rallied-mobs-follow-the-player-who-rallied-them: a hostile near the rallier is a foe before it aggroes
+                .or(() -> nearest(nearby, Candidate::hostile));
     }
 
     /**
