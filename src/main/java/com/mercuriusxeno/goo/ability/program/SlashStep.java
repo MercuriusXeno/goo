@@ -1,8 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.reap.BladeFlights;
-import com.mercuriusxeno.goo.ability.reap.BladeSizes;
-import com.mercuriusxeno.goo.ability.reap.ReapBlade;
+import com.mercuriusxeno.goo.ability.reap.ReapSlash;
+import com.mercuriusxeno.goo.ability.reap.SlashCuts;
 import com.mercuriusxeno.goo.ability.reap.SwingCadence;
 import com.mercuriusxeno.goo.network.BlockVisuals;
 import com.mercuriusxeno.goo.network.ReapSlashPayload;
@@ -12,50 +11,39 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Reap's step, run on the player each tick of the held channel: on the
- * hold's first tick, and then a random few ticks after each swing, the
- * player swings, one sweep and one attack, throwing a random few leaf
- * crescent blades a tick apart along the look. Each blade stands centred on
- * the aim within a block to the side and just under it, heads within 22.5
- * degrees of the look, lies nearly flat, forms ahead of the eye from a small
- * skinny start at one side and grows its width and its depth at their own
- * rates to one size drawn at random, a narrow blade skinny and a wide one
- * deep; every ripe plant a blade covers is reaped and
- * replanted, and every living body the swing's blades reach but the slasher
- * is cut once for the swing. Leaf Reap is {@code slash fewest_ticks=2
- * most_ticks=3 fewest_blades=1 most_blades=2 start=0.75 drift=3 width=1.2
- * widest=3.2 depth=0.5 deepest=1.8 width_ticks=6 depth_ticks=8 fade_ticks=6
- * damage=0.5}.
+ * Reap's step, run on the player each tick of the held channel, slashing as
+ * the Crissaegrim does in Symphony of the Night: on the hold's first tick,
+ * and then a random few ticks after each slash, a fixed leaf crescent appears
+ * ahead of the eye below the eye line, facing the slasher, in the next of its
+ * three forms; a bright band sweeps its arc from one tip to the other and the
+ * arc wipes away behind it, with one swish; and every ripe plant inside the
+ * box it cuts is reaped and replanted and every living body there but the
+ * slasher cut once. Leaf Reap is {@code slash fewest_ticks=2 most_ticks=3
+ * radius=1.5 span=100 thickness=0.45 drop=0.75 tilt=25 life_ticks=4
+ * box_width=1.4 box_height=1.2 damage=0.5}.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
- * @param fewestTicks  the fewest held ticks from one swing to the next
- * @param mostTicks    the most held ticks from one swing to the next
- * @param fewestBlades the fewest blades a swing throws
- * @param mostBlades   the most blades a swing throws
- * @param start        how far ahead of the eye a blade forms, in blocks
- * @param drift        how far it drifts on over its life, in blocks
- * @param width        the narrowest blade's full width, side to side, in blocks
- * @param widest       the widest blade's full width, in blocks
- * @param depth        the narrowest blade's full depth, how far its middle bows away from the slasher, in blocks
- * @param deepest      the widest blade's full depth, in blocks
- * @param widthTicks   the ticks its width takes to grow full
- * @param depthTicks   the ticks its depth takes to grow full
- * @param fadeTicks    the ticks it decays to nothing once full grown
- * @param damage       what each swing's cut deals
+ * @param fewestTicks the fewest held ticks from one slash to the next
+ * @param mostTicks   the most held ticks from one slash to the next
+ * @param radius      how far the crescent's outer edge stands from the slasher, in blocks
+ * @param span        the angle its arc spans around the slasher, in degrees
+ * @param thickness   how thick its middle is, tapering to its tips, in blocks
+ * @param drop        how far below the eye its arc's hub stands, in blocks
+ * @param tilt        how far a diagonal form slopes from flat, in degrees
+ * @param lifeTicks   the ticks from a slash appearing to its wiping away
+ * @param boxWidth    the width and depth of the box a slash cuts, in blocks
+ * @param boxHeight   the height of the box, in blocks
+ * @param damage      what each slash's cut deals
  */
-public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Expr mostBlades, Expr start,
-                        Expr drift, Expr width, Expr widest, Expr depth, Expr deepest, Expr widthTicks,
-                        Expr depthTicks, Expr fadeTicks, Expr damage) implements Step {
+public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr radius, Expr span, Expr thickness, Expr drop,
+                        Expr tilt, Expr lifeTicks, Expr boxWidth, Expr boxHeight, Expr damage) implements Step {
 
     private static final String NAME = "slash";
     private static final float SWING_VOLUME = 0.4f;
@@ -67,17 +55,14 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Exp
     public static final MapCodec<SlashStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Expr.CODEC.fieldOf("fewest_ticks").forGetter(SlashStep::fewestTicks),
             Expr.CODEC.fieldOf("most_ticks").forGetter(SlashStep::mostTicks),
-            Expr.CODEC.fieldOf("fewest_blades").forGetter(SlashStep::fewestBlades),
-            Expr.CODEC.fieldOf("most_blades").forGetter(SlashStep::mostBlades),
-            Expr.CODEC.fieldOf("start").forGetter(SlashStep::start),
-            Expr.CODEC.fieldOf("drift").forGetter(SlashStep::drift),
-            Expr.CODEC.fieldOf("width").forGetter(SlashStep::width),
-            Expr.CODEC.fieldOf("widest").forGetter(SlashStep::widest),
-            Expr.CODEC.fieldOf("depth").forGetter(SlashStep::depth),
-            Expr.CODEC.fieldOf("deepest").forGetter(SlashStep::deepest),
-            Expr.CODEC.fieldOf("width_ticks").forGetter(SlashStep::widthTicks),
-            Expr.CODEC.fieldOf("depth_ticks").forGetter(SlashStep::depthTicks),
-            Expr.CODEC.fieldOf("fade_ticks").forGetter(SlashStep::fadeTicks),
+            Expr.CODEC.fieldOf("radius").forGetter(SlashStep::radius),
+            Expr.CODEC.fieldOf("span").forGetter(SlashStep::span),
+            Expr.CODEC.fieldOf("thickness").forGetter(SlashStep::thickness),
+            Expr.CODEC.fieldOf("drop").forGetter(SlashStep::drop),
+            Expr.CODEC.fieldOf("tilt").forGetter(SlashStep::tilt),
+            Expr.CODEC.fieldOf("life_ticks").forGetter(SlashStep::lifeTicks),
+            Expr.CODEC.fieldOf("box_width").forGetter(SlashStep::boxWidth),
+            Expr.CODEC.fieldOf("box_height").forGetter(SlashStep::boxHeight),
             Expr.CODEC.fieldOf("damage").forGetter(SlashStep::damage)
     ).apply(inst, SlashStep::new));
 
@@ -97,61 +82,46 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Exp
         int held = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::held).orElse(1);
         if (slasher.level() instanceof ServerLevel level && SwingCadence.dueToSwing(slasher, held,
                 level.getGameTime(), fewestTicks.evaluateInt(context), mostTicks.evaluateInt(context))) {
-            swing(level, slasher, bladesOf(context, slasher), damage.evaluateFloat(context));
+            slash(level, slasher, context);
         }
         return true;
     }
 
     /**
-     * The blades one swing throws along the slasher's look, each at its own
-     * random spread, tilt, start side and depth.
+     * The shape the step's params give a slash.
      *
      * @param context the step's context
-     * @param slasher the entity swinging
-     * @return the swing's blades, in the order they fly
+     * @return the shape
      */
-    private List<ReapBlade> bladesOf(StepContext context, LivingEntity slasher) {
-        RandomSource random = slasher.getRandom();
-        int count = SwingCadence.bladesThisSwing(fewestBlades.evaluateInt(context), mostBlades.evaluateInt(context),
-                random);
-        BladeSizes sizes = new BladeSizes(width.evaluate(context), widest.evaluate(context), depth.evaluate(context),
-                deepest.evaluate(context));
-        List<ReapBlade> blades = new ArrayList<>(count);
-        for (int blade = 0; blade < count; blade++) {
-            double size = random.nextDouble();
-            ReapBlade.Shape shape = new ReapBlade.Shape(start.evaluate(context), drift.evaluate(context),
-                    sizes.widthAt(size), sizes.depthAt(size), Math.max(1, widthTicks.evaluateInt(context)),
-                    Math.max(1, depthTicks.evaluateInt(context)), Math.max(1, fadeTicks.evaluateInt(context)));
-            blades.add(ReapBlade.launch(slasher.getEyePosition(), slasher.getLookAngle(), slasher.getKnownMovement(), shape,
-                    random));
-        }
-        return blades;
+    private ReapSlash.Shape shapeOf(StepContext context) {
+        return new ReapSlash.Shape(radius.evaluate(context), Math.toRadians(span.evaluate(context)),
+                thickness.evaluate(context), drop.evaluate(context), Math.toRadians(tilt.evaluate(context)),
+                Math.max(1, lifeTicks.evaluateInt(context)));
     }
 
     /**
-     * Swings once: the swing's blades drawn on the watchers' clients a tick
-     * apart and set flying to reap and cut as one attack, with one quick
-     * swish of a sweep.
+     * Slashes once: the crescent drawn on the watchers' clients, its box set
+     * cutting for the slash's life, and one quick swish.
      *
      * @param level   the server level
-     * @param slasher the entity swinging
-     * @param blades  the swing's blades
-     * @param cut     what the swing's cut deals
+     * @param slasher the entity slashing
+     * @param context the step's context
      */
-    private static void swing(ServerLevel level, LivingEntity slasher, List<ReapBlade> blades, float cut) {
+    private void slash(ServerLevel level, LivingEntity slasher, StepContext context) {
         Vec3 eye = slasher.getEyePosition();
-        for (int blade = 0; blade < blades.size(); blade++) {
-            BlockVisuals.sendToWatchers(level, BlockPos.containing(eye), new ReapSlashPayload(blades.get(blade), blade));
-        }
-        BladeFlights.launchSwing(level, blades, level.getGameTime(), slasher.getId(), cut);
+        ReapSlash slash = ReapSlash.launch(eye, slasher.getLookAngle(), SwingCadence.takeForm(slasher),
+                shapeOf(context));
+        BlockVisuals.sendToWatchers(level, BlockPos.containing(eye), new ReapSlashPayload(slash));
+        SlashCuts.launch(level, slash.box(boxWidth.evaluate(context), boxHeight.evaluate(context)),
+                level.getGameTime(), slash.lifeTicks(), slasher.getId(), damage.evaluateFloat(context));
         level.playSound(null, eye.x, eye.y, eye.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS,
                 SWING_VOLUME, SWING_PITCH);
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(fewestTicks, mostTicks, fewestBlades, mostBlades, start, drift, width, widest, depth,
-                deepest, widthTicks, depthTicks, fadeTicks, damage);
+        return Stream.of(fewestTicks, mostTicks, radius, span, thickness, drop, tilt, lifeTicks, boxWidth,
+                boxHeight, damage);
     }
 
     @Override

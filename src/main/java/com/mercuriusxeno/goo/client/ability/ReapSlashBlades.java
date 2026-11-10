@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.reap.ReapBlade;
+import com.mercuriusxeno.goo.ability.reap.ReapSlash;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -21,61 +21,65 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reap's blades on the client, the Crissaegrim's flurry: each a leaf
- * crescent drawn from the very blade the server reaps and cuts with, its
- * bright edge leading and its tips meeting, growing from a skinny sliver at
- * one side to a full crescent ahead, drifting on and thinning away.
+ * Reap's slashes on the client, the Crissaegrim's from Symphony of the Night:
+ * each a fixed leaf crescent drawn from the very slash the server cuts with,
+ * showing only the stretch of its arc between the wipe and the sweep, the
+ * sweeping head glowing pale and the stretch behind it fading to Leaf's
+ * green, as the game's palette cycling lights its slash sprite.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ReapSlashBlades {
 
-    /** The quads along the crescent, tip to tip. */
-    private static final int SEGMENTS = 16;
-    /** The pale green the leading edge glows. */
-    private static final int EDGE_RGB = 0xE4FFC4;
+    /** The quads along a whole arc, tip to tip. */
+    private static final int SEGMENTS = 24;
+    /** The pale green the sweeping head glows. */
+    private static final int HEAD_RGB = 0xF0FFD8;
     private static final int OPAQUE = 0xFF;
-    /** The share of the edge's brightness the blade's back glows at. */
-    private static final float BODY_SHARE = 0.5f;
-    /** Where a tip stands across the blade, the other at its negative. */
-    private static final double TIP = 1;
-    private static final double TIP_TO_TIP = 2 * TIP;
+    /** The share of its brightness the stretch farthest behind the head keeps. */
+    private static final float TRAIL_SHARE = 0.35f;
+    /** The inner edge's share of the outer edge's brightness, so the crescent glows along its rim. */
+    private static final float INNER_SHARE = 0.4f;
+    private static final double INNER = 0;
+    private static final double OUTER = 1;
+    /** The shortest stretch of arc the glow is spread across, so a stretch of none divides by nothing. */
+    private static final double SHORTEST_STRETCH = 1e-6;
 
-    private static final List<Swing> LIVE = new ArrayList<>();
+    private static final List<Shown> LIVE = new ArrayList<>();
 
     private ReapSlashBlades() {
     }
 
     /**
-     * One blade swinging.
+     * One slash showing.
      *
-     * @param blade      the blade
-     * @param launchTick the game tick it swung
+     * @param slash      the slash
+     * @param launchTick the game tick it appeared
      */
-    private record Swing(ReapBlade blade, long launchTick) {
+    private record Shown(ReapSlash slash, long launchTick) {
 
         boolean overAt(long tick) {
-            return tick - launchTick > blade.shape().lifeTicks();
+            return tick - launchTick > slash.lifeTicks();
         }
     }
 
     /**
-     * Starts a blade on the client thread.
+     * Starts a slash on the client thread.
      *
-     * @param payload the blade
+     * @param payload the slash
      * @param context the network context
      */
     public static void handle(ReapSlashPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                LIVE.add(new Swing(payload.blade(), mc.level.getGameTime() + payload.delayTicks()));
+                LIVE.add(new Shown(payload.slash(), mc.level.getGameTime()));
             }
         });
     }
 
     /**
-     * Draws every live blade after translucent blocks, dropping each that has thinned away.
+     * Draws every live slash after translucent blocks, dropping each that has wiped away.
      *
      * @param event the level render stage event
      */
@@ -87,7 +91,7 @@ public final class ReapSlashBlades {
             return;
         }
         long tick = mc.level.getGameTime();
-        LIVE.removeIf(swing -> swing.overAt(tick));
+        LIVE.removeIf(shown -> shown.overAt(tick));
         if (LIVE.isEmpty()) {
             return;
         }
@@ -97,37 +101,62 @@ public final class ReapSlashBlades {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
         int leaf = ClientGooTypes.color(GooTypes.LEAF);
-        for (Swing swing : LIVE) {
-            double age = time - swing.launchTick();
-            if (age >= 0) {
-                drawBlade(quads, swing.blade(), age, camera, leaf);
-            }
+        for (Shown shown : LIVE) {
+            drawSlash(quads, shown.slash(), time - shown.launchTick(), camera, leaf);
         }
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }
 
     /**
-     * Draws one blade an age into its swing as a crescent: its leading edge
-     * glowing pale, its back fading to Leaf's green, its tips meeting.
+     * Draws the stretch of a slash's arc between its wipe and its sweep.
      *
      * @param quads  the context the quads emit through
-     * @param blade  the blade
-     * @param age    ticks since it swung, with the partial tick
+     * @param slash  the slash
+     * @param age    ticks since it appeared, with the partial tick
      * @param camera the camera's position
      * @param leaf   Leaf's green
      */
-    private static void drawBlade(FlatQuadContext quads, ReapBlade blade, double age, Vec3 camera, int leaf) {
-        int alpha = Mth.floor(blade.strengthAt(age) * OPAQUE);
-        int edge = ARGB.color(alpha, EDGE_RGB);
-        int body = ARGB.color(Mth.floor(alpha * BODY_SHARE), leaf);
-        for (int segment = 0; segment < SEGMENTS; segment++) {
-            double from = -TIP + TIP_TO_TIP * segment / SEGMENTS;
-            double to = -TIP + TIP_TO_TIP * (segment + 1) / SEGMENTS;
-            emit(quads, blade.pointAt(age, from, 1).subtract(camera), edge);
-            emit(quads, blade.pointAt(age, to, 1).subtract(camera), edge);
-            emit(quads, blade.pointAt(age, to, ReapBlade.INNER_SHARE).subtract(camera), body);
-            emit(quads, blade.pointAt(age, from, ReapBlade.INNER_SHARE).subtract(camera), body);
+    private static void drawSlash(FlatQuadContext quads, ReapSlash slash, double age, Vec3 camera, int leaf) {
+        double head = slash.headAt(age);
+        double tail = slash.tailAt(age);
+        if (head <= tail) {
+            return;
         }
+        int first = Mth.floor(tail * SEGMENTS);
+        int last = Mth.ceil(head * SEGMENTS);
+        for (int segment = first; segment < last; segment++) {
+            double from = Math.max(tail, (double) segment / SEGMENTS);
+            double to = Math.min(head, (double) (segment + 1) / SEGMENTS);
+            emitSegment(quads, slash, from, to, camera, colorAt(from, head, tail, leaf), colorAt(to, head, tail, leaf));
+        }
+    }
+
+    /**
+     * The glow of the arc at a point: pale at the sweeping head, fading to
+     * Leaf's green toward the wipe.
+     *
+     * @param along how far along the arc, 0 at the first tip and 1 at the other
+     * @param head  how far the sweep has reached
+     * @param tail  how far the wipe has reached
+     * @param leaf  Leaf's green
+     * @return the color
+     */
+    private static int colorAt(double along, double head, double tail, int leaf) {
+        float nearHead = (float) Math.clamp((along - tail) / Math.max(SHORTEST_STRETCH, head - tail), 0, 1);
+        int rgb = ARGB.srgbLerp(nearHead, leaf, HEAD_RGB);
+        return ARGB.color(Mth.floor(OPAQUE * Mth.lerp(nearHead, TRAIL_SHARE, 1f)), rgb);
+    }
+
+    private static void emitSegment(FlatQuadContext quads, ReapSlash slash, double from, double to, Vec3 camera,
+                                    int fromColor, int toColor) {
+        emit(quads, slash.pointAt(from, OUTER).subtract(camera), fromColor);
+        emit(quads, slash.pointAt(to, OUTER).subtract(camera), toColor);
+        emit(quads, slash.pointAt(to, INNER).subtract(camera), dimmed(toColor));
+        emit(quads, slash.pointAt(from, INNER).subtract(camera), dimmed(fromColor));
+    }
+
+    private static int dimmed(int color) {
+        return ARGB.color(Mth.floor(ARGB.alpha(color) * INNER_SHARE), color);
     }
 
     private static void emit(FlatQuadContext quads, Vec3 point, int color) {
