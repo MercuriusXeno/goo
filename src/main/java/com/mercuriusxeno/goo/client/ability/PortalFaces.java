@@ -83,21 +83,27 @@ public final class PortalFaces {
      * mouth's torn edge. The halo's strength is the shader's own.
      */
     /**
-     * How far the tornado's rifled tube stands off the face along its
-     * normal, in blocks: two sixteenths, the most the operator's reference
-     * stands out, tuned by eye.
+     * How far the swirl band stands off the face along its normal, in
+     * blocks: two sixteenths, the most the operator's reference stands out,
+     * tuned by eye.
      */
-    static final double TORNADO_HEIGHT = 2.0 / 16;
-    /** How many rings the tornado's tube rises in. */
-    private static final int TORNADO_RINGS = 4;
-    /** How many segments each of the tube's rings runs around the rim in, enough that it draws round. */
-    private static final int TORNADO_SEGMENTS = 64;
+    static final double BAND_DEPTH = 2.0 / 16;
     /**
-     * How far out a hole mouth's tube starts on the face, as a share of the
+     * How far the swirl band leans outward past the rim as it rises, in
+     * blocks, so it shows as a band face on as well as from the side, tuned
+     * by eye.
+     */
+    static final double BAND_WIDTH = 2.0 / 16;
+    /** How many rings the swirl band rises in. */
+    private static final int BAND_RINGS = 4;
+    /** How many segments each of the band's rings runs around the rim in, enough that it draws round. */
+    private static final int BAND_SEGMENTS = 64;
+    /**
+     * How far out a hole mouth's band starts on the face, as a share of the
      * oval's radius: the deepest the mouth's tear bites, one less
-     * HOLE_TEAR_DEPTH in portal_texels.glsl. The tube leans out to the oval
-     * as it rises, so it reaches the tear wherever the tear stands, and the
-     * tornado shader cuts what lies inside it.
+     * HOLE_TEAR_DEPTH in portal_texels.glsl. The band leans out past the
+     * oval as it rises, so it reaches the tear wherever the tear stands, and
+     * the swirl band shader cuts what lies inside it.
      */
     private static final double TORN_BASE = 0.84;
     /** The three in Ramanujan's reckoning of an oval's perimeter. */
@@ -342,7 +348,7 @@ public final class PortalFaces {
     /**
      * Draws the halo of every placed portal, waiting or linked, blinking or
      * not, and of both mouths of each hole, glowing onto the wall around its
-     * edge in its own color, and beside it each portal's tornado rising off
+     * edge in its own color, and beside it each portal's swirl band rising off
      * the wall.
      * portal-halo-glows-additively-onto-the-wall
      * hole-mouths-wear-the-portal-halo
@@ -357,38 +363,38 @@ public final class PortalFaces {
             List<Drawn> gates) {
         emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE), gates, drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
-        emitTornadoes(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_TORNADO_TYPE), gates,
+        emitSwirlBands(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE), gates,
                 drawn -> drawn.drawnBox(camera));
-        buffers.endBatch(GooRenderTypes.GOO_PORTAL_TORNADO_TYPE);
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
     }
 
     /**
-     * Emits the tornadic halo of every gate the frame draws, each portal and
+     * Emits the swirl band of every gate the frame draws, each portal and
      * each of a hole's two mouths, beside its surface glow, in its own color.
-     * A mouth's edge is marked torn and its tube leans out from the deepest
+     * A mouth's edge is marked torn and its band leans out from the deepest
      * its tear bites, so the shader starts it at the tear.
      * tornadic-halo-spirals-out-from-the-rim
      * hole-mouths-wear-the-tornadic-halo
      *
      * @param pose     the pose
-     * @param consumer the tornado pipeline's vertex consumer
+     * @param consumer the swirl band pipeline's vertex consumer
      * @param gates    the gates the frame draws
      * @param boxOf    the box each gate draws over, camera-relative
      */
-    static void emitTornadoes(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+    static void emitSwirlBands(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
             Tube tube = Tube.over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_BASE : 1);
-            emitTornado(pose, consumer, tube, ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
+            emitSwirlBand(pose, consumer, tube, ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
         }
     }
 
     /**
-     * Emits a gate's tornado as a rifled tube: rings trace the rim's oval,
-     * each next one standing farther off the face along its normal up to the
-     * named height. Each quad maps zero to one around the rim and up the
-     * tube, and every vertex carries the texels around the rim and up the
-     * tube at sixteen a block.
+     * Emits a gate's swirl band: rings trace the rim's oval, each next one
+     * standing farther off the face along its normal up to the named depth
+     * and leaning farther out past the rim up to the named width. Each quad
+     * maps zero to one around the rim and up the band, and every vertex
+     * carries the texels around the rim and up the band at sixteen a block.
      * tornadic-halo-spirals-out-from-the-rim
      *
      * @param pose     the pose
@@ -396,16 +402,16 @@ public final class PortalFaces {
      * @param tube     the tube over the gate's face
      * @param color    the packed ARGB color, its alpha the edge mark
      */
-    private static void emitTornado(PoseStack.Pose pose, VertexConsumer consumer, Tube tube, int color) {
+    private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Tube tube, int color) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
         int[] texels = tube.texels();
-        for (int level = 0; level < TORNADO_RINGS; level++) {
-            for (int segment = 0; segment < TORNADO_SEGMENTS; segment++) {
+        for (int level = 0; level < BAND_RINGS; level++) {
+            for (int segment = 0; segment < BAND_SEGMENTS; segment++) {
                 for (int[] corner : corners) {
                     Vec3 at = tube.point(segment + corner[0], level + corner[1]);
                     consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
-                            .setUv((float) (segment + corner[0]) / TORNADO_SEGMENTS,
-                                    (float) (level + corner[1]) / TORNADO_RINGS)
+                            .setUv((float) (segment + corner[0]) / BAND_SEGMENTS,
+                                    (float) (level + corner[1]) / BAND_RINGS)
                             .setUv2(texels[0], texels[1]).setColor(color);
                 }
             }
@@ -413,8 +419,9 @@ public final class PortalFaces {
     }
 
     /**
-     * The tube a gate's tornado draws over: the rim's oval on the face, its
-     * half sizes across the face's two ways, standing off the face's plane.
+     * The surface a gate's swirl band draws over: the rim's oval on the face,
+     * its half sizes across the face's two ways, rising off the face's plane
+     * and leaning out past the rim.
      *
      * @param center the oval's middle on the face's plane, lifted off it
      * @param side   the face
@@ -441,12 +448,13 @@ public final class PortalFaces {
          * @return the tube's point there
          */
         Vec3 point(int segment, int level) {
-            double up = (double) level / TORNADO_RINGS;
+            double up = (double) level / BAND_RINGS;
             double spread = Mth.lerp(up, base, 1);
-            double angle = Mth.TWO_PI * segment / TORNADO_SEGMENTS;
-            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), half[0] * spread * Math.cos(angle))
-                    .with(secondAxisOf(side), half[1] * spread * Math.sin(angle));
-            return center.add(across).add(side.getUnitVec3().scale(TORNADO_HEIGHT * up));
+            double lean = BAND_WIDTH * up;
+            double angle = Mth.TWO_PI * segment / BAND_SEGMENTS;
+            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), (half[0] * spread + lean) * Math.cos(angle))
+                    .with(secondAxisOf(side), (half[1] * spread + lean) * Math.sin(angle));
+            return center.add(across).add(side.getUnitVec3().scale(BAND_DEPTH * up));
         }
 
         /**
@@ -460,7 +468,7 @@ public final class PortalFaces {
             double around = Math.PI * (RAMANUJAN_THREE * (first + second) - Math.sqrt((RAMANUJAN_THREE * first
                     + second) * (first + RAMANUJAN_THREE * second)));
             return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
-                    (int) Math.round(TORNADO_HEIGHT * TEXELS_PER_BLOCK)};
+                    (int) Math.round(BAND_DEPTH * TEXELS_PER_BLOCK)};
         }
     }
 

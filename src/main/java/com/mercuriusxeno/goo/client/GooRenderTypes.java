@@ -540,17 +540,17 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
-     * A gate's tornadic halo: a funnel spiralling out from its rim in front
+     * A gate's swirl band: a funnel spiralling out from its rim in front
      * of it, standing off the wall, banded on the sixteen-texel grid, blended
      * additively and depth tested without writing depth, beside the surface
      * glow.
      * tornadic-halo-spirals-out-from-the-rim
      */
-    public static final RenderPipeline GOO_PORTAL_TORNADO = RenderPipeline.builder(
+    public static final RenderPipeline GOO_PORTAL_SWIRL_BAND = RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_tornado"))
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_swirl_band"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_tornado"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_swirl_band"))
             .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
             // additive: SRC_ALPHA, ONE
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
@@ -558,9 +558,9 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
-    /** RenderType for a gate's tornadic halo. */
-    public static final RenderType GOO_PORTAL_TORNADO_TYPE = RenderType.create("goo_portal_tornado",
-            RenderSetup.builder(GOO_PORTAL_TORNADO).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+    /** RenderType for a gate's swirl band. */
+    public static final RenderType GOO_PORTAL_SWIRL_BAND_TYPE = RenderType.create("goo_portal_swirl_band",
+            RenderSetup.builder(GOO_PORTAL_SWIRL_BAND).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
                     .createRenderSetup());
 
     /** Per-texture memoized render types on the glow beam pipeline. */
@@ -1656,7 +1656,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_OUTLINE);
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GOO_PORTAL_HALO);
-        event.registerPipeline(GOO_PORTAL_TORNADO);
+        event.registerPipeline(GOO_PORTAL_SWIRL_BAND);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);
