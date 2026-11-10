@@ -21,22 +21,11 @@ out vec4 fragColor;
 
 // How strongly the far side shows through the mouth, the wall showing through the rest.
 const float VIEW_OPACITY = 0.6;
-// How deep the tear bites into the oval, as a share of its radius.
-const float TEAR_DEPTH = 0.16;
-// How fast the tear shifts; GameTime runs once a day, so this sets turns per day.
-const float TEAR_SPEED = 2400.0;
-
-float tear(float angle, float time) {
-    return 0.5 * sin(angle * 5.0 + time * 1.7)
-        + 0.3 * sin(angle * 11.0 - time * 2.9)
-        + 0.2 * sin(angle * 23.0 + time * 4.3);
-}
 
 void main() {
     vec2 across = portalTexelCenter(frameCoord, texels) * 2.0 - 1.0;
     float out_ = length(across);
-    float time = GameTime * TEAR_SPEED;
-    float edge = 1.0 - TEAR_DEPTH * (0.5 + 0.5 * tear(atan(across.y, across.x), time));
+    float edge = holeTornEdge(atan(across.y, across.x), GameTime);
     if (out_ > edge) {
         discard;
     }
