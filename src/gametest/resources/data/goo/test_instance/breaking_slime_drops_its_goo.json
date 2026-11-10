@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:breaking_slime_drops_its_goo",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -270,6 +270,11 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
+    public void laySlime(int layers) {
+        CoatStep.laySlimeIn(level, pos, layers);
+    }
+
+    @Override
     public void writeOwnState(Map<String, String> state) {
         BlockState standing = level.getBlockState(pos);
         List<Property.Value<?>> values = StatePropertyWriter.resolve(standing.getBlock().getStateDefinition(), state,
