@@ -4,6 +4,8 @@
   "badge": "free",
   "order": 40,
   "cost": 1,
+  "cost_formula": "1, free under Sculker",
+  "free_while": "goo:deep_sculker",
   "requires": ["minecraft:sculk_sensor"],
   "delivery": { "kind": "scan", "range": 32, "blocks_per_tick": 2 },
   "behaviors": [

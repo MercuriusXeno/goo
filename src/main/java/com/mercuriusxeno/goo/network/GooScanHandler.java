@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -48,7 +50,7 @@ public final class GooScanHandler {
      */
     static void scan(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
         ServerLevel level = player.level();
-        if (!AbilityCharges.charge(player, gooType, ability.cost().exactIn(GooValues.of(level)))) {
+        if (!AbilityCharges.charge(player, gooType, priceFor(player, ability))) {
             if (Goo.LOGGER.isDebugEnabled()) {
                 Goo.LOGGER.debug(LOG_NO_GOO, GooTypes.id(gooType));
             }
@@ -60,6 +62,19 @@ public final class GooScanHandler {
         Vec3 landing = landingAlong(player, eye, look, ability.delivery().range());
         GooServerState.of(level.getServer()).scanWaves().schedule(ScanWaves.thrown(level, eye, landing,
                 ability.delivery(), ability.id(), ability.behaviors(), level.getServer().getTickCount()));
+    }
+
+    /**
+     * What a scan costs its thrower: nothing while the self ability it names
+     * stands on them, its cost otherwise.
+     * click-costs-one-mb-and-nothing-under-sculker
+     *
+     * @param player  the throwing player
+     * @param ability the scan ability
+     * @return the exact cost in mB
+     */
+    static GooFraction priceFor(ServerPlayer player, AbilityDefinition ability) {
+        return ability.costFor(player.getData(GooAttachments.HELD_EFFECTS)::holds, GooValues.of(player.level()));
     }
 
     /**
