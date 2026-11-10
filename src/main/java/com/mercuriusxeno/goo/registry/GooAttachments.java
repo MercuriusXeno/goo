@@ -300,8 +300,8 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The shifter a player holds, saved with the player.
-     * shifter-blinks-along-the-cursor-on-hit
+     * The Elude a player holds, saved with the player.
+     * elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage
      */
     public static final Supplier<AttachmentType<Shifter>> SHIFTER =
             ATTACHMENT_TYPES.register("shifter",
