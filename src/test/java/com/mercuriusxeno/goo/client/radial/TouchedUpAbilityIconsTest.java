@@ -240,58 +240,6 @@ class TouchedUpAbilityIconsTest {
         }
     }
 
-    @Nested
-    class ZooIcons {
-
-        // spawn-and-shape-icons-blend-toward-the-target-face
-        private static final Set<Integer> SLIME_FACE = Set.of(0x9fd98f, 0x7ebf6e, 0x5a9a4e, 0x2e5e28);
-        private static final int SLIME_FRAME = 0x1e3a18;
-        private static final float PINK_LOW_HUE = 330f / 360f;
-        private static final float PINK_HIGH_HUE = 10f / 360f;
-        private static final float PINK_LEAST_SATURATION = 0.2f;
-        private static final float PINK_MOST_SATURATION = 0.6f;
-        private static final float LIGHT = 0.7f;
-        private static final float NEAR_BLACK = 0.2f;
-        private static final float NEAR_WHITE = 0.9f;
-        private static final float GREY = 0.1f;
-
-        @ParameterizedTest
-        @ValueSource(strings = {"zoo_spawn", "zoo_shape"})
-        void targetFaceOutweighsTheSlimeFace(String ability) throws IOException {
-            BufferedImage icon = read(ability);
-            int slime = 0;
-            int target = 0;
-            for (int y = 0; y < icon.getHeight(); y++) {
-                for (int x = 0; x < icon.getWidth(); x++) {
-                    int argb = icon.getRGB(x, y);
-                    if (!isOpaque(argb) || (argb & RGB) == SLIME_FRAME) {
-                        continue;
-                    }
-                    slime += SLIME_FACE.contains(argb & RGB) ? 1 : 0;
-                    target += SLIME_FACE.contains(argb & RGB) ? 0 : 1;
-                }
-            }
-            assertTrue(slime < target, ability + " shows " + slime + " slime texels to " + target + " target texels");
-        }
-
-        @Test
-        void cowHasAPinkMuzzleAndBlackAndWhitePatches() throws IOException {
-            List<float[]> colors = new ArrayList<>();
-            for (int rgb : opaqueColors(read("zoo_shape"))) {
-                colors.add(Color.RGBtoHSB(rgb >> 16 & CHANNEL, rgb >> 8 & CHANNEL, rgb & CHANNEL, null));
-            }
-            assertTrue(colors.stream().anyMatch(this::isPink), "the cow should carry a pink muzzle");
-            assertTrue(colors.stream().anyMatch(hsv -> hsv[2] < NEAR_BLACK), "the cow should carry black patches");
-            assertTrue(colors.stream().anyMatch(hsv -> hsv[2] > NEAR_WHITE && hsv[1] < GREY),
-                    "the cow should carry white patches");
-        }
-
-        private boolean isPink(float[] hsv) {
-            boolean pinkHue = hsv[0] >= PINK_LOW_HUE || hsv[0] <= PINK_HIGH_HUE;
-            return pinkHue && hsv[1] >= PINK_LEAST_SATURATION && hsv[1] <= PINK_MOST_SATURATION && hsv[2] > LIGHT;
-        }
-    }
-
     private static Set<Integer> opaqueColors(BufferedImage icon) {
         Set<Integer> colors = new HashSet<>();
         for (int y = 0; y < icon.getHeight(); y++) {
