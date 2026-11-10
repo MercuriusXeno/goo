@@ -70,6 +70,12 @@ public final class PortalFaces {
     private static final float HALF_WAVE = 0.5F;
     /** How far off its blocks a gate's face stands, so the two never fight for depth. */
     private static final double FACE_LIFT = 0.01;
+    /**
+     * How far past a gate's blocks its halo reaches on each way across the
+     * face, in blocks: half a block, eight texels, tuned by eye. The halo
+     * shader's HALO_MARGIN_TEXELS counts the same reach in texels.
+     */
+    static final double HALO_MARGIN = 0.5;
 
     private PortalFaces() {
     }
@@ -127,11 +133,29 @@ public final class PortalFaces {
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         List<Drawn> gates = gatesIn(mc.level.dimension());
+        drawHalos(pose, buffers, camera, gates);
         if (PortalView.drawing()) {
             drawViews(pose, buffers, camera, gates);
             drawIdle(pose, buffers, camera, gates);
             return;
         }
+        drawWorldPass(pose, buffers, camera, player, gates);
+    }
+
+    /**
+     * Draws the gates in the world's own pass: the views and idle swirls,
+     * then the portals a right click with Portal in the glove works on
+     * blinking, and while choosing, every portal's outline through blocks.
+     *
+     * @param pose    the pose
+     * @param buffers the frame's buffers
+     * @param camera  the camera's position
+     * @param player  the local player
+     * @param gates   the gates the frame draws
+     */
+    private static void drawWorldPass(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            LocalPlayer player, List<Drawn> gates) {
+        Minecraft mc = Minecraft.getInstance();
         boolean holding = PortalAim.selected(GloveAim.selectedAbilityId(player));
         Optional<Portal> chosen = holding ? ClientPortals.choosing() : Optional.empty();
         Optional<Portal> aimed = holding && (chosen.isPresent() || PortalAim.working(player))
@@ -288,6 +312,27 @@ public final class PortalFaces {
     }
 
     /**
+     * Draws the halo of every placed portal, waiting or linked, blinking or
+     * not, glowing onto the wall around its oval in its own color.
+     * portal-halo-glows-additively-onto-the-wall
+     *
+     * @param pose    the pose
+     * @param buffers the frame's buffers
+     * @param camera  the camera's position
+     * @param gates   the gates the frame draws
+     */
+    private static void drawHalos(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            List<Drawn> gates) {
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
+        for (Drawn drawn : gates) {
+            if (!drawn.hole()) {
+                emitHalo(pose, consumer, drawn.drawnBox(camera), drawn.gate().face(), drawn.rgb());
+            }
+        }
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
+    }
+
+    /**
      * @param gate a gate
      * @return whether no link the client knows holds it
      */
@@ -317,6 +362,27 @@ public final class PortalFaces {
             consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z()).setUv(corner[0], corner[1])
                     .setUv2(texels[0], texels[1]).setColor(color);
         }
+    }
+
+    /**
+     * Emits a gate's halo as a quad over its face reaching the halo margin
+     * past its blocks on each way across the face, its corners mapped zero to
+     * one across that wider quad and carrying its texel count, so the halo
+     * shader draws on the same sixteen-texel grid as the rim and starts where
+     * the oval ends.
+     * portal-halo-glows-additively-onto-the-wall
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param box      the gate's blocks, camera-relative
+     * @param side     the face
+     * @param rgb      the gate's color, 0xRRGGBB
+     */
+    static void emitHalo(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int rgb) {
+        Direction.Axis normal = side.getAxis();
+        AABB halo = box.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN, normal == Direction.Axis.Y ? 0 : HALO_MARGIN,
+                normal == Direction.Axis.Z ? 0 : HALO_MARGIN);
+        emitOval(pose, consumer, halo, side, ARGB.color(OPAQUE, rgb));
     }
 
     /**
