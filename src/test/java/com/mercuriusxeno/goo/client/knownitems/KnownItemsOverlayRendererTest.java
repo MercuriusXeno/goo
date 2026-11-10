@@ -3,6 +3,12 @@ package com.mercuriusxeno.goo.client.knownitems;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlayRenderer.Drawn;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlayRenderer.ItemIcon;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlayRenderer.KnownItem;
+import com.mercuriusxeno.goo.client.tooltip.GooTooltipLines;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.TestRecipeBuilder;
+import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.datafixers.util.Either;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -80,6 +86,9 @@ class KnownItemsOverlayRendererTest {
         return calls(graphics).stream().filter(call -> call.getMethod().getName().equals(method)).toList();
     }
 
+    /** A lookup that knows no item's value. */
+    private static final IGooValueLookup NO_VALUES = mock(IGooValueLookup.class);
+
     /** A cursor off the frame, resting on nothing. */
     private static final int NOWHERE = -100;
 
@@ -116,12 +125,12 @@ class KnownItemsOverlayRendererTest {
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             Font font = mock(Font.class);
             Drawn drawn = renderAt(graphics, items, "", 0, cursorX, cursorY);
-            KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, cursorX, cursorY);
+            KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, cursorX, cursorY, NO_VALUES);
 
             // the darkening, the title, the search bar and its text, the Target label, the two rules, then the grid
             assertEquals(List.of("fill", "text", "fill", "fill", "text", "text", "fill", "fill", "item",
                     "fill", "fill", "fill", "fill", "fill", "item", "item",
-                    "setTooltipForNextFrame"), methods(graphics));
+                    "setComponentTooltipFromElementsForNextFrame"), methods(graphics));
             Invocation darken = calls(graphics).getFirst();
             assertEquals(List.of(0, 0, WIDTH, HEIGHT, KnownItemsOverlayRenderer.DARKEN), List.of(darken.getArguments()));
             List<Invocation> texts = callsOf(graphics, "text");
@@ -130,7 +139,31 @@ class KnownItemsOverlayRendererTest {
             assertEquals(items.stream().map(KnownItem::stack).toList(),
                     callsOf(graphics, "item").stream().map(call -> call.getArgument(0)).toList());
             Invocation name = calls(graphics).getLast();
-            assertEquals(List.of(font, Component.literal("Dirt"), cursorX, cursorY), List.of(name.getArguments()));
+            assertEquals(List.of(font, List.of(Either.left(Component.literal("Dirt"))), cursorX, cursorY,
+                    ItemStack.EMPTY), List.of(name.getArguments()));
+        }
+
+        /**
+         * The hovered item's tooltip reads its name, then its goo cost through the lines the in-world tooltip builds
+         * (decision menu-tooltip-carries-the-goo-cost).
+         */
+        @Test
+        void hoveredItemsTooltipReadsItsGooCost() {
+            ItemIcon dirt = render(mock(GuiGraphicsExtractor.class), items, "", 0).icons().get(1);
+            int cursorX = dirt.left() + 1;
+            int cursorY = dirt.top() + 1;
+            GooValue cost = TestRecipeBuilder.fraction(GooTypes.ROCK, 3, 2);
+            IGooValueLookup values = mock(IGooValueLookup.class);
+            when(values.lookup(DIRT)).thenReturn(cost);
+            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            Font font = mock(Font.class);
+            Drawn drawn = renderAt(graphics, items, "", 0, cursorX, cursorY);
+            KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, cursorX, cursorY, values);
+
+            Invocation tooltip = calls(graphics).getLast();
+            assertEquals("setComponentTooltipFromElementsForNextFrame", tooltip.getMethod().getName());
+            assertEquals(GooTooltipLines.named(Component.literal("Dirt"), cost), tooltip.getArgument(1));
+            assertEquals(2, ((List<?>) tooltip.getArgument(1)).size());
         }
 
         @Test
@@ -352,7 +385,7 @@ class KnownItemsOverlayRendererTest {
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             Font font = mock(Font.class);
             Drawn drawn = renderAt(graphics, items, "", 0, cursorX, cursorY);
-            KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, cursorX, cursorY);
+            KnownItemsOverlayRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, cursorX, cursorY, NO_VALUES);
 
             assertTrue(callsOf(graphics, "fill").stream()
                     .anyMatch(fill -> (int) fill.getArgument(4) == KnownItemsOverlayRenderer.HOVER_CELL
