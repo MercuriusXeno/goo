@@ -20,10 +20,11 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
- * Renders an in-world HUD panel on the plexer's front naming its target while the
- * crosshair rests anywhere on the plexer (decision plexer-target-shows-in-a-hud-element).
+ * Renders an in-world HUD panel on the plexer's front reading what one operation on its target
+ * costs while the crosshair rests anywhere on the plexer (decision plexer-target-shows-in-a-hud-element).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PlexerHudRenderer {
@@ -88,7 +89,9 @@ public final class PlexerHudRenderer {
     }
 
     /**
-     * Paints the target's panel flat on the plexer's front, above the plexer.
+     * Paints the target's cost flat on the plexer's front, floating in the mouth under the cutaway.
+     * decision plexer-panel-floats-in-the-mouth
+     * decision plexer-hud-shows-the-cost-alone
      *
      * @param poseStack the pose stack for rendering
      * @param camera    the render camera
@@ -98,9 +101,15 @@ public final class PlexerHudRenderer {
      */
     private static void paintPanel(PoseStack poseStack, Camera camera, BlockPos pos, Direction facing,
                                    ItemStack target) {
+        List<PanelRow> rows = PlexerPanelRows.rows(
+                ClientGooValues.current().lookup(PlayerKnowledge.idOf(target.getItem())));
+        if (rows.isEmpty()) {
+            return;
+        }
+        double laidHeight = PanelPainter.measure(rows, Minecraft.getInstance().font::width).height()
+                * InWorldHud.PIXEL_SCALE;
         PanelPainter.paint(poseStack, camera,
-                PlexerPanelTarget.placement(pos, facing, ANIMATOR.pitch(), ANIMATOR.opacity()),
-                PlexerPanelRows.rows(target.getHoverName().getString(), PlayerKnowledge.idOf(target.getItem()),
-                        ClientGooValues.current().lookup(PlayerKnowledge.idOf(target.getItem()))));
+                PlexerPanelTarget.placement(pos, facing, laidHeight, ANIMATOR.pitch(), ANIMATOR.opacity()),
+                rows, PlexerPanelTarget.MOUTH_HEIGHT);
     }
 }

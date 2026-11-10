@@ -23,19 +23,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Draws a struck Terrakinesis hunk coming apart as Unmake peels a block: each
- * block, on its turn (HunkShatter), breaks into chunks of its own faces that
+ * Draws a struck Terrakinesis hunk coming apart: each block, on its turn
+ * (HunkShatter), breaks into chunks of its own faces (BlockBreakup) that
  * crumble off its outside one by one in random order, each bursting into the
  * block's break particles as it goes, with the block's own break sound, so the
  * hunk breaks up piece by piece where it struck instead of vanishing at once.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
- * decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HunkCrumbles {
 
-    /** The drinker a crumble's peel names: no glove is ever placed for it, so each chunk ends at its turn. */
-    private static final int NO_GLOVE = -1;
     /** Break particles each chunk bursts into as it crumbles off. */
     private static final int PARTICLES_PER_CHUNK = 4;
     /** How fast a chunk's particles scatter, in blocks a tick. */
@@ -64,7 +61,7 @@ public final class HunkCrumbles {
      * @param burst   by chunk index, whether that chunk has burst into particles
      * @param sounded whether its break sound has played, in its first slot
      */
-    private record Crumble(BlockState state, BlockPos cell, DrinkRide.Breakup breakup, long start, boolean[] burst,
+    private record Crumble(BlockState state, BlockPos cell, BlockBreakup.Breakup breakup, long start, boolean[] burst,
                            boolean[] sounded) {
     }
 
@@ -93,10 +90,8 @@ public final class HunkCrumbles {
     private static Crumble peel(ClientLevel level, Vec3 corner, BlockState state, long start, long end) {
         BlockPos cell = BlockPos.containing(corner.add(HALF, HALF, HALF));
         AABB outline = new AABB(corner, corner.add(1, 1, 1)).move(Vec3.atLowerCornerOf(cell).reverse());
-        DrinkRide.Breakup breakup = DrinkRide.chunksOf(
-                new DrinkTree.Block(cell, Vec3.atCenterOf(cell), 1, start, start, end), outline, level.getRandom());
-        DrinkPeels.CLIENT.begin(new DrinkPeels.Peel(NO_GLOVE, cell, breakup, PeelFaces.of(level, cell, state),
-                end + 1.0));
+        BlockBreakup.Breakup breakup = BlockBreakup.chunksOf(cell, start, end, outline, level.getRandom());
+        BlockPeels.CLIENT.begin(new BlockPeels.Peel(cell, breakup, PeelFaces.of(level, cell, state), end + 1.0));
         return new Crumble(state, cell, breakup, start, new boolean[breakup.chunks().size()], new boolean[1]);
     }
 
@@ -133,13 +128,13 @@ public final class HunkCrumbles {
             crumble.sounded()[0] = true;
             breakSound(level, crumble.state(), crumble.cell());
         }
-        List<DrinkRide.Chunk> chunks = crumble.breakup().chunks();
+        List<BlockBreakup.Chunk> chunks = crumble.breakup().chunks();
         boolean done = true;
         for (int index = 0; index < chunks.size(); index++) {
             if (crumble.burst()[index]) {
                 continue;
             }
-            if (DrinkRide.stands(chunks.get(index), now)) {
+            if (BlockBreakup.stands(chunks.get(index), now)) {
                 done = false;
                 continue;
             }
