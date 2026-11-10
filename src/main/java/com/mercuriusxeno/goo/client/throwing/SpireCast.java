@@ -131,11 +131,13 @@ public final class SpireCast {
 
     /**
      * The rock goo the live cast would spend, priced through the plan the
-     * server grows by, at the rise the player's goo pays for.
+     * server grows by, at the rise the player's goo pays for, each block at the ability's synced cost.
      * decision spire-grows-stone-out-of-the-top
+     * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
      *
      * @param player the local player
-     * @return the planned growth, empty while no cast is live or nothing it covers grows
+     * @return the planned growth, empty while no cast is live, the client holds no synced copy of the ability,
+     *         or nothing it covers grows
      */
     public static Optional<SpireGrowth> plannedGrowth(LocalPlayer player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
@@ -143,9 +145,14 @@ public final class SpireCast {
         if (selection == null || selection.getGooType() == null || footprint.isEmpty()) {
             return Optional.empty();
         }
+        ClientAbility ability = AbilitySyncHandler.findAbility(selection.abilityId());
+        if (ability == null) {
+            return Optional.empty();
+        }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
-        return SpireGrowth.affordable(player.level(), footprint.get(), GooValues.of(player.level()),
-                selection.getGooType(), player.getData(GooAttachments.REMAINDERS), holdings);
+        return SpireGrowth.affordable(player.level(), footprint.get(),
+                ability.costPrice().exactIn(GooValues.of(player.level())), selection.getGooType(),
+                player.getData(GooAttachments.REMAINDERS), holdings);
     }
 
     /**
