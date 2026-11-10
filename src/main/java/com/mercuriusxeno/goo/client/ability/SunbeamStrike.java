@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -11,8 +13,8 @@ import java.util.Map;
 
 /**
  * Where a Sunbeam beam strikes and how its light motes scatter off it. Nine
- * probes run parallel to the beam across its cross-section, the middle and
- * eight around the rim, so a beam splitting a block's corner strikes each
+ * probes run parallel to the beam across its drawn square cross-section, the
+ * middle, edge middles and corners, so a beam splitting a block's corner strikes each
  * face it touches; each struck surface scatters a few slow motes from the
  * points its own probes struck, mostly along its outward normal.
  * decision sunbeam-motes-scatter-away-from-struck-surfaces
@@ -26,8 +28,8 @@ final class SunbeamStrike {
     private static final double LEAVE_VARIANCE = 0.02;
     /** The most a mote slides across its surface, as a share of how fast it leaves. */
     private static final double MOST_SLIDE_OF_LEAVE = 0.6;
-    /** The rim's probes: the grid's four edge middles and four corners, laid on the beam's round edge. */
-    private static final int RIM_PROBES = 8;
+    /** The probe grid's steps across each side of the drawn square, in half-widths. */
+    private static final int[] GRID_STEPS = {-1, 0, 1};
     private static final double SHORTEST_NORMAL = 1.0e-6;
     private static final double TWO_PI = 2 * Math.PI;
 
@@ -36,21 +38,23 @@ final class SunbeamStrike {
 
     /**
      * Where each of the nine probes runs, offset from the beam's axis: the
-     * middle, then the eight rim probes at the beam's radius.
+     * three by three grid across the square tube {@link GlowBeamMesh} draws,
+     * its middle, its four edge middles at the half-width and its four
+     * corners, laid in the mesh's own cross-section through
+     * {@link GlowBeamMesh#alongBeam} so each probe sits where the drawn beam does.
      *
      * @param axis   the beam's direction
-     * @param radius the beam's drawn radius, in blocks
+     * @param radius the beam's drawn half-width, in blocks
      * @return each probe's offset, square to the axis
      */
     static List<Vec3> probeOffsets(Vec3 axis, double radius) {
-        Vec3 unit = axis.normalize();
-        Vec3 across = SunbeamMotes.across(unit);
-        Vec3 acrossToo = unit.cross(across);
-        List<Vec3> offsets = new ArrayList<>(RIM_PROBES + 1);
-        offsets.add(Vec3.ZERO);
-        for (int probe = 0; probe < RIM_PROBES; probe++) {
-            double angle = TWO_PI * probe / RIM_PROBES;
-            offsets.add(across.scale(Math.cos(angle) * radius).add(acrossToo.scale(Math.sin(angle) * radius)));
+        Quaternionf alongBeam = GlowBeamMesh.alongBeam(axis);
+        List<Vec3> offsets = new ArrayList<>(GRID_STEPS.length * GRID_STEPS.length);
+        for (int x : GRID_STEPS) {
+            for (int z : GRID_STEPS) {
+                Vector3f point = alongBeam.transform(new Vector3f((float) (x * radius), 0f, (float) (z * radius)));
+                offsets.add(new Vec3(point.x, point.y, point.z));
+            }
         }
         return offsets;
     }
