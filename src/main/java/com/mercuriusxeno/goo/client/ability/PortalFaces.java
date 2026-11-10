@@ -374,12 +374,41 @@ public final class PortalFaces {
         return gates.stream().filter(drawn -> lookingOutOf.filter(drawn.gate()::equals).isEmpty()).toList();
     }
 
+    /**
+     * The gates that wear a swirl band in the pass drawing now, each in the
+     * color it wears. The band passes through its portal's face, so inside a
+     * view through a pair the partner the view looks out of wears the near
+     * gate's band: looking into the orange portal, its orange band runs on
+     * into it around the rim the view sees. Where the near gate is none the
+     * frame draws, the partner wears none.
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param gates   the gates the frame draws
+     * @param viewing the gate the view drawing now looks into, then its partner, empty outside a view
+     * @return the gates that wear a band, in its color
+     */
+    static List<Drawn> bandedIn(List<Drawn> gates, Optional<GatePassage.Pair> viewing) {
+        if (viewing.isEmpty()) {
+            return gates;
+        }
+        Gate near = viewing.get().one();
+        Gate far = viewing.get().other();
+        Optional<Integer> nearRgb = gates.stream().filter(drawn -> drawn.gate().equals(near)).map(Drawn::rgb)
+                .findFirst();
+        return gates.stream()
+                .flatMap(drawn -> drawn.gate().equals(far)
+                        ? nearRgb.map(rgb -> new Drawn(far, rgb, drawn.hole())).stream()
+                        : java.util.stream.Stream.of(drawn))
+                .toList();
+    }
+
     private static void drawHalos(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
             List<Drawn> gates) {
-        List<Drawn> worn = wornIn(gates, PortalView.lookingOutOf());
-        emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE), worn, drawn -> drawn.drawnBox(camera));
+        Optional<GatePassage.Pair> viewing = PortalView.viewing();
+        emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE),
+                wornIn(gates, viewing.map(GatePassage.Pair::other)), drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
-        emitSwirlBands(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE), worn,
+        emitSwirlBands(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE), bandedIn(gates, viewing),
                 drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
     }

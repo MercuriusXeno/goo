@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.ability.quantum.ViewCone;
 import com.mercuriusxeno.goo.ability.quantum.ViewSize;
@@ -147,15 +148,16 @@ public final class PortalView {
     }
 
     /**
-     * The partner the view being drawn now looks out of, so what stands
-     * round that partner's own rim, its halo and swirl band, stays out of the
-     * view: drawn into it, they would ring the near gate's view in the
-     * partner's color.
+     * The pair the view being drawn now looks through: the gate it looks
+     * into, then the partner it looks out of. What stands round that
+     * partner's own rim draws in the near gate's color or not at all, never
+     * ringing the near gate's view in the partner's color.
      *
-     * @return the partner, empty outside a view's pass
+     * @return the gate looked into, then its partner, empty outside a view's pass
      */
-    public static Optional<Gate> lookingOutOf() {
-        return drawing ? Optional.ofNullable(currentFar) : Optional.empty();
+    public static Optional<GatePassage.Pair> viewing() {
+        return drawing && currentNear != null && currentFar != null
+                ? Optional.of(new GatePassage.Pair(currentNear, currentFar)) : Optional.empty();
     }
 
     /**
