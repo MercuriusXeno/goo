@@ -29,11 +29,13 @@ import java.util.Set;
  * @param offset    how far its middle stands to the side of the aim once full grown, in blocks
  * @param lift      how far its middle stands above the aim, below it where negative, in blocks
  * @param startSide the side it starts on, 1 along the side axis and -1 against it
+ * @param veer      how far its heading turns from the look, as a share of the cone's edge: 1 along the side
+ *                  axis, -1 against it, 0 dead ahead
  * @param carry     the slasher's velocity at the swing, in blocks a tick, which the blade moves with
  * @param shape     its size and timing
  */
 public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, double lift, int startSide,
-                        Vec3 carry, Shape shape) {
+                        double veer, Vec3 carry, Shape shape) {
 
     /** The share of the leading edge's bow the trailing edge bows, so the two meet at the tips. */
     public static final double INNER_SHARE = 0.45;
@@ -47,6 +49,14 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     static final double FACE_TIP = Math.toRadians(15);
     /** The farthest a blade's heading turns from the look to either side, so the flurry fans out in a 35 degree cone. */
     static final double MAX_TURN = Math.toRadians(17.5);
+    /** The share of its veer a blade faces further than its travel, so an off-centre slash reads as veering. */
+    static final double VEER_EXAGGERATION = 0.3;
+    /** How much deeper a blade at the cone's edge bows on the half it veers to, so its volume loads that way. */
+    static final double VEER_LOAD = 0.5;
+    /** The veer inside which a blade counts as dead ahead, starting on a random side. */
+    static final double CENTRED_VEER = 0.15;
+    /** The share of its decay over which a vanishing blade fades out, the last of it. */
+    private static final double FADE_TAIL = 3;
     /** The farthest a blade tilts from flat, in degrees, so it swings like a scythe and its far side stays under the eye line. */
     static final double MAX_TILT_DEGREES = 5;
     /** The share of its full width and depth a blade starts at. */
@@ -74,6 +84,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
             ByteBufCodecs.DOUBLE, ReapBlade::offset,
             ByteBufCodecs.DOUBLE, ReapBlade::lift,
             ByteBufCodecs.VAR_INT, ReapBlade::startSide,
+            ByteBufCodecs.DOUBLE, ReapBlade::veer,
             Vec3.STREAM_CODEC, ReapBlade::carry,
             Shape.STREAM_CODEC, ReapBlade::shape,
             ReapBlade::new);
@@ -137,7 +148,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      * pitch, so the blades fan out rather than converge; its width tilted
      * at random within five degrees of flat, its middle standing at random
      * within a block of the aim to the side and just under it, so the whole
-     * blade swings below the eye line, and starting on a random side.
+     * blade swings below the eye line, and starting away from its veer.
      *
      * @param eye    the slasher's eye
      * @param look   the slasher's unit look
@@ -147,12 +158,30 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      * @return the blade
      */
     public static ReapBlade launch(Vec3 eye, Vec3 look, Vec3 carry, Shape shape, RandomSource random) {
-        Vec3 heading = look.yRot((float) ((random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TURN));
+        double turn = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TURN;
+        Vec3 heading = look.yRot((float) turn);
         double tilt = Math.toRadians((random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TILT_DEGREES);
         double offset = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_OFFSET;
         double lift = -DROP + (random.nextDouble() - HALF) * TIP_TO_TIP * DROP_SPREAD;
-        int startSide = random.nextBoolean() ? ALONG_SIDE : AGAINST_SIDE;
-        return new ReapBlade(eye, heading, sideOf(heading, tilt), offset, lift, startSide, carry, shape);
+        double veer = -turn / MAX_TURN;
+        boolean either = random.nextBoolean();
+        return new ReapBlade(eye, heading, sideOf(heading, tilt), offset, lift, startSideFor(veer, either), veer, carry,
+                shape);
+    }
+
+    /**
+     * The side a blade starts on: away from its veer, so it grows and curves
+     * toward the way it veers, or either side for a blade dead ahead.
+     *
+     * @param veer   its veer, positive along the side axis
+     * @param either the side a blade dead ahead starts on, true along the side axis
+     * @return 1 along the side axis, -1 against it
+     */
+    private static int startSideFor(double veer, boolean either) {
+        if (Math.abs(veer) <= CENTRED_VEER) {
+            return either ? ALONG_SIDE : AGAINST_SIDE;
+        }
+        return veer > 0 ? AGAINST_SIDE : ALONG_SIDE;
     }
 
     /**
@@ -168,15 +197,17 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     /**
      * The axis the blade's middle bows along: the way the blade travels over
      * its life, its drift along the heading with the slide its one-sided
-     * growth makes across it, tipped up toward the eye, so the crescent faces
-     * where it goes and the eye sees its depth rather than its edge.
+     * growth makes across it, turned a further share of its veer so an
+     * off-centre slash reads as veering, and tipped up toward the eye, so the
+     * crescent faces where it goes and the eye sees its depth rather than its edge.
      *
      * @return the unit depth axis
      */
     public Vec3 depthAxis() {
         double slide = -startSide * shape.width() * (1 - START_SHARE) * HALF;
         Vec3 travel = forward.scale(shape.drift()).add(side.scale(slide));
-        Vec3 along = travel.lengthSqr() > VERTICAL_HEADING ? travel.normalize() : forward;
+        Vec3 along = (travel.lengthSqr() > VERTICAL_HEADING ? travel.normalize() : forward)
+                .yRot((float) (-VEER_EXAGGERATION * veer * MAX_TURN));
         return along.scale(Math.cos(FACE_TIP)).add(liftAxis().scale(Math.sin(FACE_TIP)));
     }
 
@@ -202,7 +233,30 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      * @return the width in blocks
      */
     public double widthAt(double age) {
+        return grownWidthAt(age) * decayAt(age);
+    }
+
+    /**
+     * The blade's width an age into its swing before it decays, which its
+     * span stands centred by, so a decaying blade shrinks in place.
+     *
+     * @param age ticks since it swung
+     * @return the width in blocks
+     */
+    private double grownWidthAt(double age) {
         return shape.width() * grown(age, shape.widthTicks());
+    }
+
+    /**
+     * How much of its full grown size a blade keeps an age into its swing:
+     * all of it until full grown, then shrinking evenly to nothing as it
+     * drifts on, so it vanishes.
+     *
+     * @param age ticks since it swung
+     * @return the share kept, 0 to 1
+     */
+    private double decayAt(double age) {
+        return 1 - Math.clamp((age - shape.growTicks()) / shape.fadeTicks(), 0, 1);
     }
 
     /**
@@ -212,7 +266,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      * @return the depth in blocks
      */
     public double depthAt(double age) {
-        return shape.depth() * grown(age, shape.depthTicks());
+        return shape.depth() * grown(age, shape.depthTicks()) * decayAt(age);
     }
 
     private static double grown(double age, int ticks) {
@@ -240,13 +294,14 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      * @return the point
      */
     public Vec3 centreAt(double age) {
-        double lateral = offset + startSide * (shape.width() - widthAt(age)) * HALF;
+        double lateral = offset + startSide * (shape.width() - grownWidthAt(age)) * HALF;
         return origin.add(forward.scale(distanceAt(age))).add(side.scale(lateral)).add(liftAxis().scale(lift))
                 .add(carry.scale(age));
     }
 
     /**
-     * A point on the blade an age into its swing.
+     * A point on the blade an age into its swing: its bow deepest toward the
+     * half it veers to, tapering on the other.
      *
      * @param age    ticks since it swung
      * @param across how far across it lies, -1 at one tip to 1 at the other
@@ -254,7 +309,7 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      * @return the point
      */
     public Vec3 pointAt(double age, double across, double layer) {
-        double bow = depthAt(age) * (1 - across * across) * layer;
+        double bow = depthAt(age) * (1 - across * across) * (1 + VEER_LOAD * veer * across) * layer;
         return centreAt(age).add(side.scale(across * widthAt(age) * HALF)).add(depthAxis().scale(bow));
     }
 
@@ -290,13 +345,13 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     }
 
     /**
-     * How bright the blade is an age into its swing: whole as it grows,
-     * fading as it drifts.
+     * How bright the blade is an age into its swing: whole as it grows and
+     * as it shrinks, fading out only over the last of its decay.
      *
      * @param age ticks since it swung
      * @return its strength, 0 to 1
      */
     public float strengthAt(double age) {
-        return 1f - (float) Math.clamp((age - shape.growTicks()) / shape.fadeTicks(), 0, 1);
+        return (float) Math.min(1, decayAt(age) * FADE_TAIL);
     }
 }

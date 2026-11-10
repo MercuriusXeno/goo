@@ -35,7 +35,7 @@ class ReapBladeTest {
     private static final double TOLERANCE = 1e-6;
 
     private static ReapBlade flatBlade(double offset, double lift, int startSide) {
-        return new ReapBlade(EYE, LEVEL_SOUTH, new Vec3(-1, 0, 0), offset, lift, startSide, Vec3.ZERO, SHAPE);
+        return new ReapBlade(EYE, LEVEL_SOUTH, new Vec3(-1, 0, 0), offset, lift, startSide, 0, Vec3.ZERO, SHAPE);
     }
 
     /** How far a heading turns from the look about the vertical, in degrees. */
@@ -43,6 +43,12 @@ class ReapBladeTest {
         Vec3 flatLook = new Vec3(look.x, 0, look.z).normalize();
         Vec3 flatHeading = new Vec3(heading.x, 0, heading.z).normalize();
         return Math.toDegrees(Math.acos(Math.clamp(flatLook.dot(flatHeading), -1, 1)));
+    }
+
+    /** How far a heading turns from the look about the vertical, in degrees, toward the look's left positive. */
+    private static double signedTurnDegrees(Vec3 look, Vec3 heading) {
+        double turn = Math.toDegrees(Math.atan2(-heading.x, heading.z) - Math.atan2(-look.x, look.z));
+        return ((turn + 540) % 360) - 180;
     }
 
     /** The narrowest, shallowest blade shape leaf_reap.json ships. */
@@ -84,8 +90,34 @@ class ReapBladeTest {
             for (int i = 0; i < SAMPLES; i++) {
                 ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, Vec3.ZERO, wide, random);
                 Vec3 travel = blade.centreAt(wide.lifeTicks()).subtract(blade.centreAt(0));
-                assertTrue(turnDegrees(travel, blade.depthAxis()) < 2, "bow off its travel by "
-                        + turnDegrees(travel, blade.depthAxis()) + " degrees");
+                double headingTurn = signedTurnDegrees(LEVEL_SOUTH, blade.forward());
+                double beyondTravel = signedTurnDegrees(travel, blade.depthAxis());
+                assertEquals(0.3 * headingTurn, beyondTravel, 2, "bow beyond its travel by " + beyondTravel
+                        + " degrees for a heading turned " + headingTurn);
+            }
+        }
+
+        @Test
+        void aVeeringBladeStartsAwayFromItsVeer() {
+            RandomSource random = RandomSource.create(21L);
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, Vec3.ZERO, SHAPE, random);
+                if (Math.abs(blade.veer()) > 0.15) {
+                    assertTrue(blade.startSide() * blade.veer() < 0, "veer " + blade.veer() + ", start "
+                            + blade.startSide());
+                }
+            }
+        }
+
+        @Test
+        void theVeerFollowsTheHeadingsTurnTowardTheSideAxis() {
+            RandomSource random = RandomSource.create(23L);
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, Vec3.ZERO, SHAPE, random);
+                double towardSide = blade.forward().subtract(LEVEL_SOUTH.scale(blade.forward().dot(LEVEL_SOUTH)))
+                        .dot(new Vec3(-1, 0, 0));
+                assertTrue(Math.abs(blade.veer()) <= 1 + TOLERANCE, "veer " + blade.veer());
+                assertTrue(towardSide * blade.veer() >= -TOLERANCE, "veer " + blade.veer() + ", turned " + towardSide);
             }
         }
 
@@ -202,6 +234,40 @@ class ReapBladeTest {
         }
 
         @Test
+        void fullGrownItDecaysInWidthAndDepthToNothing() {
+            double grown = SHAPE.growTicks();
+            double halfway = grown + SHAPE.fadeTicks() / 2.0;
+            assertTrue(blade.widthAt(halfway) < blade.widthAt(grown) && blade.depthAt(halfway) < blade.depthAt(grown),
+                    "width " + blade.widthAt(halfway) + ", depth " + blade.depthAt(halfway));
+            assertEquals(0, blade.widthAt(SHAPE.lifeTicks()), TOLERANCE);
+            assertEquals(0, blade.depthAt(SHAPE.lifeTicks()), TOLERANCE);
+        }
+
+        @Test
+        void aDecayingBladeShrinksInPlace() {
+            Vec3 grown = blade.centreAt(SHAPE.growTicks());
+            Vec3 decaying = blade.centreAt(SHAPE.growTicks() + SHAPE.fadeTicks() / 2.0);
+            assertEquals(grown.dot(blade.side()), decaying.dot(blade.side()), TOLERANCE);
+        }
+
+        @Test
+        void aVeeringBladeIsLoadedTowardItsVeer() {
+            ReapBlade right = new ReapBlade(EYE, LEVEL_SOUTH, new Vec3(-1, 0, 0), 0, 0, 1, 1, Vec3.ZERO, SHAPE);
+            double age = SHAPE.growTicks();
+            double loaded = right.pointAt(age, 0.5, 1).z - right.pointAt(age, 0.5, ReapBlade.INNER_SHARE).z;
+            double tapered = right.pointAt(age, -0.5, 1).z - right.pointAt(age, -0.5, ReapBlade.INNER_SHARE).z;
+            assertTrue(loaded > tapered * 1.3, "loaded " + loaded + ", tapered " + tapered);
+        }
+
+        @Test
+        void aDeadCentreBladeIsSymmetric() {
+            double age = SHAPE.growTicks();
+            double right = blade.pointAt(age, 0.5, 1).z - blade.pointAt(age, 0.5, ReapBlade.INNER_SHARE).z;
+            double left = blade.pointAt(age, -0.5, 1).z - blade.pointAt(age, -0.5, ReapBlade.INNER_SHARE).z;
+            assertEquals(right, left, TOLERANCE);
+        }
+
+        @Test
         void fullGrownItStillDriftsForward() {
             double grown = blade.centreAt(SHAPE.growTicks()).z;
             double drifted = blade.centreAt(SHAPE.lifeTicks()).z;
@@ -224,7 +290,7 @@ class ReapBladeTest {
 
         @Test
         void itIsACrescentBowedAwayFromTheSlasherWithMeetingTips() {
-            double age = SHAPE.lifeTicks();
+            double age = SHAPE.growTicks();
             Vec3 middleLead = blade.pointAt(age, 0, 1);
             Vec3 middleBack = blade.pointAt(age, 0, ReapBlade.INNER_SHARE);
             Vec3 tipLead = blade.pointAt(age, 1, 1);
@@ -239,7 +305,7 @@ class ReapBladeTest {
     class Cover {
 
         private final ReapBlade blade = new ReapBlade(new Vec3(0.5, 1.5, 0.5), LEVEL_SOUTH, new Vec3(-1, 0, 0),
-                0, 0, 1, Vec3.ZERO, SHAPE);
+                0, 0, 1, 0, Vec3.ZERO, SHAPE);
 
         private boolean covers(BlockPos cell) {
             for (int age = 0; age <= SHAPE.lifeTicks(); age++) {
@@ -264,7 +330,7 @@ class ReapBladeTest {
 
         @Test
         void theSamplesFillTheCrescent() {
-            List<Vec3> samples = blade.samplesAt(SHAPE.lifeTicks());
+            List<Vec3> samples = blade.samplesAt(SHAPE.growTicks());
             assertTrue(samples.size() > 10, "samples " + samples.size());
         }
     }

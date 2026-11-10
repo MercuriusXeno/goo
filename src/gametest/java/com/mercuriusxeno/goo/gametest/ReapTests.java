@@ -56,7 +56,7 @@ public final class ReapTests {
     private static final BlockPos BESIDE_PATH = new BlockPos(3, GROUND_Y + 1, BESIDE_Z);
     private static final BlockPos BUSH = new BlockPos(4, GROUND_Y + 1, PATH_Z);
     /** leaf_reap.json's shallowest blade: forming 0.75 blocks out, drifting 3 more, 2.5 wide and 0.8 deep. */
-    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(0.75, 3, 2.5, 0.8, 6, 8, 3);
+    private static final ReapBlade.Shape SHAPE = new ReapBlade.Shape(0.75, 3, 2.5, 0.8, 6, 8, 6);
     /** East, the way the blade flies along its row. */
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     /** Across the row, the way the blade's width spans. */
@@ -168,7 +168,7 @@ public final class ReapTests {
      */
     private static ReapBlade rowBlade(GameTestHelper helper, double height) {
         Vec3 origin = helper.absoluteVec(new Vec3(PATH_START_X + 0.5, height, PATH_Z + 0.5));
-        return new ReapBlade(origin, EAST, ACROSS, 0, 0, 1, Vec3.ZERO, SHAPE);
+        return new ReapBlade(origin, EAST, ACROSS, 0, 0, 1, 0, Vec3.ZERO, SHAPE);
     }
 
     /**
