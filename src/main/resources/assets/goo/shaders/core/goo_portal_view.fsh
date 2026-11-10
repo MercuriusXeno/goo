@@ -19,13 +19,13 @@ in vec4 frameColor;
 
 out vec4 fragColor;
 
-
 void main() {
     vec2 across = portalTexelCenter(frameCoord, texels) * 2.0 - 1.0;
     if (length(across) > 1.0) {
         discard;
     }
     vec3 view = texture(Sampler0, gl_FragCoord.xy / ScreenSize).rgb;
-    float rim = portalTexelRim(portalTexelsInside(across, texels, 1.0));
-    fragColor = vec4(mix(view, frameColor.rgb * 1.4, rim), 1.0);
+    float inside = portalTexelsInside(across, texels, 1.0);
+    float rim = portalTexelRim(inside);
+    fragColor = vec4(mix(view, frameColor.rgb * 1.4, rim), portalTexelEdgeAlpha(inside));
 }

@@ -22,8 +22,18 @@ float portalTexelsInside(vec2 across, vec2 texels, float edge) {
 // How faintly the texel just inside the rim takes its color.
 const float PORTAL_RIM_FAINT = 0.3;
 
+// How opaque the ring of texels on the edge draws, a quarter of whatever it sits on showing through,
+// so the rim blends onto the wall.
+const float PORTAL_RIM_EDGE_ALPHA = 0.75;
+
 // A rim's strength at a texel: whole on the one ring of texels on the edge, faint on the ring just
 // inside it, nothing further in.
 float portalTexelRim(float texelsInside) {
     return texelsInside < 1.0 ? 1.0 : (texelsInside < 2.0 ? PORTAL_RIM_FAINT : 0.0);
+}
+
+// How opaque a texel draws for the rim's sake: the ring on the edge lets a quarter of the wall
+// through, every texel inside it draws as it would.
+float portalTexelEdgeAlpha(float texelsInside) {
+    return texelsInside < 1.0 ? PORTAL_RIM_EDGE_ALPHA : 1.0;
 }
