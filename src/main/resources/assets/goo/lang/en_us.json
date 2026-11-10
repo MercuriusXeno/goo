@@ -153,6 +153,8 @@
   "goo.ability.astral.scry.description": "Hold to see the spaces around you.",
   "goo.ability.deep.shriek": "Shriek",
   "goo.ability.deep.shriek.description": "A blob that shrieks like a sculk shrieker and calls every hostile mob in earshot to it while it lasts; other mobs pay it no mind.",
+  "goo.ability.deep.click": "Click",
+  "goo.ability.deep.click.description": "Throw your voice: a click travels to wherever you look and sounds there, tripping sculk sensors and drawing a warden to the spot without pointing it back at you.",
   "goo.ability.deep.sculker": "Sculker",
   "goo.ability.deep.sculker.description": "Sense the world the way the deep does and swim through solid ground: sneak and jump together to dive in, swim with your movement keys, jump to rise and sneak to sink, and jump clear of a top face to stand on solid ground again. Stone never suffocates you while it lasts.",
   "goo.ability.ender.zone": "Zone",

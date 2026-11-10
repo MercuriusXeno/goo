@@ -30,6 +30,7 @@ import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.network.GooTouchHandler;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
@@ -397,8 +398,10 @@ public final class GloveThrowSender {
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         GooThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        // click-costs-one-mb-and-nothing-under-sculker: a throw a standing ability waives needs no goo held
+        boolean free = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
         if (payload == null || refusesStruck(player, payload, ability) || !affordsThrow(ability,
-                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                amount -> free || GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
         }

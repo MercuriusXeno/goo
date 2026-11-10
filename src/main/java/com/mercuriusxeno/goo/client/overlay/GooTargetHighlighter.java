@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
 import com.mercuriusxeno.goo.client.ability.PortalView;
+import com.mercuriusxeno.goo.client.ability.SculkerVision;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -91,9 +92,24 @@ public final class GooTargetHighlighter {
      */
     @SubscribeEvent
     public static void onRenderGuiLayer(RenderGuiLayerEvent.Pre event) {
-        if (reticuleDrawn && VanillaGuiLayers.CROSSHAIR.equals(event.getName())) {
+        if (hidesVanillaCrosshair(reticuleDrawn, SculkerVision.presence())
+                && VanillaGuiLayers.CROSSHAIR.equals(event.getName())) {
             event.setCanceled(true);
         }
+    }
+
+    /**
+     * Whether the reticule stands in for the vanilla crosshair this frame:
+     * only where it was drawn and shows, never while Sculker's senses dim the
+     * world, which blacks out the reticule drawn into it and would leave no
+     * crosshair at all.
+     *
+     * @param reticuleDrawn   whether the frame drew the reticule
+     * @param sculkerPresence how fully Sculker's senses stand, 0 to 1
+     * @return true when the vanilla crosshair is hidden
+     */
+    static boolean hidesVanillaCrosshair(boolean reticuleDrawn, float sculkerPresence) {
+        return reticuleDrawn && sculkerPresence < SculkerVision.GONE;
     }
 
     /**
