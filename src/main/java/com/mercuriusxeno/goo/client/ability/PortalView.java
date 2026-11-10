@@ -371,7 +371,7 @@ public final class PortalView {
             bobAsTheFrameDoes(mc, state);
             Matrix4f unclipped = new Matrix4f(state.projectionMatrix);
             clipAt(state.projectionMatrix, state.viewRotationMatrix, eye.position(), far,
-                    bodyBehindTheFace(far, drawnBox(mc.player, delta.getGameTimeDeltaPartialTick(false))));
+                    deepestBehindTheFace(mc, far, delta.getGameTimeDeltaPartialTick(false)));
             renderInto(mc, delta, targetFor(mc, pass - 1), state, unclipped);
         } finally {
             currentPass = MAIN_PASS;
@@ -727,6 +727,28 @@ public final class PortalView {
         double across = Math.max(body.getXsize(), body.getZsize()) * HALF;
         return front > 0 && back < 0 && far.withinOval(body.getCenter(), across) ? SPARE - back : 0;
     }
+
+    /**
+     * How far behind a partner's face the deepest body straddling it reaches,
+     * the player or any other, so the view draws each whole: a slime carried
+     * through showed the inside of its face for the moments it straddled.
+     * portals-link-by-looking-through-portal-vision
+     *
+     * @param mc      the client
+     * @param far     the partner
+     * @param partial the frame's partial tick
+     * @return the reach behind the face, zero where nothing straddles it
+     */
+    private static double deepestBehindTheFace(Minecraft mc, Gate far, float partial) {
+        double deepest = 0;
+        for (Entity body : mc.level.getEntities((Entity) null, far.blocks().inflate(STRADDLE_REACH))) {
+            deepest = Math.max(deepest, bodyBehindTheFace(far, drawnBox(body, partial)));
+        }
+        return deepest;
+    }
+
+    /** How far around a partner's blocks a body may stand and still straddle its face. */
+    private static final double STRADDLE_REACH = 2.0;
 
     /**
      * The box a body is drawn in this frame, where the frame draws it between
