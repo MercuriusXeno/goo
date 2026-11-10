@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.GateArc;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
@@ -310,7 +311,7 @@ public final class GooThrowHandler {
 
     /**
      * Sends a named ability by its delivery: a self ability to the player, a
-     * touch on an entity within reach, a flight otherwise.
+     * scan along the look, a touch on an entity within reach, a flight otherwise.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -321,6 +322,9 @@ public final class GooThrowHandler {
             AbilityDefinition ability) {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
             GooSelfHandler.deliver(player, gooType, ability);
+        } else if (ability.delivery().kind() == DeliveryKind.SCAN) {
+            // click-is-a-hit-scan-drawn-as-a-delayed-wave
+            GooScanHandler.scan(player, payload, gooType, ability);
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.delivery().rolls()) {
@@ -536,8 +540,8 @@ public final class GooThrowHandler {
             return GooFraction.of(AgingTable.priceOf(player.level().getBlockState(payload.targetPos()))
                     .orElse(REFUSED));
         }
-        // ability-cost-builds-as-a-one-type-by-type-value
-        return def.cost().exactIn(GooValues.of(player.level()));
+        // ability-cost-builds-as-a-one-type-by-type-value, click-costs-one-mb-and-nothing-under-sculker
+        return def.costFor(player.getData(GooAttachments.HELD_EFFECTS)::holds, GooValues.of(player.level()));
     }
 
     /**

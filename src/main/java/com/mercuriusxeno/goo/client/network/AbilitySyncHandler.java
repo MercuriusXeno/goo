@@ -32,6 +32,7 @@ import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Client-side handler for the ability sync payload. Hands the abilities to
@@ -122,6 +123,8 @@ public final class AbilitySyncHandler {
      *                    (decision zero-cost-field-formats-the-cost-mechanics)
      * @param costFormula the short formula a dynamically priced ability's petal reads, empty for none
      *                    (decision dynamic-costs-keep-the-mb-quantity)
+     * @param freeWhile   the self ability whose standing makes a throw free, empty for none
+     *                    (decision click-costs-one-mb-and-nothing-under-sculker)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
@@ -129,7 +132,43 @@ public final class AbilitySyncHandler {
                                 AbilityBadge badge, List<Identifier> requires, AbilityArea area,
                                 IndicatorShowing indicator, List<Identifier> consumes, AbilityPrice upkeepPrice,
                                 DistancePrice distancePrice, List<Step> onPrism, ArmPose pose, String description,
-                                Optional<String> costMechanics, Optional<String> costFormula) {
+                                Optional<String> costMechanics, Optional<String> costFormula,
+                                Optional<Identifier> freeWhile) {
+
+        /**
+         * A client ability no standing self ability makes free.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param costPrice     what a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeepPrice   what a held durative effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+         * @param costFormula   the short formula a dynamically priced ability's petal reads, empty for none
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, AbilityPrice costPrice, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, AbilityPrice upkeepPrice, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                             Optional<String> costFormula) {
+            this(id, displayName, icon, order, tags, behaviors, costPrice, delivery, badge, requires, area,
+                    indicator, consumes, upkeepPrice, distancePrice, onPrism, pose, description, costMechanics,
+                    costFormula, Optional.empty());
+        }
 
         /**
          * A client ability whose cost and upkeep are whole numbers of mB.
@@ -447,7 +486,20 @@ public final class AbilitySyncHandler {
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
-                    entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula());
+                    entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula(),
+                    entry.freeWhile());
+        }
+
+        /**
+         * Whether a throw costs nothing now, the self ability this one names
+         * standing on the thrower.
+         * click-costs-one-mb-and-nothing-under-sculker
+         *
+         * @param stands whether a self ability, by id, stands on the thrower now
+         * @return true while that ability stands
+         */
+        public boolean freeFor(Predicate<Identifier> stands) {
+            return freeWhile.filter(stands).isPresent();
         }
 
         /**
@@ -521,7 +573,8 @@ public final class AbilitySyncHandler {
             }
             // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
             // spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block: a per-block price reads it too
-            if ((costPrice.isFree() || pricedPerBlockGrown()) && costFormula.isPresent()) {
+            // click-costs-one-mb-and-nothing-under-sculker: a price a standing ability waives reads its rule too
+            if ((costPrice.isFree() || pricedPerBlockGrown() || freeWhile.isPresent()) && costFormula.isPresent()) {
                 return formula().orElseThrow();
             }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
