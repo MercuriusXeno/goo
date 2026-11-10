@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
@@ -12,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Supplies the canister HUD panel's rows: label, then a row per goo type,
+ * Supplies the canister HUD panel's rows: label, then one grid of the goo types,
  * dominant first, or the vanilla fluid row, then the total against the
  * capacity the held void grows (decisions one-panel-painter-takes-rows,
  * canisters-hold-more-than-one-goo-type and each-void-mb-adds-n-plus-one-capacity).
@@ -36,7 +35,10 @@ final class CanisterPanelRows {
             rows.add(PanelPainter.gooLabelRow(data.gooLabel()));
         }
         Map<ResourceKey<GooTypeDefinition>, Integer> goo = content.gooVolumesDominantFirst();
-        goo.forEach((type, volume) -> rows.add(PanelPainter.gooRow(type, GooFormat.formatAmount(volume))));
+        // decision one-class-lays-every-huds-goo-values
+        if (!goo.isEmpty()) {
+            rows.add(PanelRow.amounts(PanelAmountGrid.ofVolumes(goo)));
+        }
         if (goo.isEmpty() && !content.isEmpty()) {
             rows.add(PanelPainter.fluidRow(content.dominantFluid(), content.totalVolume()));
         }

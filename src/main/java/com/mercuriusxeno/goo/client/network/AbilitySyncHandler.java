@@ -20,14 +20,10 @@ import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
-import com.mercuriusxeno.goo.data.GooFraction;
-import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -245,7 +241,6 @@ public final class AbilitySyncHandler {
         private static final String PER_SECOND = "/s";
         private static final String COUNT_SEPARATOR = " | ";
         private static final String NO_COUNT = "";
-        private static final Identifier SPIRE_BLOCK = Identifier.withDefaultNamespace("stone");
 
         /**
          * A client ability naming no cost mechanics.
@@ -577,8 +572,9 @@ public final class AbilitySyncHandler {
                 return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
             }
             // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
+            // spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block: a per-block price reads it too
             // click-costs-one-mb-and-nothing-under-sculker: a price a standing ability waives reads its rule too
-            if ((costPrice.isFree() || freeWhile.isPresent()) && costFormula.isPresent()) {
+            if ((costPrice.isFree() || pricedPerBlockGrown() || freeWhile.isPresent()) && costFormula.isPresent()) {
                 return formula().orElseThrow();
             }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
@@ -611,9 +607,10 @@ public final class AbilitySyncHandler {
         /**
          * The short formula the petal and the panel read, its number filled
          * from the ability's own numbers so it stays true when one is tuned: a
-         * Spire's the rock value of a block of stone, live from the connection's
+         * Spire's cost, its price per block grown, live from the connection's
          * goo values, a Terrakinesis's its fixed price a tear.
          * dynamic-costs-keep-the-mb-quantity
+         * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          *
          * @return the formula filled, or empty for an ability naming none
          */
@@ -622,21 +619,21 @@ public final class AbilitySyncHandler {
         }
 
         private List<String> formulaArguments() {
-            if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
-                return List.of(GooFormat.formatMixed(stoneRockValue(ClientGooValues.current())));
+            if (pricedPerBlockGrown()) {
+                return List.of(GooFormat.formatMixed(costPrice.exactIn(ClientGooValues::current)));
             }
             return terrakinesis().map(step -> List.of(GooFormat.formatAmount(step.cost()))).orElse(List.of());
         }
 
         /**
-         * The rock goo a block of stone is worth, what Spire charges for each block it raises.
+         * Whether the ability's cost is its price for each block it grows, a Spire's, charged by the blocks its plan
+         * grows rather than once a throw.
+         * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          *
-         * @param values the goo values
-         * @return the exact value, zero where stone has none
+         * @return true for an ability running the spire step
          */
-        static GooFraction stoneRockValue(IGooValueLookup values) {
-            GooValue value = values.lookup(SPIRE_BLOCK);
-            return value == null ? GooFraction.ZERO : value.exact(GooTypes.ROCK);
+        private boolean pricedPerBlockGrown() {
+            return behaviors.stream().anyMatch(SpireStep.class::isInstance);
         }
 
         private Optional<TerrakinesisStep> terrakinesis() {
@@ -766,7 +763,7 @@ public final class AbilitySyncHandler {
         /**
          * The numbers a cost-mechanics format fills from, in the order its kind reads them:
          * a durative ability its upkeep a second; a blink its per-block price, its wall price and its
-         * oculus percent; a Spire stone's goo value per block; Pocket its void per slot; any other none.
+         * oculus percent; a Spire its cost, the price per block grown; Pocket its void per slot; any other none.
          *
          * @param lookup the goo values the numbers read from
          * @return the arguments, formatted
@@ -780,8 +777,8 @@ public final class AbilitySyncHandler {
                         GooFormat.formatAmount(distancePrice.wallCost()),
                         Integer.toString(distancePrice.nodePercent()));
             }
-            if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
-                return List.of(GooFormat.formatMixed(lookup.valueOf(SPIRE_BLOCK)));
+            if (pricedPerBlockGrown()) {
+                return List.of(GooFormat.formatMixed(costPrice.exactIn(lookup.values())));
             }
             return stepPriceArguments();
         }

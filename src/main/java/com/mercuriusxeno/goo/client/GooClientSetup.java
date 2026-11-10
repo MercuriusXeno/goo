@@ -34,6 +34,7 @@ import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
+import com.mercuriusxeno.goo.client.ability.RallyOutline;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -57,7 +58,6 @@ import com.mercuriusxeno.goo.client.entity.BlockHunkRenderer;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.FeedPileRenderer;
-import com.mercuriusxeno.goo.client.entity.FormingGooBlobRenderer;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -252,7 +252,6 @@ public final class GooClientSetup {
         PrismComboStyles.register(HeaterPrismStyle.COMBO, new HeaterPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
-        event.registerEntityRenderer(GooEntities.FORMING_GOO_BLOB.get(), FormingGooBlobRenderer::new);
         event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
         event.registerEntityRenderer(GooEntities.BLOCK_HUNK.get(), BlockHunkRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
@@ -353,9 +352,10 @@ public final class GooClientSetup {
 
     /**
      * Registers the render state modifiers that stamp each entity's goo state
-     * onto its render state: the glove's target outline, the goo coat, the
-     * ailments, the phase, the stone and frost encasements, the frozen pose, the grab
-     * flail, the vine tangle, the transformation and the eldritch phase, in that order.
+     * onto its render state: the rally outline, the glove's target outline,
+     * which overrides it, the goo coat, the ailments, the phase, the stone and
+     * frost encasements, the frozen pose, the grab flail, the vine tangle, the
+     * transformation and the eldritch phase, in that order.
      *
      * @param event the event instance
      */
@@ -364,6 +364,7 @@ public final class GooClientSetup {
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
+                RallyOutline::stampOutline,
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,
                 AilmentOverlayLayer::stampAilments,

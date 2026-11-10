@@ -37,7 +37,6 @@ class StepCodecTest {
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM))),
             Map.entry("watch", new WatchStep(Expr.literal(10), Expr.literal(3),
                     List.of(EntityFilter.LIVING, EntityFilter.MOB))),
-            Map.entry("siphon", new SiphonStep(Expr.literal(2), Expr.literal(2))),
             Map.entry("buster", new BusterStep(Expr.literal(2.5))),
             Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
                     ExplosionMode.NONE)),

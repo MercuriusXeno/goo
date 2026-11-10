@@ -2,9 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
-import com.mercuriusxeno.goo.ability.program.Drinks;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
-import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -24,9 +22,7 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final FleckLaunches fleckLaunches = new FleckLaunches();
-    private final UnmakeDrops unmakeDrops = new UnmakeDrops();
     private final MorphBirths morphBirths = new MorphBirths();
-    private final Drinks drinks = new Drinks();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
@@ -78,16 +74,6 @@ public final class GooServerState {
     }
 
     /**
-     * The goo unmade blocks and mobs leave, held back while their remains
-     * morph (decision unmake-waves-dissolve-by-crucible-cost).
-     *
-     * @return the held drops
-     */
-    public UnmakeDrops unmakeDrops() {
-        return unmakeDrops;
-    }
-
-    /**
      * The mobs blobs birth, held back while the blob morphs into them
      * (decision slime-blob-morphs-into-the-slime-it-becomes).
      *
@@ -95,15 +81,6 @@ public final class GooServerState {
      */
     public MorphBirths morphBirths() {
         return morphBirths;
-    }
-
-    /**
-     * Returns every player's Unmake drink (decision unmake-waves-dissolve-by-crucible-cost).
-     *
-     * @return the drinks
-     */
-    public Drinks drinks() {
-        return drinks;
     }
 
     /**
@@ -158,8 +135,6 @@ public final class GooServerState {
         if (scanWaves.hasPending()) {
             scanWaves.drainArrived(currentTick);
         }
-        drinks.tick(server);
-        unmakeDrops.dropArrived(currentTick);
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
     }
@@ -173,9 +148,7 @@ public final class GooServerState {
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
-        unmakeDrops.clear();
         morphBirths.clear();
-        drinks.clear();
         glacialFields.clear();
         scanWaves.clear();
     }
