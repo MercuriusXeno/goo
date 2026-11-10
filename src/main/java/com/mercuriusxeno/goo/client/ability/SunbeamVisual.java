@@ -15,7 +15,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -105,11 +104,11 @@ public final class SunbeamVisual {
                 || now - entry.getValue().arrivedAt() > LINGER_TICKS);
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE));
         BeamPhase phase = new BeamPhase(Mth.frac(-(now + partialTick) * SCROLL_PER_TICK),
                 GlowBeamMesh.breath(now + (double) partialTick));
         List<Vec3> cores = drawRays(mc, level, event.getPoseStack(), consumer, partialTick, phase);
-        buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
+        buffers.endBatch(GooRenderTypes.glowBeam(GlowBeamMesh.TEXTURE));
         drawCores(event.getPoseStack(), buffers, cores);
     }
 
