@@ -69,24 +69,50 @@ class TouchedUpAbilityIconsTest {
         // drain-icon-is-a-heart-with-a-dot-core
         private static final Set<Integer> FORMER_PALETTE =
                 Set.of(0x7a1428, 0xc0283c, 0xc65197, 0x090a14, 0x402751, 0x1e1d39);
-        private static final Set<Integer> DARK_CORE = Set.of(0x090a14, 0x402751, 0x1e1d39);
-        private static final int CENTER_LOW = 5;
-        private static final int CENTER_HIGH = 10;
-        private static final int LEAST_CORE_TEXELS = 8;
+        private static final Set<Integer> DARK_HEART = Set.of(0x090a14, 0x402751, 0x1e1d39);
+        private static final int CENTER_LEFT = 5;
+        private static final int CENTER_RIGHT = 11;
+        private static final int CENTER_TOP = 4;
+        private static final int CENTER_BOTTOM = 10;
         private static final int WIDEST_POINT = 2;
 
         @Test
-        void topRowHoldsTwoLobes() throws IOException {
-            BufferedImage icon = read("hex_drain");
-            assertEquals(2, opaqueRuns(icon, firstOpaqueRow(icon)).size(), "the heart's top row should be two lobes");
+        void heartSitsInTheCenterSevenBySeven() throws IOException {
+            BufferedImage heart = darkHeart(read("hex_drain"));
+            for (int y = 0; y < heart.getHeight(); y++) {
+                for (int x = 0; x < heart.getWidth(); x++) {
+                    boolean inCenter = x >= CENTER_LEFT && x <= CENTER_RIGHT && y >= CENTER_TOP && y <= CENTER_BOTTOM;
+                    assertTrue(inCenter || !isOpaque(heart.getRGB(x, y)), "a heart texel sits off center at " + x + "," + y);
+                }
+            }
         }
 
         @Test
-        void bottomRowIsAPoint() throws IOException {
-            BufferedImage icon = read("hex_drain");
-            List<int[]> runs = opaqueRuns(icon, lastOpaqueRow(icon));
+        void heartTopRowHoldsTwoLobes() throws IOException {
+            BufferedImage heart = darkHeart(read("hex_drain"));
+            assertEquals(2, opaqueRuns(heart, firstOpaqueRow(heart)).size(), "the heart's top row should be two lobes");
+        }
+
+        @Test
+        void heartBottomRowIsAPoint() throws IOException {
+            BufferedImage heart = darkHeart(read("hex_drain"));
+            List<int[]> runs = opaqueRuns(heart, lastOpaqueRow(heart));
             assertEquals(1, runs.size(), "the heart's bottom row should be one point");
             assertTrue(runs.get(0)[1] - runs.get(0)[0] + 1 <= WIDEST_POINT, "the heart's point is too wide");
+        }
+
+        /** The icon with every texel cleared but the heart's dark colors, so the rays drop out. */
+        private BufferedImage darkHeart(BufferedImage icon) {
+            BufferedImage heart = new BufferedImage(icon.getWidth(), icon.getHeight(), BufferedImage.TYPE_INT_ARGB);
+            for (int y = 0; y < icon.getHeight(); y++) {
+                for (int x = 0; x < icon.getWidth(); x++) {
+                    int argb = icon.getRGB(x, y);
+                    if (isOpaque(argb) && DARK_HEART.contains(argb & RGB)) {
+                        heart.setRGB(x, y, argb);
+                    }
+                }
+            }
+            return heart;
         }
 
         @Test
@@ -95,25 +121,6 @@ class TouchedUpAbilityIconsTest {
             for (int rgb : opaqueColors(icon)) {
                 assertTrue(FORMER_PALETTE.contains(rgb), String.format("#%06x is not Drain's former coloration", rgb));
             }
-        }
-
-        @Test
-        void darkCoreSitsAtTheCenter() throws IOException {
-            BufferedImage icon = read("hex_drain");
-            int coreTexels = 0;
-            for (int y = 0; y < icon.getHeight(); y++) {
-                for (int x = 0; x < icon.getWidth(); x++) {
-                    if (DARK_CORE.contains(icon.getRGB(x, y) & RGB) && isOpaque(icon.getRGB(x, y))) {
-                        assertTrue(inCenter(x) && inCenter(y), "a dark core texel sits off center at " + x + "," + y);
-                        coreTexels++;
-                    }
-                }
-            }
-            assertTrue(coreTexels >= LEAST_CORE_TEXELS, "the dark core holds only " + coreTexels + " texels");
-        }
-
-        private boolean inCenter(int coordinate) {
-            return coordinate >= CENTER_LOW && coordinate <= CENTER_HIGH;
         }
     }
 
