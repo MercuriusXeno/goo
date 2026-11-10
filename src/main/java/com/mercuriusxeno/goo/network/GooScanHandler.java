@@ -61,12 +61,12 @@ public final class GooScanHandler {
         }
         GooThrowHandler.consumeReagents(player, ability.id().toString(), gooType);
         Vec3 eye = player.getEyePosition();
-        Vec3 line = payload.targetPoint().subtract(eye);
-        Vec3 along = line.lengthSqr() == 0 ? player.getLookAngle() : line.normalize();
+        boolean submerged = submerged(player);
+        Vec3 along = rippleLine(submerged, eye, payload.targetPoint(), player.getLookAngle());
         Vec3 landing = landingAt(eye, payload.targetPoint(), ability.delivery().range());
         ScanWaves waves = GooServerState.of(level.getServer()).scanWaves();
         int now = level.getServer().getTickCount();
-        List<ScanWaves.Wave> sent = wavesFor(submerged(player), level, eye, along, landing, ability, now);
+        List<ScanWaves.Wave> sent = wavesFor(submerged, level, eye, along, landing, ability, now);
         sent.forEach(waves::schedule);
         Vec3 hand = ThrowArc.clampToReach(eye, payload.origin(), ThrowArc.HAND_REACH * player.getScale());
         ScanVisualStep.in(ability.behaviors()).ifPresent(visual -> EntityVisuals.sendToWatchers(player,
@@ -146,6 +146,23 @@ public final class GooScanHandler {
      */
     static GooFraction priceFor(ServerPlayer player, AbilityDefinition ability) {
         return ability.costFor(player.getData(GooAttachments.HELD_EFFECTS)::holds, GooValues.of(player.level()));
+    }
+
+    /**
+     * The line a scan runs along: from inside the ground, the way the diver
+     * faces, since the glove's aim from inside a block meets that block at the
+     * camera and names no direction; from the surface, toward the aimed point.
+     * submerged-click-ripples-through-the-ground-to-its-range
+     *
+     * @param submerged whether the thrower clicks from inside the ground
+     * @param eye       the thrower's eye
+     * @param aimed     the point the glove aimed at
+     * @param look      the thrower's unit look
+     * @return the unit line
+     */
+    static Vec3 rippleLine(boolean submerged, Vec3 eye, Vec3 aimed, Vec3 look) {
+        Vec3 line = aimed.subtract(eye);
+        return submerged || line.lengthSqr() == 0 ? look : line.normalize();
     }
 
     /**
