@@ -17,11 +17,12 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * The plants a Reap swell has yet to reach, each reaped on the tick the swell
+ * The plants a Reap slash has yet to reach, each reaped on the tick the slash
  * reaches it, nearest first, leaving the shared afterimage of how it stood.
- * The queue lives half a second and is never saved: a swell cut short by a
+ * The queue lives half a second and is never saved: a slash cut short by a
  * restart leaves its far plants standing ripe.
  * reap-breeze-harvests-and-replants
+ * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class ReapQueue {
@@ -35,20 +36,20 @@ public final class ReapQueue {
     }
 
     /**
-     * A plant waiting for the swell.
+     * A plant waiting for the slash.
      *
      * @param pos   its cell
-     * @param dueAt the game tick the swell reaches it
+     * @param dueAt the game tick the slash reaches it
      */
     record Pending(BlockPos pos, long dueAt) {
     }
 
     /**
-     * Queues a plant for the tick the swell reaches it.
+     * Queues a plant for the tick the slash reaches it.
      *
      * @param level the server level
      * @param pos   the plant's cell
-     * @param dueAt the game tick the swell reaches it
+     * @param dueAt the game tick the slash reaches it
      */
     public static void schedule(ServerLevel level, BlockPos pos, long dueAt) {
         PENDING.computeIfAbsent(level, key -> new ArrayList<>()).add(new Pending(pos.immutable(), dueAt));

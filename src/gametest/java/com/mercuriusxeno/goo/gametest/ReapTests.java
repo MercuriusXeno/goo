@@ -1,14 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.SlashStep;
 import com.mercuriusxeno.goo.ability.reap.Reaping;
-import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -16,6 +11,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.SweetBerryBushBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,15 +19,14 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Leaf Reap: a blob struck into a field of ripe wheat beside a
- * ripe sweet berry bush reaps them as its swell reaches them: the wheat drops
- * its wheat and stands replanted at age zero, the bush drops its berries and
- * falls back to age one.
- * reap-breeze-harvests-and-replants
+ * Gametests for Leaf Reap: a slash reaps the ripe plants its path crosses as
+ * it reaches them, the wheat replanted at age zero and the bush picked back to
+ * age one, and leaves the ripe plants beside its path standing.
+ * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @RegistersGameTests
 public final class ReapTests {
-    private static final String REAP_HARVESTS = "reap_harvests_and_replants";
+    private static final String REAP_SLASH_REAPS = "reap_slash_reaps_the_plants_on_its_path";
     private static final String REAP_SETTLES_SEEDS = "reap_settles_seeds_against_the_replant";
 
     /**
@@ -40,23 +35,26 @@ public final class ReapTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, REAP_HARVESTS, ReapTests::reapHarvestsAndReplants);
+        GooTestFunctions.registerTest(registrar, REAP_SLASH_REAPS, ReapTests::reapSlashReapsThePlantsOnItsPath);
         GooTestFunctions.registerTest(registrar, REAP_SETTLES_SEEDS, ReapTests::reapSettlesSeedsAgainstTheReplant);
     }
 
-
-    private static final Identifier REAP = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_reap");
-    private static final String ABILITY_REQUIRED = "Ability registry must hold leaf_reap";
-    private static final int FIELD_MIN = 2;
-    private static final int FIELD_MAX = 4;
     private static final int GROUND_Y = 1;
-    private static final BlockPos BUSH = new BlockPos(5, GROUND_Y + 1, 3);
-    /** Bare farmland at the field's edge, so the blob lands in the open cell above it. */
-    private static final BlockPos STRUCK = new BlockPos(3, GROUND_Y, FIELD_MIN - 1);
-    /** leaf_reap.json's swell ticks, and a margin for the queue to run. */
-    private static final int SWELL_DONE_TICKS = 13;
-    private static final double ITEM_SEARCH_RADIUS = 4;
+    private static final int PATH_START_X = 1;
+    private static final int PATH_END_X = 6;
+    /** The row the slash flies along, through the centre of its cells. */
+    private static final int PATH_Z = 2;
+    /** The row beside it, which the slash never crosses. */
+    private static final int BESIDE_Z = 3;
+    private static final BlockPos ON_PATH = new BlockPos(3, GROUND_Y + 1, PATH_Z);
+    private static final BlockPos BESIDE_PATH = new BlockPos(3, GROUND_Y + 1, BESIDE_Z);
+    private static final BlockPos BUSH = new BlockPos(5, GROUND_Y + 1, PATH_Z);
+    private static final int FLIGHT_TICKS = 5;
+    /** The slash's flight, and a margin for the queue to run. */
+    private static final int FLIGHT_DONE_TICKS = FLIGHT_TICKS + 3;
+    private static final double ITEM_SEARCH_RADIUS = 2;
     private static final String WHEAT_REPLANTED = "Ripe wheat at %s should stand replanted at age zero, stands %s";
+    private static final String WHEAT_LEFT_RIPE = "Ripe wheat beside the path at %s should stand ripe, stands %s";
     private static final String BUSH_PICKED = "The ripe bush should be picked back to age one, stands at %d";
     private static final String SEEDS_SETTLED = "Drops holding %s should settle to %d seeds beside one wheat, settled %s";
 
@@ -64,46 +62,41 @@ public final class ReapTests {
     }
 
     /**
-     * A blob struck into a ripe wheat field beside a ripe sweet berry bush
-     * reaps both: wheat and berries drop, every wheat stands at age zero, and
-     * the bush stands at age one.
+     * A slash flown along a row reaps the ripe plants its path crosses: the
+     * wheat on the path drops its wheat and stands replanted at age zero, the
+     * bush on the path drops its berries and falls back to age one, and the
+     * ripe wheat in the row beside stands ripe.
      *
      * @param helper the gametest helper
      */
-    public static void reapHarvestsAndReplants(GameTestHelper helper) {
-        for (int x = FIELD_MIN - 1; x <= FIELD_MAX + 2; x++) {
-            for (int z = FIELD_MIN - 1; z <= FIELD_MAX + 1; z++) {
+    public static void reapSlashReapsThePlantsOnItsPath(GameTestHelper helper) {
+        for (int x = PATH_START_X; x <= PATH_END_X; x++) {
+            for (int z = PATH_Z; z <= BESIDE_Z; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
                 helper.setBlock(new BlockPos(x, GROUND_Y, z), Blocks.FARMLAND.defaultBlockState()
                         .setValue(FarmlandBlock.MOISTURE, FarmlandBlock.MAX_MOISTURE));
             }
         }
-        for (int x = FIELD_MIN; x <= FIELD_MAX; x++) {
-            for (int z = FIELD_MIN; z <= FIELD_MAX; z++) {
-                helper.setBlock(new BlockPos(x, GROUND_Y + 1, z),
-                        Blocks.WHEAT.defaultBlockState().setValue(CropBlock.AGE, CropBlock.MAX_AGE));
-            }
-        }
+        BlockState ripe = Blocks.WHEAT.defaultBlockState().setValue(CropBlock.AGE, CropBlock.MAX_AGE);
+        helper.setBlock(ON_PATH, ripe);
+        helper.setBlock(BESIDE_PATH, ripe);
         helper.setBlock(BUSH.below(), Blocks.GRASS_BLOCK);
         helper.setBlock(BUSH, Blocks.SWEET_BERRY_BUSH.defaultBlockState()
                 .setValue(SweetBerryBushBlock.AGE, SweetBerryBushBlock.MAX_AGE));
-        AbilityDefinition reap = AbilityRegistry.of(helper.getLevel()).getAbility(REAP);
-        helper.assertTrue(reap != null, ABILITY_REQUIRED);
-        Vec3 aim = Vec3.atCenterOf(helper.absolutePos(STRUCK)).add(0, 0.5, 0);
-        helper.runAfterDelay(1, () -> AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK),
-                reap.gooType(), Direction.UP, reap, aim));
-        helper.runAfterDelay(1 + SWELL_DONE_TICKS, () -> {
-            for (int x = FIELD_MIN; x <= FIELD_MAX; x++) {
-                for (int z = FIELD_MIN; z <= FIELD_MAX; z++) {
-                    BlockPos wheat = new BlockPos(x, GROUND_Y + 1, z);
-                    var state = helper.getBlockState(wheat);
-                    helper.assertTrue(state.is(Blocks.WHEAT) && state.getValue(CropBlock.AGE) == 0,
-                            String.format(WHEAT_REPLANTED, wheat, state));
-                }
-            }
+        Vec3 origin = helper.absoluteVec(new Vec3(PATH_START_X + 0.5, GROUND_Y + 1.5, PATH_Z + 0.5));
+        Vec3 path = new Vec3(PATH_END_X - PATH_START_X, 0, 0);
+        helper.runAfterDelay(1, () -> SlashStep.reapAlong(helper.getLevel(), origin, path,
+                helper.getLevel().getGameTime(), FLIGHT_TICKS));
+        helper.runAfterDelay(1 + FLIGHT_DONE_TICKS, () -> {
+            BlockState reaped = helper.getBlockState(ON_PATH);
+            helper.assertTrue(reaped.is(Blocks.WHEAT) && reaped.getValue(CropBlock.AGE) == 0,
+                    String.format(WHEAT_REPLANTED, ON_PATH, reaped));
+            BlockState beside = helper.getBlockState(BESIDE_PATH);
+            helper.assertTrue(beside.is(Blocks.WHEAT) && beside.getValue(CropBlock.AGE) == CropBlock.MAX_AGE,
+                    String.format(WHEAT_LEFT_RIPE, BESIDE_PATH, beside));
             int bushAge = helper.getBlockState(BUSH).getValue(SweetBerryBushBlock.AGE);
             helper.assertTrue(bushAge == 1, String.format(BUSH_PICKED, bushAge));
-            helper.assertItemEntityPresent(Items.WHEAT, STRUCK.above(), ITEM_SEARCH_RADIUS);
+            helper.assertItemEntityPresent(Items.WHEAT, ON_PATH, ITEM_SEARCH_RADIUS);
             helper.assertItemEntityPresent(Items.SWEET_BERRIES, BUSH, ITEM_SEARCH_RADIUS);
             helper.succeed();
         });

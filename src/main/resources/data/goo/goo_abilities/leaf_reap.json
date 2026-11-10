@@ -5,9 +5,11 @@
   "order": 3,
   "cost": 1000,
   "requires": ["minecraft:wheat", "minecraft:wheat_seeds"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "reap", "radius": 4, "swell_ticks": 10 }
+    { "type": "slash", "slashes": 5, "cone": 100, "reach": 6, "flight_ticks": 5, "stagger_ticks": 2 },
+    { "type": "sound", "id": "minecraft:entity.player.attack.sweep", "at": "target", "source": "players", "volume": 1, "pitch": 1.2 }
   ],
-  "tags": ["place_block"]
+  "tags": ["self"],
+  "pose": "swung"
 }

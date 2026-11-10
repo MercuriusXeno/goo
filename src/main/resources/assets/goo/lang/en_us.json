@@ -222,7 +222,7 @@
   "goo.ability.leaf.growth": "Growth",
   "goo.ability.leaf.growth.description": "Channel a breeze that grows plants in its cone, speeds Barkskin's regrowth and infuses prisms.",
   "goo.ability.leaf.reap": "Reap",
-  "goo.ability.leaf.reap.description": "Harvests ripe crops around where the blob strikes, replanting any that drop a seed.",
+  "goo.ability.leaf.reap.description": "Swings a flurry of leaf blades out in front of you, harvesting the ripe crops they cut and replanting any that drop a seed.",
   "goo.ability.leaf.bio": "Bio",
   "goo.ability.leaf.bio.description": "A toxin drains a share of a mob's max health over time, stacking twice and refreshing on hit.",
   "goo.ability.metal.javelin": "Dart",
