@@ -87,6 +87,8 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabDrawsUpOutOfAFloorPortalWithoutALeap);
         GooTestFunctions.registerTest(registrar, GRAB_NEVER_CYCLES_A_MOB_THROUGH_FACING_PORTALS,
                 GrabChannelTests::grabNeverCyclesAMobThroughFacingPortals);
+        GooTestFunctions.registerTest(registrar, GRAB_PULLS_A_MOB_BACK_THE_WAY_IT_WENT_THROUGH,
+                GrabChannelTests::grabPullsAMobBackTheWayItWentThrough);
         GooTestFunctions.registerTest(registrar, GRAB_HOLDS_A_MOB_STILL_AIMED_AT_THE_PORTALS_FACE,
                 GrabChannelTests::grabHoldsAMobStillAimedAtThePortalsFace);
         GooTestFunctions.registerTest(registrar, GRAB_HOLDS_A_MOB_PAST_THE_PORTAL_IT_IS_AIMED_INTO,
@@ -762,6 +764,79 @@ public final class GrabChannelTests {
             mob.discard();
             helper.assertTrue(jumps <= 1, "The mob should be held still on one side of the pair, jumped "
                     + jumps + " times along " + path);
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_PULLS_A_MOB_BACK_THE_WAY_IT_WENT_THROUGH =
+            "grab_pulls_a_mob_back_the_way_it_went_through";
+    /** The west portal's block before the player, its face the plane x 1, facing east. */
+    private static final BlockPos AHEAD_WEST = new BlockPos(0, 1, 2);
+    /** The east portal's block behind the player, its face the plane x 6, facing west. */
+    private static final BlockPos BEHIND_EAST = new BlockPos(6, 1, 2);
+    /** Where the player stands: its level look, four blocks long, ends a block past the west face. */
+    private static final Vec3 BETWEEN_FACING_WEST = new Vec3(4, 1, 2.5);
+    /** Where the mob starts: where that look hangs it, a block before the east portal behind the player. */
+    private static final Vec3 HUNG_PAST_THE_PORTAL = new Vec3(5, 1.5, 2.5);
+    /** A look pitched down far enough to draw the hold back before the west portal's face. */
+    private static final float PULLED_BACK = 30f;
+
+    /**
+     * A mob held past the portal before the player, which hangs it just
+     * before the portal behind the player, comes back out of the portal
+     * before the player when the look pulls it back, as through ordinary
+     * space, in short steps: never dragged straight
+     * across the room through the player, as the operator found a slime
+     * wrap round from behind
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabPullsAMobBackTheWayItWentThrough(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Vec3 stand = helper.absoluteVec(BETWEEN_FACING_WEST);
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setYRot(FACING_WEST);
+        player.setYHeadRot(FACING_WEST);
+        for (BlockPos wall : java.util.List.of(AHEAD_WEST, BEHIND_EAST)) {
+            for (int z = 1; z <= 3; z++) {
+                for (int y = 1; y <= 3; y++) {
+                    helper.setBlock(new BlockPos(wall.getX(), y, z), Blocks.STONE);
+                }
+            }
+        }
+        ServerLevel level = helper.getLevel();
+        Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(AHEAD_WEST)), Direction.EAST,
+                Direction.UP);
+        Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(BEHIND_EAST)), Direction.WEST,
+                Direction.UP);
+        PortalChoice.place(level, player.getUUID(), west);
+        PortalChoice.place(level, player.getUUID(), east);
+        // A silverfish, its box small enough to hang between the player and the east portal.
+        net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(EntityType.SILVERFISH,
+                BlockPos.containing(HUNG_PAST_THE_PORTAL));
+        java.util.List<Double> moves = new java.util.ArrayList<>();
+        for (int tick = 1; tick <= SETTLE_TICKS + WATCHED_TICKS; tick++) {
+            boolean pulling = tick > SETTLE_TICKS;
+            helper.runAfterDelay(tick, () -> {
+                player.setXRot(pulling ? PULLED_BACK : LEVEL);
+                Vec3 before = middleOf(mob);
+                GooStreamHandler.streamTick(player, holdTick(player, mob));
+                if (pulling) {
+                    moves.add(middleOf(mob).distanceTo(before));
+                }
+            });
+        }
+        helper.runAfterDelay(SETTLE_TICKS + WATCHED_TICKS + 1, () -> {
+            double westFace = helper.absolutePos(AHEAD_WEST).getX() + 1;
+            double comeBackTo = middleOf(mob).x() - westFace;
+            PortalChoice.breakAt(level, west.block().pos(), west.face());
+            PortalChoice.breakAt(level, east.block().pos(), east.face());
+            mob.discard();
+            helper.assertTrue(moves.stream().allMatch(move -> move < A_CARRY), "The mob should come back through "
+                    + "the pair in short steps, never across the room at once, moved " + moves);
+            helper.assertTrue(comeBackTo > 0 && comeBackTo < 1, "The mob should come back out before the west "
+                    + "portal, stands " + comeBackTo + " before its face");
             leave(helper, player);
         });
     }
