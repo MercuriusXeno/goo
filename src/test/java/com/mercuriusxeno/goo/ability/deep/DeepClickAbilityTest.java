@@ -8,7 +8,9 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.held.LaidState;
 import com.mercuriusxeno.goo.ability.program.FxAnchor;
+import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.VibrateStep;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValueTable;
@@ -67,10 +69,17 @@ class DeepClickAbilityTest {
 
     @Test
     void landsAVibrationThenASoundAtTheHost() {
-        assertEquals(2, click.behaviors().size());
-        assertInstanceOf(VibrateStep.class, click.behaviors().get(0));
-        SoundStep sound = assertInstanceOf(SoundStep.class, click.behaviors().get(1));
+        List<Step> effects = click.behaviors().stream().filter(step -> !(step instanceof ScanVisualStep)).toList();
+        assertEquals(2, effects.size());
+        assertInstanceOf(VibrateStep.class, effects.get(0));
+        SoundStep sound = assertInstanceOf(SoundStep.class, effects.get(1));
         assertEquals(FxAnchor.HOST, sound.at());
+    }
+
+    /** Decisions click-is-a-hit-scan-drawn-as-a-delayed-wave, ability-json-names-its-choreography. */
+    @Test
+    void namesTheSoundWaveVisualInItsChoreography() {
+        assertEquals("sound_wave", ScanVisualStep.in(click.behaviors()).map(ScanVisualStep::visual).orElse(""));
     }
 
     /** Decision click-costs-one-mb-and-nothing-under-sculker. */

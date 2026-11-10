@@ -287,7 +287,7 @@ public final class GooThrowHandler {
             GooSelfHandler.deliver(player, gooType, ability);
         } else if (ability.delivery().kind() == DeliveryKind.SCAN) {
             // click-is-a-hit-scan-drawn-as-a-delayed-wave
-            GooScanHandler.scan(player, gooType, ability);
+            GooScanHandler.scan(player, payload.origin(), gooType, ability);
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.delivery().rolls()) {

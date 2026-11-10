@@ -9,6 +9,7 @@
   "requires": ["minecraft:sculk_sensor"],
   "delivery": { "kind": "scan", "range": 32, "blocks_per_tick": 2 },
   "behaviors": [
+    { "type": "scan_visual", "visual": "sound_wave", "fade": 8 },
     { "type": "vibrate", "event": "minecraft:projectile_land" },
     { "type": "sound", "id": "minecraft:block.sculk_sensor.clicking", "at": "host", "source": "blocks", "volume": 1.0, "pitch": 1.2 }
   ]
