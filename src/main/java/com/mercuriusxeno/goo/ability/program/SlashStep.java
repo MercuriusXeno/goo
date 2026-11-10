@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.reap.BladeFlights;
+import com.mercuriusxeno.goo.ability.reap.BladeSizes;
 import com.mercuriusxeno.goo.ability.reap.ReapBlade;
 import com.mercuriusxeno.goo.ability.reap.SwingCadence;
 import com.mercuriusxeno.goo.network.BlockVisuals;
@@ -11,7 +12,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -26,14 +26,16 @@ import java.util.stream.Stream;
  * hold's first tick, and then a random few ticks after each swing, the
  * player swings, one sweep and one attack, throwing a random few leaf
  * crescent blades a tick apart along the look. Each blade stands centred on
- * the aim within a block to the side and a sliver up or down, lies nearly
- * flat, forms ahead of the eye from a small skinny start at one side and
- * grows its width and its depth at their own rates, its full depth drawn at
- * random up to the deepest; every ripe plant a blade covers is reaped and
+ * the aim within a block to the side and just under it, heads within 22.5
+ * degrees of the look, lies nearly flat, forms ahead of the eye from a small
+ * skinny start at one side and grows its width and its depth at their own
+ * rates to one size drawn at random, a narrow blade skinny and a wide one
+ * deep; every ripe plant a blade covers is reaped and
  * replanted, and every living body the swing's blades reach but the slasher
  * is cut once for the swing. Leaf Reap is {@code slash fewest_ticks=2
- * most_ticks=3 fewest_blades=2 most_blades=3 start=0.75 drift=3 width=2.5
- * depth=0.8 deepest=1.4 width_ticks=6 depth_ticks=8 fade_ticks=3 damage=0.5}.
+ * most_ticks=3 fewest_blades=1 most_blades=2 start=0.75 drift=3 width=1.2
+ * widest=3.2 depth=0.5 deepest=1.8 width_ticks=6 depth_ticks=8 fade_ticks=3
+ * damage=0.5}.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
  * @param fewestTicks  the fewest held ticks from one swing to the next
@@ -42,17 +44,18 @@ import java.util.stream.Stream;
  * @param mostBlades   the most blades a swing throws
  * @param start        how far ahead of the eye a blade forms, in blocks
  * @param drift        how far it drifts on over its life, in blocks
- * @param width        its full width, side to side, in blocks
- * @param depth        the shallowest its full depth runs, how far its middle bows away from the slasher, in blocks
- * @param deepest      the deepest its full depth runs, in blocks
+ * @param width        the narrowest blade's full width, side to side, in blocks
+ * @param widest       the widest blade's full width, in blocks
+ * @param depth        the narrowest blade's full depth, how far its middle bows away from the slasher, in blocks
+ * @param deepest      the widest blade's full depth, in blocks
  * @param widthTicks   the ticks its width takes to grow full
  * @param depthTicks   the ticks its depth takes to grow full
  * @param fadeTicks    the ticks it fades once full grown
  * @param damage       what each swing's cut deals
  */
 public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Expr mostBlades, Expr start,
-                        Expr drift, Expr width, Expr depth, Expr deepest, Expr widthTicks, Expr depthTicks,
-                        Expr fadeTicks, Expr damage) implements Step {
+                        Expr drift, Expr width, Expr widest, Expr depth, Expr deepest, Expr widthTicks,
+                        Expr depthTicks, Expr fadeTicks, Expr damage) implements Step {
 
     private static final String NAME = "slash";
     private static final float SWING_VOLUME = 0.4f;
@@ -69,6 +72,7 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Exp
             Expr.CODEC.fieldOf("start").forGetter(SlashStep::start),
             Expr.CODEC.fieldOf("drift").forGetter(SlashStep::drift),
             Expr.CODEC.fieldOf("width").forGetter(SlashStep::width),
+            Expr.CODEC.fieldOf("widest").forGetter(SlashStep::widest),
             Expr.CODEC.fieldOf("depth").forGetter(SlashStep::depth),
             Expr.CODEC.fieldOf("deepest").forGetter(SlashStep::deepest),
             Expr.CODEC.fieldOf("width_ticks").forGetter(SlashStep::widthTicks),
@@ -110,14 +114,14 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Exp
         RandomSource random = slasher.getRandom();
         int count = SwingCadence.bladesThisSwing(fewestBlades.evaluateInt(context), mostBlades.evaluateInt(context),
                 random);
-        double shallowest = depth.evaluate(context);
-        double deepestDepth = Math.max(shallowest, deepest.evaluate(context));
+        BladeSizes sizes = new BladeSizes(width.evaluate(context), widest.evaluate(context), depth.evaluate(context),
+                deepest.evaluate(context));
         List<ReapBlade> blades = new ArrayList<>(count);
         for (int blade = 0; blade < count; blade++) {
+            double size = random.nextDouble();
             ReapBlade.Shape shape = new ReapBlade.Shape(start.evaluate(context), drift.evaluate(context),
-                    width.evaluate(context), Mth.nextDouble(random, shallowest, deepestDepth),
-                    Math.max(1, widthTicks.evaluateInt(context)), Math.max(1, depthTicks.evaluateInt(context)),
-                    Math.max(1, fadeTicks.evaluateInt(context)));
+                    sizes.widthAt(size), sizes.depthAt(size), Math.max(1, widthTicks.evaluateInt(context)),
+                    Math.max(1, depthTicks.evaluateInt(context)), Math.max(1, fadeTicks.evaluateInt(context)));
             blades.add(ReapBlade.launch(slasher.getEyePosition(), slasher.getLookAngle(), shape, random));
         }
         return blades;
@@ -145,8 +149,8 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestBlades, Exp
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(fewestTicks, mostTicks, fewestBlades, mostBlades, start, drift, width, depth, deepest,
-                widthTicks, depthTicks, fadeTicks, damage);
+        return Stream.of(fewestTicks, mostTicks, fewestBlades, mostBlades, start, drift, width, widest, depth,
+                deepest, widthTicks, depthTicks, fadeTicks, damage);
     }
 
     @Override

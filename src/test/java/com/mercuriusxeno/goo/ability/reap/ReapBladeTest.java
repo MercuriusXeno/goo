@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers Reap's blades: each flies along the slasher's look, centred on the
+ * Covers Reap's blades: each heads within a 45 degree cone of the slasher's look, centred on the
  * aim within a block to the side and just under it, wholly below the eye line, its face tipped to show its depth, lying within ten
  * degrees of flat; it forms ahead of the eye small, shallow and to one side,
  * grows its width and its depth at their own rates in view to a crescent
@@ -38,7 +38,14 @@ class ReapBladeTest {
         return new ReapBlade(EYE, LEVEL_SOUTH, new Vec3(-1, 0, 0), offset, lift, startSide, SHAPE);
     }
 
-    /** The blade shape leaf_reap.json ships. */
+    /** How far a heading turns from the look about the vertical, in degrees. */
+    private static double turnDegrees(Vec3 look, Vec3 heading) {
+        Vec3 flatLook = new Vec3(look.x, 0, look.z).normalize();
+        Vec3 flatHeading = new Vec3(heading.x, 0, heading.z).normalize();
+        return Math.toDegrees(Math.acos(Math.clamp(flatLook.dot(flatHeading), -1, 1)));
+    }
+
+    /** The narrowest, shallowest blade shape leaf_reap.json ships. */
     private static ReapBlade.Shape shippedShape() {
         SlashStep step = (SlashStep) AbilityJson.decode("leaf_reap").behaviors().getFirst();
         return new ReapBlade.Shape(step.start().evaluate(null), step.drift().evaluate(null),
@@ -50,13 +57,24 @@ class ReapBladeTest {
     class Launch {
 
         @Test
-        void everyBladeFliesAlongTheLook() {
+        void everyBladeHeadsWithinTwentyTwoAndAHalfDegreesOfTheLook() {
             RandomSource random = RandomSource.create(5L);
             Vec3 look = new Vec3(0.3, -0.5, 0.8).normalize();
             for (int i = 0; i < SAMPLES; i++) {
                 Vec3 forward = ReapBlade.launch(EYE, look, SHAPE, random).forward();
-                assertEquals(0, forward.distanceTo(look), TOLERANCE, "forward " + forward);
+                assertEquals(look.y, forward.y, TOLERANCE, "the heading keeps the look's pitch");
+                assertTrue(turnDegrees(look, forward) <= 22.5 + TOLERANCE, "turn " + turnDegrees(look, forward));
             }
+        }
+
+        @Test
+        void bladesFanAcrossTheWholeCone() {
+            RandomSource random = RandomSource.create(6L);
+            double widest = 0;
+            for (int i = 0; i < SAMPLES; i++) {
+                widest = Math.max(widest, turnDegrees(LEVEL_SOUTH, ReapBlade.launch(EYE, LEVEL_SOUTH, SHAPE, random).forward()));
+            }
+            assertTrue(widest > 20, "widest turn " + widest);
         }
 
         @Test
@@ -83,7 +101,7 @@ class ReapBladeTest {
         @Test
         void everyBladeStandsWhollyBelowTheEyeLine() {
             RandomSource random = RandomSource.create(13L);
-            ReapBlade.Shape deepest = new ReapBlade.Shape(0.75, 3, 2.5, 1.4, 6, 8, 3);
+            ReapBlade.Shape deepest = new ReapBlade.Shape(0.75, 3, 3.2, 1.8, 6, 8, 3);
             double highest = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < SAMPLES; i++) {
                 ReapBlade blade = ReapBlade.launch(EYE, LEVEL_SOUTH, deepest, random);
@@ -93,7 +111,7 @@ class ReapBladeTest {
                     }
                 }
             }
-            assertTrue(highest < -0.15, "the highest point stands " + highest + " from the eye line");
+            assertTrue(highest < -0.3, "the highest point stands " + highest + " from the eye line");
         }
 
         @Test
@@ -105,7 +123,7 @@ class ReapBladeTest {
                 Vec3 toLead = blade.pointAt(age, 0, 1).subtract(EYE).normalize();
                 Vec3 toBack = blade.pointAt(age, 0, ReapBlade.INNER_SHARE).subtract(EYE).normalize();
                 double seen = Math.toDegrees(Math.acos(Math.clamp(toLead.dot(toBack), -1, 1)));
-                assertTrue(seen >= 3, "the shallowest full-grown blade seen " + seen + " degrees thick");
+                assertTrue(seen >= 2, "the shallowest full-grown blade seen " + seen + " degrees thick");
             }
         }
 
@@ -240,6 +258,13 @@ class ReapBladeTest {
             assertEquals(DeliveryKind.SELF, reap.delivery().kind());
             assertTrue(HeldRoute.channelsOnSelf(reap.delivery(), reap.badge()));
             assertFalse(reap.tags().contains("place_block"));
+        }
+
+        @Test
+        void eachSwingThrowsOneOrTwoBlades() {
+            SlashStep step = (SlashStep) reap.behaviors().getFirst();
+            assertEquals(1, step.fewestBlades().evaluateInt(null));
+            assertEquals(2, step.mostBlades().evaluateInt(null));
         }
 
         @Test

@@ -24,7 +24,7 @@ import java.util.Set;
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
  * @param origin    the slasher's eye, where the blade swings from
- * @param forward   its unit heading, the slasher's look
+ * @param forward   its unit heading, the slasher's look turned within 22.5 degrees to either side
  * @param side      the unit axis its width spans, nearly flat
  * @param offset    how far its middle stands to the side of the aim once full grown, in blocks
  * @param lift      how far its middle stands above the aim, below it where negative, in blocks
@@ -43,7 +43,9 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     /** How far the drop varies either way, in blocks: a sliver, so the flurry fans sideways. */
     static final double DROP_SPREAD = 0.05;
     /** How far the blade's face tips up toward the eye from lying flat along the look, so its depth shows. */
-    static final double FACE_TIP = Math.toRadians(25);
+    static final double FACE_TIP = Math.toRadians(15);
+    /** The farthest a blade's heading turns from the look to either side, so the flurry fans out in a 45 degree cone. */
+    static final double MAX_TURN = Math.toRadians(22.5);
     /** The farthest a blade tilts from flat, in degrees, so it swings like a scythe and its far side stays under the eye line. */
     static final double MAX_TILT_DEGREES = 5;
     /** The share of its full width and depth a blade starts at. */
@@ -128,7 +130,9 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
     }
 
     /**
-     * A blade swung from the slasher's eye along its look: its width tilted
+     * A blade swung from the slasher's eye: its heading turned at random
+     * within 22.5 degrees to either side of the look, keeping the look's
+     * pitch, so the blades fan out rather than converge; its width tilted
      * at random within five degrees of flat, its middle standing at random
      * within a block of the aim to the side and just under it, so the whole
      * blade swings below the eye line, and starting on a random side.
@@ -140,11 +144,12 @@ public record ReapBlade(Vec3 origin, Vec3 forward, Vec3 side, double offset, dou
      * @return the blade
      */
     public static ReapBlade launch(Vec3 eye, Vec3 look, Shape shape, RandomSource random) {
+        Vec3 heading = look.yRot((float) ((random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TURN));
         double tilt = Math.toRadians((random.nextDouble() - HALF) * TIP_TO_TIP * MAX_TILT_DEGREES);
         double offset = (random.nextDouble() - HALF) * TIP_TO_TIP * MAX_OFFSET;
         double lift = -DROP + (random.nextDouble() - HALF) * TIP_TO_TIP * DROP_SPREAD;
         int startSide = random.nextBoolean() ? ALONG_SIDE : AGAINST_SIDE;
-        return new ReapBlade(eye, look, sideOf(look, tilt), offset, lift, startSide, shape);
+        return new ReapBlade(eye, heading, sideOf(heading, tilt), offset, lift, startSide, shape);
     }
 
     /**
