@@ -8,9 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A throw's arc past a gate splits there into two legs, from the hand to the
- * gate's face and from the partner to the target, one curve over their
- * summed length, so the far leg carries on the near leg's curve
- * (decision aim-and-shots-carry-through-linked-gates).
+ * gate's face and from the partner to the target, each arcing by its own
+ * peak from its own length, so the two meet at the gate however the pair is
+ * turned (decision aim-and-shots-carry-through-linked-gates).
  */
 class GateArcTest {
 

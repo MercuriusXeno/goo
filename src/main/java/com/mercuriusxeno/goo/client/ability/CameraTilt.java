@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.ExitTilt;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.Entity;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -67,8 +68,21 @@ public final class CameraTilt {
         if (mc.player == null || mc.level == null || event.getCamera().isDetached()) {
             return;
         }
-        double now = mc.level.getGameTime() + event.getPartialTick();
-        ClientExitTilts.tiltOf(mc.player.getId(), now).ifPresent(tilt -> {
+        turnCamera(event, mc.player, mc.level.getGameTime() + event.getPartialTick());
+    }
+
+    /**
+     * Turns the camera's angles for this frame by the exit tilt a player
+     * still holds, writing the event's angles alone, so the player's own yaw
+     * and pitch stay as the landing set them.
+     * bodies-emerge-along-their-travel-and-ease-upright
+     *
+     * @param event  the camera's angles for this frame
+     * @param player the player the camera stands in
+     * @param now    the game time, with the frame's share of a tick
+     */
+    static void turnCamera(ViewportEvent.ComputeCameraAngles event, Entity player, double now) {
+        ClientExitTilts.tiltOf(player.getId(), now).ifPresent(tilt -> {
             Angles turned = turnedBy(event.getYaw(), event.getPitch(), tilt);
             event.setYaw(turned.yaw());
             event.setPitch(turned.pitch());

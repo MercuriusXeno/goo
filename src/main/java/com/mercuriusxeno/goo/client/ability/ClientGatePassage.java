@@ -54,14 +54,6 @@ public final class ClientGatePassage {
     }
 
     /**
-     * Carries the player through, by the point it crossed by, as the server
-     * checks it: its place now and its place last tick both moved by the
-     * same carry, so the interpolated frame lands where it should.
-     *
-     * @param player the local player
-     * @param way    the gate crossed, then its partner
-     */
-    /**
      * Records the tilt the local player came out of a pair with, from the
      * game time it emerged.
      * bodies-emerge-along-their-travel-and-ease-upright
@@ -74,6 +66,14 @@ public final class ClientGatePassage {
         ClientExitTilts.record(playerId, ExitTilt.between(way.one(), way.other()), gameTime);
     }
 
+    /**
+     * Carries the player through, by the point it crossed by, as the server
+     * checks it: its place now and its place last tick both moved by the
+     * same carry, so the interpolated frame lands where it should.
+     *
+     * @param player the local player
+     * @param way    the gate crossed, then its partner
+     */
     private static void carry(LocalPlayer player, GatePassage.Pair way) {
         Vec3 feet = player.position();
         Optional<GatePassage.Held> held = GatePassage.heldBehind(way.one(), feet, player.getEyeHeight(),

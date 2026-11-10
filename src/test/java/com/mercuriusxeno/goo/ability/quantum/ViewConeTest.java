@@ -51,11 +51,21 @@ class ViewConeTest {
     private static final Gate STRAIGHT_THROUGH = new Gate(OVERWORLD, new AABB(new BlockPos(0, 0, 10)).minmax(
             new AABB(new BlockPos(0, 1, 10))), Direction.NORTH, Direction.UP.getUnitVec3());
 
+    /** How far around a gate's blocks a sliver of it still counts, as PortalView reads it. */
+    private static final double TOUCH = 0.01;
+
+    /**
+     * The check PortalView.shows makes for a gate a view looks at: a nested
+     * gate off to the side of the parent opening shows no view, one through
+     * it does, and the main frame, seeing through no opening, shows every gate.
+     */
     @Test
     void aNestedGateOffToTheSideOfTheOpeningShowsNoViewAndOneThroughItDoes() {
-        assertFalse(ViewCone.showsThrough(EYE, WALL, OFF_TO_THE_SIDE), "A gate off to the side of the parent opening "
+        ViewCone parent = ViewCone.through(EYE, WALL);
+        assertFalse(ViewCone.shows(parent, OFF_TO_THE_SIDE, TOUCH), "A gate off to the side of the parent opening "
                 + "should show no view");
-        assertTrue(ViewCone.showsThrough(EYE, WALL, STRAIGHT_THROUGH), "A gate through the parent opening should");
+        assertTrue(ViewCone.shows(parent, STRAIGHT_THROUGH, TOUCH), "A gate through the parent opening should");
+        assertTrue(ViewCone.shows(null, OFF_TO_THE_SIDE, TOUCH), "The main frame should show a gate anywhere");
     }
 
     /** A wider gate further back, whose own cone from the eye holds more than the wall gate's. */

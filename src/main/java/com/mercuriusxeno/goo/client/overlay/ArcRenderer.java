@@ -113,8 +113,8 @@ public final class ArcRenderer {
      * Renders one leg of an aim line that passes a gate: the near leg, from
      * the hand to the gate's face, in the main frame, or the far leg, from the
      * partner to the target, in the view through the gate, each drawn from the
-     * camera of the pass it draws in. One curve over both legs' summed length
-     * shapes them, so the far leg carries on the near one through the gate.
+     * camera of the pass it draws in. Each leg arcs by its own peak from its
+     * own length, so the two meet at the gate however the pair is turned.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param poseStack    the current pose stack

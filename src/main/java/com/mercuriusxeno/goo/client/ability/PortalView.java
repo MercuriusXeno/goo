@@ -274,7 +274,8 @@ public final class PortalView {
      * @return true where the portal's view is worth drawing
      */
     private static boolean shows(Minecraft mc, Seen seen, Gate near) {
-        return faces(mc, seen, near) && sees(seen, near.blocks().inflate(TOUCH));
+        return faces(mc, seen, near) && seen.camera().getCullFrustum().isVisible(near.blocks().inflate(TOUCH))
+                && ViewCone.shows(seen.cone(), near, TOUCH);
     }
 
     private static boolean worthDrawing(Minecraft mc, Seen seen, Gate near, int depth) {
@@ -302,19 +303,6 @@ public final class PortalView {
         Vec3 toEye = seen.eye().position().subtract(near.center());
         return near.dimension().equals(mc.level.dimension()) && toEye.dot(near.face().getUnitVec3()) > 0
                 && toEye.length() < mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK;
-    }
-
-    /**
-     * Whether a pass sees a box: in its camera's frustum, and within the cone
-     * it sees through its openings, so a gate the opening hides shows nothing.
-     * nested-views-skip-when-tiny-or-outside-the-parent-opening
-     *
-     * @param seen the pass looking
-     * @param box  the box
-     * @return true where the pass may show some of it
-     */
-    private static boolean sees(Seen seen, AABB box) {
-        return seen.camera().getCullFrustum().isVisible(box) && (seen.cone() == null || seen.cone().holds(box));
     }
 
     /**
