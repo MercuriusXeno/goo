@@ -12,9 +12,11 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -149,6 +151,61 @@ class TouchedUpAbilityIconsTest {
             int corner = icon.getRGB(x, y);
             return icon.getRGB(x + 1, y) == corner && icon.getRGB(x, y + 1) == corner
                     && icon.getRGB(x + 1, y + 1) == corner;
+        }
+    }
+
+    @Nested
+    class UpdraftIcon {
+
+        // updraft-icon-is-a-floating-slime-with-up-arrows
+        /** The floating slime typhoon_shulk.png drew before shulk-icon-is-a-shulker, '.' for a clear texel. */
+        private static final String[] FORMER_SHULK_SLIME = {
+            ".aaaaaa.",
+            "abbcccda",
+            "abecceda",
+            "acecdeda",
+            "accdddfa",
+            "acddeffa",
+            "adddfffa",
+            ".aaaaaa.",
+        };
+        private static final Map<Character, Integer> SLIME_COLORS = Map.of(
+                'a', 0x16231a, 'b', 0xa2cf96, 'c', 0x7fb077, 'd', 0x5f8f5c, 'e', 0x14211a, 'f', 0x456b47);
+        private static final Set<Integer> PRISM_COLORS = Set.of(0xf7fffc, 0xdcf7ee, 0xb5e3d6);
+
+        @Test
+        void carriesShulksFormerFloatingSlime() throws IOException {
+            BufferedImage icon = read("typhoon_updraft");
+            int side = FORMER_SHULK_SLIME.length;
+            boolean found = false;
+            for (int y = 0; y + side <= icon.getHeight() && !found; y++) {
+                for (int x = 0; x + side <= icon.getWidth() && !found; x++) {
+                    found = holdsSlimeAt(icon, x, y);
+                }
+            }
+            assertTrue(found, "typhoon_updraft.png should carry Shulk's former slime texel for texel");
+        }
+
+        @Test
+        void dropsThePrism() throws IOException {
+            for (int rgb : opaqueColors(read("typhoon_updraft"))) {
+                assertFalse(PRISM_COLORS.contains(rgb), String.format("#%06x is the former prism's color", rgb));
+            }
+        }
+
+        private boolean holdsSlimeAt(BufferedImage icon, int left, int top) {
+            for (int dy = 0; dy < FORMER_SHULK_SLIME.length; dy++) {
+                for (int dx = 0; dx < FORMER_SHULK_SLIME[dy].length(); dx++) {
+                    char texel = FORMER_SHULK_SLIME[dy].charAt(dx);
+                    int argb = icon.getRGB(left + dx, top + dy);
+                    boolean matches = texel == '.' ? !isOpaque(argb)
+                            : isOpaque(argb) && (argb & RGB) == SLIME_COLORS.get(texel);
+                    if (!matches) {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
     }
 
