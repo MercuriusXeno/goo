@@ -45,31 +45,20 @@ public final class CutawayInteractionHelper {
 
     private CutawayInteractionHelper() { }
 
-    /** Returns true if the interaction missed the cutaway and should pass through.
-     *
-     * @param stack     the held item
-     * @param state     the block state
-     * @param pos       the block position
-     * @param hitResult the ray trace hit result
-     * @return true if the interaction should pass
-     */
-    public static boolean shouldPassItemInteraction(ItemStack stack, BlockState state,
-            BlockPos pos, BlockHitResult hitResult) {
-        return !isCutawayClick(state, pos, hitResult);
-    }
-
     /** Sets the plexer's target item; the plexer panel names it, so no message goes to the player.
      * Any item the plexer cannot take, one with no goo value or one the player has not
      * learned, puffs smoke and fizzles instead (decision plexer-messages-go-and-refusal-fizzles).
+     * The plexer menu's pick is the one caller; no held item targets the plexer
+     * (decision ghost-item-and-g-key-retire).
      *
      * @param plexer the plexer block entity
-     * @param player the interacting player
-     * @param stack  the item to set as target
+     * @param player the picking player, whose knowledge gates the target
+     * @param target the picked item
      * @return SUCCESS interaction result
      */
-    public static InteractionResult applyTargetItem(PlexerBlockEntity plexer, Player player, ItemStack stack) {
-        if (!plexer.isValidTarget(stack)
-                || refusesTarget(PlayerKnowledge.idOf(stack.getItem()), PlayerKnowledge.of(player))) {
+    public static InteractionResult applyTargetItem(PlexerBlockEntity plexer, Player player, ItemStack target) {
+        if (!plexer.isValidTarget(target)
+                || refusesTarget(PlayerKnowledge.idOf(target.getItem()), PlayerKnowledge.of(player))) {
             if (plexer.getLevel() instanceof ServerLevel level) {
                 BlockPos pos = plexer.getBlockPos();
                 PlexerRefusalCue.playAt(level, pos,
@@ -77,7 +66,7 @@ public final class CutawayInteractionHelper {
             }
             return InteractionResult.SUCCESS;
         }
-        plexer.setTargetItem(cleanCopy(stack));
+        plexer.setTargetItem(cleanCopy(target));
         return InteractionResult.SUCCESS;
     }
 

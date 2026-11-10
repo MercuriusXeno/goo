@@ -46,9 +46,17 @@ class AbilitySyncHandlerTest {
             json = JsonParser.parseReader(reader).getAsJsonObject();
         }
         // self-effects-trickle-until-ended: a held effect names an upkeep and no cost
-        int jsonCost = json.has("cost") ? json.get("cost").getAsInt() : 0;
         int jsonUpkeep = json.has("upkeep") ? json.get("upkeep").getAsInt() : 0;
         AbilityDefinition definition = AbilityJson.decode(file);
+        // ability-cost-builds-as-a-one-type-by-type-value: an expression cost reaches the client as written
+        if (json.has("cost") && json.getAsJsonPrimitive("cost").isString()) {
+            String written = json.get("cost").getAsString();
+            assertEquals(written, definition.cost().source(), definition.id() + " server cost");
+            roundTrip(definition).forEach(entry -> assertEquals(written,
+                    ClientAbility.fromEntry(entry).costPrice().source(), definition.id() + " synced cost"));
+            return;
+        }
+        int jsonCost = json.has("cost") ? json.get("cost").getAsInt() : 0;
         assertEquals(jsonCost, definition.cost().in(GooValueTable.EMPTY), definition.id() + " server cost");
         for (AbilitySyncPayload.Entry entry : roundTrip(definition)) {
             ClientAbility client = ClientAbility.fromEntry(entry);

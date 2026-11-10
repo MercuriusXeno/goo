@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
+import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -32,6 +34,8 @@ public final class CanisterPlacementTests {
     private static final String IX_CANISTER_SIGN_TOP_REFUSES = "ix_canister_sign_top_refuses";
     private static final String IX_CANISTER_SNEAK_VAT_TOP_PLACES = "ix_canister_sneak_vat_top_places";
     private static final String IX_CANISTER_HUB_ATTACH_SPOT = "ix_canister_hub_attach_spot";
+    private static final String IX_CANISTER_PLEXER_TOP_PLACES = "ix_canister_plexer_top_places";
+    private static final String IX_CANISTER_PLEXER_CUTAWAY_PLACES = "ix_canister_plexer_cutaway_places";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -45,6 +49,9 @@ public final class CanisterPlacementTests {
         GooTestFunctions.registerTest(registrar, IX_CANISTER_SIGN_TOP_REFUSES, CanisterPlacementTests::signTopRefusesCanister);
         GooTestFunctions.registerTest(registrar, IX_CANISTER_SNEAK_VAT_TOP_PLACES, CanisterPlacementTests::sneakClickVatTopTakesCanister);
         GooTestFunctions.registerTest(registrar, IX_CANISTER_HUB_ATTACH_SPOT, CanisterPlacementTests::hubAttachSpotTakesCanisterAbove);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_PLEXER_TOP_PLACES, CanisterPlacementTests::plexerTopTakesCanister);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_PLEXER_CUTAWAY_PLACES,
+                CanisterPlacementTests::canisterAimedThroughThePlexerCutawayPlacesInFront);
     }
 
 
@@ -108,6 +115,40 @@ public final class CanisterPlacementTests {
         CanisterBlockEntity canister = helper.getBlockEntity(CANISTER_POS, CanisterBlockEntity.class);
         helper.assertFalse(canister.containerState().getCanister(CENTRE_SLOT).isEmpty(),
             "The canister above the hub should fill the centre slot");
+        helper.succeed();
+    }
+
+    /**
+     * A canister used on the plexer's top face where a slot is allowed places a canister block there,
+     * the click passing to the canister rather than opening the plexer's menu
+     * (decision canister-placement-wins-over-the-menu).
+     *
+     * @param helper the gametest helper
+     */
+    public static void plexerTopTakesCanister(GameTestHelper helper) {
+        helper.setBlock(SUPPORT_POS, GooBlocks.PLEXER.get());
+        helper.useBlock(SUPPORT_POS, playerHoldingCanister(helper), aimedSlotTopHit(helper));
+        assertCanisterInAimedSlot(helper);
+        helper.succeed();
+    }
+
+    /**
+     * A canister aimed through the plexer's cutaway face places a canister block in front of it, where
+     * the placement resolver, and so the green preview, puts it; the cutaway takes no click of its own
+     * (decision canister-placement-wins-over-the-menu).
+     *
+     * @param helper the gametest helper
+     */
+    public static void canisterAimedThroughThePlexerCutawayPlacesInFront(GameTestHelper helper) {
+        helper.setBlock(SUPPORT_POS, GooBlocks.PLEXER.get());
+        BlockPos abs = helper.absolutePos(SUPPORT_POS);
+        Direction facing = helper.getBlockState(SUPPORT_POS).getValue(PlexerBlock.FACING);
+        // The cell in front of the cutaway needs a top a canister stands on, as any canister block does.
+        helper.setBlock(SUPPORT_POS.relative(facing).below(), Blocks.STONE);
+        BlockHitResult cutaway = new BlockHitResult(CutawayInteractionHelper.cutawayWorldCenter(abs, facing), facing,
+                abs, false);
+        helper.useBlock(SUPPORT_POS, playerHoldingCanister(helper), cutaway);
+        helper.assertBlockPresent(GooBlocks.CANISTER.get(), SUPPORT_POS.relative(facing));
         helper.succeed();
     }
 

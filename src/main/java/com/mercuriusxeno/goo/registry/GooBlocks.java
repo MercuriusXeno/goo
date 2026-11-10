@@ -19,7 +19,6 @@ import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.statue.StatueBlock;
-import com.mercuriusxeno.goo.block.unmake.MeltingBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import net.minecraft.world.level.block.Block;
@@ -176,12 +175,6 @@ public class GooBlocks {
      * Statue: a petrified mob, mined like cobblestone for cobblestone and the
      * mob's experience (decision petrify-stone-encasement-and-calcify-map).
      */
-    /**
-     * A block an unmake is melting, standing in for it while its goo copy
-     * sags (decision unmake-waves-dissolve-by-crucible-cost).
-     */
-    public static final DeferredBlock<MeltingBlock> MELTING_BLOCK = BLOCKS.registerBlock(
-            "melting_block", MeltingBlock::new, MeltingBlock::standInProperties);
     public static final DeferredBlock<StatueBlock> STATUE = BLOCKS.registerBlock(
             "statue", StatueBlock::new,
             () -> BlockBehaviour.Properties.of()
