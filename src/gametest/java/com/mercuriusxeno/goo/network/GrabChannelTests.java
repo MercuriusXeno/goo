@@ -87,6 +87,8 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabDrawsUpOutOfAFloorPortalWithoutALeap);
         GooTestFunctions.registerTest(registrar, GRAB_NEVER_CYCLES_A_MOB_THROUGH_FACING_PORTALS,
                 GrabChannelTests::grabNeverCyclesAMobThroughFacingPortals);
+        GooTestFunctions.registerTest(registrar, GRAB_HOLDS_A_MOB_PAST_THE_PORTAL_IT_IS_AIMED_INTO,
+                GrabChannelTests::grabHoldsAMobPastThePortalItIsAimedInto);
         GooTestFunctions.registerTest(registrar,
                 GRAB_AIMED_THROUGH_A_PORTAL_DRAWS_THROUGH_IT_THOUGH_A_STRAIGHT_WAY_STANDS_OPEN,
                 GrabChannelTests::grabAimedThroughAPortalDrawsThroughItThoughAStraightWayStandsOpen);
@@ -619,6 +621,78 @@ public final class GrabChannelTests {
                     + intoThePair + " times along " + path.stream().map(helper::relativeVec).toList());
             PortalChoice.breakAt(level, west.block().pos(), west.face());
             PortalChoice.breakAt(level, east.block().pos(), east.face());
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_HOLDS_A_MOB_PAST_THE_PORTAL_IT_IS_AIMED_INTO =
+            "grab_holds_a_mob_past_the_portal_it_is_aimed_into";
+    /** The west portal's block, its face the plane x 1, facing east. */
+    private static final BlockPos AIMED_INTO = new BlockPos(0, 1, 2);
+    /** The east portal's block, its face the plane x 4, facing west, three blocks across from the west one. */
+    private static final BlockPos BEHIND_THE_HOLDER = new BlockPos(4, 1, 2);
+    /** Where the player stands, half a block before the east portal, looking west into the west one. */
+    private static final Vec3 BEFORE_THE_EAST_PORTAL = new Vec3(3.5, 1, 2.5);
+    /** Where the pig starts, between the pair. */
+    private static final BlockPos BETWEEN_THE_PAIR = new BlockPos(2, 1, 2);
+    /**
+     * Where the look, four blocks long, ends carried through the pair: two and a half to the west face, the
+     * last block and a half on west out of the east face.
+     */
+    private static final double HELD_PAST_THE_PORTAL_X = 2.5;
+    /** Ticks the pig is given to come to its hold, then ticks it is watched held. */
+    private static final int SETTLE_TICKS = 10;
+    private static final int WATCHED_TICKS = 10;
+    /** How near the hold the pig's middle stands while held still. */
+    private static final double AT_THE_HOLD = 0.3;
+
+    /**
+     * A pig held by a look aimed into a portal facing its partner is held
+     * where the look ends carried through the pair, as seen through the
+     * portal, and stays there, rather than dragged at the wall behind the
+     * portal it is aimed into and carried round the pair every tick, as the
+     * operator found a held slime looping
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabHoldsAMobPastThePortalItIsAimedInto(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Vec3 stand = helper.absoluteVec(BEFORE_THE_EAST_PORTAL);
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setYRot(FACING_WEST);
+        player.setYHeadRot(FACING_WEST);
+        for (BlockPos wall : java.util.List.of(AIMED_INTO, BEHIND_THE_HOLDER)) {
+            for (int z = 1; z <= 3; z++) {
+                for (int y = 1; y <= 3; y++) {
+                    helper.setBlock(new BlockPos(wall.getX(), y, z), Blocks.STONE);
+                }
+            }
+        }
+        ServerLevel level = helper.getLevel();
+        Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(AIMED_INTO)), Direction.EAST,
+                Direction.UP);
+        Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(BEHIND_THE_HOLDER)),
+                Direction.WEST, Direction.UP);
+        PortalChoice.place(level, player.getUUID(), west);
+        PortalChoice.place(level, player.getUUID(), east);
+        Pig pig = helper.spawn(EntityType.PIG, BETWEEN_THE_PAIR);
+        java.util.List<Vec3> held = new java.util.ArrayList<>();
+        for (int tick = 1; tick <= SETTLE_TICKS + WATCHED_TICKS; tick++) {
+            boolean watched = tick > SETTLE_TICKS;
+            helper.runAfterDelay(tick, () -> {
+                GooStreamHandler.streamTick(player, holdTick(player, pig));
+                if (watched) {
+                    held.add(helper.relativeVec(middleOf(pig)));
+                }
+            });
+        }
+        helper.runAfterDelay(SETTLE_TICKS + WATCHED_TICKS + 1, () -> {
+            boolean still = held.stream().allMatch(middle -> Math.abs(middle.x() - HELD_PAST_THE_PORTAL_X) < AT_THE_HOLD);
+            PortalChoice.breakAt(level, west.block().pos(), west.face());
+            PortalChoice.breakAt(level, east.block().pos(), east.face());
+            helper.assertTrue(still, "The pig should be held still at x " + HELD_PAST_THE_PORTAL_X
+                    + ", past the portal it is aimed into, its middle stood at " + held);
             leave(helper, player);
         });
     }
