@@ -24,23 +24,23 @@ out vec4 fragColor;
 // period below divides it whole, so the bands carry on unbroken as the day wraps.
 const float SECONDS_PER_DAY = 1200.0;
 const float TAU = 6.28318530718;
-// How many bands wind around the funnel.
-const float TORNADO_BANDS = 3.0;
+// How many thin strands wind around the funnel, a tightly wound vortex flattened against the rim.
+const float TORNADO_BANDS = 24.0;
 // How many turns a band winds around the funnel from the face to its far end: the rifling's twist,
 // tuned by eye.
 const float TORNADO_TWIST = 1.25;
 // How many seconds a band takes to travel from the rim to the funnel's far end, tuned by eye.
-const float TORNADO_RIFLE_SECONDS = 2.0;
+const float TORNADO_RIFLE_SECONDS = 6.0;
 // How sharply a band stands out from the gaps between, higher thinner.
-const float TORNADO_BAND_SHARPNESS = 3.0;
+const float TORNADO_BAND_SHARPNESS = 6.0;
 // How strongly the bands glow at the rim.
 const float TORNADO_STRENGTH = 0.55;
 // How much a finer turbulence frays the bands, as a share of their strength.
 const float TORNADO_FRAY = 0.35;
 // How many finer wisps the turbulence breaks each band into around the funnel.
-const float TORNADO_WISPS = 11.0;
+const float TORNADO_WISPS = 37.0;
 // How much wider than its first ring the funnel flares at its far end: PortalFaces.TORNADO_FLARE.
-const float TORNADO_FLARE = 0.6;
+const float TORNADO_FLARE = 0.15;
 
 void main() {
     vec2 at = portalTexelCenter(frameCoord, texels);

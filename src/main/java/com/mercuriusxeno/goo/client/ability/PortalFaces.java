@@ -82,10 +82,13 @@ public final class PortalFaces {
      * shader starts from: none for a portal's clean oval, whole for a hole
      * mouth's torn edge. The halo's strength is the shader's own.
      */
-    /** How far the tornadic halo stands off the face along its normal, in blocks, tuned by eye. */
-    static final double TORNADO_HEIGHT = 1.0;
+    /**
+     * How far the tornadic halo stands off the face along its normal, in
+     * blocks: two texels, the most the operator's reference stands out.
+     */
+    static final double TORNADO_HEIGHT = 2.0 / 16;
     /** How much wider than the rim the tornado flares at its far end, as a share of the rim's size, tuned by eye. */
-    private static final double TORNADO_FLARE = 0.6;
+    private static final double TORNADO_FLARE = 0.15;
     /** How many rings the tornado's funnel rises in. */
     private static final int TORNADO_RINGS = 6;
     /** How many segments each of the funnel's rings runs around the rim in. */
