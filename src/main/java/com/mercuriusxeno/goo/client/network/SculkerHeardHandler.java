@@ -21,7 +21,6 @@ public final class SculkerHeardHandler {
      * @param context the network context
      */
     public static void handle(SculkerHeardPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> SculkerSenses.hear(new Vec3(payload.x(), payload.y(), payload.z()),
-                payload.loudness(), payload.range()));
+        context.enqueueWork(() -> SculkerSenses.hear(payload.sound(), new Vec3(payload.x(), payload.y(), payload.z())));
     }
 }
