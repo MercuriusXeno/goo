@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
+import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -25,6 +26,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.ArrayList;
@@ -40,9 +42,11 @@ import java.util.Objects;
  * it toward. A ray shows while its caster holds it and for a tick after the
  * last one the server sent. A ray a prism refracts runs into the prism's
  * middle and its refracted beams leave from there, out of a soft core of
- * light ({@link GlowCore}).
+ * light ({@link GlowCore}). Each client tick the segments last drawn shed
+ * light motes rising out of the beam ({@link SunbeamMotes}).
  * decision sunbeam-splits-at-the-prism-with-a-glisten
  * decision diagnose-and-correct-the-sunbeam-prism-depth
+ * decision sunbeam-sheds-motes-rising-from-the-beam
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SunbeamVisual {
@@ -57,7 +61,16 @@ public final class SunbeamVisual {
     /** How far past the server's end a sight line probes for the face another caster's ray burnt, in blocks. */
     private static final double PROBE_PAST_THE_END = 0.25;
 
+    /** The beam's outermost layer's radius as drawn, in blocks: the motes spawn inside it. */
+    private static final double DRAWN_RADIUS = GlowBeamMesh.LAYERS.getLast().radius() * RAY_WIDTH;
+
     private static final Map<Integer, Ray> RAYS = new HashMap<>();
+    /**
+     * Each showing ray's segments as the last frame drew them, world space:
+     * the client tick sheds motes from these, so the rate follows the tick
+     * and not the frame rate.
+     */
+    private static final Map<Integer, List<SunbeamMotes.Segment>> DRAWN = new HashMap<>();
 
     private SunbeamVisual() {
     }
@@ -93,6 +106,7 @@ public final class SunbeamVisual {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || RAYS.isEmpty()) {
             RAYS.clear();
+            DRAWN.clear();
             return;
         }
         ClientLevel level = mc.level;
@@ -125,6 +139,7 @@ public final class SunbeamVisual {
                                        float partialTick, float scroll) {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         List<Vec3> cores = new ArrayList<>();
+        DRAWN.clear();
         for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
             Entity caster = Objects.requireNonNull(level.getEntity(entry.getKey()));
             Vec3 hand = GloveHand.of(mc, caster, partialTick);
@@ -133,10 +148,49 @@ public final class SunbeamVisual {
             if (!gathered.equals(struck)) {
                 cores.add(gathered.subtract(camera));
             }
+            DRAWN.put(entry.getKey(), segmentsOf(hand, gathered, entry.getValue()));
             drawRay(poseStack, consumer, hand.subtract(camera), gathered.subtract(camera), entry.getValue(),
                     camera, scroll);
         }
         return cores;
+    }
+
+    /**
+     * A ray's drawn segments, world space: the hand to where it gathers, then
+     * that point to each refracted end.
+     *
+     * @param hand     where the ray leaves the caster
+     * @param gathered where the ray ends, in a refracting prism's core or on what it struck
+     * @param ray      the ray
+     * @return each segment
+     */
+    private static List<SunbeamMotes.Segment> segmentsOf(Vec3 hand, Vec3 gathered, Ray ray) {
+        List<SunbeamMotes.Segment> segments = new ArrayList<>();
+        segments.add(new SunbeamMotes.Segment(hand, gathered));
+        for (Vec3 refracted : ray.refracted()) {
+            segments.add(new SunbeamMotes.Segment(gathered, refracted));
+        }
+        return segments;
+    }
+
+    /**
+     * Sheds this tick's light motes out of every ray the last frame drew.
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        if (level == null || mc.isPaused() || DRAWN.isEmpty()) {
+            return;
+        }
+        for (List<SunbeamMotes.Segment> segments : DRAWN.values()) {
+            for (SunbeamMotes.Mote mote : SunbeamMotes.shedAlong(segments, DRAWN_RADIUS, level.getRandom())) {
+                level.addParticle(GooParticles.LIGHT_MOTE.get(), mote.at().x, mote.at().y, mote.at().z,
+                        mote.velocity().x, mote.velocity().y, mote.velocity().z);
+            }
+        }
     }
 
     /**

@@ -85,6 +85,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("restore_mote", () -> new SimpleParticleType(false));
 
     /**
+     * The light mote: a mote of glow's warm light rising gently out of
+     * Sunbeam's beam.
+     * sunbeam-sheds-motes-rising-from-the-beam
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> LIGHT_MOTE =
+        PARTICLE_TYPES.register("light_mote", () -> new SimpleParticleType(false));
+
+    /**
      * The homing mote: a mote of jelly goo homing on a target the client
      * reads each tick: Reserve's life drawn into the glove, and Vitality's
      * goo homing from the glove onto each thing it heals.
