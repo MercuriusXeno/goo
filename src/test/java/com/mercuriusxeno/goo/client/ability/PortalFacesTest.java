@@ -168,8 +168,8 @@ class PortalFacesTest {
         private static final float FACE_Z = -0.01F;
         /** How far a vertex may stand from where the test reckons it, float rounding only. */
         private static final float NEAR = 1.0e-4F;
-        /** The rim's 4.84 blocks around a one by two oval and the arch's four texels across, at sixteen a block. */
-        private static final int[] AROUND_BY_UP = {78, 4};
+        /** The rim's 4.84 blocks around a one by two oval and the arch's two texels across, at sixteen a block. */
+        private static final int[] AROUND_BY_UP = {78, 2};
 
         @Test
         void aWaitingPortalsSwirlBandArchesOverItsRimToTheNamedDepthInBlue() {
@@ -324,7 +324,7 @@ class PortalFacesTest {
         /** The middle of a mouth's tear, as a share of the oval's radius. */
         private static final double TORN_MIDDLE = 0.92;
 
-        /** A three by three mouth's arch: 8.67 blocks around the tear's middle and four texels across. */
+        /** A three by three mouth's arch: 8.67 blocks around the tear's middle and two texels across. */
         @Test
         void aThreeByThreeMouthsSwirlBandArchesOverItsTearToTheNamedDepthInItsColor() {
             Captured band = emitBoth(new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true));
@@ -333,10 +333,10 @@ class PortalFacesTest {
             assertStraddlesTheTear(band.atTheFace(-0.01F), new float[] {1.5F, 65.5F}, new double[] {1.5, 1.5});
             verify(band.consumer(), times(band.vertices()))
                     .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.BLUE_RGB));
-            verify(band.consumer(), times(band.vertices())).setUv2(139, 4);
+            verify(band.consumer(), times(band.vertices())).setUv2(139, 2);
         }
 
-        /** A one by two floor mouth's arch: 4.46 blocks around the tear's middle and four texels across. */
+        /** A one by two floor mouth's arch: 4.46 blocks around the tear's middle and two texels across. */
         @Test
         void aOneByTwoMouthsSwirlBandArchesOverItsTearToTheNamedDepthInItsColor() {
             Captured band = emitBoth(new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true));
@@ -345,7 +345,7 @@ class PortalFacesTest {
             assertStraddlesTheTear(band.atTheFace(64.01F), new float[] {5.5F, 1F}, new double[] {0.5, 1});
             verify(band.consumer(), times(band.vertices()))
                     .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
-            verify(band.consumer(), times(band.vertices())).setUv2(71, 4);
+            verify(band.consumer(), times(band.vertices())).setUv2(71, 2);
         }
 
         private void assertStraddlesTheTear(List<float[]> atTheFace, float[] middle, double[] half) {
