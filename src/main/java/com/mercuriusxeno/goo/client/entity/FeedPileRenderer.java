@@ -20,6 +20,11 @@ public final class FeedPileRenderer extends BobbingDiscRenderer<FeedPile> {
      * @param context the renderer context
      */
     public FeedPileRenderer(EntityRendererProvider.Context context) {
-        super(context, TEXTURE, SIZE, GLOW_LEVELS);
+        super(context, SIZE, GLOW_LEVELS);
+    }
+
+    @Override
+    protected Identifier textureOf(FeedPile feed) {
+        return TEXTURE;
     }
 }
