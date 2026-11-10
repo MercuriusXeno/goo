@@ -28,11 +28,12 @@ import java.util.OptionalInt;
 /**
  * Server side of a Spire's submit: the footprint is checked against the caps
  * and the throw range, planned against the cells above it, its rise lowered
- * to what the caster's goo pays for, and grown, charging stone's goo value
+ * to what the caster's goo pays for, and grown, charging the ability's cost
  * per stone block grown. The client held the choreography; the server
  * trusts none of it.
  * decision spire-rips-walls-and-platforms
  * decision spire-grows-stone-out-of-the-top
+ * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
  */
 public final class GooSpireHandler {
 
@@ -112,8 +113,9 @@ public final class GooSpireHandler {
         ServerLevel level = player.level();
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
         IRemainderLedger ledger = GooCapabilities.remainderLedgerOf(player);
-        Optional<SpireGrowth> plan = SpireGrowth.affordable(level, payload.footprint(), GooValues.of(level),
-                gooType, ledger.remainders(), holdings);
+        // spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
+        Optional<SpireGrowth> plan = SpireGrowth.affordable(level, payload.footprint(),
+                ability.cost().exactIn(GooValues.of(level)), gooType, ledger.remainders(), holdings);
         if (plan.isEmpty()) {
             return;
         }

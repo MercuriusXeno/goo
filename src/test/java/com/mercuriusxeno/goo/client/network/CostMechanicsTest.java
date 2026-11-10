@@ -1,32 +1,41 @@
 package com.mercuriusxeno.goo.client.network;
 
-import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DistancePrice;
+import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.PrefabValues;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
-import net.minecraft.resources.Identifier;
+import com.mercuriusxeno.goo.type.GooTypes;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Each shipped ability naming cost_mechanics fills its format string from its own
- * numbers, read through a test lang map, with no placeholder left.
+ * numbers, read through a test lang map, with no placeholder left. Swaps the client
+ * value source and restores it.
  * decision zero-cost-field-formats-the-cost-mechanics
  */
 class CostMechanicsTest {
 
-    private static final int STONE_ROCK_VALUE = 7;
-    private static final Identifier STONE = Identifier.withDefaultNamespace("stone");
+    private static final int MUNDANE_BLOCK_ROCK = 7;
+    private static final String SPIRE_PER_BLOCK_FORMULA = MUNDANE_BLOCK_ROCK + "/m³";
+    private static final int NO_HOLDINGS = 0;
+    private static final int NO_REAGENTS = 0;
 
     private static final Map<String, String> LANG = Map.of(
             "goo.ability.cost_mechanics.upkeep", "%s a second",
@@ -34,9 +43,20 @@ class CostMechanicsTest {
             "goo.ability.rock.spire.cost_mechanics", "%s per block raised",
             "goo.ability.unstable.unmake.cost_mechanics", "Burns unstable goo for each block dissolved.");
 
+    private static final IGooValueLookup VALUES = GooValueTable.ofEffectiveValues(Map.of(), new PrefabValues(Map.of(),
+            Map.of("mundane_block", new GooValue(Map.of(GooTypes.ROCK, MUNDANE_BLOCK_ROCK)))));
+
     private static final CostMechanicsLookup LOOKUP = new CostMechanicsLookup(
-            key -> LANG.getOrDefault(key, key),
-            item -> STONE.equals(item) ? GooFraction.of(STONE_ROCK_VALUE) : GooFraction.ZERO);
+            key -> LANG.getOrDefault(key, key), () -> VALUES);
+
+    private Supplier<IGooValueLookup> standing;
+
+    @AfterEach
+    void restoreTheClientValueSource() {
+        if (standing != null) {
+            ClientGooValues.readFrom(standing);
+        }
+    }
 
     static Stream<AbilityDefinition> abilitiesNamingCostMechanics() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
@@ -84,9 +104,21 @@ class CostMechanicsTest {
         assertTrue(text.contains(blink.distancePrice().nodePercent() + " percent"), text);
     }
 
+    /**
+     * Spire's cost is its price per block grown, so the petal and the crosshair panel read its per-block formula and
+     * its cost mechanics name the per-block mB, never that mB as a flat total.
+     * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
+     * decision dynamic-costs-keep-the-mb-quantity
+     */
     @Test
-    void spireTextNamesStonesRockValuePerBlock() {
-        assertTrue(textOf("rock_spire").contains(STONE_ROCK_VALUE + " per block raised"), textOf("rock_spire"));
+    void spireReadsItsPerBlockPriceOnThePetalThePanelAndItsCostMechanics() {
+        standing = ClientGooValues.readFrom(() -> VALUES);
+        ClientAbility spire = clientOf(AbilityJson.decode("rock_spire"));
+
+        assertTrue(spire.pricedDynamically());
+        assertEquals(SPIRE_PER_BLOCK_FORMULA, spire.petalLabel(NO_HOLDINGS, NO_REAGENTS));
+        assertEquals(SPIRE_PER_BLOCK_FORMULA, spire.costLabel());
+        assertTrue(textOf("rock_spire").contains(MUNDANE_BLOCK_ROCK + " per block raised"), textOf("rock_spire"));
     }
 
     @Test
