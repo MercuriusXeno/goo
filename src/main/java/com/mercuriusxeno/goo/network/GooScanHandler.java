@@ -2,12 +2,14 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -20,6 +22,8 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Sends a scan ability: the server reads the landing along the thrower's look
@@ -60,8 +64,55 @@ public final class GooScanHandler {
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();
         Vec3 landing = landingAlong(player, eye, look, ability.delivery().range());
-        GooServerState.of(level.getServer()).scanWaves().schedule(ScanWaves.thrown(level, eye, landing,
-                ability.delivery(), ability.id(), ability.behaviors(), level.getServer().getTickCount()));
+        ScanWaves waves = GooServerState.of(level.getServer()).scanWaves();
+        wavesFor(submerged(player), level, eye, look, landing, ability, level.getServer().getTickCount())
+                .forEach(waves::schedule);
+    }
+
+    /**
+     * Whether a thrower clicks from inside the ground: diving under Sculker
+     * with its eyes in a block that stops movement.
+     * submerged-click-ripples-through-the-ground-to-its-range
+     *
+     * @param player the throwing player
+     * @return true for a submerged thrower
+     */
+    static boolean submerged(ServerPlayer player) {
+        BlockPos eyeCell = BlockPos.containing(player.getEyePosition());
+        return SculkerSwim.passesThrough(player)
+                && !player.level().getBlockState(eyeCell).getCollisionShape(player.level(), eyeCell).isEmpty();
+    }
+
+    /**
+     * The waves a scan sends: from inside the ground, one each tick at the
+     * point the wave has reached along the look, through solid and open space
+     * alike, out to the range; from the surface, one to its landing.
+     * submerged-click-ripples-through-the-ground-to-its-range
+     *
+     * @param submerged   whether the thrower clicks from inside the ground
+     * @param level       the level thrown in
+     * @param eye         the thrower's eye
+     * @param look        the thrower's unit look
+     * @param landing     where a surfaced scan lands
+     * @param ability     the scan ability
+     * @param currentTick the server tick the use fired on
+     * @return the waves to schedule
+     */
+    static List<ScanWaves.Wave> wavesFor(boolean submerged, ServerLevel level, Vec3 eye, Vec3 look, Vec3 landing,
+                                         AbilityDefinition ability, int currentTick) {
+        if (!submerged) {
+            return List.of(ScanWaves.thrown(level, eye, landing, ability.delivery(), ability.id(),
+                    ability.behaviors(), currentTick));
+        }
+        double range = ability.delivery().range();
+        double speed = ability.delivery().blocksPerTick();
+        int ticks = (int) Math.ceil(range / speed);
+        List<ScanWaves.Wave> ripple = new ArrayList<>(ticks);
+        for (int tick = 1; tick <= ticks; tick++) {
+            Vec3 reached = eye.add(look.scale(Math.min(speed * tick, range)));
+            ripple.add(new ScanWaves.Wave(currentTick + tick, level, reached, ability.id(), ability.behaviors()));
+        }
+        return ripple;
     }
 
     /**
