@@ -16,9 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reap's swell on the client: a whole sphere of Growth's breeze swelling
- * from where the blob struck out to Reap's radius on an ease-out, then
- * thinning away, drawn through {@code reap_swell.fsh}.
+ * The swell on the client: a whole sphere of Growth's breeze swelling from
+ * its centre out to its radius on an ease-out, then thinning away, drawn
+ * through {@code reap_swell.fsh}. Verdant's prism sends it; Reap's slashes
+ * draw through {@link ReapSlashBlades}.
  * reap-breeze-harvests-and-replants
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)

@@ -149,7 +149,7 @@ public final class StepTypes {
         register(ToxinStep.TYPE);
         register(VerdantStep.TYPE);
         register(HastenRegrowStep.TYPE);
-        register(ReapStep.TYPE);
+        register(SlashStep.TYPE);
         register(CharmStep.TYPE);
         register(PhaseStep.TYPE);
         register(QuantumAnchorStep.TYPE);
