@@ -8,12 +8,14 @@ import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -219,7 +221,11 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
 
     /**
      * Where a held entity's feet go this tick: its middle on the look at the
-     * hold distance.
+     * hold distance, the look carried through each linked gate it passes, so
+     * a body held by a look aimed into a portal hangs where the look ends past
+     * the partner, as seen through the portal, rather than dragged at the wall
+     * behind it and round the pair every tick.
+     * aim-and-shots-carry-through-linked-gates
      *
      * @param player the holding player
      * @param held   the held entity
@@ -227,9 +233,40 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
      */
     private Vec3 holdPoint(ServerPlayer player, Entity held) {
         double distance = holdDistance(player.getXRot(), near, far);
-        Vec3 middle = player.getEyePosition().add(player.getLookAngle().scale(distance));
+        Vec3 eye = player.getEyePosition();
+        Vec3 middle = lookEndThroughGates(GatePassage.pairsOf(player.level().getServer()),
+                player.level().dimension(), eye, eye.add(player.getLookAngle().scale(distance)));
         return middle.subtract(0, held.getBbHeight() * HALF, 0);
     }
+
+    /**
+     * Where a look ends carried through each linked gate it passes, a few at
+     * most, so a look down the tunnel a facing pair makes ends rather than
+     * going round it.
+     *
+     * @param pairs     the linked pairs
+     * @param dimension the level the look runs in
+     * @param from      the look's start
+     * @param to        its straight end
+     * @return its end through the gates
+     */
+    static Vec3 lookEndThroughGates(List<GatePassage.Pair> pairs, ResourceKey<Level> dimension, Vec3 from,
+            Vec3 to) {
+        Vec3 start = from;
+        Vec3 end = to;
+        for (int hop = 0; hop < MOST_HOPS; hop++) {
+            Optional<GateRay.Crossing> crossing = GateRay.first(pairs, dimension, start, end);
+            if (crossing.isEmpty()) {
+                break;
+            }
+            start = crossing.get().farFrom();
+            end = crossing.get().farTo();
+        }
+        return end;
+    }
+
+    /** How many gates a held body's look is carried through at most. */
+    private static final int MOST_HOPS = 4;
 
     /**
      * How far Grab's look reaches for an entity to lift: its own range, and
