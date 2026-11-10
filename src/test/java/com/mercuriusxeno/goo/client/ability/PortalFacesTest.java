@@ -152,14 +152,14 @@ class PortalFacesTest {
     }
 
     /**
-     * Beside its surface glow, a placed portal wears a tornado: a funnel that
+     * Beside its surface glow, a placed portal wears a swirl band: a funnel that
      * starts at its rim on the face and rises off the wall along the face's
      * normal to the named height, in the portal's own color, its texel grid
      * counting sixteen a block around the rim and up the funnel
      * (decision tornadic-halo-spirals-out-from-the-rim).
      */
     @Nested
-    class Tornado {
+    class SwirlBand {
 
         /** A wall portal on the north face of (0, 64, 0), its frame (0, 64, 0) to (1, 66, 1). */
         private static final Gate FRAME = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 1, 66, 1), Direction.NORTH,
@@ -172,32 +172,32 @@ class PortalFacesTest {
         private static final int[] AROUND_BY_UP = {78, 2};
 
         @Test
-        void aWaitingPortalsTornadoRisesFromItsRimToTheNamedHeightInBlue() {
-            assertTornadoOff(PortalFaces.colorOf(WALL_PORTAL, List.of()), PortalFaces.BLUE_RGB);
+        void aWaitingPortalsSwirlBandRisesFromItsRimToTheNamedHeightInBlue() {
+            assertSwirlBandOff(PortalFaces.colorOf(WALL_PORTAL, List.of()), PortalFaces.BLUE_RGB);
         }
 
         @Test
-        void aLinkedExitsTornadoRisesFromItsRimToTheNamedHeightInOrange() {
-            assertTornadoOff(PortalFaces.colorOf(WALL_PORTAL, List.of(new QuantumPortals.Link(OTHER_PORTAL,
+        void aLinkedExitsSwirlBandRisesFromItsRimToTheNamedHeightInOrange() {
+            assertSwirlBandOff(PortalFaces.colorOf(WALL_PORTAL, List.of(new QuantumPortals.Link(OTHER_PORTAL,
                     WALL_PORTAL))), PortalFaces.ORANGE_RGB);
         }
 
-        private void assertTornadoOff(int rgb, int expectedRgb) {
+        private void assertSwirlBandOff(int rgb, int expectedRgb) {
             VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
             PoseStack.Pose pose = new PoseStack().last();
             ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
             ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
             ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
 
-            PortalFaces.emitTornadoes(pose, consumer, List.of(new PortalFaces.Drawn(FRAME, rgb, false)), BLOCKS_OF);
+            PortalFaces.emitSwirlBands(pose, consumer, List.of(new PortalFaces.Drawn(FRAME, rgb, false)), BLOCKS_OF);
 
             verify(consumer, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
             int vertices = zs.getAllValues().size();
             float nearest = zs.getAllValues().stream().max(Float::compare).orElseThrow();
             float farthest = zs.getAllValues().stream().min(Float::compare).orElseThrow();
-            assertEquals(FACE_Z, nearest, NEAR, "The tornado should start on the face");
-            assertEquals(FACE_Z - (float) PortalFaces.TORNADO_HEIGHT, farthest, NEAR,
-                    "The tornado should rise off the wall to the named height");
+            assertEquals(FACE_Z, nearest, NEAR, "The swirl band should start on the face");
+            assertEquals(FACE_Z - (float) PortalFaces.BAND_DEPTH, farthest, NEAR,
+                    "The swirl band should rise off the wall to the named height");
             List<Float> atTheFace = new java.util.ArrayList<>();
             for (int i = 0; i < vertices; i++) {
                 if (Math.abs(zs.getAllValues().get(i) - FACE_Z) < NEAR) {
@@ -268,14 +268,14 @@ class PortalFacesTest {
     }
 
     /**
-     * Each of a wormhole's two mouths wears the portals' tornado beside its
+     * Each of a wormhole's two mouths wears the portals' swirl band beside its
      * surface glow, rising off the face along its normal to the same named
      * height, in the mouth's own color, its edge marked torn and its funnel
      * based on the deepest the tear bites, for the shader to start it at the
      * tear (decision hole-mouths-wear-the-tornadic-halo).
      */
     @Nested
-    class MouthTornado {
+    class MouthSwirlBand {
 
         /** A three by three mouth on the north face of (0, 64, 0) to (3, 67, 1), its face the plane z 0. */
         private static final Gate WALL_MOUTH = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 3, 67, 1),
@@ -290,10 +290,10 @@ class PortalFacesTest {
 
         /** A three by three mouth's tube: 7.92 blocks around its torn base and two texels up, sixteen a block. */
         @Test
-        void aThreeByThreeMouthsTornadoRisesFromItsTearToTheNamedHeightInItsColor() {
+        void aThreeByThreeMouthsSwirlBandRisesFromItsTearToTheNamedHeightInItsColor() {
             Captured funnel = emitBoth(new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true));
 
-            assertSpans(funnel.normals(), -0.01F, -0.01F - (float) PortalFaces.TORNADO_HEIGHT);
+            assertSpans(funnel.normals(), -0.01F, -0.01F - (float) PortalFaces.BAND_DEPTH);
             assertOnTheTornBase(funnel.atTheBase((first, second) -> Math.hypot((first - 1.5F) / 1.5F,
                     (second - 65.5F) / 1.5F), -0.01F));
             verify(funnel.consumer(), times(funnel.vertices()))
@@ -303,10 +303,10 @@ class PortalFacesTest {
 
         /** A one by two floor mouth's tube: 4.07 blocks around its torn base and two texels up, sixteen a block. */
         @Test
-        void aOneByTwoMouthsTornadoRisesFromItsTearToTheNamedHeightInItsColor() {
+        void aOneByTwoMouthsSwirlBandRisesFromItsTearToTheNamedHeightInItsColor() {
             Captured funnel = emitBoth(new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true));
 
-            assertSpans(funnel.normals(), 64.01F, 64.01F + (float) PortalFaces.TORNADO_HEIGHT);
+            assertSpans(funnel.normals(), 64.01F, 64.01F + (float) PortalFaces.BAND_DEPTH);
             assertOnTheTornBase(funnel.atTheBase((first, second) -> Math.hypot((first - 5.5F) / 0.5F,
                     (second - 1F) / 1F), 64.01F));
             verify(funnel.consumer(), times(funnel.vertices()))
@@ -315,8 +315,8 @@ class PortalFacesTest {
         }
 
         /**
-         * Emits a mouth's surface glow and its tornado into one consumer, as
-         * the frame does, and captures the tornado's vertices.
+         * Emits a mouth's surface glow and its swirl band into one consumer, as
+         * the frame does, and captures the swirl band's vertices.
          */
         private Captured emitBoth(PortalFaces.Drawn mouth) {
             VertexConsumer glow = mock(VertexConsumer.class, Answers.RETURNS_SELF);
@@ -325,19 +325,19 @@ class PortalFacesTest {
             ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
             ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
             ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
-            VertexConsumer tornado = mock(VertexConsumer.class, Answers.RETURNS_SELF);
-            PortalFaces.emitTornadoes(pose, tornado, List.of(mouth), BLOCKS_OF);
-            verify(tornado, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
+            VertexConsumer band = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PortalFaces.emitSwirlBands(pose, band, List.of(mouth), BLOCKS_OF);
+            verify(band, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
             verify(glow, times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, mouth.rgb()));
-            return new Captured(tornado, mouth.gate().face(), xs.getAllValues(), ys.getAllValues(),
+            return new Captured(band, mouth.gate().face(), xs.getAllValues(), ys.getAllValues(),
                     zs.getAllValues());
         }
 
         private void assertSpans(List<Float> normals, float face, float far) {
             assertEquals(face, normals.stream().min((a, b) -> Float.compare(Math.abs(a - face), Math.abs(b - face)))
-                    .orElseThrow(), NEAR, "The tornado should start on the face");
+                    .orElseThrow(), NEAR, "The swirl band should start on the face");
             assertEquals(far, normals.stream().min((a, b) -> Float.compare(Math.abs(a - far), Math.abs(b - far)))
-                    .orElseThrow(), NEAR, "The tornado should rise off the face to the named height");
+                    .orElseThrow(), NEAR, "The swirl band should rise off the face to the named height");
             float low = Math.min(face, far) - NEAR;
             float high = Math.max(face, far) + NEAR;
             assertTrue(normals.stream().allMatch(at -> at >= low && at <= high),
@@ -350,9 +350,9 @@ class PortalFacesTest {
         }
 
         /**
-         * A tornado's captured vertices.
+         * A swirl band's captured vertices.
          *
-         * @param consumer the tornado's consumer
+         * @param consumer the swirl band's consumer
          * @param side     the face
          * @param xs       each vertex's x
          * @param ys       each vertex's y
