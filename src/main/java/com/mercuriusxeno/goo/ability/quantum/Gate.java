@@ -87,6 +87,18 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
     }
 
     /**
+     * Whether a block frames the gate: one beside or around it in the same
+     * wall, floor or ceiling, touching its blocks.
+     *
+     * @param pos a block
+     * @return true for a block of the gate's own layer bordering it
+     */
+    public boolean frames(BlockPos pos) {
+        Vec3 middle = Vec3.atCenterOf(pos);
+        return !covers(pos) && blocks.inflate(1.0).contains(middle) && Math.abs(out(middle) + HALF) < HALF;
+    }
+
+    /**
      * How far the gate's opening reaches from its middle along an axis across its face.
      *
      * @param axis a unit axis along the face, its right or its up

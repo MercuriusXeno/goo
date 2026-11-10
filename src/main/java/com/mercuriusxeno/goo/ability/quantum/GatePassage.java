@@ -131,8 +131,8 @@ public final class GatePassage {
 
     /**
      * Whether one gate opens a block to a body: the gate lies on the block
-     * in the body's level, and the body's middle stands at its face, within
-     * its oval.
+     * in the body's level, or the block frames the gate and the body moves
+     * in, and the body's middle stands at its face, within its oval.
      *
      * @param gate   the gate
      * @param entity the body
@@ -141,8 +141,25 @@ public final class GatePassage {
      * @return true where the gate opens the block to the body
      */
     private static boolean opensTo(Gate gate, Entity entity, BlockPos pos, Vec3 middle) {
-        return gate.dimension().equals(entity.level().dimension()) && gate.covers(pos)
+        return gate.dimension().equals(entity.level().dimension()) && givesWay(gate, pos, entity.getDeltaMovement())
                 && opensToPath(gate, middle, entity.getDeltaMovement(), entity.getBbWidth()) && !standsOn(gate, entity);
+    }
+
+    /**
+     * Whether a block gives way to a body going into a gate: one the gate
+     * lies on, or one framing it while the body moves in, so a body whose
+     * middle goes in by the opening's edge is never stopped by its side on
+     * the wall beside, as the operator found a slime thrown from just inside
+     * the oval's edge was.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param gate   the gate
+     * @param pos    the block
+     * @param motion the body's motion this tick
+     * @return true where the block may give way
+     */
+    static boolean givesWay(Gate gate, BlockPos pos, Vec3 motion) {
+        return gate.covers(pos) || gate.frames(pos) && motion.dot(gate.face().getUnitVec3()) < 0;
     }
 
     /**
@@ -269,9 +286,12 @@ public final class GatePassage {
         if (out > -DEEPEST && out < APPROACH + width && gate.withinOval(middle)) {
             return true;
         }
-        // aim-and-shots-carry-through-linked-gates: a fast body, a projectile, may reach the face only by its path
+        // aim-and-shots-carry-through-linked-gates: a fast body, a projectile, may reach the face only by its path,
+        // and a body thrown in at an angle stands, square on, beside the oval its path meets, so the opening is
+        // read where its path meets the face, wherever its box reaches the face this tick.
         double after = gate.out(middle.add(motion));
-        return out > 0 && after <= 0 && gate.withinOval(middle.lerp(middle.add(motion), out / (out - after)));
+        return out > 0 && after < out && after < width
+                && gate.withinOval(middle.lerp(middle.add(motion), out / (out - after)));
     }
 
     private static boolean atTheFace(Gate gate, Entity entity, Vec3 middle) {
