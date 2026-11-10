@@ -78,6 +78,8 @@ public final class PortalTests {
         GooTestFunctions.registerTest(registrar, THROWN_IN_AT_AN_ANGLE,
                 PortalTests::smallMobThrownInAtAnAngleGoesThrough);
         GooTestFunctions.registerTest(registrar, IN_BY_THE_EDGE, PortalTests::smallMobInByTheEdgeGoesThrough);
+        GooTestFunctions.registerTest(registrar, NOT_HURT_BY_THE_WALL_BESIDE,
+                PortalTests::smallMobByTheEdgeIsNotHurtByTheWall);
         GooTestFunctions.registerTest(registrar, BROKEN_LAST_LINKS_NOTHING,
                 PortalTests::placedAfterTheLastBrokeStandsInert);
         GooTestFunctions.registerTest(registrar, LINKING_BY_HAND_COSTS_GOO, PortalTests::linkingByHandCostsGoo);
@@ -532,16 +534,7 @@ public final class PortalTests {
      */
     private static void throwIntoAWalledPortal(GameTestHelper helper, Vec3 from, Vec3 motion, String how) {
         ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        KnownRecipes.teachRequires(owner, AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(PORTAL)));
-        standAt(helper, owner, Vec3.atBottomCenterOf(AWAY));
-        for (BlockPos side : List.of(FIRST.west(), FIRST.east(), FIRST.west().above(), FIRST.east().above(),
-                FIRST.above(2), FIRST.west().above(2), FIRST.east().above(2))) {
-            helper.setBlock(side, Blocks.STONE);
-        }
-        Portal in = castAt(helper, owner, FIRST, Direction.SOUTH);
-        Portal out = castAt(helper, owner, SECOND, Direction.NORTH);
-        helper.assertTrue(QuantumPortals.get(helper.getLevel()).partnerOf(in).equals(Optional.of(out)),
-                "The pair should stand linked");
+        Portal in = walledPair(helper, owner);
         Vec3 feet = helper.absoluteVec(new Vec3(FIRST.getX() + 0.5 + from.x(), FIRST.getY() + from.y(), 0))
                 .with(Direction.Axis.Z, in.gate().center().z() + from.z());
         // A silverfish stands in for the operator's small slime, its box alike: a slime here would be found by the
@@ -557,6 +550,65 @@ public final class PortalTests {
             helper.assertTrue(at.distanceTo(helper.absoluteVec(Vec3.atCenterOf(SECOND)))
                     < at.distanceTo(helper.absoluteVec(Vec3.atCenterOf(FIRST))), "A mob " + how
                     + " should come out of the partner, stands at " + at + ", thrown from " + feet);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Sets the first wall portal in a stone wall and links the second to it.
+     *
+     * @param helper the gametest helper
+     * @param owner  the player placing the pair, stood clear of it
+     * @return the first portal
+     */
+    private static Portal walledPair(GameTestHelper helper, ServerPlayer owner) {
+        KnownRecipes.teachRequires(owner, AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(PORTAL)));
+        standAt(helper, owner, Vec3.atBottomCenterOf(AWAY));
+        for (BlockPos side : List.of(FIRST.west(), FIRST.east(), FIRST.west().above(), FIRST.east().above(),
+                FIRST.above(2), FIRST.west().above(2), FIRST.east().above(2))) {
+            helper.setBlock(side, Blocks.STONE);
+        }
+        Portal in = castAt(helper, owner, FIRST, Direction.SOUTH);
+        Portal out = castAt(helper, owner, SECOND, Direction.NORTH);
+        helper.assertTrue(QuantumPortals.get(helper.getLevel()).partnerOf(in).equals(Optional.of(out)),
+                "The pair should stand linked");
+        return in;
+    }
+
+    private static final String NOT_HURT_BY_THE_WALL_BESIDE = "portal_small_mob_by_the_edge_is_not_hurt_by_the_wall";
+    /** How far to the side of the gate's middle the mob's middle stands: just past the oval's edge. */
+    private static final double JUST_PAST_THE_EDGE = 0.55;
+    /** How far before the face the mob's middle stands, its side a hair into the stone beside the portal. */
+    private static final double JUST_BEFORE_THE_FACE = 0.15;
+    /** Ticks the mob is left there, past the half second between hurts. */
+    private static final int LEFT_THERE = 20;
+
+    /**
+     * A small mob whose middle stands just before a wall portal's face, just
+     * past the oval's edge, with its side a hair into the stone beside the
+     * portal, takes no harm from that stone, as the operator watched a slime
+     * suffocate there and die
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void smallMobByTheEdgeIsNotHurtByTheWall(GameTestHelper helper) {
+        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        Portal in = walledPair(helper, owner);
+        Vec3 middle = in.gate().center().add(in.gate().right().scale(-JUST_PAST_THE_EDGE))
+                .add(in.gate().face().getUnitVec3().scale(JUST_BEFORE_THE_FACE));
+        Mob mob = helper.spawnWithNoFreeWill(EntityType.SILVERFISH, helper.relativeVec(middle));
+        mob.setNoGravity(true);
+        mob.snapTo(middle.x(), middle.y() - mob.getBbHeight() / 2, middle.z(), 0, 0);
+        float health = mob.getHealth();
+        helper.runAfterDelay(LEFT_THERE, () -> {
+            float now = mob.getHealth();
+            String hurtBy = mob.getLastDamageSource() == null ? "nothing" : mob.getLastDamageSource().getMsgId();
+            Vec3 at = mob.getBoundingBox().getCenter();
+            mob.discard();
+            helper.getLevel().getServer().getPlayerList().remove(owner);
+            helper.assertTrue(now == health, "A mob by the portal's edge should take no harm, went from " + health
+                    + " to " + now + " hurt by " + hurtBy + ", its middle at " + at);
             helper.succeed();
         });
     }

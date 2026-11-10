@@ -70,9 +70,21 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
      * @return true inside the oval
      */
     public boolean withinOval(Vec3 point) {
+        return withinOval(point, 0);
+    }
+
+    /**
+     * Whether a point lies within the gate's oval grown by a margin all
+     * round, seen square on.
+     *
+     * @param point  a point
+     * @param margin how far past the oval's edge still reads within, in blocks
+     * @return true inside the grown oval
+     */
+    public boolean withinOval(Vec3 point, double margin) {
         Vec3 offset = point.subtract(center());
-        double across = offset.dot(right()) / halfSpan(right());
-        double along = offset.dot(up) / halfSpan(up);
+        double across = offset.dot(right()) / (halfSpan(right()) + margin);
+        double along = offset.dot(up) / (halfSpan(up) + margin);
         return across * across + along * along <= 1.0;
     }
 

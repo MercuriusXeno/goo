@@ -177,8 +177,10 @@ public final class GatePassage {
 
     /**
      * Whether a body is passing through a gate: its middle at a linked
-     * gate's face in its level, within the oval, where the gate's blocks stand
-     * open to it, so it is neither in a wall nor suffocating there.
+     * gate's face in its level, its box over the oval, where the gate's
+     * blocks and those framing it stand open to it, so it is neither in a
+     * wall nor suffocating there, as a slime by the oval's edge with its side
+     * in the stone beside the portal did.
      *
      * @param entity the body
      * @return true while it passes
@@ -300,7 +302,9 @@ public final class GatePassage {
 
     private static boolean atTheFace(Gate gate, Vec3 middle, double width) {
         double out = gate.out(middle);
-        return out > -DEEPEST && out < APPROACH + width && gate.withinOval(middle);
+        // aim-and-shots-carry-through-linked-gates: a body whose middle stands just past the oval's edge still has
+        // its box over the opening, and its side may stand in the blocks framing the gate
+        return out > -DEEPEST && out < APPROACH + width && gate.withinOval(middle, width * HALF);
     }
 
     /**
