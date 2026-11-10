@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -250,6 +251,32 @@ class PortalFacesTest {
         assertEquals(List.of(orange, seen), worn, "Looking out of the blue portal, only the others wear theirs");
         assertEquals(3, PortalFaces.wornIn(gates, java.util.Optional.empty()).size(),
                 "Outside a view, every gate wears its own");
+    }
+
+    /**
+     * The swirl band passes through the portal's face: inside a view through
+     * a pair, the partner the view looks out of wears the band in the near
+     * portal's color, so looking into the orange portal its orange band runs
+     * on into it, and never in blue; every other gate wears its own.
+     */
+    @Test
+    void theViewThroughAPairCarriesTheNearPortalsBandOnThroughIt() {
+        Gate blue = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 1, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
+        Gate orange = new Gate(Level.OVERWORLD, new AABB(9, 64, 0, 10, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
+        Gate seen = new Gate(Level.OVERWORLD, new AABB(20, 64, 0, 21, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
+        List<PortalFaces.Drawn> gates = List.of(new PortalFaces.Drawn(blue, PortalFaces.BLUE_RGB, false),
+                new PortalFaces.Drawn(orange, PortalFaces.ORANGE_RGB, false),
+                new PortalFaces.Drawn(seen, PortalFaces.BLUE_RGB, false));
+
+        List<PortalFaces.Drawn> banded = PortalFaces.bandedIn(gates, java.util.Optional.of(
+                new GatePassage.Pair(orange, blue)));
+
+        assertEquals(List.of(new PortalFaces.Drawn(blue, PortalFaces.ORANGE_RGB, false),
+                new PortalFaces.Drawn(orange, PortalFaces.ORANGE_RGB, false),
+                new PortalFaces.Drawn(seen, PortalFaces.BLUE_RGB, false)), banded,
+                "Looking into the orange portal, the blue partner it looks out of wears the orange band");
+        assertEquals(gates, PortalFaces.bandedIn(gates, java.util.Optional.empty()),
+                "Outside a view, every gate wears its own band");
     }
 
     /**
