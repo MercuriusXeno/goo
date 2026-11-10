@@ -300,8 +300,8 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The shifter a player holds, saved with the player.
-     * shifter-blinks-along-the-cursor-on-hit
+     * The Elude a player holds, saved with the player.
+     * elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage
      */
     public static final Supplier<AttachmentType<Shifter>> SHIFTER =
             ATTACHMENT_TYPES.register("shifter",
@@ -323,20 +323,26 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The charm a mob holds, the player it fights for and when it fades,
-     * saved with the mob and synced to every client drawing it, which floats
-     * the charmed heart over its head.
-     * charm-glisten-and-icon-over-the-head
-     */
-    /**
      * The rally a peaceful mob holds: the caster it fights for, the game
-     * time it fades at and its strike damage, saved with the mob.
+     * time it fades at and its strike damage, saved with the mob and synced
+     * to every client drawing it, which floats the rally fist over its head
+     * and outlines it.
      * zoo-rally-arms-the-peaceful
+     * rallied-mobs-wear-a-red-clenched-fist
      */
     public static final Supplier<AttachmentType<Rallied>> RALLIED =
             ATTACHMENT_TYPES.register("rallied",
-                    () -> AttachmentType.builder(() -> Rallied.NONE).serialize(Rallied.CODEC).build());
+                    () -> AttachmentType.builder(() -> Rallied.NONE)
+                            .serialize(Rallied.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Rallied.STREAM_CODEC)
+                            .build());
 
+    /**
+     * The charm a mob holds, the player it fights for, saved with the mob
+     * and synced to every client drawing it, which floats the charmed heart
+     * over its head.
+     * charm-glisten-and-icon-over-the-head
+     */
     public static final Supplier<AttachmentType<Charmed>> CHARMED =
             ATTACHMENT_TYPES.register("charmed",
                     () -> AttachmentType.builder(() -> Charmed.NONE)

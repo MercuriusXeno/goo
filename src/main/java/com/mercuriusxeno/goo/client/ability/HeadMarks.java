@@ -10,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -19,35 +18,37 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.Optional;
 
 /**
- * Floats a dark purple heart over the head of every charmed mob in sight,
- * turned to face the camera and bobbing gently, for as long as the charm holds.
+ * Floats a mark over the head of every marked mob in sight, turned to face
+ * the camera and bobbing gently, for as long as the mark holds: the charmed
+ * heart over a charmed mob, the rally fist over a rallied one.
  * charm-glisten-and-icon-over-the-head
  * charm-holds-until-struck
+ * rallied-mobs-wear-a-red-clenched-fist
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class CharmedHearts {
+public final class HeadMarks {
 
-    private static final Identifier HEART_TEXTURE =
-            Identifier.fromNamespaceAndPath(Goo.MODID, "textures/entity/charmed_heart.png");
-    /** Half the heart's width, in blocks. */
+    /** Half the mark's width, in blocks. */
     private static final float HALF_SIZE = 0.2f;
-    /** How far above the mob's head the heart floats, in blocks. */
+    /** How far above the mob's head the mark floats, in blocks. */
     private static final double ABOVE_HEAD = 0.45;
-    /** How far the heart bobs up and down, in blocks. */
+    /** How far the mark bobs up and down, in blocks. */
     private static final double BOB_HEIGHT = 0.05;
     /** The bob's pace, radians per game tick. */
     private static final double BOB_PER_TICK = 0.12;
-    /** The farthest a heart draws from the camera, in blocks. */
+    /** The farthest a mark draws from the camera, in blocks. */
     private static final double SIGHT_RANGE = 48.0;
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
-    private CharmedHearts() {
+    private HeadMarks() {
     }
 
     /**
-     * Draws a heart over each charmed mob after the translucent world.
+     * Draws each mark over the mobs wearing it after the translucent world,
+     * one batch per mark texture.
      *
      * @param event the level render stage event
      */
@@ -61,19 +62,29 @@ public final class CharmedHearts {
         float gameTime = mc.level.getGameTime() + partialTick;
         Camera camera = mc.gameRenderer.getMainCamera();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        RenderType heart = RenderTypes.text(HEART_TEXTURE);
-        VertexConsumer consumer = buffers.getBuffer(heart);
-        for (Entity entity : mc.level.entitiesForRendering()) {
-            if (entity instanceof LivingEntity living && !living.isInvisible()
-                    && living.hasData(GooAttachments.CHARMED)) {
-                drawHeart(event.getPoseStack(), consumer, camera, living, partialTick, gameTime);
+        for (HeadMark mark : HeadMark.values()) {
+            RenderType icon = RenderTypes.text(mark.texture());
+            VertexConsumer consumer = buffers.getBuffer(icon);
+            for (Entity entity : mc.level.entitiesForRendering()) {
+                if (wears(entity, mark)) {
+                    drawMark(event.getPoseStack(), consumer, camera, (LivingEntity) entity, partialTick, gameTime);
+                }
             }
+            buffers.endBatch(icon);
         }
-        buffers.endBatch(heart);
     }
 
-    private static void drawHeart(PoseStack poseStack, VertexConsumer consumer, Camera camera, LivingEntity living,
-                                  float partialTick, float gameTime) {
+    private static boolean wears(Entity entity, HeadMark mark) {
+        return entity instanceof LivingEntity living && !living.isInvisible()
+                && markOf(living).filter(mark::equals).isPresent();
+    }
+
+    private static Optional<HeadMark> markOf(LivingEntity living) {
+        return HeadMark.of(living.hasData(GooAttachments.CHARMED), living.hasData(GooAttachments.RALLIED));
+    }
+
+    private static void drawMark(PoseStack poseStack, VertexConsumer consumer, Camera camera, LivingEntity living,
+                                 float partialTick, float gameTime) {
         Vec3 above = living.getPosition(partialTick)
                 .add(0, living.getBbHeight() + ABOVE_HEAD + bob(gameTime, living.getId()), 0)
                 .subtract(camera.position());
@@ -92,7 +103,7 @@ public final class CharmedHearts {
     }
 
     /**
-     * The heart's bob above its resting height, each mob's heart at its own phase.
+     * The mark's bob above its resting height, each mob's mark at its own phase.
      *
      * @param gameTime the game time including the partial tick
      * @param entityId the mob's id, which sets its phase
