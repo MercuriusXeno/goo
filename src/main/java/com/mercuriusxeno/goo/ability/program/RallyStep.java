@@ -64,7 +64,8 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
             // rally-remembers-the-first-rallier: a second caster's rally refreshes the timing and keeps the first rallier
             UUID rallier = Rallied.rallierAfter(standing, caster.getUUID(), now);
             long expiresAt = now + duration.evaluateInt(context);
-            mob.setData(GooAttachments.RALLIED, new Rallied(rallier, expiresAt, damage.evaluateFloat(context)));
+            mob.setData(GooAttachments.RALLIED, new Rallied(rallier, expiresAt, damage.evaluateFloat(context),
+                    Rallied.attackerAfter(standing, now)));
             if (!alreadyRallied) {
                 // zoo-rally-holds-for-the-brew: a refresh pushes the expiry out without healing the mob again
                 RallyEvents.buff(mob, health.evaluate(context), speed.evaluate(context));
