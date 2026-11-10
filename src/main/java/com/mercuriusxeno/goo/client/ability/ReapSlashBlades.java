@@ -21,29 +21,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reap's slashes on the client, the Crissaegrim's from Symphony of the Night:
- * each a fixed leaf crescent drawn from the very slash the server cuts with,
- * showing only the stretch of its arc between the wipe and the sweep, the
- * sweeping head glowing pale and the stretch behind it fading to Leaf's
- * green, as the game's palette cycling lights its slash sprite.
+ * Reap's slashes on the client, the Crissaegrim's from Symphony of the Night
+ * as its frames show them: each a huge thick crescent drawn whole from the
+ * very slash the server cuts with, its bulge glowing pale and its hollow
+ * side shading to Leaf's green, dimming away as it drifts outward.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ReapSlashBlades {
 
-    /** The quads along a whole arc, tip to tip. */
+    /** The quads along a crescent, tip to tip. */
     private static final int SEGMENTS = 24;
-    /** The pale green the sweeping head glows. */
-    private static final int HEAD_RGB = 0xF0FFD8;
+    /** The pale cyan-green its bulge glows, as the game's slash glows pale at its outer edge. */
+    private static final int BULGE_RGB = 0xE0FFF0;
     private static final int OPAQUE = 0xFF;
-    /** The share of its brightness the stretch farthest behind the head keeps. */
-    private static final float TRAIL_SHARE = 0.35f;
-    /** The inner edge's share of the outer edge's brightness, so the crescent glows along its rim. */
-    private static final float INNER_SHARE = 0.4f;
-    private static final double INNER = 0;
-    private static final double OUTER = 1;
-    /** The shortest stretch of arc the glow is spread across, so a stretch of none divides by nothing. */
-    private static final double SHORTEST_STRETCH = 1e-6;
+    /** The hollow edge's share of the bulge's brightness. */
+    private static final float HOLLOW_SHARE = 0.45f;
+    private static final double HOLLOW = 0;
+    private static final double BULGE = 1;
 
     private static final List<Shown> LIVE = new ArrayList<>();
 
@@ -79,7 +74,7 @@ public final class ReapSlashBlades {
     }
 
     /**
-     * Draws every live slash after translucent blocks, dropping each that has wiped away.
+     * Draws every live slash after translucent blocks, dropping each that has dimmed away.
      *
      * @param event the level render stage event
      */
@@ -108,7 +103,8 @@ public final class ReapSlashBlades {
     }
 
     /**
-     * Draws the stretch of a slash's arc between its wipe and its sweep.
+     * Draws one slash whole an age into its life: its bulge glowing pale, its
+     * hollow edge Leaf's green, both dimming together.
      *
      * @param quads  the context the quads emit through
      * @param slash  the slash
@@ -117,46 +113,20 @@ public final class ReapSlashBlades {
      * @param leaf   Leaf's green
      */
     private static void drawSlash(FlatQuadContext quads, ReapSlash slash, double age, Vec3 camera, int leaf) {
-        double head = slash.headAt(age);
-        double tail = slash.tailAt(age);
-        if (head <= tail) {
+        float strength = slash.strengthAt(age);
+        if (strength <= 0f) {
             return;
         }
-        int first = Mth.floor(tail * SEGMENTS);
-        int last = Mth.ceil(head * SEGMENTS);
-        for (int segment = first; segment < last; segment++) {
-            double from = Math.max(tail, (double) segment / SEGMENTS);
-            double to = Math.min(head, (double) (segment + 1) / SEGMENTS);
-            emitSegment(quads, slash, from, to, camera, colorAt(from, head, tail, leaf), colorAt(to, head, tail, leaf));
+        int bulge = ARGB.color(Mth.floor(OPAQUE * strength), BULGE_RGB);
+        int hollow = ARGB.color(Mth.floor(OPAQUE * strength * HOLLOW_SHARE), leaf);
+        for (int segment = 0; segment < SEGMENTS; segment++) {
+            double from = (double) segment / SEGMENTS;
+            double to = (double) (segment + 1) / SEGMENTS;
+            emit(quads, slash.pointAt(age, from, BULGE).subtract(camera), bulge);
+            emit(quads, slash.pointAt(age, to, BULGE).subtract(camera), bulge);
+            emit(quads, slash.pointAt(age, to, HOLLOW).subtract(camera), hollow);
+            emit(quads, slash.pointAt(age, from, HOLLOW).subtract(camera), hollow);
         }
-    }
-
-    /**
-     * The glow of the arc at a point: pale at the sweeping head, fading to
-     * Leaf's green toward the wipe.
-     *
-     * @param along how far along the arc, 0 at the first tip and 1 at the other
-     * @param head  how far the sweep has reached
-     * @param tail  how far the wipe has reached
-     * @param leaf  Leaf's green
-     * @return the color
-     */
-    private static int colorAt(double along, double head, double tail, int leaf) {
-        float nearHead = (float) Math.clamp((along - tail) / Math.max(SHORTEST_STRETCH, head - tail), 0, 1);
-        int rgb = ARGB.srgbLerp(nearHead, leaf, HEAD_RGB);
-        return ARGB.color(Mth.floor(OPAQUE * Mth.lerp(nearHead, TRAIL_SHARE, 1f)), rgb);
-    }
-
-    private static void emitSegment(FlatQuadContext quads, ReapSlash slash, double from, double to, Vec3 camera,
-                                    int fromColor, int toColor) {
-        emit(quads, slash.pointAt(from, OUTER).subtract(camera), fromColor);
-        emit(quads, slash.pointAt(to, OUTER).subtract(camera), toColor);
-        emit(quads, slash.pointAt(to, INNER).subtract(camera), dimmed(toColor));
-        emit(quads, slash.pointAt(from, INNER).subtract(camera), dimmed(fromColor));
-    }
-
-    private static int dimmed(int color) {
-        return ARGB.color(Mth.floor(ARGB.alpha(color) * INNER_SHARE), color);
     }
 
     private static void emit(FlatQuadContext quads, Vec3 point, int color) {
