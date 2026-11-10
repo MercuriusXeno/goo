@@ -7,6 +7,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
 /**
@@ -53,5 +54,20 @@ public record Rallied(UUID caster, long expiresAt, float damage) {
      */
     public boolean standsAt(long gameTime) {
         return gameTime < expiresAt;
+    }
+
+    /**
+     * Whom a mob fights for once a rally reaches it: the first rallier while
+     * that rally stands, the caller where the mob holds no rally or its rally
+     * has ended.
+     * rally-remembers-the-first-rallier
+     *
+     * @param standing the rally the mob holds, null for none
+     * @param caller   the caster whose rally reaches the mob
+     * @param gameTime the game time
+     * @return the rallier's UUID
+     */
+    public static UUID rallierAfter(@Nullable Rallied standing, UUID caller, long gameTime) {
+        return standing != null && standing.standsAt(gameTime) ? standing.caster() : caller;
     }
 }

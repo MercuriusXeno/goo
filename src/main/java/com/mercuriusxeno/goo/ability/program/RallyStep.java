@@ -8,18 +8,20 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
  * Rallies the host's target for the caster and finishes: until the rally
  * fades, the mob strikes the caster's enemies for the named damage, its max
  * health and speed lifted by the named shares. A cast with no caster behind
- * it rallies nothing. A mob the caster already rallied has its expiry pushed
- * out, keeping its buff and health. Zoo's Rally is
+ * it rallies nothing. A mob under a standing rally has its expiry pushed
+ * out, keeping its buff, its health and its first rallier. Zoo's Rally is
  * {@code rally duration=100 damage=6 health=1.5 speed=0.5}, re-run while its
  * held effect stands.
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
+ * rally-remembers-the-first-rallier
  *
  * @param duration the ticks the rally lasts past the step's last run, evaluated when the step runs
  * @param damage   the damage one strike deals
@@ -56,9 +58,13 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
         Entity caster = host.thrower();
         if (caster != null && takesEntity(host.target())) {
             Mob mob = (Mob) host.target();
-            boolean alreadyRallied = ralliedBy(mob, caster);
-            long expiresAt = mob.level().getGameTime() + duration.evaluateInt(context);
-            mob.setData(GooAttachments.RALLIED, new Rallied(caster.getUUID(), expiresAt, damage.evaluateFloat(context)));
+            long now = mob.level().getGameTime();
+            Rallied standing = mob.hasData(GooAttachments.RALLIED) ? mob.getData(GooAttachments.RALLIED) : null;
+            boolean alreadyRallied = standing != null && standing.standsAt(now);
+            // rally-remembers-the-first-rallier: a second caster's rally refreshes the timing and keeps the first rallier
+            UUID rallier = Rallied.rallierAfter(standing, caster.getUUID(), now);
+            long expiresAt = now + duration.evaluateInt(context);
+            mob.setData(GooAttachments.RALLIED, new Rallied(rallier, expiresAt, damage.evaluateFloat(context)));
             if (!alreadyRallied) {
                 // zoo-rally-holds-for-the-brew: a refresh pushes the expiry out without healing the mob again
                 RallyEvents.buff(mob, health.evaluate(context), speed.evaluate(context));
@@ -78,11 +84,6 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
     @Override
     public boolean takesEntity(Entity entity) {
         return entity instanceof Mob;
-    }
-
-    private static boolean ralliedBy(Mob mob, Entity caster) {
-        return mob.hasData(GooAttachments.RALLIED) && mob.getData(GooAttachments.RALLIED).caster()
-                .equals(caster.getUUID());
     }
 
     @Override
