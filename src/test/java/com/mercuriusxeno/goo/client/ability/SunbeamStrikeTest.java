@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -22,6 +23,8 @@ class SunbeamStrikeTest {
     private static final int TICKS = 400;
     private static final double RADIUS = 0.05;
     private static final double TOLERANCE = 1.0e-9;
+    /** The mesh's turn is a float quaternion, so offsets taken through it agree to float precision. */
+    private static final double FLOAT_TOLERANCE = 1.0e-6;
     private static final double END_ROD_SPEED = 0.12;
     private static final Vec3 SLANTED_AXIS = new Vec3(0.6, -0.5, 0.8).normalize();
     private static final Vec3 SOURCE = new Vec3(0.5, 66.0, -4.0);
@@ -44,26 +47,39 @@ class SunbeamStrikeTest {
     @Nested
     class Probing {
 
+        private static final double[] GRID = {-RADIUS, 0, RADIUS};
+
+        private static Vec3 drawnGridPoint(double x, double z) {
+            Vector3f point = GlowBeamMesh.alongBeam(SLANTED_AXIS).transform(new Vector3f((float) x, 0f, (float) z));
+            return new Vec3(point.x, point.y, point.z);
+        }
+
         @Test
-        void nineProbesLieAcrossTheBeamOneAtTheMiddleAndEightAroundItAtTheRadius() {
+        void nineProbesLieOnTheDrawnSquaresGridItsMiddleEdgeMiddlesAndCorners() {
             List<Vec3> offsets = SunbeamStrike.probeOffsets(SLANTED_AXIS, RADIUS);
             assertEquals(9, offsets.size());
             int middles = 0;
-            List<Vec3> rim = new ArrayList<>();
+            int edgeMiddles = 0;
+            int corners = 0;
             for (Vec3 offset : offsets) {
-                assertEquals(0, offset.dot(SLANTED_AXIS), TOLERANCE, "probe offset leaves the cross-section");
-                if (offset.length() < TOLERANCE) {
+                assertEquals(0, offset.dot(SLANTED_AXIS), FLOAT_TOLERANCE, "probe offset leaves the cross-section");
+                double length = offset.length();
+                if (length < FLOAT_TOLERANCE) {
                     middles++;
-                } else {
-                    assertEquals(RADIUS, offset.length(), TOLERANCE, "rim probe off the radius");
-                    rim.add(offset);
+                } else if (Math.abs(length - RADIUS) < FLOAT_TOLERANCE) {
+                    edgeMiddles++;
+                } else if (Math.abs(length - RADIUS * Math.sqrt(2)) < FLOAT_TOLERANCE) {
+                    corners++;
                 }
             }
             assertEquals(1, middles, "one probe at the middle");
-            for (int first = 0; first < rim.size(); first++) {
-                for (int second = first + 1; second < rim.size(); second++) {
-                    assertTrue(rim.get(first).distanceTo(rim.get(second)) > RADIUS / 2,
-                            "two rim probes share a spot");
+            assertEquals(4, edgeMiddles, "four probes at the edge middles");
+            assertEquals(4, corners, "four probes at the corners");
+            for (double x : GRID) {
+                for (double z : GRID) {
+                    Vec3 drawn = drawnGridPoint(x, z);
+                    assertTrue(offsets.stream().anyMatch(offset -> offset.distanceTo(drawn) < FLOAT_TOLERANCE),
+                            "no probe at the drawn square's grid point " + x + ", " + z);
                 }
             }
         }
@@ -147,7 +163,7 @@ class SunbeamStrikeTest {
             List<SunbeamMotes.Mote> motes = scatterOver(surfaces.getFirst());
             assertFalse(motes.isEmpty(), "the refracted beam's mob scatters motes");
             for (SunbeamMotes.Mote mote : motes) {
-                assertTrue(mote.at().distanceTo(REFRACTED_END) <= RADIUS + TOLERANCE,
+                assertTrue(mote.at().distanceTo(REFRACTED_END) <= RADIUS * Math.sqrt(2) + FLOAT_TOLERANCE,
                         "mote spawns away from the refracted end: " + mote.at());
                 assertTrue(mote.velocity().dot(PRISM.subtract(REFRACTED_END)) > 0,
                         "mote scatters away from the prism: " + mote.velocity());
