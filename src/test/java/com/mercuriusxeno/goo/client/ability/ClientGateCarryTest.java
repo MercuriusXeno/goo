@@ -14,11 +14,16 @@ import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,26 +55,134 @@ class ClientGateCarryTest {
     /** Where the client drew it the tick before, a step further back. */
     private static final Vec3 DRAWN_BEFORE = new Vec3(0.5, 0.0, -0.7);
 
-    @Test
-    void aCarriedBodyIsTurnedThroughThePairWhereItIsDrawnAndSlidesOnToTheLanding() {
+    @AfterEach
+    void forgetTheCarries() {
+        ClientGateCarry.forgetAll();
+    }
+
+    private static Entity mockBody() {
         Entity body = mock(Entity.class);
+        when(body.getDeltaMovement()).thenReturn(Vec3.ZERO);
+        return body;
+    }
+
+    /**
+     * A body the client still draws short of the gate it went into is drawn
+     * on into that gate, sliding toward the landing as seen from the entry
+     * side, rather than turned behind the partner's wall, where the probe saw
+     * a thrown slime hidden for 8 to 14 frames after each carry.
+     */
+    @Test
+    void aCarriedBodyDrawnShortOfTheGateSlidesOnIntoItTowardTheLandingSeenFromTheEntrySide() {
+        Entity body = mockBody();
         InterpolationHandler slide = mock(InterpolationHandler.class);
+        when(body.getId()).thenReturn(BODY);
         when(body.getInterpolation()).thenReturn(slide);
         when(body.position()).thenReturn(DRAWN);
+
+        ClientGateCarry.snap(body, CARRY, CARRIED_AT);
+
+        verify(body, never()).setPos(any(Vec3.class));
+        Vec3 landingSeenFromTheEntry = PortalTransform.between(EXIT, ENTERED).point(CARRY.feet());
+        verify(slide).interpolateTo(landingSeenFromTheEntry, CARRY.yaw(), CARRY.pitch());
+    }
+
+    private static final float PARTIAL = 0.5F;
+
+    /**
+     * On the frame the drawn body's middle reaches the entered gate's face it
+     * is turned through the pair, its last tick's place with it, so it is
+     * seen to come on out of the partner unbroken, and it slides on toward
+     * the landing itself from there.
+     */
+    @Test
+    void aCarriedBodyIsTurnedThroughThePairOnTheFrameItsDrawnMiddleReachesTheGate() {
+        Entity body = mockBody();
+        InterpolationHandler slide = mock(InterpolationHandler.class);
+        when(body.getId()).thenReturn(BODY);
+        when(body.getInterpolation()).thenReturn(slide);
+        when(body.position()).thenReturn(DRAWN);
+        ClientGateCarry.snap(body, CARRY, CARRIED_AT);
+        Vec3 pastTheFace = new Vec3(0.5, 0.0, 0.1);
+        when(body.position()).thenReturn(pastTheFace);
+        when(body.getPosition(PARTIAL)).thenReturn(new Vec3(0.5, 0.0, 0.02));
+        when(slide.hasActiveInterpolation()).thenReturn(true);
+        when(slide.position()).thenReturn(PortalTransform.between(EXIT, ENTERED).point(CARRY.feet()));
         body.xo = DRAWN_BEFORE.x();
         body.yo = DRAWN_BEFORE.y();
         body.zo = DRAWN_BEFORE.z();
 
-        ClientGateCarry.snap(body, CARRY, CARRIED_AT);
+        ClientGateCarry.crossDrawn(body, PARTIAL, CARRIED_AT + 1);
 
         PortalTransform through = PortalTransform.between(ENTERED, EXIT);
-        verify(slide).cancel();
-        verify(body).setPos(through.point(DRAWN));
+        verify(body).setPos(through.point(pastTheFace));
         Vec3 before = new Vec3(body.xo, body.yo, body.zo);
         assertTrue(before.distanceTo(through.point(DRAWN_BEFORE)) < 1.0E-6, "The body's last tick should turn "
                 + "through the pair with it, so it is drawn moving on unbroken, stands at " + before);
-        verify(slide).interpolateTo(CARRY.feet(), CARRY.yaw(), CARRY.pitch());
+        verify(slide).interpolateTo(argThat(target -> target.distanceTo(CARRY.feet()) < 1.0E-6), anyFloat(),
+                anyFloat());
     }
+
+    /** A body drawn still short of the gate it went into stays where it is drawn. */
+    @Test
+    void aCarriedBodyDrawnShortOfTheGateIsNotYetTurned() {
+        Entity body = mockBody();
+        when(body.getId()).thenReturn(BODY);
+        when(body.getInterpolation()).thenReturn(mock(InterpolationHandler.class));
+        when(body.position()).thenReturn(DRAWN);
+        when(body.getPosition(PARTIAL)).thenReturn(DRAWN);
+        ClientGateCarry.snap(body, CARRY, CARRIED_AT);
+
+        ClientGateCarry.crossDrawn(body, PARTIAL, CARRIED_AT + 1);
+
+        verify(body, never()).setPos(any(Vec3.class));
+    }
+
+    /**
+     * A move the server sends for the body before the client draws it into
+     * the gate is drawn as seen from the entry side; once drawn through, the
+     * server's moves stand as sent.
+     */
+    @Test
+    void aServerMoveBeforeTheDrawnBodyReachesTheGateIsSeenFromTheEntrySide() {
+        Entity body = mockBody();
+        when(body.getId()).thenReturn(BODY);
+        when(body.getInterpolation()).thenReturn(mock(InterpolationHandler.class));
+        when(body.position()).thenReturn(DRAWN);
+        ClientGateCarry.snap(body, CARRY, CARRIED_AT);
+        Vec3 movedOn = CARRY.feet().add(0, 0, 0.5);
+
+        assertTrue(ClientGateCarry.drawnSideOf(BODY, movedOn).distanceTo(
+                PortalTransform.between(EXIT, ENTERED).point(movedOn)) < 1.0E-6,
+                "The move should be drawn as seen from the entry side");
+        when(body.position()).thenReturn(new Vec3(0.5, 0.0, 0.1));
+        when(body.getPosition(PARTIAL)).thenReturn(new Vec3(0.5, 0.0, 0.1));
+        ClientGateCarry.crossDrawn(body, PARTIAL, CARRIED_AT + 1);
+        assertEquals(movedOn, ClientGateCarry.drawnSideOf(BODY, movedOn), "Once drawn through, the move stands");
+    }
+
+    /**
+     * A body the client never draws into the gate, the server having moved
+     * it on some other way, is turned through anyway a short while after the
+     * carry, so it never stays drawn on the wrong side.
+     */
+    @Test
+    void aCarriedBodyNeverDrawnIntoTheGateIsTurnedThroughAShortWhileLater() {
+        Entity body = mockBody();
+        when(body.getId()).thenReturn(BODY);
+        when(body.getInterpolation()).thenReturn(mock(InterpolationHandler.class));
+        when(body.position()).thenReturn(DRAWN);
+        when(body.getPosition(PARTIAL)).thenReturn(DRAWN);
+        ClientGateCarry.snap(body, CARRY, CARRIED_AT);
+        ClientGateCarry.crossDrawn(body, PARTIAL, CARRIED_AT + GIVE_UP_TICKS - 1);
+        verify(body, never()).setPos(any(Vec3.class));
+
+        ClientGateCarry.crossDrawn(body, PARTIAL, CARRIED_AT + GIVE_UP_TICKS);
+
+        verify(body).setPos(PortalTransform.between(ENTERED, EXIT).point(DRAWN));
+    }
+
+    private static final int GIVE_UP_TICKS = 10;
 
     /** A floor portal on the top of a block at y 64, its face the plane y 65. */
     private static final Gate FLOOR = new Gate(OVERWORLD, new AABB(new BlockPos(0, 64, 0)).minmax(
@@ -84,16 +197,21 @@ class ClientGateCarryTest {
      */
     @Test
     void aBodyCarriedOutOfAFloorPortalStandsUprightUnderItsTurnedMiddle() {
-        Entity body = mock(Entity.class);
+        Entity body = mockBody();
+        when(body.getId()).thenReturn(BODY);
         when(body.getInterpolation()).thenReturn(mock(InterpolationHandler.class));
         when(body.position()).thenReturn(DRAWN);
         when(body.getBbHeight()).thenReturn(HEIGHT);
         GateCarriedPayload upOut = new GateCarriedPayload(BODY, new Vec3(0.5, 65.0, 1.0), Vec3.ZERO, 0F, 0F,
                 ENTERED, FLOOR);
-
         ClientGateCarry.snap(body, upOut, CARRIED_AT);
+        Vec3 pastTheFace = new Vec3(0.5, 0.0, 0.1);
+        when(body.position()).thenReturn(pastTheFace);
+        when(body.getPosition(PARTIAL)).thenReturn(pastTheFace);
 
-        Vec3 middle = PortalTransform.between(ENTERED, FLOOR).point(DRAWN.add(0, HEIGHT / 2, 0));
+        ClientGateCarry.crossDrawn(body, PARTIAL, CARRIED_AT + 1);
+
+        Vec3 middle = PortalTransform.between(ENTERED, FLOOR).point(pastTheFace.add(0, HEIGHT / 2, 0));
         verify(body).setPos(middle.subtract(0, HEIGHT / 2, 0));
     }
 
@@ -104,24 +222,27 @@ class ClientGateCarryTest {
 
     /**
      * A body the server carried from a floor portal out of a wall portal
-     * holds a quarter-turn tilt on the client from the tick it emerged, and
-     * the tilt leaves once it has eased to nothing
+     * holds a quarter-turn tilt on the client from the frame it is drawn
+     * through, and the tilt leaves once it has eased to nothing
      * (decision bodies-emerge-along-their-travel-and-ease-upright).
      */
     @Test
     void aBodyCarriedFromAFloorPortalOutOfAWallPortalHoldsItsTiltUntilItEases() {
-        Entity body = mock(Entity.class);
+        Entity body = mockBody();
         when(body.getInterpolation()).thenReturn(mock(InterpolationHandler.class));
-        when(body.position()).thenReturn(new Vec3(0.5, 64.4, 1.0));
+        Vec3 inTheFloorGate = new Vec3(0.5, 64.9, 1.0);
+        when(body.position()).thenReturn(inTheFloorGate);
+        when(body.getPosition(PARTIAL)).thenReturn(inTheFloorGate);
         when(body.getId()).thenReturn(DROPPED);
         GateCarriedPayload outOfTheWall = new GateCarriedPayload(DROPPED, new Vec3(0.5, 0.0, -0.4), Vec3.ZERO, 0F,
                 0F, FLOOR, ENTERED);
-
         ClientGateCarry.snap(body, outOfTheWall, CARRIED_AT);
 
-        assertEquals(QUARTER_TURN, ClientExitTilts.tiltOf(DROPPED, CARRIED_AT).map(tilt -> tilt.degrees())
-                .orElse(0.0), 1.0E-6, "The body should hold a quarter-turn tilt from the tick it emerged");
-        assertTrue(ClientExitTilts.tiltOf(DROPPED, CARRIED_AT + EASE_TICKS).isEmpty(),
+        ClientGateCarry.crossDrawn(body, PARTIAL, CARRIED_AT + 1);
+
+        assertEquals(QUARTER_TURN, ClientExitTilts.tiltOf(DROPPED, CARRIED_AT + 1).map(tilt -> tilt.degrees())
+                .orElse(0.0), 1.0E-6, "The body should hold a quarter-turn tilt from the frame it is drawn through");
+        assertTrue(ClientExitTilts.tiltOf(DROPPED, CARRIED_AT + 1 + EASE_TICKS).isEmpty(),
                 "The tilt should leave once it has eased to nothing");
     }
 
@@ -148,7 +269,7 @@ class ClientGateCarryTest {
      */
     @Test
     void aDroppedLandingSyncStillMovesTheBaseLaterMovesAreReadFrom() {
-        Entity body = mock(Entity.class);
+        Entity body = mockBody();
         VecDeltaCodec moves = new VecDeltaCodec();
         moves.setBase(DRAWN);
         when(body.getId()).thenReturn(BODY);
@@ -168,7 +289,7 @@ class ClientGateCarryTest {
 
     @Test
     void theServersWordPlacingTheBodyBackAtTheLandingIsStale() {
-        Entity body = mock(Entity.class);
+        Entity body = mockBody();
         when(body.position()).thenReturn(DRAWN);
         ClientGateCarry.snap(body, CARRY, CARRIED_AT);
 

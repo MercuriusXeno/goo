@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.mixin;
 
+import com.mercuriusxeno.goo.client.ability.ClientGateCarry;
 import com.mercuriusxeno.goo.client.ability.ClientGatePassage;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import net.minecraft.client.DeltaTracker;
@@ -31,6 +32,8 @@ public abstract class GameRendererPortalViewMixin {
         // A carry after the camera is placed draws its frame from the eye before it, against the entered gate,
         // whose view looks out from inside the carried player's own head.
         ClientGatePassage.crossBeforeFrame(deltaTracker);
+        // aim-and-shots-carry-through-linked-gates: a carried mob is drawn through on the frame it reaches the gate
+        ClientGateCarry.crossDrawnBodies(deltaTracker);
     }
 
     /**
