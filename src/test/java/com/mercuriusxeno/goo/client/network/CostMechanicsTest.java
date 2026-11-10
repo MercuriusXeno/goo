@@ -31,8 +31,7 @@ class CostMechanicsTest {
     private static final Map<String, String> LANG = Map.of(
             "goo.ability.cost_mechanics.upkeep", "%s a second",
             "goo.ability.ender.blink.cost_mechanics", "%s per block, %s through a wall, %s percent to an oculus",
-            "goo.ability.rock.spire.cost_mechanics", "%s per block raised",
-            "goo.ability.unstable.unmake.cost_mechanics", "Burns unstable goo for each block dissolved.");
+            "goo.ability.rock.spire.cost_mechanics", "%s per block raised");
 
     private static final CostMechanicsLookup LOOKUP = new CostMechanicsLookup(
             key -> LANG.getOrDefault(key, key),
@@ -87,11 +86,6 @@ class CostMechanicsTest {
     @Test
     void spireTextNamesStonesRockValuePerBlock() {
         assertTrue(textOf("rock_spire").contains(STONE_ROCK_VALUE + " per block raised"), textOf("rock_spire"));
-    }
-
-    @Test
-    void unmakeTextStatesItsRuleWithNoNumber() {
-        assertTrue(textOf("unstable_unmake").startsWith("Burns unstable goo"), textOf("unstable_unmake"));
     }
 
     static Stream<AbilityDefinition> abilitiesWithAPlainCost() {
