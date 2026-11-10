@@ -11,7 +11,8 @@ import java.util.SplittableRandom;
 /**
  * Sculker's growth along the screen's rim: lots of thin veins, each forking
  * again and again into a web the way sculk veins spread over a block face,
- * rooted in an even spread all around the rim. They grow in from their
+ * rooted in an even spread all around the rim, most of them joined to
+ * their neighbours by thin links so the rim reads as one web. They grow in from their
  * roots as the vision starts, then stay where they grew while it lasts,
  * moving only by a small wriggle; the next vision grows a fresh web.
  * decision sculker-tendrils-are-a-branching-vein-network
@@ -22,7 +23,23 @@ final class VeinNetwork {
     /** Every vein draws one pixel wide. */
     static final int THIN_STROKE = 1;
     /** The veins rooted along each edge, evenly spread. */
-    private static final int VEINS_PER_EDGE = 16;
+    private static final int VEINS_PER_EDGE = 28;
+    /** The share of neighbouring veins a link joins. */
+    private static final float LINK_SHARE = 0.8f;
+    /** Where along a trunk a link may leave or join it, from and to, as a share of the trunk. */
+    private static final float LINK_FROM = 0.25f;
+    private static final float LINK_TO = 0.75f;
+    /** How far a link bows off the straight line at the most, as a share of its length. */
+    private static final float MOST_BOW = 0.25f;
+    /** The ticks a link takes to grow across, and between both its ends growing and it setting out. */
+    private static final int LINK_GROW_TICKS = 20;
+    private static final int LINK_DELAY_TICKS = 4;
+    /** The pixels between one point of a drawn link and the next. */
+    private static final float LINK_PIXELS_A_POINT = 2f;
+    /** The fewest points a drawn link runs through, its two ends. */
+    private static final int FEWEST_LINK_POINTS = 2;
+    /** The middle term of a curve through one bend, which both ends share. */
+    private static final float BOTH_ENDS = 2f;
     /** How far a root falls off its even place at the most, as a share of the room each vein has. */
     private static final float ROOT_JITTER = 0.3f;
     /** The ticks after the vision starts a vein may wait before it grows, at the most. */
@@ -76,6 +93,7 @@ final class VeinNetwork {
 
     private final SplittableRandom random;
     private final List<Vein> grown = new ArrayList<>();
+    private final List<Link> links = new ArrayList<>();
     private float lastTime = NO_TIME;
 
     /**
@@ -161,10 +179,30 @@ final class VeinNetwork {
     }
 
     /**
+     * A thin vein joining one vein's trunk to its neighbour's.
+     *
+     * @param from      the vein it leaves from
+     * @param to        the neighbouring vein it joins
+     * @param fromPoint the point along {@code from}'s trunk it leaves at
+     * @param toPoint   the point along {@code to}'s trunk it joins at
+     * @param bow       how far it bows off the straight line, as a share of its length, to one side or the other
+     * @param startsAt  the game time it starts growing, once both its ends have grown
+     */
+    record Link(Vein from, Vein to, int fromPoint, int toPoint, float bow, float startsAt) {
+    }
+
+    /**
      * @return the veins standing now
      */
     List<Vein> live() {
         return Collections.unmodifiableList(grown);
+    }
+
+    /**
+     * @return the links joining neighbouring veins now
+     */
+    List<Link> links() {
+        return Collections.unmodifiableList(links);
     }
 
     /**
@@ -183,6 +221,7 @@ final class VeinNetwork {
     /** Lets the web go as the vision ends, so the next vision grows a fresh one. */
     void hide() {
         grown.clear();
+        links.clear();
         lastTime = NO_TIME;
     }
 
@@ -194,12 +233,44 @@ final class VeinNetwork {
      */
     private void growWeb(float start) {
         grown.clear();
+        links.clear();
         for (int edge = 0; edge < EDGES; edge++) {
+            Vein last = null;
             for (int place = 0; place < VEINS_PER_EDGE; place++) {
                 float along = (place + HALF + between(-ROOT_JITTER, ROOT_JITTER)) / VEINS_PER_EDGE;
-                grown.add(grown(edge, along, start + random.nextInt(LATEST_SPROUT_TICKS + 1)));
+                Vein vein = grown(edge, along, start + random.nextInt(LATEST_SPROUT_TICKS + 1));
+                grown.add(vein);
+                if (last != null && random.nextFloat() < LINK_SHARE) {
+                    links.add(linked(last, vein));
+                }
+                last = vein;
             }
         }
+    }
+
+    /**
+     * Joins two neighbouring veins: from a point along one trunk to a point
+     * along the other's, bowed to one side, setting out once both points
+     * have grown.
+     *
+     * @param from the vein it leaves from
+     * @param to   the neighbouring vein it joins
+     * @return the link
+     */
+    private Link linked(Vein from, Vein to) {
+        int fromPoint = trunkPoint(from);
+        int toPoint = trunkPoint(to);
+        float startsAt = Math.max(grownAt(from, fromPoint), grownAt(to, toPoint)) + LINK_DELAY_TICKS;
+        return new Link(from, to, fromPoint, toPoint, between(-MOST_BOW, MOST_BOW), startsAt);
+    }
+
+    private int trunkPoint(Vein vein) {
+        int last = vein.branches().get(0).inward().length - 1;
+        return Math.round(last * between(LINK_FROM, LINK_TO));
+    }
+
+    private static float grownAt(Vein vein, int trunkPoint) {
+        return vein.bornAt() + vein.growTicks() * vein.branches().get(0).reachAt(trunkPoint) / vein.reach();
     }
 
     private Vein grown(int edge, float along, float bornAt) {
@@ -311,6 +382,85 @@ final class VeinNetwork {
                 drawBranch(graphics, new Stroke(screen, vein, shorter, time), branch, strength, rgb);
             }
         }
+        for (Link link : links) {
+            drawLink(graphics, link, new Stroke(screen, link.from(), shorter, time),
+                    new Stroke(screen, link.to(), shorter, time), strength * linkFade(link), rgb);
+        }
+    }
+
+    /**
+     * How faint a link draws: as faint as the two trunks are where it meets them.
+     *
+     * @param link the link
+     * @return zero to one
+     */
+    private static float linkFade(Link link) {
+        float share = (link.from().branches().get(0).reachAt(link.fromPoint()) / link.from().reach()
+                + link.to().branches().get(0).reachAt(link.toPoint()) / link.to().reach()) * HALF;
+        return 1f - (1f - TIP_SHARE) * share;
+    }
+
+    /**
+     * Draws a link as far across as it has grown: a curve from its point on
+     * one trunk, bowed off the straight line, to its point on the other.
+     *
+     * @param graphics the GUI graphics
+     * @param link     the link
+     * @param from     where the vein it leaves draws
+     * @param to       where the vein it joins draws
+     * @param strength how strongly it draws, the vignette's strength times its fade
+     * @param rgb      the veins' color
+     */
+    private static void drawLink(GuiGraphicsExtractor graphics, Link link, Stroke from, Stroke to, float strength,
+                                 int rgb) {
+        float across = Mth.clamp((from.time() - link.startsAt()) / LINK_GROW_TICKS, 0f, 1f);
+        int alpha = Math.round(Mth.clamp(VEIN_ALPHA * strength, 0f, 1f) * OPAQUE);
+        if (across <= 0f || alpha <= 0) {
+            return;
+        }
+        int[] start = from.pointAt(link.from().branches().get(0), link.fromPoint());
+        int[] end = to.pointAt(link.to().branches().get(0), link.toPoint());
+        float[] bend = bendOf(start, end, link.bow());
+        float length = Mth.length(end[0] - start[0], end[1] - start[1]);
+        int points = Math.max(FEWEST_LINK_POINTS, Math.round(length / LINK_PIXELS_A_POINT));
+        int reached = Math.round(points * across);
+        int[] last = start;
+        for (int point = 1; point <= reached; point++) {
+            int[] next = onCurve(start, bend, end, (float) point / points);
+            line(graphics, last, next, THIN_STROKE, ARGB.color(alpha, rgb));
+            last = next;
+        }
+    }
+
+    /**
+     * The control point a link's curve bows toward: off the middle of the
+     * straight line, square to it, by the bow's share of its length.
+     *
+     * @param start where the link leaves, x then y
+     * @param end   where it joins, x then y
+     * @param bow   how far it bows, as a share of its length
+     * @return the control point, x then y
+     */
+    private static float[] bendOf(int[] start, int[] end, float bow) {
+        float dx = end[0] - start[0];
+        float dy = end[1] - start[1];
+        return new float[] {(start[0] + end[0]) * HALF - dy * bow, (start[1] + end[1]) * HALF + dx * bow};
+    }
+
+    /**
+     * A point along a curve from one end to the other through its bend.
+     *
+     * @param start where the curve leaves, x then y
+     * @param bend  the control point it bows toward, x then y
+     * @param end   where it ends, x then y
+     * @param share how far along it, zero to one
+     * @return the point, x then y
+     */
+    private static int[] onCurve(int[] start, float[] bend, int[] end, float share) {
+        float rest = 1f - share;
+        float x = rest * rest * start[0] + BOTH_ENDS * rest * share * bend[0] + share * share * end[0];
+        float y = rest * rest * start[1] + BOTH_ENDS * rest * share * bend[1] + share * share * end[1];
+        return new int[] {Math.round(x), Math.round(y)};
     }
 
     /**
