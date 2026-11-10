@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * A chunk wears its own cell of its block's particle sprite: the cells cut the
  * sprite's window of the atlas into an equal grid, the first at the sprite's
  * top left and the last at its bottom right
- * (decision unmake-peels-the-block-into-chunks-that-stream-to-the-hand).
+ * (decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity).
  */
 class SpriteCropTest {
 
