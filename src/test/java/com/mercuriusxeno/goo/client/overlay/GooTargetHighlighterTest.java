@@ -25,6 +25,26 @@ import static org.mockito.Mockito.when;
  */
 class GooTargetHighlighterTest {
 
+    /** The vanilla crosshair gives way only to a reticule that shows. */
+    @Nested
+    class VanillaCrosshair {
+
+        @Test
+        void givesWayToTheReticuleDrawnInTheClearWorld() {
+            assertTrue(GooTargetHighlighter.hidesVanillaCrosshair(true, 0f));
+        }
+
+        @Test
+        void staysWhileSculkersSensesDimTheReticuleAway() {
+            assertFalse(GooTargetHighlighter.hidesVanillaCrosshair(true, 1f));
+        }
+
+        @Test
+        void staysWhereNoReticuleWasDrawn() {
+            assertFalse(GooTargetHighlighter.hidesVanillaCrosshair(false, 0f));
+        }
+    }
+
     private static final BlockPos POS = new BlockPos(2, 64, 2);
 
     @Nested
