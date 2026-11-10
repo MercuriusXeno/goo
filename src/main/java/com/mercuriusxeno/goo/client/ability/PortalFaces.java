@@ -88,10 +88,14 @@ public final class PortalFaces {
      * reference stands out, tuned by eye.
      */
     static final double BAND_DEPTH = 2.0 / 16;
-    /** How far inside the rim the swirl band lands on the face, over the portal's view, in blocks, tuned by eye. */
-    static final double BAND_INSIDE = 2.0 / 16;
-    /** How far outside the rim the swirl band lands on the face, on the wall, in blocks, tuned by eye. */
-    static final double BAND_OUTSIDE = 2.0 / 16;
+    /**
+     * How far inside the rim the swirl band lands on the face, over the
+     * portal's view, in blocks: one texel, so the band runs no wider than the
+     * rim's own pixel ring, tuned by eye.
+     */
+    static final double BAND_INSIDE = 1.0 / 16;
+    /** How far outside the rim the swirl band lands on the face, on the wall, in blocks: one texel, tuned by eye. */
+    static final double BAND_OUTSIDE = 1.0 / 16;
     /** How many rings the swirl band's arch runs across in, from inside the rim to outside. */
     private static final int BAND_RINGS = 6;
     /** How many segments each of the band's rings runs around the rim in, enough that it draws round. */
