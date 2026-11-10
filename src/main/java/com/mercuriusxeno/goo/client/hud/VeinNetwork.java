@@ -95,6 +95,8 @@ final class VeinNetwork {
     private final List<Vein> grown = new ArrayList<>();
     private final List<Link> links = new ArrayList<>();
     private float lastTime = NO_TIME;
+    /** The ticks the web has grown for since the vision started, counting only time that ran forward. */
+    private float grownFor;
 
     /**
      * @param seed the seed every web the veins grow is rolled from
@@ -136,7 +138,7 @@ final class VeinNetwork {
      * @param along        where along the edge it roots, zero to one
      * @param branches     its trunk first, then every fork
      * @param reach        how far its farthest tip stands along it, as a share of the screen's shorter side
-     * @param bornAt       the game time it starts growing
+     * @param bornAt       the ticks after the vision starts that it starts growing
      * @param growTicks    the ticks it takes to grow in
      * @param wriggle      how far it wriggles at its farthest tip, as a share of the screen's shorter side
      * @param wriggleSpeed how fast it wriggles, radians a tick
@@ -157,12 +159,12 @@ final class VeinNetwork {
          * How strongly a point along the vein shows at a time: fading in as
          * growth passes it, and full from then on.
          *
-         * @param time  the game time
-         * @param share the point's share of the vein's reach, zero at the root
+         * @param grownFor the ticks the web has grown for
+         * @param share    the point's share of the vein's reach, zero at the root
          * @return zero to one
          */
-        float stretchAt(float time, float share) {
-            return Mth.clamp((time - bornAt - growTicks * share) / STRETCH_FADE_TICKS, 0f, 1f);
+        float stretchAt(float grownFor, float share) {
+            return Mth.clamp((grownFor - bornAt - growTicks * share) / STRETCH_FADE_TICKS, 0f, 1f);
         }
 
         /**
@@ -186,7 +188,7 @@ final class VeinNetwork {
      * @param fromPoint the point along {@code from}'s trunk it leaves at
      * @param toPoint   the point along {@code to}'s trunk it joins at
      * @param bow       how far it bows off the straight line, as a share of its length, to one side or the other
-     * @param startsAt  the game time it starts growing, once both its ends have grown
+     * @param startsAt  the ticks after the vision starts that it starts growing, once both its ends have grown
      */
     record Link(Vein from, Vein to, int fromPoint, int toPoint, float bow, float startsAt) {
     }
@@ -207,13 +209,18 @@ final class VeinNetwork {
 
     /**
      * Grows a fresh web as the vision starts, the first time this is asked
-     * after the vision was hidden, and from then on leaves it standing.
+     * after the vision was hidden, and from then on leaves it standing,
+     * however the game time steps.
      *
      * @param time the game time
      */
     void advance(float time) {
-        if (Float.isNaN(lastTime) || time < lastTime) {
-            growWeb(time);
+        if (Float.isNaN(lastTime)) {
+            growWeb();
+            grownFor = 0f;
+        } else {
+            // the client's game time steps back under the server's time sync, so only forward time grows the web
+            grownFor += Math.max(0f, time - lastTime);
         }
         lastTime = time;
     }
@@ -228,17 +235,15 @@ final class VeinNetwork {
     /**
      * Roots an even spread of veins along every edge, each a little off its
      * even place, and sets each growing in soon after the start.
-     *
-     * @param start the game time the vision starts
      */
-    private void growWeb(float start) {
+    private void growWeb() {
         grown.clear();
         links.clear();
         for (int edge = 0; edge < EDGES; edge++) {
             Vein last = null;
             for (int place = 0; place < VEINS_PER_EDGE; place++) {
                 float along = (place + HALF + between(-ROOT_JITTER, ROOT_JITTER)) / VEINS_PER_EDGE;
-                Vein vein = grown(edge, along, start + random.nextInt(LATEST_SPROUT_TICKS + 1));
+                Vein vein = grown(edge, along, random.nextInt(LATEST_SPROUT_TICKS + 1));
                 grown.add(vein);
                 if (last != null && random.nextFloat() < LINK_SHARE) {
                     links.add(linked(last, vein));
@@ -379,12 +384,12 @@ final class VeinNetwork {
         float shorter = Math.min(screen.width(), screen.height());
         for (Vein vein : grown) {
             for (Branch branch : vein.branches()) {
-                drawBranch(graphics, new Stroke(screen, vein, shorter, time), branch, strength, rgb);
+                drawBranch(graphics, new Stroke(screen, vein, shorter, time, grownFor), branch, strength, rgb);
             }
         }
         for (Link link : links) {
-            drawLink(graphics, link, new Stroke(screen, link.from(), shorter, time),
-                    new Stroke(screen, link.to(), shorter, time), strength * linkFade(link), rgb);
+            drawLink(graphics, link, new Stroke(screen, link.from(), shorter, time, grownFor),
+                    new Stroke(screen, link.to(), shorter, time, grownFor), strength * linkFade(link), rgb);
         }
     }
 
@@ -413,7 +418,7 @@ final class VeinNetwork {
      */
     private static void drawLink(GuiGraphicsExtractor graphics, Link link, Stroke from, Stroke to, float strength,
                                  int rgb) {
-        float across = Mth.clamp((from.time() - link.startsAt()) / LINK_GROW_TICKS, 0f, 1f);
+        float across = Mth.clamp((from.grownFor() - link.startsAt()) / LINK_GROW_TICKS, 0f, 1f);
         int alpha = Math.round(Mth.clamp(VEIN_ALPHA * strength, 0f, 1f) * OPAQUE);
         if (across <= 0f || alpha <= 0) {
             return;
@@ -470,9 +475,10 @@ final class VeinNetwork {
      * @param screen  the screen's size
      * @param vein    the vein
      * @param shorter the screen's shorter side, in pixels
-     * @param time    the game time with the frame's partial tick
+     * @param time     the game time with the frame's partial tick, which the wriggle runs on
+     * @param grownFor the ticks the web has grown for
      */
-    private record Stroke(TendrilVignette.Screen screen, Vein vein, float shorter, float time) {
+    private record Stroke(TendrilVignette.Screen screen, Vein vein, float shorter, float time, float grownFor) {
 
         /**
          * @param branch the branch
@@ -491,7 +497,7 @@ final class VeinNetwork {
         Vein vein = stroke.vein();
         for (int point = 1; point < branch.inward().length; point++) {
             float share = branch.reachAt(point) / vein.reach();
-            float fade = vein.stretchAt(stroke.time(), share) * (1f - (1f - TIP_SHARE) * share);
+            float fade = vein.stretchAt(stroke.grownFor(), share) * (1f - (1f - TIP_SHARE) * share);
             int alpha = Math.round(Mth.clamp(VEIN_ALPHA * fade * strength, 0f, 1f) * OPAQUE);
             if (alpha > 0) {
                 line(graphics, stroke.pointAt(branch, point - 1), stroke.pointAt(branch, point), branch.stroke(),

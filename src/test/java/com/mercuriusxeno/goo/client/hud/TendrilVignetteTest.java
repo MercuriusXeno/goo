@@ -225,6 +225,20 @@ class TendrilVignetteTest {
             }
         }
 
+        /**
+         * The frame's time can step back a little: the server's time sync
+         * resets the client's game time, and a frame's partial tick can run
+         * ahead of the tick it belongs to.
+         */
+        @Test
+        void theVeinsStayWhenTheFramesTimeStepsBack() {
+            TendrilVignette vignette = veinedTo(SOON_AFTER_THE_START);
+            List<VeinNetwork.Vein> soon = List.copyOf(vignette.veins());
+            vignette.advance(SOON_AFTER_THE_START + 0.9f);
+            vignette.advance(SOON_AFTER_THE_START - 1f);
+            assertEquals(soon, vignette.veins(), "a step back in time should not regrow the web");
+        }
+
         @Test
         void theVeinsGrownAtTheStartStayWhileTheVisionLasts() {
             TendrilVignette vignette = veinedTo(SOON_AFTER_THE_START);
