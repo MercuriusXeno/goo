@@ -75,7 +75,7 @@ final class SunbeamRayEnd {
     /**
      * Whether the ray ends in a prism: its hit is a block holding one, so its
      * layers bloom out inside the prism rather than stop square.
-     * decision sunbeam-ray-blooms-out-inside-the-prism
+     * decision reflector-rail-blooms-out-inside-the-prism
      *
      * @param hit           what the ray's sight line struck, null where none was cast
      * @param blockEntityAt the block entity at a position, null where none stands

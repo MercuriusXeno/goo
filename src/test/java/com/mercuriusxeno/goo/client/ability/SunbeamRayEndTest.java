@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
  * prism that refracts it runs into the prism's middle, where its core is
  * (decision diagnose-and-correct-the-sunbeam-prism-depth); a ray whose hit
  * is a block holding a prism ends in that prism
- * (decision sunbeam-ray-blooms-out-inside-the-prism).
+ * (decision reflector-rail-blooms-out-inside-the-prism).
  */
 class SunbeamRayEndTest {
 

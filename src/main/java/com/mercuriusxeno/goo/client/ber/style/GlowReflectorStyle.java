@@ -21,6 +21,7 @@ import net.minecraft.world.phys.Vec3;
  * drawn once, by the end whose position sorts first.
  * decision reflector-rails-carry-the-brightest-light
  * decision relay-and-metronome-read-apart-at-rest
+ * decision reflector-rail-blooms-out-inside-the-prism
  */
 public final class GlowReflectorStyle implements PrismComboStyle {
 
@@ -81,11 +82,24 @@ public final class GlowReflectorStyle implements PrismComboStyle {
         return PrismCrystal.ColumnSides.FOUR;
     }
 
-    private static void emitBeam(PoseStack.Pose pose, VertexConsumer buffer, float length, float share, float scroll) {
+    /**
+     * Emits a rail from one prism's middle to the linked prism's middle, each
+     * layer fading out past both middles so neither end stops square inside
+     * its prism.
+     * decision reflector-rail-blooms-out-inside-the-prism
+     *
+     * @param pose   the pose at the drawing prism's middle, its +y along the rail
+     * @param buffer the vertex consumer
+     * @param length how far the linked prism's middle lies, in blocks
+     * @param share  the network's light as a share of the brightest
+     * @param scroll the texture's scroll offset in [0, 1)
+     */
+    static void emitBeam(PoseStack.Pose pose, VertexConsumer buffer, float length, float share, float scroll) {
         float width = DIMMEST_WIDTH + (1f - DIMMEST_WIDTH) * share;
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             int color = ARGB.color(Math.round(ARGB.alpha(layer.color()) * share), layer.color());
-            GlowBeamMesh.emitLayer(pose, buffer, layer.radius() * width, color, scroll, length);
+            GlowBeamMesh.emitLayerFadingAtBothEnds(pose, buffer, layer.radius() * width, color, scroll, length,
+                    layer.depth());
         }
     }
 

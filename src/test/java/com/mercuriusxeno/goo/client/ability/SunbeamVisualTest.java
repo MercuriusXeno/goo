@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * SunbeamVisual's stretch of beam: one ending in a prism runs on past its end
  * and fades to nothing there, one ending anywhere else stops flat at its end.
- * decision sunbeam-ray-blooms-out-inside-the-prism
+ * decision reflector-rail-blooms-out-inside-the-prism
  */
 class SunbeamVisualTest {
 

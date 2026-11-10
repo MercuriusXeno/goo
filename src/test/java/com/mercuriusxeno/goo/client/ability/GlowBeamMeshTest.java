@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * layers widen and fade from the core out so they bloom, and a fading layer
  * runs on past its length to nothing, the core deepest.
  * decisions bulb-one-model-max-light-beacon-combo, sunbeam-splits-at-the-prism-with-a-glisten
- * decision sunbeam-ray-blooms-out-inside-the-prism
+ * decision reflector-rail-blooms-out-inside-the-prism
  */
 class GlowBeamMeshTest {
 
