@@ -87,6 +87,8 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabDrawsUpOutOfAFloorPortalWithoutALeap);
         GooTestFunctions.registerTest(registrar, GRAB_NEVER_CYCLES_A_MOB_THROUGH_FACING_PORTALS,
                 GrabChannelTests::grabNeverCyclesAMobThroughFacingPortals);
+        GooTestFunctions.registerTest(registrar, GRAB_HOLDS_A_MOB_STILL_AIMED_AT_THE_PORTALS_FACE,
+                GrabChannelTests::grabHoldsAMobStillAimedAtThePortalsFace);
         GooTestFunctions.registerTest(registrar, GRAB_HOLDS_A_MOB_PAST_THE_PORTAL_IT_IS_AIMED_INTO,
                 GrabChannelTests::grabHoldsAMobPastThePortalItIsAimedInto);
         GooTestFunctions.registerTest(registrar,
@@ -693,6 +695,73 @@ public final class GrabChannelTests {
             PortalChoice.breakAt(level, east.block().pos(), east.face());
             helper.assertTrue(still, "The pig should be held still at x " + HELD_PAST_THE_PORTAL_X
                     + ", past the portal it is aimed into, its middle stood at " + held);
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_HOLDS_A_MOB_STILL_AIMED_AT_THE_PORTALS_FACE =
+            "grab_holds_a_mob_still_aimed_at_the_portals_face";
+    /** The west portal's block, its face the plane x 1, facing east. */
+    private static final BlockPos CUSP_WEST = new BlockPos(0, 1, 2);
+    /** The east portal's block, its face the plane x 6, facing west, five blocks across from the west one. */
+    private static final BlockPos CUSP_EAST = new BlockPos(6, 1, 2);
+    /** Where the player stands: its look, four blocks long, ends five hundredths short of the west face. */
+    private static final Vec3 LOOK_ENDS_AT_THE_FACE = new Vec3(5.05, 1, 2.5);
+    /** Where the mob starts: before the west portal, where the operator held a slime at the portal's edge. */
+    private static final Vec3 BEFORE_THE_WEST_FACE = new Vec3(1.5, 1, 2.5);
+    /** How many ticks the mob is watched held, a carry each tick were it looping. */
+    private static final int CUSP_TICKS = 20;
+    /** A move this long in one tick is a carry through the pair. */
+    private static final double A_CARRY = 2.0;
+
+    /**
+     * A mob held by a look ending right at a portal's face is held still on
+     * one side of the pair, never carried round it tick after tick, as the
+     * operator found a slime held at the portal's edge looping
+     * (decision aim-and-shots-carry-through-linked-gates).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabHoldsAMobStillAimedAtThePortalsFace(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Vec3 stand = helper.absoluteVec(LOOK_ENDS_AT_THE_FACE);
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setYRot(FACING_WEST);
+        player.setYHeadRot(FACING_WEST);
+        for (BlockPos wall : java.util.List.of(CUSP_WEST, CUSP_EAST)) {
+            for (int z = 1; z <= 3; z++) {
+                for (int y = 1; y <= 3; y++) {
+                    helper.setBlock(new BlockPos(wall.getX(), y, z), Blocks.STONE);
+                }
+            }
+        }
+        ServerLevel level = helper.getLevel();
+        Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(CUSP_WEST)), Direction.EAST,
+                Direction.UP);
+        Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(CUSP_EAST)), Direction.WEST,
+                Direction.UP);
+        PortalChoice.place(level, player.getUUID(), west);
+        PortalChoice.place(level, player.getUUID(), east);
+        // A silverfish, its box small enough to hang between the player and the east portal.
+        net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(EntityType.SILVERFISH, BEFORE_THE_WEST_FACE);
+        java.util.List<Vec3> path = new java.util.ArrayList<>();
+        for (int tick = 1; tick <= CUSP_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> {
+                // Read before Grab's move too: the pair carries a body after the tick's moves, so a carry shows only
+                // between the end of one tick and the start of the next.
+                path.add(helper.relativeVec(middleOf(mob)));
+                GooStreamHandler.streamTick(player, holdTick(player, mob));
+                path.add(helper.relativeVec(middleOf(mob)));
+            });
+        }
+        helper.runAfterDelay(CUSP_TICKS + 1, () -> {
+            long jumps = java.util.stream.IntStream.range(1, path.size())
+                    .filter(i -> path.get(i).distanceTo(path.get(i - 1)) > A_CARRY).count();
+            PortalChoice.breakAt(level, west.block().pos(), west.face());
+            PortalChoice.breakAt(level, east.block().pos(), east.face());
+            mob.discard();
+            helper.assertTrue(jumps <= 1, "The mob should be held still on one side of the pair, jumped "
+                    + jumps + " times along " + path);
             leave(helper, player);
         });
     }
