@@ -43,7 +43,7 @@ public enum LaidState {
     LUX,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
-    /** Shifter (decision shifter-blinks-along-the-cursor-on-hit). */
+    /** Elude (decision elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage). */
     SHIFTER,
     /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
     EXTENDER,

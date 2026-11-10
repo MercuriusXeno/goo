@@ -2,17 +2,26 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.held.Telekinesis;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -77,13 +86,124 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         Entity held = GrabEvents.heldBy(player);
         if (held == null) {
             held = sentTarget(player, context.hostAs(ChannelHost.class));
+            if (held != null) {
+                GrabEvents.bindThrough(player, held, aimedThrough(player, held));
+            }
         }
         if (held instanceof ItemEntity item) {
-            GrabEvents.pull(player, item, pullSpeed);
+            Vec3 eye = player.getEyePosition();
+            GrabEvents.pull(player, item, pullSpeed, throughGates(player, item, item.position(), eye).orElse(eye));
         } else if (held != null) {
-            GrabEvents.hold(player, held, holdPoint(player, held), throwSpeed);
+            Vec3 middle = held.getBoundingBox().getCenter();
+            Vec3 lift = new Vec3(0, held.getBbHeight() * HALF, 0);
+            Vec3 hold = holdPoint(player, held);
+            Entity body = held;
+            Optional<Vec3> gate = boundGate(player, body).map(GateRay::intoGate)
+                    .or(() -> throughGates(player, body, middle, hold.add(lift)));
+            if (gate.isPresent()) {
+                Vec3 toGate = gate.get().subtract(middle);
+                GrabEvents.drawToward(player, held, toGate.normalize().scale(Math.min(pullSpeed, toGate.length())),
+                        throwSpeed);
+            } else {
+                GrabEvents.hold(player, held, hold, throwSpeed);
+            }
         }
         return true;
+    }
+
+    /**
+     * The gate on a body's side a grab reached it through: the first linked
+     * gate the player's look passes before it reaches the body, so a body
+     * aimed at through a portal is drawn back through that portal whether or
+     * not a straight way to the holder stands open.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the grabbing player
+     * @param body   the body taken
+     * @return the partner of the gate the look passed, empty where the look reached the body straight
+     */
+    private Optional<Gate> aimedThrough(ServerPlayer player, Entity body) {
+        Vec3 eye = player.getEyePosition();
+        double reach = reachWith(Telekinesis.entityReachLaid(player));
+        double straight = eye.distanceTo(body.getBoundingBox().getCenter());
+        return GateRay.first(GatePassage.pairsOf(player.level().getServer()), player.level().dimension(), eye,
+                        eye.add(player.getLookAngle().scale(reach)))
+                .filter(crossing -> eye.distanceTo(crossing.facePoint()) < straight)
+                .map(GateRay.Crossing::far);
+    }
+
+    /**
+     * The gate a held body is still drawn through: the one its grab is bound
+     * to, while that gate stands linked.
+     *
+     * @param player the holding player
+     * @param body   the held body
+     * @return the gate, empty once the pair carried it out, for a straight grab, or once the gate is gone
+     */
+    private static Optional<Gate> boundGate(ServerPlayer player, Entity body) {
+        List<GatePassage.Pair> pairs = GatePassage.pairsOf(player.level().getServer());
+        return GrabEvents.boundThrough(player, body).filter(gate -> GateRay.partnerIn(pairs, gate).isPresent());
+    }
+
+    /**
+     * Where a body Grab draws heads where a linked pair offers the shorter
+     * way to the end, the pair read as ordinary space: through the middle of
+     * the gate's opening, so the body crosses its face and the pair carries
+     * it out, rather than dragged the long way round, across the room and
+     * through the holder, or at the walls between, as the operator found a
+     * slime pulled back out of a portal come at them from behind.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the holding player
+     * @param body   the drawn body
+     * @param from   where the body stands
+     * @param to     where Grab draws it
+     * @return where it heads through a gate, empty where it heads straight for the end
+     */
+    private static Optional<Vec3> throughGates(ServerPlayer player, Entity body, Vec3 from, Vec3 to) {
+        boolean straightOpen = inSight(player, from, to);
+        double straight = from.distanceTo(to);
+        // A way whose far leg is walled too reaches nothing, and the body would go round the pair for ever.
+        return GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), from, to)
+                .filter(route -> !straightOpen || route.length() < straight)
+                .filter(route -> inSight(player, route.out().center()
+                        .add(route.out().face().getUnitVec3().scale(HALF)), to))
+                .map(GateRay.Route::headFor);
+    }
+
+    /**
+     * Whether nothing solid stands on the straight line between two points,
+     * read as the bare world: a body's own context would read a linked gate's
+     * blocks open while the body stands at the gate, and see straight through
+     * the wall to the far side of it, though no straight way runs there.
+     *
+     * @param player the holding player
+     * @param from   the line's start
+     * @param to     its end
+     * @return true where the line runs clear
+     */
+    private static boolean inSight(ServerPlayer player, Vec3 from, Vec3 to) {
+        return player.level().clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                CollisionContext.empty())).getType() == HitResult.Type.MISS;
+    }
+
+    /**
+     * How far Grab reaches to a body: straight where nothing stands between,
+     * else along the shortest way through a linked pair where one runs.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the grabbing player
+     * @param body   the body
+     * @return the squared reach to its middle
+     */
+    private static double reachedSquared(ServerPlayer player, Entity body) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 middle = body.getBoundingBox().getCenter();
+        double straight = eye.distanceTo(middle);
+        double length = inSight(player, eye, middle) ? straight
+                : GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), eye, middle)
+                        .map(GateRay.Route::length).orElse(straight);
+        return length * length;
     }
 
     /**
@@ -103,7 +223,11 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
 
     /**
      * Where a held entity's feet go this tick: its middle on the look at the
-     * hold distance.
+     * hold distance, the look carried through each linked gate it passes, so
+     * a body held by a look aimed into a portal hangs where the look ends past
+     * the partner, as seen through the portal, rather than dragged at the wall
+     * behind it and round the pair every tick.
+     * aim-and-shots-carry-through-linked-gates
      *
      * @param player the holding player
      * @param held   the held entity
@@ -111,9 +235,68 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
      */
     private Vec3 holdPoint(ServerPlayer player, Entity held) {
         double distance = holdDistance(player.getXRot(), near, far);
-        Vec3 middle = player.getEyePosition().add(player.getLookAngle().scale(distance));
-        return middle.subtract(0, held.getBbHeight() * HALF, 0);
+        Vec3 eye = player.getEyePosition();
+        List<GatePassage.Pair> pairs = GatePassage.pairsOf(player.level().getServer());
+        Vec3 middle = lookEndThroughGates(pairs, player.level().dimension(), eye,
+                eye.add(player.getLookAngle().scale(distance)));
+        return clearOfTheFaces(pairs, middle, held.getBbWidth()).subtract(0, held.getBbHeight() * HALF, 0);
     }
+
+    /**
+     * Where a held body's middle hangs so its box stands clear of each
+     * linked gate's face it would hang at: a middle at the face crosses it
+     * as it is held there and goes round the pair every tick, as the
+     * operator found a slime held at the portal's edge looping.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param pairs  the linked pairs
+     * @param middle where the look would hang the body's middle
+     * @param width  the body's width
+     * @return the middle, set out from any face it stood too near
+     */
+    static Vec3 clearOfTheFaces(List<GatePassage.Pair> pairs, Vec3 middle, double width) {
+        double clear = width * HALF + FACE_CLEARANCE;
+        Vec3 held = middle;
+        for (Gate gate : pairs.stream().flatMap(pair -> Stream.of(pair.one(), pair.other())).toList()) {
+            double out = gate.out(held);
+            if (out > -clear && out < clear && gate.withinOval(held, width * HALF)) {
+                held = held.add(gate.face().getUnitVec3().scale(clear - out));
+            }
+        }
+        return held;
+    }
+
+    /** How far past half its width a held body's middle hangs before a linked gate's face. */
+    private static final double FACE_CLEARANCE = 0.1;
+
+    /**
+     * Where a look ends carried through each linked gate it passes, a few at
+     * most, so a look down the tunnel a facing pair makes ends rather than
+     * going round it.
+     *
+     * @param pairs     the linked pairs
+     * @param dimension the level the look runs in
+     * @param from      the look's start
+     * @param to        its straight end
+     * @return its end through the gates
+     */
+    static Vec3 lookEndThroughGates(List<GatePassage.Pair> pairs, ResourceKey<Level> dimension, Vec3 from,
+            Vec3 to) {
+        Vec3 start = from;
+        Vec3 end = to;
+        for (int hop = 0; hop < MOST_HOPS; hop++) {
+            Optional<GateRay.Crossing> crossing = GateRay.first(pairs, dimension, start, end);
+            if (crossing.isEmpty()) {
+                break;
+            }
+            start = crossing.get().farFrom();
+            end = crossing.get().farTo();
+        }
+        return end;
+    }
+
+    /** How many gates a held body's look is carried through at most. */
+    private static final int MOST_HOPS = 4;
 
     /**
      * How far Grab's look reaches for an entity to lift: its own range, and
@@ -170,8 +353,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         if (sent == null || sent == player) {
             return null;
         }
-        double distanceSquared = player.getEyePosition().distanceToSqr(sent.getBoundingBox().getCenter());
-        return takesSent(sent, distanceSquared, Telekinesis.entityReachLaid(player)) ? sent : null;
+        return takesSent(sent, reachedSquared(player, sent), Telekinesis.entityReachLaid(player)) ? sent : null;
     }
 
     @Override

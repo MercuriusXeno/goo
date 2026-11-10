@@ -17,8 +17,8 @@ import java.util.Optional;
  * (decision delivery-block-in-ability-json).
  *
  * @param kind           the delivery kind
- * @param blocksPerTick  a beam's speed in blocks per tick
- * @param range          a stream's reach in blocks
+ * @param blocksPerTick  a beam's speed in blocks per tick, and a scan's wave speed
+ * @param range          a stream's reach in blocks, and how far a scan reads along the look
  * @param coneDegrees    a stream's cone, apex to rim, in degrees
  * @param ticksPerCharge a stream's ticks of hold one cost pays for
  * @param grannyAllowed  whether an arc may lob onto a top face
@@ -330,6 +330,18 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
         }
         int typeTicks = (int) ThrowArc.travelTicks(distance, levity, baseFlightTime);
         return topSpeed > NO_TOP_SPEED ? Math.max(typeTicks, (int) Math.ceil(distance / topSpeed)) : typeTicks;
+    }
+
+    /**
+     * The ticks a scan's wave takes to reach its landing at the delivery's
+     * speed, the delay before its program runs there.
+     * click-is-a-hit-scan-drawn-as-a-delayed-wave
+     *
+     * @param distance world-space distance from the eye to the landing, in blocks
+     * @return the delay in ticks, always at least 1
+     */
+    public int waveTicks(double distance) {
+        return (int) Math.max(1, Math.ceil(distance / blocksPerTick));
     }
 
     /**

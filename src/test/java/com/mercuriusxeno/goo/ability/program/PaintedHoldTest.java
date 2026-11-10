@@ -36,14 +36,17 @@ class PaintedHoldTest {
     private final Block log = mock(Block.class);
     private final Block empty = mock(Block.class);
     private final BlockState emptyState = mock(BlockState.class);
+    private final BlockState logState = mock(BlockState.class);
     private final PaintedHold.CellFinish finish = mock(PaintedHold.CellFinish.class);
     private final HoldMarks marks = new HoldMarks();
 
     PaintedHoldTest() {
         when(empty.defaultBlockState()).thenReturn(emptyState);
         when(emptyState.isAir()).thenReturn(true);
-        when(host.blockAt(pos)).thenReturn(log);
-        marks.paint(pos, log);
+        when(emptyState.getBlock()).thenReturn(empty);
+        when(logState.getBlock()).thenReturn(log);
+        when(host.stateAt(pos)).thenReturn(logState);
+        marks.paint(pos, logState);
     }
 
     @Test

@@ -2,9 +2,12 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
+import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -15,10 +18,17 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -83,9 +93,12 @@ public final class WeirdTests {
     private static final BlockPos OPEN_SKY_FLOOR = new BlockPos(2, 6, 2);
     /** Ticks a jumping pig bounces on the coat, room for a dozen bounces at the ceiling. */
     private static final int RAMP_TICKS = 600;
-    /** The height a ramp at the ceiling peaks above the coat: about fourteen blocks. */
+    /** The height a ramp at the ceiling peaks above the coat: fourteen blocks. */
     private static final double CEILING_PEAK = 14;
-    private static final String RAMP_STALLED = "A pig holding jump on the coat should peak %.0f blocks up, peaks were %s";
+    /** How far the highest peak may stand from CEILING_PEAK, sampled once a tick over the coat's film. */
+    private static final double CEILING_TOLERANCE = 0.5;
+    private static final String RAMP_STALLED = "A pig holding jump on the coat should peak %.0f blocks up within %.1f,"
+            + " peaks were %s";
     private static final String SLIME_BLOB_MAKES_A_SLIME = "slime_blob_makes_a_slime";
     /** SpawnSlimeStep's morph: the ticks the blob takes to become the slime. */
     private static final int SLIME_MORPH_TICKS = 16;
@@ -93,6 +106,33 @@ public final class WeirdTests {
     private static final String HURT_BY_SOFTENED = "A softened zombie's hit should leave the player's health full, has ";
     private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
     private static final String FADED_STILL_SOFT = "Once the wobble has faded, the zombie's hit should hurt the player";
+    private static final String SLIME_LEVELS_OUT = "slime_levels_out_beside_an_open_top";
+    private static final String SLIME_POURS_OFF_A_LEDGE = "slime_pours_off_a_ledge";
+    private static final String COAT_ADDS_A_LAYER = "coat_adds_a_layer_to_standing_slime";
+    /** Ticks the flow is given to settle, far past the handful of pours each test needs. */
+    private static final int FLOW_SETTLE_TICKS = 40;
+    private static final int FULL_CELL = 8;
+    private static final int HALF_CELL = 4;
+    /** The slime cell the flow tests fill, on a stone top in the bay's floor row. */
+    private static final BlockPos FLOW_CELL = new BlockPos(2, 1, 2);
+    /** The ledge cell's slime, on a stone pillar one block over the floor row. */
+    private static final BlockPos LEDGE_CELL = FLOW_CELL.above();
+    /** Where the ledge's layers land: the floor row's cell east of the pillar. */
+    private static final BlockPos BELOW_THE_LEDGE = FLOW_CELL.east();
+    /** Pitched down at the slime coat over the stone three blocks east, so the axis ray ends on it. */
+    private static final float AT_THE_SLIME = 9.4f;
+    private static final String LAYERS_WRONG = "Slime at %s should hold %d layers, holds %s";
+    private static final String BOUNCE_SPLASHES = "bounce_splashes_k_layers";
+    private static final String BREAKING_SLIME_DROPS = "breaking_slime_drops_its_goo";
+    private static final int BROKEN_LAYERS = 3;
+    private static final String RECLAIM_WRONG = "A broken slime cell should drop %d mb of weird goo, dropped %d in %s";
+    private static final String PLACING_KEEPS_GOO = "placing_a_block_keeps_the_slimes_goo";
+    private static final String PLACED_OVER_SLIME = "A block placed against a slime cell should leave it at %d layers"
+            + " or drop %d mb of weird goo; the cell holds %s and %d mb dropped";
+    private static final String BOUNCE_REQUIRED ="Ability registry must hold goo:weird_bounce";
+    private static final String NO_SPLASH_LAYERS = "weird_bounce.json should name a coat step laying layers";
+    private static final String SPLASH_WRONG = "Bounce's splash should leave %d layers over the landing cell and"
+            + " its four side neighbours, left %d";
 
     private WeirdTests() {
     }
@@ -112,6 +152,188 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, HELD_JUMPS_RAMP, WeirdTests::heldJumpsRampToTheCeiling);
         GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::coatSoftensTheMobItHits);
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
+        GooTestFunctions.registerTest(registrar, BOUNCE_SPLASHES, WeirdTests::bounceSplashesKLayers);
+        GooTestFunctions.registerTest(registrar, BREAKING_SLIME_DROPS, WeirdTests::breakingSlimeDropsItsGoo);
+        GooTestFunctions.registerTest(registrar, PLACING_KEEPS_GOO, WeirdTests::placingABlockKeepsTheSlimesGoo);
+        GooTestFunctions.registerTest(registrar, SLIME_LEVELS_OUT, WeirdTests::slimeLevelsOutBesideAnOpenTop);
+        GooTestFunctions.registerTest(registrar, SLIME_POURS_OFF_A_LEDGE, WeirdTests::slimePoursOffALedge);
+        GooTestFunctions.registerTest(registrar, COAT_ADDS_A_LAYER, WeirdTests::coatAddsALayerToStandingSlime);
+    }
+
+    /**
+     * Eight layers of slime set beside an open stone top, the pair walled in
+     * on every other side, level out to four and four.
+     * slime-is-a-layered-cell-that-levels-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimeLevelsOutBesideAnOpenTop(GameTestHelper helper) {
+        BlockPos open = FLOW_CELL.east();
+        stoneUnder(helper, FLOW_CELL);
+        stoneUnder(helper, open);
+        wallSidesBut(helper, FLOW_CELL, Direction.EAST);
+        wallSidesBut(helper, open, Direction.WEST);
+        helper.setBlock(open, Blocks.AIR);
+        helper.setBlock(FLOW_CELL, slimeOf(FULL_CELL));
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            assertLayers(helper, FLOW_CELL, HALF_CELL);
+            assertLayers(helper, open, HALF_CELL);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Four layers of slime on a stone pillar, open to the east over a drop
+     * of one block onto a walled stone top: the layers pour off the ledge
+     * onto that top, the pillar's cell keeping its last layer.
+     * slime-is-a-layered-cell-that-levels-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimePoursOffALedge(GameTestHelper helper) {
+        helper.setBlock(FLOW_CELL, Blocks.STONE);
+        wallSidesBut(helper, LEDGE_CELL, Direction.EAST);
+        helper.setBlock(LEDGE_CELL.east(), Blocks.AIR);
+        stoneUnder(helper, BELOW_THE_LEDGE);
+        wallSidesBut(helper, BELOW_THE_LEDGE, Direction.WEST);
+        helper.setBlock(BELOW_THE_LEDGE, Blocks.AIR);
+        helper.setBlock(LEDGE_CELL, slimeOf(HALF_CELL));
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            assertLayers(helper, LEDGE_CELL, 1);
+            assertLayers(helper, BELOW_THE_LEDGE, HALF_CELL - 1);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Coat's stream held over a cell already holding one layer of slime, its
+     * side neighbours holding a layer each so nothing pours, leaves that cell
+     * at two layers.
+     * slime-is-a-layered-cell-that-levels-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatAddsALayerToStandingSlime(GameTestHelper helper) {
+        ServerPlayer streamer = coaterOverStone(helper);
+        streamer.setXRot(AT_THE_SLIME);
+        BlockPos slimed = COATED_POS.above();
+        helper.setBlock(slimed, slimeOf(1));
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(COATED_POS.relative(side), Blocks.STONE);
+            helper.setBlock(slimed.relative(side), slimeOf(1));
+        }
+        holdCoatFor(helper, streamer, COAT_STEP_TICKS + COAT_SLACK_TICKS);
+        helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            assertLayers(helper, slimed, 2);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A Weird Bounce blob lands on a stone floor: once the flow settles, the
+     * landing cell and its four side neighbours hold slime whose layers sum
+     * to the k weird_bounce.json's coat step names.
+     * bounce-throw-dumps-layers-that-flow-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void bounceSplashesKLayers(GameTestHelper helper) {
+        AbilityDefinition bounce = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(BOUNCE));
+        helper.assertTrue(bounce != null, BOUNCE_REQUIRED);
+        int named = bounce.behaviors().stream().filter(CoatStep.class::isInstance).map(CoatStep.class::cast)
+                .mapToInt(CoatStep::layers).sum();
+        helper.assertTrue(named > 0, NO_SPLASH_LAYERS);
+        BlockPos landing = POOL_FLOOR.above();
+        List<BlockPos> splash = new java.util.ArrayList<>(List.of(landing));
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            splash.add(landing.relative(side));
+        }
+        for (BlockPos cell : splash) {
+            stoneUnder(helper, cell);
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                stoneUnder(helper, cell.relative(side));
+            }
+        }
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
+                NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, BOUNCE));
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            int laid = splash.stream().mapToInt(cell -> SlimeCoatBlock.layersOf(helper.getBlockState(cell))).sum();
+            helper.assertTrue(laid == named, String.format(SPLASH_WRONG, named, laid));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A slime cell of three layers, walled in so nothing pours, broken in a
+     * live world leaves a weird goo item in its cell worth three layers of goo.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     *
+     * @param helper the gametest helper
+     */
+    public static void breakingSlimeDropsItsGoo(GameTestHelper helper) {
+        stoneUnder(helper, FLOW_CELL);
+        wallSidesBut(helper, FLOW_CELL, null);
+        helper.setBlock(FLOW_CELL, slimeOf(BROKEN_LAYERS));
+        // GameTestHelper.destroyBlock breaks with drops off; the level's own break drops what the block gives
+        helper.getLevel().destroyBlock(helper.absolutePos(FLOW_CELL), true);
+        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, FLOW_CELL, 1.0);
+        int weird = drops.stream().map(ItemEntity::getItem)
+                .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
+        int owed = BROKEN_LAYERS * SlimeCoatBlock.MB_PER_LAYER;
+        helper.assertTrue(weird == owed, String.format(RECLAIM_WRONG, owed, weird, drops));
+        helper.succeed();
+    }
+
+    /**
+     * A survival player uses a stone block item against a three layer slime
+     * cell, walled in so nothing pours: the cell keeps all its weird goo,
+     * standing at three layers or dropping what they cost.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     *
+     * @param helper the gametest helper
+     */
+    public static void placingABlockKeepsTheSlimesGoo(GameTestHelper helper) {
+        stoneUnder(helper, FLOW_CELL);
+        wallSidesBut(helper, FLOW_CELL, null);
+        helper.setBlock(FLOW_CELL, slimeOf(BROKEN_LAYERS));
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack stone = new ItemStack(Items.STONE);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stone);
+        BlockPos cell = helper.absolutePos(FLOW_CELL);
+        Vec3 slimeTop = Vec3.atBottomCenterOf(cell).add(0, (double) BROKEN_LAYERS / FULL_CELL, 0);
+        stone.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND,
+                new BlockHitResult(slimeTop, Direction.UP, cell, false)));
+        int standing = SlimeCoatBlock.layersOf(helper.getBlockState(FLOW_CELL));
+        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, FLOW_CELL, 1.0);
+        int weird = drops.stream().map(ItemEntity::getItem)
+                .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
+        int owed = BROKEN_LAYERS * SlimeCoatBlock.MB_PER_LAYER;
+        helper.assertTrue(standing == BROKEN_LAYERS || weird == owed,
+                String.format(PLACED_OVER_SLIME, BROKEN_LAYERS, owed, helper.getBlockState(FLOW_CELL), weird));
+        helper.succeed();
+    }
+
+    private static BlockState slimeOf(int layers) {
+        return GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(SlimeCoatBlock.LAYERS, layers);
+    }
+
+    private static void stoneUnder(GameTestHelper helper, BlockPos cell) {
+        helper.setBlock(cell.below(), Blocks.STONE);
+    }
+
+    private static void wallSidesBut(GameTestHelper helper, BlockPos cell, Direction open) {
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            if (side != open) {
+                helper.setBlock(cell.relative(side), Blocks.STONE);
+            }
+        }
+    }
+
+    private static void assertLayers(GameTestHelper helper, BlockPos cell, int layers) {
+        BlockState state = helper.getBlockState(cell);
+        Object held = state.is(GooBlocks.SLIME_COAT.get()) ? state.getValue(SlimeCoatBlock.LAYERS) : state;
+        helper.assertTrue(Integer.valueOf(layers).equals(held), String.format(LAYERS_WRONG, cell, layers, held));
     }
 
     /**
@@ -188,8 +410,9 @@ public final class WeirdTests {
 
     /**
      * A pig holding jump on a slime coat bounces higher each landing until it
-     * peaks near the ceiling, about fifteen blocks over the coat.
+     * peaks at the ceiling, fourteen blocks over the coat.
      * bounce-ramps-jump-height-while-jump-is-held
+     * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
      *
      * @param helper the gametest helper
      */
@@ -215,7 +438,8 @@ public final class WeirdTests {
         }
         helper.runAfterDelay(RAMP_TICKS + 1, () -> {
             double highest = peaks.stream().mapToDouble(Double::doubleValue).max().orElse(0);
-            helper.assertTrue(highest >= CEILING_PEAK, String.format(RAMP_STALLED, CEILING_PEAK, peaks));
+            helper.assertTrue(Math.abs(highest - CEILING_PEAK) <= CEILING_TOLERANCE,
+                    String.format(RAMP_STALLED, CEILING_PEAK, CEILING_TOLERANCE, peaks));
             helper.succeed();
         });
     }

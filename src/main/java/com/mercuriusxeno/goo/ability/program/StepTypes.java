@@ -135,11 +135,13 @@ public final class StepTypes {
         register(ShifterStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
+        register(VibrateStep.TYPE);
+        register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);
         register(PocketOpenStep.TYPE);
         register(OutsiderStep.TYPE);
         register(MeteorStep.TYPE);
-        register(PhaseBlocksStep.TYPE);
+        register(WormholeStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
@@ -151,7 +153,7 @@ public final class StepTypes {
         register(ReapStep.TYPE);
         register(CharmStep.TYPE);
         register(PhaseStep.TYPE);
-        register(QuantumAnchorStep.TYPE);
+        register(PortalStep.TYPE);
         register(QuantumSwapStep.TYPE);
         register(QuantumLinkStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());

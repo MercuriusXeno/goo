@@ -679,13 +679,12 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void bounceLaysTheSlimeCoatWhereItsArcLands() {
+        void bounceDumpsFourCoatLayersWhereItsArcLands() {
             AbilityDefinition bounce = AbilityJson.decode("weird_bounce");
 
             assertEquals(DeliveryKind.ARC, bounce.delivery().kind());
-            // bounce-ramps-jump-height-while-jump-is-held: Bounce's blob lays the coat Coat lays
-            assertEquals(List.of(new PlaceBlockStep(Identifier.fromNamespaceAndPath(Goo.MODID, "slime_coat"), Map.of())),
-                    bounce.behaviors());
+            // bounce-throw-dumps-layers-that-flow-out: Bounce's blob lays the coat Coat lays, k layers at once
+            assertEquals(List.of(CoatStep.splatted(4)), bounce.behaviors());
         }
     }
 

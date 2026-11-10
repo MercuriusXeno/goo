@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.client.knownitems;
 
+import com.mercuriusxeno.goo.client.tooltip.GooTooltipLines;
+import com.mercuriusxeno.goo.client.workbench.Lettering;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -12,11 +15,13 @@ import java.util.Optional;
 
 /**
  * Draws the known items overlay left to right, top to bottom: one darkening fill over the whole frame,
- * the title in the top left corner with a wide bordered search bar beside it, then one item icon per
+ * the header HeaderLayout lays (the plexer's current target in the upper left corner, a vertical rule,
+ * the title with the bordered search bar beneath it, a horizontal rule under both), then one item icon per
  * shown item in a grid from the left margin, the hovered cell lighter inside a border, and a scroll bar
  * when the rows overflow; names the item the cursor rests on. The grid's first cell is Cancel, ahead
  * of every item whatever the search shows. The close button is the overlay's widget.
  * decision menu-is-a-darkening-overlay-not-a-screen
+ * decision menu-header-reserves-the-target
  * decision cancel-cell-clears-the-plexer-target
  * decision right-click-on-the-plexer-opens-the-known-items-menu
  */
@@ -70,6 +75,12 @@ public final class KnownItemsOverlayRenderer {
     static final int CANCEL_RED = 0xFFE03030;
     /** The translation key of the Cancel cell's name. */
     static final String CANCEL_KEY = "goo.known_items.cancel";
+    /** The translation key of the target column's label. */
+    static final String TARGET_KEY = "goo.known_items.target";
+    /** The name an empty target measures as. */
+    private static final String NO_NAME = "";
+    /** The header's rules' color, the search bar's border's, so the rules and the field read as one frame. */
+    static final int RULE_COLOR = SEARCH_BORDER;
     /** The Cancel glyph's ring: its outer and inner radius, in pixels, about the icon's center. */
     private static final double CANCEL_OUTER = 7.5;
     private static final double CANCEL_INNER = 5.5;
@@ -115,15 +126,16 @@ public final class KnownItemsOverlayRenderer {
     /**
      * What one overlay frame draws.
      *
-     * @param width  the frame's width
-     * @param height the frame's height
+     * @param width    the frame's width
+     * @param height   the frame's height
+     * @param target   the plexer's current target, empty when none is set
      * @param items    the known items in the order they draw, already filtered by the query
      * @param query    the text typed in the search bar
      * @param firstRow the grid row the scroll asks to show first
      * @param cursorX  the cursor's x, whose cell draws hovered
      * @param cursorY  the cursor's y
      */
-    public record Frame(int width, int height, List<KnownItem> items, String query, int firstRow,
+    public record Frame(int width, int height, ItemStack target, List<KnownItem> items, String query, int firstRow,
                         int cursorX, int cursorY) {
     }
 
@@ -189,11 +201,7 @@ public final class KnownItemsOverlayRenderer {
     public static Drawn render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
         graphics.fill(0, 0, frame.width(), frame.height(), DARKEN);
         Grid grid = Grid.of(frame);
-        // The title marks the overlay as a menu without a panel around it.
-        Component title = Component.translatable(TITLE_KEY);
-        graphics.text(font, title, MARGIN, MARGIN + SEARCH_INSET, TITLE_TEXT);
-        drawSearchBar(graphics, font, MARGIN + font.width(title) + SIDES * GAP,
-                closeButton(frame.width()).left() - GAP, frame.query());
+        drawHeader(graphics, font, frame);
         // The Cancel cell takes slot 0, so every item sits one slot on.
         int slots = frame.items().size() + 1;
         ScrollModel scroll = ScrollModel.of((slots + grid.columns() - 1) / grid.columns(), grid.rowsVisible(),
@@ -237,6 +245,59 @@ public final class KnownItemsOverlayRenderer {
             }
         }
         return new Drawn(icons, cancel, scroll, null);
+    }
+
+    /**
+     * Draws the header as HeaderLayout lays it: the title and the search bar beneath it, the target column, then a
+     * vertical rule between the columns down to a horizontal rule under both.
+     * decision menu-header-reserves-the-target
+     *
+     * @param graphics the GUI graphics extractor
+     * @param font     the font the header's text draws in
+     * @param frame    what the frame draws
+     */
+    private static void drawHeader(GuiGraphicsExtractor graphics, Font font, Frame frame) {
+        Component label = Component.translatable(TARGET_KEY);
+        Lettering nameLettering = Lettering.amount(font);
+        String name = frame.target().isEmpty() ? NO_NAME : frame.target().getHoverName().getString();
+        HeaderLayout header = HeaderLayout.of(frame.width(), font.width(label), nameLettering.width(name));
+        // The title marks the overlay as a menu without a panel around it.
+        graphics.text(font, Component.translatable(TITLE_KEY), header.title().left(),
+                header.title().top() + SEARCH_INSET, TITLE_TEXT);
+        drawSearchBar(graphics, font, header.search(), frame.query());
+        drawTargetColumn(graphics, font, header.target(), frame.target());
+        graphics.fill(header.verticalRuleX(), MARGIN, header.verticalRuleX() + 1, header.horizontalRuleY(),
+                RULE_COLOR);
+        graphics.fill(MARGIN, header.horizontalRuleY(), frame.width() - MARGIN, header.horizontalRuleY() + 1,
+                RULE_COLOR);
+    }
+
+    /**
+     * Draws the target column: the Target label, and when a target stands its icon after the label and its name
+     * beneath in the smaller font, the part that spills the first line on the second.
+     *
+     * @param graphics the GUI graphics extractor
+     * @param font     the font
+     * @param column   where the column's parts stand
+     * @param target   the plexer's current target, empty when none is set
+     */
+    private static void drawTargetColumn(GuiGraphicsExtractor graphics, Font font, HeaderLayout.TargetColumn column,
+                                         ItemStack target) {
+        graphics.text(font, Component.translatable(TARGET_KEY), column.label().left(), column.label().top(),
+                TITLE_TEXT);
+        if (target.isEmpty()) {
+            return;
+        }
+        graphics.item(target, column.icon().left(), column.icon().top());
+        Lettering lettering = Lettering.amount(font);
+        String name = target.getHoverName().getString();
+        String first = lettering.fitting(name, column.firstLine().width());
+        lettering.draw(graphics, first, column.firstLine().left(), column.firstLine().top(), SEARCH_TEXT);
+        String spill = name.substring(first.length()).stripLeading();
+        if (!spill.isEmpty()) {
+            lettering.draw(graphics, lettering.fitting(spill, column.secondLine().width()), column.secondLine().left(),
+                    column.secondLine().top(), SEARCH_TEXT);
+        }
     }
 
     private static boolean inCell(Box cell, double x, double y) {
@@ -319,16 +380,14 @@ public final class KnownItemsOverlayRenderer {
      *
      * @param graphics the GUI graphics extractor
      * @param font     the font the text draws in
-     * @param left     the bar's left edge, inside its border
-     * @param right    the bar's right edge, inside its border
+     * @param bar      the bar's box, inside its border
      * @param query    the text typed so far
      */
-    private static void drawSearchBar(GuiGraphicsExtractor graphics, Font font, int left, int right, String query) {
-        int bottom = MARGIN + SEARCH_HEIGHT;
-        graphics.fill(left - 1, MARGIN - 1, right + 1, bottom + 1, SEARCH_BORDER);
-        graphics.fill(left, MARGIN, right, bottom, SEARCH_BAR);
-        int textX = left + SEARCH_INSET;
-        int textY = MARGIN + SEARCH_INSET;
+    private static void drawSearchBar(GuiGraphicsExtractor graphics, Font font, HeaderLayout.Area bar, String query) {
+        graphics.fill(bar.left() - 1, bar.top() - 1, bar.right() + 1, bar.bottom() + 1, SEARCH_BORDER);
+        graphics.fill(bar.left(), bar.top(), bar.right(), bar.bottom(), SEARCH_BAR);
+        int textX = bar.left() + SEARCH_INSET;
+        int textY = bar.top() + SEARCH_INSET;
         if (query.isEmpty()) {
             graphics.text(font, Component.translatable(PLACEHOLDER_KEY), textX, textY, HINT_TEXT);
         } else {
@@ -346,8 +405,8 @@ public final class KnownItemsOverlayRenderer {
     }
 
     /**
-     * The grid's place in the frame: from the left margin under the top row, as many columns as the
-     * width holds beside the scroll bar, and as many rows as fit above the bottom margin.
+     * The grid's place in the frame: from the left margin under the header's horizontal rule, as many columns as
+     * the width holds beside the scroll bar, and as many rows as fit above the bottom margin.
      *
      * @param columns     the grid's columns
      * @param left        the grid's left edge
@@ -358,7 +417,7 @@ public final class KnownItemsOverlayRenderer {
 
         static Grid of(Frame frame) {
             int columns = Math.max(1, (frame.width() - SIDES * MARGIN - GAP - BAR_WIDTH) / CELL);
-            int top = MARGIN + SEARCH_HEIGHT + 1 + SIDES * GAP;
+            int top = HeaderLayout.of(frame.width(), 0, 0).gridTop();
             return new Grid(columns, MARGIN, top, Math.max(1, (frame.height() - top - MARGIN) / CELL));
         }
 
@@ -389,23 +448,29 @@ public final class KnownItemsOverlayRenderer {
     }
 
     /**
-     * Names the cell under the cursor beside it: an item by its name, the Cancel cell as Cancel.
+     * Names the cell under the cursor beside it: an item by its name then its goo cost, the Cancel cell as Cancel.
+     * The item's tooltip gathers with no stack, so the in-world item tooltip's own lines never join it twice.
+     * decision menu-tooltip-carries-the-goo-cost
      *
      * @param graphics the GUI graphics extractor
      * @param font     the font
      * @param drawn    what the frame drew
      * @param cursorX  the cursor's x
      * @param cursorY  the cursor's y
+     * @param values   the goo values the client holds
      */
     public static void nameWhatTheCursorRestsOn(GuiGraphicsExtractor graphics, Font font, Drawn drawn,
-                                                int cursorX, int cursorY) {
+                                                int cursorX, int cursorY, IGooValueLookup values) {
         if (drawn.cancel() != null && inCell(drawn.cancel(), cursorX, cursorY)) {
             graphics.setTooltipForNextFrame(font, Component.translatable(CANCEL_KEY), cursorX, cursorY);
             return;
         }
         ItemIcon hovered = itemUnder(drawn.icons(), cursorX, cursorY);
         if (hovered != null) {
-            graphics.setTooltipForNextFrame(font, hovered.item().stack().getHoverName(), cursorX, cursorY);
+            KnownItem item = hovered.item();
+            graphics.setComponentTooltipFromElementsForNextFrame(font,
+                    GooTooltipLines.named(item.stack().getHoverName(), values.lookup(item.id())), cursorX, cursorY,
+                    ItemStack.EMPTY);
         }
     }
 

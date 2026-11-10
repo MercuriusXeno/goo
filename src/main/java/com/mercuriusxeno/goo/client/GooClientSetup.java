@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
+import com.mercuriusxeno.goo.client.ability.ExitTiltLook;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
@@ -34,6 +35,7 @@ import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
+import com.mercuriusxeno.goo.client.ability.RallyOutline;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -240,7 +242,6 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
-        event.registerBlockEntityRenderer(GooBlockEntities.PHASED_BLOCK.get(), PhasedBlockRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
@@ -328,6 +329,7 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.CLICK_WAVE.get(), ClickWaveParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.LIGHT_MOTE.get(), LightMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_MOTE.get(), VitalMoteParticle.Provider::new);
@@ -351,9 +353,10 @@ public final class GooClientSetup {
 
     /**
      * Registers the render state modifiers that stamp each entity's goo state
-     * onto its render state: the glove's target outline, the goo coat, the
-     * ailments, the phase, the stone and frost encasements, the frozen pose, the grab
-     * flail, the vine tangle, the transformation and the eldritch phase, in that order.
+     * onto its render state: the rally outline, the glove's target outline,
+     * which overrides it, the goo coat, the ailments, the phase, the stone and
+     * frost encasements, the frozen pose, the grab flail, the vine tangle, the
+     * transformation, the eldritch phase and the exit tilt, in that order.
      *
      * @param event the event instance
      */
@@ -362,6 +365,7 @@ public final class GooClientSetup {
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
+                RallyOutline::stampOutline,
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,
                 AilmentOverlayLayer::stampAilments,
@@ -372,7 +376,8 @@ public final class GooClientSetup {
                 GrabFlail::stampFlail,
                 VineTangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation,
-                EldritchSight::stampPhase);
+                EldritchSight::stampPhase,
+                ExitTiltLook::stampTilt);
         for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
             event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
             }, stamp);
