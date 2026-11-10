@@ -39,7 +39,8 @@ public abstract class ServerLevelSculkerHearingMixin {
             at = @At("HEAD"))
     private void goo$carryToSculkers(@Nullable Entity except, double x, double y, double z, Holder<SoundEvent> sound,
                                      SoundSource source, float volume, float pitch, long seed, CallbackInfo info) {
-        SculkerHearing.carry((ServerLevel) (Object) this, except, new Vec3(x, y, z), sound.value().getRange(volume), volume);
+        SculkerHearing.carry((ServerLevel) (Object) this, except, new Vec3(x, y, z), sound.value().getRange(volume),
+                sound.value().location().toString());
     }
 
     /**
@@ -60,6 +61,6 @@ public abstract class ServerLevelSculkerHearingMixin {
                                                 SoundSource source, float volume, float pitch, long seed,
                                                 CallbackInfo info) {
         SculkerHearing.carry((ServerLevel) (Object) this, except, sourceEntity.position(),
-                sound.value().getRange(volume), volume);
+                sound.value().getRange(volume), sound.value().location().toString());
     }
 }

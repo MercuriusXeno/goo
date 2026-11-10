@@ -74,6 +74,16 @@
       }
     ]
   },
+  "ability.click": {
+    "category": "blocks",
+    "subtitle": "subtitles.block.comparator.click",
+    "sounds": [
+      {
+        "name": "minecraft:block.comparator.click",
+        "type": "event"
+      }
+    ]
+  },
   "effects.earth_rumble": {
     "category": "blocks",
     "subtitle": "subtitles.goo.earth_rumble",
