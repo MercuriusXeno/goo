@@ -3,9 +3,12 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.inOrder;
@@ -19,6 +22,20 @@ import static org.mockito.Mockito.when;
  * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
  */
 class SunbeamScorchTest {
+
+    /**
+     * The scorch draws at the stage right after the solid blocks it marks,
+     * ahead of every block entity's beam and the Sunbeam ray, so a beam
+     * passing in front of a mark lies over it (operator UAT 2026-11-10).
+     */
+    @Test
+    void theScorchDrawsRightAfterTheSolidBlocksBeforeAnyBeam() {
+        List<Class<?>> stages = Arrays.stream(SunbeamScorch.class.getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(SubscribeEvent.class))
+                .map(method -> method.getParameterTypes()[0])
+                .toList();
+        assertEquals(List.of(RenderLevelStageEvent.AfterOpaqueBlocks.class), stages);
+    }
 
     @Test
     void everyMarksCharDrawsBeforeAnyMarksGlow() {
