@@ -30,8 +30,10 @@ import java.util.Optional;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SoundWaves {
 
-    /** Ticks between one echo of the trailing click and the next. */
-    static final int REVERB_EVERY = 2;
+    /** The most times the trailing click echoes on the way, as the operator ruled it: three or four. */
+    static final int MOST_ECHOES = 4;
+    /** The fewest ticks between one echo and the next, so the echoes read spaced apart. */
+    static final int LEAST_ECHO_GAP = 4;
     /** The trailing click's volume as it leaves the glove, already quiet. */
     static final float REVERB_LOUDEST = 0.3f;
     /** The trailing click's volume as it reaches the target, barely there. */
@@ -92,11 +94,34 @@ public final class SoundWaves {
         // the shriek ring held square to the line, its spawn speed naming the line it faces along
         Vec3 along = wave.to().subtract(wave.from());
         level.addParticle(GooParticles.CLICK_WAVE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
-        if (age % REVERB_EVERY == 0) {
+        if (echoesAt(age, wave.ticks())) {
             float share = wave.ticks() <= 0 ? 1f : Math.min(1f, (float) age / wave.ticks());
             wave.trail().flatMap(SoundWaves::soundOf).ifPresent(sound -> level.playLocalSound(at.x, at.y, at.z,
                     sound, SoundSource.BLOCKS, reverbVolume(share), REVERB_PITCH - REVERB_PITCH_FALL * share, false));
         }
+    }
+
+    /**
+     * Whether the trailing click echoes on a tick of the wave's travel: at most
+     * {@link #MOST_ECHOES} times, at least {@link #LEAST_ECHO_GAP} ticks apart,
+     * spread evenly from the glove to the target, the first as it leaves.
+     *
+     * @param age   the ticks since the wave left the glove
+     * @param ticks the ticks the wave takes to arrive
+     * @return true on an echo's tick
+     */
+    static boolean echoesAt(long age, int ticks) {
+        int echoes = Math.max(1, Math.min(MOST_ECHOES, ticks / LEAST_ECHO_GAP + 1));
+        if (echoes == 1) {
+            return age == 0;
+        }
+        double gap = (double) ticks / (echoes - 1);
+        for (int echo = 0; echo < echoes; echo++) {
+            if (Math.round(echo * gap) == age) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
