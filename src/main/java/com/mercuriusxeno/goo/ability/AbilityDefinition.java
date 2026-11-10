@@ -69,8 +69,8 @@ import java.util.stream.Stream;
  * @param costMechanics the translation key to a format string explaining how an ability costing nothing up
  *                    front charges, empty for an ability naming none; its positional placeholders (%s) fill
  *                    in the order the ability's kind reads its numbers: a durative ability its upkeep a second; a blink
- *                    its per-block price, its wall price and its oculus percent; a Spire stone's goo value
- *                    per block; any other the names of the items it consumes
+ *                    its per-block price, its wall price and its oculus percent; a Spire its cost, the
+ *                    price per block grown; any other the names of the items it consumes
  *                    (decision zero-cost-field-formats-the-cost-mechanics)
  * @param costFormula the short formula a dynamically priced ability's petal reads in place of a
  *                    fixed cost, "200 + 100/block" for a blink, empty for a fixed-cost ability

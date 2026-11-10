@@ -12,6 +12,7 @@
   "goo.known_items.title": "Known Items",
   "goo.known_items.search": "Search",
   "goo.known_items.cancel": "Cancel",
+  "goo.known_items.target": "Target",
 
   "item.goo.goo": "%s Goo",
 
@@ -287,9 +288,6 @@
   "goo.ability.unstable.explode.description": "Explodes where the goo lands; hold on a block face and drag for a bigger blast.",
   "goo.ability.unstable.lurker": "Lurker",
   "goo.ability.unstable.lurker.description": "A proximity mine that pulses as creatures near, then explodes.",
-  "goo.ability.unstable.unmake": "Unmake",
-  "goo.ability.unstable.unmake.description": "Waves dismantle the blocks ahead back into goo, which you collect automatically.",
-  "goo.ability.unstable.unmake.cost_mechanics": "Burns unstable goo for each block dissolved: the price is slightly higher than it would cost to melt in a crucible.",
   "goo.ability.weird.coat": "Coat",
   "goo.ability.weird.coat.description": "Held slime makes floors bouncy, cools lava to magma, and leaves struck mobs dealing only knockback.",
   "goo.ability.void.erase": "Erase",
