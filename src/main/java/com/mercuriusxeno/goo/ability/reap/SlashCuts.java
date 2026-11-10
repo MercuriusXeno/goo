@@ -6,13 +6,18 @@ import com.mercuriusxeno.goo.network.BlockVisuals;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageSources;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -25,7 +30,8 @@ import java.util.WeakHashMap;
  * Symphony of the Night: a fixed box in front of the slasher stands for the
  * slash's life. On the first tick it cuts it reaps and replants every ripe plant
  * inside, leaving the afterimage of how it stood; each tick of its life it
- * cuts every living body inside but its slasher, once a slash, each cut
+ * cuts every living body inside but its slasher, once a slash, as the
+ * slasher's own attack, each cut
  * landing through the body's immunity so every slash connects. The cuts live
  * a few ticks and are never saved.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
@@ -112,7 +118,7 @@ public final class SlashCuts {
         for (LivingEntity body : level.getEntitiesOfClass(LivingEntity.class, cut.box(),
                 body -> body.getId() != cut.slasherId() && body.isAlive())) {
             if (cut.struck().add(body.getId())) {
-                hurt(level, body, cut.damage());
+                hurt(level, body, cutBy(level.damageSources(), level.getEntity(cut.slasherId())), cut.damage());
             }
         }
         return age >= cut.lifeTicks();
@@ -130,16 +136,33 @@ public final class SlashCuts {
     }
 
     /**
-     * Cuts a body with the magic Leaf's toxin hurts with, clearing its
-     * immunity on both sides so every slash's cut lands and flashes.
+     * The damage a slash cuts with: its slasher's own attack, a player's
+     * where a player slashes and a mob's where a mob does, as any blade's
+     * hit is; generic where no slasher stands.
+     *
+     * @param sources the level's damage sources
+     * @param slasher the entity slashing, or null where none stands
+     * @return the damage source
+     */
+    static DamageSource cutBy(DamageSources sources, @Nullable Entity slasher) {
+        if (slasher instanceof Player player) {
+            return sources.playerAttack(player);
+        }
+        return slasher instanceof LivingEntity mob ? sources.mobAttack(mob) : sources.generic();
+    }
+
+    /**
+     * Cuts a body as its slasher's attack, clearing its immunity on both
+     * sides so every slash's cut lands and flashes.
      *
      * @param level  the server level
      * @param body   the body cut
+     * @param source the slasher's attack
      * @param damage what the cut deals
      */
-    private static void hurt(ServerLevel level, LivingEntity body, float damage) {
+    private static void hurt(ServerLevel level, LivingEntity body, DamageSource source, float damage) {
         body.invulnerableTime = 0;
-        body.hurtServer(level, level.damageSources().magic(), damage);
+        body.hurtServer(level, source, damage);
         body.invulnerableTime = 0;
     }
 }

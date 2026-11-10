@@ -31,7 +31,7 @@ import java.util.stream.Stream;
  * once. Leaf Reap is {@code slash fewest_ticks=2 most_ticks=3 near=1
  * narrowest=0.8 widest=6 thinnest=0.3 thickest=2.0 bulge=0.55
  * drop_least=0.6 drop_most=1.0 tilt=10 drift=1.5 outer_drift=2.5
- * life_ticks=6 damage=0.5}.
+ * life_ticks=6 damage=1}.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
  * @param fewestTicks the fewest held ticks from one slash to the next
