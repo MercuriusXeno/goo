@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -34,11 +35,42 @@ public final class GlowBeamMesh {
             new Layer(0.06f, ARGB.color(66, 0xFFE628), 0.35f),
             new Layer(0.095f, ARGB.color(27, 0xFFD700), 0.25f),
             new Layer(0.14f, ARGB.color(11, 0xFFD700), 0.15f));
+    /** Ticks one breath of the beam's brightness takes, swell to swell. */
+    public static final float BREATH_PERIOD_TICKS = 60f;
+    /** The share of its alpha a beam keeps at the trough of its breath. */
+    public static final float BREATH_FLOOR = 0.85f;
     /** Blocks of beam one tile of the texture spans. */
     private static final float BLOCKS_PER_TILE = 1f;
+    private static final double HALF = 0.5;
     private static final Vector3f UP = new Vector3f(0f, 1f, 0f);
 
     private GlowBeamMesh() {
+    }
+
+    /**
+     * The share of its alpha a glow beam keeps at a moment of its breath: one
+     * at the swell, {@link #BREATH_FLOOR} at the ease, a smooth cosine
+     * between, so the beam reads alive without flicker.
+     * decision every-glow-beam-breathes-in-brightness
+     *
+     * @param ticks the game time in ticks, with the frame's partial tick
+     * @return the alpha share, from the floor to one
+     */
+    public static float breath(double ticks) {
+        double eased = (1 - Math.cos(ticks / BREATH_PERIOD_TICKS * Mth.TWO_PI)) * HALF;
+        return (float) (1 - (1 - BREATH_FLOOR) * eased);
+    }
+
+    /**
+     * A layer's color with its alpha scaled by a breath, the hue kept.
+     * decision every-glow-beam-breathes-in-brightness
+     *
+     * @param color  the packed ARGB color
+     * @param breath the alpha share {@link #breath} answered
+     * @return the breathed color
+     */
+    public static int breathed(int color, float breath) {
+        return ARGB.color(Math.round(ARGB.alpha(color) * breath), color);
     }
 
     /**

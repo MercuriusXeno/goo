@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.BeamSamples;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
@@ -7,12 +8,15 @@ import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * SunbeamVisual's stretch of beam: one ending in a prism runs on past its end
- * and fades to nothing there, one ending anywhere else stops flat at its end.
+ * and fades to nothing there, one ending anywhere else stops flat at its end,
+ * and every stretch breathes in alpha while its width holds.
  * decision reflector-rail-blooms-out-inside-the-prism
+ * decision every-glow-beam-breathes-in-brightness
  */
 class SunbeamVisualTest {
 
@@ -22,9 +26,23 @@ class SunbeamVisualTest {
     private static final float TOLERANCE = 1e-4f;
 
     private static List<RecordingVertexConsumer.Vertex> drawSegment(boolean endsInPrism) {
+        return drawSegment(endsInPrism, 1f);
+    }
+
+    private static List<RecordingVertexConsumer.Vertex> drawSegment(boolean endsInPrism, float breath) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        SunbeamVisual.drawSegment(new PoseStack(), consumer, FROM, TO, 0f, endsInPrism);
+        SunbeamVisual.drawSegment(new PoseStack(), consumer, FROM, TO, 0f, endsInPrism, breath);
         return consumer.vertices();
+    }
+
+    @Test
+    void theRayBreathesInAlphaWhileItsWidthHolds() {
+        List<RecordingVertexConsumer.Vertex> peak = drawSegment(false, GlowBeamMesh.breath(0));
+        List<RecordingVertexConsumer.Vertex> trough =
+                drawSegment(false, GlowBeamMesh.breath(GlowBeamMesh.BREATH_PERIOD_TICKS / 2));
+
+        assertNotEquals(BeamSamples.alphas(peak), BeamSamples.alphas(trough), "the ray's alpha breathes");
+        assertEquals(BeamSamples.extents(peak), BeamSamples.extents(trough), "the ray's width holds");
     }
 
     private static float highestY(List<RecordingVertexConsumer.Vertex> vertices) {
