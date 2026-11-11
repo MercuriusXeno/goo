@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo;
 
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -8,6 +9,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Dist-safe proxy for operations that differ between client and server.
@@ -64,6 +66,19 @@ public interface ISidedProxy {
      */
     default boolean syncedAbilityEats(String abilityId) {
         return false;
+    }
+
+    /**
+     * The steps an ability the client holds synced runs, which a block
+     * reads where it acts on the client's own player. Server: none, since
+     * the server reads the ability registry through its level.
+     * slick-coats-the-ground-with-kinetic-speed
+     *
+     * @param abilityId the ability resource id string
+     * @return the synced ability's steps, empty where none was synced
+     */
+    default List<Step> syncedAbilityProgram(String abilityId) {
+        return List.of();
     }
 
     /**
