@@ -37,6 +37,32 @@ class GooStreamHandlerTest {
     }
 
     @Nested
+    class MoteLaunch {
+
+        private static final Vec3 HEADING = new Vec3(0.6, 0.0, 0.8);
+        private static final double SPEED = 0.5;
+        private static final double DELTA = 1e-12;
+
+        @Test
+        void aMoteLaunchesAlongItsHeadingPlusThePlayersTravel() {
+            Vec3 travel = new Vec3(0.2, -0.1, 0.3);
+
+            Vec3 launch = GooStreamHandler.moteLaunch(HEADING, SPEED, travel);
+
+            assertEquals(0.6 * SPEED + 0.2, launch.x, DELTA);
+            assertEquals(-0.1, launch.y, DELTA);
+            assertEquals(0.8 * SPEED + 0.3, launch.z, DELTA);
+        }
+
+        @Test
+        void aMoteFromAStandingPlayerLaunchesAlongItsHeadingAlone() {
+            Vec3 launch = GooStreamHandler.moteLaunch(HEADING, SPEED, Vec3.ZERO);
+
+            assertEquals(HEADING.scale(SPEED), launch);
+        }
+    }
+
+    @Nested
     class SwarmPick {
 
         private static final Vec3 EYE = Vec3.ZERO;
