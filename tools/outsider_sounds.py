@@ -11,7 +11,9 @@ Decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player:
 while the player channels to go to the pocket, a door is conjured in front
 of them with sounds. Each take swells across the charge's second; the first is
 a breath of air rising through a climbing band under a shimmering tone gliding
-up, which the operator heard as close.
+up, which the operator heard as close. They found the chord takes climbing a
+fourth and a fifth pitched up too high, and picked c3: an open fifth from a low
+root, climbing a semitone over rising air.
 
 Run from the repository root:
     python tools/outsider_sounds.py               # writes every shipped take
@@ -183,7 +185,7 @@ def chord_conjure(spec):
     shimmer = 1.0 + spec["shimmer"] * np.sin(2.0 * np.pi * np.cumsum(4.0 + 14.0 * share) / SAMPLE_RATE)
     rise = share ** spec["swell"] * np.exp(-np.maximum(t - spec["charge"], 0.0) / spec["release"])
     body = (spec["air"] * air / np.max(np.abs(air)) + tone * shimmer / np.max(np.abs(tone))) * rise
-    return normalized(space(body, spec["space"], spec["wet"], rng))
+    return normalized(cut_to(space(body, spec["space"], spec["wet"], rng), spec.get("length")))
 
 
 # Each wub take. a is the first, buzzy one. b to e are pure tones: a chord's root, its notes in semitones above it
@@ -233,12 +235,27 @@ CONJURE_TAKES = {
     "c": (chord_conjure, dict(seconds=1.0, charge=0.9, root_hz=196.0, steps=(0, 7, 12, 19), levels=(1.0, 0.7, 0.5, 0.3),
                               rise_semitones=7.0, air_from=800.0, air_to=5000.0, air=0.25, shimmer=0.3, swell=0.9,
                               release=0.08, space=1.6, wet=0.45)),
+    # The operator found b and c okay but pitching up too high: each again from a lower root, b2 and c2 climbing a
+    # whole tone, b3 and c3 a semitone, the air's band rising less with them, each cut to about 1.4 s.
+    "b2": (chord_conjure, dict(seconds=1.0, charge=0.9, root_hz=174.61, steps=(0, 4, 7, 12),
+                               levels=(1.0, 0.6, 0.7, 0.4), rise_semitones=2.0, air_from=500.0, air_to=2600.0,
+                               air=0.4, shimmer=0.25, swell=0.8, release=0.08, space=1.0, wet=0.4, length=1.4)),
+    "b3": (chord_conjure, dict(seconds=1.0, charge=0.9, root_hz=174.61, steps=(0, 4, 7, 12),
+                               levels=(1.0, 0.6, 0.7, 0.4), rise_semitones=1.0, air_from=500.0, air_to=2000.0,
+                               air=0.4, shimmer=0.25, swell=0.8, release=0.08, space=1.0, wet=0.4, length=1.4)),
+    "c2": (chord_conjure, dict(seconds=1.0, charge=0.9, root_hz=146.83, steps=(0, 7, 12, 19),
+                               levels=(1.0, 0.7, 0.5, 0.3), rise_semitones=2.0, air_from=600.0, air_to=3000.0,
+                               air=0.25, shimmer=0.3, swell=0.9, release=0.08, space=1.1, wet=0.45, length=1.4)),
+    "c3": (chord_conjure, dict(seconds=1.0, charge=0.9, root_hz=146.83, steps=(0, 7, 12, 19),
+                               levels=(1.0, 0.7, 0.5, 0.3), rise_semitones=1.0, air_from=600.0, air_to=2400.0,
+                               air=0.25, shimmer=0.3, swell=0.9, release=0.08, space=1.1, wet=0.45, length=1.4)),
 }
 
 SOUND_TAKES = {"wub": WUB_TAKES, "conjure": CONJURE_TAKES}
 # The takes each sound ships, each with the file it ships as. The operator picked wub b3 and c3 "quite easily" and
-# asked for both in a pool, so sounds.json lists both under the one wub event and the game picks one each time.
-SHIPPED = {"wub": {"b3": "outsider_wub.ogg", "c3": "outsider_wub2.ogg"}, "conjure": {"a": "outsider_conjure.ogg"}}
+# asked for both in a pool, so sounds.json lists both under the one wub event and the game picks one each time; for
+# the conjuring they picked c3, the open fifth from a low root climbing a semitone.
+SHIPPED = {"wub": {"b3": "outsider_wub.ogg", "c3": "outsider_wub2.ogg"}, "conjure": {"c3": "outsider_conjure.ogg"}}
 
 
 def write(path, signal):
