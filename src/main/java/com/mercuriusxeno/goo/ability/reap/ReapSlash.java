@@ -256,6 +256,19 @@ public record ReapSlash(Vec3 nudge, Vec3 heading, double roll, double height, Sh
     }
 
     /**
+     * How high over its slasher's feet the slash's plane is drawn to skim
+     * the ground: just high enough that its lowest edge, however it leans
+     * and is nudged, clears the ground the slasher stands on, so level
+     * ground never hides it.
+     *
+     * @param clearance how far over the ground its lowest edge stands, in blocks
+     * @return the plane's height over the feet, in blocks
+     */
+    public double skimming(double clearance) {
+        return Math.max(0, clearance - nudge.y + shape.halfWidth() * Math.abs(Math.sin(roll)));
+    }
+
+    /**
      * Whether the slash has reached a body an age into its life.
      *
      * @param feet  where its slasher's feet stand now

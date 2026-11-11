@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -22,7 +21,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Predicate;
 
 /**
  * Reap's slashes on the client: each a crescent band rippling outward
@@ -31,9 +29,10 @@ import java.util.function.Predicate;
  * its front glows pale and its back shades to Leaf's green, dimming through
  * its life. Other slashers' slashes, and the local player's in third person,
  * stand at the slash's own height under the eye. The local player's own in
- * first person lie on the ground at their feet instead, where the eye looks
- * down onto the whole band rather than along its edge, drawn through every
- * depth test so no ground or crop hides them.
+ * first person skim the ground at their feet instead, where the eye looks
+ * down onto the whole band rather than along its edge. Every slash is depth
+ * tested, so the fences, bodies and blocks it passes through hide the part
+ * of it behind them and it shows cutting through what it hits.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -46,8 +45,8 @@ public final class ReapSlashBlades {
     private static final int OPAQUE = 0xFF;
     /** The back's share of the front's brightness. */
     private static final float BACK_SHARE = 0.45f;
-    /** The height over the feet a first-person slasher's own slash is drawn at: the ground. */
-    private static final double ON_THE_GROUND = 0;
+    /** How far over the ground the lowest edge of a first-person slasher's own slash is drawn, in blocks. */
+    private static final double GROUND_CLEARANCE = 0.05;
     private static final double BACK = 0;
     private static final double FRONT = 1;
 
@@ -116,9 +115,8 @@ public final class ReapSlashBlades {
 
     /**
      * Draws every live slash after translucent blocks, dropping each that
-     * has dimmed away: the local player's own on the ground through every
-     * depth test while they view in first person, every other at its own
-     * height in the world.
+     * has dimmed away: the local player's own skimming the ground while
+     * they view in first person, every other at its own height.
      *
      * @param event the level render stage event
      */
@@ -136,33 +134,16 @@ public final class ReapSlashBlades {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Frame frame = new Frame(mc, event.getPoseStack().last(), tick + partialTick, partialTick);
-        Predicate<Shown> own = frame::seenFromItsSlashersEyes;
-        draw(frame, GooRenderTypes.GLOW_SHELL_TYPE, own.negate());
-        draw(frame, GooRenderTypes.SCRY_FACES_TYPE, own);
-    }
-
-    /**
-     * Draws the live slashes one render type takes.
-     *
-     * @param frame what the frame draws with
-     * @param type  the render type
-     * @param taken which slashes the type takes
-     */
-    private static void draw(Frame frame, RenderType type, Predicate<Shown> taken) {
-        if (LIVE.stream().noneMatch(taken)) {
-            return;
-        }
-        MultiBufferSource.BufferSource buffers = frame.mc().renderBuffers().bufferSource();
-        FlatQuadContext quads = new FlatQuadContext(frame.pose(), buffers.getBuffer(type));
-        Vec3 camera = frame.mc().gameRenderer.getMainCamera().position();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        FlatQuadContext quads = new FlatQuadContext(frame.pose(), buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
         int leaf = ClientGooTypes.color(GooTypes.LEAF);
         for (Shown shown : LIVE) {
-            if (taken.test(shown)) {
-                double plane = frame.seenFromItsSlashersEyes(shown) ? ON_THE_GROUND : shown.slash().height();
-                drawSlash(quads, shown, frame, plane, camera, leaf);
-            }
+            double plane = frame.seenFromItsSlashersEyes(shown)
+                    ? shown.slash().skimming(GROUND_CLEARANCE) : shown.slash().height();
+            drawSlash(quads, shown, frame, plane, camera, leaf);
         }
-        buffers.endBatch(type);
+        buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }
 
     /**
