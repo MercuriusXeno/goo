@@ -145,7 +145,8 @@ public final class GooTargetHighlighter {
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
         if (drawsMarks(false, null, target.passage())) {
-            renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)), frame);
+            renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId),
+                    AimTracker.grabHoldsAMob()), frame);
         }
         renderHeldDome(target, abilityId, frame);
     }
@@ -171,7 +172,7 @@ public final class GooTargetHighlighter {
             return;
         }
         String abilityId = GloveAim.selectedAbilityId(mc.player);
-        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)),
+        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId), AimTracker.grabHoldsAMob()),
                 new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(), PortalView.camera(), mc,
                         selectedType));
     }

@@ -4,9 +4,12 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -57,6 +60,32 @@ class HeldPickTest {
     void aMobAnotherPressHoldsIsNeverPinned() {
         AimState.Resolution frame = held.resolve(true, Set.<Entity>of(slime)::contains, () -> picking(bystander));
         assertEquals(bystander, aimedAt(frame), "A slime this press never picked should not take the aim");
+    }
+
+    /** Whether this Grab press holds a mob now, which hides the reticule (decision grab-hides-the-reticle-once-a-mob-is-held). */
+    @Nested
+    class Holds {
+
+        @Test
+        void aLandedHoldHoldsAMob() {
+            held.resolve(true, Set.of()::contains, () -> picking(slime));
+            held.resolve(true, Set.<Entity>of(slime)::contains, () -> picking(bystander));
+            assertTrue(held.holds());
+        }
+
+        @Test
+        void aPickBeforeTheHoldLandsHoldsNoMob() {
+            held.resolve(true, Set.of()::contains, () -> picking(slime));
+            assertFalse(held.holds());
+        }
+
+        @Test
+        void aReleasedPressHoldsNoMob() {
+            held.resolve(true, Set.of()::contains, () -> picking(slime));
+            held.resolve(true, Set.<Entity>of(slime)::contains, () -> picking(bystander));
+            held.resolve(false, Set.<Entity>of(slime)::contains, () -> picking(bystander));
+            assertFalse(held.holds());
+        }
     }
 
     private static Entity aimedAt(AimState.Resolution frame) {
