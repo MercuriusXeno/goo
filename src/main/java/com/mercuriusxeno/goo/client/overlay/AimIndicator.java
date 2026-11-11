@@ -21,14 +21,20 @@ enum AimIndicator {
     /**
      * The mark a badge draws: mob the entity outline, world the block outline,
      * self nothing, and every badge aiming the ray's point a reticule there,
-     * until an ability customizes its own.
+     * until an ability customizes its own. A Grab press holding a mob draws
+     * the held mob's outline and no reticule, leaving the vanilla crosshair.
+     * grab-hides-the-reticle-once-a-mob-is-held
      *
-     * @param badge the selected ability's badge, or null when none is synced
+     * @param badge         the selected ability's badge, or null when none is synced
+     * @param grabHoldsAMob whether the Grab press the frame resolved holds a mob
      * @return the indicator
      */
-    static AimIndicator of(@Nullable AbilityBadge badge) {
+    static AimIndicator of(@Nullable AbilityBadge badge, boolean grabHoldsAMob) {
         if (badge == null) {
             return NONE;
+        }
+        if (grabHoldsAMob) {
+            return ENTITY_OUTLINE;
         }
         return switch (TargetingHint.of(badge)) {
             case NONE -> NONE;
