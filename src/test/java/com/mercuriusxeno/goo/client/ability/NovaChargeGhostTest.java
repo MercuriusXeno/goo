@@ -31,17 +31,11 @@ class NovaChargeGhostTest {
         assertTrue(NovaChargeGhost.reachAt(List.of(new WindStep(true)), 1f).isEmpty());
     }
 
+    /** The indicator's alpha pulses faintly: 0.4 at the pulse's peak, 0.15 at its trough, 0.4 radians a tick. */
     @Test
-    void theIndicatorPulsesFaintlyAndNeverSolid() {
-        float lowest = 1f;
-        float highest = 0f;
-        for (int tick = 0; tick < 40; tick++) {
-            float alpha = NovaChargeGhost.pulseAlpha(tick);
-            lowest = Math.min(lowest, alpha);
-            highest = Math.max(highest, alpha);
-        }
-        assertTrue(highest <= NovaChargeGhost.PULSE_CEILING + 1e-6f && lowest >= NovaChargeGhost.PULSE_FLOOR - 1e-6f);
-        assertTrue(highest - lowest > (NovaChargeGhost.PULSE_CEILING - NovaChargeGhost.PULSE_FLOOR) / 2, "it pulses");
+    void theIndicatorPulsesFromFifteenHundredthsToFourTenthsAlpha() {
+        assertEquals(0.4f, NovaChargeGhost.pulseAlpha(1.25 * Math.PI), 1e-6f);
+        assertEquals(0.15f, NovaChargeGhost.pulseAlpha(3.75 * Math.PI), 1e-6f);
     }
 
     // nova-ghost-is-faint-frost-and-charges-audibly

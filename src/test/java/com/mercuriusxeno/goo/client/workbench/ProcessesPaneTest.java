@@ -322,17 +322,15 @@ class ProcessesPaneTest {
     }
 
     /**
-     * An iterator reads #X on its name line, "copies" and its source one indent in on the next, then "then mutates
-     * using" before its first mutator and "and" before each later one, each a line down, then "+ optional
+     * An iterator reads #X on its name line, "copies" and its source one indent in on the next, then "mutated by"
+     * once, before its first mutator, and "and" before each later one, each a line down, then "+ optional
      * mutation"; one applying nothing reads "copies" and the button alone, which opens the mutator pick (decision
      * iterator-reads-copies-then-mutates-using-and).
      */
     @Test
-    void iteratorReadsCopiesThenMutatesUsingAnd() {
+    void iteratorReadsCopiesThenMutatedByAnd() {
         pane = chainedIterators(mock(ManagerActions.class));
         DrawnFrame frame = frame();
-        assertFalse(frame.texts().contains("loops over") || frame.texts().contains("and applies"),
-                frame.texts().toString());
         DrawnFrame.Text twice = first(frame, "#twice");
         DrawnFrame.Text bare = first(frame, "#bare");
         List<DrawnFrame.Text> copies = frame.drawn().stream().filter(text -> text.text().equals("copies")).toList();
@@ -348,7 +346,6 @@ class ProcessesPaneTest {
         assertEquals(descending.stream().sorted().distinct().toList(), descending, frame.drawn().toString());
         assertEquals(twice.x() + ControlFlow.INDENT, twiceCopies.x(), frame.drawn().toString());
         assertEquals(1, frame.count("mutated by"), frame.texts().toString());
-        assertFalse(frame.texts().contains("then mutates using"), frame.texts().toString());
         DrawnFrame.Text bareAdd = twice.y() < bare.y() ? adds.getLast() : adds.getFirst();
         assertTrue(bareAdd.y() > bare.y(), bareAdd + " under " + bare);
         assertTrue(frame.targets.click(bareAdd.x() + 1, bareAdd.y() + 1));

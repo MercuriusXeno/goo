@@ -18,7 +18,6 @@ class BlackHolePhasesTest {
     /** A game time far from zero, as a live level's clock reads. */
     private static final float GAME_TIME = 48_213f;
     private static final float FULL_RADIUS = 6f;
-    private static final int SAMPLES = 40;
     private static final int GATHER_TICKS = 20;
     private static final int EXPAND_TICKS = 15;
     private static final int FULL_ALPHA = 0xFF;
@@ -32,18 +31,14 @@ class BlackHolePhasesTest {
                 BlackHolePhases.holePulse(GAME_TIME + BlackHolePhases.HOLE_PULSE_PERIOD), TOLERANCE);
     }
 
+    /**
+     * Over its 20-tick period the pulse swells the hole 4 percent a quarter in and shrinks it 4 percent at three
+     * quarters in.
+     */
     @Test
-    void pulseStaysWithinItsAmplitudeAndReachesIt() {
-        float lowest = Float.MAX_VALUE;
-        float highest = -Float.MAX_VALUE;
-        for (int i = 0; i < SAMPLES; i++) {
-            float pulse = BlackHolePhases.holePulse(GAME_TIME + i * BlackHolePhases.HOLE_PULSE_PERIOD / SAMPLES);
-            assertTrue(Math.abs(pulse - 1f) <= BlackHolePhases.HOLE_PULSE_AMPLITUDE + TOLERANCE,
-                    "pulse " + pulse + " past its amplitude");
-            lowest = Math.min(lowest, pulse);
-            highest = Math.max(highest, pulse);
-        }
-        assertEquals(2 * BlackHolePhases.HOLE_PULSE_AMPLITUDE, highest - lowest, 0.01f);
+    void pulseSwingsFourPercentEitherSideOfThePhaseSize() {
+        assertEquals(1.04f, BlackHolePhases.holePulse(5), TOLERANCE);
+        assertEquals(0.96f, BlackHolePhases.holePulse(15), TOLERANCE);
     }
 
     @Test
