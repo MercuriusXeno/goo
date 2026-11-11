@@ -1,7 +1,7 @@
 {
   "gooType": "void",
-  "displayName": "goo.ability.void.pocket",
-  "cost_mechanics": "goo.ability.void.pocket.cost_mechanics",
+  "displayName": "goo.ability.void.hole",
+  "cost_mechanics": "goo.ability.void.hole.cost_mechanics",
   "badge": "instant",
   "order": 10,
   "cost": 0,

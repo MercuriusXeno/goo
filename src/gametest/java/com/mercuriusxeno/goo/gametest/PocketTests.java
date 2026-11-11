@@ -64,11 +64,11 @@ public final class PocketTests {
         helper.succeed();
     }
 
-    private static final Identifier POCKET = Identifier.parse("goo:void_pocket");
+    private static final Identifier POCKET = Identifier.parse("goo:void_hole");
     /** The inventory slot each stored stack is laid in before it is shift-clicked into the pocket. */
     private static final int LAID_SLOT = 20;
     private static final int STACK = 64;
-    /** The void each slot reserves, as void_pocket.json's slot_cost names. */
+    /** The void each slot reserves, as void_hole.json's slot_cost names. */
     private static final int SLOT_COST = 6;
     /** More entries than a double chest's 54 slots. */
     private static final int MANY_ENTRIES = 60;
