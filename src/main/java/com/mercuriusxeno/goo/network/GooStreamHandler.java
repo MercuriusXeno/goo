@@ -15,7 +15,6 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.SoundKind;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
@@ -35,7 +34,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ClipContext;
@@ -65,8 +63,6 @@ public final class GooStreamHandler {
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on its held pass's host: {}";
     /** Log: one held tick reached the server, so a hold that does nothing shows where it stops. */
     private static final String LOG_HELD_TICK = "Held tick of {} for {}: hold tick {}";
-    /** Particles sprayed along the cone each tick. */
-    private static final int PARTICLES_PER_TICK = 6;
     /**
      * Launch speed per block of the stream's range: a mote slowing by a tenth
      * each tick carries ten times its launch speed, so it reaches the cone's end.
@@ -76,10 +72,6 @@ public final class GooStreamHandler {
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
     /** Rays the spray casts each tick to find the floors it lands on. */
     private static final int FLOOR_RAYS_PER_TICK = 12;
-    /** A particle sent with a count of zero flies along the vector it is handed. */
-    private static final int ALONG_THE_VECTOR = 0;
-    /** The speed a count-zero particle's vector is scaled by when the vector is already its velocity. */
-    private static final double UNSCALED = 1.0;
     /** Reads which living things a tick's program healed. */
     private static final HealReport<LivingEntity> HEALS =
             new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
@@ -304,7 +296,7 @@ public final class GooStreamHandler {
             SwarmStrike.send(player, apex, aim, delivery, struck, crosshair);
             return SwarmStrike.reached(player, apex, struck, held);
         }
-        sprayParticles(cast.level(), apex, aim, delivery,
+        sprayParticles(player, apex, aim, delivery,
                 Math.min(delivery.range(), apex.distanceTo(crosshair.getLocation())), travelOf(player));
         return struck;
     }
@@ -525,30 +517,25 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Launches the delivery's particle from the glove, each mote flying out
-     * along its own heading inside the cone and coming to rest as far off as
-     * the crosshair lands (decision mycosis-spore-stream-buds-and-poisons).
+     * Tells the caster's watchers to launch this tick's motes of the
+     * delivery's particle from the glove, each flying out along its own
+     * heading inside the cone and coming to rest as far off as the crosshair
+     * lands (decision mycosis-spore-stream-buds-and-poisons). The clients
+     * launch them, naming the caster, so each mote swings with its own
+     * caster's glove (decision glove-stream-motes-swing-with-the-glove-at-launch).
      *
-     * @param level    the server level
+     * @param player   the spraying player
      * @param apex     the cone's apex
      * @param axis     the cone's axis
      * @param delivery the stream delivery
      * @param reach    how far the motes fly, in blocks
      * @param travel   the spraying player's travel velocity, blocks per tick
      */
-    static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach,
+    static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double reach,
                                Vec3 travel) {
-        RandomSource random = level.getRandom();
-        double speed = reach * LAUNCH_SPEED_PER_BLOCK;
-        delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
-            for (int i = 0; i < PARTICLES_PER_TICK; i++) {
-                Vec3 heading = StreamCone.launchDirection(axis, delivery.coneDegrees(), random.nextDouble(),
-                        random.nextDouble());
-                Vec3 launch = moteLaunch(heading, speed, travel);
-                level.sendParticles(particle, apex.x, apex.y, apex.z, ALONG_THE_VECTOR, launch.x, launch.y,
-                        launch.z, UNSCALED);
-            }
-        });
+        delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
+                player.getId(), apex, axis, particle, delivery.coneDegrees(), reach * LAUNCH_SPEED_PER_BLOCK,
+                travel)));
     }
 
     /**

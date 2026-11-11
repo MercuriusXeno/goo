@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.particle;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
@@ -14,7 +13,7 @@ import org.jspecify.annotations.Nullable;
  * pale mushroom tan and a dusky violet.
  * mycosis-spore-stream-buds-and-poisons
  */
-public final class SporeParticle extends SingleQuadParticle {
+public final class SporeParticle extends GloveMote {
 
     private static final float DRIFT_GRAVITY = 0.02f;
     private static final float DRIFT_FRICTION = 0.9f;
@@ -53,9 +52,10 @@ public final class SporeParticle extends SingleQuadParticle {
         this.alpha = START_ALPHA;
     }
 
-    /** Drifts and fades the mote out over its life. */
+    /** Swings the mote with the glove over its opening ticks, then drifts and fades it out over its life. */
     @Override
     public void tick() {
+        swingWithTheGlove();
         super.tick();
         this.alpha = START_ALPHA * (1f - (float) this.age / this.lifetime);
     }
