@@ -34,7 +34,7 @@ import java.util.stream.Stream;
  * Kinetic's Grab, run each tick of a held channel on the channeling player:
  * the first tick lifts the entity the glove outlines within range, and every tick
  * after holds it in front of the player along the look, against the first
- * surface the look meets within the far distance, else at the far distance.
+ * surface the look meets within the hold distance, else at the hold distance.
  * A left click while held
  * throws it at the throw speed (GrabEvents.throwHeld), and the press lifts
  * nothing more until right click lets go. An outlined item entity is
@@ -44,20 +44,19 @@ import java.util.stream.Stream;
  * decision grab-pulls-an-item-to-you-and-picks-it-up
  * decision outlined-target-is-the-one-pick
  * decision grab-holds-the-mob-against-the-surface-you-look-at
+ * decision grab-holds-slightly-closer-in-open-space
  *
- * @param range      how far the look reaches for an entity to lift, in blocks, before Telekinesis adds its reach
- * @param near       read by no hold: the hold rests against the surface the look meets instead
- * @param far        how far from the eye the held entity hangs where the look meets no block
- * @param throwSpeed the speed a throw launches the held entity at, in blocks per tick
- * @param pullSpeed  the speed a pulled item entity flies to the player at, in blocks per tick
+ * @param range        how far the look reaches for an entity to lift, in blocks, before Telekinesis adds its reach
+ * @param holdDistance how far from the eye the held entity hangs where the look meets no block
+ * @param throwSpeed   the speed a throw launches the held entity at, in blocks per tick
+ * @param pullSpeed    the speed a pulled item entity flies to the player at, in blocks per tick
  */
-public record GrabStep(double range, double near, double far, double throwSpeed, double pullSpeed)
+public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed)
         implements ReachesTheAim {
 
     private static final String NAME = "grab";
     private static final String FIELD_RANGE = "range";
-    private static final String FIELD_NEAR = "near";
-    private static final String FIELD_FAR = "far";
+    private static final String FIELD_HOLD_DISTANCE = "hold_distance";
     private static final String FIELD_THROW_SPEED = "throw_speed";
     private static final String FIELD_PULL_SPEED = "pull_speed";
     private static final double HALF = 0.5;
@@ -65,8 +64,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
     /** Codec for the step's params. */
     public static final MapCodec<GrabStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.DOUBLE.fieldOf(FIELD_RANGE).forGetter(GrabStep::range),
-            Codec.DOUBLE.fieldOf(FIELD_NEAR).forGetter(GrabStep::near),
-            Codec.DOUBLE.fieldOf(FIELD_FAR).forGetter(GrabStep::far),
+            Codec.DOUBLE.fieldOf(FIELD_HOLD_DISTANCE).forGetter(GrabStep::holdDistance),
             Codec.DOUBLE.fieldOf(FIELD_THROW_SPEED).forGetter(GrabStep::throwSpeed),
             Codec.DOUBLE.fieldOf(FIELD_PULL_SPEED).forGetter(GrabStep::pullSpeed)
     ).apply(inst, GrabStep::new));
@@ -278,7 +276,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
 
     /**
      * Where a held body's middle hangs for a look: the look runs the
-     * open-air distance from the eye, carried through each linked gate it
+     * hold distance from the eye, carried through each linked gate it
      * passes, a few at most, so a look down the tunnel a facing pair makes
      * ends rather than going round it; where a leg meets a block first, the
      * middle backs off along that leg until the body's box rests against the
@@ -302,7 +300,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         ResourceKey<Level> legDimension = dimension;
         Vec3 start = eye;
         // The look Minecraft hands over is built from its sine table and falls a little short of unit length.
-        Vec3 end = eye.add(look.normalize().scale(far));
+        Vec3 end = eye.add(look.normalize().scale(holdDistance));
         for (int hop = 0; hop <= MOST_HOPS; hop++) {
             Optional<GateRay.Crossing> crossing = hop < MOST_HOPS
                     ? GateRay.first(pairs, legDimension, start, end) : Optional.empty();
