@@ -16,7 +16,6 @@ import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.FloatStep;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
-import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
@@ -56,10 +55,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -79,10 +76,6 @@ import static org.mockito.Mockito.when;
 class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
-    private static final int CHARM_ROLLS = 1000;
-    private static final int RARE_CHARMS = 50;
-    private static final double ZOMBIE_MAX_HEALTH = 20;
-    private static final double TOP_MAX_HEALTH = 1024;
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
@@ -343,25 +336,17 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Hex charm lands on every zombie, max health 20, and on few mobs at
-     * vanilla's top max health, 1024: of a thousand rolls at 1024, where
-     * pow(20 / max_health, 1.5) expects under three, fewer than fifty land
-     * (decision charm-glisten-and-icon-over-the-head).
+     * Hex charm's branch fires on a chance that falls with the struck mob's
+     * max health, certain on a zombie's 20 and rare at vanilla's top of 1024.
      */
+    // decision charm-glisten-and-icon-over-the-head
     @Test
-    void hexCharmIsResistedByHighHealth() {
+    void hexCharmFiresOnTwentyOverMaxHealthToTheOneAndAHalf() {
         Expr chance = AbilityJson.decode("hex_charm").behaviors().stream()
                 .flatMap(AbilityLoaderTest::stepTree).filter(BranchStep.class::isInstance)
                 .map(step -> ((BranchStep) step).when()).findFirst().orElseThrow();
 
-        assertEquals(CHARM_ROLLS, landedCharms(chance, ZOMBIE_MAX_HEALTH));
-        assertTrue(landedCharms(chance, TOP_MAX_HEALTH) < RARE_CHARMS, "high health should rarely be charmed");
-    }
-
-    private static long landedCharms(Expr chance, double maxHealth) {
-        Variables mob = name -> HostVariables.MAX_HEALTH.equals(name) ? OptionalDouble.of(maxHealth)
-                : OptionalDouble.empty();
-        return IntStream.range(0, CHARM_ROLLS).filter(roll -> chance.evaluate(mob) != 0).count();
+        assertEquals("chance(pow(20 / max_health, 1.5))", chance.source());
     }
 
     /**

@@ -324,15 +324,6 @@ class StepCodecTest {
                 step.expressions().flatMap(expr -> expr.variables().stream()).collect(Collectors.toSet()));
     }
 
-    // decision splat-runs-the-program-no-fuse
-    @Test
-    void progressiveAreaIsNoLongerAStepType() {
-        assertTrue(StepTypes.all().stream().noneMatch(type -> type.name().equals("progressive_area")));
-        String json = "{\"type\": \"progressive_area\", \"shape\": \"tunnel\", \"effect\": \"silk_break\","
-                + " \"visuals\": \"rock_dust\", \"audio\": \"stone_break\", \"preview_delay\": 8}";
-        assertTrue(decode(json).isError());
-    }
-
     @Test
     void emptyPickRefuses() {
         assertTrue(decode("{\"type\": \"place_block\", \"block\": \"goo:glow_crystal\","

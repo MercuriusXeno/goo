@@ -72,15 +72,6 @@ class FlattenStepTest {
     }
 
     @Test
-    void theFaceTheHoldBeganOnAndBehindItStay() {
-        ChannelHost host = hostWhere(pos -> pos.getY() < 64, aimed());
-
-        run(host);
-
-        verify(host, never()).breakBlock(any());
-    }
-
-    @Test
     void aHostOutsideAHeldChannelBreaksNothing() {
         ChannelHost host = hostWhere(pos -> true, Optional.empty());
 

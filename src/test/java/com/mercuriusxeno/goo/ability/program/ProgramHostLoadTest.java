@@ -259,14 +259,34 @@ class ProgramHostLoadTest {
         return found;
     }
 
-    /** The per-kind facts the refusal tests depend on. */
+    /** The per-kind capabilities the refusal tests depend on: the struck entity is a target that ticks nothing. */
     @Test
-    void theKindsTheRefusalsReadProvideAndLackWhatTheyNeed() {
-        assertTrue(HostKind.ENTITY.capabilities().contains(HostCapability.TARGET));
-        assertFalse(HostKind.ENTITY.capabilities().contains(HostCapability.TICKING));
-        assertTrue(HostKind.MARKER.capabilities().containsAll(Set.of(HostCapability.TICKING, HostCapability.PLACED_FACE)));
-        assertFalse(HostKind.MARKER.capabilities().contains(HostCapability.TARGET));
-        assertFalse(HostKind.LANDING.capabilities().contains(HostCapability.TARGET));
+    void theStruckEntityHostProvidesExplodeEntityScanAndTarget() {
+        assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.TARGET),
+                HostKind.ENTITY.capabilities());
+    }
+
+    /** The marker ticks and holds a placed face, and is no target. */
+    @Test
+    void theMarkerHostProvidesItsSeventeenCapabilities() {
+        assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.TICKING, HostCapability.EXPLODE,
+                        HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK, HostCapability.FIELD_EFFECT,
+                        HostCapability.PHASED, HostCapability.HOARD, HostCapability.WATCH, HostCapability.STATE_WRITE,
+                        HostCapability.LEVEL, HostCapability.SHRIEK, HostCapability.GREENING,
+                        HostCapability.EMIT_POWER, HostCapability.BEAT, HostCapability.RELAY, HostCapability.FROST),
+                HostKind.MARKER.capabilities());
+    }
+
+    /** The landing is no target. */
+    @Test
+    void theLandingHostProvidesItsSeventeenCapabilities() {
+        assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
+                        HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.COLONIZE,
+                        HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS, HostCapability.END_GATE,
+                        HostCapability.PHASE_BLOCKS, HostCapability.METEOR, HostCapability.POWER_PULSE,
+                        HostCapability.AGING, HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE,
+                        HostCapability.MELT),
+                HostKind.LANDING.capabilities());
     }
 
     @ParameterizedTest
