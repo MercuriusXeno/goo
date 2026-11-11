@@ -81,5 +81,10 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.outsider_conjure",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_CONJURE));
 
+    /** Void's hole opening (decision hole-opens-with-the-outsider-wub-pitched-up). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> HOLE_OPEN =
+        SOUND_EVENTS.register("effects.hole_open",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HOLE_OPEN));
+
     private GooSounds() {}
 }
