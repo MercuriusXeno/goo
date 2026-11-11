@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import net.minecraft.core.BlockPos;
@@ -36,9 +37,11 @@ import java.util.stream.Stream;
  * the partner, at the matching point, with its momentum and its view turned
  * through the pair, as the portal gun does. Read on both sides:
  * the server's gates from the saved links and open holes, the client's from
- * what the server told it.
+ * what the server told it. An Outsider room's edges are gates too, each
+ * carrying a body across to the opposite edge.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
+ * outsider-room-wraps-and-repeats-at-the-platform-edge
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class GatePassage {
@@ -112,7 +115,8 @@ public final class GatePassage {
 
     /**
      * Whether a block stands open to a body: it is one a linked gate lies on,
-     * and the body stands at the gate, before its face and within its oval.
+     * and the body stands at the gate, before its face and within its
+     * opening, the oval or rectangle its mask names.
      *
      * @param entity the body
      * @param pos    the block
@@ -137,7 +141,7 @@ public final class GatePassage {
     /**
      * Whether one gate opens a block to a body: the gate lies on the block
      * in the body's level, or the block frames the gate and the body moves
-     * in, and the body's middle stands at its face, within its oval.
+     * in, and the body's middle stands at its face, within its opening.
      *
      * @param gate   the gate
      * @param entity the body
@@ -295,7 +299,7 @@ public final class GatePassage {
      */
     static boolean opensToPath(Gate gate, Vec3 middle, Vec3 motion, double width) {
         double out = gate.out(middle);
-        if (out > -DEEPEST && out < APPROACH + width && gate.withinOval(middle)) {
+        if (out > -DEEPEST && out < APPROACH + width && gate.within(middle)) {
             return true;
         }
         // aim-and-shots-carry-through-linked-gates: a fast body, a projectile, may reach the face only by its path,
@@ -303,7 +307,7 @@ public final class GatePassage {
         // read where its path meets the face, wherever its box reaches the face this tick.
         double after = gate.out(middle.add(motion));
         return out > 0 && after < out && after < width
-                && gate.withinOval(middle.lerp(middle.add(motion), out / (out - after)));
+                && gate.within(middle.lerp(middle.add(motion), out / (out - after)));
     }
 
     private static boolean atTheFace(Gate gate, Entity entity, Vec3 middle) {
@@ -314,7 +318,7 @@ public final class GatePassage {
         double out = gate.out(middle);
         // aim-and-shots-carry-through-linked-gates: a body whose middle stands just past the oval's edge still has
         // its box over the opening, and its side may stand in the blocks framing the gate
-        return out > -DEEPEST && out < APPROACH + width && gate.withinOval(middle, width * HALF);
+        return out > -DEEPEST && out < APPROACH + width && gate.within(middle, width * HALF);
     }
 
     /**
@@ -338,7 +342,8 @@ public final class GatePassage {
     }
 
     /**
-     * The gates the server holds linked now, portals and holes alike.
+     * The gates the server holds linked now, portals, holes and Outsider
+     * rooms' edges alike.
      *
      * @param server the server
      * @return the pairs
@@ -352,6 +357,8 @@ public final class GatePassage {
         QuantumPortals.get(server.overworld()).links()
                 .forEach(link -> pairs.add(new Pair(link.entry().gate(), link.exit().gate())));
         OpenHoles.open().forEach(hole -> pairs.add(new Pair(hole.entry(), hole.exit())));
+        // outsider-room-wraps-and-repeats-at-the-platform-edge
+        pairs.addAll(RoomEdges.pairsOf(server));
         return pairs;
     }
 
@@ -390,7 +397,7 @@ public final class GatePassage {
         // A fast body may pass the face and go on well behind it within one tick, so it may stand as much deeper
         // than a slow one as it moved.
         return out < gate.out(before) && out < CAMERA_MARGIN && out > -(DEEPEST + before.distanceTo(now))
-                && gate.withinOval(now);
+                && gate.within(now);
     }
 
     /**
@@ -648,7 +655,7 @@ public final class GatePassage {
 
     private static boolean behindTheFace(Gate gate, Vec3 point, double deepest) {
         double out = gate.out(point);
-        return out < CAMERA_MARGIN && out > -deepest && gate.withinOval(point);
+        return out < CAMERA_MARGIN && out > -deepest && gate.within(point);
     }
 
     /**

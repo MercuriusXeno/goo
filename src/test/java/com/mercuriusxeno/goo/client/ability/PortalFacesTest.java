@@ -90,6 +90,74 @@ class PortalFacesTest {
         }
     }
 
+    /**
+     * A room's edge draws its view over its whole rectangle and nothing where
+     * it has no view or a view's own pass draws, where an oval gate draws its
+     * view inside the oval or swirls
+     * (decision outsider-room-wraps-and-repeats-at-the-platform-edge).
+     */
+    @org.junit.jupiter.api.Nested
+    class ByTheGatesMask {
+
+        private static final net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> OVERWORLD =
+                net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,
+                        net.minecraft.resources.Identifier.withDefaultNamespace("overworld"));
+        private static final com.mercuriusxeno.goo.ability.quantum.Gate OVAL =
+                new com.mercuriusxeno.goo.ability.quantum.Gate(OVERWORLD, ONE_BY_TWO_WALL, Direction.NORTH,
+                        Direction.UP.getUnitVec3());
+        private static final com.mercuriusxeno.goo.ability.quantum.Gate RECTANGLE =
+                new com.mercuriusxeno.goo.ability.quantum.Gate(OVERWORLD, ONE_BY_TWO_WALL, Direction.NORTH,
+                        Direction.UP.getUnitVec3(), com.mercuriusxeno.goo.ability.quantum.Gate.Mask.RECTANGLE);
+
+        @Test
+        void aViewedRectangularGateDrawsTheRectangularView() {
+            org.junit.jupiter.api.Assertions.assertEquals(PortalFaces.Face.RECTANGLE_VIEW,
+                    PortalFaces.faceOf(RECTANGLE, true, false, false));
+        }
+
+        @Test
+        void aViewedOvalGateDrawsTheOvalView() {
+            org.junit.jupiter.api.Assertions.assertEquals(PortalFaces.Face.OVAL_VIEW,
+                    PortalFaces.faceOf(OVAL, true, false, false));
+        }
+
+        @Test
+        void aRectangularGateWithNoViewDrawsNothingWhereAnOvalSwirls() {
+            org.junit.jupiter.api.Assertions.assertEquals(PortalFaces.Face.NONE,
+                    PortalFaces.faceOf(RECTANGLE, false, false, false));
+            org.junit.jupiter.api.Assertions.assertEquals(PortalFaces.Face.SWIRL,
+                    PortalFaces.faceOf(OVAL, false, false, false));
+        }
+
+        @Test
+        void aRectangularGateInAViewsPassDrawsNothingWhereAnInertOvalSwirls() {
+            org.junit.jupiter.api.Assertions.assertEquals(PortalFaces.Face.NONE,
+                    PortalFaces.faceOf(RECTANGLE, false, true, true));
+            org.junit.jupiter.api.Assertions.assertEquals(PortalFaces.Face.SWIRL,
+                    PortalFaces.faceOf(OVAL, false, true, true));
+        }
+
+        @Test
+        void aRectangularGateWearsNoHaloOrSwirlBandWhereAnOvalWearsItsOwn() {
+            List<PortalFaces.Drawn> gates = List.of(new PortalFaces.Drawn(RECTANGLE, 0, false),
+                    new PortalFaces.Drawn(OVAL, PortalFaces.BLUE_RGB, false));
+
+            List<Gate> worn = PortalFaces.wornIn(gates, java.util.Optional.empty()).stream()
+                    .map(PortalFaces.Drawn::gate).toList();
+
+            assertEquals(List.of(OVAL), worn, "only the oval gate should wear a halo and swirl band");
+        }
+
+        @Test
+        void aViewThroughARectangularPairSleevesNoBand() {
+            List<PortalFaces.Drawn> gates = List.of(new PortalFaces.Drawn(RECTANGLE, 0, false));
+
+            assertEquals(List.of(), PortalFaces.sleevedIn(gates,
+                    java.util.Optional.of(new GatePassage.Pair(RECTANGLE, RECTANGLE))),
+                    "a view through a room's edge should sleeve no band back into it");
+        }
+    }
+
     @Test
     void everyCornerOfAnOvalCarriesItsFacesTexelCount() {
         VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);

@@ -18,15 +18,43 @@ import net.minecraft.world.phys.Vec3;
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
  *
+ * outsider-room-wraps-and-repeats-at-the-platform-edge
+ *
  * @param dimension the level it stands in
  * @param blocks    the blocks it lies on, as one box one block deep
  * @param face      the face of those blocks it covers
  * @param up        its up, along the face
+ * @param mask      the shape of its opening across the face
  */
-public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Vec3 up) {
+public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Vec3 up, Mask mask) {
 
     /** Sends a gate. */
     public static final StreamCodec<ByteBuf, Gate> STREAM_CODEC = StreamCodec.of(Gate::encode, Gate::decode);
+
+    /**
+     * The shape of a gate's opening across its face: the oval a portal's
+     * frame and a hole's mouth open, or the whole rectangle a room's edge
+     * opens, so a body crossing a room edge at its corner crosses too.
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
+     */
+    public enum Mask {
+        /** The oval inside the face's rectangle. */
+        OVAL,
+        /** The face's whole rectangle. */
+        RECTANGLE
+    }
+
+    /**
+     * A gate opening as an oval, a portal's frame or a hole's mouth.
+     *
+     * @param dimension the level it stands in
+     * @param blocks    the blocks it lies on, as one box one block deep
+     * @param face      the face of those blocks it covers
+     * @param up        its up, along the face
+     */
+    public Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Vec3 up) {
+        this(dimension, blocks, face, up, Mask.OVAL);
+    }
 
     private static final double HALF = 0.5;
     /** The six edges a box is sent as, in the order written. */
@@ -89,6 +117,34 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
     }
 
     /**
+     * Whether a point lies within the gate's opening, seen square on.
+     *
+     * @param point a point
+     * @return true inside the opening
+     */
+    public boolean within(Vec3 point) {
+        return within(point, 0);
+    }
+
+    /**
+     * Whether a point lies within the gate's opening grown by a margin all
+     * round, seen square on.
+     *
+     * @param point  a point
+     * @param margin how far past the opening's edge still reads within, in blocks
+     * @return true inside the grown opening
+     */
+    public boolean within(Vec3 point, double margin) {
+        return mask == Mask.RECTANGLE ? withinRectangle(point, margin) : withinOval(point, margin);
+    }
+
+    private boolean withinRectangle(Vec3 point, double margin) {
+        Vec3 offset = point.subtract(center());
+        return Math.abs(offset.dot(right())) <= halfSpan(right()) + margin
+                && Math.abs(offset.dot(up)) <= halfSpan(up) + margin;
+    }
+
+    /**
      * Whether a block is one of those the gate lies on.
      *
      * @param pos a block
@@ -129,6 +185,7 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
         }
         Direction.STREAM_CODEC.encode(buf, gate.face());
         Vec3.STREAM_CODEC.encode(buf, gate.up());
+        ByteBufCodecs.VAR_INT.encode(buf, gate.mask().ordinal());
     }
 
     private static Gate decode(ByteBuf buf) {
@@ -138,6 +195,8 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
             edges[edge] = ByteBufCodecs.DOUBLE.decode(buf);
         }
         AABB box = new AABB(edges[MIN_X], edges[MIN_Y], edges[MIN_Z], edges[MAX_X], edges[MAX_Y], edges[MAX_Z]);
-        return new Gate(dimension, box, Direction.STREAM_CODEC.decode(buf), Vec3.STREAM_CODEC.decode(buf));
+        Direction face = Direction.STREAM_CODEC.decode(buf);
+        Vec3 up = Vec3.STREAM_CODEC.decode(buf);
+        return new Gate(dimension, box, face, up, Mask.values()[ByteBufCodecs.VAR_INT.decode(buf)]);
     }
 }
