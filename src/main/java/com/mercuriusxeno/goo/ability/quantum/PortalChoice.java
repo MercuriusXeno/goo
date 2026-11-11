@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.network.PortalsSyncPayload;
+import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
@@ -53,6 +54,12 @@ public final class PortalChoice {
         Optional<Portal> last = portals.lastPlaced(owner);
         boolean fresh = !portals.portalsOf(owner).contains(portal);
         portals.place(owner, portal);
+        if (fresh) {
+            // portal-placement-plays-a-zap-that-opens-into-a-hum
+            Vec3 at = portal.faceCenter();
+            level.playSound(null, at.x(), at.y(), at.z(), GooSounds.PORTAL_PLACE, SoundSource.BLOCKS,
+                    SOUND_VOLUME, 1f);
+        }
         if (fresh && last.isPresent() && portals.partnerOf(last.get()).isEmpty()) {
             linkPair(level, owner, last.get(), portal);
         }
