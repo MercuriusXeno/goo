@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,12 +25,32 @@ class PortableHolesSyncPayloadTest {
                 new PortableHolesSyncPayload.Stored(Identifier.withDefaultNamespace("diamond"), 3));
         PortableHolesSyncPayload sent = new PortableHolesSyncPayload(List.of(
                 new PortableHolesSyncPayload.Mouth(List.of(new BlockPos(4, 64, -2)), Direction.UP, 960L, 1200L,
-                        stored)));
+                        stored, List.of())));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         PortableHolesSyncPayload.STREAM_CODEC.encode(buf, sent);
 
         assertEquals(stored, PortableHolesSyncPayload.STREAM_CODEC.decode(buf).mouths().getFirst().stored());
+    }
+
+    /**
+     * decision swallowed-item-transitions-into-the-hole-smoothly
+     */
+    @Test
+    void swallowsRoundTripThroughTheStreamCodec() {
+        List<PortableHolesSyncPayload.Swallowed> swallowed = List.of(
+                new PortableHolesSyncPayload.Swallowed(Identifier.withDefaultNamespace("cobblestone"),
+                        new Vec3(4.5, 65.05, -1.5), 1080L),
+                new PortableHolesSyncPayload.Swallowed(Identifier.withDefaultNamespace("diamond"),
+                        new Vec3(3.25, 65.1, -2.75), 1080L));
+        PortableHolesSyncPayload sent = new PortableHolesSyncPayload(List.of(
+                new PortableHolesSyncPayload.Mouth(List.of(new BlockPos(4, 64, -2)), Direction.UP, 960L, 1200L,
+                        List.of(), swallowed)));
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        PortableHolesSyncPayload.STREAM_CODEC.encode(buf, sent);
+
+        assertEquals(swallowed, PortableHolesSyncPayload.STREAM_CODEC.decode(buf).mouths().getFirst().swallowed());
     }
 
     /**
@@ -45,8 +66,8 @@ class PortableHolesSyncPayloadTest {
         }
         List<BlockPos> oneByTwo = List.of(new BlockPos(4, 64, -2), new BlockPos(5, 64, -2));
         PortableHolesSyncPayload sent = new PortableHolesSyncPayload(List.of(
-                new PortableHolesSyncPayload.Mouth(threeByThree, Direction.UP, 960L, 1200L, List.of()),
-                new PortableHolesSyncPayload.Mouth(oneByTwo, Direction.DOWN, 960L, 1200L, List.of())));
+                new PortableHolesSyncPayload.Mouth(threeByThree, Direction.UP, 960L, 1200L, List.of(), List.of()),
+                new PortableHolesSyncPayload.Mouth(oneByTwo, Direction.DOWN, 960L, 1200L, List.of(), List.of())));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         PortableHolesSyncPayload.STREAM_CODEC.encode(buf, sent);

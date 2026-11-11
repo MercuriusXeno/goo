@@ -19,6 +19,8 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +38,11 @@ import java.util.UUID;
 public final class PortableHoles {
 
     private static final Map<UUID, PortableHole> OPEN = new LinkedHashMap<>();
+    /**
+     * The items each open hole swallowed last, sent with every sync until its next swallow or its closing.
+     * decision swallowed-item-transitions-into-the-hole-smoothly
+     */
+    private static final Map<UUID, List<PortableHolesSyncPayload.Swallowed>> SWALLOWED = new HashMap<>();
     private static final float SWALLOW_VOLUME = 0.4F;
     private static final float SWALLOW_PITCH = 0.6F;
     private static final double HALF = 0.5;
@@ -56,6 +63,17 @@ public final class PortableHoles {
      */
     public static Optional<PortableHole> of(UUID owner) {
         return Optional.ofNullable(OPEN.get(owner));
+    }
+
+    /**
+     * The items an owner's hole swallowed last, as the clients were told of them.
+     * decision swallowed-item-transitions-into-the-hole-smoothly
+     *
+     * @param owner the hole's owner
+     * @return each swallowed item's kind, place and game time, empty before a swallow
+     */
+    public static List<PortableHolesSyncPayload.Swallowed> swallowedInto(UUID owner) {
+        return SWALLOWED.getOrDefault(owner, List.of());
     }
 
     /**
@@ -87,7 +105,9 @@ public final class PortableHoles {
             PortableHole hole = open.getValue();
             ServerLevel level = server.getLevel(hole.dimension());
             // a swallow changes what the mouth shows swimming in it and when it closes, so the clients hear of it
-            if (hole.swallows() && swallow(level, hole)) {
+            List<PortableHolesSyncPayload.Swallowed> swallowed = hole.swallows() ? swallow(level, hole) : List.of();
+            if (!swallowed.isEmpty()) {
+                SWALLOWED.put(hole.owner(), swallowed);
                 open.setValue(hole.fedAt(level.getGameTime()));
                 changed = true;
             }
@@ -135,20 +155,33 @@ public final class PortableHoles {
                 || !owner.level().dimension().equals(hole.dimension());
     }
 
-    private static boolean swallow(ServerLevel level, PortableHole hole) {
+    /**
+     * Shelves every item meeting a hole's mouth and takes it from the world.
+     * decision swallowed-item-transitions-into-the-hole-smoothly
+     *
+     * @param level the hole's level
+     * @param hole  the hole
+     * @return each item swallowed, as many as a mouth shows stored, for the clients to draw easing in
+     */
+    private static List<PortableHolesSyncPayload.Swallowed> swallow(ServerLevel level, PortableHole hole) {
         List<ItemEntity> fallen = level.getEntitiesOfClass(ItemEntity.class, hole.mouth(), ItemEntity::isAlive);
         if (fallen.isEmpty()) {
-            return false;
+            return List.of();
         }
         PocketShelves shelves = PocketShelves.get(level);
+        List<PortableHolesSyncPayload.Swallowed> swallowed = new ArrayList<>();
         for (ItemEntity item : fallen) {
+            if (swallowed.size() < PortableHolesSyncPayload.MOST_STORED_SHOWN) {
+                swallowed.add(new PortableHolesSyncPayload.Swallowed(
+                        BuiltInRegistries.ITEM.getKey(item.getItem().getItem()), item.position(), level.getGameTime()));
+            }
             shelves.add(hole.owner(), item.getItem(), item.getItem().getCount());
             item.discard();
         }
         Vec3 middle = hole.mouth().getCenter();
         level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS,
                 SWALLOW_VOLUME, SWALLOW_PITCH);
-        return true;
+        return List.copyOf(swallowed);
     }
 
     /**
@@ -186,6 +219,9 @@ public final class PortableHoles {
     }
 
     private static void sync(MinecraftServer server) {
+        // a closed hole's swallows go with it, and a new hole in their owner's name starts with none
+        SWALLOWED.entrySet().removeIf(told -> !OPEN.containsKey(told.getKey())
+                || told.getValue().getFirst().time() < OPEN.get(told.getKey()).openedAt());
         server.getPlayerList().getPlayers().forEach(PortableHoles::syncTo);
     }
 
@@ -200,8 +236,7 @@ public final class PortableHoles {
         PortableHolesSyncPayload payload = new PortableHolesSyncPayload(OPEN.values().stream()
                 .filter(hole -> hole.dimension().equals(player.level().dimension()))
                 .map(hole -> new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.openedAt(),
-                        hole.closesAt(),
-                        storedOf(shelves, hole.owner())))
+                        hole.closesAt(), storedOf(shelves, hole.owner()), swallowedInto(hole.owner())))
                 .toList());
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         if (player.connection.hasChannel(payload)) {
