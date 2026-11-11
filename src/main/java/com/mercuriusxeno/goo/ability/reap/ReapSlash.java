@@ -142,12 +142,44 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
      */
     public Vec3 pointAt(double age, double along, double layer) {
         double progress = Math.clamp(age / lifeTicks, 0, 1);
-        double widthNow = 1 - (1 - WIDTH_KEPT) * progress;
+        double widthNow = keptAt(age);
         double offCentre = along * SPAN - 1;
         double fromApex = -bulge * widthNow * offCentre * offCentre
                 + thickness * widthNow * Math.sin(Math.PI * along) * layer;
         return origin.add(forward.scale(bulge + drift * progress + fromApex))
                 .add(span.scale(offCentre * width * HALF * widthNow));
+    }
+
+    /**
+     * The share of its size the slash keeps an age into its life: whole as it
+     * appears, narrowing evenly to six tenths.
+     *
+     * @param age ticks since it appeared
+     * @return the share kept, six tenths to 1
+     */
+    public double keptAt(double age) {
+        return 1 - (1 - WIDTH_KEPT) * Math.clamp(age / lifeTicks, 0, 1);
+    }
+
+    /**
+     * How far it rolls about its heading, the right end of its span raised
+     * for a positive roll.
+     *
+     * @return its roll, in radians
+     */
+    public double roll() {
+        Vec3 right = rightOf(forward);
+        return Math.atan2(span.dot(right.cross(forward).normalize()), span.dot(right));
+    }
+
+    /**
+     * How far its heading turns off a look, rightward positive.
+     *
+     * @param look the unit look
+     * @return its turn, in radians
+     */
+    public double turnFrom(Vec3 look) {
+        return Math.atan2(forward.dot(rightOf(look)), forward.dot(look));
     }
 
     /**

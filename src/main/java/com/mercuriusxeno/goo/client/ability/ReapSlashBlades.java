@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.network.ReapSlashPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
@@ -17,14 +18,19 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.joml.Matrix4fc;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Reap's slashes on the client, the Crissaegrim's from Symphony of the Night
  * as its frames show them: each a huge thick crescent drawn whole from the
- * very slash the server cuts with, its bulge glowing pale and its hollow
- * side shading to Leaf's green, thinning and dimming as it travels outward.
+ * very slash the server cuts with, its outside edge glowing pale and its
+ * inside edge shading to Leaf's green, narrowing and dimming as it travels
+ * outward. The slasher's own slashes in first person draw on the slasher's
+ * screen instead, their face standing up as an arch (FirstPersonSweep), held
+ * just before the eye inside the slasher's own body so nothing in the world
+ * comes between.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -32,11 +38,13 @@ public final class ReapSlashBlades {
 
     /** The quads along a crescent, tip to tip. */
     private static final int SEGMENTS = 24;
-    /** The pale cyan-green its bulge glows, as the game's slash glows pale at its outer edge. */
+    /** The pale cyan-green its outside edge glows, as the game's slash glows pale at its outer edge. */
     private static final int BULGE_RGB = 0xE0FFF0;
     private static final int OPAQUE = 0xFF;
-    /** The hollow edge's share of the bulge's brightness. */
+    /** The inside edge's share of the outside edge's brightness. */
     private static final float HOLLOW_SHARE = 0.45f;
+    /** How far before the eye a first-person slash is held, in blocks, inside the slasher's own body. */
+    private static final double VIEW_DEPTH = 0.25;
     private static final double HOLLOW = 0;
     private static final double BULGE = 1;
 
@@ -50,8 +58,10 @@ public final class ReapSlashBlades {
      *
      * @param slash      the slash
      * @param launchTick the game tick it appeared
+     * @param own        whether the local player threw it
+     * @param fan        how far its heading turned off the local player's look as it arrived, for their own
      */
-    private record Shown(ReapSlash slash, long launchTick) {
+    private record Shown(ReapSlash slash, long launchTick, boolean own, double fan) {
 
         boolean overAt(long tick) {
             return tick - launchTick > slash.lifeTicks();
@@ -59,7 +69,37 @@ public final class ReapSlashBlades {
     }
 
     /**
-     * Starts a slash on the client thread.
+     * The first-person view a slash is held in: the camera's axes and how
+     * wide and tall the screen opens.
+     *
+     * @param forward      the camera's unit forward
+     * @param right        the camera's unit right
+     * @param up           the camera's unit up
+     * @param tanHalfWidth the tangent of half the screen's width as an angle
+     * @param tanHalfHeight the tangent of half the screen's height as an angle
+     */
+    private record Sight(Vec3 forward, Vec3 right, Vec3 up, double tanHalfWidth, double tanHalfHeight) {
+
+        static Sight of(Camera camera, Matrix4fc projection) {
+            return new Sight(new Vec3(camera.forwardVector()), new Vec3(camera.leftVector()).reverse(),
+                    new Vec3(camera.upVector()), 1 / projection.m00(), 1 / projection.m11());
+        }
+
+        Vec3 place(FirstPersonSweep.ScreenPoint point) {
+            return forward.scale(VIEW_DEPTH).add(right.scale(point.x() * tanHalfWidth * VIEW_DEPTH))
+                    .add(up.scale(point.y() * tanHalfHeight * VIEW_DEPTH));
+        }
+    }
+
+    /** A point on a slash as drawn this frame, relative to the camera. */
+    @FunctionalInterface
+    private interface Drawn {
+        Vec3 at(double along, double layer);
+    }
+
+    /**
+     * Starts a slash on the client thread, noting for the local player's own
+     * how far its heading turned off their look.
      *
      * @param payload the slash
      * @param context the network context
@@ -68,7 +108,9 @@ public final class ReapSlashBlades {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                LIVE.add(new Shown(payload.slash(), mc.level.getGameTime()));
+                boolean own = mc.player != null && mc.player.getId() == payload.slasherId();
+                double fan = own ? payload.slash().turnFrom(mc.player.getViewVector(1f)) : 0;
+                LIVE.add(new Shown(payload.slash(), mc.level.getGameTime(), own, fan));
             }
         });
     }
@@ -90,30 +132,48 @@ public final class ReapSlashBlades {
         if (LIVE.isEmpty()) {
             return;
         }
-        double time = tick + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
-        int leaf = ClientGooTypes.color(GooTypes.LEAF);
-        for (Shown shown : LIVE) {
-            drawSlash(quads, shown.slash(), time - shown.launchTick(), camera, leaf);
-        }
+        drawAll(mc, quads, tick + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false),
+                Sight.of(mc.gameRenderer.getMainCamera(), event.getLevelRenderState().cameraRenderState.projectionMatrix));
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }
 
     /**
-     * Draws one slash an age into its life, its bulge glowing pale and its
-     * hollow edge Leaf's green, dimming as it thins.
+     * Draws each live slash: the local player's own on their screen while
+     * they view in first person, every other in the world.
      *
-     * @param quads  the context the quads emit through
-     * @param slash  the slash
-     * @param age    ticks since it appeared, with the partial tick
-     * @param camera the camera's position
-     * @param leaf   Leaf's green
+     * @param mc    the client
+     * @param quads the context the quads emit through
+     * @param time  the game time with the partial tick
+     * @param sight the first-person view
      */
-    private static void drawSlash(FlatQuadContext quads, ReapSlash slash, double age, Vec3 camera, int leaf) {
-        float strength = slash.strengthAt(age);
+    private static void drawAll(Minecraft mc, FlatQuadContext quads, double time, Sight sight) {
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
+        int leaf = ClientGooTypes.color(GooTypes.LEAF);
+        for (Shown shown : LIVE) {
+            ReapSlash slash = shown.slash();
+            double age = time - shown.launchTick();
+            Drawn drawn = shown.own() && firstPerson
+                    ? (along, layer) -> sight.place(FirstPersonSweep.pointAt(slash, shown.fan(), sight.tanHalfWidth(),
+                            age, along, layer))
+                    : (along, layer) -> slash.pointAt(age, along, layer).subtract(camera);
+            drawSlash(quads, drawn, slash.strengthAt(age), leaf);
+        }
+    }
+
+    /**
+     * Draws one slash, its outside edge glowing pale and its inside edge
+     * Leaf's green, at its strength.
+     *
+     * @param quads    the context the quads emit through
+     * @param drawn    the slash's points this frame, relative to the camera
+     * @param strength its strength, 0 to 1
+     * @param leaf     Leaf's green
+     */
+    private static void drawSlash(FlatQuadContext quads, Drawn drawn, float strength, int leaf) {
         if (strength <= 0f) {
             return;
         }
@@ -122,10 +182,10 @@ public final class ReapSlashBlades {
         for (int segment = 0; segment < SEGMENTS; segment++) {
             double from = (double) segment / SEGMENTS;
             double to = (double) (segment + 1) / SEGMENTS;
-            emit(quads, slash.pointAt(age, from, BULGE).subtract(camera), bulge);
-            emit(quads, slash.pointAt(age, to, BULGE).subtract(camera), bulge);
-            emit(quads, slash.pointAt(age, to, HOLLOW).subtract(camera), hollow);
-            emit(quads, slash.pointAt(age, from, HOLLOW).subtract(camera), hollow);
+            emit(quads, drawn.at(from, BULGE), bulge);
+            emit(quads, drawn.at(to, BULGE), bulge);
+            emit(quads, drawn.at(to, HOLLOW), hollow);
+            emit(quads, drawn.at(from, HOLLOW), hollow);
         }
     }
 
