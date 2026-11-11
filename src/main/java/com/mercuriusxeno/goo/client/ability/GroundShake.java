@@ -54,10 +54,10 @@ import java.util.function.Predicate;
 
 /**
  * The ground shake bore and flatten play while they run: each block the
- * ability breaks within the next few ticks is drawn again over itself,
- * swollen a hair and jittered gently in world space by a sum of fast sines,
- * so the blocks about to go tremble and shed chips of themselves while the
- * ground around them and the camera stay still.
+ * ability is progressing toward broken is drawn again over itself, for as
+ * long as it gains progress, swollen a hair and jittered gently in world
+ * space by a sum of fast sines, so the cracking blocks tremble and shed chips
+ * of themselves while the ground around them and the camera stay still.
  * decision bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera
  * decision flatten-plays-bores-ground-shake
  * decision only-the-blocks-about-to-break-shake-briefly-and-gently
@@ -74,11 +74,6 @@ public final class GroundShake {
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      */
     static final double AMPLITUDE = 0.02;
-    /**
-     * How many ticks before its break a bored or flattened block shakes.
-     * decision only-the-blocks-about-to-break-shake-briefly-and-gently
-     */
-    static final int SHAKE_LEAD_TICKS = 5;
     /** The most blocks one frame redraws, so a wide open shake stays cheap. */
     private static final int MOST_SHAKEN = 384;
     /** Crumbs a tick shakes loose from the shaking blocks. */
@@ -169,25 +164,25 @@ public final class GroundShake {
     }
 
     /**
-     * Where a bore shakes the ground: the tunnel blocks it breaks within the
-     * lead, by the pick its tick breaks by.
+     * Where a bore shakes the ground: every block on the eye line it is
+     * progressing, the pick its tick hands the gradual break, so the shaking
+     * blocks are the cracking blocks.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
-     * @param bore      the bore
      * @param eye       the boring player's eye
-     * @param aim       the stream's aim: its reach along the look and its cone
+     * @param aim       the stream's aim: its reach along the look
      * @param air       whether a cell holds air
      * @param breakable whether a cell holds a block the bore breaks
      * @return the zone
      */
-    static Zone boreZone(BoreStep bore, Vec3 eye, ChannelAim aim, Predicate<BlockPos> air,
-                         Predicate<BlockPos> breakable) {
-        return cellsZone(bore.breaksAhead(eye, aim, air, breakable, SHAKE_LEAD_TICKS));
+    static Zone boreZone(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        return cellsZone(BoreStep.progressing(eye, aim, air, breakable));
     }
 
     /**
-     * Where a flatten shakes the ground: the swath blocks it breaks within
-     * the lead, by the pick its tick breaks by.
+     * Where a flatten shakes the ground: every swath block it is
+     * progressing, the pick its tick hands the gradual break, so the shaking
+     * blocks are the cracking blocks.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
      * @param aim       the hold's aim, holding the face the hold began on
@@ -196,7 +191,7 @@ public final class GroundShake {
      * @return the zone
      */
     static Zone flattenZone(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable) {
-        return cellsZone(FlattenStep.breaksAhead(aim, aimed, breakable, SHAKE_LEAD_TICKS));
+        return cellsZone(FlattenStep.progressing(aim, aimed, breakable));
     }
 
     /**
@@ -304,12 +299,12 @@ public final class GroundShake {
     }
 
     /**
-     * The tunnel blocks the local player's bore breaks within the lead, read
-     * off the client's level along the aim the server bores by.
+     * The line blocks the local player's bore is progressing, read off the
+     * client's level along the aim the server bores by.
      *
      * @param player      the local player
      * @param bore        the selected bore
-     * @param ability     the selected ability, whose delivery holds the reach and the cone
+     * @param ability     the selected ability, whose delivery holds the reach
      * @param eye         the player's eye this frame
      * @param partialTick the frame's partial tick
      * @return the zone
@@ -319,13 +314,13 @@ public final class GroundShake {
         Level level = player.level();
         ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(partialTick).scale(ability.delivery().range())),
                 null, ability.delivery().coneDegrees());
-        return boreZone(bore, eye, aim, cell -> level.getBlockState(cell).isAir(),
+        return boreZone(eye, aim, cell -> level.getBlockState(cell).isAir(),
                 cell -> level.getBlockState(cell).is(bore.breaks()));
     }
 
     /**
-     * The swath blocks the local player's flatten breaks within the lead,
-     * read off the client's level under the cursor the disc rests on.
+     * The swath blocks the local player's flatten is progressing, read off
+     * the client's level under the cursor the disc rests on.
      *
      * @param player  the local player
      * @param flatten the selected flatten

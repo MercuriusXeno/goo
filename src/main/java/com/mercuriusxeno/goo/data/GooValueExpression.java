@@ -375,8 +375,8 @@ final class GooValueExpression {
      * @param referent   the prefab or item the tree is the value of, as the expression spelled it
      * @param typeSuffix the lowercase type name to parse (e.g. "leaf", "blaze")
      * @param tree       the GooValue to extract from
-     * @return a single-type GooVal, or null if the suffix is not a valid goo type key
-     * @throws ReferentLacksType where the tree holds no amount of the type
+     * @return a single-type GooVal, empty where the tree holds no amount of the type, or null if the suffix is not a
+     *     valid goo type key
      */
     private static ExprVal parseSingleTypeGoo(String referent, String typeSuffix, GooValue tree) {
         ResourceKey<GooTypeDefinition> type;
@@ -385,7 +385,7 @@ final class GooValueExpression {
         } catch (IllegalArgumentException ignored) {
             return null;
         }
-        return new GooVal(GooValue.ofExact(Map.of(type, ReferentLacksType.amountHeld(referent, tree, type))));
+        return new GooVal(GooValue.ofExact(Map.of(type, LackedTypeReads.amountHeld(referent, tree, type))));
     }
 
     /**

@@ -79,6 +79,8 @@ public final class GooWorkbenchCommandTests {
             helper.assertTrue(drive.isDone(), "the operations are still answering");
             String failure = drive.join();
             ValuesManagers.close(server);
+            // The promote laid the jar's values over the gametests' owned values; lay them back.
+            GametestOwnedValues.apply(server);
             helper.assertTrue(failure.isEmpty(), failure);
         });
     }

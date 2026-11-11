@@ -164,14 +164,26 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @return the 27 blocks, outermost first; none where the hold began on no face
      */
     public List<BlockPos> swathOutermostFirst(BlockPos aimed) {
-        List<BlockPos> swath = new ArrayList<>();
+        return swathLayersOutermostFirst(aimed).stream().flatMap(List::stream).toList();
+    }
+
+    /**
+     * Flatten's swath where the cursor is, layer by layer: each layer's 3x3
+     * ring in, from the layer 3 out from the face in to the layer touching it
+     * (decision flatten-progresses-its-whole-swath-outermost-fastest).
+     *
+     * @param aimed the aimed block
+     * @return the 3 layers, outermost first; none where the hold began on no face
+     */
+    public List<List<BlockPos>> swathLayersOutermostFirst(BlockPos aimed) {
+        List<List<BlockPos>> layers = new ArrayList<>();
         if (plane == null) {
-            return swath;
+            return layers;
         }
         for (int out = SWATH_DEPTH; out >= 1; out--) {
-            swath.addAll(sliceRingIn(plane.layer(aimed, out), plane.face().getAxis()));
+            layers.add(sliceRingIn(plane.layer(aimed, out), plane.face().getAxis()));
         }
-        return swath;
+        return layers;
     }
 
     /**
