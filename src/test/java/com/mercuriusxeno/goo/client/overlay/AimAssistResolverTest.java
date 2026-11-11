@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
@@ -145,6 +147,22 @@ class AimAssistResolverTest {
         @Test
         void aSelfGrabStillOutlinesTheMobItLifts() {
             assertTrue(AimAssistResolver.isCandidate(pickable(Mob.class), Step.reachingTheAim(grab, true)));
+        }
+
+        /** decision mob-targeted-attacks-refuse-your-minions */
+        @Test
+        void aHarmfulMobAbilityOutlinesNoOwnMinion() {
+            Mob minion = pickable(Mob.class);
+            assertFalse(AimAssistResolver.isCandidate(minion, heal,
+                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, true), ownMinion -> ownMinion == minion));
+        }
+
+        /** decision mob-targeted-attacks-refuse-your-minions */
+        @Test
+        void anUntaggedMobAbilityOutlinesAnOwnMinion() {
+            Mob minion = pickable(Mob.class);
+            assertTrue(AimAssistResolver.isCandidate(minion, heal,
+                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, false), ownMinion -> ownMinion == minion));
         }
 
         private static <E extends Entity> E pickable(Class<E> kind) {
