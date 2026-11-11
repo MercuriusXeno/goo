@@ -43,10 +43,28 @@ public record BreakPace(int breakTicks, double slowdown) {
      * @return each cell with its rate, in the cells' order
      */
     public Map<BlockPos, Double> ratesNearestFirst(List<BlockPos> cellsNearestFirst) {
+        return ratesByGroup(cellsNearestFirst.stream().map(List::of).toList());
+    }
+
+    /**
+     * Each cell's share of a break gained this tick, the cells of a group
+     * alike: the first group holding a cell at the full rate, each later
+     * group the slowdown times slower than the one before. An empty group
+     * takes no rank, so the group after it gains its rate.
+     *
+     * @param groupsNearestFirst the cells breaking in groups, such as Flatten's layers, the nearest group first
+     * @return each cell with its rate, in the groups' order
+     */
+    public Map<BlockPos, Double> ratesByGroup(List<List<BlockPos>> groupsNearestFirst) {
         Map<BlockPos, Double> rates = new LinkedHashMap<>();
         double rate = 1.0 / breakTicks;
-        for (BlockPos cell : cellsNearestFirst) {
-            rates.put(cell, rate);
+        for (List<BlockPos> group : groupsNearestFirst) {
+            if (group.isEmpty()) {
+                continue;
+            }
+            for (BlockPos cell : group) {
+                rates.put(cell, rate);
+            }
             rate /= slowdown;
         }
         return rates;
