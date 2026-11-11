@@ -268,4 +268,9 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     public HoldMarks holdMarks() {
         return GooServerState.of(level.getServer()).streamHolds().marks(player.getUUID());
     }
+
+    @Override
+    public GradualBreak gradualBreak() {
+        return holdMarks().gradualBreak();
+    }
 }

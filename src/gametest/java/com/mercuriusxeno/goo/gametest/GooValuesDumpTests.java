@@ -49,9 +49,9 @@ public final class GooValuesDumpTests {
     public static void writesBothDumps(GameTestHelper helper) {
         Instant start = Instant.now().minusSeconds(1);
         MinecraftServer server = helper.getLevel().getServer();
+        // The load lays the gametests' owned values over the packs, so the later batches still read them.
+        GametestOwnedValues.apply(server);
         GooValueRegistry values = GooValues.registryOf(server);
-        values.loadBaseValuesFromPacks(server);
-        values.deriveFromRecipes(server);
         GooAuditReport.writeReport(values, GooReactionLoader.reactionsOf(server));
         GooCliqueDump.write(values);
         Path config = FMLPaths.CONFIGDIR.get();

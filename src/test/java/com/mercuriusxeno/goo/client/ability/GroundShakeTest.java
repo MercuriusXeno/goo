@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
+import com.mercuriusxeno.goo.ability.program.BreakPace;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.FlattenStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -22,14 +23,16 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * The ground shake jitters only the blocks a bore or a flatten breaks within
- * its lead, gently, and leaves the rest still (decision
+ * The ground shake jitters exactly the blocks a bore or a flatten hands its
+ * gradual break, gently, and leaves the rest still (decision
  * only-the-blocks-about-to-break-shake-briefly-and-gently), a held bore and a
  * held flatten each play it (decisions
  * bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera,
@@ -47,6 +50,7 @@ class GroundShakeTest {
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final double BORE_RANGE = 8;
     private static final double BORE_CONE_DEGREES = 15;
+    private static final BreakPace PACE = new BreakPace(5, 1.5);
     /** The jitter's amplitude before this change, read from GroundShake.AMPLITUDE at 128a57da7. */
     private static final double PREVIOUS_AMPLITUDE = 0.04;
     /** A hold long past any wind-up. */
@@ -74,36 +78,43 @@ class GroundShakeTest {
         return widest;
     }
 
+    /**
+     * The blocks a zone shakes.
+     *
+     * @param zone the shake's zone
+     * @return its cells
+     */
+    private static Set<BlockPos> shakenIn(GroundShake.Zone zone) {
+        return assertInstanceOf(GroundShake.Cells.class, zone).cells();
+    }
+
     @Nested
     class BoreZone {
 
-        /** A row of breakable stone straight ahead of the eye, and one breakable block under the row, out of the cone. */
+        /** A row of breakable stone straight ahead of the eye, and one breakable block under the row, off the line. */
         private final Set<BlockPos> stone = Set.of(new BlockPos(1, 64, 0), new BlockPos(2, 64, 0),
                 new BlockPos(3, 64, 0), new BlockPos(4, 64, 0), new BlockPos(5, 64, 0), new BlockPos(6, 64, 0),
                 new BlockPos(7, 64, 0), new BlockPos(2, 62, 0));
-        private final GroundShake.Zone zone = GroundShake.boreZone(new BoreStep(BREAKABLE, 1), EYE,
-                new ChannelAim(EYE.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES),
-                cell -> !stone.contains(cell), stone::contains);
+        private final ChannelAim aim = new ChannelAim(EYE.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
+        private final Predicate<BlockPos> air = cell -> !stone.contains(cell);
+        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, aim, air, stone::contains);
 
         @Test
-        void theBlocksTheBoreBreaksWithinTheLeadShakeWithinTheAmplitude() {
-            for (int x = 1; x <= GroundShake.SHAKE_LEAD_TICKS; x++) {
-                double swing = widestSwing(new BlockPos(x, 64, 0), zone);
-                assertTrue(swing > 0, "x " + x + " breaks within the lead and never moves");
-                assertTrue(swing <= GroundShake.AMPLITUDE * Math.sqrt(3), "x " + x + " swings past the amplitude");
-            }
+        void theShakenBlocksAreTheBlocksTheBoreHandsTheGradualBreak() {
+            assertEquals(Set.copyOf(BoreStep.progressing(EYE, aim, air, stone::contains)), shakenIn(zone));
         }
 
         @Test
-        void aBreakableBlockPastTheLeadStaysStillUntilItsTurnNears() {
-            // One block a tick: the sixth in the row breaks after the lead runs out.
-            assertEquals(0, widestSwing(new BlockPos(GroundShake.SHAKE_LEAD_TICKS + 1, 64, 0), zone), STILL);
+        void theFarthestProgressingBlockShakesFromTheFirstTickWithinTheAmplitude() {
+            double swing = widestSwing(new BlockPos(7, 64, 0), zone);
+            assertTrue(swing > 0, "the farthest block on the line never moves");
+            assertTrue(swing <= GroundShake.AMPLITUDE * Math.sqrt(3), "the farthest block swings past the amplitude");
         }
 
         @Test
-        void aBlockBesideTheTunnelThatNeverBreaksStaysStill() {
-            assertEquals(0, widestSwing(new BlockPos(2, 62, 0), zone), STILL);
-            assertEquals(0, widestSwing(new BlockPos(2, 63, 0), zone), STILL);
+        void aBlockOffTheLineStaysStill() {
+            assertEquals(0, zone.strengthAt(new BlockPos(2, 62, 0)), STILL);
+            assertEquals(0, zone.strengthAt(new BlockPos(2, 63, 0)), STILL);
         }
     }
 
@@ -115,23 +126,25 @@ class GroundShakeTest {
         private final Set<BlockPos> ground = Set.of(new BlockPos(-1, 64, -1), new BlockPos(0, 64, -1),
                 new BlockPos(1, 64, -1), new BlockPos(1, 64, 0), new BlockPos(1, 64, 1), new BlockPos(0, 64, 1),
                 new BlockPos(-1, 64, 1), new BlockPos(-1, 64, 0), new BlockPos(0, 64, 0), new BlockPos(0, 63, 0));
-        private final GroundShake.Zone zone = GroundShake.flattenZone(new ChannelAim(Vec3.ZERO, floor),
-                new BlockPos(0, 63, 0), ground::contains);
+        private final ChannelAim aim = new ChannelAim(Vec3.ZERO, floor);
+        private final BlockPos aimed = new BlockPos(0, 63, 0);
+        private final GroundShake.Zone zone = GroundShake.flattenZone(aim, aimed, ground::contains);
 
         @Test
-        void theSwathBlocksFlattenBreaksWithinTheLeadShake() {
-            // The layer breaks ring in: the corner and its ring neighbours go first.
-            for (BlockPos next : List.of(new BlockPos(-1, 64, -1), new BlockPos(0, 64, -1), new BlockPos(1, 64, -1),
-                    new BlockPos(1, 64, 0), new BlockPos(1, 64, 1))) {
-                assertTrue(widestSwing(next, zone) > 0, next + " breaks within the lead and never moves");
-            }
+        void theShakenBlocksAreTheBlocksFlattenHandsTheGradualBreak() {
+            assertEquals(Set.copyOf(FlattenStep.progressing(aim, aimed, ground::contains)), shakenIn(zone));
         }
 
         @Test
-        void aSwathBlockBreakingAfterTheLeadAndTheFloorUnderTheSwathStayStill() {
-            assertEquals(0, widestSwing(new BlockPos(0, 64, 0), zone), STILL);
-            assertEquals(0, widestSwing(new BlockPos(0, 63, 0), zone), STILL);
-            assertEquals(0, widestSwing(new BlockPos(2, 64, 0), zone), STILL);
+        void theLastSwathBlockInBreakingOrderShakesFromTheFirstTick() {
+            // The layer runs ring in: the middle block comes last.
+            assertTrue(widestSwing(new BlockPos(0, 64, 0), zone) > 0, "the swath's middle block never moves");
+        }
+
+        @Test
+        void theFloorUnderTheSwathAndABlockBesideItStayStill() {
+            assertEquals(0, zone.strengthAt(new BlockPos(0, 63, 0)), STILL);
+            assertEquals(0, zone.strengthAt(new BlockPos(2, 64, 0)), STILL);
         }
     }
 
@@ -161,14 +174,14 @@ class GroundShakeTest {
 
         @Test
         void aHeldBoreAndAHeldFlattenEachShakeTheGround() {
-            assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, 2)), true, HELD_LONG));
-            assertTrue(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), true, HELD_LONG));
+            assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, PACE)), true, HELD_LONG));
+            assertTrue(GroundShake.shakes(ability(new FlattenStep(BREAKABLE, PACE)), true, HELD_LONG));
         }
 
         @Test
         void neitherShakesUnheldAndOtherAbilitiesNever() {
-            assertFalse(GroundShake.shakes(ability(new BoreStep(BREAKABLE, 2)), false, HELD_LONG));
-            assertFalse(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), false, HELD_LONG));
+            assertFalse(GroundShake.shakes(ability(new BoreStep(BREAKABLE, PACE)), false, HELD_LONG));
+            assertFalse(GroundShake.shakes(ability(new FlattenStep(BREAKABLE, PACE)), false, HELD_LONG));
             assertFalse(GroundShake.shakes(ability(mock(Step.class)), true, HELD_LONG));
             assertFalse(GroundShake.shakes(null, true, HELD_LONG));
         }

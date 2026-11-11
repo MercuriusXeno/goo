@@ -137,6 +137,7 @@ public final class GooServerState {
         }
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
+        streamHolds.releaseLapsed(currentTick);
     }
 
     /**

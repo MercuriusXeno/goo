@@ -191,6 +191,55 @@ class GatePassageTest {
                 + " blocks to step off it, rises " + rise);
     }
 
+    /** A second floor portal on the top of a block at x 5, y 64, its face the plane y 65. */
+    private static final Gate OTHER_FLOOR = new Gate(OVERWORLD, new AABB(new BlockPos(5, 64, 0)).minmax(
+            new AABB(new BlockPos(5, 64, 1))), Direction.UP, Direction.NORTH.getUnitVec3());
+    /** How many times a body loops through the two floor portals. */
+    private static final int LOOPS = 40;
+    /** The most ticks a body takes to rise out of a floor portal and fall back in. */
+    private static final int MOST_TICKS_A_LOOP = 200;
+    /**
+     * How far a pass's exit speed may stand over the first pass's: the jitter
+     * of how deep past the face the tick it crosses on catches it, a few
+     * hundredths, where the lift stacking pass on pass climbed to 1.0.
+     */
+    private static final double SPEED_TOLERANCE = 0.025;
+
+    /**
+     * A body looping through two floor portals, dropping back into the one it
+     * came up out of, comes up out of each at the same speed pass after pass,
+     * the floor's lift a minimum it never stacks onto
+     * (decision portals-link-by-looking-through-portal-vision).
+     */
+    @Test
+    void aBodyLoopingThroughFloorPortalsComesUpNoFasterEachPass() {
+        GatePassage.Landing landing = GatePassage.landingThrough(NEAR, FLOOR,
+                new GatePassage.Held(new Vec3(0.5, 1.5, -0.03), 1.62), 1.8, new Vec3(0, 0, 0.1), 0F, 0F);
+        Gate out = FLOOR;
+        Vec3 feet = landing.feet();
+        Vec3 motion = new Vec3(0, landing.motion().y(), 0);
+        java.util.List<Double> exits = new java.util.ArrayList<>(java.util.List.of(motion.y()));
+        for (int pass = 0; pass < LOOPS; pass++) {
+            Gate partner = out == FLOOR ? OTHER_FLOOR : FLOOR;
+            for (int tick = 0; tick < MOST_TICKS_A_LOOP; tick++) {
+                Vec3 middleBefore = feet.add(0, 0.9, 0);
+                feet = feet.add(motion);
+                motion = new Vec3(0, (motion.y() - GRAVITY) * DRAG, 0);
+                if (GatePassage.crossed(out, middleBefore, feet.add(0, 0.9, 0))) {
+                    landing = GatePassage.landingThrough(out, partner,
+                            GatePassage.heldBehind(out, feet, 1.62, 1.8, motion).orElseThrow(), 1.8, motion, 0F, 0F);
+                    feet = landing.feet();
+                    motion = landing.motion();
+                    exits.add(motion.y());
+                    break;
+                }
+            }
+            out = partner;
+        }
+        assertTrue(exits.stream().allMatch(speed -> speed <= exits.get(0) + SPEED_TOLERANCE), "A body looping "
+                + "through floor portals should come up no faster each pass, comes up at " + exits);
+    }
+
     /** An arrow's width, its middle the point that crosses. */
     private static final double ARROW_WIDTH = 0.5;
     /** Three blocks before the near gate's face, square on its oval's middle. */

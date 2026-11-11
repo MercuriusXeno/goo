@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -141,9 +142,9 @@ class StepCodecTest {
                     List.of(new AilmentOverlayStep(AilmentKind.ASTRAL, Expr.literal(200))))),
             Map.entry("undead", new UndeadStep(Expr.literal(1))),
             Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable")))),
+                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable")), new BreakPace(5, 1.5))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 1)),
+                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5))),
             Map.entry("spire", new SpireStep()),
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
             Map.entry("calcify", new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 30)),
@@ -353,6 +354,22 @@ class StepCodecTest {
     }
 
     // frost-reach-extinguishes-fire-and-burning-mobs
+    @Test
+    void rockBoresBoreStepCarriesBothPaceValues() {
+        // decision bore-and-flatten-json-carry-two-pace-values
+        BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream().filter(BoreStep.class::isInstance)
+                .map(BoreStep.class::cast).findFirst().orElseThrow();
+        assertEquals(new BreakPace(5, 1.5), bore.pace());
+    }
+
+    @Test
+    void rockFlattensFlattenStepCarriesBothPaceValues() {
+        // decision bore-and-flatten-json-carry-two-pace-values
+        FlattenStep flatten = AbilityJson.decode("rock_flatten").behaviors().stream()
+                .filter(FlattenStep.class::isInstance).map(FlattenStep.class::cast).findFirst().orElseThrow();
+        assertEquals(new BreakPace(5, 1.5), flatten.pace());
+    }
+
     @Test
     void extinguishDecodesFromItsTypeAlone() {
         assertEquals(new ExtinguishStep(), decode("{\"type\": \"extinguish\"}").getOrThrow());
