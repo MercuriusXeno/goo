@@ -43,6 +43,8 @@ public final class GrabPickConeTests {
     private static final BlockPos FIVE_BLOCKS_OUT = new BlockPos(5, 1, 2);
     /** How far off the pig the look turns: past the shared pick cone of 4 degrees, inside Grab's. */
     private static final float INSIDE_GRABS_CONE = 7f;
+    /** How far the test's look ray runs: past the pig, short of the bay's far wall. */
+    private static final double IN_THE_BAY = 6;
     private static final int HOLD_TICKS = 5;
     private static final int HELD_GOO = 3;
     private static final Identifier KINETIC_GRAB = Identifier.parse("goo:kinetic_grab");
@@ -80,26 +82,32 @@ public final class GrabPickConeTests {
         Pig pig = helper.spawn(EntityType.PIG, FIVE_BLOCKS_OUT);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, pig.getBoundingBox().getCenter());
         player.setYRot(player.getYRot() + INSIDE_GRABS_CONE);
-        double reach = GrabStep.reachOf(grab.behaviors(), null).orElseThrow();
+        // Grab's own reach of 16 runs the ray into the neighbouring tests' bays, where a mob on the ray is an
+        // exact hit and outranks the cone; the ray stops inside this bay, past the pig.
+        double reach = Math.min(IN_THE_BAY, GrabStep.reachOf(grab.behaviors(), null).orElseThrow());
         helper.assertTrue(pig.getBoundingBox().clip(player.getEyePosition(),
                 player.getEyePosition().add(player.getLookAngle().scale(reach))).isEmpty(),
                 "The look should pass beside the pig, off its box");
+        java.util.List<String> picks = new java.util.ArrayList<>();
         for (int held = 1; held <= HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, holdTick(player, grab, reach)));
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, holdTick(player, grab, reach, picks)));
         }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig the look passes " + INSIDE_GRABS_CONE
-                    + " degrees beside should be picked and held, held " + GrabEvents.heldBy(player));
+                    + " degrees beside should be picked and held, held " + GrabEvents.heldBy(player) + ", picked "
+                    + picks);
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
         });
     }
 
     /** A held tick naming the entity the glove's pick outlines this tick, as the client sends it. */
-    private static GooStreamPayload holdTick(ServerPlayer player, AbilityDefinition grab, double reach) {
+    private static GooStreamPayload holdTick(ServerPlayer player, AbilityDefinition grab, double reach,
+            java.util.List<String> picks) {
         AimTargets.AimRay ray = AimTargets.AimRay.along(player.getEyePosition(), player.getLookAngle(), reach);
         TargetResult picked = AimTargets.resolve(player, ray, null, TargetingHint.of(grab.badge()),
                 grab.behaviors()).target();
+        picks.add(String.valueOf(picked));
         int pickedId = picked instanceof TargetResult.EntityTarget aimed ? aimed.entity().getId()
                 : ChannelAim.NO_ENTITY;
         Vec3 eye = player.getEyePosition();
