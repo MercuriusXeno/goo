@@ -80,10 +80,15 @@ const float STREAK_SHARPNESS = 4.0;
 const float CLUMP_DENSITY = 1.0;
 const float STREAK_DENSITY = 1.4;
 const float HAZE_DENSITY = 0.06;
-// Where the rim and the far end start to fray, as shares, and how far the noise ragged their edges.
-const float RIM_FROM = 0.72;
-const float FAR_FROM = 0.55;
-const float FRAY = 0.45;
+// The vortex fills the whole area Drain strikes: its rim and far end fray only in a thin band at the
+// strike's own edge, as shares of the radius and of the length, ragged by the body noise this far.
+const float RIM_FROM = 0.9;
+const float FAR_FROM = 0.88;
+const float FRAY = 0.12;
+// The miasma thickens toward the rim, from this share of the radius out, by this much a block, so the edge
+// of the hit area reads.
+const float WALL_FROM = 0.75;
+const float WALL_DENSITY = 0.35;
 // Blocks from the hand the miasma thickens over, so the glove itself stays clear, and how far past its
 // formed front it feathers.
 const float HAND_CLEAR = 0.6;
@@ -219,7 +224,8 @@ vec3 miasmaAt(vec3 point, float seconds) {
             * smoothstep(0.0, HAND_CLEAR, along)
             * (1.0 - smoothstep(0.0, FORM_FEATHER, along - Shown.y * (reachLength + FORM_FEATHER)));
     float streaked = STREAK_DENSITY * streak * (0.35 + 0.65 * clump) * Shown.x;
-    float density = frayed * (CLUMP_DENSITY * clump + HAZE_DENSITY * Shown.x + streaked);
+    float wall = WALL_DENSITY * smoothstep(WALL_FROM, RIM_FROM, share) * (0.4 + 0.6 * clump) * Shown.x;
+    float density = frayed * (CLUMP_DENSITY * clump + HAZE_DENSITY * Shown.x + wall + streaked);
     return vec3(density, core, streaked / max(density / max(frayed, 1e-3), 1e-3));
 }
 
