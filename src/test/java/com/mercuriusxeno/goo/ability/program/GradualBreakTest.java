@@ -79,6 +79,17 @@ class GradualBreakTest {
     }
 
     @Test
+    void releasingTheHoldClearsEveryCellItWasBreaking() {
+        feedBoth();
+        feedBoth();
+
+        gradualBreak.release();
+
+        assertEquals(GradualBreak.CLEARED, stages.get(FAST));
+        assertEquals(GradualBreak.CLEARED, stages.get(SLOW));
+    }
+
+    @Test
     void aCellNoLongerFedReportsClearedAndStartsOverWhenFedAgain() {
         feedBoth();
         feedBoth();

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -12,7 +13,8 @@ import java.util.Set;
  * tick, and it adds that share to the block's progress, draws the vanilla
  * block break texture at the stage the progress reached, and breaks the block
  * once its progress fills. A block the step stops handing it loses its
- * progress and its cracks. Every ability that breaks over time breaks
+ * progress and its cracks, and every block loses them when the hold
+ * ends. Every ability that breaks over time breaks
  * through this one piece.
  * decision gradual-breaks-share-one-break-texture-piece
  * decision bore-drills-the-eye-line-with-steady-progress
@@ -28,6 +30,8 @@ public final class GradualBreak {
     private static final double SUM_SLACK = 1e-9;
 
     private final Map<BlockPos, Progress> progress = new HashMap<>();
+    /** The host the last tick cracked through, which a release clears the cracks through. */
+    private @Nullable BlockBreakHost lastHost;
 
     /**
      * Progresses every block a step is breaking this tick, and clears every
@@ -37,8 +41,18 @@ public final class GradualBreak {
      * @param host  the host that cracks and breaks the blocks
      */
     public void progress(Map<BlockPos, Double> rates, BlockBreakHost host) {
+        lastHost = host;
         dropUnfed(rates.keySet(), host);
         rates.forEach((pos, rate) -> advance(pos, rate, host));
+    }
+
+    /**
+     * Clears every block the hold was breaking, as the hold ending does.
+     */
+    public void release() {
+        if (lastHost != null) {
+            dropUnfed(Set.of(), lastHost);
+        }
     }
 
     private void dropUnfed(Set<BlockPos> fed, BlockBreakHost host) {
