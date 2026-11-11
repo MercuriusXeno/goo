@@ -8,10 +8,9 @@
 
 // A status ailment's overlay over a whole model (decision ailment-overlay-shader-per-ailment):
 // one field per pattern, laid over the model's skin coordinates so it rides the body,
-// tinted by the ailment's color. The glints draw unlit, like the enchantment glint;
-// the stone and the frost encase the model and take its light.
-
-uniform sampler2D Sampler0;
+// tinted by the ailment's color. The facets and the shimmer draw unlit; the stone, the frost
+// and the gel encase the model and take its light. The ailments that mark a mob rather than
+// coat it wear the pulsing outline instead (decision ailment-glisten-becomes-a-pulsing-outline).
 
 in float sphericalVertexDistance;
 in float cylindricalVertexDistance;
@@ -24,24 +23,17 @@ flat in int pattern;
 out vec4 fragColor;
 
 // Must match AilmentPattern's order.
-const int PATTERN_GLINT = 0;
-const int PATTERN_FACETS = 1;
-const int PATTERN_SHIMMER = 2;
-const int PATTERN_STONE = 3;
-const int PATTERN_FROST = 4;
-const int PATTERN_WOBBLE = 5;
+const int PATTERN_FACETS = 0;
+const int PATTERN_SHIMMER = 1;
+const int PATTERN_STONE = 2;
+const int PATTERN_FROST = 3;
+const int PATTERN_WOBBLE = 4;
 // Bubbles drifting in Weird's gel, and how fast they drift.
+// GameTime is the fraction of a 24000-tick day: 300 cycles a day is one every 80 ticks.
 const float GEL_CELLS = 14.0;
 const float GEL_CYCLES_PER_DAY = 300.0;
 
 const float TAU = 6.2831853;
-// GameTime is the fraction of a 24000-tick day: 300 cycles a day is one every 80 ticks.
-const float GLINT_CYCLES_PER_DAY = 300.0;
-// Glint texture repeats across the skin's coordinates.
-const float GLINT_TILES = 6.0;
-// The glint's two sweeps cross at these angles, in radians.
-const float GLINT_ANGLE_A = 0.17;
-const float GLINT_ANGLE_B = -0.9;
 // Diamond facets across the skin's coordinates.
 const float FACET_CELLS = 24.0;
 const float FACET_EDGE = 0.08;
@@ -58,18 +50,6 @@ vec2 turned(vec2 uv, float angle) {
     float c = cos(angle);
     float s = sin(angle);
     return vec2(c * uv.x - s * uv.y, s * uv.x + c * uv.y);
-}
-
-float glintTexel(vec2 uv) {
-    return dot(textureLod(Sampler0, fract(uv), 0.0).rgb, vec3(0.299, 0.587, 0.114));
-}
-
-// Two glint sweeps crossing, as the enchantment glint layers two passes.
-float glintField(vec2 uv, float time) {
-    float sweep = time * GLINT_CYCLES_PER_DAY;
-    float first = glintTexel(turned(uv * GLINT_TILES, GLINT_ANGLE_A) + vec2(sweep, 0.0));
-    float second = glintTexel(turned(uv * GLINT_TILES, GLINT_ANGLE_B) - vec2(0.0, sweep * 0.7));
-    return clamp(first + second, 0.0, 1.0);
 }
 
 // Diamond cells along their edges, each flashing in its own turn.
@@ -92,8 +72,8 @@ float shimmerField(vec2 uv, float time) {
 void main() {
     float strength = ailmentColor.a;
     vec3 tint = ailmentColor.rgb;
-    // The noise patterns take one value per skin texel; the glint and the facets read no noise
-    // and keep the smooth coordinate (decision mingle-noise-snaps-to-texels).
+    // The noise patterns take one value per skin texel; the facets read no noise and keep the
+    // smooth coordinate (decision mingle-noise-snaps-to-texels).
     vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);
     vec4 color;
     if (pattern == PATTERN_STONE) {
@@ -110,13 +90,11 @@ void main() {
         vec4 gel = vec4(mix(tint, vec3(1.0), bubbles * 0.5), (0.4 + 0.3 * bubbles) * strength);
         color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(skinNormal), gel) * lightMapColor;
     } else {
-        float shine;
+        float shine = 0.0;
         if (pattern == PATTERN_FACETS) {
             shine = facetField(skinCoord, GameTime);
         } else if (pattern == PATTERN_SHIMMER) {
             shine = shimmerField(skinTexel, GameTime);
-        } else {
-            shine = glintField(skinCoord, GameTime);
         }
         color = vec4(tint * (0.5 + 1.2 * shine), (0.2 + 0.7 * shine) * strength);
     }
