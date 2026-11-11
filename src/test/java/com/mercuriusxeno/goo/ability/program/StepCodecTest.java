@@ -186,7 +186,10 @@ class StepCodecTest {
             Map.entry("verdant", new VerdantStep(Identifier.parse("goo:greening"), 5, 40, 8, 4, 1.5f, 6)),
             Map.entry("toxin",new ToxinStep(Identifier.parse("goo:bio_toxin"), Expr.literal(0.06),
                     Expr.literal(100), 2)),
-            Map.entry("reap", new ReapStep(Expr.literal(4), Expr.literal(10))),
+            Map.entry("slash", new SlashStep(Expr.literal(2), Expr.literal(3), Expr.literal(1), Expr.literal(2),
+                    Expr.literal(5.3), Expr.literal(5.8), Expr.literal(0.5), Expr.literal(1.1), Expr.literal(3.9),
+                    Expr.literal(2.6), Expr.literal(0.45), Expr.literal(0.2), Expr.literal(10), Expr.literal(5),
+                    Expr.literal(6), Expr.literal(0.5))),
             Map.entry("hasten_regrow", new HastenRegrowStep(Expr.literal(2))),
             Map.entry("root", new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
             Map.entry("hit_or_miss", new HitOrMissStep(
