@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:slick_slides_an_item_without_speeding_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
