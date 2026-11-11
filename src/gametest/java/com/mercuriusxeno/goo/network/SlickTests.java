@@ -18,6 +18,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -143,8 +144,8 @@ public final class SlickTests {
             BlockPos iceStart = slickStart.south(ICE_LANE_SOUTH);
             layLane(helper, slickStart, null);
             layLane(helper, iceStart, Blocks.PACKED_ICE);
-            Walker onSlick = walkTheLane(helper, slickStart);
-            Walker onIce = walkTheLane(helper, iceStart);
+            Walker onSlick = walkTheLane(helper, slickStart, GooBlocks.KINETIC_SLICK.get());
+            Walker onIce = walkTheLane(helper, iceStart, Blocks.PACKED_ICE);
             watchTheWalk(helper, onSlick, onIce);
         });
     }
@@ -161,7 +162,7 @@ public final class SlickTests {
         laySlick(helper, () -> {
             BlockPos slickStart = SLICKED_STONE.east(STRIP_WEST);
             layLane(helper, slickStart, null);
-            Walker walker = walkTheLane(helper, slickStart);
+            Walker walker = walkTheLane(helper, slickStart, GooBlocks.KINETIC_SLICK.get());
             double startSpeed = SlickStep.in(AbilityRegistry.of(helper.getLevel()).getAbility(SLICK).behaviors())
                     .orElseThrow().startSpeed();
             // a sequence ticks apart from the delays this callback runs among, which take no new delay mid-tick
@@ -233,29 +234,32 @@ public final class SlickTests {
      * Spawns a husk on a lane's stone, where daylight does not burn it, and
      * walks it east along the lane.
      *
-     * @param helper the gametest helper
-     * @param start  the lane's first slippery block
+     * @param helper   the gametest helper
+     * @param start    the lane's first slippery block
+     * @param slippery the block the lane's slippery stretch stands on
      * @return the walker
      */
-    private static Walker walkTheLane(GameTestHelper helper, BlockPos start) {
+    private static Walker walkTheLane(GameTestHelper helper, BlockPos start, Block slippery) {
         Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, start.west(2).above());
         helper.walkTo(husk, start.east(STRIP_EAST - STRIP_WEST).above(), 1f);
-        return new Walker(husk);
+        return new Walker(husk, slippery);
     }
 
     /**
      * A husk walking its lane, with its speed on its last stone tick and on
-     * its slippery stretch.
+     * the ticks its getOnPos block is its lane's slippery block.
      */
     private static final class Walker {
         private final Mob mob;
+        private final Block slippery;
         private double onStone = -1;
         private int slipperyTicks;
         private double firstOnSlippery = -1;
         private double onSlippery = -1;
 
-        Walker(Mob mob) {
+        Walker(Mob mob, Block slippery) {
             this.mob = mob;
+            this.slippery = slippery;
         }
 
         void watch(GameTestHelper helper) {
@@ -263,11 +267,15 @@ public final class SlickTests {
                 return;
             }
             double speed = mob.getDeltaMovement().horizontalDistance();
-            if (helper.getLevel().getBlockState(mob.getOnPos()).is(Blocks.STONE)) {
+            BlockState under = helper.getLevel().getBlockState(mob.getOnPos());
+            if (under.is(Blocks.STONE)) {
                 onStone = speed;
                 return;
             }
-            if (onStone >= 0 && ++slipperyTicks == 1) {
+            if (onStone < 0 || !under.is(slippery)) {
+                return;
+            }
+            if (++slipperyTicks == 1) {
                 firstOnSlippery = speed;
             }
             if (slipperyTicks == SLIPPERY_TICKS) {

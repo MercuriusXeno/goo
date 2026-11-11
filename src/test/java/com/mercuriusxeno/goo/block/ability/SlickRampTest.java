@@ -85,6 +85,20 @@ class SlickRampTest {
         }
 
         @Test
+        void landsAtTheStartSpeedOrAboveOnEveryHeading() {
+            SlickStep slick = shippedSlick();
+            for (int tenths = 0; tenths < 3600; tenths++) {
+                double heading = Math.toRadians(tenths / 10.0);
+                Vec3 slow = new Vec3(Math.cos(heading) * 0.0655, -0.08, Math.sin(heading) * 0.0655);
+
+                double out = SlickRamp.slid(slow, STEPPED_ON, TRYING, 0, slick).horizontalDistance();
+
+                assertTrue(out >= slick.startSpeed(), "heading " + tenths / 10.0 + " raised to " + out);
+                assertEquals(slick.startSpeed(), out, EXACT);
+            }
+        }
+
+        @Test
         void alreadyFasterGetsTheFirstTicksRampAlone() {
             SlickStep slick = shippedSlick();
             Vec3 fast = new Vec3(slick.startSpeed() * 0.9, 0, slick.startSpeed() * 1.2);
