@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * holds, listing files the mod ships and carrying a subtitle en_us.json
  * reads as naming the hole.
  * decision hole-opens-with-the-outsider-wub-pitched-up
+ * decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down
  */
 class HoleSoundsTest {
 
@@ -37,6 +38,18 @@ class HoleSoundsTest {
     @Test
     void openingsSubtitleNamesTheHole() throws IOException {
         assertSubtitleNamesTheHole(GooSoundIds.HOLE_OPEN);
+    }
+
+    /** tools/outsider_sounds.py writes each as a shipped wub take's samples in reverse order. */
+    @Test
+    void closingListsEachShippedWubTakeReversed() throws IOException {
+        assertEquals(List.of("goo:effects/outsider_wub_reversed", "goo:effects/outsider_wub2_reversed"),
+                filesOf(GooSoundIds.HOLE_CLOSE));
+    }
+
+    @Test
+    void closingsSubtitleNamesTheHole() throws IOException {
+        assertSubtitleNamesTheHole(GooSoundIds.HOLE_CLOSE);
     }
 
     /** The files a sound lists, each asserted to stand under assets/goo/sounds. */
