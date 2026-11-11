@@ -43,7 +43,6 @@ public final class OwnMinionTests {
     private static final int SETTLE_TICKS = 1;
     private static final int NO_ENTITY = -1;
     private static final int HELD_GOO = 4;
-    private static final long RALLY_TICKS = 1000L;
     private static final float RALLY_DAMAGE = 6f;
     private static final String METAL_JAVELIN = "goo:metal_javelin";
     private static final String QUANTUM_LINK = "goo:quantum_link";
@@ -143,8 +142,7 @@ public final class OwnMinionTests {
     }
 
     private static void rally(GameTestHelper helper, Mob mob, ServerPlayer caster) {
-        mob.setData(GooAttachments.RALLIED, new Rallied(caster.getUUID(),
-                helper.getLevel().getGameTime() + RALLY_TICKS, RALLY_DAMAGE));
+        mob.setData(GooAttachments.RALLIED, new Rallied(caster.getUUID(), RALLY_DAMAGE));
     }
 
     private static GooThrowPayload payload(ResourceKey<GooTypeDefinition> gooType, String ability,

@@ -140,14 +140,14 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
      * decision hole-is-an-in-world-portable-hole-for-items
      */
     @Override
-    public boolean openPortableHole(int lifetime) {
+    public boolean openPortableHole(int lifetime, int refresh) {
         BlockPos struck = cell.relative(face.getOpposite());
         ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
         if (player == null || player.level() != level || !HoleOpening.takes(face)) {
             HoleOpening.refuse(level, struck, face);
             return false;
         }
-        HoleOpening.open(level, player, struck, face, lifetime);
+        HoleOpening.open(level, player, struck, face, lifetime, refresh);
         return true;
     }
 

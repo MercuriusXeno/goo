@@ -14,10 +14,10 @@ import java.util.Map;
  *
  * @param <K> what each gate is known by
  */
-final class GrowOpen<K> {
+public final class GrowOpen<K> {
 
-    /** Ticks a gate takes to grow open. */
-    private static final float OPENING_TICKS = 12F;
+    /** Ticks a gate takes to grow open, the span a portable hole's mouth opens over at least. */
+    public static final float OPENING_TICKS = 12F;
     /** How far past full size a gate swells as it opens. */
     private static final float OVERSHOOT = 1.7F;
 
