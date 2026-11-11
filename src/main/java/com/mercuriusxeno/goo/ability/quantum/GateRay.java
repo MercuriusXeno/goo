@@ -169,7 +169,7 @@ public final class GateRay {
             return OptionalDouble.empty();
         }
         double along = before / (before - after);
-        return gate.withinOval(from.lerp(to, along)) ? OptionalDouble.of(along) : OptionalDouble.empty();
+        return gate.within(from.lerp(to, along)) ? OptionalDouble.of(along) : OptionalDouble.empty();
     }
 
     /**

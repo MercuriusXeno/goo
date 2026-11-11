@@ -745,7 +745,7 @@ public final class PortalView {
         double front = far.out(body.getCenter()) + depth * HALF;
         double back = front - depth;
         double across = Math.max(body.getXsize(), body.getZsize()) * HALF;
-        return front > 0 && back < 0 && far.withinOval(body.getCenter(), across) ? SPARE - back : 0;
+        return front > 0 && back < 0 && far.within(body.getCenter(), across) ? SPARE - back : 0;
     }
 
     /**
