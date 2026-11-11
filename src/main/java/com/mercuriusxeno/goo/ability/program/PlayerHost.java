@@ -246,8 +246,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Grows the player's Outsider platform (decision
-     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
+    /** Grows the player's Outsider room on all sides at once (decision
+     * outsider-room-grows-fractionally-on-all-sides-at-once). */
     @Override
     public void feedPlatform(int ringTicks, int base, int perDistance) {
         int feed = OutsiderRooms.feedOf(player, ringTicks, base, perDistance);
