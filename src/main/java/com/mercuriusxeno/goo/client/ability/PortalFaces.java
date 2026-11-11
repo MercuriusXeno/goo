@@ -14,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
@@ -28,6 +29,7 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
@@ -410,7 +412,11 @@ public final class PortalFaces {
             List<Drawn> gates) {
         Optional<GatePassage.Pair> viewing = PortalView.viewing();
         List<Drawn> worn = wornIn(gates, viewing.map(GatePassage.Pair::other));
-        emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE), worn, drawn -> drawn.drawnBox(camera));
+        VertexConsumer halo = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
+        emitHalos(pose, halo, worn, drawn -> drawn.drawnBox(camera));
+        Level level = Minecraft.getInstance().level;
+        emitCornerGlows(pose, halo, worn, drawn -> drawn.drawnBox(camera),
+                (pos, face) -> level != null && level.getBlockState(pos).isFaceSturdy(level, pos, face));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
         VertexConsumer bands = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
         emitSwirlBands(pose, bands, worn, drawn -> drawn.drawnBox(camera));
@@ -576,6 +582,159 @@ public final class PortalFaces {
                     + second) * (first + RAMANUJAN_THREE * second)));
             return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
                     (int) Math.round((BAND_INSIDE + BAND_OUTSIDE) * TEXELS_PER_BLOCK)};
+        }
+    }
+
+    /**
+     * Emits the surface glow onto every block face forming a tight corner
+     * around a gate's mouth: each full solid face standing in front of the
+     * gate's wall, bordering its box on the left, the right, below or above,
+     * and facing the mouth, lit in the gate's own color, a mouth's carrying
+     * the torn edge's mark. Each quad runs from the wall out the halo margin
+     * along the face, and its face coordinate unfolds the face past the wall
+     * quad's edge, so the halo shader reads how far past as the height off
+     * the wall and fades by true distance from the rim.
+     * glow-wraps-onto-corner-faces
+     * hole-mouths-wear-the-portal-halo
+     *
+     * @param pose     the pose
+     * @param consumer the halo pipeline's vertex consumer
+     * @param gates    the gates the frame draws
+     * @param boxOf    the box each gate draws over, camera-relative
+     * @param fullFace whether a block shows a full solid face its given way
+     */
+    static void emitCornerGlows(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+            Function<Drawn, AABB> boxOf, BiPredicate<BlockPos, Direction> fullFace) {
+        for (Drawn drawn : gates) {
+            AABB world = drawn.gate().blocks();
+            Vec3 shift = boxOf.apply(drawn).getCenter().subtract(world.getCenter());
+            for (Corner corner : cornersOf(world, drawn.gate().face(), fullFace)) {
+                emitCornerGlow(pose, consumer, new CornerQuad(world, drawn.gate().face(), corner, shift),
+                        ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
+            }
+        }
+    }
+
+    /**
+     * A block forming a corner around a gate's mouth and the way out from the
+     * mouth to it.
+     *
+     * @param block the block, in the layer in front of the gate's wall
+     * @param out   the way across the face from the mouth to the block
+     */
+    record Corner(BlockPos block, Direction out) {
+    }
+
+    /**
+     * The blocks forming a tight corner around a gate's mouth: in the layer in
+     * front of its wall, bordering its box on each way across the face, each
+     * showing a full solid face back toward the mouth.
+     * glow-wraps-onto-corner-faces
+     *
+     * @param world    the gate's blocks
+     * @param side     the face
+     * @param fullFace whether a block shows a full solid face its given way
+     * @return the corners
+     */
+    static List<Corner> cornersOf(AABB world, Direction side, BiPredicate<BlockPos, Direction> fullFace) {
+        List<Corner> corners = new ArrayList<>();
+        for (BlockPos block : BlockPos.betweenClosed(BlockPos.containing(world.minX, world.minY, world.minZ),
+                BlockPos.containing(world.maxX - 1, world.maxY - 1, world.maxZ - 1))) {
+            for (Direction out : Direction.values()) {
+                BlockPos beside = block.relative(out);
+                BlockPos corner = beside.relative(side);
+                if (out.getAxis() != side.getAxis() && !world.contains(Vec3.atCenterOf(beside))
+                        && fullFace.test(corner, out.getOpposite())) {
+                    corners.add(new Corner(corner.immutable(), out));
+                }
+            }
+        }
+        return corners;
+    }
+
+    /**
+     * Emits one corner face's glow as a quad from the wall out the halo
+     * margin, lifted off the face toward the mouth.
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param quad     the corner's quad
+     * @param color    the packed ARGB color, its alpha the edge mark
+     */
+    private static void emitCornerGlow(PoseStack.Pose pose, VertexConsumer consumer, CornerQuad quad, int color) {
+        int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+        int[] texels = texelsAcross(quad.halo(), quad.side());
+        for (int[] corner : corners) {
+            double height = corner[1] * HALO_MARGIN;
+            Vec3 at = quad.point(corner[0], height);
+            double[] frame = quad.frame(corner[0], height);
+            consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
+                    .setUv((float) frame[0], (float) frame[1]).setUv2(texels[0], texels[1]).setColor(color);
+        }
+    }
+
+    /**
+     * A corner face's glow quad: on the face of a block beside a gate's mouth
+     * toward the mouth, running along the block and out from the wall.
+     *
+     * @param world  the gate's blocks
+     * @param side   the gate's face
+     * @param corner the corner block and the way out to it
+     * @param shift  what moves world positions to where the frame draws them
+     */
+    private record CornerQuad(AABB world, Direction side, Corner corner, Vec3 shift) {
+
+        /** @return the gate's halo quad's box, whose face coordinate the corner unfolds past */
+        AABB halo() {
+            Direction.Axis normal = side.getAxis();
+            return world.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN,
+                    normal == Direction.Axis.Y ? 0 : HALO_MARGIN, normal == Direction.Axis.Z ? 0 : HALO_MARGIN);
+        }
+
+        /**
+         * @param end    zero for the block's low end along the box's edge, one for its high
+         * @param height how far off the wall, in blocks
+         * @return the quad's corner there, lifted off the face toward the mouth
+         */
+        Vec3 point(int end, double height) {
+            Direction out = corner.out();
+            Vec3 on = Vec3.ZERO.with(side.getAxis(), wall() + side.getAxisDirection().getStep() * height)
+                    .with(out.getAxis(), boundary() - out.getAxisDirection().getStep() * FACE_LIFT)
+                    .with(along(), corner.block().get(along()) + end);
+            return on.add(shift);
+        }
+
+        /**
+         * @param end    zero for the block's low end along the box's edge, one for its high
+         * @param height how far off the wall, in blocks
+         * @return the face coordinate there, the face unfolded past the halo quad's edge by the height
+         */
+        double[] frame(int end, double height) {
+            Direction out = corner.out();
+            Vec3 unfolded = Vec3.ZERO.with(out.getAxis(), boundary()
+                    + out.getAxisDirection().getStep() * (HALO_MARGIN + height))
+                    .with(along(), corner.block().get(along()) + end);
+            AABB halo = halo();
+            return new double[] {share(halo, unfolded, firstAxisOf(side)), share(halo, unfolded, secondAxisOf(side))};
+        }
+
+        private static double share(AABB box, Vec3 at, Direction.Axis axis) {
+            return (at.get(axis) - box.min(axis)) / (box.max(axis) - box.min(axis));
+        }
+
+        private double wall() {
+            return side.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                    ? world.max(side.getAxis()) : world.min(side.getAxis());
+        }
+
+        private double boundary() {
+            Direction out = corner.out();
+            return out.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                    ? world.max(out.getAxis()) : world.min(out.getAxis());
+        }
+
+        private Direction.Axis along() {
+            return firstAxisOf(side) == corner.out().getAxis() ? secondAxisOf(side) : firstAxisOf(side);
         }
     }
 

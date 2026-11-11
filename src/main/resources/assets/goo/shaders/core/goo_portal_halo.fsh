@@ -64,10 +64,19 @@ float tongues(float angle) {
 
 void main() {
     vec2 oval = texels - 2.0 * HALO_MARGIN_TEXELS;
-    vec2 across = (portalTexelCenter(frameCoord, texels) * texels - HALO_MARGIN_TEXELS) / oval * 2.0 - 1.0;
+    vec2 at = portalTexelCenter(frameCoord, texels) * texels;
+    // A corner face's quad unfolds its face past the wall quad's edge (decision glow-wraps-onto-corner-faces):
+    // how far past is the fragment's height off the wall, in texels, and it stands over the wall at the
+    // oval's box edge. On the wall quad nothing stands past, and the height is none.
+    vec2 past = at - clamp(at, vec2(0.0), texels);
+    float height = length(past);
+    vec2 wallAt = at - past - sign(past) * HALO_MARGIN_TEXELS;
+    vec2 across = (wallAt - HALO_MARGIN_TEXELS) / oval * 2.0 - 1.0;
     float around = atan(across.y, across.x);
     float edge = mix(1.0, holeTornEdge(around, GameTime), frameColor.a);
-    float beyond = -portalTexelsInside(across, oval, edge);
+    float inPlane = -portalTexelsInside(across, oval, edge);
+    // The distance from the rim: across the wall plane, and up off it on a corner face.
+    float beyond = length(vec2(max(inPlane, 0.0), height));
     if (beyond <= 0.0) {
         discard;
     }
