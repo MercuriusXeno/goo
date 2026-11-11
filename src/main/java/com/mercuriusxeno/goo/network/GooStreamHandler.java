@@ -12,6 +12,8 @@ import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.LeafStep;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
@@ -45,6 +47,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Server side of a stream delivery: each tick the glove's use stays down,
@@ -256,17 +259,47 @@ public final class GooStreamHandler {
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
-        List<Integer> healed = new ArrayList<>();
+        TickHeals heals = new TickHeals(new ArrayList<>(), new ArrayList<>());
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             List<LivingEntity> struck = sprayAndStrike(cast, apex, axis, ability, held);
+            boolean heal = heals(entitySteps);
             for (LivingEntity living : struck) {
-                HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
-                        entitySteps, cast));
+                HEALS.runNoting(living, heals.healed(), () -> runSteps(new EntityHost(level, living, player),
+                        HostKind.ENTITY, entitySteps, cast));
+                if (heal) {
+                    // touched-mobs-show-hearts-or-a-count-over-max: a mob already at full life shows its life too
+                    heals.touched().add(living.getId());
+                }
             }
             sprayFloors(player, apex, axis, ability);
         }
-        strikeCaster(cast, ability, apex, entitySteps, healed);
+        strikeCaster(cast, ability, apex, entitySteps, heals);
+    }
+
+    /**
+     * Who one held tick's heal reached: those whose health rose, and every
+     * mob in the cone the heal ran on.
+     *
+     * @param healed  the ids of the living whose health rose
+     * @param touched the ids of the mobs in the cone the heal ran on
+     */
+    private record TickHeals(List<Integer> healed, List<Integer> touched) {
+    }
+
+    /**
+     * Whether a program heals: a heal step runs somewhere in it.
+     *
+     * @param steps the program
+     * @return true where a heal step stands among the steps or their children
+     */
+    private static boolean heals(List<Step> steps) {
+        return steps.stream().flatMap(GooStreamHandler::withDescendants)
+                .anyMatch(step -> step instanceof LeafStep<?> leaf && leaf.leaf() == LeafSteps.HEAL);
+    }
+
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(GooStreamHandler::withDescendants));
     }
 
     /**
@@ -309,18 +342,19 @@ public final class GooStreamHandler {
      * @param ability     the stream ability
      * @param apex        the cone's apex
      * @param entitySteps the entity pass's steps
-     * @param healed      the living the tick healed so far, which the caster joins
+     * @param heals       who the tick healed and touched so far; the caster joins the healed
      */
     private static void strikeCaster(CastOn cast, AbilityDefinition ability, Vec3 apex, List<Step> entitySteps,
-                                     List<Integer> healed) {
+                                     TickHeals heals) {
         ServerPlayer player = cast.player();
         if (ability.hasTag(AbilityTags.SELF)) {
-            HEALS.runNoting(player, healed,
+            HEALS.runNoting(player, heals.healed(),
                     () -> runSteps(new PlayerHost(cast.level(), player), HostKind.PLAYER, entitySteps, cast));
         }
-        if (!healed.isEmpty()) {
-            // the client homes goo to each healed thing and stars it
-            EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
+        if (!heals.healed().isEmpty() || !heals.touched().isEmpty()) {
+            // the client homes goo to each healed thing and stars it, and shows each touched mob's life
+            EntityVisuals.sendToWatchers(player,
+                    new StreamHealedPayload(player.getId(), apex, heals.healed(), heals.touched()));
         }
     }
 

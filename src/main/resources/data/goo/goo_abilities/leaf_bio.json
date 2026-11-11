@@ -9,5 +9,5 @@
   "behaviors": [
     { "type": "toxin", "effect": "goo:bio_toxin", "share_per_second": 0.06, "duration": 100, "max_amplitude": 2 }
   ],
-  "tags": ["entity"]
+  "tags": ["entity", "harmful"]
 }

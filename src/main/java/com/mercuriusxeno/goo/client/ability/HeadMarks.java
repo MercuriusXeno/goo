@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
@@ -18,15 +19,19 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
  * Floats a mark over the head of every marked mob in sight, turned to face
  * the camera and bobbing gently, for as long as the mark holds: the charmed
- * heart over a charmed mob, the rally fist over a rallied one.
+ * heart over a charmed mob, the rally fist over a rallied one. Above any such
+ * mark, a mob Heal or Drain touched lately shows its life.
  * charm-glisten-and-icon-over-the-head
  * charm-holds-until-struck
  * rallied-mobs-wear-a-red-clenched-fist
+ * touched-mobs-show-hearts-or-a-count-over-max
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeadMarks {
@@ -72,6 +77,30 @@ public final class HeadMarks {
             }
             buffers.endBatch(icon);
         }
+        LifeMarkBillboard.drawAll(event.getPoseStack(), touchedInSight(mc.level), partialTick);
+    }
+
+    private static List<LivingEntity> touchedInSight(ClientLevel level) {
+        long tick = level.getGameTime();
+        List<LivingEntity> touched = new ArrayList<>();
+        for (Entity entity : level.entitiesForRendering()) {
+            if (entity instanceof LivingEntity living && !living.isInvisible()
+                    && TouchedMobs.CLIENT.marked(living.getId(), tick)) {
+                touched.add(living);
+            }
+        }
+        return touched;
+    }
+
+    /**
+     * Whether a mob wears a head mark, so its life mark stacks above it.
+     * touched-mobs-show-hearts-or-a-count-over-max
+     *
+     * @param living the mob
+     * @return true for a charmed or rallied mob
+     */
+    static boolean wearsHeadMark(LivingEntity living) {
+        return markOf(living).isPresent();
     }
 
     private static boolean wears(Entity entity, HeadMark mark) {

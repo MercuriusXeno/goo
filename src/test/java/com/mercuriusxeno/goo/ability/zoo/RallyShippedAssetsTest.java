@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.zoo;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import org.junit.jupiter.api.Test;
@@ -13,12 +14,13 @@ import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers what Rally ships: its behaviors are the rally of nearby peaceful mobs
- * alone, the red fist a rallied mob wears, and the Zoo Brew effect a cast
+ * Covers what Rally ships: a mob ability thrown at one target whose steps are
+ * the rally alone, the red fist a rallied mob wears, and the Zoo Brew effect a cast
  * Rally lays shows Rally's own icon.
  * rally-drops-its-sound-and-gets-its-sprite
  */
@@ -34,16 +36,20 @@ class RallyShippedAssetsTest {
     private static final int GREEN_SHIFT = 8;
     private static final int CHANNEL = 0xFF;
 
+    /** rally-is-a-mob-effect-on-one-target: a thrown mob ability at a flat cost, never a held area. */
     @Test
-    void rallyBehaviorsAreTheEntitiesRallyAlone() {
-        JsonElement behaviors = JsonParser.parseString(AbilityJson.read("zoo_rally"))
-                .getAsJsonObject().get("behaviors");
+    void rallyShipsAsAMobAbilityThrownAtOneTarget() {
+        JsonObject rally = JsonParser.parseString(AbilityJson.read("zoo_rally")).getAsJsonObject();
 
-        List<String> types = StreamSupport.stream(behaviors.getAsJsonArray().spliterator(), false)
+        List<String> types = StreamSupport.stream(rally.getAsJsonArray("behaviors").spliterator(), false)
                 .map(behavior -> behavior.getAsJsonObject().get("type").getAsString())
                 .toList();
 
-        assertEquals(List.of("entities"), types);
+        assertEquals("mob", rally.get("badge").getAsString());
+        assertEquals("arc", rally.getAsJsonObject("delivery").get("kind").getAsString());
+        assertTrue(rally.get("cost").getAsInt() > 0, "cost " + rally.get("cost"));
+        assertFalse(rally.has("upkeep"), "upkeep " + rally.get("upkeep"));
+        assertEquals(List.of("target"), types);
     }
 
     /**
