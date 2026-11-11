@@ -8,7 +8,10 @@ import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -16,6 +19,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -29,9 +33,9 @@ import java.util.stream.Stream;
 /**
  * Kinetic's Grab, run each tick of a held channel on the channeling player:
  * the first tick lifts the entity the glove outlines within range, and every tick
- * after holds it in front of the player along the look, from the far
- * distance with the look level or above, drawn in to the near distance as
- * the look pitches down to {@link #FULL_DRAW_PITCH}. A left click while held
+ * after holds it in front of the player along the look, against the first
+ * surface the look meets within the hold distance, else at the hold distance.
+ * A left click while held
  * throws it at the throw speed (GrabEvents.throwHeld), and the press lifts
  * nothing more until right click lets go. An outlined item entity is
  * pulled to the player at the pull speed each tick instead, unheld, and
@@ -39,33 +43,35 @@ import java.util.stream.Stream;
  * decision grab-holds-and-throws-a-physics-body
  * decision grab-pulls-an-item-to-you-and-picks-it-up
  * decision outlined-target-is-the-one-pick
+ * decision grab-holds-the-mob-against-the-surface-you-look-at
+ * decision grab-holds-slightly-closer-in-open-space
+ * decision grab-cone-picks-more-aggressively-than-other-goo-types
  *
- * @param range      how far the look reaches for an entity to lift, in blocks, before Telekinesis adds its reach
- * @param near       how far from the eye the held entity hangs with the look pitched fully down
- * @param far        how far from the eye the held entity hangs with the look level or above
- * @param throwSpeed the speed a throw launches the held entity at, in blocks per tick
- * @param pullSpeed  the speed a pulled item entity flies to the player at, in blocks per tick
+ * @param range        how far the look reaches for an entity to lift, in blocks, before Telekinesis adds its reach
+ * @param holdDistance how far from the eye the held entity hangs where the look meets no block
+ * @param throwSpeed   the speed a throw launches the held entity at, in blocks per tick
+ * @param pullSpeed    the speed a pulled item entity flies to the player at, in blocks per tick
+ * @param pickCone     the half-angle, in degrees, of the cone the glove picks Grab's target in, wider than the
+ *                     shared one so a look passing close to a mob still picks it
  */
-public record GrabStep(double range, double near, double far, double throwSpeed, double pullSpeed)
+public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed, double pickCone)
         implements ReachesTheAim {
 
-    /** The downward pitch, in degrees, at which the held entity is drawn fully in to the near distance. */
-    public static final float FULL_DRAW_PITCH = 60f;
     private static final String NAME = "grab";
     private static final String FIELD_RANGE = "range";
-    private static final String FIELD_NEAR = "near";
-    private static final String FIELD_FAR = "far";
+    private static final String FIELD_HOLD_DISTANCE = "hold_distance";
     private static final String FIELD_THROW_SPEED = "throw_speed";
     private static final String FIELD_PULL_SPEED = "pull_speed";
+    private static final String FIELD_PICK_CONE = "pick_cone";
     private static final double HALF = 0.5;
 
     /** Codec for the step's params. */
     public static final MapCodec<GrabStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.DOUBLE.fieldOf(FIELD_RANGE).forGetter(GrabStep::range),
-            Codec.DOUBLE.fieldOf(FIELD_NEAR).forGetter(GrabStep::near),
-            Codec.DOUBLE.fieldOf(FIELD_FAR).forGetter(GrabStep::far),
+            Codec.DOUBLE.fieldOf(FIELD_HOLD_DISTANCE).forGetter(GrabStep::holdDistance),
             Codec.DOUBLE.fieldOf(FIELD_THROW_SPEED).forGetter(GrabStep::throwSpeed),
-            Codec.DOUBLE.fieldOf(FIELD_PULL_SPEED).forGetter(GrabStep::pullSpeed)
+            Codec.DOUBLE.fieldOf(FIELD_PULL_SPEED).forGetter(GrabStep::pullSpeed),
+            Codec.DOUBLE.fieldOf(FIELD_PICK_CONE).forGetter(GrabStep::pickCone)
     ).apply(inst, GrabStep::new));
 
     /** The registered type. */
@@ -207,26 +213,12 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
     }
 
     /**
-     * How far from the eye the held entity hangs at a pitch: the far
-     * distance with the look level or above, falling in a straight line to
-     * the near distance as the look pitches down to FULL_DRAW_PITCH.
-     *
-     * @param pitch the look's pitch in degrees, positive looking down
-     * @param near  the distance with the look pitched fully down
-     * @param far   the distance with the look level or above
-     * @return the distance, in blocks
-     */
-    public static double holdDistance(float pitch, double near, double far) {
-        double drawn = Math.clamp(pitch / FULL_DRAW_PITCH, 0f, 1f);
-        return far - (far - near) * drawn;
-    }
-
-    /**
-     * Where a held entity's feet go this tick: its middle on the look at the
-     * hold distance, the look carried through each linked gate it passes, so
-     * a body held by a look aimed into a portal hangs where the look ends past
-     * the partner, as seen through the portal, rather than dragged at the wall
-     * behind it and round the pair every tick.
+     * Where a held entity's feet go this tick: its middle resting against
+     * the surface the look meets (restingMiddle), the look carried through
+     * each linked gate it passes, so a body held by a look aimed into a
+     * portal hangs where the look ends past the partner, as seen through the
+     * portal, rather than dragged at the wall behind it and round the pair
+     * every tick.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param player the holding player
@@ -234,11 +226,16 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
      * @return the feet position
      */
     private Vec3 holdPoint(ServerPlayer player, Entity held) {
-        double distance = holdDistance(player.getXRot(), near, far);
-        Vec3 eye = player.getEyePosition();
-        List<GatePassage.Pair> pairs = GatePassage.pairsOf(player.level().getServer());
-        Vec3 middle = lookEndThroughGates(pairs, player.level().dimension(), eye,
-                eye.add(player.getLookAngle().scale(distance)));
+        MinecraftServer server = player.level().getServer();
+        List<GatePassage.Pair> pairs = GatePassage.pairsOf(server);
+        LookClip clip = (dimension, from, to) -> {
+            Level level = server.getLevel(dimension);
+            return level == null ? BlockHitResult.miss(to, Direction.UP, BlockPos.containing(to))
+                    : level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                            CollisionContext.empty()));
+        };
+        Vec3 middle = restingMiddle(pairs, player.level().dimension(), player.getEyePosition(),
+                player.getLookAngle(), clip, held.getBbWidth(), held.getBbHeight());
         return clearOfTheFaces(pairs, middle, held.getBbWidth()).subtract(0, held.getBbHeight() * HALF, 0);
     }
 
@@ -266,34 +263,94 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         return held;
     }
 
-    /** How far past half its width a held body's middle hangs before a linked gate's face. */
-    private static final double FACE_CLEARANCE = 0.1;
+    /**
+     * Clips one leg of a held body's look against a level's blocks.
+     */
+    @FunctionalInterface
+    interface LookClip {
+        /**
+         * Clips the leg.
+         *
+         * @param dimension the level the leg runs in
+         * @param from      the leg's start
+         * @param to        the leg's end
+         * @return the clip result
+         */
+        BlockHitResult clip(ResourceKey<Level> dimension, Vec3 from, Vec3 to);
+    }
 
     /**
-     * Where a look ends carried through each linked gate it passes, a few at
-     * most, so a look down the tunnel a facing pair makes ends rather than
-     * going round it.
+     * Where a held body's middle hangs for a look: the look runs the
+     * hold distance from the eye, carried through each linked gate it
+     * passes, a few at most, so a look down the tunnel a facing pair makes
+     * ends rather than going round it; where a leg meets a block first, the
+     * middle backs off along that leg until the body's box rests against the
+     * block's face, so looking down brings the body in only because the look
+     * meets the ground, and a look at the wall under a ledge pulls a body
+     * off the ledge to that wall.
+     * decision grab-holds-the-mob-against-the-surface-you-look-at
+     * aim-and-shots-carry-through-linked-gates
      *
      * @param pairs     the linked pairs
-     * @param dimension the level the look runs in
-     * @param from      the look's start
-     * @param to        its straight end
-     * @return its end through the gates
+     * @param dimension the level the look starts in
+     * @param eye       the holder's eye
+     * @param look      the holder's unit look
+     * @param clip      the block clip each leg runs through
+     * @param width     the held body's width
+     * @param height    the held body's height
+     * @return the middle
      */
-    static Vec3 lookEndThroughGates(List<GatePassage.Pair> pairs, ResourceKey<Level> dimension, Vec3 from,
-            Vec3 to) {
-        Vec3 start = from;
-        Vec3 end = to;
-        for (int hop = 0; hop < MOST_HOPS; hop++) {
-            Optional<GateRay.Crossing> crossing = GateRay.first(pairs, dimension, start, end);
+    Vec3 restingMiddle(List<GatePassage.Pair> pairs, ResourceKey<Level> dimension, Vec3 eye, Vec3 look,
+            LookClip clip, double width, double height) {
+        ResourceKey<Level> legDimension = dimension;
+        Vec3 start = eye;
+        // The look Minecraft hands over is built from its sine table and falls a little short of unit length.
+        Vec3 end = eye.add(look.normalize().scale(holdDistance));
+        for (int hop = 0; hop <= MOST_HOPS; hop++) {
+            Optional<GateRay.Crossing> crossing = hop < MOST_HOPS
+                    ? GateRay.first(pairs, legDimension, start, end) : Optional.empty();
+            // The near leg's clip ends just before the gate's face, clear of the wall the gate stands on.
+            Vec3 legEnd = crossing.map(through -> through.facePoint()
+                    .add(through.near().face().getUnitVec3().scale(BEFORE_THE_FACE))).orElse(end);
+            BlockHitResult hit = clip.clip(legDimension, start, legEnd);
+            if (hit.getType() == HitResult.Type.BLOCK) {
+                return restingAgainst(hit, start, end.subtract(start).normalize(), width, height);
+            }
             if (crossing.isEmpty()) {
                 break;
             }
+            legDimension = crossing.get().far().dimension();
             start = crossing.get().farFrom();
             end = crossing.get().farTo();
         }
         return end;
     }
+
+    /**
+     * Where a body's middle hangs on a leg so its box rests against the face
+     * the leg met: backed off along the leg until the box's half extent
+     * across that face clears it, and never back past the leg's start.
+     *
+     * @param hit    the face the leg met
+     * @param start  the leg's start
+     * @param along  the leg's unit direction
+     * @param width  the body's width
+     * @param height the body's height
+     * @return the middle
+     */
+    private static Vec3 restingAgainst(BlockHitResult hit, Vec3 start, Vec3 along, double width, double height) {
+        Direction face = hit.getDirection();
+        double halfAcross = (face.getAxis() == Direction.Axis.Y ? height : width) * HALF;
+        double into = -along.dot(face.getUnitVec3());
+        double reached = start.distanceTo(hit.getLocation());
+        double back = into <= 0 ? reached : Math.min(halfAcross / into, reached);
+        return hit.getLocation().subtract(along.scale(back));
+    }
+
+    /** How far past half its width a held body's middle hangs before a linked gate's face. */
+    private static final double FACE_CLEARANCE = 0.1;
+    /** How far before a gate's face the near leg's clip ends, clear of the gate's own blocks. */
+    private static final double BEFORE_THE_FACE = 0.01;
 
     /** How many gates a held body's look is carried through at most. */
     private static final int MOST_HOPS = 4;
@@ -336,6 +393,19 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
     public static OptionalDouble reachOf(List<Step> behaviors, @Nullable AttributeModifier telekinesisReach) {
         return behaviors.stream().filter(GrabStep.class::isInstance).map(GrabStep.class::cast)
                 .mapToDouble(grab -> grab.reachWith(telekinesisReach)).findFirst();
+    }
+
+    /**
+     * The cone an ability's Grab picks its target in, so the glove outlines
+     * a mob the look passes close to.
+     * decision grab-cone-picks-more-aggressively-than-other-goo-types
+     *
+     * @param behaviors the ability's behaviors
+     * @return the cone's half-angle in degrees, or empty where the ability holds no grab
+     */
+    public static OptionalDouble pickConeOf(List<Step> behaviors) {
+        return behaviors.stream().filter(GrabStep.class::isInstance).map(GrabStep.class::cast)
+                .mapToDouble(GrabStep::pickCone).findFirst();
     }
 
     /**

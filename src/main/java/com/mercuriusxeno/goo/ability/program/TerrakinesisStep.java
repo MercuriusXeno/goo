@@ -41,9 +41,8 @@ import java.util.stream.Stream;
  * player, earth-bending: the first tick lifts a hunk out of the ground, the
  * block the look strikes within range and every block joined to it face to
  * face within the radius that carries rock goo value, charged the tear's
- * fixed cost; every tick after holds the hunk on the look as Grab holds a body,
- * from the far distance with the look level drawn in to the near as it
- * pitches down. A left click while held hucks it at the throw speed
+ * fixed cost; every tick after holds the hunk on the look, from the far
+ * distance with the look level drawn in to the near as it pitches down. A left click while held hucks it at the throw speed
  * (GrabEvents.throwHeld), and the hunk crushes what it strikes.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  *
@@ -66,6 +65,8 @@ import java.util.stream.Stream;
 public record TerrakinesisStep(double range, double radius, double near, double far, double throwSpeed, int cost)
         implements Step {
 
+    /** The downward pitch, in degrees, at which the held hunk is drawn fully in to the near distance. */
+    public static final float FULL_DRAW_PITCH = 60f;
     private static final String NAME = "terrakinesis";
     private static final String FIELD_RANGE = "range";
     private static final String FIELD_RADIUS = "radius";
@@ -289,8 +290,23 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     }
 
     /**
+     * How far from the eye the held hunk hangs at a pitch: the far distance
+     * with the look level or above, falling in a straight line to the near
+     * distance as the look pitches down to FULL_DRAW_PITCH.
+     *
+     * @param pitch the look's pitch in degrees, positive looking down
+     * @param near  the distance with the look pitched fully down
+     * @param far   the distance with the look level or above
+     * @return the distance, in blocks
+     */
+    public static double holdDistance(float pitch, double near, double far) {
+        double drawn = Math.clamp(pitch / FULL_DRAW_PITCH, 0f, 1f);
+        return far - (far - near) * drawn;
+    }
+
+    /**
      * Where a held hunk's position goes for a look: its middle on the look at
-     * Grab's hold distance for the look's pitch. The server holds the hunk
+     * the hold distance for the look's pitch. The server holds the hunk
      * there each tick, and the holder's client draws it there each frame from
      * its own look, so the hunk glides with the look.
      *
@@ -307,7 +323,7 @@ public record TerrakinesisStep(double range, double radius, double near, double 
     public Vec3 holdPosition(Vec3 eye, Vec3 look, float pitch, AABB hunkBox, AABB holderBox) {
         Vec3 toMiddle = hunkBox.getCenter();
         AABB clearOf = holderBox.inflate(HOLDER_CLEARANCE);
-        double distance = GrabStep.holdDistance(pitch, near, far);
+        double distance = holdDistance(pitch, near, far);
         Vec3 position = eye.add(look.scale(distance)).subtract(toMiddle);
         for (double pushed = 0; hunkBox.move(position).intersects(clearOf) && pushed < MOST_PUSH;
              pushed += PUSH_STEP) {
