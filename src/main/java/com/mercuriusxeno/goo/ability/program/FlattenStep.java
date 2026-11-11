@@ -12,16 +12,21 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Rock flatten's step, run each held tick of the channel: one block a tick
- * breaks, with its drops, from the cursor's 3x3 out from the face the hold
- * began on, up to 3 blocks out, the outermost first, never behind the face,
- * the first that belongs to the set the ability's JSON names, the earth and
- * its builds, and stands in reach.
+ * Rock flatten's step, run each held tick of the channel: every block of the
+ * cursor's 3x3 out from the face the hold began on, up to 3 blocks out, never
+ * behind the face, that belongs to the set the ability's JSON names, the
+ * earth and its builds, and stands in reach, progresses toward broken at
+ * once through the hold's gradual break, which breaks each with its drops.
+ * The outermost layer progresses at the pace its JSON names and each layer
+ * nearer the face slower, so the swath clears from the outside in.
  * decision flatten-disc-cursor-breaks-above-the-plane
+ * decision flatten-progresses-its-whole-swath-outermost-fastest
+ * decision bore-and-flatten-json-carry-two-pace-values
  *
  * @param breaks the block tag naming the blocks flatten may break
+ * @param pace   how fast the swath's layers progress toward broken
  */
-public record FlattenStep(TagKey<Block> breaks) implements TakesNoEntity {
+public record FlattenStep(TagKey<Block> breaks, BreakPace pace) implements TakesNoEntity {
 
     private static final String NAME = "flatten";
     private static final String FIELD_BREAKS = "breaks";
@@ -30,7 +35,8 @@ public record FlattenStep(TagKey<Block> breaks) implements TakesNoEntity {
      * Codec for the step's params.
      */
     public static final MapCodec<FlattenStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            TagKey.codec(Registries.BLOCK).fieldOf(FIELD_BREAKS).forGetter(FlattenStep::breaks)
+            TagKey.codec(Registries.BLOCK).fieldOf(FIELD_BREAKS).forGetter(FlattenStep::breaks),
+            BreakPace.CODEC.forGetter(FlattenStep::pace)
     ).apply(inst, FlattenStep::new));
 
     /**
@@ -51,31 +57,39 @@ public record FlattenStep(TagKey<Block> breaks) implements TakesNoEntity {
     }
 
     /**
-     * Breaks the swath's next block outermost first: the first in the tag and in reach.
+     * Hands the hold's gradual break every swath block in the tag and in
+     * reach, each layer's blocks alike, the outermost layer holding any at
+     * the full rate and each layer nearer the face slower.
+     * decision flatten-progresses-its-whole-swath-outermost-fastest
      *
      * @param host the channel host
      * @param aim  the hold's aim this tick
      */
     private void breakUnderCursor(ChannelHost host, ChannelAim aim) {
-        breaksAhead(aim, aim.aimedBlock(host.eye()), pos -> host.blockIn(pos, breaks) && host.reaches(pos), 1)
-                .forEach(host::breakBlock);
+        Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks) && host.reaches(pos);
+        List<List<BlockPos>> layers = progressingLayers(aim, aim.aimedBlock(host.eye()), breakable);
+        host.gradualBreak().progress(pace.ratesByGroup(layers), host);
     }
 
     /**
-     * The blocks the swath breaks over the coming ticks while the cursor
-     * rests, one a tick, outermost first: the same pick its tick breaks by,
-     * so a client shakes the blocks the server is about to break.
+     * The blocks the swath is progressing while the cursor rests: the pick
+     * its tick hands the gradual break, so a client shakes exactly the blocks
+     * the server is cracking.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
      * @param aim       the hold's aim
      * @param aimed     the block the cursor rests on
      * @param breakable whether a cell holds a block in the tag and in reach
-     * @param ticks     how many ticks ahead to read
-     * @return the blocks, in breaking order
+     * @return the blocks, outermost first
      */
-    public static List<BlockPos> breaksAhead(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable,
-                                             int ticks) {
-        return aim.swathOutermostFirst(aimed).stream().filter(breakable).limit(ticks).toList();
+    public static List<BlockPos> progressing(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable) {
+        return progressingLayers(aim, aimed, breakable).stream().flatMap(List::stream).toList();
+    }
+
+    private static List<List<BlockPos>> progressingLayers(ChannelAim aim, BlockPos aimed,
+                                                          Predicate<BlockPos> breakable) {
+        return aim.swathLayersOutermostFirst(aimed).stream()
+                .map(layer -> layer.stream().filter(breakable).toList()).toList();
     }
 
     @Override
