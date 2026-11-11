@@ -1,0 +1,8 @@
+{
+    "stone": {"rock": 12},
+    "cobblestone": {"rock": 12},
+    "coal_ore": {"blaze": 144, "rock": 60},
+    "grass_block": {"leaf": 12, "rock": 12},
+    "oak_planks": {"leaf": 24},
+    "bedrock": "denied"
+}

@@ -162,7 +162,7 @@ final class GooScalarExpressionEvaluator {
             } catch (IllegalArgumentException ignored) {
                 return null;
             }
-            return ReferentLacksType.amountHeld(tree, source, type);
+            return LackedTypeReads.amountHeld(tree, source, type);
         }
     }
 

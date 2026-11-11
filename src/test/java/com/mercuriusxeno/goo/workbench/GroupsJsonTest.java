@@ -57,7 +57,8 @@ class GroupsJsonTest {
 
         /**
          * #saplings, which no _groups entry holds, answers after every _groups row as a tag referent with the
-         * inventory's members and its #saplings base; a _groups row answers kind group.
+         * inventory's members; a _groups row answers kind group. The test reads the shipped file's grouping alone,
+         * its numbers being the operator's to tune (decision no-test-asserts-a-shipped-base-value).
          */
         @Test
         void saplingsAnswersAsATagReferentAfterTheGroups() throws IOException {
@@ -65,7 +66,6 @@ class GroupsJsonTest {
             JsonObject saplings = rowNamed(described, "saplings");
             assertEquals("tag", saplings.get("kind").getAsString());
             assertEquals(SAPLINGS, memberIds(saplings));
-            assertEquals("$log / 2", saplings.get("base").getAsString());
             JsonObject copper = rowNamed(described, "copper");
             assertEquals("group", copper.get("kind").getAsString());
             List<JsonElement> rows = described.asList();
