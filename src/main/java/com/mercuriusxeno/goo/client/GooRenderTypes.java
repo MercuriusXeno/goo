@@ -10,7 +10,6 @@ import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -985,16 +984,18 @@ public final class GooRenderTypes {
      * Status ailment overlay pipeline (decision ailment-overlay-shader-per-ailment):
      * a mob's or player's model drawn again through {@code goo_ailment_overlay.vsh / .fsh},
      * lifted a hair off the skin, the ailment's pattern laid over the skin coordinates
-     * under its color. The glint patterns read the vanilla enchantment glint texture
-     * from Sampler0. Translucent with depth write off, so the overlay never hides the
-     * model's own depth.
+     * under its color. Translucent with depth write off, so the overlay never hides the
+     * model's own depth. The entity layout without the entity snippet's Sampler0,
+     * since no pattern samples a texture, only the lightmap.
      */
     public static final RenderPipeline GOO_AILMENT_OVERLAY = RenderPipeline.builder(
-                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ailment_overlay"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
+            .withSampler("Sampler2")
+            .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
             .build();
@@ -1415,11 +1416,10 @@ public final class GooRenderTypes {
             .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
             .build();
 
-    /** The one render type on the ailment overlay pipeline, its glint texture bound. */
+    /** The one render type on the ailment overlay pipeline. */
     public static final RenderType GOO_AILMENT_OVERLAY_TYPE = RenderType.create(
             "goo_ailment_overlay",
             RenderSetup.builder(GOO_AILMENT_OVERLAY)
-                    .withTexture("Sampler0", ItemFeatureRenderer.ENCHANTED_GLINT_ITEM)
                     .useLightmap()
                     .sortOnUpload()
                     .createRenderSetup()

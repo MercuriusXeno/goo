@@ -6,7 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 /**
  * The Lux a player holds: night vision without particles, and the glow
- * glisten on the mob under the crosshair, until the game time it fades at
+ * outline on the mob under the crosshair, until the game time it fades at
  * (decision lux-night-vision-without-particles).
  *
  * @param expiresAt the game time Lux fades at; zero when none stands
