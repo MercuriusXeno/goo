@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.outsider;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -29,8 +30,10 @@ import java.util.Map;
  * Draws every voidstone face around the player through the voidstone shader,
  * with no block entity: the faces of each chunk section on the floor's layer
  * are found once by scanning the section's palette and blocks, kept until the
- * level renderer marks that section dirty, and drawn in one batch a frame.
+ * level renderer marks that section dirty, and drawn in one batch a frame,
+ * and again in each view through a room's edge, around that view's camera.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ * decision outsider-room-wraps-and-repeats-at-the-platform-edge
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class VoidstoneFaces {
@@ -93,7 +96,9 @@ public final class VoidstoneFaces {
         if (level == null || level.dimension() != OutsiderRooms.POCKET) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        // outsider-room-wraps-and-repeats-at-the-platform-edge: inside the view through a room's edge the faces
+        // stand around the camera the view is drawn from, so the room's far copy shows its stars in place
+        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.VOIDSTONE_TYPE);
         PoseStack.Pose pose = event.getPoseStack().last();

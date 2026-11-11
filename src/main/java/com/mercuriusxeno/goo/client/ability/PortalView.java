@@ -64,8 +64,11 @@ import java.util.Optional;
  * it shows, over the sections that camera sees. The portal's face then
  * samples that target at its own screen point, so looking into one portal
  * shows the other side as though it were right there. A partner beyond what
- * the client holds draws no view, and the portal keeps its idle face.
+ * the client holds draws no view, and the portal keeps its idle face. The
+ * edges of the Outsider room the player stands in draw their views the same
+ * way, each showing the room's opposite side, though never within a view.
  * portals-link-by-looking-through-portal-vision
+ * outsider-room-wraps-and-repeats-at-the-platform-edge
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalView {
@@ -90,7 +93,7 @@ public final class PortalView {
     private static final Vector3fc UP = new Vector3f(0, 1, 0);
 
     /** The most views one frame draws, the views within views among them. */
-    private static final int MOST_VIEWS = 12;
+    static final int MOST_VIEWS = 12;
     /** How many views deep a view within a view draws: the tunnel a facing pair makes shows this many turns. */
     private static final int DEEPEST_VIEW = 4;
     /** The main frame's pass. */
@@ -247,7 +250,7 @@ public final class PortalView {
      *
      * @return the ways
      */
-    private static List<Gate[]> ways() {
+    static List<Gate[]> ways() {
         List<Gate[]> ways = new ArrayList<>();
         ClientPortals.links().forEach(link -> {
             ways.add(new Gate[] {link.entry().gate(), link.exit().gate()});
@@ -256,6 +259,11 @@ public final class PortalView {
         ClientHoles.holes().forEach(hole -> {
             ways.add(new Gate[] {hole.entry(), hole.exit()});
             ways.add(new Gate[] {hole.exit(), hole.entry()});
+        });
+        // outsider-room-wraps-and-repeats-at-the-platform-edge
+        ClientRoomEdges.edges().forEach(pair -> {
+            ways.add(new Gate[] {pair.one(), pair.other()});
+            ways.add(new Gate[] {pair.other(), pair.one()});
         });
         return ways;
     }
@@ -300,9 +308,13 @@ public final class PortalView {
     }
 
     private static boolean faces(Minecraft mc, Seen seen, Gate near) {
-        Vec3 toEye = seen.eye().position().subtract(near.center());
-        return near.dimension().equals(mc.level.dimension()) && toEye.dot(near.face().getUnitVec3()) > 0
-                && toEye.length() < mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK;
+        Vec3 eye = seen.eye().position();
+        double reach = mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK;
+        // outsider-room-wraps-and-repeats-at-the-platform-edge: a room's edge stands two hundred blocks tall, its
+        // middle far above the eye beside it, so the reach is read to the nearest point of the gate's blocks
+        return near.dimension().equals(mc.level.dimension())
+                && eye.subtract(near.center()).dot(near.face().getUnitVec3()) > 0
+                && near.blocks().distanceToSqr(eye) < reach * reach;
     }
 
     /**
@@ -367,7 +379,9 @@ public final class PortalView {
                 turnOf(eye.forward(), eye.up()));
         if (depth < DEEPEST_VIEW) {
             for (Gate[] way : ways()) {
-                if (!way[0].equals(far)) {
+                // outsider-room-wraps-and-repeats-at-the-platform-edge: one copy of the room shows past each edge,
+                // so no room edge draws a view within a view
+                if (!way[0].equals(far) && way[0].mask() != Gate.Mask.RECTANGLE) {
                     drawThrough(mc, delta, new Seen(pass, eye, camera, cone), way[0], way[1], depth + 1);
                 }
             }
