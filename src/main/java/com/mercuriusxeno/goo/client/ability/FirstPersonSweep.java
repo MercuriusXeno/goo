@@ -48,7 +48,12 @@ public final class FirstPersonSweep {
             return tanHalfWidth / tanHalfHeight;
         }
 
-        /** How far out a point of the plane one eye height under the eye stands to show at a screen height. */
+        /**
+         * How far out a point of the plane one eye height under the eye stands to show at a screen height.
+         *
+         * @param screenHeight the screen height, -1 at the bottom and 0 at the crosshair
+         * @return the distance out along the look, in eye heights
+         */
         double depthAt(double screenHeight) {
             return 1 / (tanHalfHeight * -screenHeight);
         }
