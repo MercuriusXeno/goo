@@ -19,94 +19,67 @@ import java.util.stream.Stream;
 
 /**
  * Reap's step, run on the player each tick of the held channel, slashing as
- * the Crissaegrim does in Symphony of the Night, its frames read: on the
- * hold's first tick, and then a random few ticks after each swing, the
- * player swings with one swish, throwing a random few thick leaf crescents
- * out ahead, each turned its own way up to the fan off the aim and rolled its
- * own amount up to the tilt around it, its middle under the line of sight,
- * hollow toward the slasher and bulging away, sized at random with its width, thickness and
- * bulge together, as often small or huge as middling; each appears thick and
- * bright, then narrows and dims as it travels outward; and every
- * ripe plant inside the box a slash cuts is reaped and replanted and every
- * living body there but the slasher cut once. Leaf Reap is {@code slash
- * fewest_ticks=2 most_ticks=3 fewest_slashes=1 most_slashes=2 near=0
- * narrowest=2 widest=5 thinnest=1.5 thickest=4 bulge=0.8
- * drop_least=0.3 drop_most=0.6 tilt=10 fan=15 drift=2.5 life_ticks=6
- * damage=1}.
+ * the Crissaegrim does in Symphony of the Night: on the hold's first tick,
+ * and then a random few ticks after each swing, the player swings with one
+ * swish, throwing a random few slashes. Each slash sweeps a level, almost
+ * circular area with the slasher at its near edge: a crescent band appears
+ * near the slasher and ripples outward to the area's far edge, moving with
+ * the slasher, each slash nudged, leant and turned a little its own way.
+ * Every ripe plant the band's front gets to inside the area is reaped and
+ * replanted, and every living body there but the slasher is cut once a
+ * slash. Leaf Reap is {@code slash fewest_ticks=2 most_ticks=3
+ * fewest_slashes=1 most_slashes=2 width=5.3 length=5.8 source=0.5
+ * back_from=1.1 back_to=3.9 front_from=2.6 drop=0.45 nudge=0.2 tilt=10 fan=5
+ * life_ticks=6 damage=1}.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
  * @param fewestTicks   the fewest held ticks from one swing to the next
  * @param mostTicks     the most held ticks from one swing to the next
  * @param fewestSlashes the fewest slashes a swing throws
  * @param mostSlashes   the most slashes a swing throws
- * @param near        how far out along the look a slash's tips stand, in blocks
- * @param narrowest   the smallest slash's width, tip to tip, in blocks
- * @param widest      the largest slash's width, in blocks
- * @param thinnest    the smallest slash's thickness, in blocks
- * @param thickest    the largest slash's thickness, in blocks
- * @param bulge       how far its inside edge bows out beyond its tips, as a share of its width
- * @param dropLeast   the least its plane stands under the line of sight, in blocks
- * @param dropMost    the most its plane stands under the line of sight, in blocks
- * @param tilt        the farthest it rolls around the aim either way, in degrees
- * @param fan         the farthest its heading turns off the aim either way, in degrees
- * @param drift       how far it travels outward over its life, thinning, in blocks
- * @param lifeTicks   the ticks from a slash appearing to its dimming away
- * @param damage      what each slash's cut deals
+ * @param width         the area's width, in blocks
+ * @param length        how far ahead of the slasher the area reaches, in blocks
+ * @param source        how far ahead of the slasher the point the band's circles spread from stands, in blocks
+ * @param backFrom      the band's back as a slash appears, from the source, in blocks
+ * @param backTo        the band's back at the end of a slash's life, from the source, in blocks
+ * @param frontFrom     the band's front as a slash appears, from the source, in blocks
+ * @param drop          how far under the slasher's eye a slash's plane stands, in blocks
+ * @param nudge         the farthest a slash is shifted each of sideways, up and ahead, in blocks
+ * @param tilt          the farthest a slash leans either way, in degrees
+ * @param fan           the farthest a slash's heading turns off the slasher's facing either way, in degrees
+ * @param lifeTicks     the ticks from a slash appearing to its dimming away
+ * @param damage        what each slash's cut deals
  */
-public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestSlashes, Expr mostSlashes, Expr near,
-                        Expr narrowest, Expr widest, Expr thinnest, Expr thickest, Expr bulge, Expr dropLeast,
-                        Expr dropMost, Expr tilt, Expr fan, Expr drift, Expr lifeTicks, Expr damage)
-        implements Step {
+public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestSlashes, Expr mostSlashes, Expr width,
+                        Expr length, Expr source, Expr backFrom, Expr backTo, Expr frontFrom, Expr drop, Expr nudge,
+                        Expr tilt, Expr fan, Expr lifeTicks, Expr damage) implements Step {
 
     private static final String NAME = "slash";
     private static final float SWING_VOLUME = 0.4f;
     private static final float SWING_PITCH = 1.7f;
-
-    /**
-     * The step's swing timing, its four keys read flat beside the rest, since
-     * the codec builder groups at most sixteen fields.
-     *
-     * @param fewestTicks   the fewest held ticks from one swing to the next
-     * @param mostTicks     the most held ticks from one swing to the next
-     * @param fewestSlashes the fewest slashes a swing throws
-     * @param mostSlashes   the most slashes a swing throws
-     */
-    private record Cadence(Expr fewestTicks, Expr mostTicks, Expr fewestSlashes, Expr mostSlashes) {
-
-        static final MapCodec<Cadence> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-                Expr.CODEC.fieldOf("fewest_ticks").forGetter(Cadence::fewestTicks),
-                Expr.CODEC.fieldOf("most_ticks").forGetter(Cadence::mostTicks),
-                Expr.CODEC.fieldOf("fewest_slashes").forGetter(Cadence::fewestSlashes),
-                Expr.CODEC.fieldOf("most_slashes").forGetter(Cadence::mostSlashes)
-        ).apply(inst, Cadence::new));
-
-        static Cadence of(SlashStep step) {
-            return new Cadence(step.fewestTicks(), step.mostTicks(), step.fewestSlashes(), step.mostSlashes());
-        }
-    }
+    private static final double HALF = 0.5;
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<SlashStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Cadence.CODEC.forGetter(Cadence::of),
-            Expr.CODEC.fieldOf("near").forGetter(SlashStep::near),
-            Expr.CODEC.fieldOf("narrowest").forGetter(SlashStep::narrowest),
-            Expr.CODEC.fieldOf("widest").forGetter(SlashStep::widest),
-            Expr.CODEC.fieldOf("thinnest").forGetter(SlashStep::thinnest),
-            Expr.CODEC.fieldOf("thickest").forGetter(SlashStep::thickest),
-            Expr.CODEC.fieldOf("bulge").forGetter(SlashStep::bulge),
-            Expr.CODEC.fieldOf("drop_least").forGetter(SlashStep::dropLeast),
-            Expr.CODEC.fieldOf("drop_most").forGetter(SlashStep::dropMost),
+            Expr.CODEC.fieldOf("fewest_ticks").forGetter(SlashStep::fewestTicks),
+            Expr.CODEC.fieldOf("most_ticks").forGetter(SlashStep::mostTicks),
+            Expr.CODEC.fieldOf("fewest_slashes").forGetter(SlashStep::fewestSlashes),
+            Expr.CODEC.fieldOf("most_slashes").forGetter(SlashStep::mostSlashes),
+            Expr.CODEC.fieldOf("width").forGetter(SlashStep::width),
+            Expr.CODEC.fieldOf("length").forGetter(SlashStep::length),
+            Expr.CODEC.fieldOf("source").forGetter(SlashStep::source),
+            Expr.CODEC.fieldOf("back_from").forGetter(SlashStep::backFrom),
+            Expr.CODEC.fieldOf("back_to").forGetter(SlashStep::backTo),
+            Expr.CODEC.fieldOf("front_from").forGetter(SlashStep::frontFrom),
+            Expr.CODEC.fieldOf("drop").forGetter(SlashStep::drop),
+            Expr.CODEC.fieldOf("nudge").forGetter(SlashStep::nudge),
             Expr.CODEC.fieldOf("tilt").forGetter(SlashStep::tilt),
             Expr.CODEC.fieldOf("fan").forGetter(SlashStep::fan),
-            Expr.CODEC.fieldOf("drift").forGetter(SlashStep::drift),
             Expr.CODEC.fieldOf("life_ticks").forGetter(SlashStep::lifeTicks),
             Expr.CODEC.fieldOf("damage").forGetter(SlashStep::damage)
-    ).apply(inst, (cadence, near, narrowest, widest, thinnest, thickest, bulge, dropLeast, dropMost, tilt, fan,
-            drift, lifeTicks, damage) -> new SlashStep(cadence.fewestTicks(), cadence.mostTicks(),
-            cadence.fewestSlashes(), cadence.mostSlashes(), near, narrowest, widest, thinnest, thickest, bulge,
-            dropLeast, dropMost, tilt, fan, drift, lifeTicks, damage)));
+    ).apply(inst, SlashStep::new));
 
     /**
      * The registered type.
@@ -129,45 +102,59 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestSlashes, Ex
     }
 
     /**
-     * The sizes and timing the step's params draw slashes from.
+     * The area and band the step's params give every slash.
      *
      * @param context the step's context
      * @return the shape
      */
     private ReapSlash.Shape shapeOf(StepContext context) {
-        return new ReapSlash.Shape(near.evaluate(context), narrowest.evaluate(context), widest.evaluate(context),
-                thinnest.evaluate(context), thickest.evaluate(context), bulge.evaluate(context),
-                dropLeast.evaluate(context), dropMost.evaluate(context), Math.toRadians(tilt.evaluate(context)),
-                Math.toRadians(fan.evaluate(context)), drift.evaluate(context), Math.max(1, lifeTicks.evaluateInt(context)));
+        return new ReapSlash.Shape(width.evaluate(context) * HALF, length.evaluate(context) * HALF,
+                source.evaluate(context), backFrom.evaluate(context), backTo.evaluate(context),
+                frontFrom.evaluate(context), Math.max(1, lifeTicks.evaluateInt(context)));
     }
 
     /**
-     * Swings once with one quick swish, throwing a random few slashes, each
-     * drawn on the watchers' clients with its box set cutting for its life.
+     * What the step's params let each slash draw its own placing from.
+     *
+     * @param context the step's context
+     * @return the placing's ranges
+     */
+    private ReapSlash.Thrown thrownOf(StepContext context) {
+        return new ReapSlash.Thrown(drop.evaluate(context), nudge.evaluate(context),
+                Math.toRadians(tilt.evaluate(context)), Math.toRadians(fan.evaluate(context)));
+    }
+
+    /**
+     * Swings once with one quick swish, throwing a random few slashes level
+     * along the way the slasher faces, each drawn on the watchers' clients
+     * and set cutting for its life.
      *
      * @param level   the server level
      * @param slasher the entity slashing
      * @param context the step's context
      */
     private void swing(ServerLevel level, LivingEntity slasher, StepContext context) {
-        Vec3 eye = slasher.getEyePosition();
+        Vec3 feet = slasher.position();
+        Vec3 facing = Vec3.directionFromRotation(0, slasher.getYHeadRot());
         ReapSlash.Shape shape = shapeOf(context);
+        ReapSlash.Thrown thrown = thrownOf(context);
         float cut = damage.evaluateFloat(context);
         int slashes = SwingCadence.slashesThisSwing(fewestSlashes.evaluateInt(context),
                 mostSlashes.evaluateInt(context), slasher.getRandom());
-        for (int thrown = 0; thrown < slashes; thrown++) {
-            ReapSlash slash = ReapSlash.launch(eye, slasher.getLookAngle(), shape, slasher.getRandom());
-            BlockVisuals.sendToWatchers(level, BlockPos.containing(eye), new ReapSlashPayload(slash, slasher.getId()));
-            SlashCuts.launch(level, slash.box(), level.getGameTime(), slash.lifeTicks(), slasher.getId(), cut);
+        for (int count = 0; count < slashes; count++) {
+            ReapSlash slash = ReapSlash.launch(facing, slasher.getEyeHeight(), thrown, shape, slasher.getRandom());
+            BlockVisuals.sendToWatchers(level, BlockPos.containing(feet),
+                    new ReapSlashPayload(slash, slasher.getId(), feet));
+            SlashCuts.launch(level, new SlashCuts.Throw(slash, feet, slasher.getId()), level.getGameTime(), cut);
         }
-        level.playSound(null, eye.x, eye.y, eye.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS,
+        level.playSound(null, feet.x, feet.y, feet.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS,
                 SWING_VOLUME, SWING_PITCH);
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(fewestTicks, mostTicks, fewestSlashes, mostSlashes, near, narrowest, widest, thinnest,
-                thickest, bulge, dropLeast, dropMost, tilt, fan, drift, lifeTicks, damage);
+        return Stream.of(fewestTicks, mostTicks, fewestSlashes, mostSlashes, width, length, source, backFrom, backTo,
+                frontFrom, drop, nudge, tilt, fan, lifeTicks, damage);
     }
 
     @Override

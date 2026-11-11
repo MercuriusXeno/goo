@@ -14,6 +14,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
@@ -26,14 +27,13 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * Reap's slashes cutting on the server, as the Crissaegrim's hitbox does in
- * Symphony of the Night: a fixed box in front of the slasher stands for the
- * slash's life. On the first tick it cuts it reaps and replants every ripe plant
- * inside, leaving the afterimage of how it stood; each tick of its life it
- * cuts every living body inside but its slasher, once a slash, as the
- * slasher's own attack, each cut
- * landing through the body's immunity so every slash connects. The cuts live
- * a few ticks and are never saved.
+ * Reap's slashes cutting on the server. A slash cuts what it is drawn over:
+ * each tick of its life, placed from where its slasher stands that tick, it
+ * reaps and replants every ripe plant its band's front has got to inside its
+ * area, leaving the afterimage of how the plant stood, and cuts every living
+ * body there but its slasher, once a slash, as the slasher's own attack, each
+ * cut landing through the body's immunity so every slash connects. The cuts
+ * live a few ticks and are never saved.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -43,6 +43,7 @@ public final class SlashCuts {
     static final int AFTERIMAGE_TICKS = 12;
     /** Trimmed off a box's far faces so a box ending on a cell's face holds none of that cell. */
     private static final double FACE_TRIM = 1e-6;
+    private static final double HALF = 0.5;
 
     private static final Map<ServerLevel, List<Cut>> CUTTING = new WeakHashMap<>();
 
@@ -50,38 +51,41 @@ public final class SlashCuts {
     }
 
     /**
-     * One slash's box cutting, and the bodies it has cut.
+     * A slash as thrown.
      *
-     * @param box        the box
+     * @param slash      the slash
+     * @param thrownFrom where its slasher's feet stood as it was thrown, which it cuts from once no slasher stands
+     * @param slasherId  the id of the entity slashing, which the slash moves with and never cuts
+     */
+    public record Throw(ReapSlash slash, Vec3 thrownFrom, int slasherId) {
+    }
+
+    /**
+     * One slash cutting, and the bodies it has cut.
+     *
+     * @param thrown     the slash as thrown
      * @param launchedAt the game tick the slash appeared
-     * @param lifeTicks  the ticks it stands
-     * @param slasherId  the id of the entity slashing, which the box never cuts
      * @param damage     what its cut deals
      * @param struck     the ids of the bodies it has cut
-     * @param reaped     whether it has reaped the plants inside, its one slot set on the first tick it cuts
      */
-    private record Cut(AABB box, long launchedAt, int lifeTicks, int slasherId, float damage, Set<Integer> struck,
-                       boolean[] reaped) {
+    private record Cut(Throw thrown, long launchedAt, float damage, Set<Integer> struck) {
     }
 
     /**
-     * Sets a slash's box cutting for its life.
+     * Sets a slash cutting for its life.
      *
      * @param level      the server level
-     * @param box        the box it cuts
+     * @param thrown     the slash as thrown
      * @param launchedAt the game tick the slash appears
-     * @param lifeTicks  the ticks it stands
-     * @param slasherId  the id of the entity slashing
      * @param damage     what its cut deals
      */
-    public static void launch(ServerLevel level, AABB box, long launchedAt, int lifeTicks, int slasherId,
-                              float damage) {
+    public static void launch(ServerLevel level, Throw thrown, long launchedAt, float damage) {
         CUTTING.computeIfAbsent(level, key -> new ArrayList<>())
-                .add(new Cut(box, launchedAt, lifeTicks, slasherId, damage, new HashSet<>(), new boolean[1]));
+                .add(new Cut(thrown, launchedAt, damage, new HashSet<>()));
     }
 
     /**
-     * Cuts with each standing box one tick further, and drops each whose slash has wiped away.
+     * Cuts with each live slash one tick further, and drops each that has dimmed away.
      *
      * @param event the level tick event
      */
@@ -99,34 +103,52 @@ public final class SlashCuts {
     }
 
     /**
-     * Reaps on the first tick a box cuts, and cuts each tick it stands.
+     * Reaps and cuts what a slash has reached this tick, from where its slasher stands now.
      *
      * @param level the server level
-     * @param cut   the box
+     * @param cut   the slash cutting
      * @param now   the game tick
-     * @return true once the slash has wiped away
+     * @return true once the slash has dimmed away
      */
     private static boolean cutTick(ServerLevel level, Cut cut, long now) {
         long age = now - cut.launchedAt();
         if (age < 0) {
             return false;
         }
-        if (!cut.reaped()[0]) {
-            cut.reaped()[0] = true;
-            reapInside(level, cut.box());
-        }
-        for (LivingEntity body : level.getEntitiesOfClass(LivingEntity.class, cut.box(),
-                body -> body.getId() != cut.slasherId() && body.isAlive())) {
-            if (cut.struck().add(body.getId())) {
-                hurt(level, body, cutBy(level.damageSources(), level.getEntity(cut.slasherId())), cut.damage());
+        Throw thrown = cut.thrown();
+        ReapSlash slash = thrown.slash();
+        Entity slasher = level.getEntity(thrown.slasherId());
+        Vec3 feet = slasher != null ? slasher.position() : thrown.thrownFrom();
+        AABB box = slash.reachBox(feet);
+        reapReached(level, slash, feet, age);
+        for (LivingEntity body : level.getEntitiesOfClass(LivingEntity.class, box,
+                body -> body.getId() != thrown.slasherId() && body.isAlive())) {
+            if (slash.reaches(feet, body.position(), body.getBbWidth() * HALF, age)
+                    && cut.struck().add(body.getId())) {
+                hurt(level, body, cutBy(level.damageSources(), slasher), cut.damage());
             }
         }
-        return age >= cut.lifeTicks();
+        return age >= slash.lifeTicks();
     }
 
-    private static void reapInside(ServerLevel level, AABB box) {
+    /**
+     * Reaps every ripe plant the slash has reached: each cell at the
+     * slasher's level whose middle the band's front has got to inside the
+     * area. A plant reaped stands unripe, so a later tick leaves it be.
+     *
+     * @param level the server level
+     * @param slash the slash
+     * @param feet  where its slasher's feet stand now
+     * @param age   ticks since the slash appeared
+     */
+    private static void reapReached(ServerLevel level, ReapSlash slash, Vec3 feet, long age) {
+        AABB box = slash.reachBox(feet);
         for (BlockPos cell : BlockPos.betweenClosed(BlockPos.containing(box.minX, box.minY, box.minZ),
                 BlockPos.containing(box.maxX - FACE_TRIM, box.maxY - FACE_TRIM, box.maxZ - FACE_TRIM))) {
+            Vec3 middle = new Vec3(cell.getX() + HALF, cell.getY(), cell.getZ() + HALF);
+            if (!slash.reaches(feet, middle, 0, age)) {
+                continue;
+            }
             BlockState stood = level.getBlockState(cell);
             if (Reaping.reap(level, cell)) {
                 BlockVisuals.sendToWatchers(level, cell, new BlockAfterimagePayload(cell.immutable(),
