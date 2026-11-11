@@ -79,6 +79,15 @@ public final class AimTracker {
     }
 
     /**
+     * Whether the Grab press the last frame resolved holds a mob.
+     *
+     * @return true while a Grab press holds a mob
+     */
+    static boolean grabHoldsAMob() {
+        return HELD.holds();
+    }
+
+    /**
      * The outline a pass gives the aimed mob: its color on the copy the aim
      * reaches, the one before the player where the aim runs straight and the
      * one in the first view through the gate the aim passed where it runs
