@@ -32,12 +32,17 @@ public final class MiasmaVortex {
 
     /** Hex's wheel and bright colors, worn while the client holds no definition of the selected goo. */
     private static final MiasmaVortexPass.Colors HEX = new MiasmaVortexPass.Colors(0x5B4BA0, 0x8373C8);
+    private static final VortexPresence PRESENCE = new VortexPresence();
+    /** The ability last held, drawn on while its vortex thins away after the hold ends. */
+    private static @Nullable ClientAbility lastHeld;
+    private static MiasmaVortexPass.Colors lastColors = HEX;
 
     private MiasmaVortex() {
     }
 
     /**
-     * Draws the vortex after the translucent blocks while it is held.
+     * Draws the vortex after the translucent blocks while it is held, and on
+     * while it thins away after the hold ends.
      *
      * @param event the level render stage event
      */
@@ -45,16 +50,25 @@ public final class MiasmaVortex {
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        ClientAbility held = player == null ? null : heldVortex(player);
-        if (held == null) {
+        if (player == null) {
             return;
         }
+        ClientAbility held = heldVortex(player);
+        if (held != null) {
+            lastHeld = held;
+            lastColors = colorsOf(GloveAim.selectedGooType(player));
+        }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        VortexPresence.Shown shown = PRESENCE.update(held != null, player.level().getGameTime() + partialTick);
+        ClientAbility drawn = lastHeld;
+        if (drawn == null || shown.presence() <= 0) {
+            return;
+        }
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 hand = GloveAim.handPosition(camera).subtract(camera.position());
-        VortexCone vortex = VortexCone.along(hand, player.getViewVector(partialTick), held.delivery().range(),
-                held.delivery().coneDegrees());
-        MiasmaVortexPass.draw(vortex, colorsOf(GloveAim.selectedGooType(player)), event.getModelViewMatrix());
+        VortexCone vortex = VortexCone.along(hand, player.getViewVector(partialTick), drawn.delivery().range(),
+                drawn.delivery().coneDegrees());
+        MiasmaVortexPass.draw(vortex, lastColors, shown, event.getModelViewMatrix());
     }
 
     /**

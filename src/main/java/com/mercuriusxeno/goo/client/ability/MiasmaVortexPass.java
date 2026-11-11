@@ -38,8 +38,8 @@ import java.util.OptionalInt;
  */
 final class MiasmaVortexPass {
 
-    /** The uniform block's bytes: five std140 vec4 rows; must match {@code MiasmaVortex} in miasma_vortex.fsh. */
-    static final int BYTES = 80;
+    /** The uniform block's bytes: six std140 vec4 rows; must match {@code MiasmaVortex} in miasma_vortex.fsh. */
+    static final int BYTES = 96;
     private static final String PASS = "Goo miasma vortex";
     private static final String UNIFORM_BUFFER = "Goo miasma vortex shape";
     private static final String BOX_BUFFER = "Goo miasma vortex box";
@@ -76,15 +76,16 @@ final class MiasmaVortexPass {
      *
      * @param vortex    the vortex, camera relative
      * @param colors    the colors it wears
+     * @param shown     how much of it shows
      * @param modelView the level's model view matrix this frame
      */
-    static void draw(VortexCone vortex, Colors colors, Matrix4fc modelView) {
+    static void draw(VortexCone vortex, Colors colors, VortexPresence.Shown shown, Matrix4fc modelView) {
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
         TextureTarget depth = depthCopySizedTo(main);
         depth.copyDepthFrom(main);
         GpuDevice device = RenderSystem.getDevice();
         BLOCK.clear();
-        pack(BLOCK, vortex, colors, device.isZZeroToOne());
+        pack(BLOCK, vortex, colors, shown, device.isZZeroToOne());
         GpuBuffer uniforms = device.createBuffer(() -> UNIFORM_BUFFER, GpuBuffer.USAGE_UNIFORM, BLOCK.flip());
         try (ByteBufferBuilder bytes = new ByteBufferBuilder(FACES * CORNERS
                 * DefaultVertexFormat.POSITION_COLOR.getVertexSize())) {
@@ -126,20 +127,23 @@ final class MiasmaVortexPass {
     }
 
     /**
-     * Packs the vortex's uniform block, five std140 vec4 rows.
+     * Packs the vortex's uniform block, six std140 vec4 rows.
      *
      * @param out       where the bytes go, at its position
      * @param vortex    the vortex, camera relative
      * @param colors    the colors it wears
+     * @param shown     how much of it shows
      * @param zeroToOne whether the device's depth runs 0 to 1
      */
-    private static void pack(ByteBuffer out, VortexCone vortex, Colors colors, boolean zeroToOne) {
+    private static void pack(ByteBuffer out, VortexCone vortex, Colors colors, VortexPresence.Shown shown,
+                             boolean zeroToOne) {
         ByteBuffer rows = out.order(ByteOrder.nativeOrder());
         row(rows, vortex.apex(), vortex.tan());
         row(rows, vortex.axis(), vortex.length());
         row(rows, FireField.sideOf(vortex.axis()), zeroToOne ? 1 : 0);
         row(rows, rgbOf(colors.body()), 0);
         row(rows, rgbOf(colors.streak()), 0);
+        row(rows, new Vec3(shown.presence(), shown.formed(), 0), 0);
     }
 
     private static Vec3 rgbOf(int rgb) {
