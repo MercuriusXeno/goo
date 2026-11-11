@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
 import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
 import com.mercuriusxeno.goo.ability.outsider.VoidPockets;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
@@ -92,6 +93,7 @@ public final class OutsiderTests {
                 OutsiderTests::conjuresNoDoorInsideThePocket);
         GooTestFunctions.registerTest(registrar, OUTSIDER_WUB_REACHES_THE_CORNER,
                 OutsiderTests::wubReachesTheRoomsCorner);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_A_BLOCK_A_SECOND, OutsiderTests::growsOneBlockASecond);
     }
 
     private static final String ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE =
@@ -400,6 +402,40 @@ public final class OutsiderTests {
         });
     }
 
+    private static final String OUTSIDER_GROWS_A_BLOCK_A_SECOND = "outsider_grows_a_block_a_second";
+    /** One held second inside: void_outsider.json's ring_ticks. */
+    private static final int HELD_A_SECOND = 20;
+    /** The void the way in costs, void_outsider.json's enter. */
+    private static final int ENTER_COST = 6;
+    /** Ring 2's price at the shipped cell_cost 10 and distance_cost 1: 80R + 12R squared. */
+    private static final int RING_TWO_PRICE = 208;
+    private static final String SHOULD_GROW_A_BLOCK = "A second held inside should grow the room from %.1f to %.1f "
+            + "and drain %d void past the way in, stands at %.6f having drained %d";
+
+    /**
+     * A caster holding Outsider for a second inside their room stands in a
+     * room grown one whole block on every side, their void down by the price
+     * of the ring grown
+     * (decision outsider-room-grows-one-block-a-second-on-every-side).
+     *
+     * @param helper the gametest helper
+     */
+    public static void growsOneBlockASecond(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, VOID_FOR_GROWTH));
+        int before = GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.VOID, 0);
+        holdFor(helper, caster, CHARGE_TICKS + HELD_A_SECOND);
+        helper.runAfterDelay(CHARGE_TICKS + HELD_A_SECOND + 1, () -> {
+            double extent = OutsiderRooms.extentOf((ServerLevel) caster.level(), caster.getUUID());
+            int drained = before - ENTER_COST
+                    - GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.VOID, 0);
+            helper.assertTrue(Math.abs(extent - FIRST_RING_WHOLE) < KEPT && drained == RING_TWO_PRICE,
+                    String.format(SHOULD_GROW_A_BLOCK, RoomExtent.LAID, FIRST_RING_WHOLE, RING_TWO_PRICE, extent,
+                            drained));
+            helper.succeed();
+        });
+    }
+
     private static ConjuredDoor doorOf(GameTestHelper helper, ServerPlayer caster, int tick) {
         Optional<ConjuredDoor> door = ConjuredDoors.doorOf(caster.getUUID());
         helper.assertTrue(door.isPresent(), String.format(SHOULD_CONJURE, tick));
@@ -462,7 +498,7 @@ public final class OutsiderTests {
 
     private static final String OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH = "outsider_shows_its_charge_and_growth";
     /** Ticks held inside before the first ring's cost is fed over the ring time, and a tick more. */
-    private static final int HELD_TO_FIRST_RING = 41;
+    private static final int HELD_TO_FIRST_RING = 21;
     private static final String SHOULD_SHOW_CHARGE = "A hold short of its charge should send void motes, sent %d particle packets";
     private static final String SHOULD_WUB = "A full block gained should wub, sounds sent %s";
 
@@ -520,7 +556,7 @@ public final class OutsiderTests {
      * void_outsider.json's ring_ticks names, and a tick more, so the feed
      * carries the extent across the first whole-block mark.
      */
-    private static final int HELD_INSIDE = 41;
+    private static final int HELD_INSIDE = 21;
     /** How far out the floor is checked and watched: well past the starting 3 by 3. */
     private static final int FLOOR_REACH = 6;
     /** The rows watched for change: the floor and the two above it. */
