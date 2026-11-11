@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -88,17 +89,14 @@ public final class OutsiderRooms {
     private static final int FEED_MOTES = 2;
     private static final double FEED_SPREAD = 0.35;
     private static final double FEED_SPEED = 0.05;
-    private static final float WUB_VOLUME = 0.9f;
+    /** The wub plays at full volume where its player stands. */
+    private static final float WUB_VOLUME = 1f;
     /** The step a wub's pitch moves by, as the operator ruled: shifts in increments of 0.125. */
     private static final float WUB_PITCH_STEP = 0.125f;
     /** The most steps a wub's pitch moves up or down: three, from 0.625 to 1.375. */
     private static final int WUB_PITCH_STEPS = 3;
     /** The sides a wub's pitch steps to, below its own and above it. */
     private static final int PITCH_SIDES = 2;
-    /** The blocks a sound at full volume carries across, which a wider room's wub is scaled past. */
-    private static final double HEARD_WITHIN = 16.0;
-    /** How much farther a square's corner stands from its middle than its side does. */
-    private static final double DIAGONAL = Math.sqrt(2.0);
     /** The most motes one wall's line holds, past which they space out. */
     private static final int MOTES_PER_WALL = 48;
     /** How fast a wall's motes float up on average, blocks a tick. */
@@ -221,20 +219,15 @@ public final class OutsiderRooms {
         double before = pockets.platformOf(player.getUUID()).extent();
         double after = RoomExtent.grown(before, feed, base, perDistance);
         pockets.keepPlatform(player.getUUID(), new VoidPockets.Platform(after));
-        cueGrowth(room, before, after, new PocketCues(pocket));
+        cueGrowth(room, before, after, new PocketCues(pocket, player));
         announceGrowth(room, before, after, payload -> sendTo(player, payload));
     }
 
     /** Where a room's growth shows itself. */
     interface GrowthCues {
 
-        /**
-         * Plays the room's wub.
-         *
-         * @param at     where it sounds from
-         * @param extent the room's extent, which the sound reaches across
-         */
-        void wub(Vec3 at, double extent);
+        /** Plays the room's wub to its player. */
+        void wub();
 
         /**
          * Raises a line of void motes along one wall of the boundary.
@@ -264,7 +257,7 @@ public final class OutsiderRooms {
         BlockPos center = voidstoneOf(room);
         RoomExtent.Planes planes = RoomExtent.planesAround(center, extentAfter);
         double floorTop = ROOM_FLOOR_Y + 1;
-        cues.wub(Vec3.atBottomCenterOf(center.above()), extentAfter);
+        cues.wub();
         cues.moteLine(new Vec3(planes.east(), floorTop, planes.north()), new Vec3(planes.east(), floorTop,
                 planes.south()));
         cues.moteLine(new Vec3(planes.west(), floorTop, planes.north()), new Vec3(planes.west(), floorTop,
@@ -276,26 +269,29 @@ public final class OutsiderRooms {
     }
 
     /**
-     * The pocket's own growth cues: the wub played through the level, loud
-     * enough in range to reach every player across the room, one of its
-     * pooled swells picked by the game and its pitch moved by a whole
-     * number of 0.125 steps, up to three either way, as the operator ruled;
+     * The pocket's own growth cues: the wub sent to the room's own player
+     * alone, the one player who hears it, at full volume where they stand,
+     * as the operator ruled once a player in a wide room's corner heard
+     * nothing of a wub played from its center; one of its pooled swells
+     * picked by the game and its pitch moved by a whole number of 0.125
+     * steps, up to three either way, as the operator ruled;
      * and each line of motes sent as about a speck a block, thinned past a
      * cap so a long wall stays a line without flooding the client, each
      * speck rising slowly.
      * decision full-block-growth-wubs-and-raises-void-motes
      *
      * @param pocket the pocket dimension
+     * @param player the room's player, feeding it
      */
-    private record PocketCues(ServerLevel pocket) implements GrowthCues {
+    private record PocketCues(ServerLevel pocket, ServerPlayer player) implements GrowthCues {
 
         @Override
-        public void wub(Vec3 at, double extent) {
-            float reach = (float) Math.max(1.0, extent * DIAGONAL / HEARD_WITHIN);
-            int steps = pocket.getRandom().nextInt(PITCH_SIDES * WUB_PITCH_STEPS + 1) - WUB_PITCH_STEPS;
+        public void wub() {
+            RandomSource random = pocket.getRandom();
+            int steps = random.nextInt(PITCH_SIDES * WUB_PITCH_STEPS + 1) - WUB_PITCH_STEPS;
             float pitch = 1f + steps * WUB_PITCH_STEP;
-            pocket.playSound(null, at.x, at.y, at.z, GooSounds.OUTSIDER_WUB.get(), SoundSource.PLAYERS,
-                    WUB_VOLUME * reach, pitch);
+            player.connection.send(new ClientboundSoundPacket(GooSounds.OUTSIDER_WUB, SoundSource.PLAYERS,
+                    player.getX(), player.getY(), player.getZ(), WUB_VOLUME, pitch, random.nextLong()));
         }
 
         @Override
