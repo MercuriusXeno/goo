@@ -1,12 +1,15 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -33,6 +36,7 @@ import java.util.List;
 public final class AimTracker {
 
     private static final AimState STATE = new AimState();
+    private static final HeldPick HELD = new HeldPick();
 
     private AimTracker() {
     }
@@ -59,7 +63,9 @@ public final class AimTracker {
         AimTargets.AimRay ray = AimTargets.AimRay.along(camera.position(), new Vec3(camera.forwardVector()),
                 GloveAim.aimRange(player, AimState.MAX_RANGE));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);
-        STATE.update(seed -> AimTargets.resolve(player, ray, seed, GloveAim.targetingHint(player), behaviors),
+        boolean grabPressed = GloveUseTracker.showsArea() && behaviors.stream().anyMatch(GrabStep.class::isInstance);
+        STATE.update(seed -> HELD.resolve(grabPressed, GrabFlail::grabbed,
+                () -> AimTargets.resolve(player, ray, seed, GloveAim.targetingHint(player), behaviors)),
                 entityOutline);
     }
 
