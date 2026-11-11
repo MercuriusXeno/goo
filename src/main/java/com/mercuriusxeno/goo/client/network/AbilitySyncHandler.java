@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
@@ -632,6 +633,17 @@ public final class AbilitySyncHandler {
          */
         private boolean pricedPerBlockGrown() {
             return behaviors.stream().anyMatch(SpireStep.class::isInstance);
+        }
+
+        /**
+         * The Outsider step the ability runs, whose params price the room's growth.
+         * decision outsider-panel-reads-the-seconds-the-void-affords
+         *
+         * @return the step, empty for an ability running none
+         */
+        public Optional<OutsiderStep> outsider() {
+            return behaviors.stream().filter(OutsiderStep.class::isInstance).map(OutsiderStep.class::cast)
+                    .findFirst();
         }
 
         private Optional<TerrakinesisStep> terrakinesis() {
