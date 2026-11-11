@@ -30,6 +30,27 @@ class TerrakinesisStepTest {
     private static final TerrakinesisStep TERRAKINESIS = new TerrakinesisStep(6, RADIUS, 2.5, 3.5, 1.5, 1000);
 
     @Nested
+    class HoldDistance {
+
+        private static final double NEAR = 2;
+        private static final double FAR = 4;
+        private static final double EPSILON = 1e-6;
+
+        @Test
+        void levelOrUpwardLookHoldsAtFar() {
+            assertEquals(FAR, TerrakinesisStep.holdDistance(0f, NEAR, FAR), EPSILON);
+            assertEquals(FAR, TerrakinesisStep.holdDistance(-45f, NEAR, FAR), EPSILON);
+        }
+
+        @Test
+        void downwardLookDrawsInLinearlyToNear() {
+            assertEquals(3, TerrakinesisStep.holdDistance(TerrakinesisStep.FULL_DRAW_PITCH / 2, NEAR, FAR), EPSILON);
+            assertEquals(NEAR, TerrakinesisStep.holdDistance(TerrakinesisStep.FULL_DRAW_PITCH, NEAR, FAR), EPSILON);
+            assertEquals(NEAR, TerrakinesisStep.holdDistance(90f, NEAR, FAR), EPSILON);
+        }
+    }
+
+    @Nested
     class HunkCells {
 
         @Test

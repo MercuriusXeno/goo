@@ -96,6 +96,8 @@ public final class GrabChannelTests {
         GooTestFunctions.registerTest(registrar,
                 GRAB_AIMED_THROUGH_A_PORTAL_DRAWS_THROUGH_IT_THOUGH_A_STRAIGHT_WAY_STANDS_OPEN,
                 GrabChannelTests::grabAimedThroughAPortalDrawsThroughItThoughAStraightWayStandsOpen);
+        GooTestFunctions.registerTest(registrar, GRAB_DRAWS_A_MOB_OFF_A_LEDGE_TO_THE_WALL_BELOW,
+                GrabChannelTests::grabDrawsAMobOffALedgeToTheWallBelow);
     }
 
 
@@ -110,8 +112,8 @@ public final class GrabChannelTests {
     /** Yaw looking east, along +x. */
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
-    /** A pitch halfway to the full draw, so the hold comes in from far toward near. */
-    private static final float LOOKING_DOWN = 30f;
+    /** A pitch steep enough that the look meets the floor short of the far distance, so the hold comes in to it. */
+    private static final float LOOKING_DOWN = 70f;
     private static final int HOLD_TICKS = 5;
     private static final int FLIGHT_TICKS = 2;
     private static final int HELD_GOO = 3;
@@ -156,7 +158,9 @@ public final class GrabChannelTests {
     }
 
     /**
-     * Pitching the look down while holding draws the held zombie closer to the eye.
+     * Pitching the look down at the floor while holding draws the held zombie
+     * closer to the eye, to rest on the floor the look meets
+     * (decision grab-holds-the-mob-against-the-surface-you-look-at).
      *
      * @param helper the gametest helper
      */
@@ -798,9 +802,10 @@ public final class GrabChannelTests {
         player.setPos(stand.x, stand.y, stand.z);
         player.setYRot(FACING_WEST);
         player.setYHeadRot(FACING_WEST);
+        // The walls stand down to the floor, so the pitched look meets the west wall under its portal.
         for (BlockPos wall : java.util.List.of(AHEAD_WEST, BEHIND_EAST)) {
             for (int z = 1; z <= 3; z++) {
-                for (int y = 1; y <= 3; y++) {
+                for (int y = 0; y <= 3; y++) {
                     helper.setBlock(new BlockPos(wall.getX(), y, z), Blocks.STONE);
                 }
             }
@@ -837,6 +842,51 @@ public final class GrabChannelTests {
                     + "the pair in short steps, never across the room at once, moved " + moves);
             helper.assertTrue(comeBackTo > 0 && comeBackTo < 1, "The mob should come back out before the west "
                     + "portal, stands " + comeBackTo + " before its face");
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_DRAWS_A_MOB_OFF_A_LEDGE_TO_THE_WALL_BELOW =
+            "grab_draws_a_mob_off_a_ledge_to_the_wall_below";
+    /** The ledge's front face, the plane x 3, the wall under it facing the player. */
+    private static final int LEDGE_FACE_X = 3;
+    /** The ledge's top, three blocks above the floor the player stands on. */
+    private static final int LEDGE_TOP = 4;
+    /** Where the pig stands on the ledge, a block and a half back from its edge. */
+    private static final BlockPos ON_THE_LEDGE = new BlockPos(LEDGE_FACE_X + 1, LEDGE_TOP, 2);
+    /** How near the wall the pig's box must come to read as touching it. */
+    private static final double TOUCHING = 0.05;
+
+    /**
+     * A pig standing on a ledge three blocks above the player, held by a
+     * look aimed level at the wall under the ledge, comes off the ledge and
+     * down to rest against that wall
+     * (decision grab-holds-the-mob-against-the-surface-you-look-at).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabDrawsAMobOffALedgeToTheWallBelow(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        for (int x = LEDGE_FACE_X; x <= LEDGE_FACE_X + 2; x++) {
+            for (int z = 1; z <= 3; z++) {
+                for (int y = 1; y < LEDGE_TOP; y++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+                }
+            }
+        }
+        Pig pig = helper.spawn(EntityType.PIG, ON_THE_LEDGE);
+        holdFor(helper, player, pig, HOLD_TICKS);
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            AABB box = pig.getBoundingBox();
+            double ledgeTop = helper.absolutePos(ON_THE_LEDGE).getY();
+            double wall = helper.absolutePos(ON_THE_LEDGE).getX() - 1;
+            helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig on the ledge should be held, held "
+                    + GrabEvents.heldBy(player));
+            helper.assertTrue(box.maxY <= ledgeTop, "The pig should come down below the ledge top, its box "
+                    + helper.relativeVec(box.getMinPosition()) + " to " + helper.relativeVec(box.getMaxPosition()));
+            helper.assertTrue(Math.abs(box.maxX - wall) < TOUCHING, "The pig should rest against the wall under the "
+                    + "ledge, its box " + helper.relativeVec(box.getMinPosition()) + " to "
+                    + helper.relativeVec(box.getMaxPosition()));
             leave(helper, player);
         });
     }
