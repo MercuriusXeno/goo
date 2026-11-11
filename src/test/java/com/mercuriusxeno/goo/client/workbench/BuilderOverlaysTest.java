@@ -105,6 +105,22 @@ class BuilderOverlaysTest {
         assertFalse(overlays.listOpen());
     }
 
+    /**
+     * A click outside an open options list closes the list (decision exclusive-choice-sets-draw-as-dropdowns).
+     */
+    @Test
+    void aClickOutsideAnOpenOptionsListClosesIt() {
+        BuilderOverlays overlays = new BuilderOverlays(mock(ManagerActions.class), null);
+        overlays.openOptions(new BuilderOverlays.Anchor(20, 20), List.of(
+                new BuilderOverlays.Option("north", null, at -> { }),
+                new BuilderOverlays.Option("south", null, at -> { })));
+        DrawnFrame open = new DrawnFrame();
+        overlays.draw(open.graphics, DrawnFrame.font(), open.targets);
+
+        assertTrue(open.targets.click(DrawnFrame.SCREEN_WIDTH - 1, DrawnFrame.SCREEN_HEIGHT - 1), "the click took");
+        assertFalse(overlays.listOpen());
+    }
+
     @Nested
     class WithRoomBelow {
         /**

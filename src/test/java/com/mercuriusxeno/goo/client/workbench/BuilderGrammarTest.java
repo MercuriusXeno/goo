@@ -24,6 +24,16 @@ class BuilderGrammarTest {
             new BuilderGrammar.Prefab("medium", false),
             new BuilderGrammar.Prefab("plank", true));
 
+    /**
+     * The bay's x and / scale a reference and a parenthetical, and a bare number takes neither (decision
+     * x-and-slash-drag-from-the-bay-onto-a-term).
+     */
+    @Test
+    void aReferenceAndAParentheticalTakeAFactorAndABareNumberNone() {
+        assertEquals(List.of(false, true, true), ExpressionBuilder.of("5 + $base + ($base)").terms().stream()
+                .map(BuilderGrammar::takesFactor).toList());
+    }
+
     @Nested
     class PrefabReadsEveryOther {
         @Test

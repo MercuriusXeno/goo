@@ -448,6 +448,33 @@ class ExpressionBuilderTest {
             assertWrites("$waxed + $food + ($edited)", out);
         }
 
+        // Decision containers-segment-into-click-to-edit-buttons: a term carrying a multiplier, a member and a divisor
+        // moves whole.
+        @Test
+        void aScaledMemberTermMovesWhole() {
+            ExpressionBuilder builder = ExpressionBuilder.of("3 $waxed.metal / 2 + $edited");
+            assertTrue(builder.moveTo(List.of(0), List.of(), 2));
+            assertWrites("$edited + 3 $waxed.metal / 2", builder);
+        }
+
+        // Decision every-term-carries-its-sign-as-a-segment: a subtracted first term moved to the sum's end keeps
+        // its minus.
+        @Test
+        void aSubtractedFirstTermMovedToTheEndKeepsItsMinus() {
+            ExpressionBuilder builder = ExpressionBuilder.of("-$waxed + $edited");
+            assertTrue(builder.moveTo(List.of(0), List.of(), 2));
+            assertWrites("$edited - $waxed", builder);
+        }
+
+        // Decision ctrl-during-a-rail-drag-shows-a-green-plus-and-drops-a-copy: a parenthetical copies to a slot
+        // whole and its source stands.
+        @Test
+        void aParentheticalCopiesWholeAndItsSourceStands() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$base + ($waxed - $edited)");
+            assertTrue(builder.copyTo(List.of(1), List.of(), 0));
+            assertWrites("($waxed - $edited) + $base + ($waxed - $edited)", builder);
+        }
+
         // A drop that would empty the whole value or drop a parenthetical into itself is refused and the value stands;
         // a parenthetical emptied goes instead (decision terms-and-type-rows-drag-to-a-trash-strip).
         @Test

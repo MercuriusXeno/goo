@@ -51,4 +51,18 @@ class FrameTest {
         verify(graphics).fill(0, 2, 2, 18, Palette.TERM_BORDER);
         verify(graphics).fill(38, 2, 40, 18, Palette.TERM_BORDER);
     }
+
+    /**
+     * A term's segment after another lays a 2 px seam over the ring's full height, its left pixel SEAM_LIGHT and its
+     * right SEAM_DARK, then its fill past the dark pixel (decision
+     * term-draws-a-two-pixel-brighter-border-with-two-tone-seams).
+     */
+    @Test
+    void aTermSegmentLaysItsSeamLightThenDarkOverTheRingsHeightThenItsFill() {
+        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+        Frame.termSegment(graphics, new GroupsPane.Bounds(10, 22, 40, 34), 2);
+        verify(graphics).fill(10, 20, 11, 36, Palette.SEAM_LIGHT);
+        verify(graphics).fill(11, 20, 12, 36, Palette.SEAM_DARK);
+        verify(graphics).fill(12, 22, 40, 34, Palette.FILL);
+    }
 }
