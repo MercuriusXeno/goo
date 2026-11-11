@@ -61,7 +61,7 @@ final class StreamPrismCharge {
             return false;
         }
         convert(aimed.get(), player, gooType, ability);
-        showCharging(player.level(), aimed.get(), apex, ability, ability.delivery().ticksPerCharge());
+        showCharging(player, aimed.get(), apex, ability, ability.delivery().ticksPerCharge());
         return true;
     }
 
@@ -154,19 +154,20 @@ final class StreamPrismCharge {
      * sets the prism's degrade look to the share the charge has reached, so
      * it restarts with a broken hold and clears once the prism converts.
      *
-     * @param level   the server level
+     * @param player  the streaming player, whose travel the motes carry
      * @param prism   the charged prism
      * @param apex    the cone's apex
      * @param ability the stream ability
      * @param hold    the ticks the conversion takes
      */
-    private static void showCharging(ServerLevel level, PrismBlockEntity prism, Vec3 apex, AbilityDefinition ability,
-                                     int hold) {
+    private static void showCharging(ServerPlayer player, PrismBlockEntity prism, Vec3 apex,
+                                     AbilityDefinition ability, int hold) {
         BlockPos pos = prism.getBlockPos();
         // the operator's ruling: the prism is the gnats' homing target until it converts fully
-        GooStreamHandler.sprayParticles(level, apex, moteAxis(apex, pos),
-                ability.delivery().withCone(ability.delivery().range(), 0), apex.distanceTo(Vec3.atCenterOf(pos)));
-        warm(level, prism, ability, hold);
+        GooStreamHandler.sprayParticles(player, apex, moteAxis(apex, pos),
+                ability.delivery().withCone(ability.delivery().range(), 0), apex.distanceTo(Vec3.atCenterOf(pos)),
+                GooStreamHandler.travelOf(player));
+        warm(player.level(), prism, ability, hold);
     }
 
     /**
