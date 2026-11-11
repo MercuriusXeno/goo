@@ -132,7 +132,7 @@ final class GooValueTokenValidator {
         Set<String> held = prefabs.heldTypes().get(baseName);
         String type = name.substring(name.lastIndexOf('.') + 1);
         if (dot >= 0 && held != null && !held.contains(type)) {
-            warnings.add(context + WARN_LACKED_TYPE + ReferentLacksType.message(baseName, type));
+            warnings.add(context + WARN_LACKED_TYPE + LackedTypeReads.message(baseName, type));
         }
     }
 

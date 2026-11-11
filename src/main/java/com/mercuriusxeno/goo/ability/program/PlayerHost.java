@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.pocket.PocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
@@ -37,7 +36,7 @@ import java.util.function.Consumer;
  * @param charge        the share of a full charge a charged ability's hold reached, 0 outside a charge
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, PocketHost, OutsiderHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, OutsiderHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -228,12 +227,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Opens the player's Pocket (decision pocket-is-a-void-reserving-container-with-scroll-and-search). */
-    @Override
-    public void openPocket(int slotCost) {
-        PocketOpening.open(player, slotCost);
-    }
-
     @Override
     public boolean standsInPocket() {
         return level.dimension() == OutsiderRooms.POCKET;
@@ -267,5 +260,10 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public HoldMarks holdMarks() {
         return GooServerState.of(level.getServer()).streamHolds().marks(player.getUUID());
+    }
+
+    @Override
+    public GradualBreak gradualBreak() {
+        return holdMarks().gradualBreak();
     }
 }

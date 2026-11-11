@@ -12,7 +12,7 @@ import java.util.UUID;
  * The charm a mob holds: the player it fights for. It holds with no expiry
  * until that player hurts the mob. Saved with the mob and synced to every
  * client drawing it, which floats the charmed heart over its head and
- * draws the hex glisten on its model.
+ * draws the hex outline around its model.
  * charm-glisten-and-icon-over-the-head
  * charm-holds-until-struck
  *

@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
+import org.jspecify.annotations.Nullable;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -33,7 +34,6 @@ final class GooValueLoader {
     private static final String LOG_LOADED_PACKS = "Loaded {} base goo values from {} pack(s)";
     private static final String LOG_READ_PACK_FAIL = "Failed to read base_values.json from pack {}: {}";
     private static final String LOG_NEGATIVE_BASE = "Negative goo in base value for {}: {} -- skipped";
-    private static final String LOG_LACKED_TYPE = "{}: {}, so it loads no value";
 
     private GooValueLoader() {
     }
@@ -162,34 +162,25 @@ final class GooValueLoader {
         if (isDeniedEntry(value)) {
             state.deniedItems.add(itemId);
         } else {
-            GooValue resolved;
+            LackedTypeReads.Recorded<GooValue> resolved;
             try {
-                resolved = resolveItemEntry(value, state);
+                resolved = LackedTypeReads.recording(() -> resolveItemEntry(value, state));
             } catch (UnresolvedItemReference unresolved) {
                 // Decision diagnose-and-correct-item-reference-unrecognized-token: an entry naming an item no line
                 // valued yet waits for it, a line below or the recipes valuing it.
                 state.waitingItems.put(itemId, value);
                 return;
-            } catch (ReferentLacksType lacking) {
-                lackType(itemId, lacking.getMessage(), state.lackedTypes);
-                return;
             }
-            keep(itemId, resolved, state);
+            noteLacked(itemId, resolved.lacked(), state.lackedTypes);
+            keep(itemId, resolved.value(), state);
         }
     }
 
-    /**
-     * Records an entry that read a goo type its referent holds no amount of, which loads no value, and logs the
-     * error naming both (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line).
-     *
-     * @param itemId  the entry
-     * @param message the error naming the referent and the type
-     * @param lacked  the entries recorded so far, added to
-     */
-    static void lackType(Identifier itemId, String message, Map<Identifier, String> lacked) {
-        lacked.put(itemId, message);
-        if (Goo.LOGGER.isErrorEnabled()) {
-            Goo.LOGGER.error(LOG_LACKED_TYPE, itemId, message);
+    // Decision lacked-type-log-line-leaves-and-the-workbench-line-stays: the entry keeps its value and the workbench
+    // reads the referent and type it lacked; the game logs nothing.
+    private static void noteLacked(Identifier itemId, @Nullable String lacked, Map<Identifier, String> lackedTypes) {
+        if (lacked != null) {
+            lackedTypes.put(itemId, lacked);
         }
     }
 
@@ -208,9 +199,8 @@ final class GooValueLoader {
     private static void settleWaiting(ParseState state) {
         Settled settled = resolveWaiting(state.waitingItems, state.baseValues, state.constants, state.treeConstants);
         settled.valued().forEach((item, value) -> keep(item, value, state));
-        settled.lacked().forEach((item, message) -> lackType(item, message, state.lackedTypes));
+        state.lackedTypes.putAll(settled.lacked());
         state.waitingItems.keySet().removeAll(settled.valued().keySet());
-        state.waitingItems.keySet().removeAll(settled.lacked().keySet());
         state.unresolvedItems.clear();
         state.unresolvedItems.putAll(settled.unresolved());
     }
@@ -220,8 +210,8 @@ final class GooValueLoader {
      *
      * @param valued     each entry that now reads a value, with it
      * @param unresolved each entry still naming an item that holds no value, with that item
-     * @param lacked     each entry reading a goo type its referent holds no amount of, with the error naming both,
-     *                   which no later value changes (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line)
+     * @param lacked     each valued entry that read a goo type its referent holds no amount of as zero, with the
+     *                   error naming both (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line)
      */
     record Settled(Map<Identifier, GooValue> valued, Map<Identifier, String> unresolved,
                    Map<Identifier, String> lacked) {
@@ -247,7 +237,7 @@ final class GooValueLoader {
             valuedBefore = settled.valued().size();
             settled.unresolved().clear();
             for (Map.Entry<Identifier, JsonElement> entry : waiting.entrySet()) {
-                if (!settled.valued().containsKey(entry.getKey()) && !settled.lacked().containsKey(entry.getKey())) {
+                if (!settled.valued().containsKey(entry.getKey())) {
                     settleEntry(entry, known, constants, treeConstants, settled);
                 }
             }
@@ -260,15 +250,16 @@ final class GooValueLoader {
                                     Map<String, GooFraction> constants, Map<String, GooValue> treeConstants,
                                     Settled settled) {
         try {
-            GooValue value = evaluateEntry(entry.getValue(), known, constants, treeConstants);
+            LackedTypeReads.Recorded<GooValue> evaluated = LackedTypeReads.recording(
+                    () -> evaluateEntry(entry.getValue(), known, constants, treeConstants));
+            GooValue value = evaluated.value();
             settled.valued().put(entry.getKey(), value);
+            noteLacked(entry.getKey(), evaluated.lacked(), settled.lacked());
             if (!value.hasNegative()) {
                 known.put(entry.getKey(), value);
             }
         } catch (UnresolvedItemReference reference) {
             settled.unresolved().put(entry.getKey(), reference.item());
-        } catch (ReferentLacksType lacking) {
-            settled.lacked().put(entry.getKey(), lacking.getMessage());
         }
     }
 
@@ -369,8 +360,8 @@ final class GooValueLoader {
          */
         final Map<Identifier, String> unresolvedItems = new java.util.LinkedHashMap<>();
         /**
-         * Each entry reading a goo type its referent holds no amount of, which loads no value, with the error naming
-         * both (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line).
+         * Each entry reading a goo type its referent holds no amount of, which reads that type as zero, with the error
+         * naming both (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line).
          */
         final Map<Identifier, String> lackedTypes = new java.util.LinkedHashMap<>();
         GooConversion.ParsedConversions postConversions;

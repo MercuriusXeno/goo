@@ -80,6 +80,9 @@ public final class GooValuesManagerTests {
             held = GooValues.of(server).lookup(EDITED_ITEM);
         } finally {
             answered(helper, operations, WorkbenchOperations.SAVE_MODEL, original);
+            // The save lays the draft over the gametests' owned values; laying them back stands the values as the
+            // later batches read them (decision no-test-asserts-a-shipped-base-value).
+            GametestOwnedValues.apply(server);
         }
         helper.assertTrue(held != null && held.typeCount() == 1
                 && held.totalExact().equals(GooFraction.of(EDITED_TOTAL)),
