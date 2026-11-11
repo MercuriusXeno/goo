@@ -25,6 +25,8 @@ import java.util.List;
  * as its frames show them: each a huge thick crescent drawn whole from the
  * very slash the server cuts with, its bulge glowing pale and its hollow
  * side shading to Leaf's green, thinning and dimming as it travels outward.
+ * The slasher's own slashes draw tipped up in first person, so their face
+ * shows from the eye as it does from the third-person camera.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -37,6 +39,10 @@ public final class ReapSlashBlades {
     private static final int OPAQUE = 0xFF;
     /** The hollow edge's share of the bulge's brightness. */
     private static final float HOLLOW_SHARE = 0.45f;
+    /** How far the slasher's own slashes tip their far edge up in first person, so their face shows as in third person. */
+    private static final double FIRST_PERSON_TIP = Math.toRadians(25);
+    /** No entity's id, for when no slasher views in first person. */
+    private static final int NOBODY = Integer.MIN_VALUE;
     private static final double HOLLOW = 0;
     private static final double BULGE = 1;
 
@@ -50,8 +56,9 @@ public final class ReapSlashBlades {
      *
      * @param slash      the slash
      * @param launchTick the game tick it appeared
+     * @param slasherId  the entity id of the one slashing
      */
-    private record Shown(ReapSlash slash, long launchTick) {
+    private record Shown(ReapSlash slash, long launchTick, int slasherId) {
 
         boolean overAt(long tick) {
             return tick - launchTick > slash.lifeTicks();
@@ -68,7 +75,7 @@ public final class ReapSlashBlades {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                LIVE.add(new Shown(payload.slash(), mc.level.getGameTime()));
+                LIVE.add(new Shown(payload.slash(), mc.level.getGameTime(), payload.slasherId()));
             }
         });
     }
@@ -96,8 +103,10 @@ public final class ReapSlashBlades {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
         int leaf = ClientGooTypes.color(GooTypes.LEAF);
+        int firstPersonId = mc.player != null && mc.options.getCameraType().isFirstPerson() ? mc.player.getId() : NOBODY;
         for (Shown shown : LIVE) {
-            drawSlash(quads, shown.slash(), time - shown.launchTick(), camera, leaf);
+            ReapSlash drawn = shown.slasherId() == firstPersonId ? shown.slash().tippedUp(FIRST_PERSON_TIP) : shown.slash();
+            drawSlash(quads, drawn, time - shown.launchTick(), camera, leaf);
         }
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }
