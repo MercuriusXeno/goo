@@ -45,6 +45,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("slime_mist", () -> new SimpleParticleType(false));
 
     /**
+     * A mote of kinetic mist in Slick's stream, flying as Goop's slime mist
+     * does in Kinetic's electric blue and white
+     * (decisions slick-coats-the-ground-with-kinetic-speed, kinetic-is-electric-blue-and-white).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> KINETIC_MIST =
+        PARTICLE_TYPES.register("kinetic_mist", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

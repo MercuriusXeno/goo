@@ -72,6 +72,8 @@ public final class LeechWisps {
                     || !(level.getEntity(payload.healedId()) instanceof Entity healed)) {
                 return;
             }
+            // touched-mobs-show-hearts-or-a-count-over-max
+            TouchedMobs.CLIENT.touch(victim.getId(), level.getGameTime());
             Vec3 from = victim.position().add(0, victim.getBbHeight() * BODY_CENTER, 0);
             if (payload.splash()) {
                 for (int splash = 0; splash < splashesFor(payload.healed()); splash++) {
