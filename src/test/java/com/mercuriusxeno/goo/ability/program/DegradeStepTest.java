@@ -6,6 +6,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ class DegradeStepTest {
         when(host.eye()).thenReturn(EYE);
         when(host.airAt(any())).thenAnswer(call -> call.<BlockPos>getArgument(0).getX() < WALL_X);
         when(host.blockAt(any())).thenReturn(stone);
+        when(host.stateAt(any())).thenReturn(mock(BlockState.class));
     }
 
     private static BlockHitResult wallHit(ClipContext clip) {

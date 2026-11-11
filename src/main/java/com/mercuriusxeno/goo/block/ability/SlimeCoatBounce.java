@@ -13,20 +13,33 @@ import java.util.WeakHashMap;
 /**
  * The slime coat's bounce: a landing with jump held launches the lander
  * higher than it arrived and higher than its bounce before, so held jumps
- * ramp up bounce on bounce to a ceiling; without jump held the bounce
- * decays, and sneaking decays it far faster. Each bounce sounds a short boing.
+ * ramp up bounce on bounce to a ceiling reached on the fourth held bounce,
+ * fourteen blocks up; without jump held the bounce decays, and sneaking
+ * decays it far faster. Each bounce sounds a short boing.
  * bounce-ramps-jump-height-while-jump-is-held
+ * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
  */
 public final class SlimeCoatBounce {
 
-    /** How much higher each held-jump bounce launches than the last or than the fall it caught. */
-    static final double RAMP_PER_BOUNCE = 1.25;
+    /**
+     * How much higher each held-jump bounce launches than the last or than the
+     * fall it caught: a standing jump's 0.42 held reaches HIGHEST_LAUNCH on
+     * the fourth bounce, the third still short of it.
+     * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
+     */
+    static final double RAMP_PER_BOUNCE = 1.5;
     /** The share of its fall a lander keeps on the way back up without jump held. */
     static final double RELEASED_DECAY = 0.7;
     /** The share of its fall a sneaking lander keeps, a far faster decay. */
     static final double SNEAK_DECAY = 0.25;
-    /** The fastest launch a ramp reaches, in blocks a tick: a climb of about fourteen blocks. */
-    static final double HIGHEST_LAUNCH = 1.8;
+    /**
+     * The fastest launch a ramp reaches, in blocks a tick, set for a peak
+     * fourteen blocks over the coat: the launch tick takes gravity's 0.08
+     * and the 0.98 drag before the lander first moves, as every tick after
+     * it does, so 1.74 climbs about fourteen blocks.
+     * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
+     */
+    static final double HIGHEST_LAUNCH = 1.74;
     /** A launch below this settles the lander on the coat rather than hopping it. */
     static final double SETTLED_LAUNCH = 0.1;
     /** Ticks without a bounce after which a lander's ramp starts afresh, two seconds. */

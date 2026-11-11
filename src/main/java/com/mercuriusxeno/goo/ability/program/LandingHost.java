@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
-import com.mercuriusxeno.goo.ability.quantum.PortableHole;
+import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.Wormhole;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -20,6 +22,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -59,7 +62,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        PhaseBlocksHost, IgniteHost, MeltHost {
+        WormholeHost, PortalHost, IgniteHost, MeltHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -114,13 +117,37 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Phases the struck block and the blocks behind it, running into the struck face.
-     * portable-hole-phases-blocks-for-a-while
+     * Opens a wormhole from the struck face, the block behind the cell, to the
+     * first opening ahead; with no caster about, or no opening, the face shows
+     * the hole collapse.
+     * hole-closes-the-space-to-an-opening-ahead
      */
     @Override
-    public int phaseBlocks(int depth, int radius, int lifetime) {
-        return PortableHole.open(level, cell.relative(face.getOpposite()), face.getOpposite(), depth, radius,
-                lifetime);
+    public boolean openHole(int reach, int lifetime) {
+        BlockPos struck = cell.relative(face.getOpposite());
+        ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
+        if (player == null || player.level() != level) {
+            Wormhole.collapse(level, struck, face);
+            return false;
+        }
+        return Wormhole.open(level, player, struck, face, reach, lifetime);
+    }
+
+    /**
+     * Places a portal frame on the struck face, the block behind the cell, for
+     * the caster: two tall on a wall, flat along the caster's facing on a
+     * floor or ceiling. A face with no room for the frame places none.
+     * portals-link-by-looking-through-portal-vision
+     */
+    @Override
+    public boolean placePortal() {
+        ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
+        if (player == null) {
+            return false;
+        }
+        Optional<Portal> frame = Portal.frameOn(level, cell.relative(face.getOpposite()), face, player.getDirection());
+        frame.ifPresent(portal -> PortalChoice.place(level, caster, portal));
+        return frame.isPresent();
     }
 
     /**
@@ -139,8 +166,8 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
      * drawn by its goo type (decision elemental-explosion-per-type).
      */
     @Override
-    public void explode(float power, double reach, ExplosionMode mode) {
-        GooExplosion.detonate(level, anchor(), power, reach, mode,
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
+        GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode,
                 GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
     }
 
@@ -171,6 +198,11 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                     Vec3.atCenterOf(cell), cell, SlimeTransmuteStep.DEFAULT_MORPH_TICKS));
         }
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+    }
+
+    @Override
+    public void laySlime(int layers) {
+        CoatStep.laySlimeIn(level, cell, layers);
     }
 
     @Override

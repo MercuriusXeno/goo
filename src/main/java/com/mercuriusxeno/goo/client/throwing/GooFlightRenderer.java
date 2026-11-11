@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ability.ConeGeometry;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -139,10 +140,28 @@ public final class GooFlightRenderer {
             return;
         }
 
-        FlightFrame ctx = buildFlightFrame(mc, event.getPoseStack());
+        boolean view = PortalView.drawing();
+        FlightFrame ctx = buildFlightFrame(mc, event.getPoseStack(),
+                view ? PortalView.camera() : mc.gameRenderer.getMainCamera());
         for (GooFlightManager.GooFlight flight : flights) {
-            renderFlight(ctx, flight);
+            if (!view || seenInThisView(flight, ctx.partialTick)) {
+                renderFlight(ctx, flight, !view);
+            }
         }
+    }
+
+    /**
+     * Whether a view through a gate draws a flight: one on its far leg only
+     * in the view through the gate it went into, so it is seen flying out
+     * past the partner there, and any other where it stands.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param flight      the flight
+     * @param partialTick the partial tick
+     * @return true where the view drawing now shows it
+     */
+    private static boolean seenInThisView(GooFlightManager.GooFlight flight, float partialTick) {
+        return flight.drawnThrough(partialTick).map(gate -> gate.equals(PortalView.viewedGate())).orElse(true);
     }
 
     /**
@@ -150,10 +169,10 @@ public final class GooFlightRenderer {
      *
      * @param mc        the Minecraft client instance
      * @param poseStack the pose stack for rendering
+     * @param camera    the camera of the pass drawing, the main one or a view's
      * @return the render context for this frame
      */
-    private static FlightFrame buildFlightFrame(Minecraft mc, PoseStack poseStack) {
-        Camera camera = mc.gameRenderer.getMainCamera();
+    private static FlightFrame buildFlightFrame(Minecraft mc, PoseStack poseStack, Camera camera) {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float gameTime = mc.level.getGameTime() + partialTick;
@@ -166,10 +185,11 @@ public final class GooFlightRenderer {
      * tick so the goo interpolates smoothly at render FPS rather than
      * snapping once per 20 Hz client tick.
      *
-     * @param ctx    the per-frame render context
-     * @param flight the flight to render
+     * @param ctx       the per-frame render context
+     * @param flight    the flight to render
+     * @param mainFrame whether the main frame draws it, which alone spawns its trail
      */
-    private static void renderFlight(FlightFrame ctx, GooFlightManager.GooFlight flight) {
+    private static void renderFlight(FlightFrame ctx, GooFlightManager.GooFlight flight, boolean mainFrame) {
         Vec3 pos = flight.getPosition(ctx.partialTick);
         Vec3 vel = flight.getVelocity(ctx.partialTick);
 
@@ -186,7 +206,9 @@ public final class GooFlightRenderer {
         }
         ctx.poseStack.popPose();
 
-        GooTrailParticles.spawnTrailParticles(pos, vel, flight.gooType, flight);
+        if (mainFrame) {
+            GooTrailParticles.spawnTrailParticles(pos, vel, flight.gooType, flight);
+        }
     }
 
     /**

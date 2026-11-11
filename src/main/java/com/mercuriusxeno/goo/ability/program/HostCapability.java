@@ -105,10 +105,15 @@ public enum HostCapability {
      */
     END_GATE(GateHost.class),
     /**
-     * A struck surface whose blocks can go out of phase (decision
-     * portable-hole-phases-blocks-for-a-while).
+     * A struck surface a wormhole can carry its caster through to the
+     * opening ahead (decision hole-closes-the-space-to-an-opening-ahead).
      */
-    PHASE_BLOCKS(PhaseBlocksHost.class),
+    WORMHOLE(WormholeHost.class),
+    /**
+     * A struck surface a Quantum portal can be placed on for the caster
+     * (decision portals-link-by-looking-through-portal-vision).
+     */
+    PORTAL(PortalHost.class),
     /**
      * A player whose Pocket can open (decision
      * pocket-is-a-void-reserving-container-with-scroll-and-search).
@@ -178,7 +183,12 @@ public enum HostCapability {
      * A landing that melts the stone it struck into lava (decision
      * melt-blob-absorbs-into-lava).
      */
-    MELT(MeltHost.class);
+    MELT(MeltHost.class),
+    /**
+     * A spot a vibration carrying no source entity can go off at (decision
+     * click-vibration-carries-no-source-entity).
+     */
+    VIBRATE(VibrationHost.class);
 
     private final Class<? extends StepHost> hostType;
 

@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.VertexColors;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.throwing.GateArc;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -106,6 +107,47 @@ public final class ArcRenderer {
         Minecraft mc = Minecraft.getInstance();
         emitDashedGlow(poseStack, bufferSource, camera, points, rgb, dashOffset,
                 mc.getWindow().getAppropriateLineWidth(), AIM_LINE_GLOW);
+    }
+
+    /**
+     * Renders one leg of an aim line that passes a gate: the near leg, from
+     * the hand to the gate's face, in the main frame, or the far leg, from the
+     * partner to the target, in the view through the gate, each drawn from the
+     * camera of the pass it draws in. Each leg arcs by its own peak from its
+     * own length, so the two meet at the gate however the pair is turned.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param poseStack    the current pose stack
+     * @param bufferSource the buffer source for render output
+     * @param camera       the camera of the pass drawing
+     * @param hand         the hand, where the line starts
+     * @param hop          the gate the line passes
+     * @param end          the target endpoint position
+     * @param far          true for the far leg, false for the near leg
+     * @param style        the line's color and shape
+     */
+    static void renderGateLeg(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, Camera camera,
+            Vec3 hand, GateArc.Hop hop, Vec3 end, boolean far, LineStyle style) {
+        double length = hand.distanceTo(hop.facePoint()) + hop.partnerPoint().distanceTo(end);
+        double nearPeak = style.straightLine() ? 0 : ThrowArc.basePeak(hand.distanceTo(hop.facePoint()));
+        double farPeak = style.straightLine() ? 0 : Mth.lerp(style.grannyWeight(),
+                ThrowArc.basePeak(hop.partnerPoint().distanceTo(end)), ThrowArc.lobPeak(hop.partnerPoint(), end));
+        int segments = Mth.clamp((int) (length / SAMPLE_SPACING), MIN_ARC_SEGMENTS, MAX_ARC_SEGMENTS);
+        List<Vec3[]> legs = GateArc.legs(hand, hop, end, nearPeak, farPeak, segments);
+        emitDashedGlow(poseStack, bufferSource, camera, legs.get(far ? 1 : 0), style.rgb(),
+                computeDashOffset(style.partialTick()), Minecraft.getInstance().getWindow().getAppropriateLineWidth(),
+                AIM_LINE_GLOW);
+    }
+
+    /**
+     * How an aim line draws.
+     *
+     * @param rgb          the RGB color for tinting
+     * @param partialTick  the partial tick for animation
+     * @param grannyWeight blend of the peak rules: 0 the plain peak, 1 the lob peak
+     * @param straightLine true for a beam, drawn straight
+     */
+    record LineStyle(int rgb, float partialTick, double grannyWeight, boolean straightLine) {
     }
 
     /**

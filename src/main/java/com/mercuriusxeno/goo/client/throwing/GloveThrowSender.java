@@ -30,6 +30,7 @@ import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.network.GooTouchHandler;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
@@ -107,7 +108,22 @@ public final class GloveThrowSender {
         }
         return delivery.kind() == DeliveryKind.SELF
                 ? sendSelf(player, gooType, abilityId)
-                : sendAimed(player, gooType, abilityId);
+                : choosesOrSendsAimed(player, gooType, abilityId);
+    }
+
+    /**
+     * Sends an aimed press: with Portal in hand on the player's own portals
+     * it chooses or links instead of throwing.
+     * portals-link-by-looking-through-portal-vision
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when a payload was sent
+     */
+    private static boolean choosesOrSendsAimed(Player player, ResourceKey<GooTypeDefinition> gooType,
+            String abilityId) {
+        return PortalAim.selected(abilityId) && PortalAim.press(player) || sendAimed(player, gooType, abilityId);
     }
 
     /**
@@ -382,8 +398,10 @@ public final class GloveThrowSender {
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         GooThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        // click-costs-one-mb-and-nothing-under-sculker: a throw a standing ability waives needs no goo held
+        boolean free = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
         if (payload == null || refusesStruck(player, payload, ability) || !affordsThrow(ability,
-                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                amount -> free || GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
         }
@@ -594,6 +612,22 @@ public final class GloveThrowSender {
      */
     private static GooThrowPayload buildPayload(TargetResult target, String typeId, String abilityId,
             Vec3 origin) {
+        GooThrowPayload payload = payloadFor(target, typeId, abilityId, origin);
+        TargetResult.Passage passage = target.passage();
+        // aim-and-shots-carry-through-linked-gates: a far-side target names the gate the aim passed
+        return passage == null ? payload : payload.through(passage.gate(), passage.facePoint());
+    }
+
+    /**
+     * The payload a target names, before any gate it was reached through.
+     *
+     * @param target    the resolved non-None aim target
+     * @param typeId    the goo type registry id
+     * @param abilityId the selected ability id string
+     * @param origin    the aim line start, where the flight leaves from
+     * @return the throw payload
+     */
+    private static GooThrowPayload payloadFor(TargetResult target, String typeId, String abilityId, Vec3 origin) {
         return switch (target) {
             case TargetResult.EntityTarget et -> entityPayload(typeId, et, abilityId, origin);
             case TargetResult.BlockTarget bt -> blockPayload(typeId, bt, abilityId, origin);
