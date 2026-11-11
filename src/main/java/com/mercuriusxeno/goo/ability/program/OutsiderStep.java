@@ -6,14 +6,17 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Void's Outsider, run each held tick of the channel: the tick the hold
- * reaches its charge carries a player standing outside the pocket into their
- * room for the way in's cost, and each held tick inside feeds void into the
- * room's platform, which grows along its spiral, each cell costing a base
- * plus a step for each block of Manhattan distance from the center, the feed
- * spreading each ring's cost over the ring time. Void's Outsider is
+ * Void's Outsider, run each held tick of the channel: outside the pocket each
+ * held tick stands the door the hold conjures before the player, growing with
+ * the charge and moving into them over its last ticks, and the tick the hold
+ * reaches its charge carries them into their room for the way in's cost; each
+ * held tick inside feeds void into the room, whose extent grows on all sides
+ * at once, each ring costing a base plus a step for each block of Manhattan
+ * distance from the center for every cell it holds, the feed spreading each
+ * ring's cost over the ring time. Void's Outsider is
  * {@code outsider charge=20 enter=6 ring_ticks=40 cell_cost=10 distance_cost=1}.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
  *
  * @param charge   the held ticks the channel asks before it carries the caster in
  * @param enter    the void the way in costs (mB)
@@ -59,15 +62,32 @@ public record OutsiderStep(Expr charge, Expr enter, Expr ringTicks, Expr cellCos
             host.feedPlatform(ringTicks.evaluateInt(context), cellCost.evaluateInt(context),
                     distanceCost.evaluateInt(context));
         } else {
-            int held = host.channelAim().map(ChannelAim::held).orElse(0);
-            int charged = charge.evaluateInt(context);
-            if (held == charged) {
-                host.enterPocket(enter.evaluateInt(context));
-            } else if (held > 0 && held < charged) {
-                host.showCharge(held, charged);
-            }
+            channelToward(host, context);
         }
         return true;
+    }
+
+    /**
+     * One held tick toward the pocket: the door conjured so far stands, the
+     * charge shows, and the tick the hold reaches the charge carries the
+     * player in.
+     * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
+     *
+     * @param host    the channeling player's host
+     * @param context the step's context
+     */
+    private void channelToward(OutsiderHost host, StepContext context) {
+        int held = host.channelAim().map(ChannelAim::held).orElse(0);
+        int charged = charge.evaluateInt(context);
+        if (held <= 0 || held > charged) {
+            return;
+        }
+        host.conjureDoor(held, charged);
+        if (held == charged) {
+            host.enterPocket(enter.evaluateInt(context));
+        } else {
+            host.showCharge(held, charged);
+        }
     }
 
     @Override

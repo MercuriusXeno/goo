@@ -65,6 +65,21 @@ public final class GooSoundIds {
      */
     public static final Identifier PORTAL_HUM = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_hum");
 
+    /**
+     * An Outsider room gaining a full block on every side: a dull low wub,
+     * a synthesized placeholder the operator may swap
+     * (decision full-block-growth-wubs-and-raises-void-motes).
+     */
+    public static final Identifier OUTSIDER_WUB = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_wub");
+
+    /**
+     * A door conjured before a player channeling Outsider toward the pocket:
+     * a rising shimmer, a synthesized placeholder the operator may swap
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     */
+    public static final Identifier OUTSIDER_CONJURE =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_conjure");
+
     private GooSoundIds() {
     }
 }

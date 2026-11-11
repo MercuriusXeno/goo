@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
+import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -9,6 +10,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -308,6 +310,50 @@ class GatePassageTest {
             Vec3 feet = CORNER_NOW.subtract(0, 1.62, 0);
             assertTrue(GatePassage.heldBehind(NEAR_RECTANGLE, feet, 1.62, 1.8, Vec3.ZERO).isPresent(),
                     "A body whose eye crossed a rectangular gate at its corner should be carried through it");
+        }
+    }
+
+    /**
+     * A walker crossing a room's east edge where the extent ends partway
+     * through a block comes out the same distance inside the west edge,
+     * moving and facing as it went in (decision grown-extent-is-the-one-wrap-and-build-boundary).
+     */
+    @org.junit.jupiter.api.Nested
+    class AcrossAFractionalRoomEdge {
+
+        private static final BlockPos ROOM_CENTER = new BlockPos(2_000_000, 63, -1_000_000);
+        /** An extent ending three tenths of the way into the blocks two out. */
+        private static final double PARTWAY = 2.3;
+        /** How far past the east edge the walker's eye stands: deeper than any landing margin. */
+        private static final double PAST = 0.3;
+        private static final double EYE = 1.62;
+        private static final double HEIGHT = 1.8;
+        private static final Vec3 WALKING_EAST = new Vec3(0.21, -0.08, 0.04);
+        private static final float YAW = -84F;
+        private static final float PITCH = 12F;
+        private static final double KEPT = 1.0E-9;
+        /** The drift a heading picks up from Minecraft's table sine turning it through the pair, in degrees. */
+        private static final float TABLE_TRIG = 0.01F;
+
+        @Test
+        void aWalkerPastTheEastEdgeArrivesTheSameDistanceInsideTheWestEdge() {
+            RoomEdges.Edges edges = RoomEdges.around(ROOM_CENTER, PARTWAY);
+            double eastPlane = ROOM_CENTER.getX() + 0.5 + PARTWAY;
+            double westPlane = ROOM_CENTER.getX() + 0.5 - PARTWAY;
+            Vec3 eye = new Vec3(eastPlane + PAST, 65.62, ROOM_CENTER.getZ() + 1.25);
+
+            assertTrue(GatePassage.crossed(edges.east(), eye.subtract(WALKING_EAST), eye),
+                    "an eye past the east edge should have crossed it");
+            GatePassage.Landing landing = GatePassage.landingThrough(edges.east(), edges.west(),
+                    new GatePassage.Held(eye, EYE), HEIGHT, WALKING_EAST, YAW, PITCH);
+
+            Vec3 expected = new Vec3(westPlane + PAST, eye.y() - EYE, eye.z());
+            assertEquals(0, expected.distanceTo(landing.feet()), KEPT,
+                    () -> "feet should land at " + expected + ", land at " + landing.feet());
+            assertEquals(0, WALKING_EAST.distanceTo(landing.motion()), KEPT,
+                    "motion kept");
+            assertEquals(YAW, landing.yaw(), TABLE_TRIG, "yaw kept");
+            assertEquals(PITCH, landing.pitch(), "pitch kept");
         }
     }
 

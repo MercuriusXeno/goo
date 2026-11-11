@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability;
 
 import net.minecraft.resources.Identifier;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,5 +51,33 @@ class StreamSoundTest {
         assertEquals(1.9f, buzz.pitchFor(0f), EPSILON);
         assertEquals(1.95f, buzz.pitchFor(0.5f), EPSILON);
         assertEquals(2f, buzz.pitchFor(1f), EPSILON);
+    }
+
+    /**
+     * Goop's and Slick's streams both play the honey block slide while held,
+     * through one and the same sound block.
+     * goop-and-slick-spray-sounds-the-honey-block-slide
+     */
+    @Nested
+    class GoopAndSlickSlide {
+
+        private static final Identifier HONEY_SLIDE = Identifier.withDefaultNamespace("block.honey_block.slide");
+
+        private StreamSound soundOf(String ability) {
+            Optional<StreamSound> sound = AbilityJson.decode(ability).delivery().sound();
+            assertTrue(sound.isPresent(), ability + " should name a stream sound");
+            return sound.get();
+        }
+
+        @Test
+        void goopAndSlickPlayTheHoneyBlockSlide() {
+            assertEquals(HONEY_SLIDE, soundOf("weird_goop").sound());
+            assertEquals(HONEY_SLIDE, soundOf("kinetic_slick").sound());
+        }
+
+        @Test
+        void goopAndSlickCarryOneAndTheSameSound() {
+            assertEquals(soundOf("weird_goop"), soundOf("kinetic_slick"));
+        }
     }
 }

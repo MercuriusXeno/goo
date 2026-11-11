@@ -172,6 +172,17 @@ public final class GooAttachments {
                             .build());
 
     /**
+     * Whether a goo:pocket chunk holds its voidstone floor, saved with the
+     * chunk so the floor is laid into a chunk once, and a chunk a save
+     * generated before the floor gains it on its first load (decision
+     * voidstone-floor-stands-whole-and-growth-moves-the-boundary).
+     */
+    public static final Supplier<AttachmentType<Boolean>> POCKET_FLOOR_LAID =
+            ATTACHMENT_TYPES.register("pocket_floor_laid",
+                    () -> AttachmentType.builder(() -> false)
+                            .serialize(Codec.BOOL.fieldOf("laid"), laid -> laid).build());
+
+    /**
      * Where an entity stood before its latest goo teleport, kept for the
      * steps after the teleport in the same program, a ghost trail among
      * them, and never saved (decision ghost-trail-spans-the-blink).
