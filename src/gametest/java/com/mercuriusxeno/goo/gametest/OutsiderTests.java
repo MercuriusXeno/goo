@@ -338,8 +338,10 @@ public final class OutsiderTests {
     public static void doorEnvelopsTheCasterOnTheFullCharge(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
         holdFor(helper, caster, CHARGE_TICKS);
-        helper.runAfterDelay(CHARGE_TICKS, () -> {
-            ConjuredDoor door = doorOf(helper, caster, CHARGE_TICKS);
+        // Read the tick after the full charge: two callbacks on one tick run in no fixed order, so a read on the
+        // charge's own tick may come before its hold; the door outlasts its last hold by a tick, so it still stands.
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            ConjuredDoor door = doorOf(helper, caster, CHARGE_TICKS + 1);
             assertEntered(helper, caster);
             // Where the caster stood as they went: the return point the way in kept.
             VoidPockets.ReturnPoint left = VoidPockets.get((ServerLevel) caster.level()).returnOf(caster.getUUID());
