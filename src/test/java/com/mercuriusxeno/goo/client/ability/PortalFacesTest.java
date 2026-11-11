@@ -136,6 +136,26 @@ class PortalFacesTest {
             org.junit.jupiter.api.Assertions.assertEquals(PortalFaces.Face.SWIRL,
                     PortalFaces.faceOf(OVAL, false, true, true));
         }
+
+        @Test
+        void aRectangularGateWearsNoHaloOrSwirlBandWhereAnOvalWearsItsOwn() {
+            List<PortalFaces.Drawn> gates = List.of(new PortalFaces.Drawn(RECTANGLE, 0, false),
+                    new PortalFaces.Drawn(OVAL, PortalFaces.BLUE_RGB, false));
+
+            List<Gate> worn = PortalFaces.wornIn(gates, java.util.Optional.empty()).stream()
+                    .map(PortalFaces.Drawn::gate).toList();
+
+            assertEquals(List.of(OVAL), worn, "only the oval gate should wear a halo and swirl band");
+        }
+
+        @Test
+        void aViewThroughARectangularPairSleevesNoBand() {
+            List<PortalFaces.Drawn> gates = List.of(new PortalFaces.Drawn(RECTANGLE, 0, false));
+
+            assertEquals(List.of(), PortalFaces.sleevedIn(gates,
+                    java.util.Optional.of(new GatePassage.Pair(RECTANGLE, RECTANGLE))),
+                    "a view through a room's edge should sleeve no band back into it");
+        }
     }
 
     @Test
