@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.outsider.PlatformSpiral;
 import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
@@ -18,15 +17,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Covers the views a frame may draw through a room's edges: each edge, looked
  * into toward its partner, is a way a view draws, each is a gate the frame
  * draws a face for, and the frame's views hold the room's four edges beside a
- * portal pair's two and a hole's two
- * (decision outsider-room-wraps-and-repeats-at-the-platform-edge).
+ * portal pair's two and a hole's two; an edge standing partway through a
+ * block draws like any other, and a moved edge replaces the one before it
+ * (decisions outsider-room-wraps-and-repeats-at-the-platform-edge and
+ * grown-extent-is-the-one-wrap-and-build-boundary).
  */
 class PortalViewTest {
 
     /** A portal pair's two mouths, a hole's two and a room's four edges. */
     private static final int VIEWS_A_ROOM_NEEDS = 8;
-    private static final RoomEdges.Edges EDGES = RoomEdges.around(OutsiderRooms.voidstoneOf(5),
-            PlatformSpiral.START_CELLS);
+    /** An extent ending partway through a block. */
+    private static final double PARTWAY = 2.3;
+    /** The same room a tenth of a block further grown, as the next feed leaves it. */
+    private static final double FED_ON = 2.4;
+    private static final RoomEdges.Edges EDGES = RoomEdges.around(OutsiderRooms.voidstoneOf(5), PARTWAY);
 
     @BeforeEach
     void standInTheRoom() {
@@ -54,6 +58,17 @@ class PortalViewTest {
         List<Gate> drawn = PortalFaces.gatesIn(OutsiderRooms.POCKET).stream().map(PortalFaces.Drawn::gate).toList();
 
         assertEquals(List.of(EDGES.east(), EDGES.west(), EDGES.south(), EDGES.north()), drawn);
+    }
+
+    @Test
+    void aMovedEdgeReplacesTheWaysTheViewDrewBefore() {
+        RoomEdges.Edges grown = RoomEdges.around(OutsiderRooms.voidstoneOf(5), FED_ON);
+        ClientRoomEdges.take(new RoomEdgesSyncPayload(grown.pairs()));
+        List<List<Gate>> ways = PortalView.ways().stream().map(List::of).toList();
+
+        assertTrue(ways.contains(List.of(grown.east(), grown.west())), "the ways should hold the grown east edge");
+        assertTrue(ways.stream().noneMatch(way -> way.contains(EDGES.east())),
+                "the ways should drop the east edge the room grew past");
     }
 
     @Test

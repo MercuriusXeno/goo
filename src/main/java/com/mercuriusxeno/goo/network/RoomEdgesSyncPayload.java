@@ -15,8 +15,10 @@ import java.util.List;
  * Server-to-client payload: the edges of the Outsider room the player stands
  * in, as linked gate pairs, so the client carries its player across an edge
  * to the opposite side the way it carries it through a portal. Sent as the
- * player enters the room and each time its platform grows a cell.
+ * player enters the room and each time a feed moves its extent, every gate's
+ * box in doubles, so a plane partway through a block arrives exactly.
  * outsider-room-wraps-and-repeats-at-the-platform-edge
+ * decision grown-extent-is-the-one-wrap-and-build-boundary
  *
  * @param edges the room's edge pairs, east with west and south with north
  */
