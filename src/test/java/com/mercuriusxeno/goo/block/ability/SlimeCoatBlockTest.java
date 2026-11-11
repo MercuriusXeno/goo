@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 class SlimeCoatBlockTest {
 
     private static final String BLOCKSTATE_JSON = "/assets/goo/blockstates/slime_coat.json";
-    private static final String COAT_JSON = "/data/goo/goo_abilities/weird_coat.json";
+    private static final String GOOP_JSON = "/data/goo/goo_abilities/weird_goop.json";
     private static final String BOUNCE_JSON = "/data/goo/goo_abilities/weird_bounce.json";
 
     @Nested
@@ -110,8 +110,8 @@ class SlimeCoatBlockTest {
         }
 
         @Test
-        void coatsStreamCostsOneLayer() throws IOException {
-            assertEquals(SlimeCoatBlock.MB_PER_LAYER, classpathJson(COAT_JSON).get("cost").getAsInt());
+        void goopsStreamCostsOneLayer() throws IOException {
+            assertEquals(SlimeCoatBlock.MB_PER_LAYER, classpathJson(GOOP_JSON).get("cost").getAsInt());
         }
 
         @Test

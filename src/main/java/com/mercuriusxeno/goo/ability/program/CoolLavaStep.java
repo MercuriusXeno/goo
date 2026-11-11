@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 /**
  * A stream's block pass that cools every lava block, source or flowing,
  * inside its cone into a magma block each held tick, still harmful
- * underfoot but far less than the lava it replaced; Coat's slime cools the
+ * underfoot but far less than the lava it replaced; Goop's slime cools the
  * lava it reaches: {@code cool_lava}.
  * weird-bounces-and-softens-harm
  */

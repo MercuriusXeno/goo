@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Weird Coat's block step, run each held tick of the stream: the slime
+ * Weird Goop's block step, run each held tick of the stream: the slime
  * paints the open cell over every block it reaches whose top can hold a
  * coat, and every cell the hold has painted builds toward a slime coat while
  * the hold lasts, whether or not the aim is still on it, coating once it has
