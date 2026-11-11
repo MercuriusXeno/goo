@@ -85,8 +85,10 @@ public final class HoleContents {
         Vec3 centre = opening.getCenter();
         Vec3 across = face.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
         Vec3 along = normal.cross(across);
-        double halfAcross = HoleMouths.halfSpan(opening, across);
-        double halfAlong = HoleMouths.halfSpan(opening, along);
+        // the items keep within the pit's walls, which stand inside the footprint's outer faces
+        AABB pitRim = HolePits.pitOf(mouth.footprint(), face).rim();
+        double halfAcross = HoleMouths.halfSpan(pitRim, across);
+        double halfAlong = HoleMouths.halfSpan(pitRim, along);
         int light = LevelRenderer.getLightCoords(mc.level, BlockPos.containing(centre.add(normal.scale(FACE_OFFSET))));
         int shown = Math.min(mouth.stored().size(), SHOWN.length);
         for (int index = 0; index < shown; index++) {

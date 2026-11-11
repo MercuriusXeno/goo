@@ -20,6 +20,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -59,6 +60,8 @@ public final class HolePits {
     /** How far the carved oval stands off its face, so the face it lies on never hides it. */
     private static final double FACE_LIFT = 0.004;
     private static final int SEGMENTS = 32;
+    /** How far the pit's walls stand inside the footprint's outer faces. */
+    static final double PIT_INSET = 0.05;
     private static final int INDICES_PER_QUAD = 6;
     private static final int CORNERS = 4;
     /** The pit's color at its rim, a deep void violet. */
@@ -159,7 +162,8 @@ public final class HolePits {
         for (PortableHolesSyncPayload.Mouth mouth : drawn) {
             Direction face = mouth.face();
             Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
-            AABB opening = HoleMouths.openingOn(mouth.footprint(), face);
+            // the carve stays within the pit's walls, so every carved point has the pit behind it
+            AABB opening = pitOf(mouth.footprint(), face).rim();
             Vec3 across = face.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
             Vec3 along = normal.cross(across);
             float open = ClientPortableHoles.openShare(mouth, time);
@@ -175,6 +179,32 @@ public final class HolePits {
             }
         }
         return builder.buildOrThrow();
+    }
+
+    /**
+     * The space behind a mouth: its rim, a flat rectangle on the face plane,
+     * and its floor, the same rectangle sunk the pit's depth into the blocks.
+     *
+     * @param rim   the pit's rim on the face plane
+     * @param floor the pit's floor
+     */
+    record Pit(AABB rim, AABB floor) {
+    }
+
+    /**
+     * The pit behind a mouth's footprint.
+     *
+     * @param footprint the blocks whose faces the mouth covers
+     * @param face      the face it opens on
+     * @return the pit
+     */
+    static Pit pitOf(List<BlockPos> footprint, Direction face) {
+        Vec3 inward = Vec3.atLowerCornerOf(face.getOpposite().getUnitVec3i());
+        // the walls stand inside the blocks' outer faces, never in their plane, so the two never fight for depth
+        Vec3 across = new Vec3(1 - Math.abs(inward.x()), 1 - Math.abs(inward.y()), 1 - Math.abs(inward.z()))
+                .scale(PIT_INSET);
+        AABB rim = HoleMouths.openingOn(footprint, face).deflate(across.x(), across.y(), across.z());
+        return new Pit(rim, rim.move(inward.scale(HoleDrift.PIT_DEPTH)));
     }
 
     private static Vec3 rimAt(Vec3 centre, Vec3 acrossRadius, Vec3 alongRadius, float angle) {
@@ -195,10 +225,8 @@ public final class HolePits {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.PORTABLE_HOLE_PIT_TYPE);
         for (PortableHolesSyncPayload.Mouth mouth : drawn) {
-            AABB opening = HoleMouths.openingOn(mouth.footprint(), mouth.face());
-            Vec3 inward = Vec3.atLowerCornerOf(mouth.face().getOpposite().getUnitVec3i());
-            AABB floor = opening.move(inward.scale(HoleDrift.PIT_DEPTH));
-            emitPit(pose, consumer, opening.move(camera.reverse()), floor.move(camera.reverse()));
+            Pit pit = pitOf(mouth.footprint(), mouth.face());
+            emitPit(pose, consumer, pit.rim().move(camera.reverse()), pit.floor().move(camera.reverse()));
         }
         buffers.endBatch(GooRenderTypes.PORTABLE_HOLE_PIT_TYPE);
     }
