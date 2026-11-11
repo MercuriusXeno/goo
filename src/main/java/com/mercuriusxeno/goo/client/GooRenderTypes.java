@@ -1187,6 +1187,35 @@ public final class GooRenderTypes {
             .withCull(true)
             .build();
 
+    /** The uniform block the miasma vortex pipeline reads Drain's cone and colors from. */
+    public static final String MIASMA_VORTEX_BLOCK = "MiasmaVortex";
+
+    /** The sampler the miasma vortex reads a copy of the world's depth through. */
+    public static final String MIASMA_DEPTH_SAMPLER = "MiasmaDepthSampler";
+
+    /**
+     * Drain's miasma vortex pipeline: a box around the cone Drain strikes
+     * whose fragments march the cone through {@code miasma_vortex.vsh / .fsh},
+     * filling it with a turning cloud of miasma and rifling streaks, stopping
+     * at a copy of the world's depth so the miasma lies in front of whatever
+     * stands in it. Blended translucent; it passes every depth test and writes
+     * none, since the march clips itself against the world.
+     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     */
+    public static final RenderPipeline MIASMA_VORTEX = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "miasma_vortex"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
+            .withUniform(MIASMA_VORTEX_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withSampler(MIASMA_DEPTH_SAMPLER)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(true)
+            .build();
+
     /**
      * Growth's breeze pipeline: cross-sections of the cone drawn through
      * {@code growth_breeze.vsh / .fsh}, glowing green wisps drifting outward
@@ -1742,6 +1771,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GOO_PORTAL_HALO);
         event.registerPipeline(GOO_PORTAL_SWIRL_BAND);
+        event.registerPipeline(MIASMA_VORTEX);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);
