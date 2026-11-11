@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,7 +27,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -265,11 +265,12 @@ public final class OutsiderTests {
     /** Ticks held inside before the first ring's cost is fed over the ring time, and a tick more. */
     private static final int HELD_TO_FIRST_RING = 41;
     private static final String SHOULD_SHOW_CHARGE = "A hold short of its charge should send void motes, sent %d particle packets";
-    private static final String SHOULD_CHIME = "A whole ring gained should chime, sounds sent %s";
+    private static final String SHOULD_WUB = "A full block gained should wub, sounds sent %s";
 
     /**
      * A caster charging Outsider sees void motes gather before the charge
-     * lands, and once inside, the first whole ring the hold gains chimes.
+     * lands, and once inside, the first full block the hold gains wubs
+     * (decision full-block-growth-wubs-and-raises-void-motes).
      *
      * @param helper the gametest helper
      */
@@ -285,8 +286,8 @@ public final class OutsiderTests {
         helper.runAfterDelay(CHARGE_TICKS + HELD_TO_FIRST_RING + 1, () -> {
             List<String> sounds = packets.sentOf(ClientboundSoundPacket.class).stream()
                     .map(sound -> sound.getSound().value().location().toString()).toList();
-            helper.assertTrue(sounds.contains(SoundEvents.AMETHYST_BLOCK_CHIME.location().toString()),
-                    String.format(SHOULD_CHIME, sounds));
+            helper.assertTrue(sounds.contains(GooSoundIds.OUTSIDER_WUB.toString()),
+                    String.format(SHOULD_WUB, sounds));
             helper.succeed();
         });
     }

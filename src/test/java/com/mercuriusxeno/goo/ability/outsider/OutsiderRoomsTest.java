@@ -66,4 +66,67 @@ class OutsiderRoomsTest {
             assertEquals(List.of(), sent);
         }
     }
+
+    /**
+     * Each full block the room gains is felt: one wub and a line of rising
+     * void motes along each wall at the new boundary, and a feed short of a
+     * whole-block mark shows neither
+     * (decision full-block-growth-wubs-and-raises-void-motes).
+     */
+    @Nested
+    class FullBlockGrowth {
+
+        private static final int BASE = 10;
+        private static final int PER_DISTANCE = 1;
+        /** Just short of the first whole-block mark at 2.5. */
+        private static final double SHORT_OF_THE_MARK = 2.45;
+        private static final double EXACT = 1.0E-9;
+        private static final double FLOOR_TOP = OutsiderRooms.ROOM_FLOOR_Y + 1;
+
+        private final List<Vec3> wubs = new ArrayList<>();
+        private final List<Vec3[]> lines = new ArrayList<>();
+        private final OutsiderRooms.GrowthCues recorded = new OutsiderRooms.GrowthCues() {
+            @Override
+            public void wub(Vec3 at, double extent) {
+                wubs.add(at);
+            }
+
+            @Override
+            public void moteLine(Vec3 from, Vec3 to) {
+                lines.add(new Vec3[] {from, to});
+            }
+        };
+
+        @Test
+        void aFeedAcrossAWholeBlockMarkWubsOnceAndRaisesAMoteLineAlongEachWall() {
+            long ringTwo = PlatformSpiral.ringCost(2, BASE, PER_DISTANCE);
+            double after = RoomExtent.grown(SHORT_OF_THE_MARK, ringTwo / 5, BASE, PER_DISTANCE);
+            OutsiderRooms.cueGrowth(ROOM, SHORT_OF_THE_MARK, after, recorded);
+
+            assertEquals(1, wubs.size(), "one wub");
+            RoomExtent.Planes planes = RoomExtent.planesAround(CENTER, after);
+            List<Vec3[]> walls = List.of(
+                    new Vec3[] {new Vec3(planes.east(), FLOOR_TOP, planes.north()),
+                        new Vec3(planes.east(), FLOOR_TOP, planes.south())},
+                    new Vec3[] {new Vec3(planes.west(), FLOOR_TOP, planes.north()),
+                        new Vec3(planes.west(), FLOOR_TOP, planes.south())},
+                    new Vec3[] {new Vec3(planes.west(), FLOOR_TOP, planes.south()),
+                        new Vec3(planes.east(), FLOOR_TOP, planes.south())},
+                    new Vec3[] {new Vec3(planes.west(), FLOOR_TOP, planes.north()),
+                        new Vec3(planes.east(), FLOOR_TOP, planes.north())});
+            assertEquals(walls.size(), lines.size(), "a line per wall");
+            for (int wall = 0; wall < walls.size(); wall++) {
+                assertEquals(0, walls.get(wall)[0].distanceTo(lines.get(wall)[0]), EXACT, "wall " + wall + " start");
+                assertEquals(0, walls.get(wall)[1].distanceTo(lines.get(wall)[1]), EXACT, "wall " + wall + " end");
+            }
+        }
+
+        @Test
+        void aFeedCrossingNoMarkWubsNotAndRaisesNoWallMotes() {
+            OutsiderRooms.cueGrowth(ROOM, RoomExtent.LAID, 1.9, recorded);
+
+            assertEquals(List.of(), wubs, "no wub");
+            assertEquals(0, lines.size(), "no wall motes");
+        }
+    }
 }
