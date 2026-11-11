@@ -82,7 +82,7 @@ public final class GrabPickConeTests {
         Pig pig = helper.spawn(EntityType.PIG, FIVE_BLOCKS_OUT);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, pig.getBoundingBox().getCenter());
         player.setYRot(player.getYRot() + INSIDE_GRABS_CONE);
-        // Grab's own reach of 16 runs the ray into the neighbouring tests' bays, where a mob on the ray is an
+        // Grab's own reach runs the ray into the neighbouring tests' bays, where a mob on the ray is an
         // exact hit and outranks the cone; the ray stops inside this bay, past the pig.
         double reach = Math.min(IN_THE_BAY, GrabStep.reachOf(grab.behaviors(), null).orElseThrow());
         helper.assertTrue(pig.getBoundingBox().clip(player.getEyePosition(),
