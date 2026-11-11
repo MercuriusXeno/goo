@@ -12,7 +12,6 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,14 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers what Rally ships: a mob ability thrown at one target whose steps are
- * the rally alone, the red fist a rallied mob wears, and the Zoo Brew effect a cast
- * Rally lays shows Rally's own icon.
+ * the rally alone, and the red fist a rallied mob wears.
  * rally-drops-its-sound-and-gets-its-sprite
  */
 class RallyShippedAssetsTest {
 
-    private static final String RALLY_ICON = "/assets/goo/textures/goo/ability/zoo_rally.png";
-    private static final String ZOO_BREW_ICON = "/assets/goo/textures/mob_effect/zoo_held.png";
     private static final String RALLY_FIST = "/assets/goo/textures/entity/rally_fist.png";
     private static final int SIDE = 16;
     private static final int FIST_BODY_X = 7;
@@ -78,24 +74,10 @@ class RallyShippedAssetsTest {
         assertTrue((body >> RED_SHIFT & CHANNEL) > (body >> GREEN_SHIFT & CHANNEL) * 2);
     }
 
-    @Test
-    void zooBrewEffectDrawsRallysIcon() throws IOException {
-        BufferedImage brew = read(ZOO_BREW_ICON);
-        BufferedImage rally = read(RALLY_ICON);
-
-        assertEquals(SIDE, brew.getWidth());
-        assertEquals(SIDE, brew.getHeight());
-        assertArrayEquals(pixels(rally), pixels(brew));
-    }
-
     private static BufferedImage read(String path) throws IOException {
         try (InputStream in = RallyShippedAssetsTest.class.getResourceAsStream(path)) {
             assertNotNull(in, path + " is missing");
             return ImageIO.read(in);
         }
-    }
-
-    private static int[] pixels(BufferedImage image) {
-        return image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
     }
 }

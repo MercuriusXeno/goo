@@ -27,11 +27,12 @@ import java.util.Optional;
  * Floats a mark over the head of every marked mob in sight, turned to face
  * the camera and bobbing gently, for as long as the mark holds: the charmed
  * heart over a charmed mob, the rally fist over a rallied one. Above any such
- * mark, a mob Heal or Drain touched lately shows its life.
+ * mark, a mob Heal or Drain touched lately or Leader senses shows its life.
  * charm-glisten-and-icon-over-the-head
  * charm-holds-until-struck
  * rallied-mobs-wear-a-red-clenched-fist
  * touched-mobs-show-hearts-or-a-count-over-max
+ * leader-shows-life-bars-while-it-stands
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeadMarks {
@@ -77,19 +78,19 @@ public final class HeadMarks {
             }
             buffers.endBatch(icon);
         }
-        LifeMarkBillboard.drawAll(event.getPoseStack(), touchedInSight(mc.level), partialTick);
+        LifeMarkBillboard.drawAll(event.getPoseStack(), lifeMarkedInSight(mc.level), partialTick);
     }
 
-    private static List<LivingEntity> touchedInSight(ClientLevel level) {
+    private static List<LivingEntity> lifeMarkedInSight(ClientLevel level) {
         long tick = level.getGameTime();
-        List<LivingEntity> touched = new ArrayList<>();
+        List<LivingEntity> marked = new ArrayList<>();
         for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof LivingEntity living && !living.isInvisible()
-                    && TouchedMobs.CLIENT.marked(living.getId(), tick)) {
-                touched.add(living);
+                    && LifeMarkBillboard.showsLifeMark(living.getId(), tick, TouchedMobs.CLIENT, LeaderSense.CLIENT)) {
+                marked.add(living);
             }
         }
-        return touched;
+        return marked;
     }
 
     /**

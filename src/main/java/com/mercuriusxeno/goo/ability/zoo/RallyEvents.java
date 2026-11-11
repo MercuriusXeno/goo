@@ -153,15 +153,17 @@ public final class RallyEvents {
     }
 
     /**
-     * Walks a rallied mob toward its rallier, re-pathing as the rallier moves.
+     * Walks a mob toward the one it follows, re-pathing as that one moves:
+     * a rallied mob its rallier, a led mob the player holding Leader.
      * rallied-mobs-follow-the-player-who-rallied-them
+     * leader-leads-passive-mobs-at-a-short-distance
      *
-     * @param mob     the rallied mob
-     * @param rallier the entity that rallied it
+     * @param mob      the following mob
+     * @param followed the entity it follows
      */
-    private static void follow(Mob mob, LivingEntity rallier) {
+    static void follow(Mob mob, LivingEntity followed) {
         if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
-            mob.getNavigation().moveTo(rallier, FOLLOW_SPEED);
+            mob.getNavigation().moveTo(followed, FOLLOW_SPEED);
         }
     }
 

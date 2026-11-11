@@ -34,6 +34,12 @@ public final class ThrowArc {
     /** Derivative factor of the descent's {@code 1 - s * s} envelope at landing. */
     private static final double DESCENT_SLOPE_FACTOR = 2.0;
 
+    /**
+     * Ticks a thrown blob's drift takes to fade: the operator's "first two
+     * frames or so", one constant so it tunes.
+     */
+    public static final double DRIFT_FADE_TICKS = 2.0;
+
     private ThrowArc() {}
 
     /**
@@ -99,6 +105,47 @@ public final class ThrowArc {
         double z = start.z + (end.z - start.z) * t;
         double arcY = skewedArc(t, peak, ARC_PEAK_T);
         return new Vec3(x, y + arcY, z);
+    }
+
+    /**
+     * A point on the arc, pushed by the thrower's fading drift, so the blob
+     * leaves the hand moving with the thrower and lands on the arc's end.
+     * thrown-blob-leaves-the-hand-with-a-fading-drift
+     *
+     * @param start       arc origin (hand position)
+     * @param end         arc destination (target center)
+     * @param t           normalized progress [0..1]
+     * @param peak        peak height in blocks (at t = ARC_PEAK_T)
+     * @param travel      the thrower's travel velocity at the throw, blocks per tick
+     * @param travelTicks the ticks the flight takes
+     * @return world-space position on the drifted arc
+     */
+    public static Vec3 driftedArcPoint(Vec3 start, Vec3 end, double t, double peak, Vec3 travel,
+                                       double travelTicks) {
+        return arcPoint(start, end, t, peak).add(driftOffset(travel, t * travelTicks, travelTicks));
+    }
+
+    /**
+     * How far the thrower's drift pushes a blob off its path, the ticks
+     * into its flight given: zero at the hand, moving at the thrower's
+     * velocity there, and fading smoothly to zero at the fade window's end,
+     * which a flight shorter than the window shrinks to its own length so
+     * the landing stays put.
+     * thrown-blob-leaves-the-hand-with-a-fading-drift
+     *
+     * @param travel      the thrower's travel velocity at the throw, blocks per tick
+     * @param ticks       ticks into the flight
+     * @param travelTicks the ticks the flight takes
+     * @return the drift offset in blocks
+     */
+    public static Vec3 driftOffset(Vec3 travel, double ticks, double travelTicks) {
+        double window = Math.min(DRIFT_FADE_TICKS, travelTicks);
+        if (ticks <= 0 || ticks >= window) {
+            return Vec3.ZERO;
+        }
+        double left = 1.0 - ticks / window;
+        // ticks * left^2 rises at rate 1 from the hand and lands flat at zero at the window's end
+        return travel.scale(ticks * left * left);
     }
 
     /**
