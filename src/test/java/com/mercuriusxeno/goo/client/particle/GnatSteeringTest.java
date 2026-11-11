@@ -36,19 +36,20 @@ class GnatSteeringTest {
 
         @Test
         void theWidestLaunchLeavesFortyFiveDegreesOffTheFiringLine() {
-            assertEquals(WIDEST_LAUNCH_DEGREES, degreesBetween(AIM, GnatSteering.launch(AIM, FAN_DEGREES, 1, 0)), DELTA);
+            assertEquals(WIDEST_LAUNCH_DEGREES,
+                    degreesBetween(AIM, GnatSteering.launch(AIM, FAN_DEGREES, 1, 0, Vec3.ZERO)), DELTA);
         }
 
         @Test
         void aGnatLeavesAtItsCruisingSpeed() {
-            assertEquals(GnatSteering.CRUISE, GnatSteering.launch(AIM, FAN_DEGREES, 1, 0).length(), DELTA);
+            assertEquals(GnatSteering.CRUISE, GnatSteering.launch(AIM, FAN_DEGREES, 1, 0, Vec3.ZERO).length(), DELTA);
         }
     }
 
     @Nested
     class Seeking {
 
-        private final Vec3 downTheLine = GnatSteering.launch(AIM, FAN_DEGREES, 0, 0);
+        private final Vec3 downTheLine = GnatSteering.launch(AIM, FAN_DEGREES, 0, 0, Vec3.ZERO);
 
         @Test
         void thePreyPullsTheGnatFromItsFirstTick() {
@@ -131,7 +132,7 @@ class GnatSteeringTest {
             for (double distance : DISTANCES) {
                 Vec3 glove = new Vec3(0, 1.3, 0);
                 Vec3 target = new Vec3(distance, 0, 0);
-                Vec3 velocity = GnatSteering.launch(target.subtract(glove), FAN_DEGREES, 0, 0);
+                Vec3 velocity = GnatSteering.launch(target.subtract(glove), FAN_DEGREES, 0, 0, Vec3.ZERO);
                 Vec3 at = glove;
                 int tick = 0;
                 while (at.distanceTo(target) >= HALF_A_BLOCK && tick < MOST_TICKS) {

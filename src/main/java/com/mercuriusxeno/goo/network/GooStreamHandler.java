@@ -78,6 +78,8 @@ public final class GooStreamHandler {
     private static final int FLOOR_RAYS_PER_TICK = 12;
     /** A particle sent with a count of zero flies along the vector it is handed. */
     private static final int ALONG_THE_VECTOR = 0;
+    /** The speed a count-zero particle's vector is scaled by when the vector is already its velocity. */
+    private static final double UNSCALED = 1.0;
     /** Reads which living things a tick's program healed. */
     private static final HealReport<LivingEntity> HEALS =
             new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
@@ -303,7 +305,7 @@ public final class GooStreamHandler {
             return SwarmStrike.reached(player, apex, struck, held);
         }
         sprayParticles(cast.level(), apex, aim, delivery,
-                Math.min(delivery.range(), apex.distanceTo(crosshair.getLocation())));
+                Math.min(delivery.range(), apex.distanceTo(crosshair.getLocation())), travelOf(player));
         return struck;
     }
 
@@ -532,17 +534,47 @@ public final class GooStreamHandler {
      * @param axis     the cone's axis
      * @param delivery the stream delivery
      * @param reach    how far the motes fly, in blocks
+     * @param travel   the spraying player's travel velocity, blocks per tick
      */
-    static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach) {
+    static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach,
+                               Vec3 travel) {
         RandomSource random = level.getRandom();
         double speed = reach * LAUNCH_SPEED_PER_BLOCK;
         delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
             for (int i = 0; i < PARTICLES_PER_TICK; i++) {
                 Vec3 heading = StreamCone.launchDirection(axis, delivery.coneDegrees(), random.nextDouble(),
                         random.nextDouble());
-                level.sendParticles(particle, apex.x, apex.y, apex.z, ALONG_THE_VECTOR, heading.x, heading.y,
-                        heading.z, speed);
+                Vec3 launch = moteLaunch(heading, speed, travel);
+                level.sendParticles(particle, apex.x, apex.y, apex.z, ALONG_THE_VECTOR, launch.x, launch.y,
+                        launch.z, UNSCALED);
             }
         });
+    }
+
+    /**
+     * A glove mote's launch velocity: its heading inside the cone at its
+     * launch speed, plus the travel velocity of the player spraying it, so
+     * the spray moves with a walking, sprinting, falling or flying player.
+     * glove-stream-motes-carry-the-players-travel-velocity
+     *
+     * @param heading the mote's unit heading inside the cone
+     * @param speed   the mote's launch speed, blocks per tick
+     * @param travel  the spraying player's travel velocity, blocks per tick
+     * @return the launch velocity, blocks per tick
+     */
+    public static Vec3 moteLaunch(Vec3 heading, double speed, Vec3 travel) {
+        return heading.scale(speed).add(travel);
+    }
+
+    /**
+     * The spraying player's travel velocity: the known movement, since the
+     * server moves a player by its client's packets and leaves its delta
+     * movement at rest (decision diagnose-then-restore-razor-harm).
+     *
+     * @param player the spraying player
+     * @return the travel velocity, blocks per tick
+     */
+    static Vec3 travelOf(ServerPlayer player) {
+        return player.getKnownMovement();
     }
 }
