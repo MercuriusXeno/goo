@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:grab_pulls_a_mob_back_the_way_it_went_through",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

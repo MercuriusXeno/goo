@@ -6,7 +6,7 @@
   "cost": 1000,
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "quantum_swap" },
+    { "type": "quantum_swap", "range": 32 },
     { "type": "sound", "id": "minecraft:block.respawn_anchor.set_spawn", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.4 }
   ],
   "tags": ["self"],

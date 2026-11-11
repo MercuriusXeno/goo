@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:portal_small_mob_by_the_edge_is_not_hurt_by_the_wall",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -306,7 +306,7 @@ public final class HeldEffectsEvents {
      */
     private static void clearAbilityState(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.SHIFTER)) {
-            // shifter-blinks-along-the-cursor-on-hit: the shifter ends with its held effect
+            // elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage: Elude ends with its held effect
             player.setData(GooAttachments.SHIFTER, Shifter.NONE);
             ShifterEvents.clearShimmer(player);
         }

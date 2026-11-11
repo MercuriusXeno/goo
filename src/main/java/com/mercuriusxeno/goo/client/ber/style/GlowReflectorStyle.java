@@ -9,7 +9,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -21,6 +20,8 @@ import net.minecraft.world.phys.Vec3;
  * drawn once, by the end whose position sorts first.
  * decision reflector-rails-carry-the-brightest-light
  * decision relay-and-metronome-read-apart-at-rest
+ * decision reflector-rail-blooms-out-inside-the-prism
+ * decision every-glow-beam-breathes-in-brightness
  */
 public final class GlowReflectorStyle implements PrismComboStyle {
 
@@ -40,6 +41,7 @@ public final class GlowReflectorStyle implements PrismComboStyle {
         GlowColumn.submit(state, poseStack, nodeCollector, restingSides());
         float share = lightShare(state.linkLight);
         float scroll = Mth.frac(-state.animationTime * SCROLL_PER_TICK);
+        float breath = GlowBeamMesh.breath(state.animationTime);
         Vec3 center = new Vec3(HALF, HALF, HALF);
         for (Vec3 link : state.links) {
             if (drawsTheBeam(link)) {
@@ -49,7 +51,7 @@ public final class GlowReflectorStyle implements PrismComboStyle {
                 float length = (float) link.length();
                 nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
                         GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
-                        (pose, buffer) -> emitBeam(pose, buffer, length, share, scroll));
+                        (pose, buffer) -> emitBeam(pose, buffer, length, share, scroll, breath));
                 poseStack.popPose();
             }
         }
@@ -81,11 +83,27 @@ public final class GlowReflectorStyle implements PrismComboStyle {
         return PrismCrystal.ColumnSides.FOUR;
     }
 
-    private static void emitBeam(PoseStack.Pose pose, VertexConsumer buffer, float length, float share, float scroll) {
+    /**
+     * Emits a rail from one prism's middle to the linked prism's middle, each
+     * layer fading out past both middles so neither end stops square inside
+     * its prism, and every layer breathing in alpha on top of the light share.
+     * decision reflector-rail-blooms-out-inside-the-prism
+     * decision every-glow-beam-breathes-in-brightness
+     *
+     * @param pose   the pose at the drawing prism's middle, its +y along the rail
+     * @param buffer the vertex consumer
+     * @param length how far the linked prism's middle lies, in blocks
+     * @param share  the network's light as a share of the brightest
+     * @param scroll the texture's scroll offset in [0, 1)
+     * @param breath the share of alpha and width {@link GlowBeamMesh#breath} answered, on top of the light share
+     */
+    static void emitBeam(PoseStack.Pose pose, VertexConsumer buffer, float length, float share, float scroll,
+                         float breath) {
         float width = DIMMEST_WIDTH + (1f - DIMMEST_WIDTH) * share;
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
-            int color = ARGB.color(Math.round(ARGB.alpha(layer.color()) * share), layer.color());
-            GlowBeamMesh.emitLayer(pose, buffer, layer.radius() * width, color, scroll, length);
+            int color = GlowBeamMesh.breathed(layer.color(), share * breath);
+            GlowBeamMesh.emitLayerFadingAtBothEnds(pose, buffer, layer.radius() * width * breath, color, scroll, length,
+                    layer.depth());
         }
     }
 

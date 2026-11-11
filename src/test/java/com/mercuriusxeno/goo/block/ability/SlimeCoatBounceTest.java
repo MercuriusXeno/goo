@@ -18,13 +18,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The slime coat's bounce: a landing with jump held launches higher than it
  * arrived and higher than the bounce before, ramping each bounce; without
  * jump held the bounce decays, and sneaking decays it far faster; each
- * bounce sounds a boing made of the vanilla slime sounds
- * (decision bounce-ramps-jump-height-while-jump-is-held).
+ * bounce sounds a boing made of the vanilla slime sounds; a standing jump
+ * held reaches the ceiling on the fourth bounce
+ * (decisions bounce-ramps-jump-height-while-jump-is-held,
+ * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks).
  */
 class SlimeCoatBounceTest {
 
     private static final double ARRIVING = 0.5;
     private static final double NO_PREVIOUS = 0;
+    /** A standing jump's upward speed in blocks a tick, the fall a first held bounce catches. */
+    private static final double STANDING_JUMP = 0.42;
     private static final String SOUNDS_JSON = "/assets/goo/sounds.json";
     private static final String VANILLA_SLIME = "minecraft:mob/slime/";
 
@@ -60,6 +64,29 @@ class SlimeCoatBounceTest {
                 launch = SlimeCoatBounce.launch(launch, launch, true, false);
             }
 
+            assertEquals(SlimeCoatBounce.HIGHEST_LAUNCH, launch, 1e-9);
+        }
+
+        @Test
+        void eachHeldBounceLaunchesHalfAgainTheLast() {
+            double launch = SlimeCoatBounce.launch(STANDING_JUMP, NO_PREVIOUS, true, false);
+
+            assertEquals(STANDING_JUMP * 1.5, launch, 1e-9);
+            assertEquals(launch * 1.5, SlimeCoatBounce.launch(STANDING_JUMP, launch, true, false), 1e-9);
+        }
+
+        @Test
+        void aStandingJumpReachesTheCeilingOnTheFourthHeldBounce() {
+            double launch = NO_PREVIOUS;
+            double third = 0;
+            for (int bounce = 1; bounce <= 4; bounce++) {
+                launch = SlimeCoatBounce.launch(STANDING_JUMP, launch, true, false);
+                if (bounce == 3) {
+                    third = launch;
+                }
+            }
+
+            assertTrue(third < SlimeCoatBounce.HIGHEST_LAUNCH, "the third launch " + third + " reached the ceiling");
             assertEquals(SlimeCoatBounce.HIGHEST_LAUNCH, launch, 1e-9);
         }
     }

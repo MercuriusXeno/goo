@@ -16,10 +16,46 @@ import java.util.function.ToIntFunction;
  * @param floorText  the text whose width the row's text never measures under, or null for no floor
  * @param secondIcon the icon texture drawn after the first, or null for one icon
  * @param iconItem   the item whose model the row draws as its icon in place of a texture, or null for none
+ * @param grid       the goo amounts the row lays as one grid block in place of icons and text, or null for none
  */
 public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
                        @Nullable String floorText, @Nullable Identifier secondIcon,
-                       @Nullable Identifier iconItem) {
+                       @Nullable Identifier iconItem, @Nullable PanelAmountGrid grid) {
+
+    /**
+     * Builds a row of icons and text, no grid.
+     *
+     * @param icon       the icon texture, or null for a text-only header row
+     * @param segments   the text segments drawn left to right after the icon
+     * @param seeThrough whether the row draws over world geometry
+     * @param floorText  the text whose width the row's text never measures under, or null for no floor
+     * @param secondIcon the icon texture drawn after the first, or null for one icon
+     * @param iconItem   the item whose model the row draws as its icon in place of a texture, or null for none
+     */
+    public PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
+                    @Nullable String floorText, @Nullable Identifier secondIcon, @Nullable Identifier iconItem) {
+        this(icon, segments, seeThrough, floorText, secondIcon, iconItem, null);
+    }
+
+    /**
+     * Builds the block a panel lays its goo amounts in, as one grid.
+     * decision one-class-lays-every-huds-goo-values
+     *
+     * @param grid the goo amounts
+     * @return the grid row
+     */
+    public static PanelRow amounts(PanelAmountGrid grid) {
+        return new PanelRow(null, List.of(), false, null, null, null, grid);
+    }
+
+    /**
+     * Answers the row's height: one panel row, or the grid's rows for a grid block.
+     *
+     * @return the height in scaled pixels
+     */
+    public float height() {
+        return grid == null ? PanelPainter.ROW_HEIGHT : grid.height();
+    }
 
     /**
      * Builds a row whose icons each draw their whole texture.
@@ -138,6 +174,9 @@ public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, bo
      * @return the row width in scaled pixels
      */
     public float width(ToIntFunction<String> textWidth) {
+        if (grid != null) {
+            return grid.width(textWidth);
+        }
         float iconWidth = iconsWidth();
         float segmentsWidth = 0;
         for (TextSegment segment : segments) {
