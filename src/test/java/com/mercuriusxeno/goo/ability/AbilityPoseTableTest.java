@@ -54,6 +54,7 @@ class AbilityPoseTableTest {
             Map.entry("jelly_heal", ArmPose.HELD_OUT),
             Map.entry("jelly_reserve", ArmPose.HELD_OUT),
             Map.entry("kinetic_grab", ArmPose.HELD_OUT),
+            Map.entry("kinetic_slick", ArmPose.HELD_OUT),
             Map.entry("kinetic_telekinesis", ArmPose.HELD_UP),
             Map.entry("leaf_barkskin", ArmPose.HELD_UP),
             Map.entry("leaf_bio", ArmPose.SWUNG),

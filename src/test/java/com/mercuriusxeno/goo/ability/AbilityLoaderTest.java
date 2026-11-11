@@ -681,14 +681,48 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Asserts a shipped ability stands under Weird, its lang key reads the given name, and its
+     * Slick ships among Kinetic's abilities under its own name, description and icon.
+     * slick-coats-the-ground-with-kinetic-speed
+     */
+    @Nested
+    class KineticSlick {
+
+        private static final String SLICK = "kinetic_slick";
+
+        @Test
+        void slickShipsUnderKineticNamedSlickWithItsIcon() throws IOException {
+            Set<String> kinetic = scanShipped(AbilityJson.files()).values().stream()
+                    .filter(def -> def.gooType() == GooTypes.KINETIC)
+                    .map(def -> def.id().getPath()).collect(Collectors.toSet());
+
+            assertTrue(kinetic.contains(SLICK), "Kinetic's abilities " + kinetic + " lack " + SLICK);
+            assertPetalShipsAs(GooTypes.KINETIC, SLICK, "Slick");
+        }
+
+        @Test
+        void slickCarriesADescription() throws IOException {
+            AbilityDefinition slick = AbilityJson.decode(SLICK);
+            JsonObject lang = shippedLang();
+
+            assertTrue(lang.has(slick.description()), slick.description() + " has no lang entry");
+            assertFalse(lang.get(slick.description()).getAsString().isBlank(), slick.description() + " is blank");
+        }
+    }
+
+    private static void assertWeirdPetalShipsAs(String path, String name) throws IOException {
+        assertPetalShipsAs(GooTypes.WEIRD, path, name);
+    }
+
+    /**
+     * Asserts a shipped ability stands under the type, its lang key reads the given name, and its
      * icon resolves to the convention path and ships on the classpath.
      */
-    private static void assertWeirdPetalShipsAs(String path, String name) throws IOException {
+    private static void assertPetalShipsAs(ResourceKey<GooTypeDefinition> type, String path, String name)
+            throws IOException {
         Identifier id = Identifier.fromNamespaceAndPath(Goo.MODID, path);
         AbilityDefinition petal = scanShipped(AbilityJson.files()).get(id);
         assertNotNull(petal, id + " ships");
-        assertEquals(GooTypes.WEIRD, petal.gooType());
+        assertEquals(type, petal.gooType());
         assertEquals(name, shippedLang().get(petal.displayName()).getAsString(), petal.displayName());
         Identifier icon = AbilityIconTexture.of(id, petal.icon());
         assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "textures/goo/ability/" + path + ".png"), icon);
