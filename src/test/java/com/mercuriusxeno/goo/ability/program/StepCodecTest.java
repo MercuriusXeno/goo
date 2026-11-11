@@ -58,7 +58,7 @@ class StepCodecTest {
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "gem_ores")), GooTypes.CRYSTAL, 64, 100)),
             Map.entry("wind", new WindStep(true, Optional.of(new WindStep.Tailwind(6, 30)))),
-            Map.entry("hex_mist", new HexMistStep()),
+            Map.entry("miasma_vortex", new MiasmaVortexStep()),
             Map.entry("glacial", new GlacialStep(5)),
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
             Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,
