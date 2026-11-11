@@ -313,6 +313,8 @@
   "goo.ability.xeno.eldritch.description": "Makes you eldritch: you see things out of phase, and they see you.",
   "goo.ability.zoo.allure": "Allure",
   "goo.ability.zoo.allure.description": "Drives an animal to mate, if it can.",
+  "goo.ability.zoo.leader": "Leader",
+  "goo.ability.zoo.leader.description": "Senses every creature around you through walls with its health, and peaceful ones follow you.",
   "goo.ability.zoo.rally": "Rally",
   "goo.ability.zoo.rally.description": "The peaceful creature it lands on fights your enemies with more health and speed, until you strike it.",
   "goo.ability.zoo.shape": "Shape",
