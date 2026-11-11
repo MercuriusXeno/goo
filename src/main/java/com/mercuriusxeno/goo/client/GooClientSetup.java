@@ -338,6 +338,7 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.LIGHT_MOTE.get(), LightMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_MOTE.get(), VitalMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.HEX_WISP.get(), HexWispParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.HEX_MIST.get(), HexMistParticle.Provider::new);
         event.registerSpriteSet(GooParticles.HEX_GLYPH.get(), HexGlyphParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_FOG.get(), VitalFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_STAR.get(), VitalStarParticle.Provider::new);
