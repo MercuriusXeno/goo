@@ -32,11 +32,37 @@ import java.util.Optional;
  *                       {@link #NO_TOP_SPEED} for none
  * @param seekRange      how far a stream reaches the living it strikes, past the range it works blocks within;
  *                       {@link #NO_SEEK_RANGE} for the range itself
+ * @param sprayFollowsCoat whether a stream's motes fly onto the ends of its coat's rays rather than resting
+ *                       as far off as the crosshair lands
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
                        Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed,
-                       double seekRange) {
+                       double seekRange, boolean sprayFollowsCoat) {
+
+    /**
+     * A delivery whose spray rests as far off as the crosshair lands.
+     *
+     * @param kind           the delivery kind
+     * @param blocksPerTick  a beam's speed in blocks per tick
+     * @param range          a stream's reach in blocks
+     * @param coneDegrees    a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge a stream's ticks of hold one cost pays for
+     * @param grannyAllowed  whether an arc may lob onto a top face
+     * @param particle       the particle a stream sprays along its cone, empty for none
+     * @param transformAt    the share of the flight by which the blob has taken its traveling form
+     * @param sound          the sound a stream makes while held, empty for none
+     * @param charge         the charge block
+     * @param form           the form the goo takes in flight
+     * @param topSpeed       the fastest an arc flies in blocks per tick
+     * @param seekRange      how far a stream reaches the living it strikes
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
+                    Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed, double seekRange) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+                charge, form, topSpeed, seekRange, false);
+    }
 
     /**
      * A delivery whose stream strikes the living within its range.
@@ -189,7 +215,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             // dart-flies-at-a-speed-you-can-follow
             Codec.DOUBLE.optionalFieldOf("top_speed", NO_TOP_SPEED).forGetter(Delivery::topSpeed),
             // decay-gnats-degrade-each-block-once
-            Codec.DOUBLE.optionalFieldOf("seek_range", NO_SEEK_RANGE).forGetter(Delivery::seekRange)
+            Codec.DOUBLE.optionalFieldOf("seek_range", NO_SEEK_RANGE).forGetter(Delivery::seekRange),
+            // goop-and-slick-spray-follows-the-coat
+            Codec.BOOL.optionalFieldOf("spray_follows_coat", false).forGetter(Delivery::sprayFollowsCoat)
     ).apply(inst, Delivery::new));
 
     /**
@@ -209,24 +237,28 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.optional(StreamSound.STREAM_CODEC), Delivery::sound,
             Charge.STREAM_CODEC, Delivery::charge,
             TravelForm.STREAM_CODEC, Delivery::form,
-            Reach.STREAM_CODEC, delivery -> new Reach(delivery.topSpeed(), delivery.seekRange()),
+            WireTail.STREAM_CODEC,
+            delivery -> new WireTail(delivery.topSpeed(), delivery.seekRange(), delivery.sprayFollowsCoat()),
             (kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
-             charge, form, reach) -> new Delivery(kind, blocksPerTick, range, coneDegrees, ticksPerCharge,
-                    grannyAllowed, particle, transformAt, sound, charge, form, reach.topSpeed(), reach.seekRange()));
+             charge, form, tail) -> new Delivery(kind, blocksPerTick, range, coneDegrees, ticksPerCharge,
+                    grannyAllowed, particle, transformAt, sound, charge, form, tail.topSpeed(), tail.seekRange(),
+                    tail.sprayFollowsCoat()));
 
     /**
-     * The top speed and the seek range on the wire as one field, since a
-     * stream codec composes at most twelve.
+     * The delivery's last fields on the wire as one, since a stream codec
+     * composes at most twelve.
      *
-     * @param topSpeed  the fastest an arc flies in blocks per tick
-     * @param seekRange how far a stream reaches the living it strikes
+     * @param topSpeed         the fastest an arc flies in blocks per tick
+     * @param seekRange        how far a stream reaches the living it strikes
+     * @param sprayFollowsCoat whether a stream's motes fly onto the ends of its coat's rays
      */
-    private record Reach(double topSpeed, double seekRange) {
+    private record WireTail(double topSpeed, double seekRange, boolean sprayFollowsCoat) {
 
-        private static final StreamCodec<ByteBuf, Reach> STREAM_CODEC = StreamCodec.composite(
-                ByteBufCodecs.DOUBLE, Reach::topSpeed,
-                ByteBufCodecs.DOUBLE, Reach::seekRange,
-                Reach::new);
+        private static final StreamCodec<ByteBuf, WireTail> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.DOUBLE, WireTail::topSpeed,
+                ByteBufCodecs.DOUBLE, WireTail::seekRange,
+                ByteBufCodecs.BOOL, WireTail::sprayFollowsCoat,
+                WireTail::new);
     }
 
     /**
@@ -391,6 +423,6 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public Delivery withCone(double newRange, double newConeDegrees) {
         return new Delivery(kind, blocksPerTick, newRange, newConeDegrees, ticksPerCharge, grannyAllowed, particle,
-                transformAt, sound, charge, form, topSpeed, seekRange);
+                transformAt, sound, charge, form, topSpeed, seekRange, sprayFollowsCoat);
     }
 }

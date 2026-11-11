@@ -5,7 +5,7 @@ import com.mercuriusxeno.goo.client.particle.GloveMote;
 import com.mercuriusxeno.goo.client.particle.GloveSwing;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
-import com.mercuriusxeno.goo.throwing.StreamCone;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
@@ -14,10 +14,11 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
  * Plays a tick of a glove stream's motes on the client: each flies from the
- * glove along its own heading inside the cone, carrying the caster's travel,
+ * glove along its own heading inside the cone, or onto the end of a coat ray
+ * for a stream whose spray follows its coat, carrying the caster's travel,
  * and a goo mote swings with its caster's glove over its opening ticks
  * (decisions glove-stream-motes-carry-the-players-travel-velocity,
- * glove-stream-motes-swing-with-the-glove-at-launch).
+ * glove-stream-motes-swing-with-the-glove-at-launch, goop-and-slick-spray-follows-the-coat).
  */
 public final class StreamMotes {
 
@@ -44,11 +45,11 @@ public final class StreamMotes {
             return;
         }
         RandomSource random = mc.level.getRandom();
+        CoatRay.BlockClip clip = CoatRay.clipping(mc.level);
         Vec3 apex = payload.apex();
         for (int i = 0; i < MOTES_PER_TICK; i++) {
-            Vec3 heading = StreamCone.launchDirection(payload.axis(), payload.coneDegrees(), random.nextDouble(),
-                    random.nextDouble());
-            Vec3 launch = GooStreamHandler.moteLaunch(heading, payload.speed(), payload.travel());
+            CoatRay.ConeShare share = new CoatRay.ConeShare(random.nextDouble(), random.nextDouble());
+            Vec3 launch = GooStreamHandler.moteLaunch(payload, share, clip);
             if (mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                     launch.z) instanceof GloveMote mote) {
                 mote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
