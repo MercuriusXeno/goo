@@ -53,6 +53,11 @@ public final class GatePassage {
     private static final Vec3 UP = new Vec3(0, 1, 0);
     /** The least upward speed a body comes up out of a floor gate with, rising about two blocks. */
     private static final double FLOOR_EXIT_LIFT = 0.55;
+    /**
+     * Twice a living body's gravity of 0.08 blocks a tick each tick: rising a
+     * height costs this much of the square of its upward speed per block.
+     */
+    private static final double TWICE_GRAVITY = 2 * 0.08;
     /** A turned heading this near zero long stands straight up or down, with no level heading to read. */
     private static final double TURN_EPSILON = 1.0E-6;
     /**
@@ -578,22 +583,35 @@ public final class GatePassage {
         // the landing margin before the partner's face instead, so the camera never stands where it would clip.
         double short_ = LANDING_MARGIN - far.out(landing.feet().add(0, held.drop(), 0));
         Vec3 ahead = short_ > 0 ? landing.feet().add(far.face().getUnitVec3().scale(short_)) : landing.feet();
-        return new Landing(clearOf(far, ahead, height), liftedOutOf(far, landing.motion()), landing.yaw(),
-                landing.pitch());
+        Vec3 feet = clearOf(far, ahead, height);
+        // The height the body is credited going through: from the held point's depth past the near face, which it
+        // fell through, to its place over the far face once set clear.
+        double raised = far.out(feet.add(0, held.drop(), 0)) - near.out(held.point()) * near.face().getStepY();
+        return new Landing(feet, liftedOutOf(far, landing.motion(), raised), landing.yaw(), landing.pitch());
     }
 
     /**
      * Momentum coming out of a gate, lifted where the gate is a floor: a body
      * coming up out of a floor gate rises at least a couple of blocks, air
-     * time to step off it before it falls back in.
+     * time to step off it before it falls back in. The lift is a least speed,
+     * never added: the body's own upward speed pays for the height its feet
+     * are raised by to stand clear of the face, so a body looping through
+     * floor gates hops the same height each pass rather than gaining the fall
+     * it sank below the face by.
+     * portals-link-by-looking-through-portal-vision
      *
      * @param gate   the gate come out of
      * @param motion the momentum turned through the pair
+     * @param raised how far up its feet were set to stand clear of the face, in blocks
      * @return the momentum it comes out with
      */
-    static Vec3 liftedOutOf(Gate gate, Vec3 motion) {
-        return gate.face() == Direction.UP && motion.y() < FLOOR_EXIT_LIFT
-                ? new Vec3(motion.x(), FLOOR_EXIT_LIFT, motion.z()) : motion;
+    static Vec3 liftedOutOf(Gate gate, Vec3 motion, double raised) {
+        if (gate.face() != Direction.UP) {
+            return motion;
+        }
+        double paid = motion.y() > 0 ? Math.sqrt(Math.max(motion.y() * motion.y() - TWICE_GRAVITY * raised, 0))
+                : motion.y();
+        return new Vec3(motion.x(), Math.max(paid, FLOOR_EXIT_LIFT), motion.z());
     }
 
     /**

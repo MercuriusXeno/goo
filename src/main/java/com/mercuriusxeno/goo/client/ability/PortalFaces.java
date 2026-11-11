@@ -14,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
@@ -28,6 +29,8 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
 
 /**
  * Draws every gate as an oval on the face it covers, blue or orange: the
@@ -70,6 +73,58 @@ public final class PortalFaces {
     private static final float HALF_WAVE = 0.5F;
     /** How far off its blocks a gate's face stands, so the two never fight for depth. */
     private static final double FACE_LIFT = 0.01;
+    /**
+     * How far past a gate's blocks its halo reaches on each way across the
+     * face, in blocks: half a block, eight texels, tuned by eye. The halo
+     * shader's HALO_MARGIN_TEXELS counts the same reach in texels.
+     */
+    static final double HALO_MARGIN = 0.5;
+    /**
+     * A halo vertex's alpha marks the edge its oval draws, which the halo
+     * shader starts from: none for a portal's clean oval, whole for a hole
+     * mouth's torn edge. The halo's strength is the shader's own.
+     */
+    /**
+     * How far the swirl band's arch peaks out of the wall along the face's
+     * normal, right over its line, in blocks: one sixteenth, as the operator
+     * set it.
+     */
+    static final double BAND_DEPTH = 1.0 / 16;
+    /**
+     * How far the swirl band's sleeve runs back into the portal behind its
+     * face, in blocks: one sixteenth, as the operator set it, so the band
+     * straddles the block face.
+     */
+    static final double BAND_SLEEVE = 1.0 / 16;
+    /**
+     * How far inside the oval's edge the swirl band's line runs, in blocks:
+     * half a texel, through the middle of the rim's pixel ring, so the band's
+     * smooth line cuts the pixel staircase.
+     */
+    static final double BAND_INSET = 0.5 / 16;
+    /**
+     * How far inside its line the swirl band lands on the face, over the
+     * portal's view, in blocks: one texel, so the band runs no wider than the
+     * rim's own pixel ring, tuned by eye.
+     */
+    static final double BAND_INSIDE = 1.0 / 16;
+    /** How far outside its line the swirl band lands on the face, on the wall, in blocks: one texel, tuned by eye. */
+    static final double BAND_OUTSIDE = 1.0 / 16;
+    /** How many rings the swirl band's arch runs across in, from inside the rim to outside. */
+    private static final int BAND_RINGS = 6;
+    /** How many segments each of the band's rings runs around the rim in, enough that it draws round. */
+    private static final int BAND_SEGMENTS = 64;
+    /**
+     * Where a hole mouth's band arches over, as a share of the oval's
+     * radius: the middle of the mouth's tear, one less half HOLE_TEAR_DEPTH
+     * in portal_texels.glsl, so the band reaches the tear wherever the tear
+     * stands, and the swirl band shader cuts what lies inside it.
+     */
+    private static final double TORN_MIDDLE = 0.92;
+    /** The three in Ramanujan's reckoning of an oval's perimeter. */
+    private static final double RAMANUJAN_THREE = 3;
+    static final int CLEAN_EDGE = 0;
+    static final int TORN_EDGE = 255;
 
     private PortalFaces() {
     }
@@ -127,11 +182,29 @@ public final class PortalFaces {
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         List<Drawn> gates = gatesIn(mc.level.dimension());
+        drawHalos(pose, buffers, camera, gates);
         if (PortalView.drawing()) {
             drawViews(pose, buffers, camera, gates);
             drawIdle(pose, buffers, camera, gates);
             return;
         }
+        drawWorldPass(pose, buffers, camera, player, gates);
+    }
+
+    /**
+     * Draws the gates in the world's own pass: the views and idle swirls,
+     * then the portals a right click with Portal in the glove works on
+     * blinking, and while choosing, every portal's outline through blocks.
+     *
+     * @param pose    the pose
+     * @param buffers the frame's buffers
+     * @param camera  the camera's position
+     * @param player  the local player
+     * @param gates   the gates the frame draws
+     */
+    private static void drawWorldPass(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            LocalPlayer player, List<Drawn> gates) {
+        Minecraft mc = Minecraft.getInstance();
         boolean holding = PortalAim.selected(GloveAim.selectedAbilityId(player));
         Optional<Portal> chosen = holding ? ClientPortals.choosing() : Optional.empty();
         Optional<Portal> aimed = holding && (chosen.isPresent() || PortalAim.working(player))
@@ -288,6 +361,402 @@ public final class PortalFaces {
     }
 
     /**
+     * The gates that wear a halo and swirl band in the pass drawing now:
+     * every gate, but inside a view through a pair, never the partner the
+     * view looks out of, whose own halo and band would ring the near gate's
+     * view in the partner's color, blue on the orange portal.
+     *
+     * @param gates        the gates the frame draws
+     * @param lookingOutOf the partner the view drawing now looks out of, empty outside a view
+     * @return the gates that wear theirs
+     */
+    static List<Drawn> wornIn(List<Drawn> gates, Optional<Gate> lookingOutOf) {
+        return gates.stream().filter(drawn -> lookingOutOf.filter(drawn.gate()::equals).isEmpty()).toList();
+    }
+
+    /**
+     * The gate whose swirl band's sleeve the pass drawing now shows: the band
+     * straddles its portal's face, and the half behind the face runs back
+     * into the portal, where only the view through it sees it. So inside a
+     * view through a pair, the partner the view looks out of wears the near
+     * gate's sleeve in the near gate's color: looking into the orange
+     * portal, its orange swirl recedes into it. Outside a view, or where the
+     * near gate is none the frame draws, no gate wears one.
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param gates   the gates the frame draws
+     * @param viewing the gate the view drawing now looks into, then its partner, empty outside a view
+     * @return the partner in the near gate's color, or none
+     */
+    static List<Drawn> sleevedIn(List<Drawn> gates, Optional<GatePassage.Pair> viewing) {
+        return viewing.flatMap(pair -> gates.stream().filter(drawn -> drawn.gate().equals(pair.one())).findFirst()
+                .map(near -> new Drawn(pair.other(), near.rgb(), near.hole()))).stream().toList();
+    }
+
+    /**
+     * Draws the halo of every placed portal, waiting or linked, blinking or
+     * not, and of both mouths of each hole, glowing onto the wall around its
+     * edge in its own color; beside it each one's swirl band standing out of
+     * the wall; and inside a view through a pair, the near gate's band's
+     * sleeve running back into it.
+     * portal-halo-glows-additively-onto-the-wall
+     * hole-mouths-wear-the-portal-halo
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param pose    the pose
+     * @param buffers the frame's buffers
+     * @param camera  the camera's position
+     * @param gates   the gates the frame draws
+     */
+    private static void drawHalos(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            List<Drawn> gates) {
+        Optional<GatePassage.Pair> viewing = PortalView.viewing();
+        List<Drawn> worn = wornIn(gates, viewing.map(GatePassage.Pair::other));
+        VertexConsumer halo = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
+        emitHalos(pose, halo, worn, drawn -> drawn.drawnBox(camera));
+        Level level = Minecraft.getInstance().level;
+        emitCornerGlows(pose, halo, worn, drawn -> drawn.drawnBox(camera),
+                (pos, face) -> level != null && level.getBlockState(pos).isFaceSturdy(level, pos, face));
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
+        VertexConsumer bands = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
+        emitSwirlBands(pose, bands, worn, drawn -> drawn.drawnBox(camera));
+        emitSleeves(pose, bands, sleevedIn(gates, viewing), drawn -> drawn.drawnBox(camera));
+        buffers.endBatch(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
+    }
+
+    /**
+     * Emits the swirl band of every gate the frame draws, each portal and
+     * each of a hole's two mouths, beside its surface glow, in its own color.
+     * A mouth's edge is marked torn and its band arches over the middle of
+     * its tear, so the shader starts it at the tear.
+     * tornadic-halo-spirals-out-from-the-rim
+     * hole-mouths-wear-the-tornadic-halo
+     *
+     * @param pose     the pose
+     * @param consumer the swirl band pipeline's vertex consumer
+     * @param gates    the gates the frame draws
+     * @param boxOf    the box each gate draws over, camera-relative
+     */
+    static void emitSwirlBands(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+            Function<Drawn, AABB> boxOf) {
+        for (Drawn drawn : gates) {
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), colorOf(drawn), false);
+        }
+    }
+
+    /**
+     * Emits the sleeve of each gate given: the half of its swirl band behind
+     * its portal's face, a ring at the band's line running the named sleeve
+     * depth back into the portal, which the view through the pair draws in
+     * front of the partner's face.
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param pose     the pose
+     * @param consumer the swirl band pipeline's vertex consumer
+     * @param gates    the gates whose sleeves show, each in the color it wears
+     * @param boxOf    the box each gate draws over, camera-relative
+     */
+    static void emitSleeves(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+            Function<Drawn, AABB> boxOf) {
+        for (Drawn drawn : gates) {
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), colorOf(drawn), true);
+        }
+    }
+
+    /**
+     * @param drawn a gate the frame draws
+     * @return its swirl band's packed ARGB color, its alpha the edge mark
+     */
+    private static int colorOf(Drawn drawn) {
+        return ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb());
+    }
+
+    /**
+     * Emits a gate's swirl band: before the face, an arch from the named
+     * distance inside its line to the named distance outside, rising to the
+     * named depth right over the line; or, for the sleeve, a ring at the line
+     * running back into the portal. Each quad maps zero to one around the
+     * rim, and across the arch zero to one from inside to outside, or along
+     * the sleeve a half to one from the face back, the arch's line and the
+     * sleeve's mouth meeting at a half; every vertex carries the texels
+     * around the rim and across the arch at sixteen a block.
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param arch     the arch over the gate's rim
+     * @param color    the packed ARGB color, its alpha the edge mark
+     * @param sleeve   whether to emit the sleeve rather than the arch
+     */
+    private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Arch arch, int color,
+            boolean sleeve) {
+        int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+        int[] texels = arch.texels();
+        for (int level = 0; level < BAND_RINGS; level++) {
+            for (int segment = 0; segment < BAND_SEGMENTS; segment++) {
+                for (int[] corner : corners) {
+                    double share = (double) (level + corner[1]) / BAND_RINGS;
+                    Vec3 at = sleeve ? arch.sleevePoint(segment + corner[0], share)
+                            : arch.point(segment + corner[0], share);
+                    consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
+                            .setUv((float) (segment + corner[0]) / BAND_SEGMENTS,
+                                    (float) (sleeve ? HALF_WAVE + HALF_WAVE * share : share))
+                            .setUv2(texels[0], texels[1]).setColor(color);
+                }
+            }
+        }
+    }
+
+    /**
+     * The arch a gate's swirl band draws over: the rim's oval on the face,
+     * its half sizes across the face's two ways, the arch straddling it.
+     *
+     * @param center the oval's middle on the face's plane, lifted off it
+     * @param side   the face
+     * @param half   the oval's half size across the face's first way, then its second
+     * @param base   where the arch peaks, as a share of the oval's radius
+     */
+    private record Arch(Vec3 center, Direction side, double[] half, double base) {
+
+        /**
+         * @param box  the gate's blocks, camera-relative
+         * @param side the face
+         * @param base where the arch peaks, as a share of the oval's radius
+         * @return the arch
+         */
+        static Arch over(AABB box, Direction side, double base) {
+            Vec3 middle = cornerOf(box, side, 0, 0).add(cornerOf(box, side, 1, 1)).scale(HALF_WAVE);
+            return new Arch(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
+                    * HALF_WAVE, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * HALF_WAVE}, base);
+        }
+
+        /**
+         * @param drawn a gate the frame draws
+         * @param boxOf the box each gate draws over, camera-relative
+         * @return the arch over its rim, over the middle of its tear for a hole's mouth
+         */
+        static Arch of(Drawn drawn, Function<Drawn, AABB> boxOf) {
+            return over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_MIDDLE : 1);
+        }
+
+        /**
+         * @param segment how many segments around the rim, of the named count
+         * @param share   how far across the arch from inside its line to outside, zero to one
+         * @return the arch's point there
+         */
+        Vec3 point(int segment, double share) {
+            return around(segment, Mth.lerp(share, -BAND_INSIDE, BAND_OUTSIDE))
+                    .add(side.getUnitVec3().scale(BAND_DEPTH * Math.sin(Math.PI * share)));
+        }
+
+        /**
+         * @param segment how many segments around the rim, of the named count
+         * @param share   how far along the sleeve from the face back into the portal, zero to one
+         * @return the sleeve's point there
+         */
+        Vec3 sleevePoint(int segment, double share) {
+            return around(segment, 0).add(side.getUnitVec3().scale(BAND_SLEEVE * share));
+        }
+
+        /**
+         * @param segment how many segments around the rim, of the named count
+         * @param off     how far out past the band's line, in blocks
+         * @return the point on the face that far out past the line at that segment
+         */
+        private Vec3 around(int segment, double off) {
+            double angle = Mth.TWO_PI * segment / BAND_SEGMENTS;
+            double out = off - BAND_INSET;
+            return center.add(Vec3.ZERO.with(firstAxisOf(side), (half[0] * base + out) * Math.cos(angle))
+                    .with(secondAxisOf(side), (half[1] * base + out) * Math.sin(angle)));
+        }
+
+        /**
+         * @return the texels around the arch's peak, by Ramanujan's reckoning
+         *         of an oval's perimeter, then across the arch from inside the
+         *         rim to outside, at sixteen a block
+         */
+        int[] texels() {
+            double first = half[0] * base;
+            double second = half[1] * base;
+            double around = Math.PI * (RAMANUJAN_THREE * (first + second) - Math.sqrt((RAMANUJAN_THREE * first
+                    + second) * (first + RAMANUJAN_THREE * second)));
+            return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
+                    (int) Math.round((BAND_INSIDE + BAND_OUTSIDE) * TEXELS_PER_BLOCK)};
+        }
+    }
+
+    /**
+     * Emits the surface glow onto every block face forming a tight corner
+     * around a gate's mouth: each full solid face standing in front of the
+     * gate's wall, bordering its box on the left, the right, below or above,
+     * and facing the mouth, lit in the gate's own color, a mouth's carrying
+     * the torn edge's mark. Each quad runs from the wall out the halo margin
+     * along the face, and its face coordinate unfolds the face past the wall
+     * quad's edge, so the halo shader reads how far past as the height off
+     * the wall and fades by true distance from the rim.
+     * glow-wraps-onto-corner-faces
+     * hole-mouths-wear-the-portal-halo
+     *
+     * @param pose     the pose
+     * @param consumer the halo pipeline's vertex consumer
+     * @param gates    the gates the frame draws
+     * @param boxOf    the box each gate draws over, camera-relative
+     * @param fullFace whether a block shows a full solid face its given way
+     */
+    static void emitCornerGlows(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+            Function<Drawn, AABB> boxOf, BiPredicate<BlockPos, Direction> fullFace) {
+        for (Drawn drawn : gates) {
+            AABB world = drawn.gate().blocks();
+            Vec3 shift = boxOf.apply(drawn).getCenter().subtract(world.getCenter());
+            for (Corner corner : cornersOf(world, drawn.gate().face(), fullFace)) {
+                emitCornerGlow(pose, consumer, new CornerQuad(world, drawn.gate().face(), corner, shift),
+                        ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
+            }
+        }
+    }
+
+    /**
+     * A block forming a corner around a gate's mouth and the way out from the
+     * mouth to it.
+     *
+     * @param block the block, in the layer in front of the gate's wall
+     * @param out   the way across the face from the mouth to the block
+     */
+    record Corner(BlockPos block, Direction out) {
+    }
+
+    /**
+     * The blocks forming a tight corner around a gate's mouth: in the layer in
+     * front of its wall, bordering its box on each way across the face, each
+     * showing a full solid face back toward the mouth.
+     * glow-wraps-onto-corner-faces
+     *
+     * @param world    the gate's blocks
+     * @param side     the face
+     * @param fullFace whether a block shows a full solid face its given way
+     * @return the corners
+     */
+    static List<Corner> cornersOf(AABB world, Direction side, BiPredicate<BlockPos, Direction> fullFace) {
+        List<Corner> corners = new ArrayList<>();
+        for (BlockPos block : BlockPos.betweenClosed(BlockPos.containing(world.minX, world.minY, world.minZ),
+                BlockPos.containing(world.maxX - 1, world.maxY - 1, world.maxZ - 1))) {
+            for (Direction out : Direction.values()) {
+                BlockPos beside = block.relative(out);
+                BlockPos corner = beside.relative(side);
+                if (out.getAxis() != side.getAxis() && !world.contains(Vec3.atCenterOf(beside))
+                        && fullFace.test(corner, out.getOpposite())) {
+                    corners.add(new Corner(corner.immutable(), out));
+                }
+            }
+        }
+        return corners;
+    }
+
+    /**
+     * Emits one corner face's glow as a quad from the wall out the halo
+     * margin, lifted off the face toward the mouth.
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param quad     the corner's quad
+     * @param color    the packed ARGB color, its alpha the edge mark
+     */
+    private static void emitCornerGlow(PoseStack.Pose pose, VertexConsumer consumer, CornerQuad quad, int color) {
+        int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+        int[] texels = texelsAcross(quad.halo(), quad.side());
+        for (int[] corner : corners) {
+            double height = corner[1] * HALO_MARGIN;
+            Vec3 at = quad.point(corner[0], height);
+            double[] frame = quad.frame(corner[0], height);
+            consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
+                    .setUv((float) frame[0], (float) frame[1]).setUv2(texels[0], texels[1]).setColor(color);
+        }
+    }
+
+    /**
+     * A corner face's glow quad: on the face of a block beside a gate's mouth
+     * toward the mouth, running along the block and out from the wall.
+     *
+     * @param world  the gate's blocks
+     * @param side   the gate's face
+     * @param corner the corner block and the way out to it
+     * @param shift  what moves world positions to where the frame draws them
+     */
+    private record CornerQuad(AABB world, Direction side, Corner corner, Vec3 shift) {
+
+        /** @return the gate's halo quad's box, whose face coordinate the corner unfolds past */
+        AABB halo() {
+            Direction.Axis normal = side.getAxis();
+            return world.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN,
+                    normal == Direction.Axis.Y ? 0 : HALO_MARGIN, normal == Direction.Axis.Z ? 0 : HALO_MARGIN);
+        }
+
+        /**
+         * @param end    zero for the block's low end along the box's edge, one for its high
+         * @param height how far off the wall, in blocks
+         * @return the quad's corner there, lifted off the face toward the mouth
+         */
+        Vec3 point(int end, double height) {
+            Direction out = corner.out();
+            Vec3 on = Vec3.ZERO.with(side.getAxis(), wall() + side.getAxisDirection().getStep() * height)
+                    .with(out.getAxis(), boundary() - out.getAxisDirection().getStep() * FACE_LIFT)
+                    .with(along(), corner.block().get(along()) + end);
+            return on.add(shift);
+        }
+
+        /**
+         * @param end    zero for the block's low end along the box's edge, one for its high
+         * @param height how far off the wall, in blocks
+         * @return the face coordinate there, the face unfolded past the halo quad's edge by the height
+         */
+        double[] frame(int end, double height) {
+            Direction out = corner.out();
+            Vec3 unfolded = Vec3.ZERO.with(out.getAxis(), boundary()
+                    + out.getAxisDirection().getStep() * (HALO_MARGIN + height))
+                    .with(along(), corner.block().get(along()) + end);
+            AABB halo = halo();
+            return new double[] {share(halo, unfolded, firstAxisOf(side)), share(halo, unfolded, secondAxisOf(side))};
+        }
+
+        private static double share(AABB box, Vec3 at, Direction.Axis axis) {
+            return (at.get(axis) - box.min(axis)) / (box.max(axis) - box.min(axis));
+        }
+
+        private double wall() {
+            return side.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                    ? world.max(side.getAxis()) : world.min(side.getAxis());
+        }
+
+        private double boundary() {
+            Direction out = corner.out();
+            return out.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                    ? world.max(out.getAxis()) : world.min(out.getAxis());
+        }
+
+        private Direction.Axis along() {
+            return firstAxisOf(side) == corner.out().getAxis() ? secondAxisOf(side) : firstAxisOf(side);
+        }
+    }
+
+    /**
+     * Emits the halo of every gate the frame draws, each portal and each of
+     * a hole's two mouths, in its own color, a mouth's edge marked torn.
+     * portal-halo-glows-additively-onto-the-wall
+     * hole-mouths-wear-the-portal-halo
+     *
+     * @param pose     the pose
+     * @param consumer the halo pipeline's vertex consumer
+     * @param gates    the gates the frame draws
+     * @param boxOf    the box each gate draws over, camera-relative
+     */
+    static void emitHalos(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+            Function<Drawn, AABB> boxOf) {
+        for (Drawn drawn : gates) {
+            emitHalo(pose, consumer, boxOf.apply(drawn), drawn.gate().face(), drawn.rgb(), drawn.hole());
+        }
+    }
+
+    /**
      * @param gate a gate
      * @return whether no link the client knows holds it
      */
@@ -317,6 +786,29 @@ public final class PortalFaces {
             consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z()).setUv(corner[0], corner[1])
                     .setUv2(texels[0], texels[1]).setColor(color);
         }
+    }
+
+    /**
+     * Emits a gate's halo as a quad over its face reaching the halo margin
+     * past its blocks on each way across the face, its corners mapped zero to
+     * one across that wider quad and carrying its texel count, so the halo
+     * shader draws on the same sixteen-texel grid as the rim and starts where
+     * the gate's edge ends.
+     * portal-halo-glows-additively-onto-the-wall
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param box      the gate's blocks, camera-relative
+     * @param side     the face
+     * @param rgb      the gate's color, 0xRRGGBB
+     * @param torn     whether the gate is a hole's mouth, its edge torn
+     */
+    private static void emitHalo(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int rgb,
+            boolean torn) {
+        Direction.Axis normal = side.getAxis();
+        AABB halo = box.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN, normal == Direction.Axis.Y ? 0 : HALO_MARGIN,
+                normal == Direction.Axis.Z ? 0 : HALO_MARGIN);
+        emitOval(pose, consumer, halo, side, ARGB.color(torn ? TORN_EDGE : CLEAN_EDGE, rgb));
     }
 
     /**
