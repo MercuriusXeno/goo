@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.hole;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pocket.PocketShelves;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -78,13 +79,12 @@ public final class PortableHoles {
         if (OPEN.isEmpty()) {
             return;
         }
-        boolean closed = OPEN.values().removeIf(hole -> closes(server, hole));
+        boolean changed = OPEN.values().removeIf(hole -> closes(server, hole));
         for (PortableHole hole : OPEN.values()) {
-            if (hole.swallows()) {
-                swallow(server.getLevel(hole.dimension()), hole);
-            }
+            // a swallow changes what the mouth shows swimming in it, so the clients hear of it
+            changed |= hole.swallows() && swallow(server.getLevel(hole.dimension()), hole);
         }
-        if (closed) {
+        if (changed) {
             sync(server);
         }
     }
@@ -104,10 +104,10 @@ public final class PortableHoles {
                 || !owner.level().dimension().equals(hole.dimension());
     }
 
-    private static void swallow(ServerLevel level, PortableHole hole) {
+    private static boolean swallow(ServerLevel level, PortableHole hole) {
         List<ItemEntity> fallen = level.getEntitiesOfClass(ItemEntity.class, hole.mouth(), ItemEntity::isAlive);
         if (fallen.isEmpty()) {
-            return;
+            return false;
         }
         PocketShelves shelves = PocketShelves.get(level);
         for (ItemEntity item : fallen) {
@@ -117,6 +117,7 @@ public final class PortableHoles {
         Vec3 middle = hole.mouth().getCenter();
         level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS,
                 SWALLOW_VOLUME, SWALLOW_PITCH);
+        return true;
     }
 
     /**
@@ -164,13 +165,30 @@ public final class PortableHoles {
      * @param player the player
      */
     private static void syncTo(ServerPlayer player) {
+        PocketShelves shelves = PocketShelves.get(player.level());
         PortableHolesSyncPayload payload = new PortableHolesSyncPayload(OPEN.values().stream()
                 .filter(hole -> hole.dimension().equals(player.level().dimension()))
-                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.block(), hole.face(), hole.closesAt()))
+                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.block(), hole.face(), hole.closesAt(),
+                        storedOf(shelves, hole.owner())))
                 .toList());
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         if (player.connection.hasChannel(payload)) {
             PacketDistributor.sendToPlayer(player, payload);
         }
+    }
+
+    /**
+     * The first kinds an owner stored, as many as a mouth shows, for the
+     * client to draw swimming in the mouth.
+     *
+     * @param shelves the server's shelves
+     * @param owner   the hole's owner
+     * @return the kinds and their counts, in shelf order
+     */
+    private static List<PortableHolesSyncPayload.Stored> storedOf(PocketShelves shelves, UUID owner) {
+        return shelves.shelfOf(owner).stream().limit(PortableHolesSyncPayload.MOST_STORED_SHOWN)
+                .map(entry -> new PortableHolesSyncPayload.Stored(
+                        BuiltInRegistries.ITEM.getKey(entry.kind().getItem()), entry.count()))
+                .toList();
     }
 }
