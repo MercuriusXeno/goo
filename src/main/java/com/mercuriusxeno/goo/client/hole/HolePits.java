@@ -162,14 +162,13 @@ public final class HolePits {
         for (PortableHolesSyncPayload.Mouth mouth : drawn) {
             Direction face = mouth.face();
             Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
-            // the carve stays within the pit's walls, so every carved point has the pit behind it
-            AABB opening = pitOf(mouth.footprint(), face).rim();
-            Vec3 across = face.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
-            Vec3 along = normal.cross(across);
+            Vec3 across = acrossOf(face);
+            CarveSpans spans = carveSpansOf(mouth.footprint(), face);
             float open = ClientPortableHoles.openShare(mouth, time);
-            Vec3 acrossRadius = across.scale(HoleMouths.halfSpan(opening, across) * open);
-            Vec3 alongRadius = along.scale(HoleMouths.halfSpan(opening, along) * open);
-            Vec3 centre = opening.getCenter().add(normal.scale(FACE_LIFT)).subtract(camera);
+            Vec3 acrossRadius = across.scale(spans.across() * open);
+            Vec3 alongRadius = normal.cross(across).scale(spans.along() * open);
+            Vec3 centre = pitOf(mouth.footprint(), face).rim().getCenter().add(normal.scale(FACE_LIFT))
+                    .subtract(camera);
             for (int segment = 0; segment < SEGMENTS; segment++) {
                 Vec3 from = rimAt(centre, acrossRadius, alongRadius, Mth.TWO_PI * segment / SEGMENTS);
                 Vec3 to = rimAt(centre, acrossRadius, alongRadius, Mth.TWO_PI * (segment + 1) / SEGMENTS);
@@ -205,6 +204,36 @@ public final class HolePits {
                 .scale(PIT_INSET);
         AABB rim = HoleMouths.openingOn(footprint, face).deflate(across.x(), across.y(), across.z());
         return new Pit(rim, rim.move(inward.scale(HoleDrift.PIT_DEPTH)));
+    }
+
+    /**
+     * How far a fully open mouth's carved oval reaches from its middle each
+     * way across its face.
+     *
+     * @param across its half span along the face's across axis
+     * @param along  its half span along the face's along axis
+     */
+    record CarveSpans(double across, double along) {
+    }
+
+    /**
+     * The carved oval's half spans for a footprint: the pit rim's, so the
+     * carve stays within the pit's walls and every line of sight through it
+     * ends on the pit.
+     *
+     * @param footprint the blocks whose faces the mouth covers
+     * @param face      the face it opens on
+     * @return the oval's half spans when fully open
+     */
+    static CarveSpans carveSpansOf(List<BlockPos> footprint, Direction face) {
+        AABB rim = pitOf(footprint, face).rim();
+        Vec3 across = acrossOf(face);
+        Vec3 along = Vec3.atLowerCornerOf(face.getUnitVec3i()).cross(across);
+        return new CarveSpans(HoleMouths.halfSpan(rim, across), HoleMouths.halfSpan(rim, along));
+    }
+
+    private static Vec3 acrossOf(Direction face) {
+        return face.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
     }
 
     private static Vec3 rimAt(Vec3 centre, Vec3 acrossRadius, Vec3 alongRadius, float angle) {
