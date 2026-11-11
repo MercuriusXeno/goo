@@ -13,13 +13,12 @@ import org.jspecify.annotations.NonNull;
  * the sound's rings out and outlines the mob it came from.
  * decision sculker-sight-persists-where-echoes-have-touched
  *
- * @param x        where the sound played, east
- * @param y        where the sound played, up
- * @param z        where the sound played, south
- * @param loudness its volume, 1 for an ordinary sound
- * @param range    how far it carries, in blocks
+ * @param x     where the sound played, east
+ * @param y     where the sound played, up
+ * @param z     where the sound played, south
+ * @param sound the sound's id, which its rank is read from
  */
-public record SculkerHeardPayload(double x, double y, double z, float loudness, float range)
+public record SculkerHeardPayload(double x, double y, double z, String sound)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -39,12 +38,10 @@ public record SculkerHeardPayload(double x, double y, double z, float loudness, 
         buf.writeDouble(payload.x);
         buf.writeDouble(payload.y);
         buf.writeDouble(payload.z);
-        buf.writeFloat(payload.loudness);
-        buf.writeFloat(payload.range);
+        buf.writeUtf(payload.sound);
     }
 
     private static SculkerHeardPayload decode(FriendlyByteBuf buf) {
-        return new SculkerHeardPayload(buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(),
-                buf.readFloat());
+        return new SculkerHeardPayload(buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readUtf());
     }
 }

@@ -55,6 +55,7 @@ import com.mercuriusxeno.goo.network.PortalsSyncPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
+import com.mercuriusxeno.goo.network.SculkerVibrationPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
@@ -111,6 +112,7 @@ public final class GooClientNetworking {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
         event.register(SculkerHeardPayload.TYPE, SculkerHeardHandler::handle);
+        event.register(SculkerVibrationPayload.TYPE, SculkerVibrationHandler::handle);
         registerEffectHandlers(event);
     }
 

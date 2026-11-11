@@ -29,4 +29,12 @@ class SculkerHearingTest {
     void aSoundPastRenderDistanceIsNotCarried() {
         assertFalse(SculkerHearing.carriesTo(VIEW_REACH + 1, VANILLA_RANGE, VIEW_REACH));
     }
+
+    /** Only a vibration ranked above 5 lends a sound more than it rings at unranked (decision sculker-echo-intensity-follows-vibration-rank). */
+    @Test
+    void onlyAVibrationRankedAboveFiveIsForwarded() {
+        assertTrue(SculkerHearing.forwards(6));
+        assertFalse(SculkerHearing.forwards(5));
+        assertFalse(SculkerHearing.forwards(0));
+    }
 }
