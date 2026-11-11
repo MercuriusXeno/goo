@@ -15,9 +15,11 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * heals as hex wisps. Lifetap splashes once per point of health healed, each
  * splash a burst of wisps scattering off the victim before they curl home,
  * the splashes a beat apart; Drain trickles a few wisps at a time, staggered
- * so a held field keeps a steady stream.
+ * so a held field keeps a steady stream, and bursts a few on the victim at
+ * each strike.
  * lifetap-trades-regen-for-leech
  * drain-field-heals-with-the-lifetap-visuals
+ * drained-mobs-show-stream-burst-and-tether
  */
 public final class LeechWisps {
 
@@ -27,10 +29,15 @@ public final class LeechWisps {
     static final int SPLASH_STAGGER = 3;
     /** The most splashes one heal plays. */
     static final int MOST_SPLASHES = 8;
-    /** Wisps in one trickle. */
-    static final int WISPS_PER_TRICKLE = 5;
+    /** Wisps in one trickle, enough over its spread to read as one stream from the mob to the caster. */
+    static final int WISPS_PER_TRICKLE = 16;
+    /** Wisps a strike bursts on the victim's body, scattering and fading there. */
+    static final int WISPS_PER_BURST = 6;
     /** Ticks over which a trickle's wisps set off, a strike's interval in a held field. */
     static final int TRICKLE_SPREAD = 10;
+    private static final double BURST_SPEED = 0.09;
+    private static final int BURST_TICKS = 6;
+    private static final int BURST_VARIANCE = 4;
     private static final double SCATTER_SPEED = 0.16;
     private static final double SCATTER_LIFT = 0.06;
     private static final int SCATTER_TICKS = 5;
@@ -72,6 +79,8 @@ public final class LeechWisps {
                     || !(level.getEntity(payload.healedId()) instanceof Entity healed)) {
                 return;
             }
+            // touched-mobs-show-hearts-or-a-count-over-max
+            TouchedMobs.CLIENT.touch(victim.getId(), level.getGameTime());
             Vec3 from = victim.position().add(0, victim.getBbHeight() * BODY_CENTER, 0);
             if (payload.splash()) {
                 for (int splash = 0; splash < splashesFor(payload.healed()); splash++) {
@@ -79,8 +88,30 @@ public final class LeechWisps {
                 }
             } else {
                 trickle(mc, level.getRandom(), from, healed);
+                burst(mc, level.getRandom(), victim);
             }
         });
+    }
+
+    /**
+     * Bursts wisps over the victim's body at a strike, so the hit itself shows.
+     * drained-mobs-show-stream-burst-and-tether
+     *
+     * @param mc     the client
+     * @param random the random source
+     * @param victim the mob struck
+     */
+    private static void burst(Minecraft mc, RandomSource random, Entity victim) {
+        for (int wisp = 0; wisp < WISPS_PER_BURST; wisp++) {
+            Vec3 at = victim.position().add((random.nextDouble() - BODY_CENTER) * victim.getBbWidth(),
+                    random.nextDouble() * victim.getBbHeight(), (random.nextDouble() - BODY_CENTER) * victim.getBbWidth());
+            Vec3 scatter = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian())
+                    .normalize().scale(BURST_SPEED * (SLOWEST_SCATTER + random.nextDouble()));
+            if (mc.particleEngine.createParticle(GooParticles.HEX_WISP.get(), at.x, at.y, at.z, 0, 0, 0)
+                    instanceof HexWispParticle spark) {
+                spark.burst(scatter, BURST_TICKS + random.nextInt(BURST_VARIANCE));
+            }
+        }
     }
 
     private static void splash(Minecraft mc, RandomSource random, Vec3 from, Entity healed, int delay) {

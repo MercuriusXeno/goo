@@ -51,8 +51,9 @@ public record TargetStep(List<EntityFilter> where, List<Step> steps) implements 
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.hostAs(TargetHost.class).target();
-        if (EntityScan.passes(target, Set.copyOf(where), target)) {
+        TargetHost host = context.hostAs(TargetHost.class);
+        LivingEntity target = host.target();
+        if (EntityScan.passes(target, Set.copyOf(where), target, host.thrower())) {
             new ProgramBehavior(steps).tick(context.host());
         }
         return true;

@@ -31,6 +31,8 @@ public final class HexWispParticle extends SingleQuadParticle {
     private static final float FADE_IN_TICKS = 3f;
     /** The share of the flight the wisp fades out over as it lands. */
     private static final float FADE_OUT_SHARE = 0.25f;
+    /** The share of a burst wisp's scatter it fades out over. */
+    private static final float BURST_FADE_SHARE = 0.6f;
     /** Each tick of the scatter keeps this share of its speed. */
     private static final double SCATTER_DRAG = 0.78;
     /** How far a dart may change the wisp's speed each tick, on each axis. */
@@ -65,6 +67,7 @@ public final class HexWispParticle extends SingleQuadParticle {
     private Supplier<Vec3> target;
     private @Nullable HomingPath path;
     private int flightAge;
+    private boolean fadesWhereItScatters;
 
     private HexWispParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));
@@ -106,6 +109,23 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.yd = scatter.y;
         this.zd = scatter.z;
         this.lifetime = delay + scatterFor + this.flightTicks;
+    }
+
+    /**
+     * Bursts the wisp where it spawned: it scatters with the velocity given
+     * and fades out there, never flying home.
+     * drained-mobs-show-stream-burst-and-tether
+     *
+     * @param scatter    the velocity it scatters with, blocks per tick
+     * @param scatterFor ticks it scatters before it is gone
+     */
+    public void burst(Vec3 scatter, int scatterFor) {
+        this.scatterTicks = Math.max(1, scatterFor);
+        this.fadesWhereItScatters = true;
+        this.xd = scatter.x;
+        this.yd = scatter.y;
+        this.zd = scatter.z;
+        this.lifetime = this.scatterTicks;
     }
 
     @Override
@@ -175,6 +195,10 @@ public final class HexWispParticle extends SingleQuadParticle {
     }
 
     private float fadeOut() {
+        if (fadesWhereItScatters) {
+            float progress = (float) (this.age - delayTicks) / scatterTicks;
+            return Mth.clamp((1f - progress) / BURST_FADE_SHARE, 0f, 1f);
+        }
         if (path == null) {
             return 1f;
         }

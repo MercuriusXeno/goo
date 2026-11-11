@@ -12,23 +12,22 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
- * Rallies the host's target for the caster and finishes: until the rally
- * fades, the mob strikes the caster's enemies for the named damage, its max
- * health and speed lifted by the named shares. A cast with no caster behind
- * it rallies nothing. A mob under a standing rally has its expiry pushed
- * out, keeping its buff, its health and its first rallier. Zoo's Rally is
- * {@code rally duration=100 damage=6 health=1.5 speed=0.5}, re-run while its
- * held effect stands.
+ * Rallies the host's target for the caster and finishes: until the rallier
+ * strikes it, the mob strikes the caster's enemies for the named damage, its
+ * max health and speed lifted by the named shares. A cast with no caster
+ * behind it rallies nothing. A mob already rallied keeps its buff, its health,
+ * its first rallier and the attacker it records. Zoo's Rally is
+ * {@code rally damage=6 health=1.5 speed=0.5}, thrown at one mob.
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
+ * rally-is-a-mob-effect-on-one-target
  * rally-remembers-the-first-rallier
  *
- * @param duration the ticks the rally lasts past the step's last run, evaluated when the step runs
  * @param damage   the damage one strike deals
  * @param health   the share max health grows by
  * @param speed    the share movement speed grows by
  */
-public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) implements Step {
+public record RallyStep(Expr damage, Expr health, Expr speed) implements Step {
 
     private static final String NAME = "rally";
 
@@ -36,7 +35,6 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
      * Codec for the step's params.
      */
     public static final MapCodec<RallyStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf("duration").forGetter(RallyStep::duration),
             Expr.CODEC.fieldOf("damage").forGetter(RallyStep::damage),
             Expr.CODEC.fieldOf("health").forGetter(RallyStep::health),
             Expr.CODEC.fieldOf("speed").forGetter(RallyStep::speed)
@@ -58,22 +56,18 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
         Entity caster = host.thrower();
         if (caster != null && takesEntity(host.target())) {
             Mob mob = (Mob) host.target();
-            long now = mob.level().getGameTime();
             Rallied standing = mob.hasData(GooAttachments.RALLIED) ? mob.getData(GooAttachments.RALLIED) : null;
-            boolean alreadyRallied = standing != null && standing.standsAt(now);
-            // rally-remembers-the-first-rallier: a second caster's rally refreshes the timing and keeps the first rallier
-            UUID rallier = Rallied.rallierAfter(standing, caster.getUUID(), now);
-            long expiresAt = now + duration.evaluateInt(context);
-            mob.setData(GooAttachments.RALLIED, new Rallied(rallier, expiresAt, damage.evaluateFloat(context),
-                    Rallied.attackerAfter(standing, now)));
-            if (!alreadyRallied) {
-                // zoo-rally-holds-for-the-brew: a refresh pushes the expiry out without healing the mob again
+            // rally-remembers-the-first-rallier: a second caster's rally keeps the first rallier
+            UUID rallier = Rallied.rallierAfter(standing, caster.getUUID());
+            mob.setData(GooAttachments.RALLIED, new Rallied(rallier, damage.evaluateFloat(context),
+                    Rallied.attackerAfter(standing)));
+            if (standing == null) {
+                // a second rally leaves the buff it already holds, healing the mob no further
                 RallyEvents.buff(mob, health.evaluate(context), speed.evaluate(context));
             }
         }
         return true;
     }
-
 
     /**
      * Rally takes a mob.
@@ -89,7 +83,7 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(duration, damage, health, speed);
+        return Stream.of(damage, health, speed);
     }
 
     @Override

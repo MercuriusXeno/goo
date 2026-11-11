@@ -1,21 +1,18 @@
 {
   "gooType": "zoo",
   "displayName": "goo.ability.zoo.rally",
-  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
-  "badge": "durative",
+  "badge": "mob",
   "order": 30,
-  "upkeep": 1,
-  "delivery": { "kind": "self" },
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     {
-      "type": "entities",
-      "shape": "sphere",
-      "radius": 12,
+      "type": "target",
       "where": ["living", "peaceful"],
       "steps": [
-        { "type": "rally", "duration": 100, "damage": 6, "health": 1.5, "speed": 0.5 }
+        { "type": "rally", "damage": 6, "health": 1.5, "speed": 0.5 }
       ]
     }
   ],
-  "tags": ["self"]
+  "tags": ["entity"]
 }
