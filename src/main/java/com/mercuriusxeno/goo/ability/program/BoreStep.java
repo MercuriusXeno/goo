@@ -10,35 +10,36 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Rock bore's step, run each held tick of the stream: it cuts a tunnel along
- * the look inside the stream's cone out to its reach, about one block wide,
- * the nearest block first, the JSON's count of breaks a tick, which keeps
- * pace with walking. A solid block outside the tag on the eye line stops the
- * bore there (decision bore-breaks-a-15-degree-cone). Each tick the strike
- * steps run on every living entity whose
- * body overlaps the tunnel's cells and that every where filter keeps, so a
- * mob in the tunnel takes Bore's damage and one behind the stopping block
+ * Rock bore's step, run each held tick of the stream: it drills the blocks
+ * the eye line crosses out to the stream's reach, one block wide, whatever
+ * the stream's cone. Every breakable block on the line progresses toward
+ * broken each tick through the hold's gradual break, the nearest at the pace
+ * its JSON names and each one farther out slower, so the line breaks nearest
+ * first over several ticks. A solid block outside the tag on the eye line
+ * stops the bore there. Each tick the strike steps run on every living entity
+ * whose body overlaps the line's cells and that every where filter keeps, so
+ * a mob in the tunnel takes Bore's damage and one behind the stopping block
  * takes none (decision bore-vortex-with-a-worldspace-shake).
+ * decision bore-breaks-a-15-degree-cone
+ * decision bore-drills-the-eye-line-with-steady-progress
+ * decision bore-and-flatten-json-carry-two-pace-values
  *
  * @param breaks the block tag naming the blocks bore may break
- * @param count  the most blocks one tick breaks
+ * @param pace   how fast the line's blocks progress toward broken
  * @param where  the filters an entity in the tunnel must pass to be struck
  * @param strike the steps run on each struck entity; empty strikes nothing
  */
-public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where, List<Step> strike)
+public record BoreStep(TagKey<Block> breaks, BreakPace pace, List<EntityFilter> where, List<Step> strike)
         implements Step {
 
     private static final String NAME = "bore";
     private static final String FIELD_BREAKS = "breaks";
-    private static final String FIELD_COUNT = "count";
     private static final String FIELD_WHERE = "where";
     private static final String FIELD_STRIKE = "strike";
     /** The distance between samples along the look, fine enough to visit every block it crosses. */
@@ -50,7 +51,7 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
      */
     public static final MapCodec<BoreStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             TagKey.codec(Registries.BLOCK).fieldOf(FIELD_BREAKS).forGetter(BoreStep::breaks),
-            Codec.INT.fieldOf(FIELD_COUNT).forGetter(BoreStep::count),
+            BreakPace.CODEC.forGetter(BoreStep::pace),
             EntityFilter.CODEC.listOf().optionalFieldOf(FIELD_WHERE, List.of()).forGetter(BoreStep::where),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_STRIKE, List.of())
                     .forGetter(BoreStep::strike)
@@ -65,10 +66,10 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
      * A bore that strikes nothing in its tunnel.
      *
      * @param breaks the block tag naming the blocks bore may break
-     * @param count  the most blocks one tick breaks
+     * @param pace   how fast the line's blocks progress toward broken
      */
-    public BoreStep(TagKey<Block> breaks, int count) {
-        this(breaks, count, List.of(), List.of());
+    public BoreStep(TagKey<Block> breaks, BreakPace pace) {
+        this(breaks, pace, List.of(), List.of());
     }
 
     @Override
@@ -81,41 +82,30 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
         ChannelHost host = context.hostAs(ChannelHost.class);
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
-            List<BlockPos> tunnel = tunnelOrder(host.eye(), aim, host::airAt, breakable);
-            firstBreakable(tunnel, breakable, count).forEach(host::breakBlock);
-            strikeIn(host, tunnel);
+            List<BlockPos> line = eyeLine(host.eye(), aim, host::airAt, breakable);
+            List<BlockPos> progressing = line.stream().filter(breakable).toList();
+            host.gradualBreak().progress(pace.ratesNearestFirst(progressing), host);
+            strikeIn(host, line);
         });
         return true;
     }
 
     /**
-     * The blocks the bore breaks over the coming ticks while the aim holds,
-     * in the order they break, the count a tick: the same pick its tick
-     * breaks by, so a client shakes the blocks the server is about to break.
+     * The nearest blocks the bore is progressing while the aim holds: the
+     * same pick its tick hands the gradual break, so a client shakes the
+     * blocks the server is breaking.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
-     * @param eye       the eye the tunnel runs from
-     * @param aim       the stream's aim: its reach along the look and its cone
+     * @param eye       the eye the line runs from
+     * @param aim       the stream's aim: its reach along the look
      * @param air       whether a cell holds air
      * @param breakable whether a cell holds a block in the tag
-     * @param ticks     how many ticks ahead to read
+     * @param most      the most blocks answered
      * @return the blocks, nearest the eye first
      */
     public List<BlockPos> breaksAhead(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air,
-                                      Predicate<BlockPos> breakable, int ticks) {
-        return firstBreakable(tunnelOrder(eye, aim, air, breakable), breakable, count * ticks);
-    }
-
-    /**
-     * The first breakable cells of an order.
-     *
-     * @param order     the cells in breaking order
-     * @param breakable whether a cell holds a block the step may break
-     * @param most      the most cells taken
-     * @return the cells, in the order's order
-     */
-    private static List<BlockPos> firstBreakable(List<BlockPos> order, Predicate<BlockPos> breakable, int most) {
-        return order.stream().filter(breakable).limit(most).toList();
+                                      Predicate<BlockPos> breakable, int most) {
+        return eyeLine(eye, aim, air, breakable).stream().filter(breakable).limit(most).toList();
     }
 
     /**
@@ -132,34 +122,21 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
     }
 
     /**
-     * The tunnel's blocks in the order they break, nearest the eye first: the
-     * blocks whose centers stand inside the stream's cone, and every block
-     * the eye line crosses so the block under the crosshair always breaks,
-     * past the eye's own block and short of the first solid block outside
-     * the tag on the eye line.
+     * The blocks the eye line crosses out to the reach, nearest the eye
+     * first, past the eye's own block and short of the first solid block
+     * outside the tag.
      * decision bore-breaks-a-15-degree-cone
      *
-     * @param eye       the eye the tunnel runs from
-     * @param aim       the stream's aim: its reach along the look and its cone
+     * @param eye       the eye the line runs from
+     * @param aim       the stream's aim: its reach along the look
      * @param air       whether a cell holds air
      * @param breakable whether a cell holds a block in the tag
      * @return the blocks, each once
      */
-    private static List<BlockPos> tunnelOrder(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air,
-                                              Predicate<BlockPos> breakable) {
+    private static List<BlockPos> eyeLine(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air,
+                                          Predicate<BlockPos> breakable) {
         List<BlockPos> line = blocksAlong(eye, aim.aimPoint());
-        int stop = stoppingIndex(line, air, breakable);
-        double stopDistance = stop < line.size()
-                ? Vec3.atCenterOf(line.get(stop)).distanceTo(eye) : Double.POSITIVE_INFINITY;
-        Set<BlockPos> tunnel = new LinkedHashSet<>(line.subList(1, stop));
-        for (BlockPos cell : CalcifyStep.blocksInCone(eye, aim.aimPoint(), aim.coneDegrees())) {
-            if (!cell.equals(line.getFirst()) && Vec3.atCenterOf(cell).distanceTo(eye) < stopDistance) {
-                tunnel.add(cell);
-            }
-        }
-        List<BlockPos> order = new ArrayList<>(tunnel);
-        order.sort(Comparator.comparingDouble(cell -> Vec3.atCenterOf(cell).distanceToSqr(eye)));
-        return order;
+        return line.subList(1, stoppingIndex(line, air, breakable));
     }
 
     /**

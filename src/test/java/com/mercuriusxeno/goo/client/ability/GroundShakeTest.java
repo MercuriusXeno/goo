@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
+import com.mercuriusxeno.goo.ability.program.BreakPace;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.FlattenStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -47,6 +48,8 @@ class GroundShakeTest {
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final double BORE_RANGE = 8;
     private static final double BORE_CONE_DEGREES = 15;
+    /** A bore whose nearest block breaks in one tick. */
+    private static final BreakPace ONE_BLOCK_A_TICK = new BreakPace(1, 1);
     /** The jitter's amplitude before this change, read from GroundShake.AMPLITUDE at 128a57da7. */
     private static final double PREVIOUS_AMPLITUDE = 0.04;
     /** A hold long past any wind-up. */
@@ -81,7 +84,7 @@ class GroundShakeTest {
         private final Set<BlockPos> stone = Set.of(new BlockPos(1, 64, 0), new BlockPos(2, 64, 0),
                 new BlockPos(3, 64, 0), new BlockPos(4, 64, 0), new BlockPos(5, 64, 0), new BlockPos(6, 64, 0),
                 new BlockPos(7, 64, 0), new BlockPos(2, 62, 0));
-        private final GroundShake.Zone zone = GroundShake.boreZone(new BoreStep(BREAKABLE, 1), EYE,
+        private final GroundShake.Zone zone = GroundShake.boreZone(new BoreStep(BREAKABLE, ONE_BLOCK_A_TICK), EYE,
                 new ChannelAim(EYE.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES),
                 cell -> !stone.contains(cell), stone::contains);
 
@@ -161,13 +164,13 @@ class GroundShakeTest {
 
         @Test
         void aHeldBoreAndAHeldFlattenEachShakeTheGround() {
-            assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, 2)), true, HELD_LONG));
+            assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, ONE_BLOCK_A_TICK)), true, HELD_LONG));
             assertTrue(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), true, HELD_LONG));
         }
 
         @Test
         void neitherShakesUnheldAndOtherAbilitiesNever() {
-            assertFalse(GroundShake.shakes(ability(new BoreStep(BREAKABLE, 2)), false, HELD_LONG));
+            assertFalse(GroundShake.shakes(ability(new BoreStep(BREAKABLE, ONE_BLOCK_A_TICK)), false, HELD_LONG));
             assertFalse(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), false, HELD_LONG));
             assertFalse(GroundShake.shakes(ability(mock(Step.class)), true, HELD_LONG));
             assertFalse(GroundShake.shakes(null, true, HELD_LONG));
