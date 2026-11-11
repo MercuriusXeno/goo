@@ -130,6 +130,15 @@ class AbilityImpactTest {
         assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("crystal_cloud")));
     }
 
+    /**
+     * Ignite's blob turns into the fire it lights, the fire standing in for its burnout.
+     */
+    // idea ignite-plays-no-burnout
+    @Test
+    void ignitesBlobTurnsIntoItsFire() {
+        assertTrue(AbilityImpact.lightsItsFire(AbilityJson.decode("blaze_ignite")));
+    }
+
     @Test
     void aOneTickLandingSendsItsBurnoutToTheTrackingPlayers() {
         ServerLevel level = wallLevel();

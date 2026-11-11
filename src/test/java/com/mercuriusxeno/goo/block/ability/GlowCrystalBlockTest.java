@@ -29,6 +29,7 @@ class GlowCrystalBlockTest {
     private static final double EPSILON = 1e-9;
     private static final double MIDDLE = 0.5;
     private static final String BLOCKSTATES = "/assets/goo/blockstates/";
+    private static final int MAX_LIGHT = 15;
 
     @ParameterizedTest
     @EnumSource(Direction.class)
@@ -58,6 +59,11 @@ class GlowCrystalBlockTest {
     @Test
     void theCrystalsOneStatePropertyIsItsFacing() {
         assertEquals(List.of("facing"), List.copyOf(CompiledStateDefinition.of(GlowCrystalBlock.class).keySet()));
+    }
+
+    @Test
+    void theCrystalEmitsLightFifteen() {
+        assertEquals(MAX_LIGHT, GlowCrystalBlock.LIGHT_LEVEL);
     }
 
     @Test

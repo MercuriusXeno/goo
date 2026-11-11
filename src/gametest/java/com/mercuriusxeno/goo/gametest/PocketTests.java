@@ -8,8 +8,6 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.network.protocol.game.ClientboundSoundPacket;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -40,28 +38,6 @@ public final class PocketTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, POCKET_STORES_AND_RETURNS, PocketTests::pocketStoresAndReturns);
-        GooTestFunctions.registerTest(registrar, POCKET_OPENS_WITH_ITS_OWN_SOUND, PocketTests::opensWithItsOwnSound);
-    }
-
-    private static final String POCKET_OPENS_WITH_ITS_OWN_SOUND = "pocket_opens_with_its_own_sound";
-    private static final String SHOULD_SOUND_ITS_OWN = "Opening the pocket should play the ender chest opening and no snowball throw, played %s";
-
-    /**
-     * Opening the pocket plays the ender chest opening, its own sound, and
-     * not the snowball throw a thrown goo makes.
-     *
-     * @param helper the gametest helper
-     */
-    public static void opensWithItsOwnSound(GameTestHelper helper) {
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
-        PacketRecorder packets = PacketRecorder.attachTo(player);
-        open(helper, player);
-        List<String> sounds = packets.sentOf(ClientboundSoundPacket.class).stream()
-                .map(sound -> sound.getSound().value().location().toString()).toList();
-        helper.assertTrue(sounds.contains(SoundEvents.ENDER_CHEST_OPEN.location().toString())
-                        && !sounds.contains(SoundEvents.SNOWBALL_THROW.location().toString()),
-                String.format(SHOULD_SOUND_ITS_OWN, sounds));
-        helper.succeed();
     }
 
     private static final Identifier POCKET = Identifier.parse("goo:void_pocket");

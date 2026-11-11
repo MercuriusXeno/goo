@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
 import com.mercuriusxeno.goo.ability.program.DamageStep;
+import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
@@ -12,6 +15,7 @@ import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.data.PrefabValues;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
@@ -96,6 +100,28 @@ class AbilityDefinitionTest {
     void blastRequiresGunpowder() {
         assertEquals(List.of(Identifier.withDefaultNamespace("gunpowder")),
                 AbilityJson.decode("unstable_explode").requires());
+    }
+
+    /**
+     * Lurker's trigger keeps every living entity, so a player standing in its radius sets it off as a zombie does.
+     */
+    @Test
+    void lurkersTriggerKeepsEveryLivingEntity() {
+        AwaitEntityStep trigger = LingerStep.bodyOf(AbilityJson.decode("unstable_lurker").behaviors()).orElseThrow()
+                .stream().filter(AwaitEntityStep.class::isInstance).map(AwaitEntityStep.class::cast)
+                .findFirst().orElseThrow();
+        assertEquals(List.of(EntityFilter.LIVING), trigger.where());
+    }
+
+    /**
+     * A player who knows no item holds exactly the shipped abilities that require none.
+     */
+    // decision ability-hidden-until-recipes-known
+    @Test
+    void aPlayerWhoKnowsNothingHoldsTheAbilitiesThatRequireNothing() {
+        List<AbilityDefinition> shipped = AbilityJson.files().stream().map(AbilityJson::decode).toList();
+        assertEquals(shipped.stream().filter(ability -> ability.requires().isEmpty()).map(AbilityDefinition::id).toList(),
+                shipped.stream().filter(ability -> ability.isKnownTo(KnownItems.NONE)).map(AbilityDefinition::id).toList());
     }
 
     /**
