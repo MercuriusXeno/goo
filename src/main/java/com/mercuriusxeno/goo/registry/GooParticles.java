@@ -125,6 +125,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("hex_wisp", () -> new SimpleParticleType(false));
 
     /**
+     * The hex mist: a faint hex-purple puff, many of which fill Drain's flat
+     * cone while held, drifting toward the glove hand.
+     * drain-casts-a-hex-mist-cone-toward-the-hand
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HEX_MIST =
+        PARTICLE_TYPES.register("hex_mist", () -> new SimpleParticleType(false));
+
+    /**
      * The hex glyph: an enchanting glyph in hex purple flying into Enchant's
      * and Fuse's tomes.
      * enchant-book-with-a-purple-afterimage
