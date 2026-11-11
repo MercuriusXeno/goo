@@ -570,8 +570,7 @@ public class GooValueRegistry {
             GooValueLoader.Settled settled = GooValueLoader.resolveWaiting(waiting,
                     new HashMap<>(derived.effectiveValues()), constants, treeConstants);
             unresolvedReferences = new LinkedHashMap<>(settled.unresolved());
-            settled.lacked().forEach((item, message) -> GooValueLoader.lackType(item, message, lackedTypes));
-            waiting.keySet().removeAll(settled.lacked().keySet());
+            lackedTypes.putAll(settled.lacked());
             if (settled.valued().isEmpty()) {
                 break;
             }
@@ -597,7 +596,7 @@ public class GooValueRegistry {
 
     /**
      * @return each entry reading a goo type its referent holds no amount of, with the error naming both; such an
-     *     entry loads no value (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line)
+     *     entry reads that type as zero (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line)
      */
     public Map<Identifier, String> lackedTypes() {
         return Collections.unmodifiableMap(lackedTypes);
