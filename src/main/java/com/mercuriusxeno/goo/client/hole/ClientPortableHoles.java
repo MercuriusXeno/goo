@@ -2,40 +2,24 @@ package com.mercuriusxeno.goo.client.hole;
 
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * The Void portable holes standing open in the local player's level as the
- * server last told them, each with the game time the client first saw it, so
- * its mouth grows open from nothing.
+ * The Void portable holes the client draws in the local player's level, as
+ * the server last told them, each growing open from nothing when first seen
+ * and shrinking shut once the server stops listing it.
  * decision hole-is-an-in-world-portable-hole-for-items
+ * decision hole-animates-open-and-closed
  */
 public final class ClientPortableHoles {
 
-    private static List<PortableHolesSyncPayload.Mouth> mouths = List.of();
-    private static final Map<Spot, Long> FIRST_SEEN = new HashMap<>();
+    private static final HoleSightings SIGHTINGS = new HoleSightings();
+    /** The level the holes were last told for, so a hole left behind in another is not drawn shrinking here. */
+    private static Level toldFor;
 
     private ClientPortableHoles() {
-    }
-
-    /**
-     * Where a mouth stands and until when, which a resync after a swallow keeps,
-     * so the mouth does not grow open again.
-     *
-     * @param block    the block whose face it opens on
-     * @param face     the face it opens on
-     * @param closesAt the game time it closes
-     */
-    private record Spot(BlockPos block, Direction face, long closesAt) {
-
-        static Spot of(PortableHolesSyncPayload.Mouth mouth) {
-            return new Spot(mouth.block(), mouth.face(), mouth.closesAt());
-        }
     }
 
     /**
@@ -46,26 +30,29 @@ public final class ClientPortableHoles {
      */
     public static void handle(PortableHolesSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            mouths = List.copyOf(payload.mouths());
-            FIRST_SEEN.keySet().retainAll(mouths.stream().map(Spot::of).toList());
             Minecraft mc = Minecraft.getInstance();
-            long now = mc.level == null ? 0 : mc.level.getGameTime();
-            mouths.forEach(mouth -> FIRST_SEEN.putIfAbsent(Spot.of(mouth), now));
+            if (mc.level != toldFor) {
+                SIGHTINGS.forget();
+                toldFor = mc.level;
+            }
+            SIGHTINGS.seen(payload.mouths(), mc.level == null ? 0 : mc.level.getGameTime());
         });
     }
 
     /**
-     * @return each open hole's mouth
+     * @param time the client's game time, partial tick included
+     * @return each mouth to draw, open or shrinking shut
      */
-    public static List<PortableHolesSyncPayload.Mouth> mouths() {
-        return mouths;
+    public static List<PortableHolesSyncPayload.Mouth> drawn(float time) {
+        return SIGHTINGS.drawn(time);
     }
 
     /**
-     * @param mouth an open mouth
-     * @return the game time the client first saw it
+     * @param mouth a drawn mouth
+     * @param time  the client's game time, partial tick included
+     * @return the share of its full size it stands open at, in [0, 1]
      */
-    public static long firstSeen(PortableHolesSyncPayload.Mouth mouth) {
-        return FIRST_SEEN.getOrDefault(Spot.of(mouth), 0L);
+    public static float openShare(PortableHolesSyncPayload.Mouth mouth, float time) {
+        return SIGHTINGS.openShare(mouth, time);
     }
 }

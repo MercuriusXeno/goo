@@ -33,9 +33,11 @@ class EntityFilterTest {
 
     @Test
     void drainsTargetWhereListHoldsTheOwnMinionFilter() {
+        // Drain's behaviors open with its hex mist, so its target step is found by its type, not its place
         JsonObject target = JsonParser.parseString(AbilityJson.read("hex_drain")).getAsJsonObject()
-                .getAsJsonArray("behaviors").get(0).getAsJsonObject();
-        assertEquals("target", target.get("type").getAsString());
+                .getAsJsonArray("behaviors").asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(behavior -> "target".equals(behavior.get("type").getAsString()))
+                .findFirst().orElseThrow();
         assertEquals(List.of("vulnerable", NOT_OWN_MINION),
                 target.getAsJsonArray("where").asList().stream().map(JsonElement::getAsString).toList());
     }
