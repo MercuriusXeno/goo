@@ -45,13 +45,16 @@ import java.util.stream.Stream;
  * decision outlined-target-is-the-one-pick
  * decision grab-holds-the-mob-against-the-surface-you-look-at
  * decision grab-holds-slightly-closer-in-open-space
+ * decision grab-cone-picks-more-aggressively-than-other-goo-types
  *
  * @param range        how far the look reaches for an entity to lift, in blocks, before Telekinesis adds its reach
  * @param holdDistance how far from the eye the held entity hangs where the look meets no block
  * @param throwSpeed   the speed a throw launches the held entity at, in blocks per tick
  * @param pullSpeed    the speed a pulled item entity flies to the player at, in blocks per tick
+ * @param pickCone     the half-angle, in degrees, of the cone the glove picks Grab's target in, wider than the
+ *                     shared one so a look passing close to a mob still picks it
  */
-public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed)
+public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed, double pickCone)
         implements ReachesTheAim {
 
     private static final String NAME = "grab";
@@ -59,6 +62,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     private static final String FIELD_HOLD_DISTANCE = "hold_distance";
     private static final String FIELD_THROW_SPEED = "throw_speed";
     private static final String FIELD_PULL_SPEED = "pull_speed";
+    private static final String FIELD_PICK_CONE = "pick_cone";
     private static final double HALF = 0.5;
 
     /** Codec for the step's params. */
@@ -66,7 +70,8 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
             Codec.DOUBLE.fieldOf(FIELD_RANGE).forGetter(GrabStep::range),
             Codec.DOUBLE.fieldOf(FIELD_HOLD_DISTANCE).forGetter(GrabStep::holdDistance),
             Codec.DOUBLE.fieldOf(FIELD_THROW_SPEED).forGetter(GrabStep::throwSpeed),
-            Codec.DOUBLE.fieldOf(FIELD_PULL_SPEED).forGetter(GrabStep::pullSpeed)
+            Codec.DOUBLE.fieldOf(FIELD_PULL_SPEED).forGetter(GrabStep::pullSpeed),
+            Codec.DOUBLE.fieldOf(FIELD_PICK_CONE).forGetter(GrabStep::pickCone)
     ).apply(inst, GrabStep::new));
 
     /** The registered type. */
@@ -388,6 +393,19 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     public static OptionalDouble reachOf(List<Step> behaviors, @Nullable AttributeModifier telekinesisReach) {
         return behaviors.stream().filter(GrabStep.class::isInstance).map(GrabStep.class::cast)
                 .mapToDouble(grab -> grab.reachWith(telekinesisReach)).findFirst();
+    }
+
+    /**
+     * The cone an ability's Grab picks its target in, so the glove outlines
+     * a mob the look passes close to.
+     * decision grab-cone-picks-more-aggressively-than-other-goo-types
+     *
+     * @param behaviors the ability's behaviors
+     * @return the cone's half-angle in degrees, or empty where the ability holds no grab
+     */
+    public static OptionalDouble pickConeOf(List<Step> behaviors) {
+        return behaviors.stream().filter(GrabStep.class::isInstance).map(GrabStep.class::cast)
+                .mapToDouble(GrabStep::pickCone).findFirst();
     }
 
     /**

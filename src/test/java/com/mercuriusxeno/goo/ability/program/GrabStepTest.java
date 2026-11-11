@@ -44,7 +44,7 @@ class GrabStepTest {
 
     private static final double HOLD_DISTANCE = 4;
     private static final double EPSILON = 1e-6;
-    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, 1);
+    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, 1, 10);
 
     /**
      * Where Grab hangs a held body's middle: against the first block the look

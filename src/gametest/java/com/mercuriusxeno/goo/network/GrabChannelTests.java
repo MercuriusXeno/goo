@@ -98,6 +98,10 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabAimedThroughAPortalDrawsThroughItThoughAStraightWayStandsOpen);
         GooTestFunctions.registerTest(registrar, GRAB_DRAWS_A_MOB_OFF_A_LEDGE_TO_THE_WALL_BELOW,
                 GrabChannelTests::grabDrawsAMobOffALedgeToTheWallBelow);
+        GooTestFunctions.registerTest(registrar, GRAB_HOLDS_A_SENT_PIG_INSIDE_ITS_PICK_CONE,
+                GrabChannelTests::grabHoldsASentPigInsideItsPickCone);
+        GooTestFunctions.registerTest(registrar, GRAB_REFUSES_A_SENT_PIG_BEYOND_ITS_RANGE,
+                GrabChannelTests::grabRefusesASentPigBeyondItsRange);
     }
 
 
@@ -889,6 +893,53 @@ public final class GrabChannelTests {
                     + helper.relativeVec(box.getMaxPosition()));
             leave(helper, player);
         });
+    }
+
+    private static final String GRAB_HOLDS_A_SENT_PIG_INSIDE_ITS_PICK_CONE = "grab_holds_a_sent_pig_inside_its_pick_cone";
+    private static final String GRAB_REFUSES_A_SENT_PIG_BEYOND_ITS_RANGE = "grab_refuses_a_sent_pig_beyond_its_range";
+    /** How far off the pig the look turns: past the shared pick cone of 4 degrees, inside Grab's. */
+    private static final float INSIDE_GRABS_CONE = 7f;
+    /** Five blocks east of the player, far enough that the turned look passes beside the pig's box. */
+    private static final BlockPos FIVE_BLOCKS_OUT = new BlockPos(5, 1, 2);
+    /** Where the player stands for the range test: eighteen blocks west of the pig, past Grab's 16. */
+    private static final Vec3 BEYOND_GRABS_RANGE = new Vec3(-14.5, 1, 2.5);
+
+    /**
+     * A pig the client picked inside Grab's wider cone, off the exact look,
+     * is held when the tick names it
+     * (decision grab-cone-picks-more-aggressively-than-other-goo-types).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabHoldsASentPigInsideItsPickCone(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Pig pig = helper.spawn(EntityType.PIG, FIVE_BLOCKS_OUT);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, pig.getBoundingBox().getCenter());
+        player.setYRot(player.getYRot() + INSIDE_GRABS_CONE);
+        helper.assertTrue(pig.getBoundingBox().clip(player.getEyePosition(),
+                player.getEyePosition().add(player.getLookAngle().scale(FAR * 2))).isEmpty(),
+                "The look should pass beside the pig, off its box");
+        holdFor(helper, player, pig, HOLD_TICKS);
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig picked inside Grab's cone should be held, "
+                    + "held " + GrabEvents.heldBy(player));
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A pig named by the tick but standing past Grab's range is refused and
+     * nothing is held (decision grab-cone-picks-more-aggressively-than-other-goo-types).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabRefusesASentPigBeyondItsRange(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Vec3 stand = helper.absoluteVec(BEYOND_GRABS_RANGE);
+        player.setPos(stand.x, stand.y, stand.z);
+        Pig pig = helper.spawn(EntityType.PIG, ZOMBIE_POS);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, pig.getBoundingBox().getCenter());
+        refusesTheSent(helper, player, pig, pig::discard);
     }
 
     private static void drawsThroughInSteadySteps(GameTestHelper helper, BlockPos pigAt) {
