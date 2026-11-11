@@ -169,13 +169,13 @@ class GrabStepTest {
         }
 
         @Test
-        void shippedGrabReachesSixteenAloneAndTwentyFourWithShippedTelekinesis() {
+        void shippedGrabReachesTwentyFourAloneAndThirtyTwoWithShippedTelekinesis() {
             GrabStep shipped = GrabStep.CODEC.codec().parse(JsonOps.INSTANCE,
                     firstBehavior("kinetic_grab.json")).getOrThrow();
             TelekinesisStep telekinesis = TelekinesisStep.CODEC.codec().parse(JsonOps.INSTANCE,
                     firstBehavior("kinetic_telekinesis.json")).getOrThrow();
-            assertEquals(16, shipped.reachWith(null), EPSILON);
-            assertEquals(24, shipped.reachWith(laid(telekinesis.reach())), EPSILON);
+            assertEquals(24, shipped.reachWith(null), EPSILON);
+            assertEquals(32, shipped.reachWith(laid(telekinesis.reach())), EPSILON);
         }
 
         @Test
