@@ -55,5 +55,20 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> CLICK =
         SOUND_EVENTS.register("ability.click", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CLICK));
 
+    /** A portal standing (decision portal-placement-plays-a-zap-that-opens-into-a-hum). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> PORTAL_PLACE =
+        SOUND_EVENTS.register("effects.portal_place",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.PORTAL_PLACE));
+
+    /** A body stepping through a gate (decision stepping-through-plays-a-soft-whoosh-at-both-ends). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> PORTAL_CROSS =
+        SOUND_EVENTS.register("effects.portal_cross",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.PORTAL_CROSS));
+
+    /** A standing portal or mouth's loop (decision standing-portals-loop-a-soft-ambient-hum). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> PORTAL_HUM =
+        SOUND_EVENTS.register("effects.portal_hum",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.PORTAL_HUM));
+
     private GooSounds() {}
 }

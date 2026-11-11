@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -73,6 +74,38 @@ public final class WormholeTests {
         GooTestFunctions.registerTest(registrar, REFUSED_ON_GLASS, WormholeTests::refusedOnGlass);
         GooTestFunctions.registerTest(registrar, CENTRES_ON_THE_STRUCK_BLOCK,
                 WormholeTests::centresOnTheStruckBlock);
+        GooTestFunctions.registerTest(registrar, CROSSING_WHOOSHES_AT_BOTH_MOUTHS,
+                WormholeTests::crossingWhooshesAtBothMouths);
+    }
+
+    private static final String CROSSING_WHOOSHES_AT_BOTH_MOUTHS = "hole_crossing_whooshes_at_both_mouths";
+
+    /**
+     * Going through the struck mouth plays the portals' whoosh once at the
+     * struck mouth's centre and once at the far mouth's, heard by the one
+     * crossing (decision wormhole-mouths-take-the-whoosh-and-the-hum).
+     *
+     * @param helper the gametest helper
+     */
+    public static void crossingWhooshesAtBothMouths(GameTestHelper helper) {
+        buildWall(helper);
+        ServerPlayer caster = caster(helper);
+        PacketRecorder heard = PacketRecorder.attachTo(caster);
+        heard.markClientLoaded();
+        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            java.util.Optional<OpenHoles.Hole> hole = holeStruckAt(helper, STRUCK);
+            helper.assertTrue(hole.isPresent(), "The hole should stand open on the struck face");
+            crossAt(helper, caster, THROUGH_THE_FACE);
+            Vec3 in = hole.get().entry().center();
+            Vec3 out = hole.get().exit().center();
+            helper.assertTrue(HeardSounds.at(heard, GooSoundIds.PORTAL_CROSS, in) == 1
+                    && HeardSounds.at(heard, GooSoundIds.PORTAL_CROSS, out) == 1, "Going through the struck mouth "
+                    + "should play the whoosh once at its centre " + in + " and once at the far mouth's " + out
+                    + ", plays " + HeardSounds.describe(HeardSounds.of(heard, GooSoundIds.PORTAL_CROSS)));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
     }
 
     private static final String CLOSES_AFTER_ITS_LIFETIME = "tunnel_closes_after_its_lifetime";
