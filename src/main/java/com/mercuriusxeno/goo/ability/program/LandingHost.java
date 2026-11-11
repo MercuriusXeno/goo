@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
+import com.mercuriusxeno.goo.ability.hole.HoleOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
@@ -62,7 +63,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        WormholeHost, PortalHost, IgniteHost, MeltHost {
+        WormholeHost, PortalHost, IgniteHost, MeltHost, HoleHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -131,6 +132,23 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
             return false;
         }
         return Wormhole.open(level, player, struck, face, reach, lifetime);
+    }
+
+    /**
+     * Opens the caster's portable hole on the struck face, the block behind
+     * the cell; with no caster in this level the face shows the hole refused.
+     * decision hole-is-an-in-world-portable-hole-for-items
+     */
+    @Override
+    public boolean openPortableHole(int lifetime) {
+        BlockPos struck = cell.relative(face.getOpposite());
+        ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
+        if (player == null || player.level() != level || !HoleOpening.takes(face)) {
+            HoleOpening.refuse(level, struck, face);
+            return false;
+        }
+        HoleOpening.open(level, player, struck, face, lifetime);
+        return true;
     }
 
     /**

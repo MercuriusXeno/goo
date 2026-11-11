@@ -248,6 +248,17 @@ public final class GooRenderTypes {
     public static final RenderType METEOR_SCORCH_TYPE = burnoutType(METEOR_SCORCH);
 
     /**
+     * Void's portable hole mouth (decision hole-is-an-in-world-portable-hole-for-items):
+     * plain colored rings alpha blended over the face it opens on, depth tested
+     * with depth write off, so the mouth lies on its face and never shows through walls.
+     */
+    public static final RenderPipeline PORTABLE_HOLE_MOUTH = colorShellPipeline("portable_hole_mouth",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
+
+    /** RenderType for Void's portable hole mouth. */
+    public static final RenderType PORTABLE_HOLE_MOUTH_TYPE = burnoutType(PORTABLE_HOLE_MOUTH);
+
+    /**
      * Meteo's rock (decision meteo-winds-up-then-drops-in-a-second-trailing-fire):
      * plain colored quads that write depth, so the rock's near faces hide its
      * far ones and it draws front to back as a solid.
@@ -1665,6 +1676,7 @@ public final class GooRenderTypes {
         event.registerPipeline(SCRY_FACES);
         event.registerPipeline(METEOR_SCORCH);
         event.registerPipeline(METEOR_ROCK);
+        event.registerPipeline(PORTABLE_HOLE_MOUTH);
     }
 
     /**

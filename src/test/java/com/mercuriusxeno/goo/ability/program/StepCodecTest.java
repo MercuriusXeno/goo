@@ -174,7 +174,7 @@ class StepCodecTest {
             Map.entry("scan_visual", new ScanVisualStep("sound_wave",
                     java.util.Optional.of(Identifier.withDefaultNamespace("block.comparator.click")))),
             Map.entry("end", new EndStep(Expr.literal(1200))),
-            Map.entry("pocket_open", new PocketOpenStep(Expr.literal(6))),
+            Map.entry("hole_open", new HoleOpenStep(Expr.literal(600))),
             Map.entry("outsider", new OutsiderStep(Expr.literal(20), Expr.literal(6), Expr.literal(40),
                     Expr.literal(10), Expr.literal(1))),
             Map.entry("meteor", new MeteorStep(Expr.literal(4), 40)),

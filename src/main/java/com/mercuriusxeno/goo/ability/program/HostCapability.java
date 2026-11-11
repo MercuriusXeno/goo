@@ -115,10 +115,10 @@ public enum HostCapability {
      */
     PORTAL(PortalHost.class),
     /**
-     * A player whose Pocket can open (decision
-     * pocket-is-a-void-reserving-container-with-scroll-and-search).
+     * A struck surface the caster's portable hole can open on (decision
+     * hole-is-an-in-world-portable-hole-for-items).
      */
-    POCKET(PocketHost.class),
+    HOLE(HoleHost.class),
     /**
      * A channeling player who can be carried into their Outsider room
      * (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
