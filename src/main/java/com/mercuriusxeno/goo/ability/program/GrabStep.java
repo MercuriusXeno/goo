@@ -259,7 +259,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed,
         Vec3 held = middle;
         for (Gate gate : pairs.stream().flatMap(pair -> Stream.of(pair.one(), pair.other())).toList()) {
             double out = gate.out(held);
-            if (out > -clear && out < clear && gate.withinOval(held, width * HALF)) {
+            if (out > -clear && out < clear && gate.within(held, width * HALF)) {
                 held = held.add(gate.face().getUnitVec3().scale(clear - out));
             }
         }

@@ -1324,6 +1324,40 @@ public final class GooRenderTypes {
     }
 
     /**
+     * An Outsider room's edge showing the view through it: the room's
+     * opposite side, flush over the edge's whole face with no oval and no rim
+     * (decision outsider-room-wraps-and-repeats-at-the-platform-edge).
+     */
+    public static final RenderPipeline GOO_ROOM_EDGE_VIEW = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_room_edge_view"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_room_edge_view"))
+            .withSampler("Sampler0")
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    private static final java.util.function.Function<Identifier, RenderType> GOO_ROOM_EDGE_VIEW_FACTORY =
+            net.minecraft.util.Util.memoize(view -> RenderType.create("goo_room_edge_view",
+                    RenderSetup.builder(GOO_ROOM_EDGE_VIEW)
+                            .withTexture("Sampler0", view)
+                            .setOutputTarget(OutputTarget.MAIN_TARGET)
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the room edge view render type over a room edge's view texture.
+     *
+     * @param view the view texture's id
+     * @return memoized RenderType
+     */
+    public static RenderType gooRoomEdgeView(Identifier view) {
+        return GOO_ROOM_EDGE_VIEW_FACTORY.apply(view);
+    }
+
+    /**
      * Idle portal pipeline (decision portals-link-by-looking-through-portal-vision):
      * a portal with no view to show drawn through {@code goo_portal_idle.vsh / .fsh},
      * an oval of its color swirling in from a glowing rim toward a dark heart,
@@ -1664,6 +1698,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_VIEW);
         event.registerPipeline(GOO_PORTAL_IDLE);
         event.registerPipeline(GOO_HOLE_VIEW);
+        event.registerPipeline(GOO_ROOM_EDGE_VIEW);
         event.registerPipeline(GOO_PORTAL_OUTLINE);
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GOO_PORTAL_HALO);

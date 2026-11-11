@@ -12,6 +12,8 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.UseOnContext;
@@ -65,50 +67,102 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_POCKET_SHOWS_NO_SKY, OutsiderTests::pocketShowsNoSky);
         GooTestFunctions.registerTest(registrar, OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH,
                 OutsiderTests::showsItsChargeAndGrowth);
-        GooTestFunctions.registerTest(registrar, OUTSIDER_KEEPS_YOU_IN_YOUR_OWN_ROOM,
-                OutsiderTests::keepsYouInYourOwnRoom);
+        GooTestFunctions.registerTest(registrar, ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE,
+                OutsiderTests::roomEdgeCarriesABodyToTheOppositeSide);
         GooTestFunctions.registerTest(registrar, OUTSIDER_REFUSES_BUILDING_PAST_THE_PLATFORM,
                 OutsiderTests::refusesBuildingPastThePlatform);
     }
 
-    private static final String OUTSIDER_KEEPS_YOU_IN_YOUR_OWN_ROOM = "outsider_keeps_you_in_your_own_room";
+    private static final String ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE =
+            "room_edge_carries_a_body_to_the_opposite_side";
     private static final String OUTSIDER_REFUSES_BUILDING_PAST_THE_PLATFORM =
             "outsider_refuses_building_past_the_platform";
-    /** Blocks east of the center: past the starting 3 by 3's edge. */
-    private static final int PAST_THE_EDGE = 3;
-    private static final String SHOULD_FOLD_BACK = "%s should fold the player back onto their own arrival at %s, stands at %s";
     private static final String SHOULD_REFUSE = "A block placed past the platform's edge at %s should be refused, %s stands there";
     private static final String SHOULD_PLACE = "A block placed on the platform at %s should stand, %s stands there";
+    /**
+     * The item's own ticks after which it has crossed the east edge and come
+     * out of the west one: one tick to be seen before the edge, one to cross
+     * it, and one more so the server's carry that tick has run before the
+     * test reads it.
+     */
+    private static final int CROSSED_BY = 3;
+    /** How far inside the east edge the item starts, its middle. */
+    private static final double INSIDE_THE_EDGE = 0.3;
+    /** The item's eastward speed, enough to cross the edge within a tick. */
+    private static final double EASTWARD = 0.4;
+    /**
+     * How far past the square's width the item may have moved on: its speed
+     * over the ticks it took, and a tick more, its start's own lead on the edge.
+     */
+    private static final double MOVED_ON = (CROSSED_BY + 1) * EASTWARD;
+    private static final double KEPT = 1.0E-6;
+    private static final String SHOULD_CARRY_ACROSS = "An item crossing the room's east edge should stand the square's "
+            + "width %d west of %s, moved on by at most %.2f, with its y and z kept, stands at %s";
+    private static final String SHOULD_KEEP_MOTION = "The carried item should keep moving east, moves %s";
 
     /**
-     * Two players each have their own room, a million blocks apart. A player
-     * put into the other's room, and a player standing off their own grown
-     * cells, is folded back onto their own arrival cell at once.
+     * An item moving east across a room's east edge stands, once it has
+     * ticked across, the square's width west, just inside the west edge,
+     * with its height, its z and its eastward motion kept. The test reads the
+     * item by its own tick count, since a freshly forced chunk starts ticking
+     * its entities a varying number of server ticks on
+     * (decision outsider-room-wraps-and-repeats-at-the-platform-edge).
      *
      * @param helper the gametest helper
      */
-    public static void keepsYouInYourOwnRoom(GameTestHelper helper) {
-        ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
-        ServerPlayer neighbour = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
-        holdFor(helper, owner, CHARGE_TICKS);
-        holdFor(helper, neighbour, CHARGE_TICKS);
-        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
-            int room = assertEntered(helper, owner);
-            int theirs = assertEntered(helper, neighbour);
-            Vec3 home = arrivalOf(room);
-
-            owner.setPos(arrivalOf(theirs));
-            owner.doTick();
-            helper.assertTrue(owner.position().equals(home),
-                    String.format(SHOULD_FOLD_BACK, "Another player's room", home, owner.position()));
-
-            Vec3 offTheEdge = Vec3.atBottomCenterOf(OutsiderRooms.voidstoneOf(room).east(PAST_THE_EDGE).above());
-            owner.setPos(offTheEdge);
-            owner.doTick();
-            helper.assertTrue(owner.position().equals(home),
-                    String.format(SHOULD_FOLD_BACK, "Stepping off the grown cells", home, owner.position()));
+    public static void roomEdgeCarriesABodyToTheOppositeSide(GameTestHelper helper) {
+        ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+        helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
+        int room = OutsiderRooms.layRoomFor(pocket, java.util.UUID.randomUUID());
+        BlockPos center = OutsiderRooms.voidstoneOf(room);
+        int across = 2 * PlatformSpiral.ringOf(PlatformSpiral.START_CELLS - 1) + 1;
+        // The room's square may straddle chunks, and the item lands in whichever holds the west edge, so every
+        // chunk around the square is held ticking, else the carried item stops ticking where it lands.
+        List<ChunkPos> chunks = chunksAround(center, across);
+        chunks.forEach(chunk -> pocket.setChunkForced(chunk.x(), chunk.z(), true));
+        double eastEdge = center.getX() + (across + 1) / 2.0;
+        Vec3 start = new Vec3(eastEdge - INSIDE_THE_EDGE, center.getY() + 1.5, center.getZ() + HALF);
+        ItemEntity item = new ItemEntity(pocket, start.x(), start.y(), start.z(), new ItemStack(Items.STONE),
+                EASTWARD, 0, 0);
+        item.setNoGravity(true);
+        pocket.addFreshEntity(item);
+        boolean[] read = {false};
+        helper.onEachTick(() -> {
+            if (read[0] || item.tickCount < CROSSED_BY) {
+                return;
+            }
+            read[0] = true;
+            Vec3 now = item.position();
+            double moved = now.x() - start.x();
+            Vec3 motion = item.getDeltaMovement();
+            item.discard();
+            chunks.forEach(chunk -> pocket.setChunkForced(chunk.x(), chunk.z(), false));
+            helper.assertTrue(moved > -across && moved < -across + MOVED_ON
+                            && Math.abs(now.y() - start.y()) < KEPT && Math.abs(now.z() - start.z()) < KEPT,
+                    String.format(SHOULD_CARRY_ACROSS, across, start, MOVED_ON, now));
+            helper.assertTrue(motion.x() > 0, String.format(SHOULD_KEEP_MOTION, motion));
             helper.succeed();
         });
+    }
+
+    /**
+     * The chunks a room's square and the block past each of its edges stand in.
+     *
+     * @param center the room's center voidstone
+     * @param across the square's width in blocks
+     * @return the chunks
+     */
+    private static List<ChunkPos> chunksAround(BlockPos center, int across) {
+        int reach = across / 2 + 1;
+        ChunkPos low = ChunkPos.containing(center.offset(-reach, 0, -reach));
+        ChunkPos high = ChunkPos.containing(center.offset(reach, 0, reach));
+        List<ChunkPos> chunks = new java.util.ArrayList<>();
+        for (int x = low.x(); x <= high.x(); x++) {
+            for (int z = low.z(); z <= high.z(); z++) {
+                chunks.add(new ChunkPos(x, z));
+            }
+        }
+        return chunks;
     }
 
     /**

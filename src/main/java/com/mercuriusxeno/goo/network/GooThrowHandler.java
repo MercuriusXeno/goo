@@ -694,7 +694,7 @@ public final class GooThrowHandler {
      * @return the hop, empty where the throw is refused
      */
     static Optional<GateArc.Hop> admittedHop(List<GatePassage.Pair> pairs, Gate gate, Vec3 facePoint, Vec3 eye) {
-        boolean onTheFace = Math.abs(gate.out(facePoint)) <= FACE_SLACK && gate.withinOval(facePoint);
+        boolean onTheFace = Math.abs(gate.out(facePoint)) <= FACE_SLACK && gate.within(facePoint);
         boolean seenFromTheEye = gate.out(eye) > 0 && eye.distanceTo(facePoint) <= MAX_RANGE;
         return onTheFace && seenFromTheEye ? GateRay.hopThrough(pairs, gate, facePoint) : Optional.empty();
     }
