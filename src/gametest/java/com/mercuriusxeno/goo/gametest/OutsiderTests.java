@@ -90,6 +90,8 @@ public final class OutsiderTests {
                 OutsiderTests::doorCollapsesWhenTheChannelIsLetGoEarly);
         GooTestFunctions.registerTest(registrar, OUTSIDER_CONJURES_NO_DOOR_INSIDE,
                 OutsiderTests::conjuresNoDoorInsideThePocket);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_WUB_REACHES_THE_CORNER,
+                OutsiderTests::wubReachesTheRoomsCorner);
     }
 
     private static final String ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE =
@@ -406,6 +408,49 @@ public final class OutsiderTests {
 
     /** How near the door stands to the spot before the caster's facing: within the mock caster's drift in a tick. */
     private static final double FACING_KEPT = 0.1;
+
+    private static final String OUTSIDER_WUB_REACHES_THE_CORNER = "outsider_wub_reaches_the_corner";
+    /** A wide room's extent, just short of a whole-block mark, so its corner stands far past a sound's own reach. */
+    private static final double WIDE_SHORT_OF_A_MARK = 20.45;
+    /** How far inside the corner the caster stands, on each axis. */
+    private static final double INSIDE_THE_CORNER = 0.6;
+    /** Void enough to carry the wide room across its next whole-block mark. */
+    private static final int FEED_ACROSS_THE_MARK = 5000;
+    /** The fullest a sound plays, which a wub heard where its player stands reaches. */
+    private static final float FULL = 1f;
+    private static final String SHOULD_HEAR_IN_THE_CORNER = "A player in the room's corner at %s should hear the wub "
+            + "at full volume where they stand; wubs sent to them %s";
+
+    /**
+     * A player standing in the far corner of a wide room hears the wub as
+     * the room gains a full block, at full volume where they stand
+     * (decision full-block-growth-wubs-and-raises-void-motes).
+     *
+     * @param helper the gametest helper
+     */
+    public static void wubReachesTheRoomsCorner(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            int room = assertEntered(helper, caster);
+            ServerLevel pocket = (ServerLevel) caster.level();
+            VoidPockets.get(pocket).keepPlatform(caster.getUUID(), new VoidPockets.Platform(WIDE_SHORT_OF_A_MARK));
+            BlockPos center = OutsiderRooms.voidstoneOf(room);
+            double corner = WIDE_SHORT_OF_A_MARK - INSIDE_THE_CORNER;
+            caster.setPos(center.getX() + HALF + corner, center.getY() + 1, center.getZ() + HALF + corner);
+            PacketRecorder packets = PacketRecorder.attachTo(caster);
+            OutsiderRooms.feedPlatform(caster, FEED_ACROSS_THE_MARK, 10, 1);
+            List<ClientboundSoundPacket> wubs = packets.sentOf(ClientboundSoundPacket.class).stream()
+                    .filter(sound -> sound.getSound().value().location().equals(GooSoundIds.OUTSIDER_WUB))
+                    .toList();
+            List<String> heard = wubs.stream().map(sound -> String.format("(%.1f, %.1f, %.1f) at volume %.2f",
+                    sound.getX(), sound.getY(), sound.getZ(), sound.getVolume())).toList();
+            helper.assertTrue(wubs.stream().anyMatch(sound -> caster.position().distanceTo(
+                            new Vec3(sound.getX(), sound.getY(), sound.getZ())) < 1 && sound.getVolume() >= FULL),
+                    String.format(SHOULD_HEAR_IN_THE_CORNER, caster.position(), heard));
+            helper.succeed();
+        });
+    }
 
     private static void place(ServerPlayer builder, BlockPos against, Direction face) {
         Vec3 hit = Vec3.atCenterOf(against).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(HALF));

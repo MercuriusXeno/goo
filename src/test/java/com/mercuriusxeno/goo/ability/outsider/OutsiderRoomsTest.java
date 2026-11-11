@@ -83,12 +83,12 @@ class OutsiderRoomsTest {
         private static final double EXACT = 1.0E-9;
         private static final double FLOOR_TOP = OutsiderRooms.ROOM_FLOOR_Y + 1;
 
-        private final List<Vec3> wubs = new ArrayList<>();
+        private final List<Boolean> wubs = new ArrayList<>();
         private final List<Vec3[]> lines = new ArrayList<>();
         private final OutsiderRooms.GrowthCues recorded = new OutsiderRooms.GrowthCues() {
             @Override
-            public void wub(Vec3 at, double extent) {
-                wubs.add(at);
+            public void wub() {
+                wubs.add(true);
             }
 
             @Override
