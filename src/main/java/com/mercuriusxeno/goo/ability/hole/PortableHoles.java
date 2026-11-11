@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.hole;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pocket.PocketShelves;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
+import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -46,6 +47,11 @@ public final class PortableHoles {
     private static final float SWALLOW_VOLUME = 0.4F;
     private static final float SWALLOW_PITCH = 0.6F;
     private static final double HALF = 0.5;
+    /**
+     * The Outsider room's wub, reversed in its file, pitched down, so the hole closes on a falling note.
+     * decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down
+     */
+    private static final float CLOSING_PITCH = 0.625F;
 
     private PortableHoles() {
     }
@@ -100,7 +106,11 @@ public final class PortableHoles {
         if (OPEN.isEmpty()) {
             return;
         }
+        // decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down
+        // read before the removal, which keeps no record of why each hole closed
+        List<PortableHole> ranOut = OPEN.values().stream().filter(hole -> ranOut(server, hole)).toList();
         boolean changed = OPEN.values().removeIf(hole -> closes(server, hole));
+        ranOut.forEach(hole -> playClosing(server.getLevel(hole.dimension()), hole.mouth().getCenter()));
         for (Map.Entry<UUID, PortableHole> open : OPEN.entrySet()) {
             PortableHole hole = open.getValue();
             ServerLevel level = server.getLevel(hole.dimension());
@@ -133,11 +143,15 @@ public final class PortableHoles {
                 && hole.face() == face && hole.footprint().contains(block));
         if (dismissed) {
             Vec3 at = Vec3.atCenterOf(block).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(HALF));
-            level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.ENDER_CHEST_CLOSE, SoundSource.PLAYERS,
-                    1.0F, 1.0F);
+            playClosing(level, at);
             sync(level.getServer());
         }
         return dismissed;
+    }
+
+    private static void playClosing(ServerLevel level, Vec3 at) {
+        level.playSound(null, at.x(), at.y(), at.z(), GooSounds.HOLE_CLOSE.get(), SoundSource.PLAYERS, 1.0F,
+                CLOSING_PITCH);
     }
 
     /**
@@ -153,6 +167,23 @@ public final class PortableHoles {
         ServerPlayer owner = server.getPlayerList().getPlayer(hole.owner());
         return level == null || level.getGameTime() >= hole.closesAt() || owner == null
                 || !owner.level().dimension().equals(hole.dimension());
+    }
+
+    /**
+     * Whether a hole closes because its time ran out while its owner stands
+     * in its level, the closing a player hears; a hole its owner left closes
+     * silently.
+     * decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down
+     *
+     * @param server the server
+     * @param hole   the hole
+     * @return true when the hole's time is up and its owner stands in its level
+     */
+    private static boolean ranOut(MinecraftServer server, PortableHole hole) {
+        ServerLevel level = server.getLevel(hole.dimension());
+        ServerPlayer owner = server.getPlayerList().getPlayer(hole.owner());
+        return level != null && level.getGameTime() >= hole.closesAt() && owner != null
+                && owner.level().dimension().equals(hole.dimension());
     }
 
     /**
