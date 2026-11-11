@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
+import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
@@ -48,6 +50,8 @@ public final class HexSelfTests {
     private static final String FUSE_WITHOUT_PAIR = "fuse_without_pair_costs_nothing";
     private static final String LIFETAP_NO_REGEN_LEECH_ON_HIT = "lifetap_no_regen_leech_on_hit";
     private static final String DRAIN_HEALS_THE_CASTER = "drain_heals_the_caster";
+    private static final String DRAIN_SPARES_RALLIED = "drain_spares_the_casters_rallied_cow";
+    private static final String DRAIN_SPARES_CHARMED = "drain_spares_the_casters_charmed_mob";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -60,6 +64,8 @@ public final class HexSelfTests {
         GooTestFunctions.registerTest(registrar, FUSE_WITHOUT_PAIR, HexSelfTests::fuseWithoutPairCostsNothing);
         GooTestFunctions.registerTest(registrar, LIFETAP_NO_REGEN_LEECH_ON_HIT, HexSelfTests::lifetapNoRegenLeechOnHit);
         GooTestFunctions.registerTest(registrar, DRAIN_HEALS_THE_CASTER, HexSelfTests::drainHealsTheCaster);
+        GooTestFunctions.registerTest(registrar, DRAIN_SPARES_RALLIED, HexSelfTests::drainSparesRalliedCow);
+        GooTestFunctions.registerTest(registrar, DRAIN_SPARES_CHARMED, HexSelfTests::drainSparesCharmedMob);
     }
 
 
@@ -106,6 +112,10 @@ public final class HexSelfTests {
     private static final float FACING_EAST = -90f;
     private static final float LOOKING_DOWN_AT_ZOMBIES = 15f;
     private static final int HOLD_TICKS = 20;
+    private static final String SHOULD_SPARE_OWN = "Drain should leave the caster's own %s at %.2f, stands at %.2f";
+    private static final String SHOULD_DRAIN_UNOWNED = "Drain should take health from the unowned zombie, %.2f of %.2f";
+    private static final long RALLY_TICKS = 1000L;
+    private static final float RALLY_DAMAGE = 6f;
 
     private HexSelfTests() {
     }
@@ -117,24 +127,14 @@ public final class HexSelfTests {
      * @param helper the gametest helper
      */
     public static void drainHealsTheCaster(GameTestHelper helper) {
-        AbilityDefinition drain = AbilityRegistry.of(helper.getLevel()).getAbility(HEX_DRAIN);
-        helper.assertTrue(drain != null, DRAIN_REQUIRED);
         Mob near = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_ZOMBIE_POS);
         Mob side = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SIDE_ZOMBIE_POS);
         float full = near.getMaxHealth();
-        ServerPlayer player = SurvivalPlayers.placeIn(helper);
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
-        player.setPos(stand.x, stand.y, stand.z);
-        player.setYRot(FACING_EAST);
-        player.setXRot(LOOKING_DOWN_AT_ZOMBIES);
-        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.HEX, HELD_HEX));
-        KnownRecipes.teachRequires(player, drain);
+        ServerPlayer player = drainer(helper);
         player.setHealth(HURT_HEALTH);
         player.getFoodData().setFoodLevel(0);
         player.getFoodData().setSaturation(0);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.HEX), HEX_DRAIN.toString(),
-                player.getEyePosition(), player.getEyePosition());
+        GooStreamPayload tick = drainTick(player);
         for (int held = 1; held <= HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
@@ -146,6 +146,78 @@ public final class HexSelfTests {
                     String.format(SHOULD_HEAL_CASTER, HURT_HEALTH, player.getHealth()));
             helper.succeed();
         });
+    }
+
+    /**
+     * Drain held over a cow its caster rallied and an unowned zombie leaves
+     * the cow whole and drains the zombie; the rally is laid again each held
+     * tick, since a rally whose caster holds no Rally stands down
+     * (decision drain-skips-your-rallied-and-charmed-mobs).
+     *
+     * @param helper the gametest helper
+     */
+    public static void drainSparesRalliedCow(GameTestHelper helper) {
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, NEAR_ZOMBIE_POS);
+        drainSparesOwn(helper, cow, "rallied cow", caster -> cow.setData(GooAttachments.RALLIED,
+                new Rallied(caster.getUUID(), helper.getLevel().getGameTime() + RALLY_TICKS, RALLY_DAMAGE)));
+    }
+
+    /**
+     * Drain held over a zombie its caster charmed and an unowned zombie
+     * leaves the charmed one whole and drains the other
+     * (decision drain-skips-your-rallied-and-charmed-mobs).
+     *
+     * @param helper the gametest helper
+     */
+    public static void drainSparesCharmedMob(GameTestHelper helper) {
+        Mob charmed = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_ZOMBIE_POS);
+        drainSparesOwn(helper, charmed, "charmed zombie",
+                caster -> charmed.setData(GooAttachments.CHARMED, new Charmed(caster.getUUID())));
+    }
+
+    private static void drainSparesOwn(GameTestHelper helper, Mob own, String kind, Consumer<ServerPlayer> makeOwn) {
+        Mob unowned = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SIDE_ZOMBIE_POS);
+        float ownFull = own.getHealth();
+        float unownedFull = unowned.getHealth();
+        ServerPlayer player = drainer(helper);
+        GooStreamPayload tick = drainTick(player);
+        for (int held = 1; held <= HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> {
+                makeOwn.accept(player);
+                GooStreamHandler.streamTick(player, tick);
+            });
+        }
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(own.getHealth() == ownFull,
+                    String.format(SHOULD_SPARE_OWN, kind, ownFull, own.getHealth()));
+            helper.assertTrue(unowned.getHealth() < unownedFull,
+                    String.format(SHOULD_DRAIN_UNOWNED, unowned.getHealth(), unownedFull));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A survival player in the bay facing both cone positions, holding a
+     * glove, hex goo and Drain's reagent knowledge.
+     */
+    private static ServerPlayer drainer(GameTestHelper helper) {
+        AbilityDefinition drain = AbilityRegistry.of(helper.getLevel()).getAbility(HEX_DRAIN);
+        helper.assertTrue(drain != null, DRAIN_REQUIRED);
+        ServerPlayer player = SurvivalPlayers.placeIn(helper);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setYRot(FACING_EAST);
+        player.setXRot(LOOKING_DOWN_AT_ZOMBIES);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.HEX, HELD_HEX));
+        KnownRecipes.teachRequires(player, drain);
+        return player;
+    }
+
+    private static GooStreamPayload drainTick(ServerPlayer player) {
+        return GooStreamPayload.unplaned(GooTypes.id(GooTypes.HEX), HEX_DRAIN.toString(),
+                player.getEyePosition(), player.getEyePosition());
     }
 
     /**
