@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Quantum's hole, a wormhole: thrown at a wall, it opens a
+ * Gametests for Quantum's tunnel, a wormhole: thrown at a wall, it opens a
  * mouth on the struck face and one at the first opening ahead a player fits
  * in, a 3x3 or a 2x3 within it; stepping into either comes out of the other
  * until it closes after ten seconds; thrown where no opening lies within its
@@ -38,18 +38,18 @@ import java.util.function.Consumer;
  */
 @RegistersGameTests
 public final class WormholeTests {
-    private static final String THROUGH_TO_A_FULL_OPENING = "hole_carries_through_to_a_full_opening";
-    private static final String THROUGH_TO_A_NARROW_OPENING = "hole_carries_through_to_a_narrow_opening";
-    private static final String REFUSED_WITH_NO_OPENING = "hole_refuses_with_no_opening";
-    private static final String USES_A_ONE_BY_TWO_WALL = "hole_uses_a_one_by_two_wall";
-    private static final String DROPS_THROUGH_A_ONE_BY_ONE_FLOOR = "hole_drops_through_a_one_by_one_floor";
-    private static final String REACHES_THROUGH_A_THICK_WALL = "hole_reaches_through_a_thick_wall";
-    private static final String HOLDS_OPEN_WHILE_OCCUPIED = "hole_holds_open_while_occupied";
-    private static final String CRAWLS_THROUGH_A_ONE_BY_ONE_WALL = "hole_crawls_through_a_one_by_one_wall";
-    private static final String STANDS_BEFORE_A_FULL_MOUTH = "hole_stands_before_a_full_mouth";
-    private static final String DISMISSED_BY_A_HIT = "hole_dismissed_by_a_hit";
-    private static final String REFUSED_ON_GLASS = "hole_refused_on_glass";
-    private static final String CENTRES_ON_THE_STRUCK_BLOCK = "hole_centres_on_the_struck_block";
+    private static final String THROUGH_TO_A_FULL_OPENING = "tunnel_carries_through_to_a_full_opening";
+    private static final String THROUGH_TO_A_NARROW_OPENING = "tunnel_carries_through_to_a_narrow_opening";
+    private static final String REFUSED_WITH_NO_OPENING = "tunnel_refuses_with_no_opening";
+    private static final String USES_A_ONE_BY_TWO_WALL = "tunnel_uses_a_one_by_two_wall";
+    private static final String DROPS_THROUGH_A_ONE_BY_ONE_FLOOR = "tunnel_drops_through_a_one_by_one_floor";
+    private static final String REACHES_THROUGH_A_THICK_WALL = "tunnel_reaches_through_a_thick_wall";
+    private static final String HOLDS_OPEN_WHILE_OCCUPIED = "tunnel_holds_open_while_occupied";
+    private static final String CRAWLS_THROUGH_A_ONE_BY_ONE_WALL = "tunnel_crawls_through_a_one_by_one_wall";
+    private static final String STANDS_BEFORE_A_FULL_MOUTH = "tunnel_stands_before_a_full_mouth";
+    private static final String DISMISSED_BY_A_HIT = "tunnel_dismissed_by_a_hit";
+    private static final String REFUSED_ON_GLASS = "tunnel_refused_on_glass";
+    private static final String CENTRES_ON_THE_STRUCK_BLOCK = "tunnel_centres_on_the_struck_block";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -75,10 +75,10 @@ public final class WormholeTests {
                 WormholeTests::centresOnTheStruckBlock);
     }
 
-    private static final String CLOSES_AFTER_ITS_LIFETIME = "hole_closes_after_its_lifetime";
+    private static final String CLOSES_AFTER_ITS_LIFETIME = "tunnel_closes_after_its_lifetime";
 
-    private static final Identifier QUANTUM_HOLE = Identifier.parse("goo:quantum_hole");
-    /** quantum_hole.json's cost, which the caster holds exactly. */
+    private static final Identifier QUANTUM_TUNNEL = Identifier.parse("goo:quantum_tunnel");
+    /** quantum_tunnel.json's cost, which the caster holds exactly. */
     private static final int HOLE_COST = 2000;
     /** The wall block the blob strikes on its north face, the centre of the scan. */
     private static final BlockPos STRUCK = new BlockPos(2, 2, 2);
@@ -105,7 +105,7 @@ public final class WormholeTests {
     private static final int LANDED = 30;
     /** Ticks a step into a mouth is given to carry the traveller. */
     private static final int STEP = 3;
-    /** quantum_hole.json's lifetime: the mouths close after thirty seconds. */
+    /** quantum_tunnel.json's lifetime: the mouths close after thirty seconds. */
     private static final int LIFETIME = 600;
 
     private WormholeTests() {
@@ -301,24 +301,30 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown at a wall twenty blocks thick, past sixteen blocks but within
-     * the hole's thirty-two, the hole opens through to the far side.
+     * Thrown up at a ceiling twenty blocks thick, past sixteen blocks but
+     * within the hole's thirty-two, the hole opens through to the room above.
+     * The wall runs up over the bay rather than across it, since the bay is
+     * six blocks deep and a wall twenty long across it stands in the next
+     * test's bay, and the world's floor lies too near beneath it.
      *
      * @param helper the gametest helper
      */
     public static void reachesThroughAThickWall(GameTestHelper helper) {
         for (int x = 1; x <= 3; x++) {
-            for (int y = 1; y <= 3; y++) {
-                for (int z = WALL_NEAR_Z; z < WALL_NEAR_Z + THICK_WALL; z++) {
-                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+            for (int z = 1; z <= 3; z++) {
+                for (int height = 0; height < THICK_WALL; height++) {
+                    helper.setBlock(new BlockPos(x, THICK_CEILING.getY() + height, z), Blocks.STONE);
+                }
+                for (int room = THICK_WALL; room < THICK_WALL + ROOM_ABOVE; room++) {
+                    helper.setBlock(new BlockPos(x, THICK_CEILING.getY() + room, z), Blocks.AIR);
                 }
             }
         }
         ServerPlayer caster = caster(helper);
-        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        throwAt(caster, helper.absolutePos(THICK_CEILING), Direction.DOWN);
         helper.runAfterDelay(LANDED, () -> {
-            helper.assertTrue(holeStruckAt(helper, STRUCK).isPresent(), "A hole thrown at a wall twenty blocks thick should open "
-                    + "through it");
+            helper.assertTrue(holeStruckAt(helper, THICK_CEILING).isPresent(), "A hole thrown at a ceiling twenty "
+                    + "blocks thick should open through it");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -492,10 +498,14 @@ public final class WormholeTests {
     private static final Vec3 SUNK_IN_THE_FLOOR = new Vec3(2.5, FLOOR_Y, 2.5);
     /** Where feet come out, in the one-block cell beneath the floor. */
     private static final Vec3 IN_THE_CELL_BELOW = new Vec3(2.5, FLOOR_Y - 1, 2.5);
-    /** How many cells past the struck block a hole's scan runs, as quantum_hole.json reads. */
+    /** How many cells past the struck block a hole's scan runs, as quantum_tunnel.json reads. */
     private static final int HOLE_REACH = 32;
     /** A wall thicker than sixteen blocks and thinner than thirty-two. */
     private static final int THICK_WALL = 20;
+    /** How tall the room over the thick ceiling stands, room for a body to come out. */
+    private static final int ROOM_ABOVE = 3;
+    /** The thick ceiling's lowest block over the bay's middle, the throw's mark. */
+    private static final BlockPos THICK_CEILING = new BlockPos(2, 3, 2);
 
     /** Ticks a refused throw is watched for, longer than any flight in the bay. */
     private static final int SETTLE_TICKS = 30;
@@ -518,14 +528,14 @@ public final class WormholeTests {
         caster.getInventory().clearContent();
         caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         caster.getInventory().add(GooStacks.createForOutput(GooTypes.QUANTUM, HOLE_COST));
-        KnownRecipes.teachRequires(caster, AbilityRegistry.of(caster.level()).getAbility(QUANTUM_HOLE));
+        KnownRecipes.teachRequires(caster, AbilityRegistry.of(caster.level()).getAbility(QUANTUM_TUNNEL));
         caster.snapTo(helper.absoluteVec(START));
         return caster;
     }
 
     private static void throwAt(ServerPlayer caster, BlockPos struck, Direction face) {
-        GooGloveItem.setSelection(caster.getMainHandItem(), GloveSelection.ofAbility(GooTypes.QUANTUM, QUANTUM_HOLE));
+        GooGloveItem.setSelection(caster.getMainHandItem(), GloveSelection.ofAbility(GooTypes.QUANTUM, QUANTUM_TUNNEL));
         GooThrowHandler.execute(caster, new GooThrowPayload(GooTypes.id(GooTypes.QUANTUM), -1, struck,
-                face.ordinal(), false, QUANTUM_HOLE.toString(), caster.getEyePosition()));
+                face.ordinal(), false, QUANTUM_TUNNEL.toString(), caster.getEyePosition()));
     }
 }

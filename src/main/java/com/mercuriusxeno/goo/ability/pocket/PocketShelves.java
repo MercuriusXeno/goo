@@ -10,50 +10,71 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Every player's Pocket, saved in the overworld's data: each player's shelf
- * of entries in the order their kinds were first stored, as many as were
- * stored, with no slot count bounding it.
- * decision pocket-is-a-void-reserving-container-with-scroll-and-search
+ * Every player's shelf of stored items, saved in the overworld's data: each
+ * player's entries in the order their kinds were first stored, as many as were
+ * stored, with no slot count bounding it. Void's hole swallows onto it and
+ * pours it out, and the void the old Pocket reserved for a shelf's slots is paid
+ * back once.
+ * decision hole-is-an-in-world-portable-hole-for-items
  */
 public class PocketShelves extends SavedData {
 
-    /** Saves each player's shelf. */
+    /** Saves each player's shelf and who was paid back the old reserve. */
     public static final Codec<PocketShelves> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.unboundedMap(UUIDUtil.STRING_CODEC, PocketEntry.CODEC.listOf()).fieldOf("shelves")
-                    .forGetter(pockets -> pockets.shelves)
+                    .forGetter(pockets -> pockets.shelves),
+            UUIDUtil.STRING_CODEC.listOf().optionalFieldOf("reserves_paid", List.of())
+                    .forGetter(pockets -> List.copyOf(pockets.reservesPaid))
     ).apply(inst, PocketShelves::new));
 
-    /** Stored as goo/pockets.dat in the overworld's data. */
+    /** Stored as goo/pockets.dat in the overworld's data, the id the old Pocket saved under. */
     public static final SavedDataType<PocketShelves> TYPE = new SavedDataType<>(
             Identifier.fromNamespaceAndPath("goo", "pockets"), PocketShelves::new, CODEC);
 
-    private final Map<UUID, List<PocketEntry>> shelves;
+    /** The void the old Pocket reserved for each slot a shelf's items filled. */
+    private static final int OLD_SLOT_COST = 6;
 
-    /** Creates a server's pockets with nothing stored. */
+    private final Map<UUID, List<PocketEntry>> shelves;
+    private final Set<UUID> reservesPaid;
+
+    /** Creates a server's shelves with nothing stored. */
     public PocketShelves() {
         this(Map.of());
     }
 
     /**
-     * Creates a server's pockets from what it saved.
+     * Creates a server's shelves, none paid back yet.
      *
      * @param saved each player's shelf
      */
     public PocketShelves(Map<UUID, List<PocketEntry>> saved) {
-        this.shelves = new HashMap<>();
-        saved.forEach((player, shelf) -> shelves.put(player, new ArrayList<>(shelf)));
+        this(saved, List.of());
     }
 
     /**
-     * The server's pockets, kept in the overworld's data.
+     * Creates a server's shelves from what it saved.
+     *
+     * @param saved each player's shelf
+     * @param paid  the players paid back the old reserve
+     */
+    public PocketShelves(Map<UUID, List<PocketEntry>> saved, List<UUID> paid) {
+        this.shelves = new HashMap<>();
+        saved.forEach((player, shelf) -> shelves.put(player, new ArrayList<>(shelf)));
+        this.reservesPaid = new HashSet<>(paid);
+    }
+
+    /**
+     * The server's shelves, kept in the overworld's data.
      *
      * @param level any level of the server
-     * @return the pockets
+     * @return the shelves
      */
     public static PocketShelves get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(TYPE);
@@ -70,11 +91,11 @@ public class PocketShelves extends SavedData {
     }
 
     /**
-     * How many of a stack's kind a player's pocket holds.
+     * How many of a stack's kind a player's shelf holds.
      *
      * @param player the player's id
      * @param kind   a stack of the kind
-     * @return the count, 0 for a kind the pocket does not hold
+     * @return the count, 0 for a kind the shelf does not hold
      */
     public long countOf(UUID player, ItemStack kind) {
         return shelves.getOrDefault(player, List.of()).stream().filter(entry -> entry.holds(kind))
@@ -107,24 +128,39 @@ public class PocketShelves extends SavedData {
     }
 
     /**
-     * Removes items from an entry, dropping the entry once it holds none.
+     * Empties a player's shelf.
      *
      * @param player the player's id
-     * @param index  the entry's place on the shelf
-     * @param count  how many are removed, at most what the entry holds
+     * @return every entry the shelf held, in shelf order
      */
-    public void remove(UUID player, int index, long count) {
-        List<PocketEntry> shelf = shelves.get(player);
-        if (shelf == null || index < 0 || index >= shelf.size() || count <= 0) {
-            return;
-        }
-        PocketEntry entry = shelf.get(index);
-        long left = entry.count() - Math.min(count, entry.count());
-        if (left == 0) {
-            shelf.remove(index);
-        } else {
-            shelf.set(index, entry.withCount(left));
+    public List<PocketEntry> takeAll(UUID player) {
+        List<PocketEntry> taken = shelves.remove(player);
+        if (taken == null) {
+            return List.of();
         }
         setDirty();
+        return taken;
+    }
+
+    /**
+     * Pays back, once, the void the old Pocket reserved for a player's shelf:
+     * six for each slot its entries fill, a slot holding one stack of an item.
+     * The first call marks the player paid, so every later call owes nothing.
+     *
+     * @param player the player's id
+     * @return the void owed now
+     */
+    public long settleReserve(UUID player) {
+        if (!reservesPaid.add(player)) {
+            return 0;
+        }
+        setDirty();
+        return shelves.getOrDefault(player, List.of()).stream()
+                .mapToLong(entry -> slotsOf(entry.count(), entry.kind().getMaxStackSize())).sum() * OLD_SLOT_COST;
+    }
+
+    private static long slotsOf(long count, int stackSize) {
+        long perSlot = Math.max(1, stackSize);
+        return (Math.max(0, count) + perSlot - 1) / perSlot;
     }
 }

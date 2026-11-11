@@ -18,7 +18,7 @@ import com.mercuriusxeno.goo.client.ability.ScanVisuals;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
-import com.mercuriusxeno.goo.client.pocket.PocketScreens;
+import com.mercuriusxeno.goo.client.hole.ClientPortableHoles;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -50,7 +50,7 @@ import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
 import com.mercuriusxeno.goo.network.PartnerChunkPayload;
 import com.mercuriusxeno.goo.network.PartnerChunksDropPayload;
-import com.mercuriusxeno.goo.network.PocketContentsPayload;
+import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mercuriusxeno.goo.network.PortalsSyncPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
@@ -99,7 +99,7 @@ public final class GooClientNetworking {
         event.register(GateCarriedPayload.TYPE, ClientGateCarry::handle);
         event.register(PartnerChunkPayload.TYPE, PartnerView::handle);
         event.register(PartnerChunksDropPayload.TYPE, PartnerView::handleDrop);
-        event.register(PocketContentsPayload.TYPE, PocketScreens::handleContents);
+        event.register(PortableHolesSyncPayload.TYPE, ClientPortableHoles::handle);
         registerAbilityVisualHandlers(event);
     }
 
