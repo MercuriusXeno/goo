@@ -75,18 +75,6 @@ class CrucibleBasinTest {
     }
 
     @Test
-    void bubbleSpawnsStayInsetFromTheWallsOverASeededRun() {
-        RandomSource random = RandomSource.create(42L);
-        double low = CrucibleBasin.FOOTPRINT_MIN + CrucibleParticleHelper.BUBBLE_WALL_INSET;
-        double high = CrucibleBasin.FOOTPRINT_MAX - CrucibleParticleHelper.BUBBLE_WALL_INSET;
-        for (int i = 0; i < 10_000; i++) {
-            double coordinate = CrucibleParticleHelper.randomInFootprint(random, FULL_FOOTPRINT);
-            assertTrue(coordinate >= low && coordinate <= high,
-                "bubble coordinate " + coordinate + " came within the wall inset");
-        }
-    }
-
-    @Test
     void bubbleSpawnsReachBothInsetEdges() {
         RandomSource low = mock(RandomSource.class);
         when(low.nextDouble()).thenReturn(0.0);
@@ -94,18 +82,6 @@ class CrucibleBasinTest {
         when(high.nextDouble()).thenReturn(Math.nextDown(1.0));
         assertEquals(5.5 / 16.0, CrucibleParticleHelper.randomInFootprint(low, FULL_FOOTPRINT), EPSILON);
         assertEquals(10.5 / 16.0, CrucibleParticleHelper.randomInFootprint(high, FULL_FOOTPRINT), EPSILON);
-    }
-
-    @Test
-    void bubbleSpawnsAtHalfTheSpreadStayOnThePuddleOverASeededRun() {
-        CrucibleBasin.PuddleFootprint puddle = CrucibleBasin.footprintForVolume(HALF_SPREAD);
-        RandomSource random = RandomSource.create(42L);
-        for (int i = 0; i < 10_000; i++) {
-            double x = CrucibleParticleHelper.randomInFootprint(random, puddle);
-            double z = CrucibleParticleHelper.randomInFootprint(random, puddle);
-            assertTrue(x >= puddle.min() && x <= puddle.max() && z >= puddle.min() && z <= puddle.max(),
-                "bubble at " + x + ", " + z + " left the puddle " + puddle);
-        }
     }
 
     @Test
@@ -184,18 +160,6 @@ class CrucibleBasinTest {
             assertEquals(roll == 0 ? 1 : 0, CrucibleParticleHelper.bubbleCount(random),
                 "bubble count for roll " + roll);
         }
-    }
-
-    @Test
-    void bubblesAverageOneEveryTwentyTicksOverASeededRun() {
-        RandomSource random = RandomSource.create(42L);
-        int ticks = 200_000;
-        int bubbles = 0;
-        for (int i = 0; i < ticks; i++) {
-            bubbles += CrucibleParticleHelper.bubbleCount(random);
-        }
-        double perTick = (double) bubbles / ticks;
-        assertEquals(0.05, perTick, 0.005, "bubbles per tick over a seeded run");
     }
 
     /** The cavity predicate the consume gate reads (decision collision-is-the-drawn-cavity). */

@@ -427,8 +427,19 @@ public class GasketPusher {
             return false;
         }
         int amount = (int) source.getAmountAsLong(slot);
-        int offer = Math.min(GasketDemand.demandOf(target, resource), amount);
+        int offer = offer(GasketDemand.demandOf(target, resource), amount);
         return offer > 0 && transferSlot(target, slot, resource, offer);
+    }
+
+    /**
+     * The mB a slot offers: the lesser of the target's demand and what the slot holds.
+     *
+     * @param demand the mB the target asks
+     * @param held   the mB the slot holds
+     * @return the mB to offer
+     */
+    static int offer(int demand, int held) {
+        return Math.min(demand, held);
     }
 
     /**
