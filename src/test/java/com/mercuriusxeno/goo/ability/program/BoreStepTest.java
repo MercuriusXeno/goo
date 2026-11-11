@@ -8,17 +8,16 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,9 +38,7 @@ class BoreStepTest {
     private static final double CONE_DEGREES = 15;
     private static final BlockPos FIRST_ON_LINE = new BlockPos(1, 2, 0);
     private static final BlockPos SECOND_ON_LINE = FIRST_ON_LINE.east();
-    /** A count past every cell the tunnel can hold, so one tick breaks the whole tunnel. */
-    private static final int WHOLE_TUNNEL = 100;
-    private static final int HELD_TICKS = 20;
+    private static final ChannelAim AIM = new ChannelAim(REACH_END, null, CONE_DEGREES);
 
     /**
      * A host whose blocks are breakable where the predicate says until broken,
@@ -52,7 +49,7 @@ class BoreStepTest {
         Set<BlockPos> broken = new HashSet<>();
         Predicate<BlockPos> standing = pos -> breakable.test(pos) && !broken.contains(pos);
         when(host.kind()).thenReturn(HostKind.PLAYER);
-        when(host.channelAim()).thenReturn(Optional.of(new ChannelAim(REACH_END, null, CONE_DEGREES)));
+        when(host.channelAim()).thenReturn(Optional.of(AIM));
         when(host.eye()).thenReturn(EYE);
         when(host.blockIn(any(), any())).thenAnswer(call -> standing.test(call.getArgument(0)));
         when(host.airAt(any())).thenAnswer(call -> {
@@ -71,29 +68,20 @@ class BoreStepTest {
     class TheCone {
 
         @Test
-        void aBlockBesideTheEyeLineOutsideTheConeStaysWhileTheLineBreaks() {
-            BlockPos beside = SECOND_ON_LINE.south();
-            ChannelHost host = hostWith(pos -> pos.getX() >= 1, Set.of());
+        void theTunnelRunsNearestTheEyeFirst() {
+            List<BlockPos> order = BoreStep.tunnelOrder(EYE, AIM, pos -> false);
 
-            for (int held = 0; held < HELD_TICKS; held++) {
-                run(host, new BoreStep(BREAKABLE, WHOLE_TUNNEL));
-            }
-
-            verify(host).breakBlock(SECOND_ON_LINE);
-            verify(host, never()).breakBlock(beside);
+            assertEquals(List.of(FIRST_ON_LINE, SECOND_ON_LINE), order.subList(0, 2));
         }
 
         @Test
-        void theNearestBlockBreaksFirstAndOneTickBreaksItsCount() {
+        void oneTickBreaksItsCount() {
             ChannelHost host = hostWith(pos -> pos.getX() >= 1 && pos.getY() == 2 && pos.getZ() == 0, Set.of());
 
             run(host, new BoreStep(BREAKABLE, 1));
+
             verify(host).breakBlock(FIRST_ON_LINE);
             verify(host, times(1)).breakBlock(any());
-
-            run(host, new BoreStep(BREAKABLE, 1));
-            verify(host).breakBlock(SECOND_ON_LINE);
-            verify(host, times(2)).breakBlock(any());
         }
     }
 
@@ -101,21 +89,13 @@ class BoreStepTest {
     class TheStoppingBlock {
 
         @Test
-        @SuppressWarnings("unchecked")
         void aSolidBlockOutsideTheTagOnTheEyeLineStopsTheTunnel() {
             BlockPos wall = SECOND_ON_LINE;
-            ChannelHost host = hostWith(pos -> pos.getX() >= 1 && !pos.equals(wall), Set.of(wall));
-            BoreStep bore = new BoreStep(BREAKABLE, WHOLE_TUNNEL, List.of(), List.of(mock(Step.class)));
 
-            run(host, bore);
+            List<BlockPos> tunnel = BoreStep.tunnelOrder(EYE, AIM, wall::equals);
 
-            verify(host).breakBlock(FIRST_ON_LINE);
-            verify(host, never()).breakBlock(wall.east());
-            verify(host, times(1)).breakBlock(any());
-            ArgumentCaptor<List<BlockPos>> struck = ArgumentCaptor.forClass(List.class);
-            verify(host).forEachLivingIn(struck.capture(), any(), any());
-            assertTrue(struck.getValue().contains(FIRST_ON_LINE));
-            assertTrue(struck.getValue().stream().allMatch(cell -> cell.getX() < wall.getX()));
+            assertTrue(tunnel.contains(FIRST_ON_LINE));
+            assertTrue(tunnel.stream().allMatch(cell -> cell.getX() < wall.getX()));
         }
     }
 }

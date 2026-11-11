@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
@@ -132,8 +133,21 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
      * @return the blocks, each once
      */
     private List<BlockPos> tunnelOrder(ChannelHost host, Vec3 eye, ChannelAim aim) {
+        return tunnelOrder(eye, aim, pos -> !host.airAt(pos) && !host.blockIn(pos, breaks));
+    }
+
+    /**
+     * The tunnel's blocks in the order they break, nearest the eye first, the
+     * eye line stopping at the first block past the eye's own that stops it.
+     *
+     * @param eye   the eye the tunnel runs from
+     * @param aim   the stream's aim: its reach along the look and its cone
+     * @param stops whether a block on the eye line stops the tunnel
+     * @return the blocks, each once
+     */
+    static List<BlockPos> tunnelOrder(Vec3 eye, ChannelAim aim, Predicate<BlockPos> stops) {
         List<BlockPos> line = blocksAlong(eye, aim.aimPoint());
-        int stop = stoppingIndex(host, line);
+        int stop = stoppingIndex(line, stops);
         double stopDistance = stop < line.size()
                 ? Vec3.atCenterOf(line.get(stop)).distanceTo(eye) : Double.POSITIVE_INFINITY;
         Set<BlockPos> tunnel = new LinkedHashSet<>(line.subList(1, stop));
@@ -151,13 +165,13 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
      * Where the eye line meets the first solid block outside the tag, past
      * the eye's own block.
      *
-     * @param host the channel host
-     * @param line the blocks the eye line crosses, the eye's own first
+     * @param line  the blocks the eye line crosses, the eye's own first
+     * @param stops whether a block on the line stops the tunnel
      * @return the stopping block's index on the line, or the line's length where none stands
      */
-    private int stoppingIndex(ChannelHost host, List<BlockPos> line) {
+    private static int stoppingIndex(List<BlockPos> line, Predicate<BlockPos> stops) {
         for (int i = 1; i < line.size(); i++) {
-            if (!host.airAt(line.get(i)) && !host.blockIn(line.get(i), breaks)) {
+            if (stops.test(line.get(i))) {
                 return i;
             }
         }

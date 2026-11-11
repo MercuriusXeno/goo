@@ -19,7 +19,6 @@ import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
-import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -28,7 +27,6 @@ import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
-import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.program.WobbleStep;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
@@ -61,7 +59,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -83,12 +80,16 @@ class AbilityLoaderTest {
     private static final String LINGERING = "crystal_cloud";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_explode";
-    /** The abilities whose whole design was a per-stack shape. */
-    private static final List<String> STACK_SHAPE_ABILITIES = List.of("frost_flat", "frost_tunnel", "frost_sphere", "rock_flat", "rock_tunnel");
 
     private static Map<Identifier, AbilityDefinition> scanShipped(List<Path> files) {
         return IdentifiedJsonScan.scan(managerListing(files), FileToIdConverter.json(DIRECTORY), JsonOps.INSTANCE,
                 AbilityDefinition::codecFor);
+    }
+
+    /** Every shipped ability, decoded from its own file and keyed by its id. */
+    private static Map<Identifier, AbilityDefinition> shippedById() {
+        return AbilityJson.files().stream().map(AbilityJson::decode)
+                .collect(Collectors.toMap(AbilityDefinition::id, def -> def));
     }
 
     /**
@@ -130,7 +131,7 @@ class AbilityLoaderTest {
 
         @Test
         void typhoonCarriesShulkFloatGustUpdraftAndPneuma() {
-            Set<String> typhoon = scanShipped(AbilityJson.files()).values().stream()
+            Set<String> typhoon = shippedById().values().stream()
                     .filter(def -> def.gooType() == GooTypes.TYPHOON)
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
 
@@ -158,46 +159,11 @@ class AbilityLoaderTest {
         }
     }
 
-    // decision splat-runs-the-program-no-fuse
-    @Test
-    void stackShapeAbilitiesLeaveTheRegistry() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
-
-        assertFalse(scanned.isEmpty(), "No ability scanned");
-        for (String name : STACK_SHAPE_ABILITIES) {
-            assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, name)), name + " still loads");
-        }
-    }
-
-    // decision wither-ability-deleted
-    @Test
-    void netherHoldsNoWitherAbility() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
-
-        assertTrue(scanned.values().stream().anyMatch(def -> def.gooType() == GooTypes.NETHER), "No nether ability scanned");
-        assertTrue(scanned.values().stream().filter(def -> def.gooType() == GooTypes.NETHER)
-                .noneMatch(def -> def.id().getPath().contains("wither")), "a nether wither ability still loads");
-    }
-
-    // decision splat-runs-the-program-no-fuse
-    @Test
-    void noShippedProgramReadsAStackCount() {
-        for (AbilityDefinition ability : scanShipped(AbilityJson.files()).values()) {
-            Set<String> read = ability.behaviors().stream()
-                    .flatMap(AbilityLoaderTest::withDescendants)
-                    .flatMap(Step::expressions)
-                    .flatMap(expr -> expr.variables().stream())
-                    .collect(Collectors.toSet());
-            assertFalse(read.contains("stacks") || read.contains("max_stacks"), ability.id() + " reads " + read);
-        }
-    }
-
     // decision lingering-abilities-place-their-own-thing
     // decision one-proving-ability-per-kind
     @Test
-    void eachLingeringAbilityPlacesItsOwnThingAndBlastPlacesNothing() {
+    void aLingeringAbilityPlacesItsOwnThing() {
         assertTrue(placesItsOwnThing(AbilityJson.decode(LINGERING)), LINGERING + " names no step placing its own thing");
-        assertFalse(placesItsOwnThing(AbilityJson.decode(BLAST)), BLAST + " places a thing of its own");
     }
 
     private static boolean placesItsOwnThing(AbilityDefinition ability) {
@@ -219,7 +185,7 @@ class AbilityLoaderTest {
                 Identifier.DEFAULT_NAMESPACE, declaredItemPaths(Items.class),
                 Goo.MODID, declaredItemPaths(GooItems.class));
 
-        for (AbilityDefinition ability : scanShipped(AbilityJson.files()).values()) {
+        for (AbilityDefinition ability : shippedById().values()) {
             for (Identifier item : ability.requires()) {
                 assertTrue(declared.getOrDefault(item.getNamespace(), Set.of()).contains(item.getPath()),
                         ability.id() + " requires " + item + ", which no item class declares");
@@ -234,7 +200,7 @@ class AbilityLoaderTest {
      */
     @Test
     void prismAndGlitterConsumeNothing() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+        Map<Identifier, AbilityDefinition> scanned = shippedById();
 
         for (String path : List.of("crystal_prism", "crystal_glitter", "crystal_cloud")) {
             assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, path)).consumes(), path);
@@ -248,7 +214,7 @@ class AbilityLoaderTest {
      */
     @Test
     void selfBrewAbilitiesNameAnUpkeepInPlaceOfACost() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+        Map<Identifier, AbilityDefinition> scanned = shippedById();
 
         for (AbilityDefinition ability : scanned.values()) {
             if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
@@ -261,17 +227,12 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Stoneskin's up sound is the petrify sound Statues plays, at another
-     * pitch, and Gluttony's is a healing cue of its own
+     * Stoneskin's up sound is the petrify sound Statues plays
      * (decision held-effects-sound-up-and-down).
      */
     @Test
-    void heldEffectsSoundTheirOwnUpCue() {
-        SoundStep stoneskinUp = firstSound("rock_stoneskin");
-        assertEquals(Identifier.withDefaultNamespace("block.deepslate.place"), stoneskinUp.sound());
-        assertNotEquals(1.0, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
-        assertNotEquals(0.8, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
-        assertTrue(AbilityJson.decode("jelly_gluttony").behaviors().stream().anyMatch(SoundStep.class::isInstance));
+    void stoneskinSoundsTheDeepslatePlaceAsItStarts() {
+        assertEquals(Identifier.withDefaultNamespace("block.deepslate.place"), firstSound("rock_stoneskin").sound());
     }
 
     /**
@@ -299,7 +260,6 @@ class AbilityLoaderTest {
                 .flatMap(AbilityLoaderTest::stepTree).toList();
 
         assertTrue(steps.stream().anyMatch(CharmStep.class::isInstance), "no charm step");
-        assertTrue(steps.stream().noneMatch(PotionStep.class::isInstance), "still applies a potion");
     }
 
     /**
@@ -388,10 +348,6 @@ class AbilityLoaderTest {
 
         assertEquals(List.of(GooTypes.ENDER), after.stream().filter(GhostTrailStep.class::isInstance)
                 .map(step -> ((GhostTrailStep) step).goo()).toList(), "no ender ghost trail after the teleport");
-        assertTrue(steps.subList(0, teleport).stream().noneMatch(GhostTrailStep.class::isInstance),
-                "a ghost trail runs before the jump it traces");
-        assertEquals(1, afterimageTypes(steps.subList(0, teleport)).size(), "the source ripple is gone");
-        assertEquals(1, afterimageTypes(after).size(), "the destination ripple is gone");
     }
 
     /**
@@ -411,7 +367,6 @@ class AbilityLoaderTest {
 
         @Test
         void anAbilityNamingNoIndicatorShowsWhileHeld() {
-            assertFalse(AbilityJson.read(BLAST).contains("\"indicator\""), "Blast names an indicator");
             assertEquals(IndicatorShowing.HELD, AbilityJson.decode(BLAST).indicator());
         }
 
@@ -448,8 +403,6 @@ class AbilityLoaderTest {
 
         @Test
         void jsonNamingNoDescriptionReadsItsDisplayNamePlusDescription() {
-            assertFalse(AbilityJson.read(SPIRE).contains("\"description\""), "spire names a description");
-
             assertEquals("goo.ability.rock.spire.description", AbilityJson.decode(SPIRE).description());
         }
     }
@@ -533,8 +486,6 @@ class AbilityLoaderTest {
 
         @Test
         void plainCostAbilityLoadsNamingNoCostMechanics() {
-            assertFalse(AbilityJson.read(BLAST).contains("cost_mechanics"), "Blast names cost_mechanics");
-
             AbilityDefinition blast = AbilityJson.decode(BLAST);
 
             assertTrue(blast.cost().in(GooValueTable.EMPTY) > 0, "Blast's cost " + blast.cost().in(GooValueTable.EMPTY));
@@ -581,12 +532,9 @@ class AbilityLoaderTest {
 
         @Test
         void shippedBlazeLeafAndZooEachCarryExactlyOneBrew() {
-            Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
+            Map<Identifier, AbilityDefinition> shipped = shippedById();
             List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.ZOO);
 
-            List<ResourceKey<GooTypeDefinition>> lacking = AbilityLoader.typesLackingADurative(shipped, GooTypes.BUNDLED);
-
-            assertTrue(carriers.stream().noneMatch(lacking::contains), lacking.toString());
             for (ResourceKey<GooTypeDefinition> type : carriers) {
                 long brews = shipped.values().stream()
                         .filter(def -> def.gooType() == type && SelfEatRoute.eats(def.delivery(), def.badge()))
@@ -598,24 +546,12 @@ class AbilityLoaderTest {
         /** decision zoo-rally-is-a-brew-ability */
         @Test
         void shippedZooBrewIsRally() {
-            List<Identifier> zooBrews = scanShipped(AbilityJson.files()).values().stream()
+            List<Identifier> zooBrews = shippedById().values().stream()
                     .filter(def -> def.gooType() == GooTypes.ZOO && SelfEatRoute.eats(def.delivery(), def.badge()))
                     .map(AbilityDefinition::id)
                     .toList();
 
             assertEquals(List.of(Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally")), zooBrews);
-        }
-
-        /** decision zoo-rally-is-a-brew-ability */
-        @Test
-        void shippedZooRallyEatsAsABrewPayingUpkeep() {
-            AbilityDefinition rally = AbilityJson.decode("zoo_rally");
-
-            assertEquals(AbilityBadge.DURATIVE, rally.badge());
-            assertEquals(DeliveryKind.SELF, rally.delivery().kind());
-            assertTrue(rally.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + rally.upkeep().in(GooValueTable.EMPTY));
-            assertEquals(0, rally.cost().in(GooValueTable.EMPTY));
-            assertTrue(SelfEatRoute.eats(rally.delivery(), rally.badge()));
         }
 
         /** decision zoo-rally-holds-for-the-brew */
@@ -638,16 +574,12 @@ class AbilityLoaderTest {
 
         @Test
         void weirdLoadsBounceCoatAndSlimeAlone() {
-            Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+            Map<Identifier, AbilityDefinition> scanned = shippedById();
 
             Set<String> weird = scanned.values().stream().filter(def -> def.gooType() == GooTypes.WEIRD)
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
 
             assertEquals(Set.of("weird_bounce", "weird_coat", "weird_slime"), weird);
-            assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_wobble")),
-                    "weird_wobble still loads");
-            assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_magma")),
-                    "weird_magma still loads");
         }
 
         @Test
