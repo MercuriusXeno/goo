@@ -87,6 +87,16 @@ class AffordedCountTest {
                     StandingUpkeep.NONE, OptionalDouble.of(RING_TWO_GROWN)));
         }
 
+        /**
+         * Outside the pocket the petal reads the trip in, priced as a one-shot, then the trips the
+         * void affords (decision outsider-reads-its-entry-as-uses-outside-the-pocket).
+         */
+        @Test
+        void outsideThePocketPetalReadsTheEntryThenTheTrips() {
+            assertEquals("6 | x166", outsider.petalLabel(THOUSAND, NO_REAGENTS, StandingUpkeep.NONE,
+                    OptionalDouble.empty()));
+        }
+
         @Test
         void petalDimsShortOfASecondsGrowth() {
             assertTrue(outsider.dimsAt(UNDER_A_SECOND, NO_REAGENTS, StandingUpkeep.NONE,

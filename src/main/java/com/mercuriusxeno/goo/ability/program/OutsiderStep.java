@@ -96,6 +96,17 @@ public record OutsiderStep(Expr charge, Expr enter, Expr ringTicks, Expr cellCos
     }
 
     /**
+     * The void the way in costs, which outside the pocket prices the
+     * channel as a one-shot.
+     * decision outsider-reads-its-entry-as-uses-outside-the-pocket
+     *
+     * @return the entry (mB)
+     */
+    public int entryCost() {
+        return enter.evaluateInt(Variables.NONE);
+    }
+
+    /**
      * The ticks a void holding sustains the room's growth from an extent at
      * this step's own prices, beside the void upkeep already standing.
      * decision outsider-panel-reads-the-seconds-the-void-affords

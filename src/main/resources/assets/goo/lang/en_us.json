@@ -306,7 +306,7 @@
   "goo.ability.void.hole.description": "Opens a hole on a floor that stands open temporarily and keeps every item thrown in; opened on a ceiling it pours them all back out.",
   "goo.ability.void.outsider": "Outsider",
   "goo.ability.void.outsider.description": "Hold to enter your own dimension and, inside, to widen it on every side; the doorway takes you back.",
-  "goo.ability.void.outsider.cost_mechanics": "6 void to enter. Growing the floor costs void per block.",
+  "goo.ability.void.outsider.cost_mechanics": "%s void to enter. Inside, holding on costs void each second, rising as the room grows.",
   "block.goo.voidstone": "Voidstone",
   "block.goo.dimension_door": "Dimension Doorway",
   "goo.ability.weird.mitosis": "Mitosis",

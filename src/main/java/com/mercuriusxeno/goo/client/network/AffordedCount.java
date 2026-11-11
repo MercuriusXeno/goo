@@ -64,12 +64,29 @@ public record AffordedCount(long count, boolean timed) {
      */
     public static Optional<AffordedCount> reckon(ClientAbility ability, int holdings, int reagentSets,
                                                  StandingUpkeep standing, OptionalDouble roomExtent) {
-        Optional<OutsiderStep> outsider = ability.outsider();
-        if (outsider.isPresent() && roomExtent.isPresent()) {
-            return Optional.of(new AffordedCount(outsider.get().growthTicksAfforded(roomExtent.getAsDouble(),
-                    holdings, standing.perTick()), true));
+        return ability.outsider().map(step -> outsiderCount(step, holdings, standing, roomExtent))
+                .or(() -> fixedPriceCount(ability, holdings, reagentSets, standing));
+    }
+
+    /**
+     * What the holdings afford of Outsider: in its room, the ticks they sustain the room's growth;
+     * outside the pocket, the trips in, each priced at the entry as a one-shot.
+     * decision outsider-panel-reads-the-seconds-the-void-affords
+     * decision outsider-reads-its-entry-as-uses-outside-the-pocket
+     *
+     * @param step       the ability's Outsider step
+     * @param holdings   the void the player holds (mB)
+     * @param standing   the upkeep already standing on void
+     * @param roomExtent the extent of the Outsider room the player stands in, empty outside the pocket
+     * @return the count
+     */
+    private static AffordedCount outsiderCount(OutsiderStep step, int holdings, StandingUpkeep standing,
+                                               OptionalDouble roomExtent) {
+        if (roomExtent.isPresent()) {
+            return new AffordedCount(step.growthTicksAfforded(roomExtent.getAsDouble(), holdings, standing.perTick()),
+                    true);
         }
-        return fixedPriceCount(ability, holdings, reagentSets, standing);
+        return new AffordedCount(holdings / Math.max(1, step.entryCost()), false);
     }
 
     /**
