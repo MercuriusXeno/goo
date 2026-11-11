@@ -171,5 +171,19 @@
         "stream": false
       }
     ]
+  },
+  "effects.hole_close": {
+    "category": "players",
+    "subtitle": "subtitles.goo.hole_close",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_wub_reversed",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/outsider_wub2_reversed",
+        "stream": false
+      }
+    ]
   }
 }

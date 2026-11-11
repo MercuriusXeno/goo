@@ -86,6 +86,13 @@ public final class GooSoundIds {
      */
     public static final Identifier HOLE_OPEN = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.hole_open");
 
+    /**
+     * Void's hole closing on a punch or when its time runs out: the Outsider
+     * room's wub reversed, played pitched down
+     * (decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down).
+     */
+    public static final Identifier HOLE_CLOSE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.hole_close");
+
     private GooSoundIds() {
     }
 }

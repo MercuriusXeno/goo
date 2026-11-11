@@ -86,5 +86,10 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.hole_open",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HOLE_OPEN));
 
+    /** Void's hole closing (decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> HOLE_CLOSE =
+        SOUND_EVENTS.register("effects.hole_close",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HOLE_CLOSE));
+
     private GooSounds() {}
 }
