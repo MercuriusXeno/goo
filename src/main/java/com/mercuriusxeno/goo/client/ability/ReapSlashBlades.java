@@ -18,7 +18,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import org.joml.Matrix4fc;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,10 +26,9 @@ import java.util.List;
  * as its frames show them: each a huge thick crescent drawn whole from the
  * very slash the server cuts with, its outside edge glowing pale and its
  * inside edge shading to Leaf's green, narrowing and dimming as it travels
- * outward. The slasher's own slashes in first person draw on the slasher's
- * screen instead, their face standing up as an arch (FirstPersonSweep), held
- * just before the eye inside the slasher's own body so nothing in the world
- * comes between.
+ * outward. The slasher's own slashes in first person draw as the
+ * third-person camera sees them instead (FirstPersonSweep), shrunk about the
+ * eye into the slasher's own body so nothing in the world comes between.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -43,8 +41,8 @@ public final class ReapSlashBlades {
     private static final int OPAQUE = 0xFF;
     /** The inside edge's share of the outside edge's brightness. */
     private static final float HOLLOW_SHARE = 0.45f;
-    /** How far before the eye a first-person slash is held, in blocks, inside the slasher's own body. */
-    private static final double VIEW_DEPTH = 0.25;
+    /** How far a first-person slash is shrunk about the eye, so its farthest point stays inside the slasher's own body. */
+    private static final double VIEW_SCALE = 1.0 / 40;
     private static final double HOLLOW = 0;
     private static final double BULGE = 1;
 
@@ -69,25 +67,29 @@ public final class ReapSlashBlades {
     }
 
     /**
-     * The first-person view a slash is held in: the camera's axes and how
-     * wide and tall the screen opens.
+     * The first-person view a slash is held in: the camera's axes.
      *
-     * @param forward      the camera's unit forward
-     * @param right        the camera's unit right
-     * @param up           the camera's unit up
-     * @param tanHalfWidth the tangent of half the screen's width as an angle
-     * @param tanHalfHeight the tangent of half the screen's height as an angle
+     * @param forward the camera's unit forward
+     * @param right   the camera's unit right
+     * @param up      the camera's unit up
      */
-    private record Sight(Vec3 forward, Vec3 right, Vec3 up, double tanHalfWidth, double tanHalfHeight) {
+    private record Sight(Vec3 forward, Vec3 right, Vec3 up) {
 
-        static Sight of(Camera camera, Matrix4fc projection) {
+        static Sight of(Camera camera) {
             return new Sight(new Vec3(camera.forwardVector()), new Vec3(camera.leftVector()).reverse(),
-                    new Vec3(camera.upVector()), 1 / projection.m00(), 1 / projection.m11());
+                    new Vec3(camera.upVector()));
         }
 
-        Vec3 place(FirstPersonSweep.ScreenPoint point) {
-            return forward.scale(VIEW_DEPTH).add(right.scale(point.x() * tanHalfWidth * VIEW_DEPTH))
-                    .add(up.scale(point.y() * tanHalfHeight * VIEW_DEPTH));
+        /**
+         * A view point shrunk about the eye into the space just before it,
+         * which the eye sees exactly as it would the full-size point.
+         *
+         * @param point the point in the view, in blocks
+         * @return the point relative to the camera
+         */
+        Vec3 place(FirstPersonSweep.ViewPoint point) {
+            return right.scale(point.right()).add(up.scale(point.up())).add(forward.scale(point.forward()))
+                    .scale(VIEW_SCALE);
         }
     }
 
@@ -136,7 +138,7 @@ public final class ReapSlashBlades {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
         drawAll(mc, quads, tick + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false),
-                Sight.of(mc.gameRenderer.getMainCamera(), event.getLevelRenderState().cameraRenderState.projectionMatrix));
+                Sight.of(mc.gameRenderer.getMainCamera()));
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }
 
@@ -157,8 +159,7 @@ public final class ReapSlashBlades {
             ReapSlash slash = shown.slash();
             double age = time - shown.launchTick();
             Drawn drawn = shown.own() && firstPerson
-                    ? (along, layer) -> sight.place(FirstPersonSweep.pointAt(slash, shown.fan(), sight.tanHalfWidth(),
-                            age, along, layer))
+                    ? (along, layer) -> sight.place(FirstPersonSweep.pointAt(slash, shown.fan(), age, along, layer))
                     : (along, layer) -> slash.pointAt(age, along, layer).subtract(camera);
             drawSlash(quads, drawn, slash.strengthAt(age), leaf);
         }
