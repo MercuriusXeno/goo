@@ -63,6 +63,15 @@ public final class ClientPortableHoles {
     }
 
     /**
+     * @param mouth a drawn mouth
+     * @param time  the client's game time, partial tick included
+     * @return the count of kinds its soup spreads over, easing to a new count as kinds are stored or taken
+     */
+    static float kindsShownAt(PortableHolesSyncPayload.Mouth mouth, float time) {
+        return SWALLOWS.kindsShownAt(mouth, time);
+    }
+
+    /**
      * @param time the client's game time, partial tick included
      * @return each mouth to draw, open or shrinking shut
      */

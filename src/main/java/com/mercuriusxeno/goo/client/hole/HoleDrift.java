@@ -1,23 +1,21 @@
 package com.mercuriusxeno.goo.client.hole;
 
-import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
  * The slow path each stored item swims on sunk inside an open hole: the items
- * scatter as a sunflower across the whole mouth, each a golden angle round from
- * the last and farther out, and each at a depth of its own below the face, so
- * they fill the hole as a soup rather than a ring. The whole soup turns slowly,
- * each item swaying in and out and bobbing in depth on rhythms of its own, and
- * every item stays wholly inside the pit behind the mouth.
+ * scatter as a sunflower across the whole mouth at any count of kinds, each a
+ * golden angle round from the last and farther out, and each at a depth of its
+ * own below the face, so they fill the hole as a soup rather than a ring. The
+ * whole soup turns slowly, each item swaying in and out and bobbing in depth on
+ * rhythms of its own, and every item stays wholly inside the pit behind the mouth.
  * decision hole-is-an-in-world-portable-hole-for-items
  * decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole
+ * decision hole-shows-every-kind-stored
  */
 public final class HoleDrift {
 
-    /** The most stored kinds a mouth shows. */
-    public static final int MOST_SHOWN = PortableHolesSyncPayload.MOST_STORED_SHOWN;
     /** How far the pit behind the mouth reaches into its blocks. */
     public static final double PIT_DEPTH = 0.95;
     /** The size an item draws at, its model's largest span. */
@@ -68,15 +66,17 @@ public final class HoleDrift {
      * shrinks, so a closing mouth seals over items that keep their place and size.
      * decision hole-seals-over-items-of-fixed-scale
      *
-     * @param index      the item's place among the shown kinds
+     * @param index      the item's place among the stored kinds
+     * @param kinds      how many kinds the mouth stores
      * @param time       the game time, partial tick included
      * @param halfAcross the mouth's half span across, along x
      * @param halfAlong  the mouth's half span along, along z
      * @param open       the share the mouth stands open, 0 shut to 1 fully open
      * @return the item's place and drawn size
      */
-    public static Placement placementAt(int index, float time, double halfAcross, double halfAlong, float open) {
-        return new Placement(offset(index, time, halfAcross, halfAlong), open > 0F ? ITEM_SIZE : 0);
+    public static Placement placementAt(int index, float kinds, float time, double halfAcross, double halfAlong,
+                                        float open) {
+        return new Placement(offset(index, kinds, time, halfAcross, halfAlong), open > 0F ? ITEM_SIZE : 0);
     }
 
     /**
@@ -84,16 +84,18 @@ public final class HoleDrift {
      * the face from its middle, z along it, and y off the face, negative into
      * the pit behind it.
      *
-     * @param index      the item's place among the shown kinds
+     * @param index      the item's place among the stored kinds
+     * @param kinds      how many kinds the mouth stores
      * @param time       the game time, partial tick included
      * @param halfAcross the mouth's half span across, along x
      * @param halfAlong  the mouth's half span along, along z
      * @return the offset of the item's middle from the mouth's middle
      */
-    public static Vec3 offset(int index, float time, double halfAcross, double halfAlong) {
-        // a point in the unit disc, turned with the whole soup and swaying, stays in the disc
-        float out = SPREAD * Mth.sqrt((index + HALF) / MOST_SHOWN)
-                + SWAY_REACH * Mth.sin(SWAY * time + index * SWAY_PHASE);
+    public static Vec3 offset(int index, float kinds, float time, double halfAcross, double halfAlong) {
+        // a point in the unit disc, turned with the whole soup and swaying, stays in the disc; a count easing
+        // up past an index leaves that index at the outermost ring rather than past it
+        float share = Math.min((index + HALF) / Math.max(kinds, 1F), 1F);
+        float out = SPREAD * Mth.sqrt(share) + SWAY_REACH * Mth.sin(SWAY * time + index * SWAY_PHASE);
         float angle = ORBIT * time + index * GOLDEN_ANGLE;
         double across = out * Mth.cos(angle) * (halfAcross - DRAWN_RADIUS);
         double along = out * Mth.sin(angle) * (halfAlong - DRAWN_RADIUS);
