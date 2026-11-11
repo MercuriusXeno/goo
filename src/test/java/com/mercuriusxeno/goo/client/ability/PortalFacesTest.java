@@ -171,6 +171,37 @@ class PortalFacesTest {
         private static final float NEAR = 1.0e-4F;
         /** The rim's 4.84 blocks around a one by two oval and the arch's two texels across, at sixteen a block. */
         private static final int[] AROUND_BY_UP = {78, 2};
+        /** The band's line on the frame's oval: half a texel inside its edge each way. */
+        private static final double[] LINE = {0.5 - PortalFaces.BAND_INSET, 1 - PortalFaces.BAND_INSET};
+
+        /**
+         * The band's sleeve, the half behind the face, is a ring at the band's
+         * line running back into the portal the named sleeve depth, in the
+         * color it is given.
+         */
+        @Test
+        void aPortalsSleeveRunsFromItsFaceBackIntoItOnTheBandsLine() {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+            ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
+
+            PortalFaces.emitSleeves(pose, consumer, List.of(new PortalFaces.Drawn(FRAME, PortalFaces.ORANGE_RGB,
+                    false)), BLOCKS_OF);
+
+            verify(consumer, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
+            int vertices = zs.getAllValues().size();
+            assertEquals(FACE_Z, zs.getAllValues().stream().max(Float::compare).orElseThrow(), NEAR,
+                    "The sleeve should start on the face");
+            assertEquals(FACE_Z - (float) PortalFaces.BAND_SLEEVE, zs.getAllValues().stream().min(Float::compare)
+                    .orElseThrow(), NEAR, "The sleeve should run the named depth back from the face");
+            for (int i = 0; i < vertices; i++) {
+                assertTrue(onOval(xs.getAllValues().get(i) - 0.5F, ys.getAllValues().get(i) - 65F, LINE[0],
+                        LINE[1]), "Every vertex of the sleeve should stand on the band's line");
+            }
+            verify(consumer, times(vertices)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.ORANGE_RGB));
+        }
 
         @Test
         void aWaitingPortalsSwirlBandArchesOverItsRimToTheNamedDepthInBlue() {
@@ -204,13 +235,13 @@ class PortalFacesTest {
                 float y = ys.getAllValues().get(i);
                 float z = zs.getAllValues().get(i);
                 if (Math.abs(z - FACE_Z) < NEAR) {
-                    assertTrue(onOval(x - 0.5F, y - 65F, 0.5 - PortalFaces.BAND_INSIDE, 1 - PortalFaces.BAND_INSIDE)
-                            || onOval(x - 0.5F, y - 65F, 0.5 + PortalFaces.BAND_OUTSIDE,
-                                    1 + PortalFaces.BAND_OUTSIDE),
-                            "A vertex on the face should land the named distance inside or outside the rim, lands at "
-                                    + x + ", " + y);
+                    assertTrue(onOval(x - 0.5F, y - 65F, LINE[0] - PortalFaces.BAND_INSIDE,
+                            LINE[1] - PortalFaces.BAND_INSIDE) || onOval(x - 0.5F, y - 65F,
+                            LINE[0] + PortalFaces.BAND_OUTSIDE, LINE[1] + PortalFaces.BAND_OUTSIDE),
+                            "A vertex on the face should land the named distance inside or outside the band's line, "
+                                    + "lands at " + x + ", " + y);
                 } else if (Math.abs(z - farthest) < NEAR) {
-                    assertTrue(onOval(x - 0.5F, y - 65F, 0.5, 1), "The band's peak should stand right over the rim, "
+                    assertTrue(onOval(x - 0.5F, y - 65F, LINE[0], LINE[1]), "The band's peak should stand on its line, "
                             + "stands at " + x + ", " + y);
                 }
             }
@@ -254,13 +285,14 @@ class PortalFacesTest {
     }
 
     /**
-     * The swirl band passes through the portal's face: inside a view through
-     * a pair, the partner the view looks out of wears the band in the near
-     * portal's color, so looking into the orange portal its orange band runs
-     * on into it, and never in blue; every other gate wears its own.
+     * The swirl band straddles the portal's face, and its half behind the
+     * face runs back into the portal: inside a view through a pair, the
+     * partner the view looks out of wears the near portal's sleeve in the
+     * near portal's color, so looking into the orange portal its orange
+     * swirl recedes into it, never blue. Outside a view, no gate wears one.
      */
     @Test
-    void theViewThroughAPairCarriesTheNearPortalsBandOnThroughIt() {
+    void theViewThroughAPairSleevesTheNearPortalsBandBackIntoIt() {
         Gate blue = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 1, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
         Gate orange = new Gate(Level.OVERWORLD, new AABB(9, 64, 0, 10, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
         Gate seen = new Gate(Level.OVERWORLD, new AABB(20, 64, 0, 21, 66, 1), Direction.NORTH, new Vec3(0, 1, 0));
@@ -268,15 +300,13 @@ class PortalFacesTest {
                 new PortalFaces.Drawn(orange, PortalFaces.ORANGE_RGB, false),
                 new PortalFaces.Drawn(seen, PortalFaces.BLUE_RGB, false));
 
-        List<PortalFaces.Drawn> banded = PortalFaces.bandedIn(gates, java.util.Optional.of(
+        List<PortalFaces.Drawn> sleeved = PortalFaces.sleevedIn(gates, java.util.Optional.of(
                 new GatePassage.Pair(orange, blue)));
 
-        assertEquals(List.of(new PortalFaces.Drawn(blue, PortalFaces.ORANGE_RGB, false),
-                new PortalFaces.Drawn(orange, PortalFaces.ORANGE_RGB, false),
-                new PortalFaces.Drawn(seen, PortalFaces.BLUE_RGB, false)), banded,
-                "Looking into the orange portal, the blue partner it looks out of wears the orange band");
-        assertEquals(gates, PortalFaces.bandedIn(gates, java.util.Optional.empty()),
-                "Outside a view, every gate wears its own band");
+        assertEquals(List.of(new PortalFaces.Drawn(blue, PortalFaces.ORANGE_RGB, false)), sleeved,
+                "Looking into the orange portal, the blue partner it looks out of wears the orange sleeve");
+        assertEquals(List.of(), PortalFaces.sleevedIn(gates, java.util.Optional.empty()),
+                "Outside a view, no gate wears a sleeve");
     }
 
     /**
@@ -377,9 +407,10 @@ class PortalFacesTest {
 
         private void assertStraddlesTheTear(List<float[]> atTheFace, float[] middle, double[] half) {
             assertTrue(!atTheFace.isEmpty() && atTheFace.stream().allMatch(at -> onOval(at[0] - middle[0],
-                    at[1] - middle[1], half[0] * TORN_MIDDLE - PortalFaces.BAND_INSIDE,
-                    half[1] * TORN_MIDDLE - PortalFaces.BAND_INSIDE) || onOval(at[0] - middle[0], at[1] - middle[1],
-                    half[0] * TORN_MIDDLE + PortalFaces.BAND_OUTSIDE, half[1] * TORN_MIDDLE + PortalFaces.BAND_OUTSIDE)),
+                    at[1] - middle[1], half[0] * TORN_MIDDLE - PortalFaces.BAND_INSET - PortalFaces.BAND_INSIDE,
+                    half[1] * TORN_MIDDLE - PortalFaces.BAND_INSET - PortalFaces.BAND_INSIDE) || onOval(at[0] - middle[0], at[1] - middle[1],
+                    half[0] * TORN_MIDDLE - PortalFaces.BAND_INSET + PortalFaces.BAND_OUTSIDE,
+                    half[1] * TORN_MIDDLE - PortalFaces.BAND_INSET + PortalFaces.BAND_OUTSIDE)),
                     "Every vertex on the face should land the named distance inside or outside the tear's middle");
         }
 
