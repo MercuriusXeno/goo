@@ -23,16 +23,19 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
 
 /**
  * A status ailment as a render layer: one layer on every living entity
  * renderer draws the model again through the ailment overlay pipeline once
- * per ailment the entity wears, under that ailment's color and pattern, and
- * again over the outer shell it shows, such as a slime's gel or a sheep's
- * wool, so the shell never buries the overlay.
+ * per ailment field the entity wears, under that ailment's color and
+ * pattern, and again over the outer shell it shows, such as a slime's gel or
+ * a sheep's wool, so the shell never buries the overlay. An ailment marking
+ * its mob instead outlines it in the pulsing outline in its color.
  * Decision ailment-overlay-shader-per-ailment.
+ * Decision ailment-glisten-becomes-a-pulsing-outline.
  *
  * @param <S> the renderer's state
  * @param <M> the renderer's model
@@ -93,8 +96,11 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
 
     /**
      * Stamps the ailments the entity wears onto its render state, each with
-     * its strength this frame, read by the layer when it draws; a charmed
-     * mob wears the hex glisten from its synced charm.
+     * its strength this frame, read by the layer when it draws, and outlines
+     * the entity in the pulsing outline of an outlined ailment it wears; a
+     * charmed mob wears the hex outline from its synced charm. Stamped after
+     * Rally's outline and before the glove's aim outline, so an ailment's
+     * outline stands over the red and the aim's over both.
      *
      * @param entity the entity
      * @param state  its render state
@@ -103,13 +109,16 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
         long tick = entity.level().getGameTime();
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<StampedAilment> worn = drawn(MobAilments.CLIENT.ailmentsOf(entity.getId(), tick), partialTick);
-        state.setRenderData(AILMENTS, withCharmGlisten(worn, entity.hasData(GooAttachments.CHARMED)));
+        List<StampedAilment> stamped = withCharmOutline(worn, entity.hasData(GooAttachments.CHARMED));
+        state.setRenderData(AILMENTS, stamped);
+        outlineOf(stamped, tick + partialTick, ClientGooTypes::highlight)
+                .ifPresent(color -> state.outlineColor = color);
     }
 
     /**
-     * The overlays a frame draws of the ailments an entity wears, each at
-     * its strength this frame; an ailment drawing no overlay, as Grab's
-     * flail does, is left out.
+     * The ailments a frame draws of those an entity wears, each at its
+     * strength this frame; an ailment drawing neither a field nor an
+     * outline, as Grab's flail does, is left out.
      *
      * @param worn        the ailments the entity wears
      * @param partialTick the fraction of the tick elapsed
@@ -117,7 +126,7 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
      */
     static List<StampedAilment> drawn(List<MobAilments.Worn> worn, float partialTick) {
         return worn.stream()
-                .filter(ailment -> ailment.kind().drawsOverlay())
+                .filter(ailment -> ailment.kind().drawsOverlay() || ailment.kind().drawsOutline())
                 .map(ailment -> new StampedAilment(ailment.kind(),
                         MobAilments.strength(ailment.ticksLeft() - partialTick)))
                 .toList();
@@ -125,20 +134,38 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
 
     /**
      * The ailments a frame draws once the charm is counted: a charmed mob
-     * wears the hex glisten whole for as long as the charm holds, in place
-     * of any timed hex overlay it wears.
+     * wears the hex outline whole for as long as the charm holds, in place
+     * of any timed hex it wears.
      * charm-holds-until-struck
      *
      * @param worn    the timed ailments the entity wears
      * @param charmed whether the entity holds a charm
      * @return the ailments to draw
      */
-    static List<StampedAilment> withCharmGlisten(List<StampedAilment> worn, boolean charmed) {
+    static List<StampedAilment> withCharmOutline(List<StampedAilment> worn, boolean charmed) {
         if (!charmed) {
             return worn;
         }
         return Stream.concat(worn.stream().filter(ailment -> ailment.kind() != AilmentKind.HEX),
                 Stream.of(new StampedAilment(AilmentKind.HEX, FULL_STRENGTH))).toList();
+    }
+
+    /**
+     * The outline a frame draws of the ailments stamped: the pulsing outline
+     * in the color of the strongest outlined ailment, the first of equals.
+     *
+     * @param stamped   the ailments the frame draws
+     * @param gameTime  the game time including the partial tick
+     * @param typeColor answers a goo type's color, for a type-tinted kind such as Scry's astral
+     * @return the ARGB outline color, empty where no outlined ailment stands
+     */
+    static OptionalInt outlineOf(List<StampedAilment> stamped, float gameTime,
+                                 ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
+        return stamped.stream()
+                .filter(ailment -> ailment.kind().drawsOutline())
+                .reduce((strongest, next) -> next.strength() > strongest.strength() ? next : strongest)
+                .map(ailment -> OptionalInt.of(PulsingOutline.color(ailment.kind().rgb(typeColor), gameTime)))
+                .orElse(OptionalInt.empty());
     }
 
     /**
@@ -155,8 +182,7 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
 
     /**
      * The overlay color with the goo type colors read through the resolver
-     * given, so a type-tinted kind such as Scry's astral glisten takes its
-     * type's color (decision scry-ships-on-astral).
+     * given, so a type-tinted kind takes its type's color (decision scry-ships-on-astral).
      *
      * @param kind      the ailment
      * @param strength  how strongly it draws, 0 to 1
@@ -187,9 +213,11 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
         }
         EntityModel<?> shown = shell.shown(state);
         for (StampedAilment ailment : state.getRenderDataOrDefault(AILMENTS, List.<StampedAilment>of())) {
-            submitOverlay(submitNodeCollector, getParentModel(), state, poseStack, lightCoords, ailment);
-            if (shown != null) {
-                submitShellOverlay(submitNodeCollector, shown, state, poseStack, lightCoords, ailment);
+            if (ailment.kind().drawsOverlay()) {
+                submitOverlay(submitNodeCollector, getParentModel(), state, poseStack, lightCoords, ailment);
+                if (shown != null) {
+                    submitShellOverlay(submitNodeCollector, shown, state, poseStack, lightCoords, ailment);
+                }
             }
         }
     }

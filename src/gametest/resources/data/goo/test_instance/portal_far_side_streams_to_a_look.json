@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:portal_far_side_streams_to_a_look",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

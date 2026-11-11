@@ -1,14 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.outsider.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.pocket.PocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
-import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.entity.FormingGooBlob;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -16,10 +13,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -36,17 +31,13 @@ import java.util.function.Consumer;
  * A held channel runs its ability on this host each tick of the hold,
  * carrying that tick's aim (decision flatten-disc-cursor-breaks-above-the-plane).
  *
- * Unmake's held channel drinks the blocks before the eye through this host
- * (decision unmake-waves-dissolve-by-crucible-cost).
- *
  * @param level         the server level
  * @param player        the invoking player
  * @param channelAim    the held channel's aim this tick, empty outside a channel
  * @param charge        the share of a full charge a charged ability's hold reached, 0 outside a charge
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, SiphonHost,
-        PocketHost, OutsiderHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, OutsiderHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -55,9 +46,9 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     private static final float NO_CHARGE = 0f;
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
-    private static final double REACH_SLACK = 1.0;
+    public static final double REACH_SLACK = 1.0;
     /** Log: how many devices a Pulser tick found to toggle among its cone's cells. */
-    private static final String LOG_TOGGLES = "Pulser toggles {} devices among {} cells";
+    private static final String LOG_TOGGLES = "Tick toggles {} devices among {} cells";
 
     /**
      * The host of a glove invocation.
@@ -150,8 +141,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     @Override
-    public void explode(float power, double reach, ExplosionMode mode) {
-        asEntity().explode(power, reach, mode);
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
+        asEntity().explode(power, reach, gathers, mode);
     }
 
     @Override
@@ -224,67 +215,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     @Override
-    public void holdDrink() {
-        drinks().hold(player);
-    }
-
-    /**
-     * The standing blocks the drink picks from the eye toward the cursor,
-     * nearest first: the cone's and the aim line's own; none outside a held
-     * channel (decision unmake-waves-dissolve-by-crucible-cost).
-     */
-    @Override
-    public List<BlockPos> siphonCone(double radius) {
-        return channelAim().map(aim -> SiphonRule.blocksToDrink(eye(), aim.aimPoint(), radius).stream()
-                .filter(pos -> !level.getBlockState(pos).isAir())
-                .toList()).orElse(List.of());
-    }
-
-    /**
-     * The goo a block holds, for one the drink can take: not one already
-     * liquifying, and not one no hand can break.
-     */
-    @Override
-    public @Nullable GooValue siphonValue(BlockPos pos) {
-        BlockState state = level.getBlockState(pos);
-        Drinks.Drink drink = drinks().of(player);
-        if (state.is(GooBlocks.MELTING_BLOCK.get()) || state.getDestroySpeed(level, pos) < 0
-                || drink != null && drink.siphoning(pos)) {
-            return null;
-        }
-        return ValuedBlocks.valueAt(level, pos);
-    }
-
-    @Override
-    public boolean burnUnstable(int amount) {
-        if (!GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, amount)) {
-            return false;
-        }
-        GooSourceScanner.deplete(player, GooTypes.UNSTABLE, amount);
-        return true;
-    }
-
-    @Override
-    public void siphon(BlockPos pos, GooValue value, int ticks) {
-        Drinks.Drink drink = drinks().of(player);
-        if (drink == null) {
-            return;
-        }
-        long now = level.getGameTime();
-        long start = now + SiphonRule.INJECT_TICKS;
-        long end = start + ticks;
-        // unmake-converges-near-the-unmade-blocks-into-a-goo-item
-        FormingGooBlob blob = FormingGooBlob.gatherNear(level, Vec3.atCenterOf(pos));
-        long payAt = end + SiphonRule.travelTicks(Vec3.atCenterOf(pos).distanceTo(blob.position()));
-        blob.expect(payAt);
-        drink.start(pos, new Drinks.Siphon(value, now, start, end, payAt, blob));
-    }
-
-    private Drinks drinks() {
-        return GooServerState.of(level.getServer()).drinks();
-    }
-
-    @Override
     public void forEachLivingIn(List<BlockPos> cells, Set<EntityFilter> filters, Consumer<TargetHost> body) {
         if (cells.isEmpty()) {
             return;
@@ -296,12 +226,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
                 && EntityScan.passes(living, filters, player))) {
             body.accept(new EntityHost(level, living, player));
         }
-    }
-
-    /** Opens the player's Pocket (decision pocket-is-a-void-reserving-container-with-scroll-and-search). */
-    @Override
-    public void openPocket(int slotCost) {
-        PocketOpening.open(player, slotCost);
     }
 
     @Override
@@ -316,6 +240,13 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         OutsiderRooms.showCharge(player, held, charge);
     }
 
+    /** Conjures the door before the player (decision
+     * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
+    @Override
+    public void conjureDoor(int held, int charge) {
+        ConjuredDoors.conjure(player, held, charge);
+    }
+
     @Override
     public void enterPocket(int cost) {
         if (GooSourceScanner.hasEnough(player, GooTypes.VOID, cost) && OutsiderRooms.enter(player)) {
@@ -323,8 +254,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Grows the player's Outsider platform (decision
-     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
+    /** Grows the player's Outsider room on all sides at once (decision
+     * outsider-room-grows-fractionally-on-all-sides-at-once). */
     @Override
     public void feedPlatform(int ringTicks, int base, int perDistance) {
         int feed = OutsiderRooms.feedOf(player, ringTicks, base, perDistance);
@@ -337,5 +268,10 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public HoldMarks holdMarks() {
         return GooServerState.of(level.getServer()).streamHolds().marks(player.getUUID());
+    }
+
+    @Override
+    public GradualBreak gradualBreak() {
+        return holdMarks().gradualBreak();
     }
 }

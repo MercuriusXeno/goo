@@ -1,10 +1,15 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ability.GrabFlail;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -18,6 +23,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -30,6 +36,7 @@ import java.util.List;
 public final class AimTracker {
 
     private static final AimState STATE = new AimState();
+    private static final HeldPick HELD = new HeldPick();
 
     private AimTracker() {
     }
@@ -56,7 +63,9 @@ public final class AimTracker {
         AimTargets.AimRay ray = AimTargets.AimRay.along(camera.position(), new Vec3(camera.forwardVector()),
                 GloveAim.aimRange(player, AimState.MAX_RANGE));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);
-        STATE.update(seed -> AimTargets.resolve(player, ray, seed, GloveAim.targetingHint(player), behaviors),
+        boolean grabPressed = GloveUseTracker.showsArea() && behaviors.stream().anyMatch(GrabStep.class::isInstance);
+        STATE.update(seed -> HELD.resolve(grabPressed, GrabFlail::grabbed,
+                () -> AimTargets.resolve(player, ray, seed, GloveAim.targetingHint(player), behaviors)),
                 entityOutline);
     }
 
@@ -70,15 +79,45 @@ public final class AimTracker {
     }
 
     /**
-     * Render state modifier callback: sets outlineColor on the entity the
-     * glove aims at so vanilla renders the spectral glow outline in the goo
-     * color. Registered via RegisterRenderStateModifiersEvent in GooClientSetup.
+     * Whether the Grab press the last frame resolved holds a mob.
+     *
+     * @return true while a Grab press holds a mob
+     */
+    static boolean grabHoldsAMob() {
+        return HELD.holds();
+    }
+
+    /**
+     * The outline a pass gives the aimed mob: its color on the copy the aim
+     * reaches, the one before the player where the aim runs straight and the
+     * one in the first view through the gate the aim passed where it runs
+     * through, none on any other copy, so the outlines never change in
+     * number as one copy hides another, as the operator found walking up to
+     * a portal.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param color    the aimed mob's outline color, zero where the entity is not aimed at
+     * @param view     whether a view through a gate draws the copy
+     * @param viewGate the gate that first view looks into, null for the main frame or a view a portal deeper
+     * @param passage  the gate the aim passed, null where it runs straight
+     * @return the outline color, zero for none
+     */
+    static int outlineIn(int color, boolean view, @Nullable Gate viewGate, TargetResult.@Nullable Passage passage) {
+        return GooTargetHighlighter.drawsMarks(view, viewGate, passage) ? color : 0;
+    }
+
+    /**
+     * Render state modifier callback: sets outlineColor on the copy of the
+     * entity the glove aims at that the aim reaches, so vanilla renders the
+     * spectral glow outline in the goo color. Registered via
+     * RegisterRenderStateModifiersEvent in GooClientSetup.
      *
      * @param entity the entity being rendered
      * @param state  its render state
      */
     public static void modifyEntityRenderState(Entity entity, EntityRenderState state) {
-        int color = STATE.outlineFor(entity);
+        int color = outlineIn(STATE.outlineFor(entity), PortalView.extractingView(), PortalView.extractingGate(),
+                STATE.target().passage());
         if (color != 0) {
             state.outlineColor = color;
         }

@@ -12,10 +12,11 @@ import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.LeafStep;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.SoundKind;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
@@ -26,6 +27,7 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -35,7 +37,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ClipContext;
@@ -47,6 +48,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Server side of a stream delivery: each tick the glove's use stays down,
@@ -65,8 +68,6 @@ public final class GooStreamHandler {
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on its held pass's host: {}";
     /** Log: one held tick reached the server, so a hold that does nothing shows where it stops. */
     private static final String LOG_HELD_TICK = "Held tick of {} for {}: hold tick {}";
-    /** Particles sprayed along the cone each tick. */
-    private static final int PARTICLES_PER_TICK = 6;
     /**
      * Launch speed per block of the stream's range: a mote slowing by a tenth
      * each tick carries ten times its launch speed, so it reaches the cone's end.
@@ -76,8 +77,6 @@ public final class GooStreamHandler {
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
     /** Rays the spray casts each tick to find the floors it lands on. */
     private static final int FLOOR_RAYS_PER_TICK = 12;
-    /** A particle sent with a count of zero flies along the vector it is handed. */
-    private static final int ALONG_THE_VECTOR = 0;
     /** Reads which living things a tick's program healed. */
     private static final HealReport<LivingEntity> HEALS =
             new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
@@ -262,17 +261,47 @@ public final class GooStreamHandler {
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
-        List<Integer> healed = new ArrayList<>();
+        TickHeals heals = new TickHeals(new ArrayList<>(), new ArrayList<>());
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             List<LivingEntity> struck = sprayAndStrike(cast, apex, axis, ability, held);
+            boolean heal = heals(entitySteps);
             for (LivingEntity living : struck) {
-                HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
-                        entitySteps, cast));
+                HEALS.runNoting(living, heals.healed(), () -> runSteps(new EntityHost(level, living, player),
+                        HostKind.ENTITY, entitySteps, cast));
+                if (heal) {
+                    // touched-mobs-show-hearts-or-a-count-over-max: a mob already at full life shows its life too
+                    heals.touched().add(living.getId());
+                }
             }
             sprayFloors(player, apex, axis, ability);
         }
-        strikeCaster(cast, ability, apex, entitySteps, healed);
+        strikeCaster(cast, ability, apex, entitySteps, heals);
+    }
+
+    /**
+     * Who one held tick's heal reached: those whose health rose, and every
+     * mob in the cone the heal ran on.
+     *
+     * @param healed  the ids of the living whose health rose
+     * @param touched the ids of the mobs in the cone the heal ran on
+     */
+    private record TickHeals(List<Integer> healed, List<Integer> touched) {
+    }
+
+    /**
+     * Whether a program heals: a heal step runs somewhere in it.
+     *
+     * @param steps the program
+     * @return true where a heal step stands among the steps or their children
+     */
+    private static boolean heals(List<Step> steps) {
+        return steps.stream().flatMap(GooStreamHandler::withDescendants)
+                .anyMatch(step -> step instanceof LeafStep<?> leaf && leaf.leaf() == LeafSteps.HEAL);
+    }
+
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(GooStreamHandler::withDescendants));
     }
 
     /**
@@ -302,9 +331,24 @@ public final class GooStreamHandler {
             SwarmStrike.send(player, apex, aim, delivery, struck, crosshair);
             return SwarmStrike.reached(player, apex, struck, held);
         }
-        sprayParticles(cast.level(), apex, aim, delivery,
-                Math.min(delivery.range(), apex.distanceTo(crosshair.getLocation())));
+        sprayParticles(player, apex, aim, delivery,
+                crosshairSpeed(delivery.range(), apex.distanceTo(crosshair.getLocation())), travelOf(player),
+                coatOf(player, delivery));
         return struck;
+    }
+
+    /**
+     * The coat a stream's motes fly onto, where its spray follows its coat.
+     * goop-and-slick-spray-follows-the-coat
+     *
+     * @param player   the spraying player, whose eye and look the coat's rays leave along
+     * @param delivery the stream delivery
+     * @return the coat, empty for a stream whose motes keep the crosshair-distance launch
+     */
+    private static Optional<CoatSpray> coatOf(ServerPlayer player, Delivery delivery) {
+        return delivery.sprayFollowsCoat()
+                ? Optional.of(new CoatSpray(player.getEyePosition(), player.getLookAngle(), delivery.range()))
+                : Optional.empty();
     }
 
     /**
@@ -315,18 +359,19 @@ public final class GooStreamHandler {
      * @param ability     the stream ability
      * @param apex        the cone's apex
      * @param entitySteps the entity pass's steps
-     * @param healed      the living the tick healed so far, which the caster joins
+     * @param heals       who the tick healed and touched so far; the caster joins the healed
      */
     private static void strikeCaster(CastOn cast, AbilityDefinition ability, Vec3 apex, List<Step> entitySteps,
-                                     List<Integer> healed) {
+                                     TickHeals heals) {
         ServerPlayer player = cast.player();
         if (ability.hasTag(AbilityTags.SELF)) {
-            HEALS.runNoting(player, healed,
+            HEALS.runNoting(player, heals.healed(),
                     () -> runSteps(new PlayerHost(cast.level(), player), HostKind.PLAYER, entitySteps, cast));
         }
-        if (!healed.isEmpty()) {
-            // the client homes goo to each healed thing and stars it
-            EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
+        if (!heals.healed().isEmpty() || !heals.touched().isEmpty()) {
+            // the client homes goo to each healed thing and stars it, and shows each touched mob's life
+            EntityVisuals.sendToWatchers(player,
+                    new StreamHealedPayload(player.getId(), apex, heals.healed(), heals.touched()));
         }
     }
 
@@ -523,26 +568,98 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Launches the delivery's particle from the glove, each mote flying out
-     * along its own heading inside the cone and coming to rest as far off as
-     * the crosshair lands (decision mycosis-spore-stream-buds-and-poisons).
+     * Tells the caster's watchers to launch this tick's motes of the
+     * delivery's particle from the glove. A stream whose spray follows its
+     * coat flies each mote to the end of one of the coat's rays (decision
+     * goop-and-slick-spray-follows-the-coat); any other flies each out along
+     * its own heading inside the cone at the speed given, coming to rest as
+     * far off as the crosshair lands (decision mycosis-spore-stream-buds-and-poisons).
+     * The clients launch them, naming the caster, so each mote swings with its own
+     * caster's glove (decision glove-stream-motes-swing-with-the-glove-at-launch).
      *
-     * @param level    the server level
+     * @param player   the spraying player
      * @param apex     the cone's apex
      * @param axis     the cone's axis
      * @param delivery the stream delivery
-     * @param reach    how far the motes fly, in blocks
+     * @param speed    each mote's launch speed along its heading, blocks per tick
+     * @param travel   the spraying player's travel velocity, blocks per tick
+     * @param coat     the coat the motes fly onto, empty for motes flying their heading
      */
-    static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach) {
-        RandomSource random = level.getRandom();
-        double speed = reach * LAUNCH_SPEED_PER_BLOCK;
-        delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
-            for (int i = 0; i < PARTICLES_PER_TICK; i++) {
-                Vec3 heading = StreamCone.launchDirection(axis, delivery.coneDegrees(), random.nextDouble(),
-                        random.nextDouble());
-                level.sendParticles(particle, apex.x, apex.y, apex.z, ALONG_THE_VECTOR, heading.x, heading.y,
-                        heading.z, speed);
-            }
-        });
+    static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed,
+                               Vec3 travel, Optional<CoatSpray> coat) {
+        delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
+                player.getId(), apex, axis, particle, delivery.coneDegrees(), speed, travel, coat)));
+    }
+
+    /**
+     * The launch speed that rests a mote a distance off: a mote slowing by a
+     * tenth each tick coasts ten times its launch speed.
+     *
+     * @param reach how far the mote flies, in blocks
+     * @return the launch speed, blocks per tick
+     */
+    static double restingSpeed(double reach) {
+        return reach * LAUNCH_SPEED_PER_BLOCK;
+    }
+
+    /**
+     * The launch speed of a mote off the coat: it rests as far off as the
+     * crosshair lands, or at the stream's range past it
+     * (decision mycosis-spore-stream-buds-and-poisons).
+     *
+     * @param range             the stream's reach in blocks
+     * @param crosshairDistance the distance from the glove to where the crosshair lands
+     * @return the launch speed, blocks per tick
+     */
+    static double crosshairSpeed(double range, double crosshairDistance) {
+        return restingSpeed(Math.min(range, crosshairDistance));
+    }
+
+    /**
+     * One mote's launch velocity for its share of the cone. A mote of a
+     * stream spraying onto its coat flies from the glove toward the end of
+     * the coat ray its share names, at the speed that rests it there; any
+     * other flies its heading inside the cone at the payload's speed. Either
+     * carries the caster's travel.
+     * goop-and-slick-spray-follows-the-coat
+     *
+     * @param motes the tick's motes
+     * @param share the mote's place in the cone
+     * @param clip  the blocks the coat's ray meets
+     * @return the launch velocity, blocks per tick
+     */
+    public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share, CoatRay.BlockClip clip) {
+        return motes.coat().map(coat -> {
+            Vec3 end = CoatRay.end(clip, coat.eye(), coat.look(), motes.coneDegrees(), coat.range(), share);
+            return end.subtract(motes.apex()).scale(LAUNCH_SPEED_PER_BLOCK).add(motes.travel());
+        }).orElseGet(() -> moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneDegrees(), share.tilt(),
+                share.turn()), motes.speed(), motes.travel()));
+    }
+
+    /**
+     * A glove mote's launch velocity: its heading inside the cone at its
+     * launch speed, plus the travel velocity of the player spraying it, so
+     * the spray moves with a walking, sprinting, falling or flying player.
+     * glove-stream-motes-carry-the-players-travel-velocity
+     *
+     * @param heading the mote's unit heading inside the cone
+     * @param speed   the mote's launch speed, blocks per tick
+     * @param travel  the spraying player's travel velocity, blocks per tick
+     * @return the launch velocity, blocks per tick
+     */
+    public static Vec3 moteLaunch(Vec3 heading, double speed, Vec3 travel) {
+        return heading.scale(speed).add(travel);
+    }
+
+    /**
+     * The spraying player's travel velocity: the known movement, since the
+     * server moves a player by its client's packets and leaves its delta
+     * movement at rest (decision diagnose-then-restore-razor-harm).
+     *
+     * @param player the spraying player
+     * @return the travel velocity, blocks per tick
+     */
+    static Vec3 travelOf(ServerPlayer player) {
+        return player.getKnownMovement();
     }
 }

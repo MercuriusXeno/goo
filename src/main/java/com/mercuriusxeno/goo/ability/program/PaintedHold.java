@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.HoldMarks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
@@ -43,8 +46,6 @@ final class PaintedHold {
     private static final int RAYS_PER_RING = 8;
     /** Points a ray is sampled at per block, fine enough to cross no cell unseen but a corner's sliver. */
     private static final int SAMPLES_PER_BLOCK = 8;
-    /** How far past a struck face a ray runs, so the struck block's own cell is reached. */
-    private static final double INTO_THE_BLOCK = 0.01;
 
     private PaintedHold() {
     }
@@ -63,15 +64,47 @@ final class PaintedHold {
     static Set<BlockPos> seenReach(ChannelHost host, ChannelAim aim) {
         Vec3 eye = host.eye();
         Vec3 look = aim.aimPoint().subtract(eye);
-        double range = look.length();
         Set<BlockPos> cells = new LinkedHashSet<>();
-        if (range == 0) {
+        if (look.length() == 0) {
             return cells;
         }
-        for (Vec3 ray : rayDirections(look, aim.coneDegrees())) {
-            cells.addAll(cellsAlong(eye, rayEnd(host, eye, eye.add(ray.scale(range)))));
+        for (Vec3 end : rayEnds(CoatRay.clipping(host.level()), eye, look, aim.coneDegrees())) {
+            cells.addAll(cellsAlong(eye, end));
         }
         return cells;
+    }
+
+    /**
+     * Where each of the stream's rays stops, read as Goop's and Slick's
+     * motes read their ends.
+     * goop-and-slick-spray-follows-the-coat
+     *
+     * @param clip        the blocks the rays meet
+     * @param eye         the rays' start
+     * @param look        the cone's axis, as long as the stream's reach
+     * @param coneDegrees the cone's apex angle in degrees
+     * @return each ray's end, in the order {@link #rayShares()} names them
+     */
+    static List<Vec3> rayEnds(CoatRay.BlockClip clip, Vec3 eye, Vec3 look, double coneDegrees) {
+        double range = look.length();
+        return rayShares().stream().map(share -> CoatRay.end(clip, eye, look, coneDegrees, range, share)).toList();
+    }
+
+    /**
+     * The places in the cone the stream's rays run: the axis, then rings of
+     * rays out to the cone's rim.
+     *
+     * @return the shares, the axis first
+     */
+    static List<CoatRay.ConeShare> rayShares() {
+        List<CoatRay.ConeShare> shares = new ArrayList<>();
+        shares.add(new CoatRay.ConeShare(0, 0));
+        for (int ring = 1; ring <= RAY_RINGS; ring++) {
+            for (int turn = 0; turn < RAYS_PER_RING; turn++) {
+                shares.add(new CoatRay.ConeShare((double) ring / RAY_RINGS, (double) turn / RAYS_PER_RING));
+            }
+        }
+        return shares;
     }
 
     /**
@@ -96,33 +129,8 @@ final class PaintedHold {
      * @return the unit directions, the axis first
      */
     static List<Vec3> rayDirections(Vec3 axis, double coneDegrees) {
-        List<Vec3> rays = new ArrayList<>();
-        rays.add(axis.normalize());
-        for (int ring = 1; ring <= RAY_RINGS; ring++) {
-            for (int turn = 0; turn < RAYS_PER_RING; turn++) {
-                rays.add(StreamCone.launchDirection(axis, coneDegrees, (double) ring / RAY_RINGS,
-                        (double) turn / RAYS_PER_RING));
-            }
-        }
-        return rays;
-    }
-
-    /**
-     * Where one ray stops: just inside the first block it meets, foliage
-     * included, or at its reach where it meets none.
-     *
-     * @param host  the channel host
-     * @param from  the ray's start
-     * @param reach the ray's end at the stream's reach
-     * @return the ray's end
-     */
-    private static Vec3 rayEnd(ChannelHost host, Vec3 from, Vec3 reach) {
-        BlockHitResult hit = host.level().clip(new ClipContext(from, reach, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, CollisionContext.empty()));
-        if (hit.getType() != HitResult.Type.BLOCK) {
-            return reach;
-        }
-        return hit.getLocation().add(reach.subtract(from).normalize().scale(INTO_THE_BLOCK));
+        return rayShares().stream()
+                .map(share -> StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn())).toList();
     }
 
     /**
@@ -166,7 +174,7 @@ final class PaintedHold {
                           HoldMarks marks) {
         for (BlockPos pos : seen) {
             if (!host.airAt(pos) && next.apply(host.blockAt(pos)).isPresent() && CalcifyStep.facesAir(host, pos)) {
-                marks.paint(pos, host.blockAt(pos));
+                marks.paint(pos, host.stateAt(pos));
             }
         }
     }
@@ -186,6 +194,24 @@ final class PaintedHold {
          * @param into the block it becomes
          */
         void finish(BlockPos pos, Block raw, Block into);
+    }
+
+    /**
+     * The step a painted cell takes once full, for a step whose next state
+     * follows the painted state rather than its block alone.
+     * slime-is-a-layered-cell-that-levels-out
+     */
+    @FunctionalInterface
+    interface StateFinish {
+
+        /**
+         * Steps one cell.
+         *
+         * @param pos  the cell
+         * @param raw  the state painted there
+         * @param into the state it becomes
+         */
+        void finish(BlockPos pos, BlockState raw, BlockState into);
     }
 
     /**
@@ -236,10 +262,33 @@ final class PaintedHold {
      */
     static void buildPainted(ChannelHost host, Function<Block, Optional<Block>> next, HoldMarks marks, float rate,
                              Function<Block, OptionalInt> tintOf, CellFinish finish) {
-        for (Map.Entry<BlockPos, Block> painted : Map.copyOf(marks.painted()).entrySet()) {
+        buildPaintedStates(host, raw -> next.apply(raw.getBlock()).map(Block::defaultBlockState),
+                (now, raw) -> now.getBlock() == raw.getBlock(), marks, rate, raw -> tintOf.apply(raw.getBlock()),
+                (pos, raw, into) -> finish.finish(pos, raw.getBlock(), into.getBlock()));
+    }
+
+    /**
+     * Builds every painted cell one tick toward the state it becomes, for a
+     * step whose next state follows the painted state rather than its block
+     * alone, as a slime cell thickens by a layer.
+     * slime-is-a-layered-cell-that-levels-out
+     *
+     * @param host   the channel host
+     * @param next   the state a painted state becomes, empty where it becomes none
+     * @param stands whether the cell's state now is still the painted one, so the hold builds on; false once it
+     *               finished alone or something else replaced it
+     * @param marks  the hold's marks
+     * @param rate   the share one tick builds
+     * @param tintOf the tint or mark each painted state's exposure carries, empty for none
+     * @param finish the step a full cell takes
+     */
+    static void buildPaintedStates(ChannelHost host, Function<BlockState, Optional<BlockState>> next,
+                                   BiPredicate<BlockState, BlockState> stands, HoldMarks marks, float rate,
+                                   Function<BlockState, OptionalInt> tintOf, StateFinish finish) {
+        for (Map.Entry<BlockPos, BlockState> painted : Map.copyOf(marks.painted()).entrySet()) {
             BlockPos pos = painted.getKey();
-            Block raw = painted.getValue();
-            if (host.blockAt(pos) != raw) {
+            BlockState raw = painted.getValue();
+            if (!stands.test(host.stateAt(pos), raw)) {
                 // it finished alone, or something else replaced it
                 marks.noteStepped(pos);
             } else if (!host.finishingAlone(pos)) {
@@ -252,11 +301,11 @@ final class PaintedHold {
         }
     }
 
-    private static boolean build(ChannelHost host, BlockPos pos, Block into, float rate, OptionalInt tint,
+    private static boolean build(ChannelHost host, BlockPos pos, BlockState into, float rate, OptionalInt tint,
                                  Runnable step) {
         float share = tint.isPresent()
-                ? host.exposeBlock(pos, into.defaultBlockState(), rate, tint.getAsInt())
-                : host.exposeBlock(pos, into.defaultBlockState(), rate);
+                ? host.exposeBlock(pos, into, rate, tint.getAsInt())
+                : host.exposeBlock(pos, into, rate);
         if (share >= 1f) {
             step.run();
             return true;

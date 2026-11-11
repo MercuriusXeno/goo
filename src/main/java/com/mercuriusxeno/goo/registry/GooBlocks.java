@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.KineticSlickBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -17,10 +18,8 @@ import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
-import com.mercuriusxeno.goo.block.quantum.PhasedBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.statue.StatueBlock;
-import com.mercuriusxeno.goo.block.unmake.MeltingBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import net.minecraft.world.level.block.Block;
@@ -155,9 +154,11 @@ public class GooBlocks {
                     .replaceable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
-     * Slime coat: the thin green film Weird's Coat lays on a block's top,
-     * standing until destroyed and dropping nothing
-     * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
+     * Slime coat: the layered green slime Weird's Goop lays on a
+     * block's top, standing until destroyed and then dropping the weird goo
+     * its layers cost through SlimeCoatBlock.getDrops, no loot table
+     * (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
+     * breaking-slime-drops-weird-goo-worth-its-layers).
      */
     public static final DeferredBlock<SlimeCoatBlock> SLIME_COAT = BLOCKS.registerBlock(
             "slime_coat", SlimeCoatBlock::new,
@@ -170,6 +171,22 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
+     * Slick: the thin electric blue and white film Kinetic's Slick lays on a
+     * block's top, slippery as ice and ramping what moves on it
+     * (decisions slick-coats-the-ground-with-kinetic-speed, kinetic-is-electric-blue-and-white).
+     */
+    public static final DeferredBlock<KineticSlickBlock> KINETIC_SLICK = BLOCKS.registerBlock(
+            "kinetic_slick", KineticSlickBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_BLUE)
+                    .friction(KineticSlickBlock.SLIPPERY)
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
@@ -177,12 +194,6 @@ public class GooBlocks {
      * Statue: a petrified mob, mined like cobblestone for cobblestone and the
      * mob's experience (decision petrify-stone-encasement-and-calcify-map).
      */
-    /**
-     * A block an unmake is melting, standing in for it while its goo copy
-     * sags (decision unmake-waves-dissolve-by-crucible-cost).
-     */
-    public static final DeferredBlock<MeltingBlock> MELTING_BLOCK = BLOCKS.registerBlock(
-            "melting_block", MeltingBlock::new, MeltingBlock::standInProperties);
     public static final DeferredBlock<StatueBlock> STATUE = BLOCKS.registerBlock(
             "statue", StatueBlock::new,
             () -> BlockBehaviour.Properties.of()
@@ -211,11 +222,6 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
 
     /**
-     * A block out of phase, holding the block it stood as until it steps back
-     * (decision portable-hole-phases-blocks-for-a-while). Nothing collides with
-     * it or mines it, and it drops nothing.
-     */
-    /**
      * Voidstone: the unbreakable block at the center of each Outsider room,
      * the one block there nothing can take away (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
@@ -235,10 +241,6 @@ public class GooBlocks {
                     .noCollision().noOcclusion().noLootTable().pushReaction(PushReaction.BLOCK)
                     .lightLevel(state -> DOOR_GLOW));
 
-    public static final DeferredBlock<PhasedBlock> PHASED_BLOCK = BLOCKS.registerBlock(
-            "phased_block", PhasedBlock::new,
-            () -> BlockBehaviour.Properties.of().noCollision().noOcclusion().strength(-1.0F, 3_600_000.0F)
-                    .noLootTable().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK));
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed
      * permanently by the frost cold snap. Visually, audibly, and

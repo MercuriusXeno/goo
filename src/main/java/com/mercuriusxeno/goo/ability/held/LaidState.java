@@ -7,11 +7,11 @@ import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
+import com.mercuriusxeno.goo.ability.program.LeaderStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.PhaseStep;
-import com.mercuriusxeno.goo.ability.program.RallyStep;
 import com.mercuriusxeno.goo.ability.program.SculkerStep;
 import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
@@ -43,7 +43,7 @@ public enum LaidState {
     LUX,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
-    /** Shifter (decision shifter-blinks-along-the-cursor-on-hit). */
+    /** Elude (decision elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage). */
     SHIFTER,
     /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
     EXTENDER,
@@ -61,10 +61,15 @@ public enum LaidState {
     ANCIENT,
     /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
     PHASE,
-    /** Zoo's Rally over the peaceful mobs around the holder (decision zoo-rally-holds-for-the-brew). */
+    /**
+     * Laid by no step, Rally being a mob ability (decision rally-is-a-mob-effect-on-one-target);
+     * it stands so a saved held effect naming it still loads.
+     */
     RALLY,
     /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
-    SCULKER;
+    SCULKER,
+    /** Zoo's Leader, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
+    LEADER;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -106,8 +111,8 @@ public enum LaidState {
             Map.entry(BusterStep.class, BUSTER),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE),
-            Map.entry(RallyStep.class, RALLY),
-            Map.entry(SculkerStep.class, SCULKER));
+            Map.entry(SculkerStep.class, SCULKER),
+            Map.entry(LeaderStep.class, LEADER));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

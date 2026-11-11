@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisHolds;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.network.AilmentPayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
@@ -18,6 +19,10 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Runs Grab on the entities a player's channel holds: a held entity hangs
@@ -69,10 +74,84 @@ public final class GrabEvents {
      * @param throwSpeed the speed a throw launches it at, in blocks per tick
      */
     public static void hold(ServerPlayer player, Entity held, Vec3 at, double throwSpeed) {
+        moveHeld(player, held, at.subtract(held.position()), throwSpeed);
+    }
+
+    /**
+     * Draws a held entity one step toward a linked gate this channel tick,
+     * so the client is seen to slide it into the gate rather than jumping it
+     * there in one tick it never shows arriving. The step leaves the body no
+     * motion, so its own tick moves it no further and it crosses the face
+     * where the pair's own check sees it cross.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player     the holding player
+     * @param held       the held entity
+     * @param step       this tick's step toward the gate, no longer than Grab's pull speed
+     * @param throwSpeed the speed a throw launches it at, in blocks per tick
+     */
+    public static void drawToward(ServerPlayer player, Entity held, Vec3 step, double throwSpeed) {
+        moveHeld(player, held, step, throwSpeed);
+    }
+
+    /**
+     * Binds a player's grab of a body to the gate the grab reached it
+     * through, the gate on the body's side, until the pair carries the body
+     * out; a grab reaching it straight binds none.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the grabbing player
+     * @param body   the grabbed body
+     * @param gate   the gate on the body's side the grab reached through, empty for a straight grab
+     */
+    public static void bindThrough(ServerPlayer player, Entity body, Optional<Gate> gate) {
+        gate.ifPresentOrElse(through -> THROUGH.put(player.getUUID(), new Through(body.getId(), through)),
+                () -> THROUGH.remove(player.getUUID()));
+    }
+
+    /**
+     * The gate a player's grab of a body still draws it through.
+     *
+     * @param player the grabbing player
+     * @param body   the held body
+     * @return the gate on the body's side, empty once carried out or for a straight grab
+     */
+    public static Optional<Gate> boundThrough(ServerPlayer player, Entity body) {
+        Through through = THROUGH.get(player.getUUID());
+        return through != null && through.bodyId() == body.getId() ? Optional.of(through.gate()) : Optional.empty();
+    }
+
+    /**
+     * Frees every grab bound through a gate of a body the pair carried out.
+     *
+     * @param body the carried body
+     */
+    public static void carriedOut(Entity body) {
+        THROUGH.values().removeIf(through -> through.bodyId() == body.getId());
+    }
+
+    /** A grab bound through a gate: the body, and the gate on its side. */
+    private record Through(int bodyId, Gate gate) {
+    }
+
+    private static final Map<UUID, Through> THROUGH = new HashMap<>();
+
+    /**
+     * Whether a Grab holds an entity now.
+     *
+     * @param entity the entity
+     * @return true while a channel holds it
+     */
+    public static boolean isHeld(Entity entity) {
+        return entity.hasData(GooAttachments.GRABBED)
+                && !entity.getData(GooAttachments.GRABBED).releasedAt(entity.level().getGameTime());
+    }
+
+    private static void moveHeld(ServerPlayer player, Entity held, Vec3 step, double throwSpeed) {
         long until = player.level().getGameTime() + HOLD_GRACE_TICKS;
         suspend(held, until);
         // Moved rather than placed, so the held body collides with the blocks it is pulled against.
-        held.move(MoverType.SELF, at.subtract(held.position()));
+        held.move(MoverType.SELF, step);
         held.setDeltaMovement(Vec3.ZERO);
         held.fallDistance = 0;
         held.hurtMarked = true;
@@ -90,9 +169,10 @@ public final class GrabEvents {
      * @param player    the pulling player
      * @param item      the item entity
      * @param pullSpeed the speed the item flies at, in blocks per tick
+     * @param toward    where the item flies for: the eye, or the eye as seen through a linked pair the way runs
      */
-    public static void pull(ServerPlayer player, ItemEntity item, double pullSpeed) {
-        Vec3 toEye = player.getEyePosition().subtract(item.position());
+    public static void pull(ServerPlayer player, ItemEntity item, double pullSpeed, Vec3 toward) {
+        Vec3 toEye = toward.subtract(item.position());
         // Capped at the distance left, so the last tick lands on the player rather than past it.
         item.setDeltaMovement(toEye.normalize().scale(Math.min(pullSpeed, toEye.length())));
         item.setNoPickUpDelay();

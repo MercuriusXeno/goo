@@ -26,16 +26,18 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 /**
  * Gametest for rock flatten: holding the channel at a dirt mound breaks the
  * cursor's 3x3 from the level remembered from the cursor's block as the hold
- * began up three blocks, one block a tick, top down, dropping them, and leaves
- * that level, the mound above the swath and a block outside the flatten tag
- * standing; begun on a wall's face, it shaves what stands out from the wall
- * and leaves the wall and what is behind it
- * (decision flatten-disc-cursor-breaks-above-the-plane).
+ * began up three blocks, every block progressing at once and the outer layer
+ * clearing first, dropping them, and leaves that level, the mound above the
+ * swath and a block outside the flatten tag standing; begun on a wall's face,
+ * it shaves what stands out from the wall and leaves the wall and what is
+ * behind it (decisions flatten-disc-cursor-breaks-above-the-plane,
+ * flatten-progresses-its-whole-swath-outermost-fastest).
  */
 @RegistersGameTests
 public final class FlattenChannelTests {
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
+    private static final String FLATTEN_CLEARS_THE_OUTER_LAYER_FIRST = "flatten_clears_the_outer_layer_first";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -45,6 +47,8 @@ public final class FlattenChannelTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         GooTestFunctions.registerTest(registrar, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
+        GooTestFunctions.registerTest(registrar, FLATTEN_CLEARS_THE_OUTER_LAYER_FIRST,
+                FlattenChannelTests::flattenClearsTheOuterLayerFirst);
     }
 
 
@@ -62,14 +66,21 @@ public final class FlattenChannelTests {
     /** The swath's height above the ground, and a layer past it. */
     private static final int SWATH_HEIGHT = 3;
     private static final int MOUND_HEIGHT = SWATH_HEIGHT + 1;
-    /** The 3x3 by 3 is 27 blocks, one a tick, the obsidian passed: thirty ticks clear it. */
+    /** A hold long past the swath's three layers at rock_flatten.json's pace. */
     private static final int HOLD_TICKS = 30;
+    /** The two layers of a shallow mound: the outer one and the one beneath it, touching the ground. */
+    private static final int OUTER_LAYER = 2;
+    private static final int BENEATH_LAYER = 1;
+    private static final int NOT_YET = 0;
     private static final int HELD_GOO = 3;
     private static final double FACE_CENTER = 0.5;
     private static final double ITEM_SEARCH_RADIUS = 4;
     private static final Identifier ROCK_FLATTEN = Identifier.parse("goo:rock_flatten");
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_flatten";
-    private static final String SHOULD_BREAK_ONE_FROM_THE_TOP = "One tick should break one top-layer block, broke %s";
+    private static final String SHOULD_BREAK_NONE_ON_THE_FIRST_TICK = "The first tick should break no block, broke %s";
+    private static final String SHOULD_STAND_AFTER_ONE_TICK = "Every block should stand after one tick, %s is air";
+    private static final String SHOULD_CLEAR_THE_OUTER_LAYER_FIRST =
+            "The outer layer should be air before the layer beneath breaks: outer air on tick %d, beneath broke on %d";
 
     private FlattenChannelTests() {
     }
@@ -101,7 +112,7 @@ public final class FlattenChannelTests {
             GooStreamHandler.streamTick(player, tick);
             long broken = columns().stream().map(column -> column.above(SWATH_HEIGHT))
                     .filter(pos -> helper.getBlockState(pos).isAir()).count();
-            helper.assertTrue(broken == 1, String.format(SHOULD_BREAK_ONE_FROM_THE_TOP, broken));
+            helper.assertTrue(broken == 0, String.format(SHOULD_BREAK_NONE_ON_THE_FIRST_TICK, broken));
         });
         for (int held = 2; held <= HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
@@ -121,6 +132,63 @@ public final class FlattenChannelTests {
             helper.assertItemEntityPresent(Items.DIRT, AIMED, ITEM_SEARCH_RADIUS);
             helper.succeed();
         });
+    }
+
+    /**
+     * A mock player holds flatten over a dirt mound two layers deep: after one
+     * tick every block stands, and the whole outer layer is air on an earlier
+     * tick than any block of the layer beneath it breaks
+     * (decision flatten-progresses-its-whole-swath-outermost-fastest).
+     *
+     * @param helper the gametest helper
+     */
+    public static void flattenClearsTheOuterLayerFirst(GameTestHelper helper) {
+        AbilityDefinition flatten = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_FLATTEN);
+        helper.assertTrue(flatten != null, ABILITY_REQUIRED);
+        for (BlockPos column : columns()) {
+            for (int y = 0; y <= OUTER_LAYER; y++) {
+                helper.setBlock(column.above(y), Blocks.DIRT);
+            }
+        }
+        ServerPlayer player = flattener(helper);
+        KnownRecipes.teachRequires(player, flatten);
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
+                player.getEyePosition(), westFace(helper, AIMED), helper.absolutePos(GROUND),
+                Direction.UP.get3DDataValue());
+        int[] outerAirOn = {NOT_YET};
+        int[] beneathBrokeOn = {NOT_YET};
+        helper.runAfterDelay(1, () -> {
+            GooStreamHandler.streamTick(player, tick);
+            for (BlockPos column : columns()) {
+                for (int y = BENEATH_LAYER; y <= OUTER_LAYER; y++) {
+                    helper.assertTrue(!helper.getBlockState(column.above(y)).isAir(),
+                            String.format(SHOULD_STAND_AFTER_ONE_TICK, column.above(y)));
+                }
+            }
+        });
+        for (int held = 2; held <= HOLD_TICKS; held++) {
+            int at = held;
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(player, tick);
+                if (outerAirOn[0] == NOT_YET && layerAir(helper, OUTER_LAYER)) {
+                    outerAirOn[0] = at;
+                }
+                if (beneathBrokeOn[0] == NOT_YET && columns().stream()
+                        .anyMatch(column -> helper.getBlockState(column.above(BENEATH_LAYER)).isAir())) {
+                    beneathBrokeOn[0] = at;
+                }
+            });
+        }
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(outerAirOn[0] != NOT_YET && beneathBrokeOn[0] > outerAirOn[0],
+                    String.format(SHOULD_CLEAR_THE_OUTER_LAYER_FIRST, outerAirOn[0], beneathBrokeOn[0]));
+            helper.succeed();
+        });
+    }
+
+    private static boolean layerAir(GameTestHelper helper, int up) {
+        return columns().stream().allMatch(column -> helper.getBlockState(column.above(up)).isAir());
     }
 
     /**

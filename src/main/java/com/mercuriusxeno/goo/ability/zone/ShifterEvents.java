@@ -2,21 +2,21 @@ package com.mercuriusxeno.goo.ability.zone;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
-import com.mercuriusxeno.goo.ability.program.BlinkLanding;
-import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -24,15 +24,16 @@ import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
 
 /**
- * Runs the shifter a player holds: each hit they would take is
- * cancelled and blinks them the distance along their look through the blink
- * resolver, an afterimage left where they stood and where they land; a fall
- * out of the world returns them to the last solid ground they stood on; only
- * /kill passes. While it stands the player remembers that ground and wears
- * the shifter shimmer.
- * Decision shifter-blinks-along-the-cursor-on-hit.
+ * Runs the Elude a player holds: each hit a mob or a projectile would land
+ * on them is cancelled and moves them to a random safe spot within its
+ * radius, turned to a random heading, an afterimage left where they stood
+ * and where they land. Every other harm lands, and so does a hit with no
+ * safe spot found. While it stands the player wears the Elude shimmer.
+ * Decision elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage.
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class ShifterEvents {
@@ -44,29 +45,31 @@ public final class ShifterEvents {
     private static final int SHIMMER_CLEARED = 0;
     /** Ticks each blink's afterimage grows and fades over, the blink's own. */
     static final int AFTERIMAGE_LIFE_TICKS = 12;
+    /** The fewest blocks across the ground an escape carries the player, so it leaves the hitter's reach. */
+    static final int MIN_ESCAPE = 2;
+    /** Columns an escape tries before it gives up and the hit lands. */
+    static final int ESCAPE_TRIES = 32;
+    private static final float FULL_TURN_DEGREES = 360f;
+    private static final float HALF_TURN_DEGREES = 180f;
 
     private ShifterEvents() {
     }
 
     /**
-     * Remembers the solid ground a player holding shifter stands on,
-     * and keeps their shimmer on.
+     * Keeps the shimmer on a player holding Elude.
      *
      * @param event the player tick event
      */
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel level) {
-            Shifter held = standing(player);
-            if (held != null) {
-                rememberGround(level, player, held);
-                keepShimmer(player, level.getGameTime());
-            }
+        if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel level
+                && standing(player) != null) {
+            keepShimmer(player, level.getGameTime());
         }
     }
 
     /**
-     * Refreshes the shimmer of a player whose shifter stands, once each refresh period.
+     * Refreshes the shimmer of a player whose Elude stands, once each refresh period.
      *
      * @param player   the player
      * @param gameTime the game time
@@ -78,11 +81,11 @@ public final class ShifterEvents {
     }
 
     /**
-     * Clears the shimmer the tick the shifter's held effect ends, so its fade
+     * Clears the shimmer the tick Elude's held effect ends, so its fade
      * starts at the end rather than when the last refresh lapses.
      * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
      *
-     * @param player the player whose shifter ended
+     * @param player the player whose Elude ended
      */
     public static void clearShimmer(ServerPlayer player) {
         sendShimmer(player, SHIMMER_CLEARED);
@@ -93,7 +96,8 @@ public final class ShifterEvents {
     }
 
     /**
-     * Cancels a hit on a player holding shifter and moves them instead.
+     * Cancels a mob's or a projectile's hit on a player holding Elude and
+     * moves them to a random safe spot instead, where one is found.
      *
      * @param event the incoming damage event
      */
@@ -101,53 +105,102 @@ public final class ShifterEvents {
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel level) {
             Shifter held = standing(player);
-            if (held != null && escapes(event.getSource(), held)) {
-                event.setCanceled(true);
-                escapeTo(player, held, event.getSource()).ifPresent(feet -> blinkTo(level, player, feet));
+            if (held != null && escapes(event.getSource())) {
+                RandomSource random = player.getRandom();
+                safeSpotNear(player.blockPosition(), Mth.floor(held.distance()), random,
+                        spot -> StandingColumn.at(level, spot).safe())
+                        .ifPresent(spot -> {
+                            event.setCanceled(true);
+                            blinkTo(level, player, Vec3.atBottomCenterOf(spot), randomHeading(random));
+                        });
             }
         }
     }
 
     /**
-     * Whether shifter turns a hit aside: every hit but /kill, and a fall
-     * out of the world only once the player has stood on solid ground to
-     * return to.
+     * Whether Elude turns a hit aside: a hit a mob deals, or one a projectile
+     * lands whoever shot it.
      *
      * @param source the hit's source
-     * @param held   the player's shifter
      * @return true for a hit the player escapes
      */
-    static boolean escapes(DamageSource source, Shifter held) {
-        return !source.is(DamageTypes.GENERIC_KILL)
-                && (!source.is(DamageTypes.FELL_OUT_OF_WORLD) || held.safeGround().isPresent());
+    static boolean escapes(DamageSource source) {
+        return source.getEntity() instanceof Mob || source.getDirectEntity() instanceof Projectile;
     }
 
     /**
-     * Where a player escapes a hit to: their safe ground from a fall out of
-     * the world, the blink along their look from any other hit.
+     * A random spot within the radius a player can escape to: each try draws
+     * a column at least the minimum escape across the ground and takes the
+     * safe height in it nearest the player's feet.
      *
-     * @param player the player
-     * @param held   their shifter
-     * @param source the hit's source
-     * @return where their feet land, empty where the blink finds nowhere they fit
+     * @param stood  the block the player's feet fill
+     * @param radius the escape's radius in blocks
+     * @param random the draws
+     * @param safe   whether a player's feet can stand in a block
+     * @return the block their feet land in, empty where every try found no safe height
      */
-    private static Optional<Vec3> escapeTo(ServerPlayer player, Shifter held, DamageSource source) {
-        return source.is(DamageTypes.FELL_OUT_OF_WORLD) ? held.safeGround()
-                : TeleportStep.landingAlongLook(player, player.position(), player.getLookAngle(), held.distance())
-                        .map(BlinkLanding::feet);
+    static Optional<BlockPos> safeSpotNear(BlockPos stood, int radius, RandomSource random,
+            Predicate<BlockPos> safe) {
+        int span = radius + radius + 1;
+        int reach = radius * radius;
+        for (int tried = 0; tried < ESCAPE_TRIES; tried++) {
+            int dx = random.nextInt(span) - radius;
+            int dz = random.nextInt(span) - radius;
+            int across = dx * dx + dz * dz;
+            if (across >= MIN_ESCAPE * MIN_ESCAPE && across <= reach) {
+                Optional<BlockPos> spot = nearestSafeHeight(stood.offset(dx, 0, dz),
+                        Mth.floor(Math.sqrt(reach - across)), safe);
+                if (spot.isPresent()) {
+                    return spot;
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     /**
-     * Blinks a player to a spot with the shared blink effect at both ends.
+     * The safe height in a column nearest a level, upward first on a tie.
+     *
+     * @param level the column's block at the player's feet height
+     * @param rise  how far above and below that block the column reaches
+     * @param safe  whether a player's feet can stand in a block
+     * @return the safe block, empty where the column holds none
+     */
+    private static Optional<BlockPos> nearestSafeHeight(BlockPos level, int rise, Predicate<BlockPos> safe) {
+        for (int dy = 0; dy <= rise; dy++) {
+            if (safe.test(level.above(dy))) {
+                return Optional.of(level.above(dy));
+            }
+            if (dy > 0 && safe.test(level.below(dy))) {
+                return Optional.of(level.below(dy));
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * A random heading across a full turn, in degrees from -180 to 180.
+     *
+     * @param random the draws
+     * @return the heading
+     */
+    static float randomHeading(RandomSource random) {
+        return random.nextFloat() * FULL_TURN_DEGREES - HALF_TURN_DEGREES;
+    }
+
+    /**
+     * Blinks a player to a spot turned to a heading, with the shared blink
+     * effect at both ends.
      * Decision afterimage-is-one-shared-effect.
      *
-     * @param level  the player's level
-     * @param player the player
-     * @param feet   where their feet land
+     * @param level   the player's level
+     * @param player  the player
+     * @param feet    where their feet land
+     * @param heading the yaw they face after it
      */
-    private static void blinkTo(ServerLevel level, ServerPlayer player, Vec3 feet) {
+    static void blinkTo(ServerLevel level, ServerPlayer player, Vec3 feet, float heading) {
         Vec3 stood = player.position();
-        player.teleportTo(feet.x, feet.y, feet.z);
+        player.teleportTo(level, feet.x, feet.y, feet.z, Set.of(), heading, player.getXRot(), true);
         player.resetFallDistance();
         player.setDeltaMovement(Vec3.ZERO);
         for (Vec3 end : new Vec3[] {stood, feet}) {
@@ -158,27 +211,10 @@ public final class ShifterEvents {
     }
 
     /**
-     * Remembers where the player stands when it is solid ground: the block
-     * under their feet has a sturdy top and their body fits where they stand.
-     *
-     * @param level  the player's level
-     * @param player the player
-     * @param held   their shifter
-     */
-    private static void rememberGround(ServerLevel level, ServerPlayer player, Shifter held) {
-        BlockPos under = BlockPos.containing(player.position()).below();
-        boolean solid = level.getBlockState(under).isFaceSturdy(level, under, Direction.UP)
-                && level.noCollision(player, player.getBoundingBox());
-        if (solid && !held.safeGround().map(player.position()::equals).orElse(false)) {
-            player.setData(GooAttachments.SHIFTER, held.standingOn(player.position()));
-        }
-    }
-
-    /**
-     * The shifter a player holds now.
+     * The Elude a player holds now.
      *
      * @param player the player
-     * @return their shifter, or null where none stands
+     * @return their Elude, or null where none stands
      */
     public static @Nullable Shifter standing(ServerPlayer player) {
         Shifter held = player.hasData(GooAttachments.SHIFTER)

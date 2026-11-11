@@ -307,4 +307,24 @@ class DeliveryTest {
         }
     }
 
+    /**
+     * Goop and Slick are the shipped streams whose spray follows the coat;
+     * every other stream's motes keep the crosshair-distance launch.
+     * goop-and-slick-spray-follows-the-coat
+     */
+    @Nested
+    class SprayFollowsTheCoat {
+
+        @Test
+        void goopAndSlickAloneSprayOntoTheirCoat() {
+            Set<Identifier> following = AbilityJson.files().stream()
+                    .filter(file -> AbilityJson.decode(file).delivery().sprayFollowsCoat())
+                    .map(file -> AbilityJson.idOf(file.getFileName().toString()))
+                    .collect(Collectors.toSet());
+
+            assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "weird_goop"),
+                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick")), following);
+        }
+    }
+
 }

@@ -17,6 +17,8 @@ import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -29,6 +31,7 @@ import net.minecraft.resources.ResourceKey;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
@@ -68,12 +71,14 @@ import java.util.stream.Stream;
  * @param costMechanics the translation key to a format string explaining how an ability costing nothing up
  *                    front charges, empty for an ability naming none; its positional placeholders (%s) fill
  *                    in the order the ability's kind reads its numbers: a durative ability its upkeep a second; a blink
- *                    its per-block price, its wall price and its oculus percent; a Spire stone's goo value
- *                    per block; any other the names of the items it consumes
+ *                    its per-block price, its wall price and its oculus percent; a Spire its cost, the
+ *                    price per block grown; any other the names of the items it consumes
  *                    (decision zero-cost-field-formats-the-cost-mechanics)
  * @param costFormula the short formula a dynamically priced ability's petal reads in place of a
  *                    fixed cost, "200 + 100/block" for a blink, empty for a fixed-cost ability
  *                    (decision dynamic-costs-keep-the-mb-quantity)
+ * @param freeWhile   the self ability whose standing on the thrower makes this one cost nothing, empty for none
+ *                    (decision click-costs-one-mb-and-nothing-under-sculker)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -98,8 +103,34 @@ public record AbilityDefinition(
         ArmPose pose,
         String description,
         Optional<String> costMechanics,
-        Optional<String> costFormula
+        Optional<String> costFormula,
+        Optional<Identifier> freeWhile
 ) {
+
+    /**
+     * What a throw costs the thrower in exact mB: nothing while the self
+     * ability this one names stands on the thrower, the cost otherwise.
+     * click-costs-one-mb-and-nothing-under-sculker
+     *
+     * @param stands whether a self ability, by id, stands on the thrower now
+     * @param values the goo values the cost's items are priced in
+     * @return the exact cost
+     */
+    public GooFraction costFor(Predicate<Identifier> stands, IGooValueLookup values) {
+        return freeFor(stands) ? GooFraction.ZERO : cost.exactIn(values);
+    }
+
+    /**
+     * Whether a throw costs the thrower nothing, the self ability this one
+     * names standing on the thrower.
+     * click-costs-one-mb-and-nothing-under-sculker
+     *
+     * @param stands whether a self ability, by id, stands on the thrower now
+     * @return true while that ability stands
+     */
+    public boolean freeFor(Predicate<Identifier> stands) {
+        return freeWhile.filter(stands).isPresent();
+    }
 
     /**
      * An ability whose price reads no formula, every ability pricing a fixed cost.
@@ -136,7 +167,7 @@ public record AbilityDefinition(
                              Optional<String> costMechanics) {
         this(id, gooType, displayName, icon, order, AbilityPrice.flat(cost), delivery, behaviors, tags, badge,
                 requires, area, indicator, consumes, onPrism, onBlocks, AbilityPrice.flat(upkeep), downSound,
-                distancePrice, pose, description, costMechanics, Optional.empty());
+                distancePrice, pose, description, costMechanics, Optional.empty(), Optional.empty());
     }
 
     /**
@@ -469,6 +500,7 @@ public record AbilityDefinition(
     private static final Expr NO_UPKEEP_WRITTEN = Expr.literal(NO_UPKEEP);
     private static final String FIELD_COST_MECHANICS = "cost_mechanics";
     private static final String FIELD_COST_FORMULA = "cost_formula";
+    private static final String FIELD_FREE_WHILE = "free_while";
     private static final String UNFORMULATED_DYNAMIC_PRICE =
             "An ability costing nothing up front and paying no upkeep must name " + FIELD_COST_FORMULA
                     + ", the formula its petal reads";
@@ -533,12 +565,14 @@ public record AbilityDefinition(
      * @param distancePrice what a blink adds for its trip
      * @param costMechanics the format key explaining how the ability charges, empty for none
      * @param costFormula   the short formula a dynamic price reads on its petal, empty for none
+     * @param freeWhile     the self ability whose standing makes a throw free, empty for none
      */
     private record Price(Expr cost, DistancePrice distancePrice, Optional<String> costMechanics,
-                         Optional<String> costFormula) {
+                         Optional<String> costFormula, Optional<Identifier> freeWhile) {
 
         static Price of(AbilityDefinition def) {
-            return new Price(def.cost().amount(), def.distancePrice(), def.costMechanics(), def.costFormula());
+            return new Price(def.cost().amount(), def.distancePrice(), def.costMechanics(), def.costFormula(),
+                    def.freeWhile());
         }
     }
 
@@ -548,7 +582,9 @@ public record AbilityDefinition(
             // zero-cost-field-formats-the-cost-mechanics
             Codec.STRING.optionalFieldOf(FIELD_COST_MECHANICS).forGetter(Price::costMechanics),
             // dynamic-costs-keep-the-mb-quantity
-            Codec.STRING.optionalFieldOf(FIELD_COST_FORMULA).forGetter(Price::costFormula)
+            Codec.STRING.optionalFieldOf(FIELD_COST_FORMULA).forGetter(Price::costFormula),
+            // click-costs-one-mb-and-nothing-under-sculker
+            Identifier.CODEC.optionalFieldOf(FIELD_FREE_WHILE).forGetter(Price::freeWhile)
     ).apply(inst, Price::new)).validate(AbilityDefinition::explainedPrice);
 
     private static final MapCodec<HeldTraits> HELD_TRAITS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
@@ -632,7 +668,7 @@ public record AbilityDefinition(
                         steps, tags, badge, requires, area, shows, consumes, reactions.onPrism(),
                         reactions.onBlocks(), AbilityPrice.of(held.upkeep(), heading.gooType()), held.downSound(),
                         price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())),
-                        heading.descriptionKey(), price.costMechanics(), price.costFormula())));
+                        heading.descriptionKey(), price.costMechanics(), price.costFormula(), price.freeWhile())));
     }
 
     /**

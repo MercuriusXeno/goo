@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.radial;
 
-import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
@@ -312,10 +311,10 @@ class RadialWheelRendererTest {
             }));
         }
 
-        /** quantum-anchors-link-two-points: the ability once called Anchor reads Portal; its key stays. */
+        /** portals-link-by-looking-through-portal-vision: Quantum's portal ability reads Portal. */
         @Test
-        void quantumAnchorReadsPortal() throws IOException {
-            assertEquals("Portal", englishLang().get("goo.ability.quantum.anchor").getAsString());
+        void quantumPortalReadsPortal() throws IOException {
+            assertEquals("Portal", englishLang().get("goo.ability.quantum.portal").getAsString());
         }
 
         @Test
@@ -766,8 +765,8 @@ class RadialWheelRendererTest {
             }
 
             @Override
-            public CostMechanicsLookup costMechanicsLookup(ResourceKey<GooTypeDefinition> type) {
-                return new CostMechanicsLookup(key -> key, item -> GooFraction.ZERO);
+            public CostMechanicsLookup costMechanicsLookup() {
+                return new CostMechanicsLookup(key -> key, () -> GooValueTable.EMPTY);
             }
         };
 
