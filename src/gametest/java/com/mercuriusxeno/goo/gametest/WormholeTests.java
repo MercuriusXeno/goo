@@ -301,24 +301,30 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown at a wall twenty blocks thick, past sixteen blocks but within
-     * the hole's thirty-two, the hole opens through to the far side.
+     * Thrown up at a ceiling twenty blocks thick, past sixteen blocks but
+     * within the hole's thirty-two, the hole opens through to the room above.
+     * The wall runs up over the bay rather than across it, since the bay is
+     * six blocks deep and a wall twenty long across it stands in the next
+     * test's bay, and the world's floor lies too near beneath it.
      *
      * @param helper the gametest helper
      */
     public static void reachesThroughAThickWall(GameTestHelper helper) {
         for (int x = 1; x <= 3; x++) {
-            for (int y = 1; y <= 3; y++) {
-                for (int z = WALL_NEAR_Z; z < WALL_NEAR_Z + THICK_WALL; z++) {
-                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+            for (int z = 1; z <= 3; z++) {
+                for (int height = 0; height < THICK_WALL; height++) {
+                    helper.setBlock(new BlockPos(x, THICK_CEILING.getY() + height, z), Blocks.STONE);
+                }
+                for (int room = THICK_WALL; room < THICK_WALL + ROOM_ABOVE; room++) {
+                    helper.setBlock(new BlockPos(x, THICK_CEILING.getY() + room, z), Blocks.AIR);
                 }
             }
         }
         ServerPlayer caster = caster(helper);
-        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        throwAt(caster, helper.absolutePos(THICK_CEILING), Direction.DOWN);
         helper.runAfterDelay(LANDED, () -> {
-            helper.assertTrue(holeStruckAt(helper, STRUCK).isPresent(), "A hole thrown at a wall twenty blocks thick should open "
-                    + "through it");
+            helper.assertTrue(holeStruckAt(helper, THICK_CEILING).isPresent(), "A hole thrown at a ceiling twenty "
+                    + "blocks thick should open through it");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -496,6 +502,10 @@ public final class WormholeTests {
     private static final int HOLE_REACH = 32;
     /** A wall thicker than sixteen blocks and thinner than thirty-two. */
     private static final int THICK_WALL = 20;
+    /** How tall the room over the thick ceiling stands, room for a body to come out. */
+    private static final int ROOM_ABOVE = 3;
+    /** The thick ceiling's lowest block over the bay's middle, the throw's mark. */
+    private static final BlockPos THICK_CEILING = new BlockPos(2, 3, 2);
 
     /** Ticks a refused throw is watched for, longer than any flight in the bay. */
     private static final int SETTLE_TICKS = 30;
