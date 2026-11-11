@@ -1,15 +1,12 @@
 {
   "gooType": "void",
   "displayName": "goo.ability.void.hole",
-  "cost_mechanics": "goo.ability.void.hole.cost_mechanics",
-  "badge": "instant",
+  "badge": "world",
   "order": 10,
-  "cost": 0,
-  "cost_formula": "6/slot",
-  "delivery": { "kind": "self" },
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "pocket_open", "slot_cost": 6 },
-    { "type": "sound", "id": "minecraft:block.ender_chest.open", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
+    { "type": "hole_open", "lifetime": 600 }
   ],
-  "tags": ["self"]
+  "tags": []
 }
