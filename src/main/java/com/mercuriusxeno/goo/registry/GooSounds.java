@@ -75,5 +75,11 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.outsider_wub",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_WUB));
 
+    /** A door conjured toward the pocket (decision
+     * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_CONJURE =
+        SOUND_EVENTS.register("effects.outsider_conjure",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_CONJURE));
+
     private GooSounds() {}
 }

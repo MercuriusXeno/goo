@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.outsider.ConjuredDoor;
+import com.mercuriusxeno.goo.ability.outsider.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
 import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
@@ -41,6 +43,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -79,6 +82,14 @@ public final class OutsiderTests {
                 OutsiderTests::roomEdgeCarriesAWalkerAtAFractionalExtent);
         GooTestFunctions.registerTest(registrar, OUTSIDER_REFUSES_BUILDING_PAST_THE_PLATFORM,
                 OutsiderTests::refusesBuildingPastThePlatform);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_CONJURES_A_DOOR_THAT_GROWS,
+                OutsiderTests::conjuresADoorThatGrowsWithTheCharge);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_ENVELOPS_THE_CASTER,
+                OutsiderTests::doorEnvelopsTheCasterOnTheFullCharge);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_COLLAPSES_WHEN_LET_GO,
+                OutsiderTests::doorCollapsesWhenTheChannelIsLetGoEarly);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_CONJURES_NO_DOOR_INSIDE,
+                OutsiderTests::conjuresNoDoorInsideThePocket);
     }
 
     private static final String ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE =
@@ -252,6 +263,147 @@ public final class OutsiderTests {
             helper.succeed();
         });
     }
+
+    private static final String OUTSIDER_CONJURES_A_DOOR_THAT_GROWS = "outsider_conjures_a_door_that_grows";
+    private static final String OUTSIDER_DOOR_ENVELOPS_THE_CASTER = "outsider_door_envelops_the_caster";
+    private static final String OUTSIDER_DOOR_COLLAPSES_WHEN_LET_GO = "outsider_door_collapses_when_let_go";
+    private static final String OUTSIDER_CONJURES_NO_DOOR_INSIDE = "outsider_conjures_no_door_inside";
+    /** How far before the caster's feet the door stands while it grows. */
+    private static final double DOOR_STANDS_OFF = 1.5;
+    /** Ticks after a channel is let go by which its door is gone. */
+    private static final int DOOR_GONE_BY = 4;
+    /** Ticks a caster holds on inside the pocket, past the door the way in left. */
+    private static final int HELD_ON_INSIDE = 20;
+    private static final String SHOULD_CONJURE = "A channel toward the pocket should conjure a door at tick %d";
+    private static final String SHOULD_STAND_BEFORE = "The door should stand %.1f before the caster's facing, "
+            + "stands at %s with the caster at %s facing %.1f";
+    private static final String SHOULD_GROW_DOOR = "The door should grow with the charge, sized %.3f, %.3f, %.3f";
+    private static final String SHOULD_CONJURE_SOUND = "The conjuring sound should play once, sounds sent %s";
+    private static final String SHOULD_ENVELOP = "The full charge's door should envelop the caster at %s, is %s";
+    private static final String SHOULD_COLLAPSE = "A channel let go early should leave no door, leaves %s";
+    private static final String SHOULD_STAY = "A channel let go early should leave the caster at %s in %s, stands at "
+            + "%s in %s";
+    private static final String SHOULD_CONJURE_NONE = "A channel inside the pocket should conjure no door, conjures %s";
+    private static final String SHOULD_GROW_INSIDE = "A channel inside the pocket should grow the room past %.3f, "
+            + "stands at %.3f";
+
+    /**
+     * A caster channeling Outsider from outside the pocket conjures a door
+     * before them, the way they face, which grows with the held share of the
+     * charge, its conjuring sound playing once at its start
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     *
+     * @param helper the gametest helper
+     */
+    public static void conjuresADoorThatGrowsWithTheCharge(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        caster.setYRot(CAST_YAW);
+        PacketRecorder packets = PacketRecorder.attachTo(caster);
+        holdFor(helper, caster, CHARGE_TICKS);
+        double[] sizes = {-1, 0, 0};
+        Vec3[] conjuredAt = new Vec3[1];
+        // The door's first tick is the first the channel's program runs, read as it first stands.
+        helper.onEachTick(() -> ConjuredDoors.doorOf(caster.getUUID()).filter(door -> sizes[0] < 0)
+                .ifPresent(door -> {
+                    Vec3 facing = Vec3.directionFromRotation(0f, caster.getYRot());
+                    Vec3 expected = caster.position().add(facing.scale(DOOR_STANDS_OFF));
+                    helper.assertTrue(door.at().distanceTo(expected) < FACING_KEPT, String.format(
+                            SHOULD_STAND_BEFORE, DOOR_STANDS_OFF, door.at(), caster.position(), caster.getYRot()));
+                    sizes[0] = door.size();
+                    conjuredAt[0] = door.at();
+                }));
+        helper.runAfterDelay(CHARGE_TICKS / 2, () -> sizes[1] = doorOf(helper, caster, CHARGE_TICKS / 2).size());
+        helper.runAfterDelay(CHARGE_TICKS, () -> {
+            sizes[2] = doorOf(helper, caster, CHARGE_TICKS).size();
+            helper.assertTrue(sizes[0] > 0 && sizes[0] < sizes[1] && sizes[1] < sizes[2],
+                    String.format(SHOULD_GROW_DOOR, sizes[0], sizes[1], sizes[2]));
+            // Casters in the gametests beside this one conjure within earshot, so only this door's sound counts.
+            List<String> sounds = packets.sentOf(ClientboundSoundPacket.class).stream()
+                    .filter(sound -> conjuredAt[0] != null && Math.abs(sound.getX() - conjuredAt[0].x()) < 1
+                            && Math.abs(sound.getZ() - conjuredAt[0].z()) < 1)
+                    .map(sound -> sound.getSound().value().location().toString()).toList();
+            helper.assertTrue(sounds.stream().filter(GooSoundIds.OUTSIDER_CONJURE.toString()::equals).count() == 1,
+                    String.format(SHOULD_CONJURE_SOUND, sounds));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A channel held to its full charge moves the door onto the caster, and
+     * the caster stands in their room
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     *
+     * @param helper the gametest helper
+     */
+    public static void doorEnvelopsTheCasterOnTheFullCharge(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS, () -> {
+            ConjuredDoor door = doorOf(helper, caster, CHARGE_TICKS);
+            assertEntered(helper, caster);
+            // Where the caster stood as they went: the return point the way in kept.
+            VoidPockets.ReturnPoint left = VoidPockets.get((ServerLevel) caster.level()).returnOf(caster.getUUID());
+            helper.assertTrue(left != null && door.phase() == ConjuredDoor.Phase.ENVELOPING
+                            && door.at().distanceTo(left.position()) < KEPT,
+                    String.format(SHOULD_ENVELOP, left == null ? null : left.position(), door));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A channel let go halfway through its charge leaves no door, and the
+     * caster stands where they stood, in the level they stood in
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     *
+     * @param helper the gametest helper
+     */
+    public static void doorCollapsesWhenTheChannelIsLetGoEarly(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        ServerLevel level = helper.getLevel();
+        Vec3 castFrom = caster.position();
+        holdFor(helper, caster, CHARGE_TICKS / 2);
+        helper.runAfterDelay(CHARGE_TICKS / 2 + DOOR_GONE_BY, () -> {
+            helper.assertTrue(ConjuredDoors.doorOf(caster.getUUID()).isEmpty(),
+                    String.format(SHOULD_COLLAPSE, ConjuredDoors.doorOf(caster.getUUID())));
+            helper.assertTrue(caster.level() == level && caster.position().equals(castFrom),
+                    String.format(SHOULD_STAY, castFrom, level.dimension().identifier(), caster.position(),
+                            caster.level().dimension().identifier()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A caster holding on inside their room grows it and conjures no door
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     *
+     * @param helper the gametest helper
+     */
+    public static void conjuresNoDoorInsideThePocket(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, VOID_FOR_GROWTH));
+        holdFor(helper, caster, CHARGE_TICKS + HELD_ON_INSIDE);
+        double[] entered = new double[1];
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            assertEntered(helper, caster);
+            entered[0] = OutsiderRooms.extentOf((ServerLevel) caster.level(), caster.getUUID());
+        });
+        helper.runAfterDelay(CHARGE_TICKS + HELD_ON_INSIDE, () -> {
+            double extent = OutsiderRooms.extentOf((ServerLevel) caster.level(), caster.getUUID());
+            helper.assertTrue(ConjuredDoors.doorOf(caster.getUUID()).isEmpty(),
+                    String.format(SHOULD_CONJURE_NONE, ConjuredDoors.doorOf(caster.getUUID())));
+            helper.assertTrue(extent > entered[0], String.format(SHOULD_GROW_INSIDE, entered[0], extent));
+            helper.succeed();
+        });
+    }
+
+    private static ConjuredDoor doorOf(GameTestHelper helper, ServerPlayer caster, int tick) {
+        Optional<ConjuredDoor> door = ConjuredDoors.doorOf(caster.getUUID());
+        helper.assertTrue(door.isPresent(), String.format(SHOULD_CONJURE, tick));
+        return door.orElseThrow();
+    }
+
+    /** How near the door stands to the spot before the caster's facing: within the mock caster's drift in a tick. */
+    private static final double FACING_KEPT = 0.1;
 
     private static void place(ServerPlayer builder, BlockPos against, Direction face) {
         Vec3 hit = Vec3.atCenterOf(against).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(HALF));

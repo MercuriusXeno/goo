@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.outsider.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -237,6 +238,13 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public void showCharge(int held, int charge) {
         OutsiderRooms.showCharge(player, held, charge);
+    }
+
+    /** Conjures the door before the player (decision
+     * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
+    @Override
+    public void conjureDoor(int held, int charge) {
+        ConjuredDoors.conjure(player, held, charge);
     }
 
     @Override
