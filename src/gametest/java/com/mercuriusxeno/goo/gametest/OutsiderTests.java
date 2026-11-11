@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.outsider.VoidPockets;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.client.outsider.PocketStarSky;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
@@ -42,6 +43,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.world.NeoForgeEnvironmentAttributes;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.HashMap;
 import java.util.List;
@@ -76,7 +78,8 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_VOID_CATCHES_THE_FALLER, OutsiderTests::voidCatchesTheFaller);
         GooTestFunctions.registerTest(registrar, OUTSIDER_FLOOR_STANDS_WHOLE,
                 OutsiderTests::floorStandsWholeAndGrowthPlacesNoBlock);
-        GooTestFunctions.registerTest(registrar, OUTSIDER_POCKET_SHOWS_NO_SKY, OutsiderTests::pocketShowsNoSky);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_POCKET_DRAWS_THE_STAR_SKY,
+                OutsiderTests::pocketDrawsTheStarSky);
         GooTestFunctions.registerTest(registrar, OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH,
                 OutsiderTests::showsItsChargeAndGrowth);
         GooTestFunctions.registerTest(registrar, ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE,
@@ -594,24 +597,30 @@ public final class OutsiderTests {
         });
     }
 
-    private static final String OUTSIDER_POCKET_SHOWS_NO_SKY = "outsider_pocket_shows_no_sky";
+    private static final String OUTSIDER_POCKET_DRAWS_THE_STAR_SKY = "outsider_pocket_draws_the_star_sky";
     private static final ResourceKey<Biome> POCKET_VOID = ResourceKey.create(Registries.BIOME,
             Identifier.fromNamespaceAndPath(Goo.MODID, "pocket_void"));
-    private static final String SHOULD_DRAW_NO_SKY = "The pocket should draw no skybox, so no sun, draws %s";
+    private static final String SHOULD_RUN_THE_SKY_PASS = "The pocket should draw a skybox the sky pass runs for, draws %s";
+    private static final String SHOULD_DRAW_THE_STAR_SKY = "The pocket should name goo's star sky as its custom skybox, "
+            + "names %s";
     private static final String SHOULD_BE_VOID_BIOME = "The pocket's rooms should stand in goo:pocket_void, stand in %s";
 
     /**
-     * The pocket dimension draws no skybox, so neither sun nor moon nor
-     * stars, and its rooms stand in a biome of black sky and fog: nothing
-     * above, around or below.
+     * The pocket dimension draws a skybox, so the sky pass runs, and names
+     * goo's star sky as the custom skybox the client draws in vanilla's
+     * place, and its rooms stand in a biome of black fog.
+     * outsider-room-draws-a-skybox-of-stars
      *
      * @param helper the gametest helper
      */
-    public static void pocketShowsNoSky(GameTestHelper helper) {
+    public static void pocketDrawsTheStarSky(GameTestHelper helper) {
         ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
         helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
-        helper.assertTrue(pocket.dimensionType().skybox() == DimensionType.Skybox.NONE,
-                String.format(SHOULD_DRAW_NO_SKY, pocket.dimensionType().skybox()));
+        helper.assertTrue(pocket.dimensionType().skybox() != DimensionType.Skybox.NONE,
+                String.format(SHOULD_RUN_THE_SKY_PASS, pocket.dimensionType().skybox()));
+        Identifier sky = pocket.environmentAttributes().getValue(NeoForgeEnvironmentAttributes.CUSTOM_SKYBOX,
+                Vec3.atCenterOf(OutsiderRooms.voidstoneOf(0)));
+        helper.assertTrue(PocketStarSky.ID.equals(sky), String.format(SHOULD_DRAW_THE_STAR_SKY, sky));
         Holder<Biome> biome = pocket.getBiome(OutsiderRooms.voidstoneOf(0));
         helper.assertTrue(biome.is(POCKET_VOID), String.format(SHOULD_BE_VOID_BIOME, biome.getRegisteredName()));
         helper.succeed();
