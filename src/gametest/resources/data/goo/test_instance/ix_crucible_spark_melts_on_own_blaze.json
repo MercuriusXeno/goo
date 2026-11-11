@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:ix_crucible_spark_melts_coal",
+  "function": "goo:ix_crucible_spark_melts_on_own_blaze",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 2400,

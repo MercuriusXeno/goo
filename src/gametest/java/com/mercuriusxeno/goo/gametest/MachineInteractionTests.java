@@ -15,7 +15,9 @@ import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.lab.LabKit;
 import com.mercuriusxeno.goo.network.PlexerTargetPickHandler;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
@@ -49,6 +51,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -74,7 +77,7 @@ public final class MachineInteractionTests {
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
     private static final String IX_CRUCIBLE_BLAZE_ABSORBS = "ix_crucible_blaze_absorbs_item";
     private static final String IX_CRUCIBLE_FLINT_SPARKS = "ix_crucible_flint_and_steel_sparks";
-    private static final String IX_CRUCIBLE_SPARK_MELTS_COAL = "ix_crucible_spark_melts_coal";
+    private static final String IX_CRUCIBLE_SPARK_MELTS_ON_OWN_BLAZE = "ix_crucible_spark_melts_on_own_blaze";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -97,7 +100,8 @@ public final class MachineInteractionTests {
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_BLAZE_ABSORBS, MachineInteractionTests::blazeCrucibleAbsorbsItem);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_FLINT_SPARKS, MachineInteractionTests::flintAndSteelSparksColdCrucible);
-        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_SPARK_MELTS_COAL, MachineInteractionTests::sparkedCrucibleMeltsCoalOnItsBlaze);
+        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_SPARK_MELTS_ON_OWN_BLAZE,
+                MachineInteractionTests::sparkedCrucibleMeltsAnItemOnItsOwnBlaze);
     }
 
 
@@ -123,10 +127,13 @@ public final class MachineInteractionTests {
     private static final String SPARK_COSTS_ONE = "A spark should cost the flint and steel one durability";
     private static final String HOT_SPARK_CONSUMED = "A flint-and-steel click on a heated crucible should be consumed";
     private static final String HOT_SPARK_FREE = "A consumed click should leave the flint and steel undamaged";
-    private static final String COAL_MELTED = "The sparked crucible should melt the coal to the end";
-    private static final String COAL_LEFT_BLAZE = "The coal's blaze should stand in the reservoir";
-    private static final String COAL_LEFT_ROCK = "The coal's rock should stand in the reservoir";
-    private static final String COAL_ENDS_HOT = "The crucible should end able to heat";
+    /** The melting item's blaze and rock, the 3 to 1 a coal melts to. */
+    private static final int FUEL_BLAZE = 36;
+    private static final int FUEL_ROCK = 12;
+    private static final String FUEL_MELTED = "The sparked crucible should melt the item to the end";
+    private static final String FUEL_LEFT_BLAZE = "The item's blaze should stand in the reservoir";
+    private static final String FUEL_LEFT_ROCK = "The item's rock should stand in the reservoir";
+    private static final String FUEL_ENDS_HOT = "The crucible should end able to heat";
     /** Ticks a still item dropped at the basin center takes to land, rest and be consumed. */
     private static final int ABSORB_DELAY = 10;
     private static final double BLOCK_CENTER = 0.5;
@@ -605,25 +612,27 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Crucible: a sparked empty crucible absorbs a coal and melts it to the end on the
-     * blaze goo the coal yields.
+     * Crucible: a sparked empty crucible absorbs a melting item holding blaze and rock, a coal's shape, and melts it
+     * to the end on the blaze goo the item yields. The test owns the item's goo, so tuning coal leaves it standing.
+     * Decision no-test-asserts-a-shipped-base-value.
      *
      * @param helper the gametest helper
      */
-    public static void sparkedCrucibleMeltsCoalOnItsBlaze(GameTestHelper helper) {
+    public static void sparkedCrucibleMeltsAnItemOnItsOwnBlaze(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.FLINT_AND_STEEL));
         sparkClick(helper, player);
-        ItemEntity coal = spawnInBasin(helper, Items.COAL);
+        ItemEntity fuel = CrucibleSpawns.spawnInBasin(helper, PartiallyMeltedItem.createWith(
+                new GooContents(Map.of(GooTypes.BLAZE, FUEL_BLAZE, GooTypes.ROCK, FUEL_ROCK))));
 
         helper.succeedWhen(() -> {
-            helper.assertTrue(coal.isRemoved(), COAL_MELTED);
-            helper.assertTrue(crucible.getMeltingItem().isEmpty(), COAL_MELTED);
-            helper.assertTrue(crucible.getReservoir().getVolume(GooTypes.BLAZE) > 0, COAL_LEFT_BLAZE);
-            helper.assertTrue(crucible.getReservoir().getVolume(GooTypes.ROCK) > 0, COAL_LEFT_ROCK);
-            helper.assertTrue(crucible.canHeat(), COAL_ENDS_HOT);
+            helper.assertTrue(fuel.isRemoved(), FUEL_MELTED);
+            helper.assertTrue(crucible.getMeltingItem().isEmpty(), FUEL_MELTED);
+            helper.assertTrue(crucible.getReservoir().getVolume(GooTypes.BLAZE) > 0, FUEL_LEFT_BLAZE);
+            helper.assertTrue(crucible.getReservoir().getVolume(GooTypes.ROCK) > 0, FUEL_LEFT_ROCK);
+            helper.assertTrue(crucible.canHeat(), FUEL_ENDS_HOT);
         });
     }
 
