@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceRipple;
@@ -170,21 +169,14 @@ class CrucibleMeltingItemsTest {
     }
 
     /**
-     * One item quad submits once per shard of the item's shard map on the dissolve render
-     * type, every vertex carrying the fraction, the shards together the whole item at home.
+     * One item quad submits once per shard of the item's shard map, the shards together the
+     * whole item at home. DissolvingItemCollectorTest holds the render type and fraction.
      */
     @Test
-    void headSubmitsOncePerShardOnTheDissolveType() {
+    void headSubmitsOncePerShard() {
         Submitted submitted = submitAndRecord(oneQuadItem());
 
         assertEquals(submitted.head().model().count(), submitted.renderTypes().size());
-        assertTrue(submitted.head().model().count() >= ItemShardCutter.MIN_SHARDS);
-        for (RenderType renderType : submitted.renderTypes()) {
-            assertEquals(GooRenderTypes.crucibleDissolve(ITEM_ATLAS), renderType);
-        }
-        for (RecordingVertexConsumer.Vertex vertex : submitted.vertices()) {
-            assertEquals((int) (DissolveGlow.FRACTION_UNITS * FRACTION), vertex.uv1U());
-        }
         assertWholeAndFlat(submitted.vertices());
     }
 
