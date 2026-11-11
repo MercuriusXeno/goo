@@ -137,6 +137,7 @@ public final class StepTypes {
         register(ShifterStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
+        register(LeaderStep.TYPE);
         register(VibrateStep.TYPE);
         register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);

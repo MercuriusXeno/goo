@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.ability.program.LeaderStep;
+import com.mercuriusxeno.goo.ability.zoo.Leader;
 import com.mercuriusxeno.goo.ability.program.ShiftStep;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
@@ -66,6 +68,7 @@ public final class SelfDeliveryTests {
     private static final String SELF_KINDLE_ENDS_WHEN_DRY = "self_kindle_ends_when_dry";
     private static final String SELF_SIGHT_EATS = "self_sight_eats_before_the_sight";
     private static final String SIGHT_ENDS_WHEN_DRY = "sight_ends_when_shroom_runs_dry";
+    private static final String LEADER_LAYS_AND_ENDING_CLEARS = "leader_lays_its_state_and_ending_clears_it";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -82,6 +85,8 @@ public final class SelfDeliveryTests {
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_ENDS_WHEN_DRY, SelfDeliveryTests::kindleEndsWhenDry);
         GooTestFunctions.registerTest(registrar, SELF_SIGHT_EATS, SelfDeliveryTests::sightEatsBeforeTheSight);
         GooTestFunctions.registerTest(registrar, SIGHT_ENDS_WHEN_DRY, SelfDeliveryTests::sightEndsWhenShroomRunsDry);
+        GooTestFunctions.registerTest(registrar, LEADER_LAYS_AND_ENDING_CLEARS,
+                SelfDeliveryTests::leaderLaysItsStateAndEndingClearsIt);
     }
 
 
@@ -105,6 +110,10 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_SEE = "Once the eat finishes the player should hold fungal sight";
     private static final String SHOULD_SEE_PAID = "Sight should stand through tick %d, which the shroom pays for";
     private static final String SHOULD_END_SIGHT_DRY = "Sight should end and clear once shroom runs dry";
+    private static final Identifier ZOO_LEADER = Identifier.parse("goo:zoo_leader");
+    private static final String SHOULD_HOLD_LEADER = "Once the eat finishes the player should hold Leader";
+    private static final String SHOULD_LAY_LEADER = "Leader should lay its state with the shipped radius %.1f, laid %s";
+    private static final String SHOULD_CLEAR_LEADER = "Invoking held Leader again should end it and clear its state, reads %s";
     private static final String SHOULD_FALL_BACK = "The shift's reach should fall back to %.1f, reads %.1f";
     /** shroom_fungal_shift.json's range, the reach a shift falls back to without sight. */
     private static final double BASE_SHIFT_RANGE = 64;
@@ -539,13 +548,41 @@ public final class SelfDeliveryTests {
         });
         helper.runAfterDelay(PAID_TICKS + 1, () -> {
             player.doTick();
-            boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(SHROOM_SIGHT);
-            boolean sees = player.getData(GooAttachments.SIGHT).standsAt(player.level().getGameTime());
+            boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(SHROOM_SIGHT);            boolean sees = player.getData(GooAttachments.SIGHT).standsAt(player.level().getGameTime());
             double reach = ShiftStep.reachOf(player, BASE_SHIFT_RANGE);
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertFalse(held || sees, SHOULD_END_SIGHT_DRY);
             helper.assertTrue(reach == BASE_SHIFT_RANGE, String.format(SHOULD_FALL_BACK, BASE_SHIFT_RANGE, reach));
             helper.succeed();
         });
+    }
+
+    /**
+     * A survival player eats Leader from the glove: the Leader state stands
+     * with the radius zoo_leader.json gives its step, and invoking Leader
+     * again ends the held effect and clears that state.
+     * leader-is-zoos-brew-ability
+     *
+     * @param helper the gametest helper
+     */
+    public static void leaderLaysItsStateAndEndingClearsIt(GameTestHelper helper) {
+        AbilityDefinition leaderAbility = requireAbility(helper, ZOO_LEADER);
+        double shippedRadius = leaderAbility.behaviors().stream()
+                .filter(LeaderStep.class::isInstance).map(LeaderStep.class::cast)
+                .findFirst().map(LeaderStep::radius).orElse(Double.NaN);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ZOO, ZOO_LEADER);
+        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(ZOO_LEADER);
+        Leader laid = player.getData(GooAttachments.LEADER);
+
+        invoke(player, GooTypes.ZOO, ZOO_LEADER);
+
+        boolean heldAfter = player.getData(GooAttachments.HELD_EFFECTS).holds(ZOO_LEADER);
+        Leader after = player.getData(GooAttachments.LEADER);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(held, SHOULD_HOLD_LEADER);
+        helper.assertTrue(laid.stands() && laid.radius() == shippedRadius,
+                String.format(SHOULD_LAY_LEADER, shippedRadius, laid));
+        helper.assertFalse(heldAfter || after.stands(), String.format(SHOULD_CLEAR_LEADER, after));
+        helper.succeed();
     }
 }
