@@ -1,7 +1,14 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityArea;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
+import com.mercuriusxeno.goo.ability.outsider.SustainedGrowth;
+import com.mercuriusxeno.goo.item.GooFormat;
+import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
@@ -24,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -122,6 +130,43 @@ class CrosshairFuelPanelTest {
 
             assertEquals(new Count(petalCount), row.get(row.size() - 1));
             assertTrue(oneShot.petalLabel(3500, PLENTY).endsWith(" | " + petalCount));
+        }
+    }
+
+    /**
+     * In the pocket, Outsider's row reads the seconds the void affords the room's growth
+     * (decision outsider-panel-reads-the-seconds-the-void-affords).
+     */
+    @Nested
+    class OutsiderRow {
+
+        private static final int HOLDING = 1500;
+        private static final String NOT_READ = "unread";
+
+        private final ClientAbility outsider = ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(GooTypes.VOID,
+                List.of(AbilityJson.decode("void_outsider"))).getFirst());
+        private final JsonObject step = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject()
+                .getAsJsonArray("behaviors").get(0).getAsJsonObject();
+
+        @Test
+        void inThePocketTheRowReadsTheSecondsTheVoidAffords() {
+            long ticks = SustainedGrowth.ticksAfforded(RoomExtent.LAID, HOLDING, 0,
+                    step.get("cell_cost").getAsInt(), step.get("distance_cost").getAsInt(),
+                    step.get("ring_ticks").getAsInt());
+            List<FuelCell> expected = List.of(new TypeIcon(GooTypes.VOID), new AbilityName(outsider.displayName()),
+                    new AbilityIcon(outsider.iconTexture()), new Count(GooFormat.formatDuration(ticks)));
+
+            assertEquals(expected, CrosshairFuelPanel.rowCells(GooTypes.VOID, outsider, HOLDING, Integer.MAX_VALUE,
+                    StandingUpkeep.NONE, OptionalDouble.of(RoomExtent.LAID), NOT_READ));
+        }
+
+        /** Outside the pocket the row counts the trips in (decision outsider-reads-its-entry-as-uses-outside-the-pocket). */
+        @Test
+        void outsideThePocketTheRowReadsTheTripsTheVoidAffords() {
+            List<FuelCell> row = CrosshairFuelPanel.rowCells(GooTypes.VOID, outsider, 1000, Integer.MAX_VALUE,
+                    StandingUpkeep.NONE, OptionalDouble.empty(), NOT_READ);
+
+            assertEquals(new Count("x166"), row.get(row.size() - 1));
         }
     }
 

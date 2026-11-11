@@ -22,6 +22,8 @@ public final class RoomExtent {
     private static final double HALF_BLOCK = 0.5;
     /** Rings out from the center across a square: R each way and the center itself. */
     private static final int SIDES_PER_SQUARE = 2;
+    /** The void (mB) within which a feed counts as landing on a whole-block mark: far under any real feed. */
+    private static final double MARK_SNAP = 1.0E-6;
 
     private RoomExtent() {
     }
@@ -124,22 +126,29 @@ public final class RoomExtent {
         double left = feed;
         while (left > 0) {
             int ring = ringGrowing(grown);
-            double cost = Math.max(1, PlatformSpiral.ringCost(ring, base, perDistance));
+            double cost = ringPrice(ring, base, perDistance);
             double mark = ring + HALF_BLOCK;
             double toMark = (mark - grown) * cost;
-            if (left < toMark) {
+            // A feed short of the mark by rounding alone lands on it, so the next feed starts the next ring.
+            if (left < toMark - MARK_SNAP) {
                 return grown + left / cost;
             }
             left -= toMark;
             grown = mark;
+            if (left < MARK_SNAP) {
+                return grown;
+            }
         }
         return grown;
     }
 
     /**
-     * The void a tick of the hold feeds: the cost of the ring the extent is
-     * growing through spread over the ring time, rounded up so the ring
-     * finishes within it.
+     * The void a tick of the hold feeds: the share of the growing ring's
+     * price the ring time owes this tick, so a hold starting on a whole-block
+     * mark reaches the next one after the ring time, having fed that ring's
+     * price and no more. The ring's price fed so far gives the ticks held
+     * into it; the feed tops it up to what one tick more owes, rounded up.
+     * decision outsider-room-grows-one-block-a-second-on-every-side
      *
      * @param extent      the room's extent
      * @param base        the void a cell costs at the center (mB)
@@ -148,8 +157,38 @@ public final class RoomExtent {
      * @return the feed (mB)
      */
     public static long feedFor(double extent, int base, int perDistance, int ringTicks) {
-        long ringCost = PlatformSpiral.ringCost(ringGrowing(extent), base, perDistance);
-        return (ringCost + ringTicks - 1) / ringTicks;
+        int ring = ringGrowing(extent);
+        long price = ringPrice(ring, base, perDistance);
+        long fed = Math.min(price - 1, Math.round((extent - (ring - HALF_BLOCK)) * price));
+        long ticksHeld = fed * ringTicks / price;
+        long owed = Math.ceilDiv(price * (ticksHeld + 1), ringTicks);
+        return Math.max(1, owed - fed);
+    }
+
+    /**
+     * The price of the ring an extent is growing through, which a ring time of the hold feeds.
+     * decision outsider-petal-reads-rate-and-time-in-the-room
+     *
+     * @param extent      the room's extent
+     * @param base        the void a cell costs at the center (mB)
+     * @param perDistance the void each block of Manhattan distance adds (mB)
+     * @return the ring's price (mB)
+     */
+    public static long priceOfRingGrowing(double extent, int base, int perDistance) {
+        return ringPrice(ringGrowing(extent), base, perDistance);
+    }
+
+    /**
+     * The void growing through a ring costs, never less than 1 mB, so
+     * every feed moves the extent.
+     *
+     * @param ring        the ring
+     * @param base        the void a cell costs at the center (mB)
+     * @param perDistance the void each block of Manhattan distance adds (mB)
+     * @return the ring's price (mB)
+     */
+    private static long ringPrice(int ring, int base, int perDistance) {
+        return Math.max(1, PlatformSpiral.ringCost(ring, base, perDistance));
     }
 
     /**
