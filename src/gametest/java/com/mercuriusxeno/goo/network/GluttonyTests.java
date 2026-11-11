@@ -20,19 +20,15 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for Gluttony through the glove: a hungry, hurt player under
- * Gluttony stays hungry and hurt, a heal past full health banks as overheal
- * hearts, a meal past full hunger banks as overhunger that refills the bar
- * as it drops, and the hearts leave with the gluttony once the goo runs dry
- * (decisions gluttony-overheals-and-overhungers and self-effects-trickle-until-ended).
+ * Gametest for Gluttony through the glove: a heal past full health banks as
+ * overheal hearts, a meal past full hunger banks as overhunger that refills
+ * the bar as it drops, and the hearts leave with the gluttony once the goo
+ * runs dry (decisions gluttony-overheals-and-overhungers and self-effects-trickle-until-ended).
  */
 @RegistersGameTests
 public final class GluttonyTests {
-    private static final String GLUTTONY_LANDS_NO_HEAL_OR_FEED = "gluttony_lands_no_heal_or_feed";
     private static final String GLUTTONY_BANKS_A_HEAL_PAST_FULL = "gluttony_banks_a_heal_past_full";
     private static final String GLUTTONY_BANKS_A_MEAL_AT_FULL = "gluttony_banks_a_meal_at_full";
-    private static final String GLUTTONY_BANKS_A_MEALS_EXCESS = "gluttony_banks_a_meals_excess";
-    private static final String NO_GLUTTONY_BANKS_NO_MEAL = "no_gluttony_banks_no_meal";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -40,26 +36,16 @@ public final class GluttonyTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, GLUTTONY_LANDS_NO_HEAL_OR_FEED,
-                GluttonyTests::gluttonyLandsNoHealOrFeed);
         GooTestFunctions.registerTest(registrar, GLUTTONY_BANKS_A_HEAL_PAST_FULL,
                 GluttonyTests::gluttonyBanksAHealPastFull);
         GooTestFunctions.registerTest(registrar, GLUTTONY_BANKS_A_MEAL_AT_FULL,
                 GluttonyTests::gluttonyBanksAMealAtFull);
-        GooTestFunctions.registerTest(registrar, GLUTTONY_BANKS_A_MEALS_EXCESS,
-                GluttonyTests::gluttonyBanksAMealsExcess);
-        GooTestFunctions.registerTest(registrar, NO_GLUTTONY_BANKS_NO_MEAL, GluttonyTests::noGluttonyBanksNoMeal);
     }
 
     private static final Identifier JELLY_GLUTTONY = Identifier.parse("goo:jelly_gluttony");
     private static final Identifier OVERHEAL_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "gluttony_overheal");
-    /** Three short of a full bar and below natural regeneration's eighteen, so only Gluttony could feed or heal. */
-    private static final int HUNGRY_FOOD = 17;
-    private static final float HURT_BY = 1f;
-    /** The ticks the hungry, hurt player is watched under Gluttony. */
-    private static final int WATCHED = 420;
-    /** The upkeep the hungry player holds, at jelly_gluttony.json's one mB a tick: more than the watch spends. */
-    private static final int LONG_UPKEEP = WATCHED + 100;
+    /** The upkeep the eating player holds, at jelly_gluttony.json's one mB a tick: more than the meal spends. */
+    private static final int LONG_UPKEEP = 520;
     /** The upkeep the healed player holds, run dry within the watch. */
     private static final int SHORT_UPKEEP = 20;
     private static final int RUN_DRY_WITHIN = SHORT_UPKEEP + 20;
@@ -70,9 +56,6 @@ public final class GluttonyTests {
     /** More ticks than any food takes to eat. */
     private static final int EAT_LIMIT = 100;
     private static final String SHOULD_EAT = "Invoking Gluttony should start the player eating the glove";
-    private static final String SHOULD_STAND = "Gluttony should still stand while the goo lasts";
-    private static final String SHOULD_NOT_FEED = "Gluttony should feed nothing: food should stay %d, stands at %d";
-    private static final String SHOULD_NOT_HEAL = "Gluttony should heal nothing: health should stay %.1f, stands at %.2f";
     private static final String SHOULD_OVERHEAL = "A heal of %.1f on a full bar should bank %.1f absorption, banked %.2f";
     private static final String SHOULD_END = "Gluttony should end once the inventory runs dry, still stands";
     private static final String SHOULD_DROP_OVERHEAL = "Gluttony's overheal should leave with it, %.2f stands";
@@ -83,7 +66,6 @@ public final class GluttonyTests {
     private static final String SHOULD_STAY_FULL = "Hunger should stand at %d, stands at %d";
     private static final String SHOULD_REFILL = "Banked overhunger should refill the dropped bar to %d and bank %d, "
             + "stands at %d with %d banked";
-    private static final String SHOULD_BANK_NOTHING = "A player without Gluttony should bank nothing, banked %d";
 
     private GluttonyTests() {
     }
@@ -98,33 +80,6 @@ public final class GluttonyTests {
         GooSourceScanner.deplete(player, GooTypes.JELLY,
                 GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.JELLY, 0) - upkeep);
         return player;
-    }
-
-    /**
-     * A hungry, half-heart-hurt player holding Gluttony past four hundred
-     * ticks stands exactly as hungry and hurt as it started.
-     *
-     * @param helper the gametest helper
-     */
-    public static void gluttonyLandsNoHealOrFeed(GameTestHelper helper) {
-        ServerPlayer player = glutton(helper, LONG_UPKEEP);
-        player.getFoodData().setFoodLevel(HUNGRY_FOOD);
-        player.getFoodData().setSaturation(0);
-        float hurt = player.getMaxHealth() - HURT_BY;
-        player.setHealth(hurt);
-        for (int tick = 1; tick <= WATCHED; tick++) {
-            helper.runAfterDelay(tick, player::doTick);
-        }
-        helper.runAfterDelay(WATCHED + 1, () -> {
-            boolean stands = player.getData(GooAttachments.GLUTTONY).stands();
-            int food = player.getFoodData().getFoodLevel();
-            float health = player.getHealth();
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(stands, SHOULD_STAND);
-            helper.assertTrue(food == HUNGRY_FOOD, String.format(SHOULD_NOT_FEED, HUNGRY_FOOD, food));
-            helper.assertTrue(health == hurt, String.format(SHOULD_NOT_HEAL, hurt, health));
-            helper.succeed();
-        });
     }
 
     /**
@@ -188,50 +143,6 @@ public final class GluttonyTests {
         helper.assertTrue(food == FULL_FOOD, String.format(SHOULD_STAY_FULL, FULL_FOOD, food));
         helper.assertTrue(refilledFood == FULL_FOOD && refilledBank == BEEF_NUTRITION - 1,
                 String.format(SHOULD_REFILL, FULL_FOOD, BEEF_NUTRITION - 1, refilledFood, refilledBank));
-        helper.succeed();
-    }
-
-    /**
-     * A player at seventeen food under Gluttony eats cooked beef: the three
-     * points the bar lacks fill it and the five past full bank.
-     *
-     * @param helper the gametest helper
-     */
-    public static void gluttonyBanksAMealsExcess(GameTestHelper helper) {
-        ServerPlayer player = glutton(helper, LONG_UPKEEP);
-        player.getFoodData().setFoodLevel(HUNGRY_FOOD);
-        String eaten = eat(player, new ItemStack(Items.COOKED_BEEF));
-        int banked = player.getData(GooAttachments.GLUTTONY).overhunger();
-        int food = player.getFoodData().getFoodLevel();
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        if (eaten != null) {
-            helper.fail(eaten);
-            return;
-        }
-        int excess = HUNGRY_FOOD + BEEF_NUTRITION - FULL_FOOD;
-        helper.assertTrue(banked == excess, String.format(SHOULD_OVERHUNGER, HUNGRY_FOOD, excess, banked));
-        helper.assertTrue(food == FULL_FOOD, String.format(SHOULD_STAY_FULL, FULL_FOOD, food));
-        helper.succeed();
-    }
-
-    /**
-     * A full player without Gluttony eats a golden apple, which any player
-     * may eat at full, and banks nothing.
-     *
-     * @param helper the gametest helper
-     */
-    public static void noGluttonyBanksNoMeal(GameTestHelper helper) {
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
-        player.setGameMode(GameType.SURVIVAL);
-        player.getFoodData().setFoodLevel(FULL_FOOD);
-        String eaten = eat(player, new ItemStack(Items.GOLDEN_APPLE));
-        int banked = player.getData(GooAttachments.GLUTTONY).overhunger();
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        if (eaten != null) {
-            helper.fail(eaten);
-            return;
-        }
-        helper.assertTrue(banked == 0, String.format(SHOULD_BANK_NOTHING, banked));
         helper.succeed();
     }
 

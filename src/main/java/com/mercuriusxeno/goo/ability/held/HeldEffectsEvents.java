@@ -324,7 +324,7 @@ public final class HeldEffectsEvents {
      * @param player the player
      * @param lays   the state the effect laid
      */
-    private static void clearSensesAndReach(ServerPlayer player, Set<LaidState> lays) {
+    static void clearSensesAndReach(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect
             player.setData(GooAttachments.LIFETAP, Lifetap.NONE);

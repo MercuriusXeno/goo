@@ -6,8 +6,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.CropBlock;
+import net.minecraft.world.level.block.NetherWartBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Test;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -18,9 +23,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Growth's tick grows each growing plant and throws the bone-meal sparkle at
- * every plant it grows, whatever the random source answers
- * (decision every-ticked-plant-throws-the-sparkle).
+ * Growth's tick grows each growing plant, nether wart left to shroom, and
+ * throws the bone-meal sparkle at every plant it grows, whatever the random
+ * source answers (decision every-ticked-plant-throws-the-sparkle).
  */
 class TickPlantsStepTest {
 
@@ -33,6 +38,26 @@ class TickPlantsStepTest {
     TickPlantsStepTest() {
         when(level.getBlockState(CELL)).thenReturn(state);
         when(random.nextInt(anyInt())).thenReturn(1);
+    }
+
+    private static BlockState randomlyTicking(Block block) {
+        BlockState plant = mock(BlockState.class);
+        when(plant.isRandomlyTicking()).thenReturn(true);
+        when(plant.getBlock()).thenReturn(block);
+        return plant;
+    }
+
+    /**
+     * Of a crop and nether wart, both taking random ticks, Growth grows the crop: nether wart is shroom's to grow.
+     */
+    // decision growth-breeze-ticks-plants
+    @Test
+    void ofACropAndNetherWartGrowthGrowsTheCrop() {
+        Map<String, BlockState> plants = new LinkedHashMap<>();
+        plants.put("crop", randomlyTicking(mock(CropBlock.class)));
+        plants.put("nether wart", randomlyTicking(mock(NetherWartBlock.class)));
+        assertEquals(List.of("crop"), plants.entrySet().stream()
+                .filter(plant -> TickPlantsStep.grows(plant.getValue())).map(Map.Entry::getKey).toList());
     }
 
     @Test

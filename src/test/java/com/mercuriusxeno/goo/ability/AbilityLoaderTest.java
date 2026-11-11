@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.FloatStep;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
+import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
@@ -271,6 +272,16 @@ class AbilityLoaderTest {
         assertNotEquals(1.0, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
         assertNotEquals(0.8, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
         assertTrue(AbilityJson.decode("jelly_gluttony").behaviors().stream().anyMatch(SoundStep.class::isInstance));
+    }
+
+    /**
+     * Gluttony's program is its gluttony and its chime, so it banks a heal or a meal and lands neither.
+     */
+    // decision gluttony-overheals-and-overhungers
+    @Test
+    void gluttonysProgramIsItsGluttonyAndItsChime() {
+        assertEquals(List.of(GluttonyStep.class, SoundStep.class),
+                AbilityJson.decode("jelly_gluttony").behaviors().stream().map(Object::getClass).toList());
     }
 
     private static SoundStep firstSound(String name) {

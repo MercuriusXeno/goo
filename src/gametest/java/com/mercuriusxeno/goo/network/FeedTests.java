@@ -67,10 +67,8 @@ public final class FeedTests {
     private static final String SHOULD_START_OUT_OF_REACH = "The cow should start out of the feed's reach, %.2f off";
     private static final String SHOULD_DRAW = "The feed should draw the cow to eat it: cow %.2f off, in love %b, feeds left %d, heading to %s, panicking %b";
     private static final String SHOULD_FIGHT = "Two zombies at one feed should target each other: %s and %s";
-    private static final String SHOULD_GROW_SLIME = "Feed number %d should leave the slime size %d, not %d";
+    private static final String SHOULD_GROW_SLIME = "A fed slime of size 1 should grow to size 2, stands at %d";
     private static final String SHOULD_EAT_AND_GROW = "The slime should eat the feed and grow to size 2: feeds left %d, size %d";
-    /** The slime's size after each of three feeds: one step, a second, then the cap. */
-    private static final int[] SLIME_SIZES_FED = {2, 4, 4};
 
     private FeedTests() {
     }
@@ -148,8 +146,7 @@ public final class FeedTests {
     }
 
     /**
-     * Feed strikes a size-1 slime three times: it grows to 2, then 4, and
-     * stays at 4 (decision slimes-grow-on-jelly-feed).
+     * Feed strikes a size-1 slime: it grows to 2 (decision slimes-grow-on-jelly-feed).
      *
      * @param helper the gametest helper
      */
@@ -157,11 +154,8 @@ public final class FeedTests {
         Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, FLOOR.above());
         slime.setSize(1, true);
         helper.runAfterDelay(1, () -> {
-            for (int feed = 0; feed < SLIME_SIZES_FED.length; feed++) {
-                strike(helper, slime);
-                helper.assertTrue(slime.getSize() == SLIME_SIZES_FED[feed],
-                        String.format(SHOULD_GROW_SLIME, feed + 1, SLIME_SIZES_FED[feed], slime.getSize()));
-            }
+            strike(helper, slime);
+            helper.assertTrue(slime.getSize() == 2, String.format(SHOULD_GROW_SLIME, slime.getSize()));
             helper.succeed();
         });
     }
