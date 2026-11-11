@@ -20,6 +20,7 @@ import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -77,6 +78,10 @@ public final class WeirdTests {
     private static final int PAST_NINE_TENTHS_TICKS = COAT_STEP_TICKS - 1;
     private static final String LAVA_LEFT = "Goop's stream should leave magma where the lava stood at ";
     private static final String PAD_BREAKS_THE_FALL = "weird_pad_breaks_the_fall";
+    private static final String BOUNCES_ITEM_AND_ARROW = "slime_bounces_an_item_and_an_arrow";
+    /** Ticks the item and the arrow are watched falling onto the coat and leaving it. */
+    private static final int LANDING_WATCH_TICKS = 40;
+    private static final String NOT_BOUNCED = "%s dropped on the slime coat should leave it moving upward";
     /** The test bay's roof stands five blocks over the pad, so the pig starts under it. */
     private static final int DROP_START = 3;
     /** A fall a pig at ten health dies of on stone, carried in as the fall it has already made. */
@@ -141,6 +146,7 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, GOOP_PAST_NINE_TENTHS_FINISHES,
                 WeirdTests::goopPastNineTenthsFinishesAfterRelease);
         GooTestFunctions.registerTest(registrar, PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
+        GooTestFunctions.registerTest(registrar, BOUNCES_ITEM_AND_ARROW, WeirdTests::slimeBouncesAnItemAndAnArrow);
         GooTestFunctions.registerTest(registrar, HELD_JUMPS_RAMP, WeirdTests::heldJumpsRampToTheCeiling);
         GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::goopSoftensTheMobItHits);
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
@@ -361,6 +367,41 @@ public final class WeirdTests {
                     helper.assertTrue(pig.getHealth() == pig.getMaxHealth(), HURT + pig.getHealth());
                 })
                 .thenSucceed();
+    }
+
+    /**
+     * An item and an arrow dropped onto a slime coat each fall onto it and
+     * leave it moving upward: the slime bounces every entity, not living things alone.
+     * neutral-bounce-is-near-lossless-and-bounces-every-entity
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimeBouncesAnItemAndAnArrow(GameTestHelper helper) {
+        helper.setBlock(POOL_FLOOR, Blocks.STONE);
+        BlockPos coat = POOL_FLOOR.above();
+        helper.setBlock(coat, GooBlocks.SLIME_COAT.get());
+        stoneUnder(helper, coat.east());
+        helper.setBlock(coat.east(), GooBlocks.SLIME_COAT.get());
+        ItemEntity item = helper.spawnItem(Items.SLIME_BALL, Vec3.atBottomCenterOf(coat.above(DROP_START)));
+        item.setDeltaMovement(0, FALL_SPEED, 0);
+        Arrow arrow = helper.spawn(EntityType.ARROW, Vec3.atBottomCenterOf(coat.east().above(DROP_START)));
+        arrow.setDeltaMovement(0, FALL_SPEED, 0);
+        boolean[] itemBounced = {false};
+        boolean[] arrowBounced = {false};
+        double[] lastFall = {FALL_SPEED, FALL_SPEED};
+        for (int tick = 1; tick <= LANDING_WATCH_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> {
+                itemBounced[0] |= lastFall[0] < 0 && item.getDeltaMovement().y > 0;
+                arrowBounced[0] |= lastFall[1] < 0 && arrow.getDeltaMovement().y > 0;
+                lastFall[0] = item.getDeltaMovement().y;
+                lastFall[1] = arrow.getDeltaMovement().y;
+            });
+        }
+        helper.runAfterDelay(LANDING_WATCH_TICKS + 1, () -> {
+            helper.assertTrue(itemBounced[0], String.format(NOT_BOUNCED, "A slime ball item"));
+            helper.assertTrue(arrowBounced[0], String.format(NOT_BOUNCED, "An arrow"));
+            helper.succeed();
+        });
     }
 
     /**
