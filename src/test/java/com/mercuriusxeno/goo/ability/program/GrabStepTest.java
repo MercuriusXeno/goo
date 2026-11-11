@@ -156,7 +156,9 @@ class GrabStepTest {
     @Nested
     class Reach {
 
-        private static final double TELEKINESIS_REACH = 8;
+        /** Telekinesis reaches unequal to GRAB's range of 8, so doubling and adding answer apart. */
+        private static final double SHORT_TELEKINESIS_REACH = 3;
+        private static final double LONG_TELEKINESIS_REACH = 5;
 
         @Test
         void withoutTelekinesisReachesItsOwnRange() {
@@ -164,23 +166,25 @@ class GrabStepTest {
         }
 
         @Test
-        void telekinesisAddsItsReachToTheRange() {
-            assertEquals(16, GRAB.reachWith(laid(TELEKINESIS_REACH)), EPSILON);
+        void telekinesisDoublesTheRangeWhateverReachItLays() {
+            assertEquals(16, GRAB.reachWith(laid(SHORT_TELEKINESIS_REACH)), EPSILON);
+            assertEquals(16, GRAB.reachWith(laid(LONG_TELEKINESIS_REACH)), EPSILON);
         }
 
         @Test
-        void shippedGrabReachesSixteenAloneAndTwentyFourWithShippedTelekinesis() {
+        void shippedGrabReachesTwentyFourAloneAndTwiceThatWithShippedTelekinesis() {
             GrabStep shipped = GrabStep.CODEC.codec().parse(JsonOps.INSTANCE,
                     firstBehavior("kinetic_grab.json")).getOrThrow();
             TelekinesisStep telekinesis = TelekinesisStep.CODEC.codec().parse(JsonOps.INSTANCE,
                     firstBehavior("kinetic_telekinesis.json")).getOrThrow();
-            assertEquals(16, shipped.reachWith(null), EPSILON);
-            assertEquals(24, shipped.reachWith(laid(telekinesis.reach())), EPSILON);
+            double alone = shipped.reachWith(null);
+            assertEquals(24, alone, EPSILON);
+            assertEquals(2 * alone, shipped.reachWith(laid(telekinesis.reach())), EPSILON);
         }
 
         @Test
         void aGrabAbilityAimsAsFarAsGrabReaches() {
-            assertEquals(16, GrabStep.reachOf(List.of(new AncientStep(), GRAB), laid(TELEKINESIS_REACH))
+            assertEquals(16, GrabStep.reachOf(List.of(new AncientStep(), GRAB), laid(SHORT_TELEKINESIS_REACH))
                     .orElseThrow(), EPSILON);
         }
 
@@ -195,7 +199,15 @@ class GrabStepTest {
             when(sent.isAlive()).thenReturn(true);
             assertTrue(GRAB.takesSent(sent, 7 * 7, null));
             assertFalse(GRAB.takesSent(sent, 9 * 9, null));
-            assertTrue(GRAB.takesSent(sent, 15 * 15, laid(TELEKINESIS_REACH)));
+        }
+
+        @Test
+        void telekinesisTakesASentMobOutToTwiceTheRange() {
+            Mob sent = mock(Mob.class);
+            when(sent.isAlive()).thenReturn(true);
+            assertTrue(GRAB.takesSent(sent, 15 * 15, laid(SHORT_TELEKINESIS_REACH)));
+            assertFalse(GRAB.takesSent(sent, 17 * 17, laid(SHORT_TELEKINESIS_REACH)));
+            assertFalse(GRAB.takesSent(sent, 15 * 15, null));
         }
 
         @Test

@@ -83,8 +83,8 @@ public final class GooFlightManager {
         Optional<Gate> gate = payload.gate();
         GateArc.Hop hop = gate.flatMap(passed -> GateRay.hopThrough(GatePassage.clientPairs(), passed,
                 payload.facePoint())).orElse(null);
-        FLIGHTS.put(id, new GooFlight(start, throwEnd, targetEntityId,
-                payload.targetPos(), type, payload.delivery(), travelTicks, grannyArc, gate.orElse(null), hop));
+        FLIGHTS.put(id, new GooFlight(start, throwEnd, targetEntityId, payload.targetPos(), type, payload.delivery(),
+                travelTicks, grannyArc, gate.orElse(null), hop, payload.travel()));
     }
 
     /**
@@ -204,6 +204,8 @@ public final class GooFlightManager {
         private final @Nullable Gate gate;
         /** Where the flight meets the gate's face and comes out of the partner, null with no gate. */
         private final GateArc.@Nullable Hop hop;
+        /** The thrower's travel velocity at the throw, blocks per tick, zero for a beam. */
+        private final Vec3 travel;
         public int ticksElapsed;
 
         /**
@@ -219,10 +221,11 @@ public final class GooFlightManager {
          * @param grannyArc      whether the throw is a lob onto a top face
          * @param gate           the gate the flight goes into
          * @param hop            where it meets the gate's face and comes out of the partner
+         * @param travel         the thrower's travel velocity at the throw, blocks per tick
          */
         public GooFlight(Vec3 start, Vec3 throwEnd, int targetEntityId, BlockPos targetBlockPos,
                 ResourceKey<GooTypeDefinition> gooType, Delivery delivery, int travelTicks, boolean grannyArc,
-                @Nullable Gate gate, GateArc.@Nullable Hop hop) {
+                @Nullable Gate gate, GateArc.@Nullable Hop hop, Vec3 travel) {
             this.start = start;
             this.throwEnd = throwEnd;
             this.targetEntityId = targetEntityId;
@@ -237,11 +240,13 @@ public final class GooFlightManager {
             this.peak = this.hop == null ? delivery.peak(start, throwEnd, grannyArc)
                     : delivery.aimsStraight() ? 0 : ThrowArc.basePeak(start.distanceTo(this.hop.facePoint()));
             this.farPeak = this.hop == null ? 0 : farPeakThrough(this.hop);
+            this.travel = driftOf(delivery, travel);
             this.ticksElapsed = 0;
         }
 
         /**
-         * A flight to a near-side target, passing no gate.
+         * A flight to a near-side target, passing no gate, from a thrower
+         * travelling at the velocity given.
          *
          * @param start          the hand the flight leaves
          * @param throwEnd       the target at the throw
@@ -251,12 +256,25 @@ public final class GooFlightManager {
          * @param delivery       the thrown ability's delivery
          * @param travelTicks    the ticks the flight takes
          * @param grannyArc      whether the throw is a lob onto a top face
+         * @param travel         the thrower's travel velocity at the throw, blocks per tick
          */
         public GooFlight(Vec3 start, Vec3 throwEnd, int targetEntityId,
                           BlockPos targetBlockPos, ResourceKey<GooTypeDefinition> gooType,
-                          Delivery delivery, int travelTicks, boolean grannyArc) {
+                          Delivery delivery, int travelTicks, boolean grannyArc, Vec3 travel) {
             this(start, throwEnd, targetEntityId, targetBlockPos, gooType, delivery, travelTicks, grannyArc, null,
-                    null);
+                    null, travel);
+        }
+
+        /**
+         * The drift a flight carries: the thrower's travel, or none for a
+         * beam, whose line runs from the hand to the target.
+         *
+         * @param delivery the thrown ability's delivery
+         * @param travel   the thrower's travel velocity at the throw, blocks per tick
+         * @return the travel velocity the flight drifts by
+         */
+        private static Vec3 driftOf(Delivery delivery, Vec3 travel) {
+            return delivery.fliesStraight() ? Vec3.ZERO : travel;
         }
 
         /**
@@ -292,16 +310,26 @@ public final class GooFlightManager {
             return Math.min(1.0f, (ticksElapsed + partialTick) / travelTicks);
         }
 
+        private double progressAt(double ticks) {
+            return Math.clamp(ticks / travelTicks, 0.0, 1.0);
+        }
+
         /**
          * Where the flight stands at a point of its progress: along its arc,
-         * or along its two legs where it passes a gate.
+         * or along its two legs where it passes a gate, pushed by the
+         * thrower's drift over its opening ticks.
+         * thrown-blob-leaves-the-hand-with-a-fading-drift
          *
          * @param t how far along the flight, from 0 to 1
          * @return the position
          */
         private Vec3 along(double t) {
             Vec3 end = getEnd();
-            return hop == null ? ThrowArc.arcPoint(start, end, t, peak) : GateArc.at(start, hop, end, peak, farPeak, t);
+            if (hop == null) {
+                return ThrowArc.driftedArcPoint(start, end, t, peak, travel, travelTicks);
+            }
+            return GateArc.at(start, hop, end, peak, farPeak, t)
+                    .add(ThrowArc.driftOffset(travel, t * travelTicks, travelTicks));
         }
 
         /**
@@ -327,6 +355,30 @@ public final class GooFlightManager {
          */
         public Vec3 getPosition(float partialTick) {
             return along(progress(partialTick));
+        }
+
+        /**
+         * The blob's velocity in blocks per tick, drift included: how far its
+         * position moves over the next tick, or over the last one where the
+         * next steps across a gate from its face to the partner.
+         * thrown-blob-trail-takes-the-blobs-velocity
+         *
+         * @param partialTick the partial tick for interpolation
+         * @return the velocity, blocks per tick
+         */
+        public Vec3 getTickVelocity(float partialTick) {
+            double ticks = ticksElapsed + partialTick;
+            double now = progressAt(ticks);
+            double next = progressAt(ticks + 1);
+            if (crossesTheGate(now, next)) {
+                return along(now).subtract(along(progressAt(ticks - 1)));
+            }
+            return along(next).subtract(along(now));
+        }
+
+        private boolean crossesTheGate(double from, double to) {
+            return hop != null && GateArc.onNearLeg(start, hop, getEnd(), from)
+                    != GateArc.onNearLeg(start, hop, getEnd(), to);
         }
 
         /**
