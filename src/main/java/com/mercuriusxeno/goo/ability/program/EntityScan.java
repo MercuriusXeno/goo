@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.OwnMinions;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
@@ -26,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
-import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 
 /**
@@ -47,7 +47,7 @@ public final class EntityScan {
     /** The mobs outside AgeableMob that keep their own baby flag in the 26.1 tree. */
     private static final List<Class<? extends Entity>> UNAGEABLE_WITH_BABY =
             List.of(Zombie.class, Piglin.class, Zoglin.class);
-    private static final Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> MEANINGS = meanings();
+    private static final Map<EntityFilter, FilterMeaning> MEANINGS = meanings();
 
     private EntityScan() {
     }
@@ -154,12 +154,45 @@ public final class EntityScan {
      * @return true when every filter keeps the entity
      */
     public static boolean passes(Entity entity, Set<EntityFilter> filters, @Nullable Entity self) {
+        return passes(entity, filters, self, null);
+    }
+
+    /**
+     * Tests the entity against every filter, knowing the run's caster, whom
+     * {@code not_own_minion} reads; a selection with no caster spares no minion.
+     * drain-skips-your-rallied-and-charmed-mobs
+     *
+     * @param entity  the candidate
+     * @param filters the filters to pass
+     * @param self    the entity the selection centers on, null on a block
+     * @param caster  the entity the run is cast by, null for none
+     * @return true when every filter keeps the entity
+     */
+    public static boolean passes(Entity entity, Set<EntityFilter> filters, @Nullable Entity self,
+                                 @Nullable Entity caster) {
         for (EntityFilter filter : filters) {
-            if (!MEANINGS.get(filter).test(entity, self)) {
+            if (!MEANINGS.get(filter).keeps(entity, self, caster)) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * What one filter keeps, read from the candidate, the entity the
+     * selection centers on and the run's caster.
+     */
+    @FunctionalInterface
+    private interface FilterMeaning {
+        /**
+         * Whether the filter keeps the candidate.
+         *
+         * @param entity the candidate
+         * @param self   the entity the selection centers on, null on a block
+         * @param caster the entity the run is cast by, null for none
+         * @return true when the filter keeps the candidate
+         */
+        boolean keeps(Entity entity, @Nullable Entity self, @Nullable Entity caster);
     }
 
     /**
@@ -169,10 +202,11 @@ public final class EntityScan {
      *
      * @return the table, one predicate per filter
      */
-    private static Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> meanings() {
-        Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table = new EnumMap<>(EntityFilter.class);
+    private static Map<EntityFilter, FilterMeaning> meanings() {
+        Map<EntityFilter, FilterMeaning> table = new EnumMap<>(EntityFilter.class);
         putKindMeanings(table);
         putStateMeanings(table);
+        putAllegianceMeanings(table);
         for (EntityFilter filter : EntityFilter.values()) {
             if (!table.containsKey(filter)) {
                 throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);
@@ -186,14 +220,14 @@ public final class EntityScan {
      *
      * @param table the table to fill
      */
-    private static void putKindMeanings(Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table) {
-        table.put(EntityFilter.LIVING, (entity, self) -> entity instanceof LivingEntity);
-        table.put(EntityFilter.NOT_ITEM, (entity, self) -> !(entity instanceof ItemEntity));
-        table.put(EntityFilter.NOT_BOSS, (entity, self) -> !isBoss(entity));
-        table.put(EntityFilter.MOB, (entity, self) -> entity instanceof Mob);
-        table.put(EntityFilter.NOT_FIRE_IMMUNE, (entity, self) -> !entity.fireImmune());
+    private static void putKindMeanings(Map<EntityFilter, FilterMeaning> table) {
+        table.put(EntityFilter.LIVING, (entity, self, caster) -> entity instanceof LivingEntity);
+        table.put(EntityFilter.NOT_ITEM, (entity, self, caster) -> !(entity instanceof ItemEntity));
+        table.put(EntityFilter.NOT_BOSS, (entity, self, caster) -> !isBoss(entity));
+        table.put(EntityFilter.MOB, (entity, self, caster) -> entity instanceof Mob);
+        table.put(EntityFilter.NOT_FIRE_IMMUNE, (entity, self, caster) -> !entity.fireImmune());
         table.put(EntityFilter.UNDEAD,
-                (entity, self) -> entity instanceof LivingEntity living && living.isInvertedHealAndHarm());
+                (entity, self, caster) -> entity instanceof LivingEntity living && living.isInvertedHealAndHarm());
     }
 
     /**
@@ -201,20 +235,32 @@ public final class EntityScan {
      *
      * @param table the table to fill
      */
-    private static void putStateMeanings(Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table) {
-        table.put(EntityFilter.ALIVE, (entity, self) -> entity.isAlive());
-        table.put(EntityFilter.NOT_TARGET, (entity, self) -> entity != self);
+    private static void putStateMeanings(Map<EntityFilter, FilterMeaning> table) {
+        table.put(EntityFilter.ALIVE, (entity, self, caster) -> entity.isAlive());
+        table.put(EntityFilter.NOT_TARGET, (entity, self, caster) -> entity != self);
         table.put(EntityFilter.NOT_SNEAKING,
-                (entity, self) -> !(entity instanceof Player player && player.isShiftKeyDown()));
-        table.put(EntityFilter.MOVING, (entity, self) -> isMovingHorizontally(entity));
-        table.put(EntityFilter.HAS_BABY_FORM, (entity, self) -> hasBabyForm(entity));
+                (entity, self, caster) -> !(entity instanceof Player player && player.isShiftKeyDown()));
+        table.put(EntityFilter.MOVING, (entity, self, caster) -> isMovingHorizontally(entity));
+        table.put(EntityFilter.HAS_BABY_FORM, (entity, self, caster) -> hasBabyForm(entity));
         table.put(EntityFilter.NOT_BABY,
-                (entity, self) -> !(entity instanceof LivingEntity living && living.isBaby()));
-        table.put(EntityFilter.HAS_SPAWN_EGG, (entity, self) -> SpawnEggItem.byId(entity.getType()).isPresent());
-        table.put(EntityFilter.PEACEFUL, (entity, self) -> entity instanceof Mob
+                (entity, self, caster) -> !(entity instanceof LivingEntity living && living.isBaby()));
+        table.put(EntityFilter.HAS_SPAWN_EGG,
+                (entity, self, caster) -> SpawnEggItem.byId(entity.getType()).isPresent());
+        table.put(EntityFilter.PEACEFUL, (entity, self, caster) -> entity instanceof Mob
                 && entity.getType().getCategory().isFriendly() && !(entity instanceof Enemy));
         table.put(EntityFilter.VULNERABLE,
-                (entity, self) -> entity instanceof LivingEntity living && living.invulnerableTime == 0);
+                (entity, self, caster) -> entity instanceof LivingEntity living && living.invulnerableTime == 0);
+    }
+
+    /**
+     * Puts the meanings of the filters that read whom an entity fights for.
+     * drain-skips-your-rallied-and-charmed-mobs
+     *
+     * @param table the table to fill
+     */
+    private static void putAllegianceMeanings(Map<EntityFilter, FilterMeaning> table) {
+        table.put(EntityFilter.NOT_OWN_MINION, (entity, self, caster) -> entity instanceof LivingEntity
+                && (caster == null || !OwnMinions.ownMinionOf(caster, entity)));
     }
 
     /**

@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -150,7 +152,9 @@ final class AimAssistResolver {
     private static List<Entity> gatherCandidates(Player player, Vec3 from, Vec3 to, List<Step> behaviors,
             double coneDegrees) {
         AABB searchBox = buildSearchBox(from, to, coneDegrees);
-        return player.level().getEntities(player, searchBox, e -> isCandidate(e, behaviors));
+        boolean sparesOwnMinions = GloveAim.sparesOwnMinions(player);
+        return player.level().getEntities(player, searchBox, e -> isCandidate(e, behaviors, sparesOwnMinions,
+                mob -> OwnMinions.ownMinionOf(player, mob)));
     }
 
     /**
@@ -164,6 +168,23 @@ final class AimAssistResolver {
      */
     static boolean isCandidate(Entity entity, List<Step> behaviors) {
         return (entity.isPickable() || entity instanceof ItemEntity) && Step.takenByAny(behaviors, entity);
+    }
+
+    /**
+     * Whether the aim may outline an entity, sparing the player's own
+     * minions where the selected ability spares them, so a harmful mob
+     * ability never locks on a mob its caster rallied or charmed.
+     * mob-targeted-attacks-refuse-your-minions
+     *
+     * @param entity           the entity in the search box
+     * @param behaviors        the selected ability's steps
+     * @param sparesOwnMinions whether the selected ability spares the player's own minions
+     * @param ownMinion        whether an entity is the player's own minion
+     * @return true where the entity is a candidate
+     */
+    static boolean isCandidate(Entity entity, List<Step> behaviors, boolean sparesOwnMinions,
+                               Predicate<Entity> ownMinion) {
+        return isCandidate(entity, behaviors) && !(sparesOwnMinions && ownMinion.test(entity));
     }
 
     /**

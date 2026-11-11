@@ -11,7 +11,7 @@
   "behaviors": [
     {
       "type": "target",
-      "where": ["vulnerable"],
+      "where": ["vulnerable", "not_own_minion"],
       "steps": [
         {
           "type": "leech",

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.PayloadRecorder;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -58,6 +59,36 @@ public final class StreamDeliveryTests {
         GooTestFunctions.registerTest(registrar, STREAM_BLAZE_FLAMES, StreamDeliveryTests::blazeFlames);
         GooTestFunctions.registerTest(registrar, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
         GooTestFunctions.registerTest(registrar, FLAMES_DAMAGES_PER_TICK, StreamDeliveryTests::flamesDamagesPerTick);
+        GooTestFunctions.registerTest(registrar, HEAL_TOUCHES_FULL_COW, StreamDeliveryTests::healTouchesAFullHealthCow);
+    }
+
+    /**
+     * A mock player holds jelly heal on a cow at full life four blocks ahead:
+     * the heal raises nothing, yet the payload the caster receives names the
+     * cow among the mobs it touched, so the cow shows its life.
+     * touched-mobs-show-hearts-or-a-count-over-max
+     *
+     * @param helper the gametest helper
+     */
+    public static void healTouchesAFullHealthCow(GameTestHelper helper) {
+        AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
+        helper.assertTrue(heal != null, VITALITY_REQUIRED);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, ZOMBIE_POS);
+        ServerPlayer player = streamer(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(player, heal);
+        PayloadRecorder<StreamHealedPayload> received = PayloadRecorder.attachTo(player, StreamHealedPayload.class);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.JELLY), JELLY_HEAL.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= TOUCH_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(TOUCH_HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            boolean namesCow = received.received().stream()
+                    .anyMatch(payload -> payload.touchedIds().contains(cow.getId()));
+            helper.assertTrue(namesCow, String.format(SHOULD_TOUCH_FULL_COW, received.received().size()));
+            helper.succeed();
+        });
     }
 
     /**
@@ -121,6 +152,11 @@ public final class StreamDeliveryTests {
     private static final String SHOULD_HEAL_COW = "The streamed cow should heal past %.1f, stands at %.2f";
     private static final String SHOULD_HEAL_CASTER = "The caster should heal past %.1f, stands at %.2f";
     private static final String SHOULD_NOT_COURT = "Jelly heal should court no cow; Allure holds courting";
+    private static final String HEAL_TOUCHES_FULL_COW = "heal_touches_a_full_health_cow";
+    /** A few held ticks, enough for the heal to strike the cone. */
+    private static final int TOUCH_HOLD_TICKS = 5;
+    private static final String SHOULD_TOUCH_FULL_COW =
+            "A heal payload should name the full-health cow among its touched mobs; %d payloads named none";
 
     private StreamDeliveryTests() {
     }
