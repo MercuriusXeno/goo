@@ -58,6 +58,18 @@ class PortalSoundsTest {
         assertTrue(readJson(EN_US_JSON).has(subtitle), "en_us.json names no " + subtitle);
     }
 
+    /** The hum is soft and falls away close by (decision standing-portals-loop-a-soft-ambient-hum). */
+    @org.junit.jupiter.api.Test
+    void theHumIsQuietAndFallsAwayCloseBy() throws IOException {
+        JsonArray variations = soundEntry(GooSoundIds.PORTAL_HUM).getAsJsonArray("sounds");
+        for (int index = 0; index < variations.size(); index++) {
+            JsonObject sound = variations.get(index).getAsJsonObject();
+            assertTrue(sound.has("volume") && sound.get("volume").getAsFloat() < 1f,
+                    "the hum plays at full volume, " + sound);
+            assertTrue(sound.has("attenuation_distance"), "the hum carries the default sixteen blocks, " + sound);
+        }
+    }
+
     private static JsonObject soundEntry(Identifier id) throws IOException {
         assertEquals("goo", id.getNamespace(), id + " sits outside the mod's namespace");
         JsonObject sounds = readJson(SOUNDS_JSON);
