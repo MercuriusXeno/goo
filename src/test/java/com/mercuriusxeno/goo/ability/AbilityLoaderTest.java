@@ -642,20 +642,21 @@ class AbilityLoaderTest {
 
     /**
      * Weird's abilities are the make-this-harmless family: Goop's stream coats
-     * what it hits, Bounce stays the long-range pad, and Slime stands apart.
+     * what it hits and is the one petal laying slime, and Slime stands apart.
      * weird-bounces-and-softens-harm
      */
     @Nested
     class WeirdHarmlessFamily {
 
+        /** decision bounce-leaves-the-mod-and-goop-stands-alone */
         @Test
-        void weirdLoadsBounceGoopAndSlimeAlone() {
+        void weirdLoadsGoopAndSlimeAlone() {
             Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
 
             Set<String> weird = scanned.values().stream().filter(def -> def.gooType() == GooTypes.WEIRD)
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
 
-            assertEquals(Set.of("weird_bounce", "weird_goop", "weird_slime"), weird);
+            assertEquals(Set.of("weird_goop", "weird_slime"), weird);
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_wobble")),
                     "weird_wobble still loads");
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_magma")),
@@ -690,15 +691,6 @@ class AbilityLoaderTest {
             assertTrue(onMob.steps().stream().anyMatch(step -> step instanceof AilmentOverlayStep overlay
                     && overlay.kind() == AilmentKind.WOBBLE), "no wobble overlay on the mob");
             assertTrue(ProgramBehavior.serves(entityPass, HostKind.ENTITY), "the struck entity runs the entity pass");
-        }
-
-        @Test
-        void bounceDumpsFourCoatLayersWhereItsArcLands() {
-            AbilityDefinition bounce = AbilityJson.decode("weird_bounce");
-
-            assertEquals(DeliveryKind.ARC, bounce.delivery().kind());
-            // bounce-throw-dumps-layers-that-flow-out: Bounce's blob lays the coat Goop lays, k layers at once
-            assertEquals(List.of(CoatStep.splatted(4)), bounce.behaviors());
         }
     }
 

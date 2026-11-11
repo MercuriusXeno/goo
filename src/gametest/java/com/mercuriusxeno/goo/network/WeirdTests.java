@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -77,14 +76,12 @@ public final class WeirdTests {
     /** A hold past nine tenths of a coat, short of the whole. */
     private static final int PAST_NINE_TENTHS_TICKS = COAT_STEP_TICKS - 1;
     private static final String LAVA_LEFT = "Goop's stream should leave magma where the lava stood at ";
-    private static final String BOUNCE = "goo:weird_bounce";
     private static final String PAD_BREAKS_THE_FALL = "weird_pad_breaks_the_fall";
     /** The test bay's roof stands five blocks over the pad, so the pig starts under it. */
     private static final int DROP_START = 3;
     /** A fall a pig at ten health dies of on stone, carried in as the fall it has already made. */
     private static final double FALLEN_BLOCKS = 20;
     private static final double FALL_SPEED = -1.0;
-    private static final String NO_PAD = "Weird Bounce landing on stone should lay a slime coat on it";
     private static final String NOT_LAUNCHED = "A pig falling onto the slime coat should leave it moving upward";
     private static final String HURT = "A pig falling onto the slime coat should keep its full health, has ";
     private static final String SLIME = "goo:weird_slime";
@@ -122,17 +119,12 @@ public final class WeirdTests {
     /** Pitched down at the slime coat over the stone three blocks east, so the axis ray ends on it. */
     private static final float AT_THE_SLIME = 9.4f;
     private static final String LAYERS_WRONG = "Slime at %s should hold %d layers, holds %s";
-    private static final String BOUNCE_SPLASHES = "bounce_splashes_k_layers";
     private static final String BREAKING_SLIME_DROPS = "breaking_slime_drops_its_goo";
     private static final int BROKEN_LAYERS = 3;
     private static final String RECLAIM_WRONG = "A broken slime cell should drop %d mb of weird goo, dropped %d in %s";
     private static final String PLACING_KEEPS_GOO = "placing_a_block_keeps_the_slimes_goo";
     private static final String PLACED_OVER_SLIME = "A block placed against a slime cell should leave it at %d layers"
             + " or drop %d mb of weird goo; the cell holds %s and %d mb dropped";
-    private static final String BOUNCE_REQUIRED ="Ability registry must hold goo:weird_bounce";
-    private static final String NO_SPLASH_LAYERS = "weird_bounce.json should name a coat step laying layers";
-    private static final String SPLASH_WRONG = "Bounce's splash should leave %d layers over the landing cell and"
-            + " its four side neighbours, left %d";
 
     private WeirdTests() {
     }
@@ -152,7 +144,6 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, HELD_JUMPS_RAMP, WeirdTests::heldJumpsRampToTheCeiling);
         GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::goopSoftensTheMobItHits);
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
-        GooTestFunctions.registerTest(registrar, BOUNCE_SPLASHES, WeirdTests::bounceSplashesKLayers);
         GooTestFunctions.registerTest(registrar, BREAKING_SLIME_DROPS, WeirdTests::breakingSlimeDropsItsGoo);
         GooTestFunctions.registerTest(registrar, PLACING_KEEPS_GOO, WeirdTests::placingABlockKeepsTheSlimesGoo);
         GooTestFunctions.registerTest(registrar, SLIME_LEVELS_OUT, WeirdTests::slimeLevelsOutBesideAnOpenTop);
@@ -226,40 +217,6 @@ public final class WeirdTests {
         helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertLayers(helper, slimed, 2);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A Weird Bounce blob lands on a stone floor: once the flow settles, the
-     * landing cell and its four side neighbours hold slime whose layers sum
-     * to the k weird_bounce.json's coat step names.
-     * bounce-throw-dumps-layers-that-flow-out
-     *
-     * @param helper the gametest helper
-     */
-    public static void bounceSplashesKLayers(GameTestHelper helper) {
-        AbilityDefinition bounce = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(BOUNCE));
-        helper.assertTrue(bounce != null, BOUNCE_REQUIRED);
-        int named = bounce.behaviors().stream().filter(CoatStep.class::isInstance).map(CoatStep.class::cast)
-                .mapToInt(CoatStep::layers).sum();
-        helper.assertTrue(named > 0, NO_SPLASH_LAYERS);
-        BlockPos landing = POOL_FLOOR.above();
-        List<BlockPos> splash = new java.util.ArrayList<>(List.of(landing));
-        for (Direction side : Direction.Plane.HORIZONTAL) {
-            splash.add(landing.relative(side));
-        }
-        for (BlockPos cell : splash) {
-            stoneUnder(helper, cell);
-            for (Direction side : Direction.Plane.HORIZONTAL) {
-                stoneUnder(helper, cell.relative(side));
-            }
-        }
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
-                NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, BOUNCE));
-        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
-            int laid = splash.stream().mapToInt(cell -> SlimeCoatBlock.layersOf(helper.getBlockState(cell))).sum();
-            helper.assertTrue(laid == named, String.format(SPLASH_WRONG, named, laid));
             helper.succeed();
         });
     }
@@ -383,19 +340,17 @@ public final class WeirdTests {
     }
 
     /**
-     * A Weird Bounce blob lands on stone and lays a slime coat on it; a pig
-     * falling onto the coat with twenty blocks of fall behind it keeps its
-     * full health and leaves the coat moving upward.
+     * A slime coat on stone breaks a fall: a pig falling onto the coat with
+     * twenty blocks of fall behind it keeps its full health and leaves the
+     * coat moving upward.
      * bounce-ramps-jump-height-while-jump-is-held
      *
      * @param helper the gametest helper
      */
     public static void weirdPadBreaksTheFall(GameTestHelper helper) {
         helper.setBlock(POOL_FLOOR, Blocks.STONE);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
-                NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, BOUNCE));
         BlockPos coat = POOL_FLOOR.above();
-        helper.assertTrue(helper.getBlockState(coat).is(GooBlocks.SLIME_COAT.get()), NO_PAD);
+        helper.setBlock(coat, GooBlocks.SLIME_COAT.get());
         Pig pig = helper.spawn(EntityType.PIG, coat.above(DROP_START));
         pig.fallDistance = FALLEN_BLOCKS;
         pig.setDeltaMovement(0, FALL_SPEED, 0);
