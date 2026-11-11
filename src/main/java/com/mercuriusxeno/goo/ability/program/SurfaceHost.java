@@ -69,9 +69,4 @@ public record SurfaceHost(ServerLevel level, BlockPos floor, double distance)
     public void placeBlock(Identifier block, Map<String, String> state) {
         BlockAnchoredActions.placeBeyondFace(level, floor, Direction.UP, block, state);
     }
-
-    @Override
-    public void laySlime(int layers) {
-        CoatStep.laySlimeIn(level, floor.above(), layers);
-    }
 }

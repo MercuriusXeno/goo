@@ -4,12 +4,9 @@ import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.Collection;
 import java.util.Optional;
@@ -29,85 +26,26 @@ import java.util.stream.Stream;
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
  * slime-is-a-layered-cell-that-levels-out
  * decay-gnats-degrade-each-block-once
+ * bounce-leaves-the-mod-and-goop-stands-alone
  *
- * <p>On a splat it lays the JSON's layers in the landing cell at once, and
- * the flow spreads what stands above level into the cells beside it
- * (decision bounce-throw-dumps-layers-that-flow-out). A step names ticks
- * for a stream's hold or layers for a splat, never both.
- *
- * @param ticks  the ticks of stream a cell takes to coat, 0 on a splat
- * @param layers the coat layers a splat lays in its landing cell, 0 on a stream
+ * @param ticks the ticks of stream a cell takes to coat
  */
-public record CoatStep(int ticks, int layers) implements TakesNoEntity {
+public record CoatStep(int ticks) implements TakesNoEntity {
 
     private static final String NAME = "coat";
     private static final String FIELD_TICKS = "ticks";
-    private static final String FIELD_LAYERS = "layers";
-    /** Marks the delivery a step does not name. */
-    private static final int UNNAMED = 0;
-    private static final String ERR_ONE_DELIVERY = "a coat step names ticks for a stream or layers for a splat,"
-            + " exactly one of them";
 
     /**
      * Codec for the step's params.
      */
-    public static final MapCodec<CoatStep> CODEC = RecordCodecBuilder.<CoatStep>mapCodec(inst -> inst.group(
-            Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf(FIELD_TICKS, UNNAMED).forGetter(CoatStep::ticks),
-            Codec.intRange(1, SlimeCoatBlock.MAX_LAYERS).optionalFieldOf(FIELD_LAYERS, UNNAMED)
-                    .forGetter(CoatStep::layers)
-    ).apply(inst, CoatStep::new)).validate(CoatStep::namesOneDelivery);
+    public static final MapCodec<CoatStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_TICKS).forGetter(CoatStep::ticks)
+    ).apply(inst, CoatStep::new));
 
     /**
      * The registered type.
      */
     public static final StepType<CoatStep> TYPE = new StepType<>(NAME, CODEC);
-
-    /**
-     * A stream's coat step.
-     *
-     * @param ticks the ticks of stream a cell takes to coat
-     * @return the step
-     */
-    public static CoatStep streamed(int ticks) {
-        return new CoatStep(ticks, UNNAMED);
-    }
-
-    /**
-     * A splat's coat step.
-     *
-     * @param layers the coat layers it lays in its landing cell
-     * @return the step
-     */
-    public static CoatStep splatted(int layers) {
-        return new CoatStep(UNNAMED, layers);
-    }
-
-    private static DataResult<CoatStep> namesOneDelivery(CoatStep step) {
-        return (step.ticks == UNNAMED) == (step.layers == UNNAMED) ? DataResult.error(() -> ERR_ONE_DELIVERY)
-                : DataResult.success(step);
-    }
-
-    /**
-     * Lays coat layers of slime in a cell, on top of any slime standing
-     * there, up to a whole block; a cell holding anything a placed block
-     * would not replace takes none. The cell's flow then pours what stands
-     * above level into its neighbours.
-     * bounce-throw-dumps-layers-that-flow-out
-     *
-     * @param level  the level
-     * @param cell   the cell
-     * @param layers the coat layers to lay
-     */
-    static void laySlimeIn(Level level, BlockPos cell, int layers) {
-        BlockState standing = level.getBlockState(cell);
-        int held = SlimeCoatBlock.layersOf(standing);
-        if (held == 0 && !standing.canBeReplaced()) {
-            return;
-        }
-        BlockState slime = held > 0 ? standing : GooBlocks.SLIME_COAT.get().defaultBlockState();
-        level.setBlock(cell, slime.setValue(SlimeCoatBlock.LAYERS, Math.min(SlimeCoatBlock.MAX_LAYERS,
-                held + layers)), Block.UPDATE_ALL);
-    }
 
     @Override
     public StepType<CoatStep> type() {
@@ -116,11 +54,6 @@ public record CoatStep(int ticks, int layers) implements TakesNoEntity {
 
     @Override
     public boolean tick(StepContext context) {
-        if (layers != UNNAMED) {
-            // bounce-throw-dumps-layers-that-flow-out
-            context.hostAs(PlaceBlockHost.class).laySlime(layers);
-            return true;
-        }
         ChannelHost host = context.hostAs(ChannelHost.class);
         host.channelAim().ifPresent(aim -> {
             HoldMarks marks = host.holdMarks();
@@ -187,6 +120,6 @@ public record CoatStep(int ticks, int layers) implements TakesNoEntity {
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(layers == UNNAMED ? HostCapability.CHANNEL : HostCapability.PLACE_BLOCK);
+        return Set.of(HostCapability.CHANNEL);
     }
 }

@@ -38,9 +38,8 @@ import java.util.Optional;
  * block's sides at the slime's open edges. Each deposit adds a layer, and a
  * cell taller than a side neighbour pours a layer a tick into it, and off a
  * ledge downward, until level. It stands until something destroys it, then
- * drops the weird goo its layers cost. It is Bounce's pad too: what lands
- * on it at any height takes no fall damage and bounces, ramping while jump
- * is held.
+ * drops the weird goo its layers cost. It is a pad too: what lands on it at
+ * any height takes no fall damage and bounces, ramping while jump is held.
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
  * slime-is-a-layered-cell-that-levels-out
  * breaking-slime-drops-weird-goo-worth-its-layers
@@ -62,8 +61,8 @@ public class SlimeCoatBlock extends Block {
     public static final int MAX_LAYERS = 8;
     /**
      * The weird goo one coat layer costs and a broken cell gives back per
-     * layer, in mb; Goop's and Bounce's costs in their JSONs equal the
-     * layers they lay times this.
+     * layer, in mb; Goop's cost in its JSON equals the one layer a stream
+     * coat lays times this.
      * breaking-slime-drops-weird-goo-worth-its-layers
      */
     public static final int MB_PER_LAYER = 12;
