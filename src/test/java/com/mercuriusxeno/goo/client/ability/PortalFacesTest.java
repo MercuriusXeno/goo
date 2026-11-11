@@ -310,6 +310,110 @@ class PortalFacesTest {
     }
 
     /**
+     * The surface glow wraps onto any full solid block face forming a tight
+     * corner around the mouth: a side wall, a floor or a ceiling standing in
+     * front of the gate's wall and bordering its box, each lit in the gate's
+     * own color; where no such block stands, none is lit
+     * (decision glow-wraps-onto-corner-faces).
+     */
+    @Nested
+    class CornerGlow {
+
+        /** A wall portal on the north face of (0, 64, 0) to (1, 66, 1), its wall the plane z 0. */
+        private static final Gate FRAME = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 1, 66, 1), Direction.NORTH,
+                new Vec3(0, 1, 0));
+        /** How far a vertex may stand from where the test reckons it, float rounding only. */
+        private static final float NEAR = 1.0e-4F;
+        /** The corner face's lift off its block toward the mouth. */
+        private static final float LIFT = 0.01F;
+
+        @Test
+        void aBlockBesideTheMouthTakesGlowOnItsFaceTowardIt() {
+            Captured lit = emitCorners(new PortalFaces.Drawn(FRAME, PortalFaces.BLUE_RGB, false),
+                    java.util.Set.of(new BlockPos(1, 64, -1)));
+
+            assertOnFace(lit, 0, 1F - LIFT, "x");
+            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.BLUE_RGB));
+        }
+
+        @Test
+        void aFloorBelowTheMouthTakesGlowOnItsTopFace() {
+            Captured lit = emitCorners(new PortalFaces.Drawn(FRAME, PortalFaces.BLUE_RGB, false),
+                    java.util.Set.of(new BlockPos(0, 63, -1)));
+
+            assertOnFace(lit, 1, 64F + LIFT, "y");
+        }
+
+        @Test
+        void aCeilingAboveTheMouthTakesGlowOnItsUnderFace() {
+            Captured lit = emitCorners(new PortalFaces.Drawn(FRAME, PortalFaces.ORANGE_RGB, false),
+                    java.util.Set.of(new BlockPos(0, 66, -1)));
+
+            assertOnFace(lit, 1, 66F - LIFT, "y");
+            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE,
+                    PortalFaces.ORANGE_RGB));
+        }
+
+        @Test
+        void noBlockAroundTheMouthLightsNothing() {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+
+            PortalFaces.emitCornerGlows(new PoseStack().last(), consumer,
+                    List.of(new PortalFaces.Drawn(FRAME, PortalFaces.BLUE_RGB, false)), BLOCKS_OF, (pos, face) -> false);
+
+            verify(consumer, org.mockito.Mockito.never()).addVertex(org.mockito.ArgumentMatchers.any(PoseStack.Pose.class),
+                    org.mockito.ArgumentMatchers.anyFloat(), org.mockito.ArgumentMatchers.anyFloat(),
+                    org.mockito.ArgumentMatchers.anyFloat());
+        }
+
+        /** A hole's mouth lights a corner face in its own color with the torn edge's mark. */
+        @Test
+        void aMouthLightsItsCornerInItsColorWithTheTornMark() {
+            Captured lit = emitCorners(new PortalFaces.Drawn(FRAME, PortalFaces.ORANGE_RGB, true),
+                    java.util.Set.of(new BlockPos(-1, 65, -1)));
+
+            assertOnFace(lit, 0, 0F + LIFT, "x");
+            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
+        }
+
+        private Captured emitCorners(PortalFaces.Drawn gate, java.util.Set<BlockPos> solid) {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+            ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
+
+            PortalFaces.emitCornerGlows(pose, consumer, List.of(gate), BLOCKS_OF, (pos, face) -> solid.contains(pos));
+
+            verify(consumer, times(CORNERS)).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
+            return new Captured(consumer, List.of(xs.getAllValues(), ys.getAllValues(), zs.getAllValues()));
+        }
+
+        /**
+         * Asserts every corner of the quad lies on the block face's plane on
+         * the given axis, and stands from the wall out to the glow's margin.
+         */
+        private void assertOnFace(Captured lit, int axis, float plane, String name) {
+            assertTrue(lit.coords().get(axis).stream().allMatch(at -> Math.abs(at - plane) < NEAR),
+                    "The quad should lie on the block's face toward the mouth, " + name + " " + plane + ", lies at "
+                            + lit.coords().get(axis));
+            List<Float> off = lit.coords().get(2);
+            assertTrue(off.stream().anyMatch(z -> Math.abs(z) < NEAR)
+                    && off.stream().anyMatch(z -> Math.abs(z + (float) PortalFaces.HALO_MARGIN) < NEAR),
+                    "The quad should stand from the wall out to the glow's margin, stands at " + off);
+        }
+
+        /**
+         * A corner quad's captured corners.
+         *
+         * @param consumer the consumer
+         * @param coords   each corner's x, then y, then z
+         */
+        private record Captured(VertexConsumer consumer, List<List<Float>> coords) {
+        }
+    }
+
+    /**
      * Each of a wormhole's two mouths wears the portals' halo, the same
      * margin past its own box, in the mouth's own color, its edge marked
      * torn so the halo starts at the tear
