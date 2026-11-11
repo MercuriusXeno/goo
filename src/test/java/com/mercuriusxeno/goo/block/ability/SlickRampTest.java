@@ -67,6 +67,55 @@ class SlickRampTest {
     }
 
     @Nested
+    class ASlowEntry {
+
+        private static final boolean STEPPED_ON = false;
+        private static final boolean TRYING = true;
+
+        @Test
+        void isRaisedToTheStartSpeedAlongItsHeading() {
+            SlickStep slick = shippedSlick();
+            Vec3 slow = new Vec3(slick.startSpeed() * 0.03, -0.08, slick.startSpeed() * 0.04);
+
+            Vec3 out = SlickRamp.slid(slow, STEPPED_ON, TRYING, 0, slick);
+
+            assertEquals(slick.startSpeed(), out.horizontalDistance(), EXACT);
+            assertEquals(3.0 / 4.0, out.x / out.z, EXACT);
+            assertEquals(slow.y, out.y, EXACT);
+        }
+
+        @Test
+        void alreadyFasterGetsTheFirstTicksRampAlone() {
+            SlickStep slick = shippedSlick();
+            Vec3 fast = new Vec3(slick.startSpeed() * 0.9, 0, slick.startSpeed() * 1.2);
+
+            Vec3 out = SlickRamp.slid(fast, STEPPED_ON, TRYING, 0, slick);
+
+            assertEquals(SlickRamp.ramped(fast, SlickRamp.ramp(0, slick), slick.topSpeed()), out);
+        }
+
+        @Test
+        void notTryingKeepsTheVelocityItArrivedWith() {
+            SlickStep slick = shippedSlick();
+            Vec3 slow = new Vec3(slick.startSpeed() * 0.03, -0.08, slick.startSpeed() * 0.04);
+
+            Vec3 out = SlickRamp.slid(slow, STEPPED_ON, !TRYING, 0, slick);
+
+            assertEquals(slow, out);
+        }
+
+        @Test
+        void standingStillHasNoHeadingToRaiseAlong() {
+            SlickStep slick = shippedSlick();
+            Vec3 still = new Vec3(0, -0.08, 0);
+
+            Vec3 out = SlickRamp.slid(still, STEPPED_ON, TRYING, 0, slick);
+
+            assertEquals(still, out);
+        }
+    }
+
+    @Nested
     class TheTopSpeedCaps {
 
         @Test
