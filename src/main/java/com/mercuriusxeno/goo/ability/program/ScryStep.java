@@ -74,8 +74,8 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
     }
 
     /**
-     * Scry's fronts outline every mob they cross through walls, as the
-     * glisten its child steps lay on them (operator ruling 2026-11-06).
+     * Scry's fronts outline every mob they cross through walls, beside the
+     * astral outline its child steps lay on them (operator ruling 2026-11-06).
      * decision scry-sphere-reveals-faces-and-glistens-mobs
      */
     @Override
