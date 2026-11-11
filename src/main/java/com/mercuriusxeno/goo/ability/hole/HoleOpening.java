@@ -92,7 +92,8 @@ public final class HoleOpening {
             int perStack = Math.max(1, entry.kind().getMaxStackSize());
             for (long left = entry.count(); left > 0; left -= perStack) {
                 ItemStack poured = entry.kind().copyWithCount((int) Math.min(left, perStack));
-                ItemEntity item = new ItemEntity(level, below.x(), below.y(), below.z(), poured);
+                // decision hole-pour-falls-straight-down: no thrown velocity, so gravity alone moves each stack
+                ItemEntity item = new ItemEntity(level, below.x(), below.y(), below.z(), poured, 0, 0, 0);
                 item.setDefaultPickUpDelay();
                 level.addFreshEntity(item);
             }
