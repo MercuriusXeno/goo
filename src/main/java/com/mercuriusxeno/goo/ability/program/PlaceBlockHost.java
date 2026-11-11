@@ -15,14 +15,4 @@ public interface PlaceBlockHost extends StepHost {
      * @param state each state property to set, by its name, to the value's name
      */
     void placeBlock(Identifier block, Map<String, String> state);
-
-    /**
-     * Lays coat layers of slime in the cell a placed block goes into, on top
-     * of any slime standing there, up to a whole block; the flow pours what
-     * stands above level into the cells beside it
-     * (decision bounce-throw-dumps-layers-that-flow-out).
-     *
-     * @param layers the coat layers to lay
-     */
-    void laySlime(int layers);
 }

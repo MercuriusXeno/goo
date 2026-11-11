@@ -219,11 +219,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     @Override
-    public void laySlime(int layers) {
-        CoatStep.laySlimeIn(level, cell, layers);
-    }
-
-    @Override
     public void linger(List<Step> steps) {
         level.setBlock(cell, GooBlocks.ABILITY_BLOCK.get().defaultBlockState()
                 .setValue(AbilityBlock.WATERLOGGED, waterlogged), Block.UPDATE_ALL);

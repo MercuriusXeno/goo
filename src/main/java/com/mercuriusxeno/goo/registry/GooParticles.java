@@ -38,6 +38,13 @@ public class GooParticles {
         PARTICLE_TYPES.register("gnat", () -> new SimpleParticleType(false));
 
     /**
+     * A mote of slime mist in Goop's stream, flying as Decay's gnats do in
+     * slime greens (decision goop-sprays-a-slime-colored-mist).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SLIME_MIST =
+        PARTICLE_TYPES.register("slime_mist", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */
