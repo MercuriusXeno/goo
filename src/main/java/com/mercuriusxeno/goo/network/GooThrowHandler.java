@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
@@ -218,7 +219,27 @@ public final class GooThrowHandler {
      */
     private static boolean cleared(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
         return throwable(player, ability) && !refusesStruck(player.level(), payload, ability)
-                && !refusedAtFace(player, payload, ability);
+                && !refusedAtFace(player, payload, ability) && !aimsAnOwnMinion(player, payload, ability);
+    }
+
+    /**
+     * Whether a harmful mob ability is thrown at a mob its thrower rallied or
+     * charmed, which is refused whole, before anything is paid, so neither a
+     * touch nor a flight lands on it.
+     * mob-targeted-attacks-refuse-your-minions
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param ability the thrown ability
+     * @return true when the throw names the thrower's own minion
+     */
+    private static boolean aimsAnOwnMinion(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
+        if (payload.targetEntityId() < 0
+                || !OwnMinions.sparesOwnMinions(ability.badge(), ability.hasTag(AbilityTags.HARMFUL))) {
+            return false;
+        }
+        Entity target = player.level().getEntity(payload.targetEntityId());
+        return target != null && OwnMinions.ownMinionOf(player, target);
     }
 
     /**

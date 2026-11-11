@@ -1,0 +1,18 @@
+{
+  "gooType": "kinetic",
+  "displayName": "goo.ability.kinetic.slick",
+  "badge": "channeled",
+  "order": 0,
+  "cost": 12,
+  "delivery": {
+    "kind": "stream",
+    "range": 8,
+    "cone": 24,
+    "ticks_per_charge": 20,
+    "particle": "goo:kinetic_mist"
+  },
+  "behaviors": [
+    { "type": "slick", "ticks": 20, "ramp": 1.06, "top_speed": 1.0 }
+  ],
+  "tags": ["stream"]
+}

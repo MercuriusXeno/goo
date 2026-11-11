@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.held.Telekinesis;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -73,6 +75,19 @@ public final class GloveAim {
         ClientAbility ability = selectedAbility(player);
         return ability == null ? List.of()
                 : Step.reachingTheAim(ability.behaviors(), ability.delivery().kind() == DeliveryKind.SELF);
+    }
+
+    /**
+     * Whether the selected ability spares the player's own rallied and
+     * charmed mobs, so the aim never locks on one.
+     * mob-targeted-attacks-refuse-your-minions
+     *
+     * @param player the local player
+     * @return true for a harmful mob ability
+     */
+    public static boolean sparesOwnMinions(Player player) {
+        ClientAbility ability = selectedAbility(player);
+        return ability != null && OwnMinions.sparesOwnMinions(ability.badge(), ability.hasTag(AbilityTags.HARMFUL));
     }
 
     private static @Nullable ClientAbility selectedAbility(Player player) {

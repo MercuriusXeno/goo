@@ -21,4 +21,11 @@ public record GnatPalette(float lightRed, float lightGreen, float lightBlue,
      * goop-sprays-a-slime-colored-mist
      */
     public static final GnatPalette SLIME_MIST = new GnatPalette(0.55f, 0.84f, 0.51f, 0.32f, 0.63f, 0.24f);
+    /**
+     * Slick's kinetic mist, from Kinetic's bright white, F4FAFF, to its wheel's
+     * electric blue, 2050FF, as Goop's slime mist wears Goop's greens.
+     * slick-coats-the-ground-with-kinetic-speed
+     * kinetic-is-electric-blue-and-white
+     */
+    public static final GnatPalette KINETIC_MIST = new GnatPalette(0.96f, 0.98f, 1f, 0.13f, 0.31f, 1f);
 }
