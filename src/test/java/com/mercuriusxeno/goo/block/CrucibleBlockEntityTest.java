@@ -10,8 +10,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for crucible pure logic: GooValue-to-GooContents bridge,
- * GooContents operations, and platform movement math.
+ * Tests for the crucible's GooValue-to-GooContents bridge, the melt payout.
+ * GooContentsTest holds the contents' own operations.
  */
 @ExtendWith(MockitoExtension.class)
 class CrucibleBlockEntityTest {
@@ -53,62 +53,5 @@ class CrucibleBlockEntityTest {
         assertEquals(250, result.getVolume(GooTypes.METAL));
         assertEquals(50, result.getVolume(GooTypes.JELLY));
         assertEquals(3, result.typeCount());
-    }
-
-    // -- GooContents.largestType -----------------------------------------
-
-    /**
-     * Empty GooContents has no largest type.
-     */
-    @Test
-    void emptyGooContentsHasNoLargestType() {
-        assertNull(GooContents.EMPTY.largestType());
-    }
-
-    /**
-     * Single-type GooContents returns that type as largest.
-     */
-    @Test
-    void singleTypeGooContentsReturnsThatType() {
-        GooContents gc = new GooContents(Map.of(GooTypes.BLAZE, 100));
-        assertEquals(GooTypes.BLAZE, gc.largestType());
-    }
-
-    /**
-     * Multi-type GooContents returns the highest-volume type.
-     */
-    @Test
-    void multiTypeGooContentsReturnsHighestVolume() {
-        GooContents gc = new GooContents(Map.of(
-                GooTypes.ROCK, 100,
-                GooTypes.METAL, 500,
-                GooTypes.JELLY, 200
-        ));
-        assertEquals(GooTypes.METAL, gc.largestType());
-    }
-
-    // -- GooContents.mergeWith -------------------------------------------
-
-    /**
-     * Merging empty with non-empty returns the non-empty.
-     */
-    @Test
-    void mergeEmptyWithNonEmptyReturnsNonEmpty() {
-        GooContents gc = new GooContents(Map.of(GooTypes.ROCK, 100));
-        GooContents result = GooContents.EMPTY.mergeWith(gc);
-        assertEquals(100, result.getVolume(GooTypes.ROCK));
-    }
-
-    /**
-     * Merging two contents sums matching types.
-     */
-    @Test
-    void mergeWithSumsMatchingTypes() {
-        GooContents a = new GooContents(Map.of(GooTypes.ROCK, 100, GooTypes.METAL, 50));
-        GooContents b = new GooContents(Map.of(GooTypes.ROCK, 200, GooTypes.JELLY, 75));
-        GooContents result = a.mergeWith(b);
-        assertEquals(300, result.getVolume(GooTypes.ROCK));
-        assertEquals(50, result.getVolume(GooTypes.METAL));
-        assertEquals(75, result.getVolume(GooTypes.JELLY));
     }
 }

@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.phys.AABB;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,8 +24,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Each machine's gasket roles read the gasket flags its blockstate records. Each machine is a real-method
- * mock standing in a mocked blockstate, so no block registers.
+ * A slot's gasket region splits at mid height by role, and each machine's gasket roles read the gasket
+ * flags its blockstate records. Each machine is a real-method mock standing in a mocked blockstate, so no
+ * block registers.
  */
 class IGasketHolderTest {
 
@@ -34,6 +36,14 @@ class IGasketHolderTest {
         T machine = mock(type, CALLS_REAL_METHODS);
         doReturn(state).when(machine).getBlockState();
         return machine;
+    }
+
+    @Test
+    void aSlotsGasketRegionSplitsAtMidHeightTheReceiverAboveTheTransmitterBelow() {
+        AABB slot = new AABB(0, 0, 0, 1, 1, 1);
+
+        assertEquals(new AABB(0, 0.5, 0, 1, 1, 1), IGasketHolder.splitAtMidY(slot, GasketRole.RECEIVER));
+        assertEquals(new AABB(0, 0, 0, 1, 0.5, 1), IGasketHolder.splitAtMidY(slot, GasketRole.TRANSMITTER));
     }
 
     @Nested

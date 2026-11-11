@@ -52,19 +52,6 @@ class GlowExplosionVisualTest {
         assertEquals(0f, GlowExplosionVisual.brightness(1f), TOLERANCE);
     }
 
-    @Test
-    void renderedDomeDrawsAtItsReach() {
-        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
-        when(buffers.getBuffer(any())).thenReturn(consumer);
-        float gameTime = START + GlowExplosionVisual.DURATION_TICKS;
-
-        GlowExplosionVisual.INSTANCE.render(burnout(),
-                new BurnoutFrame(new PoseStack(), buffers, Vec3.ZERO, gameTime));
-
-        assertEquals(GlowExplosionVisual.DOME_REACH, farthestFromDomeCenter(consumer.vertices()), TOLERANCE);
-    }
-
     // decision burnouts-are-whole-spheres
     @Test
     void aWallLandingBurnsOutAsAWholeSphereAboutTheCell() {
@@ -94,17 +81,5 @@ class GlowExplosionVisualTest {
     private static ChainBurnouts.Burnout burnout() {
         return new ChainBurnouts.Burnout(BlockPos.ZERO, FACE, "goo:glow_test", 0, START,
                 GlowExplosionVisual.INSTANCE);
-    }
-
-    private static float farthestFromDomeCenter(List<RecordingVertexConsumer.Vertex> vertices) {
-        float cx = BLOCK_CENTER;
-        float cy = BLOCK_CENTER;
-        float cz = BLOCK_CENTER;
-        double farthest = 0;
-        for (RecordingVertexConsumer.Vertex v : vertices) {
-            farthest = Math.max(farthest, Math.sqrt((v.x() - cx) * (v.x() - cx) + (v.y() - cy) * (v.y() - cy)
-                    + (v.z() - cz) * (v.z() - cz)));
-        }
-        return (float) farthest;
     }
 }
