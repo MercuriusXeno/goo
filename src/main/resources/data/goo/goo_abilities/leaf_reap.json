@@ -1,13 +1,16 @@
 {
   "gooType": "leaf",
   "displayName": "goo.ability.leaf.reap",
-  "badge": "free",
+  "badge": "channeled",
   "order": 3,
   "cost": 1000,
   "requires": ["minecraft:wheat", "minecraft:wheat_seeds"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "reap", "radius": 4, "swell_ticks": 10 }
+    { "type": "slash", "fewest_ticks": 2, "most_ticks": 3, "fewest_slashes": 1, "most_slashes": 2,
+      "width": 5.3, "length": 5.8, "source": 0.5, "back_from": 1.1, "back_to": 3.9, "front_from": 2.6,
+      "drop": 0.45, "nudge": 0.2, "tilt": 10, "fan": 5, "life_ticks": 6, "damage": 1 }
   ],
-  "tags": ["place_block"]
+  "tags": ["self"],
+  "pose": "held_out"
 }
