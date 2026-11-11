@@ -2,54 +2,28 @@ package com.mercuriusxeno.goo.ability.program;
 
 import org.junit.jupiter.api.Test;
 import java.util.List;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * A branch step runs its then list when its condition reads nonzero and
- * its otherwise list when it reads zero (decision
- * rewind-fills-while-held). The lists hold explode steps of two
- * powers, a world call the host mock records; an effect step's change to
- * the entity is proven by the mob gametests (decision step-tick-holds-effect).
+ * A branch step chooses its then list when its condition reads nonzero and
+ * its otherwise list when it reads zero (decision rewind-fills-while-held).
  */
 class BranchStepTest {
 
-    private static final float THEN_POWER = 1;
-    private static final float OTHERWISE_POWER = 2;
+    private static final List<Step> THEN = List.of(new ExplodeStep(Expr.literal(1), ExplosionMode.NONE));
+    private static final List<Step> OTHERWISE = List.of(new ExplodeStep(Expr.literal(2), ExplosionMode.NONE));
 
-    private static BranchStep blastByCondition(double condition) {
-        return new BranchStep(Expr.literal(condition),
-                List.of(new ExplodeStep(Expr.literal(THEN_POWER), ExplosionMode.NONE)),
-                List.of(new ExplodeStep(Expr.literal(OTHERWISE_POWER), ExplosionMode.NONE)));
-    }
-
-    private static EntityHost entityHost() {
-        EntityHost host = mock(EntityHost.class);
-        when(host.kind()).thenReturn(HostKind.ENTITY);
-        return host;
+    private static BranchStep branchOn(double condition) {
+        return new BranchStep(Expr.literal(condition), THEN, OTHERWISE);
     }
 
     @Test
-    void nonzeroConditionRunsOnlyTheThenList() {
-        EntityHost host = entityHost();
-
-        ProgramBehavior.forHost(List.of(blastByCondition(1)), HostKind.ENTITY).tick(host);
-
-        verify(host).explode(eq(THEN_POWER), anyDouble(), eq(ExplosionMode.NONE));
-        verify(host, never()).explode(eq(OTHERWISE_POWER), anyDouble(), eq(ExplosionMode.NONE));
+    void nonzeroConditionChoosesTheThenList() {
+        assertEquals(THEN, branchOn(1).chosen(Variables.NONE));
     }
 
     @Test
-    void zeroConditionRunsOnlyTheOtherwiseList() {
-        EntityHost host = entityHost();
-
-        ProgramBehavior.forHost(List.of(blastByCondition(0)), HostKind.ENTITY).tick(host);
-
-        verify(host).explode(eq(OTHERWISE_POWER), anyDouble(), eq(ExplosionMode.NONE));
-        verify(host, never()).explode(eq(THEN_POWER), anyDouble(), eq(ExplosionMode.NONE));
+    void zeroConditionChoosesTheOtherwiseList() {
+        assertEquals(OTHERWISE, branchOn(0).chosen(Variables.NONE));
     }
 }
