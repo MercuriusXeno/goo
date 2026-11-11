@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.SwarmMotes;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.world.phys.Vec3;
@@ -28,16 +29,19 @@ public final class GnatSteering {
     }
 
     /**
-     * A seeking gnat's launch from the glove.
+     * A seeking gnat's launch from the glove, carrying the caster's travel.
+     * glove-stream-motes-carry-the-players-travel-velocity
      *
      * @param aim          the heading from the glove onto the crosshair, any length
      * @param sprayDegrees the cone the swarm fans across, apex to rim, in degrees
      * @param tiltShare    how far off the firing line, 0 on it and 1 at the spray's rim
      * @param turnShare    which way round the firing line, a share of a full turn
+     * @param travel       the caster's travel velocity, blocks per tick
      * @return the launch velocity, blocks per tick
      */
-    public static Vec3 launch(Vec3 aim, double sprayDegrees, double tiltShare, double turnShare) {
-        return StreamCone.launchDirection(aim, sprayDegrees, tiltShare, turnShare).scale(CRUISE);
+    public static Vec3 launch(Vec3 aim, double sprayDegrees, double tiltShare, double turnShare, Vec3 travel) {
+        return GooStreamHandler.moteLaunch(StreamCone.launchDirection(aim, sprayDegrees, tiltShare, turnShare),
+                CRUISE, travel);
     }
 
     /**

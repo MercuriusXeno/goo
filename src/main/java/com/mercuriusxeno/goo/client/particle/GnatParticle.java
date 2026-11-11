@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.particle;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
@@ -18,7 +17,7 @@ import java.util.function.Supplier;
  * weightless and fades out over two seconds or so
  * (decision decay-gnats-degrade-each-block-once).
  */
-public final class GnatParticle extends SingleQuadParticle {
+public final class GnatParticle extends GloveMote {
 
     /** The share of its speed a gnat keeps each tick; a hive's launch is sized by it. */
     public static final float SWARM_FRICTION = 0.9f;
@@ -67,9 +66,14 @@ public final class GnatParticle extends SingleQuadParticle {
         this.friction = 1f;
     }
 
-    /** Steers a seeking gnat, darts the gnat a little off its heading and fades it over its life. */
+    /**
+     * Swings the gnat with the glove over its opening ticks, steers a seeking
+     * gnat, darts the gnat a little off its heading and fades it over its life.
+     */
     @Override
     public void tick() {
+        // glove-stream-motes-swing-with-the-glove-at-launch: the swing runs before the prey pulls
+        swingWithTheGlove();
         if (prey != null) {
             Vec3 velocity = GnatSteering.steer(new Vec3(this.xd, this.yd, this.zd), new Vec3(this.x, this.y, this.z),
                     prey.get());

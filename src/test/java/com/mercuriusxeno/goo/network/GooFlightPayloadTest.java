@@ -43,12 +43,26 @@ class GooFlightPayloadTest {
                 Direction.UP.getUnitVec3());
         GooFlightPayload sent = new GooFlightPayload(1, 2, 3, "goo:crystal", -1, new BlockPos(4, 5, 6), 1,
                 7, false, "goo:crystal_prism", Delivery.ARC, new Vec3(4.5, 6.0, 6.5), Optional.of(gate),
-                new Vec3(0.5, 1.0, 0.0));
+                new Vec3(0.5, 1.0, 0.0), Vec3.ZERO);
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         GooFlightPayload.STREAM_CODEC.encode(buf, sent);
 
         assertEquals(sent, GooFlightPayload.STREAM_CODEC.decode(buf), "A flight's gate and face point should "
                 + "reach the client whole");
+    }
+
+    /** A flight carries its thrower's travel velocity (decision thrown-blob-leaves-the-hand-with-a-fading-drift). */
+    @Test
+    void theThrowersTravelVelocityRoundTripsThroughTheStreamCodec() {
+        Vec3 travel = new Vec3(0.28, -0.08, 0.1);
+        GooFlightPayload sent = new GooFlightPayload(1, 2, 3, "goo:crystal", -1, new BlockPos(4, 5, 6), 1,
+                7, false, "goo:crystal_prism", Delivery.ARC, new Vec3(4.5, 6.0, 6.5), Optional.empty(), Vec3.ZERO,
+                travel);
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        GooFlightPayload.STREAM_CODEC.encode(buf, sent);
+
+        assertEquals(travel, GooFlightPayload.STREAM_CODEC.decode(buf).travel());
     }
 }

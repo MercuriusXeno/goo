@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.particle.GloveSwing;
 import com.mercuriusxeno.goo.client.particle.GnatParticle;
 import com.mercuriusxeno.goo.client.particle.GnatSteering;
-import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.GnatSeekPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
@@ -46,15 +46,17 @@ public final class GnatSeek {
             return;
         }
         Supplier<Vec3> prey = preyOf(level, payload);
-        Vec3 glove = gloveOf(mc, payload);
+        Vec3 glove = CasterPoses.gloveOf(payload.casterId(), payload.glove());
         RandomSource random = level.getRandom();
         for (int i = 0; i < GNATS_PER_TICK; i++) {
             Vec3 launch = GnatSteering.launch(payload.aim(), payload.sprayDegrees(), random.nextDouble(),
-                    random.nextDouble());
+                    random.nextDouble(), payload.travel());
             if (mc.particleEngine.createParticle(GooParticles.GNAT.get(), glove.x, glove.y, glove.z, launch.x,
                     launch.y, launch.z) instanceof GnatParticle gnat) {
                 Vec3 rest = pointIn(payload.targetMin(), payload.targetMax(), random);
                 gnat.seek(prey != null ? prey : () -> rest);
+                // glove-stream-motes-swing-with-the-glove-at-launch
+                gnat.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
             }
         }
     }
@@ -76,21 +78,5 @@ public final class GnatSeek {
     private static Vec3 pointIn(Vec3 min, Vec3 max, RandomSource random) {
         return new Vec3(min.x + random.nextDouble() * (max.x - min.x), min.y + random.nextDouble() * (max.y - min.y),
                 min.z + random.nextDouble() * (max.z - min.z));
-    }
-
-    /**
-     * Where the caster's glove stands: the local player's glove as drawn this
-     * frame, or the glove hand another caster's stream left from.
-     *
-     * @param mc      the client
-     * @param payload the swarm's tick
-     * @return where the glove stands
-     */
-    private static Vec3 gloveOf(Minecraft mc, GnatSeekPayload payload) {
-        Entity caster = mc.player;
-        if (caster != null && caster.getId() == payload.casterId()) {
-            return GloveAim.handPosition(mc.gameRenderer.getMainCamera());
-        }
-        return payload.glove();
     }
 }

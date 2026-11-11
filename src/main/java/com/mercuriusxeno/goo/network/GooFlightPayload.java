@@ -32,17 +32,19 @@ import java.util.Optional;
  * @param gate           the linked gate the flight passes to reach a far-side target, empty on the near side
  *                       (decision aim-and-shots-carry-through-linked-gates)
  * @param facePoint      where the flight meets that gate's face, unread with no gate
+ * @param travel         the thrower's travel velocity at the throw, blocks per tick, zero for a flight no player
+ *                       threw (decision thrown-blob-leaves-the-hand-with-a-fading-drift)
  */
 public record GooFlightPayload(double startX, double startY, double startZ,
                                 String gooTypeId, int targetEntityId,
                                 BlockPos targetPos, int targetFace,
                                 int travelTicks, boolean grannyArc,
                                 String abilityId, Delivery delivery, Vec3 targetPoint,
-                                Optional<Gate> gate, Vec3 facePoint)
+                                Optional<Gate> gate, Vec3 facePoint, Vec3 travel)
         implements CustomPacketPayload {
 
     /**
-     * A flight to a near-side target, passing no gate.
+     * A flight to a near-side target, passing no gate, that no moving thrower drifts.
      *
      * @param startX         the starting X position
      * @param startY         the starting Y position
@@ -61,7 +63,7 @@ public record GooFlightPayload(double startX, double startY, double startZ,
             BlockPos targetPos, int targetFace, int travelTicks, boolean grannyArc, String abilityId,
             Delivery delivery, Vec3 targetPoint) {
         this(startX, startY, startZ, gooTypeId, targetEntityId, targetPos, targetFace, travelTicks, grannyArc,
-                abilityId, delivery, targetPoint, Optional.empty(), Vec3.ZERO);
+                abilityId, delivery, targetPoint, Optional.empty(), Vec3.ZERO, Vec3.ZERO);
     }
 
     /** Payload type ID for registration. */
@@ -100,7 +102,7 @@ public record GooFlightPayload(double startX, double startY, double startZ,
         buf.writeUtf(payload.gooTypeId);
     }
 
-    /** Writes target entity, position, face, travel time, arc flag, ability and delivery.
+    /** Writes target entity, position, face, travel time, arc flag, ability, delivery, gate and thrower's travel.
      *
      * @param buf     the output buffer
      * @param payload the payload
@@ -119,6 +121,7 @@ public record GooFlightPayload(double startX, double startY, double startZ,
         buf.writeBoolean(payload.gate.isPresent());
         payload.gate.ifPresent(passed -> Gate.STREAM_CODEC.encode(buf, passed));
         Vec3.STREAM_CODEC.encode(buf, payload.facePoint);
+        Vec3.STREAM_CODEC.encode(buf, payload.travel);
     }
 
     /**
@@ -135,6 +138,6 @@ public record GooFlightPayload(double startX, double startY, double startZ,
                 buf.readUtf(), Delivery.STREAM_CODEC.decode(buf),
                 new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble()),
                 buf.readBoolean() ? Optional.of(Gate.STREAM_CODEC.decode(buf)) : Optional.empty(),
-                Vec3.STREAM_CODEC.decode(buf));
+                Vec3.STREAM_CODEC.decode(buf), Vec3.STREAM_CODEC.decode(buf));
     }
 }
