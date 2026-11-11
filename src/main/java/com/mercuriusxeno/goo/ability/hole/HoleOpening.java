@@ -53,12 +53,14 @@ public final class HoleOpening {
      * @param block    the struck block
      * @param face     the struck face, up or down
      * @param lifetime the ticks the hole stands
+     * @param refresh  the ticks left each swallow raises the hole's time left to when less remains
      */
-    public static void open(ServerLevel level, ServerPlayer owner, BlockPos block, Direction face, int lifetime) {
+    public static void open(ServerLevel level, ServerPlayer owner, BlockPos block, Direction face, int lifetime,
+                            int refresh) {
         PocketShelves shelves = PocketShelves.get(level);
         payBack(owner, shelves.settleReserve(owner.getUUID()));
         PortableHole hole = new PortableHole(owner.getUUID(), level.dimension(), block, face,
-                level.getGameTime() + lifetime);
+                HoleFootprint.of(level, block, face), level.getGameTime(), level.getGameTime() + lifetime, refresh);
         if (!hole.swallows()) {
             pour(level, hole, shelves);
         }
@@ -83,7 +85,9 @@ public final class HoleOpening {
     }
 
     private static void pour(ServerLevel level, PortableHole hole, PocketShelves shelves) {
-        Vec3 below = Vec3.atBottomCenterOf(hole.block()).subtract(0, POUR_DROP, 0);
+        // decision hole-mouth-opens-three-by-three-and-fits-its-room: the pour drops from the whole mouth's middle
+        Vec3 middle = hole.blocks().getBottomCenter();
+        Vec3 below = middle.subtract(0, POUR_DROP, 0);
         for (PocketEntry entry : shelves.takeAll(hole.owner())) {
             int perStack = Math.max(1, entry.kind().getMaxStackSize());
             for (long left = entry.count(); left > 0; left -= perStack) {
