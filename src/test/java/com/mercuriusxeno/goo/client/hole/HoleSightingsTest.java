@@ -22,7 +22,7 @@ class HoleSightingsTest {
     private static final long OPENED_AT = 1000L;
     private static final long CLOSES_AT = OPENED_AT + 240L;
     private static final PortableHolesSyncPayload.Mouth MOUTH = new PortableHolesSyncPayload.Mouth(
-            List.of(new BlockPos(4, 64, -2)), Direction.UP, OPENED_AT, CLOSES_AT, List.of());
+            List.of(new BlockPos(4, 64, -2)), Direction.UP, OPENED_AT, CLOSES_AT, List.of(), List.of());
     private static final float SAMPLE = 0.25F;
     /** The most the share may change between neighbouring samples, a smooth shrink rather than a jump. */
     private static final float MOST_STEP = 0.05F;

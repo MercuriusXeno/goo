@@ -70,5 +70,16 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.portal_hum",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.PORTAL_HUM));
 
+    /** An Outsider room gaining a full block (decision full-block-growth-wubs-and-raises-void-motes). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_WUB =
+        SOUND_EVENTS.register("effects.outsider_wub",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_WUB));
+
+    /** A door conjured toward the pocket (decision
+     * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_CONJURE =
+        SOUND_EVENTS.register("effects.outsider_conjure",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_CONJURE));
+
     private GooSounds() {}
 }

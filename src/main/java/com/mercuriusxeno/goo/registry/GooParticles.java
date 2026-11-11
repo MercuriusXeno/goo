@@ -124,6 +124,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("vital_mote", () -> new SimpleParticleType(false));
 
     /**
+     * The void mote: a violet mote of void floating slowly up off the floor
+     * along an Outsider room's walls as the room gains a full block.
+     * full-block-growth-wubs-and-raises-void-motes
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VOID_MOTE =
+        PARTICLE_TYPES.register("void_mote", () -> new SimpleParticleType(false));
+
+    /**
      * The hex wisp: a wisp of drawn life in hex purple, scattering off a
      * victim then curling home to whoever it heals: Lifetap's splashes and
      * Drain's trickle.

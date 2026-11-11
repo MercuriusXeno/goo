@@ -22,6 +22,16 @@ public interface OutsiderHost extends ChannelHost {
     void showCharge(int held, int charge);
 
     /**
+     * Stands the door the hold has conjured so far before the player, for
+     * them and every player tracking them to see.
+     * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
+     *
+     * @param held   the hold's tick count
+     * @param charge the ticks the charge takes
+     */
+    void conjureDoor(int held, int charge);
+
+    /**
      * Carries the player into their room, keeping where they stood for its
      * door, when they can pay the way in.
      *
@@ -30,8 +40,8 @@ public interface OutsiderHost extends ChannelHost {
     void enterPocket(int cost);
 
     /**
-     * Feeds void the player carries into their room's platform, when they
-     * carry it: the current ring's cost spread over the ring time.
+     * Feeds void the player carries into their room, when they carry it:
+     * the cost of the ring its extent grows through spread over the ring time.
      *
      * @param ringTicks   the ticks every ring takes
      * @param base        the void a cell costs at the center (mB)

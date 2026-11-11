@@ -53,6 +53,33 @@ public final class HoleDrift {
     }
 
     /**
+     * Where a stored item draws and how large, in the mouth's own frame.
+     *
+     * @param offset the item's middle from the mouth's middle, as offset answers
+     * @param size   the item's largest span as drawn
+     */
+    public record Placement(Vec3 offset, double size) {
+    }
+
+    /**
+     * Where a stored item draws at a moment and how large, for a mouth standing
+     * open by a share: at its full drift place and full size while the mouth
+     * stands open at all, and at no size once it is shut. The carved oval alone
+     * shrinks, so a closing mouth seals over items that keep their place and size.
+     * decision hole-seals-over-items-of-fixed-scale
+     *
+     * @param index      the item's place among the shown kinds
+     * @param time       the game time, partial tick included
+     * @param halfAcross the mouth's half span across, along x
+     * @param halfAlong  the mouth's half span along, along z
+     * @param open       the share the mouth stands open, 0 shut to 1 fully open
+     * @return the item's place and drawn size
+     */
+    public static Placement placementAt(int index, float time, double halfAcross, double halfAlong, float open) {
+        return new Placement(offset(index, time, halfAcross, halfAlong), open > 0F ? ITEM_SIZE : 0);
+    }
+
+    /**
      * Where a stored item swims at a moment, in the mouth's own frame: x across
      * the face from its middle, z along it, and y off the face, negative into
      * the pit behind it.
