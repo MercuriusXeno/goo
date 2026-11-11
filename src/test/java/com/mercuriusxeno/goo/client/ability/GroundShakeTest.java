@@ -21,7 +21,9 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,9 +40,7 @@ class GroundShakeTest {
 
     private static final TagKey<Block> BREAKABLE =
             TagKey.create(Registries.BLOCK, Identifier.parse("goo:bore_breakable"));
-    private static final int SAMPLES = 200;
-    private static final float SAMPLE_STEP = 0.1f;
-    private static final double STILL = 1e-9;
+    private static final double DELTA = 1e-9;
     private static final Vec3 EYE = new Vec3(0.5, 64.5, 0.5);
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final double BORE_RANGE = 4;
@@ -54,44 +54,28 @@ class GroundShakeTest {
                 IndicatorShowing.SELECTED);
     }
 
-    /**
-     * The farthest a block's shake carries it from its cell over a run of samples.
-     *
-     * @param pos  the block
-     * @param zone the shake's zone
-     * @return the largest offset length sampled
-     */
-    private static double widestSwing(BlockPos pos, GroundShake.Zone zone) {
-        double widest = 0;
-        for (int i = 0; i < SAMPLES; i++) {
-            widest = Math.max(widest, GroundShake.offsetAt(pos, zone, i * SAMPLE_STEP).length());
-        }
-        return widest;
-    }
-
     @Nested
-    class Jitter {
+    class ZoneStrength {
 
+        /** On the tunnel's line a block shakes full, one block off five ninths, two off a ninth, three off still. */
         @Test
-        void aBlockBesideTheBoreTunnelShakesWithinTheAmplitude() {
+        void theBoreTunnelShakesFullOnItsLineAndFadesOverItsRadius() {
             GroundShake.Zone tunnel = GroundShake.boreZone(EYE, LOOK_EAST, BORE_RANGE);
-            double swing = widestSwing(new BlockPos(2, 63, 0), tunnel);
-            assertTrue(swing > 0, "a block under the tunnel never moves");
-            assertTrue(swing <= GroundShake.AMPLITUDE * Math.sqrt(3), "a block swings past the amplitude");
+            assertEquals(1, tunnel.strengthAt(new BlockPos(2, 64, 0)), DELTA);
+            assertEquals(5.0 / 9, tunnel.strengthAt(new BlockPos(2, 63, 0)), DELTA);
+            assertEquals(1.0 / 9, tunnel.strengthAt(new BlockPos(2, 62, 0)), DELTA);
+            assertEquals(0, tunnel.strengthAt(new BlockPos(2, 61, 0)), DELTA);
         }
 
+        /** The swath's three layers off the face shake full on its spine, the face's own ground five ninths. */
         @Test
-        void aBlockPastTheRadiusStaysStill() {
-            GroundShake.Zone tunnel = GroundShake.boreZone(EYE, LOOK_EAST, BORE_RANGE);
-            assertEquals(0, widestSwing(new BlockPos(2, 54, 0), tunnel), STILL);
-        }
-
-        @Test
-        void flattenShakesTheSwathItBreaks() {
+        void flattenShakesTheSwathItBreaksFullAndTheFacesGroundFiveNinths() {
             ChannelAim.FacePlane floor = new ChannelAim.FacePlane(new BlockPos(0, 63, 0), Direction.UP);
             GroundShake.Zone swath = GroundShake.flattenZone(floor, new BlockPos(0, 63, 0));
-            assertTrue(widestSwing(new BlockPos(1, 64, 1), swath) > 0, "a block in the swath never moves");
-            assertEquals(0, widestSwing(new BlockPos(0, 76, 0), swath), STILL);
+            assertEquals(1, swath.strengthAt(new BlockPos(0, 64, 0)), DELTA);
+            assertEquals(1, swath.strengthAt(new BlockPos(0, 65, 0)), DELTA);
+            assertEquals(1, swath.strengthAt(new BlockPos(0, 66, 0)), DELTA);
+            assertEquals(5.0 / 9, swath.strengthAt(new BlockPos(0, 63, 0)), DELTA);
         }
     }
 
@@ -147,16 +131,15 @@ class GroundShakeTest {
     class TerrakinesisZone {
 
         @Test
-        void theZoneShakesEveryCellTheHunkWouldLiftAndNoneBeside() {
+        void theZoneShakesEveryCellTheHunkWouldLiftFullAndTheCellsBesideItAtZero() {
             BlockPos struck = new BlockPos(3, 63, 0);
-            Set<BlockPos> hunk = Set.of(struck, struck.east(), struck.below());
-            GroundShake.Zone zone = GroundShake.cellsZone(hunk);
-            for (BlockPos cell : hunk) {
-                assertTrue(widestSwing(cell, zone) > 0, cell + " never moves");
-            }
-            for (BlockPos beside : List.of(struck.west(), struck.above(), struck.north(), struck.east().east())) {
-                assertEquals(0, widestSwing(beside, zone), STILL, beside + " moves");
-            }
+            GroundShake.Zone zone = GroundShake.cellsZone(Set.of(struck, struck.east(), struck.below()));
+            List<BlockPos> cells = List.of(struck, struck.east(), struck.below(), struck.west(), struck.above(),
+                    struck.north(), struck.east().east());
+            Map<BlockPos, Double> strengths = cells.stream()
+                    .collect(Collectors.toMap(cell -> cell, zone::strengthAt));
+            assertEquals(Map.of(struck, 1.0, struck.east(), 1.0, struck.below(), 1.0, struck.west(), 0.0,
+                    struck.above(), 0.0, struck.north(), 0.0, struck.east().east(), 0.0), strengths);
         }
     }
 }

@@ -19,7 +19,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemDisplayContext;
-import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
@@ -33,7 +32,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,7 +42,7 @@ import static org.mockito.Mockito.when;
 /**
  * The dissolving item's glow: its bands follow the item's goo in volume ratio, its quads
  * re-emit on the dissolve render type once per type layer carrying the dissolve fraction
- * and that layer's color, share and index, and the dissolve pipeline registers with its
+ * and that layer's color, share and index, and the dissolve pipeline draws with its
  * own shaders (decisions dissolve-shader-on-item, glow-color-from-mingling).
  */
 class DissolvingItemCollectorTest {
@@ -229,17 +227,13 @@ class DissolvingItemCollectorTest {
         }
     }
 
-    /** The dissolve pipeline draws with its own vertex and fragment shaders and registers with the rest. */
+    /** The dissolve pipeline draws with its own vertex and fragment shaders over the entity snippet's samplers. */
     @Test
-    void dissolvePipelineRegistersWithItsShaders() {
+    void dissolvePipelineDrawsWithItsOwnShadersOverTheEntitySamplers() {
         RenderPipeline pipeline = GooRenderTypes.CRUCIBLE_DISSOLVE;
-        RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
-
-        GooRenderTypes.registerPipelines(event);
 
         assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), pipeline.getFragmentShader());
         assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), pipeline.getVertexShader());
-        assertFalse(pipeline.getSamplers().isEmpty());
-        verify(event).registerPipeline(pipeline);
+        assertEquals(List.of("Sampler0", "Sampler2"), pipeline.getSamplers());
     }
 }
