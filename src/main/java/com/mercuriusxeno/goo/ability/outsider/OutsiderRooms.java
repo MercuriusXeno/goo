@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -88,14 +89,24 @@ public final class OutsiderRooms {
     private static final double FEED_SPREAD = 0.35;
     private static final double FEED_SPEED = 0.05;
     private static final float WUB_VOLUME = 0.9f;
+    /** How widely a wub's pitch varies from lowest to highest, a little either side of its own. */
+    private static final float WUB_PITCH_SPAN = 0.12f;
     /** The blocks a sound at full volume carries across, which a wider room's wub is scaled past. */
     private static final double HEARD_WITHIN = 16.0;
     /** How much farther a square's corner stands from its middle than its side does. */
     private static final double DIAGONAL = Math.sqrt(2.0);
     /** The most motes one wall's line holds, past which they space out. */
     private static final int MOTES_PER_WALL = 48;
-    /** How fast a wall's motes float up, blocks a tick. */
+    /** How fast a wall's motes float up on average, blocks a tick. */
     private static final double MOTE_RISE = 0.025;
+    /** How widely a mote's rise spreads about the average, as a share of it from slowest to fastest. */
+    private static final double MOTE_RISE_SPAN = 1.2;
+    /** How high off the floor a mote may start, in blocks. */
+    private static final double MOTE_SCATTER_UP = 1.2;
+    /** The widest sideways drift a mote takes, blocks a tick. */
+    private static final double MOTE_DRIFT = 0.012;
+    /** The middle of a random share, which a sideways drift is centred on. */
+    private static final double HALF = 0.5;
 
     private OutsiderRooms() {
     }
@@ -262,9 +273,11 @@ public final class OutsiderRooms {
 
     /**
      * The pocket's own growth cues: the wub played through the level, loud
-     * enough in range to reach every player across the room, and each line
-     * of motes sent at a mote a block, thinned past a cap so a long wall
-     * stays a line without flooding the client, each mote rising slowly.
+     * enough in range to reach every player across the room, one of its
+     * pooled swells picked by the game and its pitch varied a little each
+     * time, as the operator asked; and each line of motes sent as about a
+     * speck a block, thinned past a cap so a long wall stays a line without
+     * flooding the client, each speck rising slowly.
      * decision full-block-growth-wubs-and-raises-void-motes
      *
      * @param pocket the pocket dimension
@@ -274,18 +287,23 @@ public final class OutsiderRooms {
         @Override
         public void wub(Vec3 at, double extent) {
             float reach = (float) Math.max(1.0, extent * DIAGONAL / HEARD_WITHIN);
+            float pitch = 1f + (pocket.getRandom().nextFloat() - (float) HALF) * WUB_PITCH_SPAN;
             pocket.playSound(null, at.x, at.y, at.z, GooSounds.OUTSIDER_WUB.get(), SoundSource.PLAYERS,
-                    WUB_VOLUME * reach, 1f);
+                    WUB_VOLUME * reach, pitch);
         }
 
         @Override
         public void moteLine(Vec3 from, Vec3 to) {
-            double length = from.distanceTo(to);
-            int motes = (int) Math.min(MOTES_PER_WALL, Math.ceil(length));
+            // The operator found motes at even steps rising alike read as balls on a grid, so each speck takes its
+            // own spot along the wall, its own height off the floor, and its own rise and drift.
+            RandomSource random = pocket.getRandom();
+            int motes = (int) Math.min(MOTES_PER_WALL, Math.ceil(from.distanceTo(to)));
             for (int mote = 0; mote <= motes; mote++) {
-                Vec3 at = from.lerp(to, motes == 0 ? 0 : mote / (double) motes);
-                pocket.sendParticles(GooParticles.VOID_MOTE.get(), false, true, at.x, at.y, at.z, 0, 0, 1, 0,
-                        MOTE_RISE);
+                Vec3 at = from.lerp(to, random.nextDouble()).add(0, random.nextDouble() * MOTE_SCATTER_UP, 0);
+                double rise = MOTE_RISE * (1 + (random.nextDouble() - HALF) * MOTE_RISE_SPAN);
+                pocket.sendParticles(GooParticles.VOID_MOTE.get(), false, true, at.x, at.y, at.z, 0,
+                        (random.nextDouble() - HALF) * MOTE_DRIFT, rise, (random.nextDouble() - HALF) * MOTE_DRIFT,
+                        1);
             }
         }
     }

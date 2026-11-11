@@ -141,6 +141,10 @@
       {
         "name": "goo:effects/outsider_wub",
         "stream": false
+      },
+      {
+        "name": "goo:effects/outsider_wub2",
+        "stream": false
       }
     ]
   },
