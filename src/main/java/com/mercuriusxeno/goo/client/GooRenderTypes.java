@@ -1227,8 +1227,8 @@ public final class GooRenderTypes {
 
     /**
      * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
-     * sections down the tunnel drawn through {@code bore_vortex.vsh / .fsh},
-     * spiralling dust arms turning about the look.
+     * a tube's walls from the glove down the tunnel drawn through
+     * {@code bore_vortex.vsh / .fsh}, rifled dust arms screwing forward.
      */
     public static final RenderPipeline BORE_VORTEX = burnoutPipeline("bore_vortex", BlendFunction.TRANSLUCENT);
 
