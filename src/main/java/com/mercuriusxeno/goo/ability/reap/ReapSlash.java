@@ -162,6 +162,16 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
     }
 
     /**
+     * How far the slash has travelled outward an age into its life.
+     *
+     * @param age ticks since it appeared
+     * @return the distance travelled, 0 to its drift, in blocks
+     */
+    public double travelledAt(double age) {
+        return drift * Math.clamp(age / lifeTicks, 0, 1);
+    }
+
+    /**
      * How far it rolls about its heading, the right end of its span raised
      * for a positive roll.
      *
