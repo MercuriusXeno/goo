@@ -5,8 +5,8 @@
 
 // Bore's vortex (decision bore-vortex-with-a-worldspace-shake).
 // ConeSections packs the vertex color: red is how far along the tunnel the
-// cross-section stands, green and blue the vertex's position on the
-// cross-section, each of [-1, 1] mapped onto [0, 1].
+// tube's ring stands, green and blue the vertex's place around the ring,
+// each of [-1, 1] mapped onto [0, 1].
 
 in vec3 Position;
 in vec4 Color;

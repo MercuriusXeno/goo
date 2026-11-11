@@ -20,32 +20,39 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Bore's vortex: while right click holds a bore stream, a spiralling dust
- * vortex runs down the tunnel from the glove to the bore's reach, stacked
- * sections one block wide, as wide as the line the bore drills, filled by
- * {@code bore_vortex.fsh}.
+ * vortex runs down the tunnel from the glove to the bore's reach on the eye
+ * line, a tube one block wide, as wide as the line the bore drills, its
+ * walls rifled by {@code bore_vortex.fsh}.
  * decision bore-vortex-with-a-worldspace-shake
  * decision bore-breaks-a-15-degree-cone
+ * decision diagnose-and-correct-bores-small-distant-vortex
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BoreVortex {
 
-    /** Sections stacked down the tunnel. */
-    static final int SECTIONS = 10;
+    /** Rings the tube's walls run between, down the tunnel. */
+    static final int SECTIONS = 24;
     private static final double HALF = 0.5;
+    /** The share of its full width the vortex leaves the glove at. */
+    private static final double AT_THE_GLOVE = 0.2;
+    /** How far from the glove, in blocks, the vortex widens to the line it drills. */
+    private static final double WIDENS_OVER = 1;
 
     private BoreVortex() {
     }
 
     /**
-     * The vortex's radius a distance down the tunnel: half a block all the
-     * way, so the vortex draws the one-block line the bore drills.
+     * The vortex's radius a distance down the tunnel: it leaves the glove
+     * narrow and widens over the first block to half a block, so it draws
+     * the one-block line the bore drills from there to the reach.
      * decision bore-breaks-a-15-degree-cone
      *
-     * @param distance the distance from the eye in blocks
+     * @param distance the distance from the glove in blocks
      * @return the radius in blocks
      */
     static double radiusAt(double distance) {
-        return HALF;
+        double widened = Math.min(1, distance / WIDENS_OVER);
+        return HALF * (AT_THE_GLOVE + (1 - AT_THE_GLOVE) * widened);
     }
 
     /**
@@ -67,10 +74,29 @@ public final class BoreVortex {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.BORE_VORTEX_TYPE));
-        ConeSections.emit(quads, new ConeSections.Volume(player.getEyePosition(partialTick).subtract(camera),
-                player.getViewVector(partialTick), player.getViewYRot(partialTick), ConeSections.NEAR,
-                bore.delivery().range(), SECTIONS, BoreVortex::radiusAt));
+        ConeSections.emitWalls(quads, volume(player.getEyePosition(partialTick).subtract(camera),
+                GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera),
+                player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range()));
         buffers.endBatch(GooRenderTypes.BORE_VORTEX_TYPE);
+    }
+
+    /**
+     * The tube the vortex fills: from the glove to the bore's reach on the
+     * eye line it drills, so the player sees it run long across the view
+     * rather than end on down their own line of sight.
+     * decision diagnose-and-correct-bores-small-distant-vortex
+     *
+     * @param eye   the eye, camera relative
+     * @param hand  the glove, camera relative
+     * @param look  the look's unit vector
+     * @param yaw   the look's yaw in degrees
+     * @param reach the bore's reach from the eye
+     * @return the volume, its apex at the glove
+     */
+    static ConeSections.Volume volume(Vec3 eye, Vec3 hand, Vec3 look, float yaw, double reach) {
+        Vec3 toEnd = eye.add(look.scale(reach)).subtract(hand);
+        return new ConeSections.Volume(hand, toEnd.normalize(), yaw, 0, toEnd.length(), SECTIONS,
+                BoreVortex::radiusAt);
     }
 
     /**
