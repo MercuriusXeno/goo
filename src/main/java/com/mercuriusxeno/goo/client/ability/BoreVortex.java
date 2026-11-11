@@ -21,8 +21,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Bore's vortex: while right click holds a bore stream, a spiralling dust
  * vortex runs down the tunnel from the glove to the bore's reach, stacked
- * sections as wide as the bore's cone, filled by {@code bore_vortex.fsh}.
+ * sections one block wide, as wide as the line the bore drills, filled by
+ * {@code bore_vortex.fsh}.
  * decision bore-vortex-with-a-worldspace-shake
+ * decision bore-breaks-a-15-degree-cone
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BoreVortex {
@@ -35,16 +37,15 @@ public final class BoreVortex {
     }
 
     /**
-     * The vortex's radius a distance down the tunnel: the cone's own radius
-     * there, so the vortex draws the tunnel the bore cuts.
+     * The vortex's radius a distance down the tunnel: half a block all the
+     * way, so the vortex draws the one-block line the bore drills.
      * decision bore-breaks-a-15-degree-cone
      *
-     * @param distance    the distance from the eye in blocks
-     * @param coneDegrees the bore's cone, apex angle edge to edge, in degrees
+     * @param distance the distance from the eye in blocks
      * @return the radius in blocks
      */
-    static double radiusAt(double distance, double coneDegrees) {
-        return distance * Math.tan(Math.toRadians(coneDegrees * HALF));
+    static double radiusAt(double distance) {
+        return HALF;
     }
 
     /**
@@ -68,7 +69,7 @@ public final class BoreVortex {
                 buffers.getBuffer(GooRenderTypes.BORE_VORTEX_TYPE));
         ConeSections.emit(quads, new ConeSections.Volume(player.getEyePosition(partialTick).subtract(camera),
                 player.getViewVector(partialTick), player.getViewYRot(partialTick), ConeSections.NEAR,
-                bore.delivery().range(), SECTIONS, distance -> radiusAt(distance, bore.delivery().coneDegrees())));
+                bore.delivery().range(), SECTIONS, BoreVortex::radiusAt));
         buffers.endBatch(GooRenderTypes.BORE_VORTEX_TYPE);
     }
 

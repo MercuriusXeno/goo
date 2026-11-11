@@ -7,8 +7,6 @@ package com.mercuriusxeno.goo.ability.program;
  * Decision ailment-overlay-shader-per-ailment.
  */
 public enum AilmentPattern {
-    /** A scrolling shimmer like the enchantment glint. */
-    GLINT,
     /** Crisp diamond facets catching the light in turn. */
     FACETS,
     /** A swirling speckled shimmer, the ender warp's look. */
