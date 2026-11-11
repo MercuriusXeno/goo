@@ -353,9 +353,10 @@ public final class GooClientSetup {
 
     /**
      * Registers the render state modifiers that stamp each entity's goo state
-     * onto its render state: the rally outline, the glove's target outline,
-     * which overrides it, the goo coat, the ailments, the phase, the stone and
-     * frost encasements, the frozen pose, the grab flail, the vine tangle, the
+     * onto its render state: the rally outline, the ailments with their
+     * outline, which overrides the rally's, the glove's target outline, which
+     * overrides both, the goo coat, the phase, the stone and frost
+     * encasements, the frozen pose, the grab flail, the vine tangle, the
      * transformation, the eldritch phase and the exit tilt, in that order.
      *
      * @param event the event instance
@@ -366,9 +367,9 @@ public final class GooClientSetup {
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
                 RallyOutline::stampOutline,
+                AilmentOverlayLayer::stampAilments,
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,
-                AilmentOverlayLayer::stampAilments,
                 PhaseLook::stampPhase,
                 EncasementLayer::stampPetrify,
                 EncasementLayer::stampFrozen,

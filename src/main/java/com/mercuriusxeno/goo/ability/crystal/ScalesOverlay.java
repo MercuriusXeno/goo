@@ -19,8 +19,8 @@ import java.util.UUID;
 /**
  * Crystal Scales on a player's model: while the player's crystal hearts
  * stand on the glove, every watcher draws the diamond-blue
- * faceted overlay over the player, a pattern apart from Stasis's
- * glint; it clears once the crystal hearts are gone.
+ * faceted overlay over the player, a pattern of its own; it clears
+ * once the crystal hearts are gone.
  * decision scales-crystal-hearts-diamond-blue-overlay
  */
 @EventBusSubscriber(modid = Goo.MODID)
