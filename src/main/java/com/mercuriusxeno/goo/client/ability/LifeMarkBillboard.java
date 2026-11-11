@@ -18,7 +18,8 @@ import java.util.List;
  * Draws the life mark over each mob Heal or Drain touched lately, turned to
  * face the camera in vanilla's heart sprites: an empty heart's outline under
  * every heart, the full or half heart over it, and a clustered mark's count
- * beside its one heart.
+ * beside its one heart. The mark draws see-through, over any block between
+ * it and the camera, so a wall or ceiling the mark floats into cuts none of it.
  * touched-mobs-show-hearts-or-a-count-over-max
  */
 final class LifeMarkBillboard {
@@ -85,7 +86,7 @@ final class LifeMarkBillboard {
         drawHearts(poseStack, camera, buffers, marks, partialTick, HALF);
         for (Shown mark : marks) {
             if (mark.mark() instanceof LifeMark.Clustered clustered) {
-                faceCamera(poseStack, camera, mark.living(), partialTick, () -> InWorldHud.drawText(mc.font, buffers,
+                faceCamera(poseStack, camera, mark.living(), partialTick, () -> InWorldHud.drawTextSeeThrough(mc.font, buffers,
                         poseStack, clustered.count(), left(1) + HEART_SIZE + COUNT_GAP, 1f, mark.color()));
             }
         }
@@ -98,7 +99,7 @@ final class LifeMarkBillboard {
 
     private static void drawHearts(PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource buffers,
                                    List<Shown> marks, float partialTick, Identifier sprite) {
-        RenderType icon = RenderTypes.text(sprite);
+        RenderType icon = RenderTypes.textSeeThrough(sprite);
         VertexConsumer consumer = buffers.getBuffer(icon);
         for (Shown mark : marks) {
             List<HeartFill> hearts = heartsOf(mark.mark());
