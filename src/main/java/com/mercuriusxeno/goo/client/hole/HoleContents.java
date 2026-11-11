@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -76,10 +77,10 @@ public final class HoleContents {
                                     PortableHolesSyncPayload.Mouth mouth, Vec3 camera, float open, float time) {
         Direction face = mouth.face();
         Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
-        Vec3 centre = Vec3.atCenterOf(mouth.block()).add(normal.scale(FACE_OFFSET));
+        Vec3 centre = HoleMouths.openingOn(mouth.footprint(), face).getCenter();
         Vec3 across = face.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
         Vec3 along = normal.cross(across);
-        int light = LevelRenderer.getLightCoords(mc.level, mouth.block().relative(face));
+        int light = LevelRenderer.getLightCoords(mc.level, BlockPos.containing(centre.add(normal.scale(FACE_OFFSET))));
         int shown = Math.min(mouth.stored().size(), SHOWN.length);
         for (int index = 0; index < shown; index++) {
             ItemStackRenderState item = SHOWN[index];

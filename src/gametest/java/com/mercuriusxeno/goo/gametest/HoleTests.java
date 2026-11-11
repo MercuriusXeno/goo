@@ -34,6 +34,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Gametests for Void's hole, an in-world portable hole: cast on a block's top
@@ -64,6 +65,115 @@ public final class HoleTests {
         GooTestFunctions.registerTest(registrar, CLOSES_AFTER_ITS_LIFETIME, HoleTests::closesAfterItsLifetime);
         GooTestFunctions.registerTest(registrar, DISMISSED_BY_LEAVING_ITS_DIMENSION,
                 HoleTests::dismissedByLeavingItsDimension);
+        GooTestFunctions.registerTest(registrar, MOUTH_COVERS_THREE_BY_THREE, HoleTests::mouthCoversThreeByThree);
+        GooTestFunctions.registerTest(registrar, MOUTH_FITS_A_ONE_BY_TWO_PLATFORM,
+                HoleTests::mouthFitsAOneByTwoPlatform);
+        GooTestFunctions.registerTest(registrar, MOUTH_FITS_A_LONE_PILLAR, HoleTests::mouthFitsALonePillar);
+    }
+
+    private static final String MOUTH_COVERS_THREE_BY_THREE = "hole_mouth_covers_three_by_three";
+    private static final String MOUTH_FITS_A_ONE_BY_TWO_PLATFORM = "hole_mouth_fits_a_one_by_two_platform";
+    private static final String MOUTH_FITS_A_LONE_PILLAR = "hole_mouth_fits_a_lone_pillar";
+    /** The cell, relative, a 3x3 mouth centred on FLOOR covers at its corner. */
+    private static final BlockPos CORNER = new BlockPos(1, 0, 1);
+    /** The cell, relative, beside FLOOR that a 1x2 platform runs onto. */
+    private static final BlockPos PLATFORM_END = new BlockPos(3, 0, 2);
+    /** The cell, relative, beside FLOOR that no small mouth covers. */
+    private static final BlockPos BESIDE = new BlockPos(1, 0, 2);
+    private static final int FULL_FOOTPRINT = 9;
+    private static final int PLATFORM_FOOTPRINT = 2;
+
+    /**
+     * Cast on the middle of a flat 3x3 floor, the mouth covers all nine top
+     * faces, and an item dropped over a corner cell is swallowed onto the
+     * caster's shelf.
+     * decision hole-mouth-opens-three-by-three-and-fits-its-room
+     *
+     * @param helper the gametest helper
+     */
+    public static void mouthCoversThreeByThree(GameTestHelper helper) {
+        ServerPlayer caster = caster(helper, 1);
+        layFloor(helper, cell -> true);
+        castAt(caster, helper.absolutePos(FLOOR), Direction.UP);
+        ItemEntity[] dropped = new ItemEntity[1];
+        int[] cells = new int[1];
+        helper.runAfterDelay(LANDED, () -> {
+            cells[0] = PortableHoles.of(caster.getUUID()).map(hole -> hole.footprint().size()).orElse(0);
+            dropped[0] = dropOver(helper, CORNER);
+        });
+        helper.runAfterDelay(LANDED + SWALLOWED, () -> {
+            long stored = PocketShelves.get(helper.getLevel()).countOf(caster.getUUID(), new ItemStack(Items.COBBLESTONE));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(cells[0] == FULL_FOOTPRINT, "The mouth should cover " + FULL_FOOTPRINT + " cells, covers "
+                    + cells[0]);
+            helper.assertTrue(dropped[0].isRemoved(), "The item dropped over the corner should be swallowed");
+            helper.assertTrue(stored == DROPPED, "The shelf should hold " + DROPPED + " cobblestone, holds " + stored);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Cast on a 1x2 platform, the mouth covers its two top faces, and an item
+     * dropped over the cell beside it stays in the world.
+     * decision hole-mouth-opens-three-by-three-and-fits-its-room
+     *
+     * @param helper the gametest helper
+     */
+    public static void mouthFitsAOneByTwoPlatform(GameTestHelper helper) {
+        assertSmallMouth(helper, cell -> cell.equals(FLOOR) || cell.equals(PLATFORM_END), PLATFORM_FOOTPRINT);
+    }
+
+    /**
+     * Cast on a lone pillar, the mouth covers its one top face, and an item
+     * dropped over the cell beside it stays in the world.
+     * decision hole-mouth-opens-three-by-three-and-fits-its-room
+     *
+     * @param helper the gametest helper
+     */
+    public static void mouthFitsALonePillar(GameTestHelper helper) {
+        assertSmallMouth(helper, cell -> cell.equals(FLOOR), 1);
+    }
+
+    private static void assertSmallMouth(GameTestHelper helper, Predicate<BlockPos> solid,
+                                         int expected) {
+        ServerPlayer caster = caster(helper, 1);
+        layFloor(helper, solid);
+        castAt(caster, helper.absolutePos(FLOOR), Direction.UP);
+        ItemEntity[] dropped = new ItemEntity[1];
+        int[] cells = new int[1];
+        helper.runAfterDelay(LANDED, () -> {
+            cells[0] = PortableHoles.of(caster.getUUID()).map(hole -> hole.footprint().size()).orElse(0);
+            dropped[0] = dropOver(helper, BESIDE);
+        });
+        helper.runAfterDelay(LANDED + SWALLOWED, () -> {
+            int shelved = PocketShelves.get(helper.getLevel()).shelfOf(caster.getUUID()).size();
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(cells[0] == expected, "The mouth should cover " + expected + " cells, covers "
+                    + cells[0]);
+            helper.assertTrue(!dropped[0].isRemoved(), "The item dropped beside the mouth should stay in the world");
+            helper.assertTrue(shelved == 0, "The shelf should stand empty, holds " + shelved + " entries");
+            helper.succeed();
+        });
+    }
+
+    /** Lays the 3x3 around FLOOR as stone where the cell is solid and air elsewhere, with air above each. */
+    private static void layFloor(GameTestHelper helper, Predicate<BlockPos> solid) {
+        for (int x = FLOOR.getX() - 1; x <= FLOOR.getX() + 1; x++) {
+            for (int z = FLOOR.getZ() - 1; z <= FLOOR.getZ() + 1; z++) {
+                BlockPos cell = new BlockPos(x, FLOOR.getY(), z);
+                helper.setBlock(cell, solid.test(cell) ? Blocks.STONE : Blocks.AIR);
+                helper.setBlock(cell.above(), Blocks.AIR);
+            }
+        }
+    }
+
+    /** Drops a still cobblestone stack just over a cell's top face. */
+    private static ItemEntity dropOver(GameTestHelper helper, BlockPos cell) {
+        Vec3 at = helper.absoluteVec(Vec3.atBottomCenterOf(cell.above()).add(0, IN_THE_MOUTH.y() - 1, 0));
+        ItemEntity item = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, new ItemStack(Items.COBBLESTONE, DROPPED));
+        item.setDeltaMovement(Vec3.ZERO);
+        helper.getLevel().addFreshEntity(item);
+        return item;
     }
 
     private static final Identifier VOID_HOLE = Identifier.parse("goo:void_hole");
