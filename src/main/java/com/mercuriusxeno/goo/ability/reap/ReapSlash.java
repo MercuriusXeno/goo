@@ -154,23 +154,6 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
     }
 
     /**
-     * The slash as its slasher draws it in first person: turned about the
-     * line through its tips, at the slasher's chest, so its far edge lifts
-     * and its face shows from the eye as it does from the third-person
-     * camera; its tips, size and roll kept. The slash in the world, the one
-     * that cuts and that every other view draws, is unchanged.
-     *
-     * @param angle how far its far edge lifts, in radians
-     * @return the tipped slash
-     */
-    public ReapSlash tippedUp(double angle) {
-        Vec3 lift = span.cross(forward).normalize();
-        Vec3 upward = lift.y < 0 ? lift.reverse() : lift;
-        Vec3 heading = forward.scale(Math.cos(angle)).add(upward.scale(Math.sin(angle))).normalize();
-        return new ReapSlash(origin, heading, span, width, thickness, bulge, drift, lifeTicks);
-    }
-
-    /**
      * How bright the slash is an age into its life: whole as it appears,
      * dimming evenly to nothing.
      *

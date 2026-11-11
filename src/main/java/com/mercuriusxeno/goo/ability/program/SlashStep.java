@@ -157,7 +157,7 @@ public record SlashStep(Expr fewestTicks, Expr mostTicks, Expr fewestSlashes, Ex
                 mostSlashes.evaluateInt(context), slasher.getRandom());
         for (int thrown = 0; thrown < slashes; thrown++) {
             ReapSlash slash = ReapSlash.launch(eye, slasher.getLookAngle(), shape, slasher.getRandom());
-            BlockVisuals.sendToWatchers(level, BlockPos.containing(eye), new ReapSlashPayload(slash, slasher.getId()));
+            BlockVisuals.sendToWatchers(level, BlockPos.containing(eye), new ReapSlashPayload(slash));
             SlashCuts.launch(level, slash.box(), level.getGameTime(), slash.lifeTicks(), slasher.getId(), cut);
         }
         level.playSound(null, eye.x, eye.y, eye.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS,
