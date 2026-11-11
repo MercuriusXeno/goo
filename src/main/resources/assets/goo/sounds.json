@@ -133,5 +133,15 @@
         "stream": false
       }
     ]
+  },
+  "effects.outsider_wub": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_wub",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_wub",
+        "stream": false
+      }
+    ]
   }
 }

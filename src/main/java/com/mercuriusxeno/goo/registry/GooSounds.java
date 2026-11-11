@@ -70,5 +70,10 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.portal_hum",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.PORTAL_HUM));
 
+    /** An Outsider room gaining a full block (decision full-block-growth-wubs-and-raises-void-motes). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_WUB =
+        SOUND_EVENTS.register("effects.outsider_wub",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_WUB));
+
     private GooSounds() {}
 }

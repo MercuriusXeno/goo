@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.ability.outsider;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
@@ -45,12 +47,13 @@ import java.util.function.Consumer;
  * on all sides at once. Each part shows itself: void motes spiral in and a
  * hum rises while the hold charges, void bursts where the player leaves and
  * arrives, motes stream off the player while they feed the room, and each
- * whole ring the extent gains chimes, higher the farther out it stands.
+ * full block the extent gains wubs and raises void motes along every wall.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  * decision outsider-room-wraps-and-repeats-at-the-platform-edge
  * decision outsider-room-grows-fractionally-on-all-sides-at-once
  * decision voidstone-floor-stands-whole-and-growth-moves-the-boundary
  * decision grown-extent-is-the-one-wrap-and-build-boundary
+ * decision full-block-growth-wubs-and-raises-void-motes
  */
 public final class OutsiderRooms {
 
@@ -84,10 +87,15 @@ public final class OutsiderRooms {
     private static final int FEED_MOTES = 2;
     private static final double FEED_SPREAD = 0.35;
     private static final double FEED_SPEED = 0.05;
-    private static final float CHIME_VOLUME = 0.8f;
-    private static final float CHIME_PITCH = 0.8f;
-    private static final float CHIME_RISE = 0.04f;
-    private static final float CHIME_TOP = 2.0f;
+    private static final float WUB_VOLUME = 0.9f;
+    /** The blocks a sound at full volume carries across, which a wider room's wub is scaled past. */
+    private static final double HEARD_WITHIN = 16.0;
+    /** How much farther a square's corner stands from its middle than its side does. */
+    private static final double DIAGONAL = Math.sqrt(2.0);
+    /** The most motes one wall's line holds, past which they space out. */
+    private static final int MOTES_PER_WALL = 48;
+    /** How fast a wall's motes float up, blocks a tick. */
+    private static final double MOTE_RISE = 0.025;
 
     private OutsiderRooms() {
     }
@@ -177,7 +185,7 @@ public final class OutsiderRooms {
      * Feeds void into the room a player stands in: its extent rises by the
      * share of a block the feed covers, on every side at once, and places no
      * block, the floor already standing whole. A feed carrying the extent
-     * across a whole-block mark chimes, higher the farther out the mark.
+     * across a whole-block mark wubs and raises motes, {@link #cueGrowth}.
      * decision outsider-room-grows-fractionally-on-all-sides-at-once
      * decision voidstone-floor-stands-whole-and-growth-moves-the-boundary
      *
@@ -198,12 +206,88 @@ public final class OutsiderRooms {
         double before = pockets.platformOf(player.getUUID()).extent();
         double after = RoomExtent.grown(before, feed, base, perDistance);
         pockets.keepPlatform(player.getUUID(), new VoidPockets.Platform(after));
-        if (RoomExtent.wholeRings(after) > RoomExtent.wholeRings(before)) {
-            pocket.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_CHIME,
-                    SoundSource.PLAYERS, CHIME_VOLUME,
-                    Math.min(CHIME_TOP, CHIME_PITCH + RoomExtent.wholeRings(after) * CHIME_RISE));
-        }
+        cueGrowth(room, before, after, new PocketCues(pocket));
         announceGrowth(room, before, after, payload -> sendTo(player, payload));
+    }
+
+    /** Where a room's growth shows itself. */
+    interface GrowthCues {
+
+        /**
+         * Plays the room's wub.
+         *
+         * @param at     where it sounds from
+         * @param extent the room's extent, which the sound reaches across
+         */
+        void wub(Vec3 at, double extent);
+
+        /**
+         * Raises a line of void motes along one wall of the boundary.
+         *
+         * @param from the line's one end
+         * @param to   its other end
+         */
+        void moteLine(Vec3 from, Vec3 to);
+    }
+
+    /**
+     * Shows a feed that carried a room's extent across a whole-block mark,
+     * the moment a new ring of blocks becomes buildable: the room wubs once,
+     * and each of its four walls raises a line of void motes along the new
+     * boundary at the floor's top. A feed crossing no mark shows nothing.
+     * decision full-block-growth-wubs-and-raises-void-motes
+     *
+     * @param room         the room number
+     * @param extentBefore the room's extent before the feed
+     * @param extentAfter  its extent after
+     * @param cues         where the growth shows
+     */
+    static void cueGrowth(int room, double extentBefore, double extentAfter, GrowthCues cues) {
+        if (RoomExtent.wholeRings(extentAfter) <= RoomExtent.wholeRings(extentBefore)) {
+            return;
+        }
+        BlockPos center = voidstoneOf(room);
+        RoomExtent.Planes planes = RoomExtent.planesAround(center, extentAfter);
+        double floorTop = ROOM_FLOOR_Y + 1;
+        cues.wub(Vec3.atBottomCenterOf(center.above()), extentAfter);
+        cues.moteLine(new Vec3(planes.east(), floorTop, planes.north()), new Vec3(planes.east(), floorTop,
+                planes.south()));
+        cues.moteLine(new Vec3(planes.west(), floorTop, planes.north()), new Vec3(planes.west(), floorTop,
+                planes.south()));
+        cues.moteLine(new Vec3(planes.west(), floorTop, planes.south()), new Vec3(planes.east(), floorTop,
+                planes.south()));
+        cues.moteLine(new Vec3(planes.west(), floorTop, planes.north()), new Vec3(planes.east(), floorTop,
+                planes.north()));
+    }
+
+    /**
+     * The pocket's own growth cues: the wub played through the level, loud
+     * enough in range to reach every player across the room, and each line
+     * of motes sent at a mote a block, thinned past a cap so a long wall
+     * stays a line without flooding the client, each mote rising slowly.
+     * decision full-block-growth-wubs-and-raises-void-motes
+     *
+     * @param pocket the pocket dimension
+     */
+    private record PocketCues(ServerLevel pocket) implements GrowthCues {
+
+        @Override
+        public void wub(Vec3 at, double extent) {
+            float reach = (float) Math.max(1.0, extent * DIAGONAL / HEARD_WITHIN);
+            pocket.playSound(null, at.x, at.y, at.z, GooSounds.OUTSIDER_WUB.get(), SoundSource.PLAYERS,
+                    WUB_VOLUME * reach, 1f);
+        }
+
+        @Override
+        public void moteLine(Vec3 from, Vec3 to) {
+            double length = from.distanceTo(to);
+            int motes = (int) Math.min(MOTES_PER_WALL, Math.ceil(length));
+            for (int mote = 0; mote <= motes; mote++) {
+                Vec3 at = from.lerp(to, motes == 0 ? 0 : mote / (double) motes);
+                pocket.sendParticles(GooParticles.VOID_MOTE.get(), false, true, at.x, at.y, at.z, 0, 0, 1, 0,
+                        MOTE_RISE);
+            }
+        }
     }
 
     /**
