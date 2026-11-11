@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
@@ -58,8 +59,9 @@ final class LifeMarkBillboard {
      * @param living the mob
      * @param mark   what its life draws
      * @param color  the white tint, its alpha the mark's fade
+     * @param left   the mark's left edge in pixels, which centers the whole mark over the head
      */
-    private record Shown(LivingEntity living, LifeMark mark, int color) {
+    private record Shown(LivingEntity living, LifeMark mark, int color, float left) {
     }
 
     /**
@@ -76,9 +78,11 @@ final class LifeMarkBillboard {
             return;
         }
         float time = mc.level.getGameTime() + partialTick;
-        List<Shown> marks = shown.stream().map(living -> new Shown(living,
-                LifeMark.of(living.getHealth(), living.getMaxHealth()),
-                tint(TouchedMobs.CLIENT.opacity(living.getId(), time)))).toList();
+        List<Shown> marks = shown.stream().map(living -> {
+            LifeMark mark = LifeMark.of(living.getHealth(), living.getMaxHealth());
+            return new Shown(living, mark, tint(TouchedMobs.CLIENT.opacity(living.getId(), time)),
+                    leftOf(mark, mc.font));
+        }).toList();
         Camera camera = mc.gameRenderer.getMainCamera();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         drawHearts(poseStack, camera, buffers, marks, partialTick, CONTAINER);
@@ -86,11 +90,27 @@ final class LifeMarkBillboard {
         drawHearts(poseStack, camera, buffers, marks, partialTick, HALF);
         for (Shown mark : marks) {
             if (mark.mark() instanceof LifeMark.Clustered clustered) {
-                faceCamera(poseStack, camera, mark.living(), partialTick, () -> InWorldHud.drawTextSeeThrough(mc.font, buffers,
-                        poseStack, clustered.count(), left(1) + HEART_SIZE + COUNT_GAP, 1f, mark.color()));
+                faceCamera(poseStack, camera, mark.living(), partialTick, () -> InWorldHud.drawTextSeeThrough(
+                        mc.font, buffers, poseStack, clustered.count(), mark.left() + HEART_SIZE + COUNT_GAP, 1f,
+                        mark.color()));
             }
         }
         buffers.endBatch();
+    }
+
+    /**
+     * The left edge that centers a mark over the head: a row's hearts, or a
+     * clustered mark's heart, gap and count taken as one width.
+     *
+     * @param mark the life mark
+     * @param font the font the count draws in
+     * @return the left edge, in pixels
+     */
+    private static float leftOf(LifeMark mark, Font font) {
+        return switch (mark) {
+            case LifeMark.Row row -> -rowWidth(row.hearts().size()) / HALVED;
+            case LifeMark.Clustered clustered -> -(HEART_SIZE + COUNT_GAP + font.width(clustered.count())) / HALVED;
+        };
     }
 
     private static int tint(float opacity) {
@@ -106,7 +126,7 @@ final class LifeMarkBillboard {
             faceCamera(poseStack, camera, mark.living(), partialTick, () -> {
                 for (int heart = 0; heart < hearts.size(); heart++) {
                     if (sprite.equals(CONTAINER) || spriteOf(hearts.get(heart)).equals(sprite)) {
-                        quad(consumer, poseStack.last(), left(hearts.size()) + heart * HEART_STEP, mark.color());
+                        quad(consumer, poseStack.last(), mark.left() + heart * HEART_STEP, mark.color());
                     }
                 }
             });
@@ -136,13 +156,13 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * The left edge of a row of hearts, in pixels, so the row centers over the head.
+     * The width of a row of hearts, in pixels, their outlines overlapping.
      *
      * @param hearts the hearts in the row
-     * @return the left edge
+     * @return the width
      */
-    private static float left(int hearts) {
-        return -((hearts - 1) * HEART_STEP + HEART_SIZE) / HALVED;
+    private static float rowWidth(int hearts) {
+        return (hearts - 1) * HEART_STEP + HEART_SIZE;
     }
 
     /**
