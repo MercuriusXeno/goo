@@ -207,7 +207,9 @@ public final class GooFlightRenderer {
         ctx.poseStack.popPose();
 
         if (mainFrame) {
-            GooTrailParticles.spawnTrailParticles(pos, vel, flight.gooType, flight);
+            // thrown-blob-trail-takes-the-blobs-velocity
+            GooTrailParticles.spawnTrailParticles(pos, flight,
+                    new GooTrailParticles.TrailMotion(vel, flight.getTickVelocity(ctx.partialTick)), flight.gooType);
         }
     }
 

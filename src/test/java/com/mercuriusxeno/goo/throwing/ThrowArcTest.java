@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.throwing;
 
 import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -136,5 +137,68 @@ class ThrowArcTest {
         Vec3 clamped = ThrowArc.clampToReach(eye, forged, ThrowArc.HAND_REACH);
         assertEquals(ThrowArc.HAND_REACH, clamped.distanceTo(eye), PEAK_TOLERANCE);
         assertEquals(eye.add(0, 0, ThrowArc.HAND_REACH).distanceTo(clamped), 0.0, PEAK_TOLERANCE);
+    }
+
+    /**
+     * A thrown blob leaves the hand carrying the thrower's travel velocity,
+     * the drift fades within the fade window, and the landing stays put
+     * (decision thrown-blob-leaves-the-hand-with-a-fading-drift).
+     */
+    @Nested
+    class Drift {
+
+        private static final Vec3 HAND = new Vec3(0, 64, 0);
+        private static final Vec3 TARGET = new Vec3(12, 62, 5);
+        private static final double PEAK = 1.5;
+        private static final double TRAVEL_TICKS = 8;
+        private static final Vec3 SPRINTING = new Vec3(0.28, -0.08, 0.1);
+        private static final double TINY_STEP_TICKS = 1e-7;
+        private static final double RATE_TOLERANCE = 1e-6;
+        private static final int SAMPLES = 64;
+
+        @Test
+        void theBlobLeavesTheHandMovingWithTheThrowersTravel() {
+            assertEquals(Vec3.ZERO, ThrowArc.driftOffset(SPRINTING, 0, TRAVEL_TICKS));
+            Vec3 rate = ThrowArc.driftOffset(SPRINTING, TINY_STEP_TICKS, TRAVEL_TICKS).scale(1 / TINY_STEP_TICKS);
+            assertEquals(SPRINTING.x, rate.x, RATE_TOLERANCE);
+            assertEquals(SPRINTING.y, rate.y, RATE_TOLERANCE);
+            assertEquals(SPRINTING.z, rate.z, RATE_TOLERANCE);
+        }
+
+        @Test
+        void theDriftReadsZeroFromTheFadeWindowsEndToTheLanding() {
+            assertEquals(Vec3.ZERO, ThrowArc.driftOffset(SPRINTING, ThrowArc.DRIFT_FADE_TICKS, TRAVEL_TICKS));
+            for (int i = 0; i <= SAMPLES; i++) {
+                double ticks = ThrowArc.DRIFT_FADE_TICKS
+                        + (TRAVEL_TICKS - ThrowArc.DRIFT_FADE_TICKS) * i / SAMPLES;
+                assertEquals(Vec3.ZERO, ThrowArc.driftOffset(SPRINTING, ticks, TRAVEL_TICKS),
+                        "The drift should read zero " + ticks + " ticks into the flight");
+            }
+        }
+
+        @Test
+        void theDriftIsLiveInsideTheFadeWindow() {
+            assertTrue(ThrowArc.driftOffset(SPRINTING, ThrowArc.DRIFT_FADE_TICKS / 2, TRAVEL_TICKS).length() > 0);
+        }
+
+        @Test
+        void aMovingThrowerStillLandsOnTheArcsEnd() {
+            assertEquals(TARGET, ThrowArc.driftedArcPoint(HAND, TARGET, 1, PEAK, SPRINTING, TRAVEL_TICKS));
+        }
+
+        @Test
+        void aFlightShorterThanTheFadeWindowStillLandsOnTheArcsEnd() {
+            assertEquals(TARGET, ThrowArc.driftedArcPoint(HAND, TARGET, 1, PEAK, SPRINTING, 1));
+        }
+
+        @Test
+        void aStandingThrowerFliesThePlainArc() {
+            for (int i = 0; i <= SAMPLES; i++) {
+                double t = (double) i / SAMPLES;
+                assertEquals(ThrowArc.arcPoint(HAND, TARGET, t, PEAK),
+                        ThrowArc.driftedArcPoint(HAND, TARGET, t, PEAK, Vec3.ZERO, TRAVEL_TICKS),
+                        "A standing throw should fly the plain arc at t " + t);
+            }
+        }
     }
 }
