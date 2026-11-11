@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.SheetedDecalTextureGenerator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -25,6 +26,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.state.level.BlockBreakingRenderState;
+import net.minecraft.client.resources.model.ModelBakery;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -49,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -392,7 +396,8 @@ public final class GroundShake {
         }
         collectShaken(level, zone);
         if (!shaken.isEmpty()) {
-            drawShaken(mc, event.getPoseStack(), zone, level.getGameTime() + partialTick);
+            drawShaken(mc, event.getPoseStack(), new Shake(zone, level.getGameTime() + partialTick,
+                    event.getLevelRenderState().blockBreakingRenderStates));
         }
     }
 
@@ -408,39 +413,80 @@ public final class GroundShake {
     }
 
     /**
+     * One frame's shake: where the ground shakes, when, and the cracks
+     * vanilla draws this frame.
+     *
+     * @param zone     where the ground shakes
+     * @param time     the game time including the partial tick
+     * @param breaking the blocks vanilla draws a crack on, each with its stage
+     */
+    private record Shake(Zone zone, float time, Collection<BlockBreakingRenderState> breaking) {
+    }
+
+    /**
      * Draws each shaking block's own model over itself, tesselated as the
      * world tesselates it so its light and culled faces match, swollen by as
      * much as it can move so the copy always stands in front of the still
-     * block, and offset by the shake.
+     * block, and offset by the shake; a block vanilla cracks draws its crack
+     * on the copy, since the copy hides the crack on the block's own faces.
+     * decision diagnose-and-remove-flattens-particle-artifacting
      *
      * @param mc        the client
      * @param poseStack the level's pose stack, camera relative
-     * @param zone      where the ground shakes
-     * @param time      the game time including the partial tick
+     * @param shake     the frame's shake
      */
-    private static void drawShaken(Minecraft mc, PoseStack poseStack, Zone zone, float time) {
+    private static void drawShaken(Minecraft mc, PoseStack poseStack, Shake shake) {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        MultiBufferSource.BufferSource crumbling = mc.renderBuffers().crumblingBufferSource();
         RenderType blocks = renderType();
         VertexConsumer consumer = buffers.getBuffer(blocks);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ModelBlockRenderer tesselator = new ModelBlockRenderer(mc.options.ambientOcclusion().get(), true,
                 mc.getBlockColors());
         for (BlockPos pos : shaken) {
-            BlockState state = mc.level.getBlockState(pos);
-            BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
-            Vec3 offset = offsetAt(pos, zone, time);
-            float swell = (float) (1 + BOTH_SIDES * AMPLITUDE * zone.strengthAt(pos));
             poseStack.pushPose();
-            poseStack.translate(pos.getX() - camera.x + offset.x + HALF, pos.getY() - camera.y + offset.y + HALF,
-                    pos.getZ() - camera.z + offset.z + HALF);
-            poseStack.scale(swell, swell, swell);
-            poseStack.translate(-HALF, -HALF, -HALF);
+            placeCopy(poseStack, pos, camera, shake);
             PoseStack.Pose pose = poseStack.last();
-            tesselator.tesselateBlock((x, y, z, quad, instance) -> consumer.putBakedQuad(pose, quad, instance),
-                    0f, 0f, 0f, mc.level, pos, state, model, state.getSeed(pos));
+            tesselateCopy(mc, tesselator, pos, consumer, pose);
+            crackStageOn(pos, shake.breaking()).ifPresent(stage -> tesselateCopy(mc, tesselator, pos,
+                    new SheetedDecalTextureGenerator(crumbling.getBuffer(ModelBakery.DESTROY_TYPES.get(stage)),
+                            pose, 1f), pose));
             poseStack.popPose();
         }
         buffers.endBatch(blocks);
+        crumbling.endBatch();
+    }
+
+    private static void placeCopy(PoseStack poseStack, BlockPos pos, Vec3 camera, Shake shake) {
+        Vec3 offset = offsetAt(pos, shake.zone(), shake.time());
+        float swell = (float) (1 + BOTH_SIDES * AMPLITUDE * shake.zone().strengthAt(pos));
+        poseStack.translate(pos.getX() - camera.x + offset.x + HALF, pos.getY() - camera.y + offset.y + HALF,
+                pos.getZ() - camera.z + offset.z + HALF);
+        poseStack.scale(swell, swell, swell);
+        poseStack.translate(-HALF, -HALF, -HALF);
+    }
+
+    private static void tesselateCopy(Minecraft mc, ModelBlockRenderer tesselator, BlockPos pos,
+                                      VertexConsumer consumer, PoseStack.Pose pose) {
+        BlockState state = mc.level.getBlockState(pos);
+        BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
+        tesselator.tesselateBlock((x, y, z, quad, instance) -> consumer.putBakedQuad(pose, quad, instance),
+                0f, 0f, 0f, mc.level, pos, state, model, state.getSeed(pos));
+    }
+
+    /**
+     * The crack stage a shaking block's copy draws over itself: the stage
+     * vanilla shows on the block, since the copy stands in front of the
+     * block and hides the crack vanilla draws on the block's own faces.
+     * decision diagnose-and-remove-flattens-particle-artifacting
+     *
+     * @param pos      the shaking block
+     * @param breaking the blocks vanilla draws a crack on this frame, each with its stage
+     * @return the stage, or empty where the block shows no crack
+     */
+    static OptionalInt crackStageOn(BlockPos pos, Collection<BlockBreakingRenderState> breaking) {
+        return breaking.stream().filter(state -> state.blockPos().equals(pos))
+                .mapToInt(BlockBreakingRenderState::progress).findFirst();
     }
 
     /**
