@@ -71,14 +71,14 @@ public final class RoomEdges {
     }
 
     /**
-     * A room's edge pairs.
+     * A room's edge pairs, around the square of blocks its extent holds whole.
      *
-     * @param room  the room number
-     * @param cells the platform's cell count
+     * @param room   the room number
+     * @param extent the room's extent
      * @return east paired with west and south with north
      */
-    public static List<GatePassage.Pair> pairsOf(int room, int cells) {
-        return around(OutsiderRooms.voidstoneOf(room), cells).pairs();
+    public static List<GatePassage.Pair> pairsOf(int room, double extent) {
+        return around(OutsiderRooms.voidstoneOf(room), RoomExtent.wholeCells(extent)).pairs();
     }
 
     /**
@@ -89,8 +89,8 @@ public final class RoomEdges {
      */
     public static List<GatePassage.Pair> pairsOf(MinecraftServer server) {
         List<GatePassage.Pair> pairs = new ArrayList<>();
-        VoidPockets.get(server.overworld()).platformCellsByRoom()
-                .forEach((room, cells) -> pairs.addAll(pairsOf(room, cells)));
+        VoidPockets.get(server.overworld()).extentsByRoom()
+                .forEach((room, extent) -> pairs.addAll(pairsOf(room, extent)));
         return pairs;
     }
 

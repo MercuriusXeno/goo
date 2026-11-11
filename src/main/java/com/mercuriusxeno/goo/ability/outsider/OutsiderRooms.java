@@ -26,26 +26,31 @@ import java.util.function.Consumer;
 /**
  * Void's Outsider rooms in goo:pocket, an empty dimension where each
  * player's room stands apart from every other and keeps whatever was built
- * in it. Every platform cell is voidstone, as the operator ruled: a room
- * starts as a 3 by 3 of it, with a two-tall, door-shaped dimension doorway
- * standing alone on the center cell, as the operator ruled, and the player
- * arrives on the cell just south of the doorway, facing it. Walking into the
- * doorway leads back to where the player cast Outsider from; the doorway and
- * every platform cell stand again if anything removes them. The room wraps:
- * its edges are linked gates, {@link RoomEdges}, so a player walking off one
- * side of the grown square carries on in from the opposite side, and only a
- * player falling below the floor, a failsafe for creative flight, is set
- * back south of the door unharmed, the pocket folding them back. No block
- * may be placed outside the grown cells. Each player's room is saved to them
- * forever, and every way in, catch and bound reads that room alone. Rooms stand a million
- * blocks apart along {@link RoomGrid}. Held on inside, Outsider feeds void into the platform,
- * which grows in voidstone along {@link PlatformSpiral}. Each part shows
- * itself: void motes spiral in and a hum rises while the hold charges, void
- * bursts where the player leaves and arrives, motes stream off the player
- * while they feed the platform, and each grown cell puffs void and chimes,
- * higher the farther out it stands.
+ * in it. The floor is voidstone, standing whole across the pocket from the
+ * moment a room is laid, {@link PocketFloor}; a room starts with an extent
+ * holding the 3 by 3 around its center, where a two-tall, door-shaped
+ * dimension doorway stands alone on the center voidstone, as the operator
+ * ruled, and the player arrives on the block just south of the doorway,
+ * facing it. Walking into the doorway leads back to where the player cast
+ * Outsider from; the doorway and the center voidstone stand again if
+ * anything removes them. The room wraps: its edges are linked gates,
+ * {@link RoomEdges}, so a player walking off one side of the grown square
+ * carries on in from the opposite side, and only a player falling below the
+ * floor, a failsafe for creative flight, is set back south of the door
+ * unharmed, the pocket folding them back. A block may be placed only where
+ * it lies wholly inside the room's extent. Each player's room is saved to
+ * them forever, and every way in, catch and bound reads that room alone.
+ * Rooms stand a million blocks apart along {@link RoomGrid}. Held on inside,
+ * Outsider feeds void into the room, whose {@link RoomExtent} grows outward
+ * on all sides at once. Each part shows itself: void motes spiral in and a
+ * hum rises while the hold charges, void bursts where the player leaves and
+ * arrives, motes stream off the player while they feed the room, and each
+ * whole ring the extent gains chimes, higher the farther out it stands.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  * decision outsider-room-wraps-and-repeats-at-the-platform-edge
+ * decision outsider-room-grows-fractionally-on-all-sides-at-once
+ * decision voidstone-floor-stands-whole-and-growth-moves-the-boundary
+ * decision grown-extent-is-the-one-wrap-and-build-boundary
  */
 public final class OutsiderRooms {
 
@@ -79,15 +84,10 @@ public final class OutsiderRooms {
     private static final int FEED_MOTES = 2;
     private static final double FEED_SPREAD = 0.35;
     private static final double FEED_SPEED = 0.05;
-    private static final int GROW_PARTICLES = 14;
-    private static final double GROW_SPREAD = 0.3;
-    private static final double GROW_RISE = 0.15;
-    private static final double GROW_SPEED = 0.04;
     private static final float CHIME_VOLUME = 0.8f;
     private static final float CHIME_PITCH = 0.8f;
     private static final float CHIME_RISE = 0.04f;
     private static final float CHIME_TOP = 2.0f;
-    private static final double HALF_BLOCK = 0.5;
 
     private OutsiderRooms() {
     }
@@ -137,18 +137,6 @@ public final class OutsiderRooms {
     }
 
     /**
-     * A platform cell's block.
-     *
-     * @param room  the room number
-     * @param index the cell's place along the spiral
-     * @return the cell's block on the floor
-     */
-    private static BlockPos platformCellOf(int room, int index) {
-        PlatformSpiral.Cell cell = PlatformSpiral.cellAt(index);
-        return voidstoneOf(room).offset(cell.x(), 0, cell.z());
-    }
-
-    /**
      * A player's room number, if one was handed out.
      *
      * @param level  any level of the server
@@ -160,8 +148,8 @@ public final class OutsiderRooms {
     }
 
     /**
-     * The void a tick of the hold feeds a player's platform: its current
-     * ring's cost spread over the ring time.
+     * The void a tick of the hold feeds a player's room: the cost of the ring
+     * its extent grows through spread over the ring time.
      *
      * @param player      the player in their room
      * @param ringTicks   the ticks every ring takes
@@ -170,29 +158,30 @@ public final class OutsiderRooms {
      * @return the feed (mB)
      */
     public static int feedOf(ServerPlayer player, int ringTicks, int base, int perDistance) {
-        int cells = VoidPockets.get(player.level()).platformOf(player.getUUID()).cells();
-        return (int) Math.min(Integer.MAX_VALUE, PlatformSpiral.feedFor(cells, base, perDistance, ringTicks));
+        double extent = extentOf(player.level(), player.getUUID());
+        return (int) Math.min(Integer.MAX_VALUE, RoomExtent.feedFor(extent, base, perDistance, ringTicks));
     }
 
     /**
-     * The cells a player's platform holds.
+     * How far a player's room has grown.
      *
      * @param level  any level of the server
      * @param player the player's id
-     * @return the cell count
+     * @return the room's {@link RoomExtent}
      */
-    public static int platformCells(ServerLevel level, UUID player) {
-        return VoidPockets.get(level).platformOf(player).cells();
+    public static double extentOf(ServerLevel level, UUID player) {
+        return VoidPockets.get(level).platformOf(player).extent();
     }
 
     /**
-     * Feeds void into the platform of the room a player stands in: as many
-     * cells grow along the spiral as what was fed covers, each at its own
-     * cost, and what is left over carries to the cell after. A cell a player
-     * built into already counts as grown. Only the first cell a feed grows
-     * chimes, so a fast ring rings once a tick.
+     * Feeds void into the room a player stands in: its extent rises by the
+     * share of a block the feed covers, on every side at once, and places no
+     * block, the floor already standing whole. A feed carrying the extent
+     * across a whole-block mark chimes, higher the farther out the mark.
+     * decision outsider-room-grows-fractionally-on-all-sides-at-once
+     * decision voidstone-floor-stands-whole-and-growth-moves-the-boundary
      *
-     * @param player   the player in their room
+     * @param player      the player in their room
      * @param feed        the void fed (mB)
      * @param base        the void a cell costs at the center (mB)
      * @param perDistance the void each block of Manhattan distance from the center adds (mB)
@@ -206,62 +195,15 @@ public final class OutsiderRooms {
         }
         pocket.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1, player.getZ(),
                 FEED_MOTES, FEED_SPREAD, FEED_SPREAD, FEED_SPREAD, FEED_SPEED);
-        VoidPockets.Platform platform = pockets.platformOf(player.getUUID());
-        int cells = platform.cells();
-        long fed = platform.fed() + feed;
-        long cost = PlatformSpiral.costOf(cells, base, perDistance);
-        boolean chimed = false;
-        while (fed >= cost) {
-            BlockPos at = platformCellOf(room, cells);
-            if (pocket.getBlockState(at).isAir()) {
-                pocket.setBlock(at, GooBlocks.VOIDSTONE.get().defaultBlockState(), Block.UPDATE_ALL);
-            }
-            showGrowth(pocket, at, at.distManhattan(voidstoneOf(room)), !chimed);
-            chimed = true;
-            cells++;
-            fed -= cost;
-            cost = PlatformSpiral.costOf(cells, base, perDistance);
+        double before = pockets.platformOf(player.getUUID()).extent();
+        double after = RoomExtent.grown(before, feed, base, perDistance);
+        pockets.keepPlatform(player.getUUID(), new VoidPockets.Platform(after));
+        if (RoomExtent.wholeRings(after) > RoomExtent.wholeRings(before)) {
+            pocket.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_CHIME,
+                    SoundSource.PLAYERS, CHIME_VOLUME,
+                    Math.min(CHIME_TOP, CHIME_PITCH + RoomExtent.wholeRings(after) * CHIME_RISE));
         }
-        pockets.keepPlatform(player.getUUID(), new VoidPockets.Platform(cells, fed));
-        announceGrowth(room, platform.cells(), cells, payload -> sendTo(player, payload));
-    }
-
-    /**
-     * Shows a cell growing: void puffs up off it and it chimes, higher the
-     * farther it stands from the center.
-     *
-     * @param pocket   the pocket dimension
-     * @param at       the grown cell
-     * @param distance the cell's Manhattan distance from the center
-     * @param chimes   true to chime with the puff
-     */
-    private static void showGrowth(ServerLevel pocket, BlockPos at, int distance, boolean chimes) {
-        Vec3 top = Vec3.atCenterOf(at).add(0, HALF_BLOCK, 0);
-        pocket.sendParticles(ParticleTypes.REVERSE_PORTAL, top.x, top.y, top.z, GROW_PARTICLES,
-                GROW_SPREAD, GROW_RISE, GROW_SPREAD, GROW_SPEED);
-        if (chimes) {
-            pocket.playSound(null, top.x, top.y, top.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS,
-                    CHIME_VOLUME, Math.min(CHIME_TOP, CHIME_PITCH + distance * CHIME_RISE));
-        }
-    }
-
-    /**
-     * Whether a column stands over one of a room's grown cells, the only
-     * columns a block may be placed in.
-     *
-     * @param room  the room number
-     * @param cells the platform's cell count
-     * @param x     the column's x
-     * @param z     the column's z
-     * @return true over a grown cell
-     */
-    static boolean overGrownCell(int room, int cells, int x, int z) {
-        BlockPos center = voidstoneOf(room);
-        PlatformSpiral.Cell cell = new PlatformSpiral.Cell(x - center.getX(), z - center.getZ());
-        if (Math.max(Math.abs(cell.x()), Math.abs(cell.z())) > PlatformSpiral.ringOf(cells)) {
-            return false;
-        }
-        return PlatformSpiral.indexOf(cell) < cells;
+        announceGrowth(room, before, after, payload -> sendTo(player, payload));
     }
 
     /**
@@ -279,18 +221,19 @@ public final class OutsiderRooms {
     }
 
     /**
-     * Sends a room's new edges once its platform grew, so its player's
-     * client carries them across the grown square's edges.
-     * outsider-room-wraps-and-repeats-at-the-platform-edge
+     * Sends a room's new edges once its extent holds another whole ring, so
+     * its player's client carries them across the grown square's edges.
+     * decision outsider-room-wraps-and-repeats-at-the-platform-edge
      *
-     * @param room        the room number
-     * @param cellsBefore the platform's cell count before the feed
-     * @param cellsAfter  its cell count after
-     * @param send        sends the payload to the room's player
+     * @param room         the room number
+     * @param extentBefore the room's extent before the feed
+     * @param extentAfter  its extent after
+     * @param send         sends the payload to the room's player
      */
-    static void announceGrowth(int room, int cellsBefore, int cellsAfter, Consumer<RoomEdgesSyncPayload> send) {
-        if (cellsAfter > cellsBefore) {
-            send.accept(new RoomEdgesSyncPayload(RoomEdges.pairsOf(room, cellsAfter)));
+    static void announceGrowth(int room, double extentBefore, double extentAfter,
+            Consumer<RoomEdgesSyncPayload> send) {
+        if (RoomExtent.wholeRings(extentAfter) > RoomExtent.wholeRings(extentBefore)) {
+            send.accept(new RoomEdgesSyncPayload(RoomEdges.pairsOf(room, extentAfter)));
         }
     }
 
@@ -304,7 +247,7 @@ public final class OutsiderRooms {
         Integer room = pockets.roomOf(player.getUUID());
         if (room != null && player.level().dimension() == POCKET) {
             sendTo(player, new RoomEdgesSyncPayload(RoomEdges.pairsOf(room,
-                    pockets.platformOf(player.getUUID()).cells())));
+                    pockets.platformOf(player.getUUID()).extent())));
         }
     }
 
@@ -317,8 +260,10 @@ public final class OutsiderRooms {
 
     /**
      * Whether a player may place a block at a spot: only in the pocket, in
-     * a column over one of the player's own grown cells; anywhere outside
-     * the pocket is not this rule's to judge.
+     * a column whose whole footprint lies inside the player's own room's
+     * extent, so a block the boundary cuts refuses; anywhere outside the
+     * pocket is not this rule's to judge.
+     * decision grown-extent-is-the-one-wrap-and-build-boundary
      *
      * @param player the player placing
      * @param pos    the block placed
@@ -330,8 +275,12 @@ public final class OutsiderRooms {
         }
         VoidPockets pockets = VoidPockets.get(player.level());
         Integer room = pockets.roomOf(player.getUUID());
-        return room != null && overGrownCell(room, pockets.platformOf(player.getUUID()).cells(), pos.getX(),
-                pos.getZ());
+        if (room == null) {
+            return false;
+        }
+        BlockPos center = voidstoneOf(room);
+        return RoomExtent.holdsWholeBlock(pockets.platformOf(player.getUUID()).extent(),
+                pos.getX() - center.getX(), pos.getZ() - center.getZ());
     }
 
     /**
@@ -417,34 +366,29 @@ public final class OutsiderRooms {
     }
 
     /**
-     * Stands the doorway and every missing platform cell again in each loaded
-     * room; a platform cell a player built into is left as they built it.
+     * Stands the doorway and the center voidstone again in each loaded room.
      *
      * @param pocket the pocket dimension
      */
     public static void restoreFixtures(ServerLevel pocket) {
-        VoidPockets.get(pocket).platformCellsByRoom().forEach((room, cells) -> {
+        VoidPockets.get(pocket).extentsByRoom().keySet().forEach(room -> {
             if (pocket.isLoaded(voidstoneOf(room))) {
-                restoreRoom(pocket, room, cells);
+                restoreRoom(pocket, room);
             }
         });
     }
 
     /**
-     * Stands a room's missing platform cells and its doorway again.
+     * Stands a room's center voidstone and its doorway again; the rest of the
+     * floor is the pocket's own, laid by {@link PocketFloor}.
      *
      * @param pocket the pocket dimension
      * @param room   the room number
-     * @param cells  the platform's cell count
      */
-    private static void restoreRoom(ServerLevel pocket, int room, int cells) {
-        BlockState voidstone = GooBlocks.VOIDSTONE.get().defaultBlockState();
+    private static void restoreRoom(ServerLevel pocket, int room) {
         BlockState door = GooBlocks.DIMENSION_DOOR.get().defaultBlockState();
-        for (int index = 0; index < cells; index++) {
-            BlockPos at = platformCellOf(room, index);
-            if (pocket.getBlockState(at).isAir()) {
-                pocket.setBlock(at, voidstone, Block.UPDATE_ALL);
-            }
+        if (pocket.getBlockState(voidstoneOf(room)).isAir()) {
+            pocket.setBlock(voidstoneOf(room), GooBlocks.VOIDSTONE.get().defaultBlockState(), Block.UPDATE_ALL);
         }
         for (BlockPos doorway : doorwayOf(room)) {
             if (!pocket.getBlockState(doorway).is(door.getBlock())) {
@@ -501,7 +445,7 @@ public final class OutsiderRooms {
         VoidPockets pockets = VoidPockets.get(pocket);
         Integer room = pockets.roomOf(owner);
         int laid = room == null ? pockets.handOut(owner) : room;
-        restoreRoom(pocket, laid, pockets.platformOf(owner).cells());
+        restoreRoom(pocket, laid);
         return laid;
     }
 }
