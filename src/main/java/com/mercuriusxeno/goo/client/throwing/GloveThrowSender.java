@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ability.HexMist;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -168,6 +169,7 @@ public final class GloveThrowSender {
         }
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
         WindLines.blow(player, abilityId, selectedArea(abilityId), origin);
+        HexMist.drift(player, abilityId, selectedDelivery(abilityId), origin);
         ReserveVisual.drawDrain(player, abilityId);
         loopStreamSound(player, abilityId);
         return true;
