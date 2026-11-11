@@ -1,13 +1,19 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.outsider.ConjuredDoor;
+import com.mercuriusxeno.goo.ability.outsider.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.outsider.PlatformSpiral;
+import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
+import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
+import com.mercuriusxeno.goo.ability.outsider.VoidPockets;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -23,7 +29,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -31,10 +36,14 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -62,23 +71,35 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_AND_VOIDSTONE_RESPAWN,
                 OutsiderTests::doorAndVoidstoneRespawn);
         GooTestFunctions.registerTest(registrar, OUTSIDER_VOID_CATCHES_THE_FALLER, OutsiderTests::voidCatchesTheFaller);
-        GooTestFunctions.registerTest(registrar, OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD,
-                OutsiderTests::platformSpiralsWhileHeldInside);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_FLOOR_STANDS_WHOLE,
+                OutsiderTests::floorStandsWholeAndGrowthPlacesNoBlock);
         GooTestFunctions.registerTest(registrar, OUTSIDER_POCKET_SHOWS_NO_SKY, OutsiderTests::pocketShowsNoSky);
         GooTestFunctions.registerTest(registrar, OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH,
                 OutsiderTests::showsItsChargeAndGrowth);
         GooTestFunctions.registerTest(registrar, ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE,
                 OutsiderTests::roomEdgeCarriesABodyToTheOppositeSide);
+        GooTestFunctions.registerTest(registrar, ROOM_EDGE_CARRIES_A_WALKER_AT_A_FRACTIONAL_EXTENT,
+                OutsiderTests::roomEdgeCarriesAWalkerAtAFractionalExtent);
         GooTestFunctions.registerTest(registrar, OUTSIDER_REFUSES_BUILDING_PAST_THE_PLATFORM,
                 OutsiderTests::refusesBuildingPastThePlatform);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_CONJURES_A_DOOR_THAT_GROWS,
+                OutsiderTests::conjuresADoorThatGrowsWithTheCharge);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_ENVELOPS_THE_CASTER,
+                OutsiderTests::doorEnvelopsTheCasterOnTheFullCharge);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_COLLAPSES_WHEN_LET_GO,
+                OutsiderTests::doorCollapsesWhenTheChannelIsLetGoEarly);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_CONJURES_NO_DOOR_INSIDE,
+                OutsiderTests::conjuresNoDoorInsideThePocket);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_WUB_REACHES_THE_CORNER,
+                OutsiderTests::wubReachesTheRoomsCorner);
     }
 
     private static final String ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE =
             "room_edge_carries_a_body_to_the_opposite_side";
     private static final String OUTSIDER_REFUSES_BUILDING_PAST_THE_PLATFORM =
             "outsider_refuses_building_past_the_platform";
-    private static final String SHOULD_REFUSE = "A block placed past the platform's edge at %s should be refused, %s stands there";
-    private static final String SHOULD_PLACE = "A block placed on the platform at %s should stand, %s stands there";
+    private static final String SHOULD_REFUSE = "A block placed past the room's extent at %s should be refused, %s stands there";
+    private static final String SHOULD_PLACE = "A block placed inside the room's extent at %s should stand, %s stands there";
     /**
      * The item's own ticks after which it has crossed the east edge and come
      * out of the west one: one tick to be seen before the edge, one to cross
@@ -115,7 +136,7 @@ public final class OutsiderTests {
         helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
         int room = OutsiderRooms.layRoomFor(pocket, java.util.UUID.randomUUID());
         BlockPos center = OutsiderRooms.voidstoneOf(room);
-        int across = 2 * PlatformSpiral.ringOf(PlatformSpiral.START_CELLS - 1) + 1;
+        int across = (int) (2 * RoomExtent.LAID);
         // The room's square may straddle chunks, and the item lands in whichever holds the west edge, so every
         // chunk around the square is held ticking, else the carried item stops ticking where it lands.
         List<ChunkPos> chunks = chunksAround(center, across);
@@ -145,6 +166,58 @@ public final class OutsiderTests {
         });
     }
 
+    private static final String ROOM_EDGE_CARRIES_A_WALKER_AT_A_FRACTIONAL_EXTENT =
+            "room_edge_carries_a_walker_at_a_fractional_extent";
+    /** An extent ending three tenths of the way into the blocks two out from the center. */
+    private static final double PARTWAY = 2.3;
+    /** How far past the east edge the walker's eye stands as its client says it crossed. */
+    private static final double PAST_THE_EDGE = 0.3;
+    /** Ticks after the extent is set by which the server has gathered the room's new edges. */
+    private static final int EDGES_GATHERED = 2;
+    private static final Vec3 WALKING_EAST = new Vec3(0.21, -0.08, 0.04);
+    private static final float WALKER_YAW = -84f;
+    private static final float WALKER_PITCH = 12f;
+    /** The drift a heading picks up from Minecraft's table sine turning it through the pair, in degrees. */
+    private static final float TABLE_TRIG = 0.01f;
+    private static final String SHOULD_ARRIVE_INSIDE = "A walker %.2f past the east edge at %.2f should arrive that far "
+            + "inside the west edge, at %s, stands at %s";
+    private static final String SHOULD_KEEP_WALKING = "The walker should keep moving %s facing %.1f, moves %s facing %.1f";
+
+    /**
+     * A player in their room whose extent ends partway through a block walks
+     * past the east edge, its client saying so as a client does, and the
+     * server sets it the same distance inside the west edge, moving and
+     * facing as it went (decision grown-extent-is-the-one-wrap-and-build-boundary).
+     *
+     * @param helper the gametest helper
+     */
+    public static void roomEdgeCarriesAWalkerAtAFractionalExtent(GameTestHelper helper) {
+        ServerPlayer walker = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, walker, CHARGE_TICKS);
+        int[] room = new int[1];
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            room[0] = assertEntered(helper, walker);
+            VoidPockets.get((ServerLevel) walker.level()).keepPlatform(walker.getUUID(),
+                    new VoidPockets.Platform(PARTWAY));
+        });
+        helper.runAfterDelay(CHARGE_TICKS + 1 + EDGES_GATHERED, () -> {
+            BlockPos center = OutsiderRooms.voidstoneOf(room[0]);
+            RoomEdges.Edges edges = RoomEdges.around(center, PARTWAY);
+            double middleX = center.getX() + HALF;
+            Vec3 feet = new Vec3(middleX + PARTWAY + PAST_THE_EDGE, center.getY() + 1, center.getZ() + HALF);
+            walker.setPos(feet);
+            GatePassage.announced(walker, edges.east(), feet, WALKING_EAST, WALKER_YAW, WALKER_PITCH);
+            Vec3 arrival = new Vec3(middleX - PARTWAY + PAST_THE_EDGE, feet.y(), feet.z());
+            helper.assertTrue(walker.position().distanceTo(arrival) < KEPT,
+                    String.format(SHOULD_ARRIVE_INSIDE, PAST_THE_EDGE, middleX + PARTWAY, arrival, walker.position()));
+            helper.assertTrue(walker.getDeltaMovement().distanceTo(WALKING_EAST) < KEPT
+                            && Math.abs(walker.getYRot() - WALKER_YAW) < TABLE_TRIG,
+                    String.format(SHOULD_KEEP_WALKING, WALKING_EAST, WALKER_YAW, walker.getDeltaMovement(),
+                            walker.getYRot()));
+            helper.succeed();
+        });
+    }
+
     /**
      * The chunks a room's square and the block past each of its edges stand in.
      *
@@ -166,9 +239,9 @@ public final class OutsiderTests {
     }
 
     /**
-     * A player in their room places stone against the platform's east edge,
-     * past the grown cells, and it is refused; placed on top of the platform,
-     * it stands.
+     * A player in their room places stone on the floor just past the
+     * extent's east side, and it is refused; placed on the floor just inside
+     * it, it stands (decision grown-extent-is-the-one-wrap-and-build-boundary).
      *
      * @param helper the gametest helper
      */
@@ -179,15 +252,202 @@ public final class OutsiderTests {
             int room = assertEntered(helper, builder);
             ServerLevel pocket = (ServerLevel) builder.level();
             BlockPos edge = OutsiderRooms.voidstoneOf(room).east();
+            BlockPos past = edge.east();
             builder.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.STONE, 2));
 
-            place(builder, edge, Direction.EAST);
-            helper.assertTrue(pocket.getBlockState(edge.east()).isAir(),
-                    String.format(SHOULD_REFUSE, edge.east(), pocket.getBlockState(edge.east())));
+            place(builder, past, Direction.UP);
+            helper.assertTrue(pocket.getBlockState(past.above()).isAir(),
+                    String.format(SHOULD_REFUSE, past.above(), pocket.getBlockState(past.above())));
 
             place(builder, edge, Direction.UP);
             helper.assertTrue(pocket.getBlockState(edge.above()).is(Blocks.STONE),
                     String.format(SHOULD_PLACE, edge.above(), pocket.getBlockState(edge.above())));
+            helper.succeed();
+        });
+    }
+
+    private static final String OUTSIDER_CONJURES_A_DOOR_THAT_GROWS = "outsider_conjures_a_door_that_grows";
+    private static final String OUTSIDER_DOOR_ENVELOPS_THE_CASTER = "outsider_door_envelops_the_caster";
+    private static final String OUTSIDER_DOOR_COLLAPSES_WHEN_LET_GO = "outsider_door_collapses_when_let_go";
+    private static final String OUTSIDER_CONJURES_NO_DOOR_INSIDE = "outsider_conjures_no_door_inside";
+    /** How far before the caster's feet the door stands while it grows. */
+    private static final double DOOR_STANDS_OFF = 1.5;
+    /** Ticks after a channel is let go by which its door is gone. */
+    private static final int DOOR_GONE_BY = 4;
+    /** Ticks a caster holds on inside the pocket, past the door the way in left. */
+    private static final int HELD_ON_INSIDE = 20;
+    private static final String SHOULD_CONJURE = "A channel toward the pocket should conjure a door at tick %d";
+    private static final String SHOULD_STAND_BEFORE = "The door should stand %.1f before the caster's facing, "
+            + "stands at %s with the caster at %s facing %.1f";
+    private static final String SHOULD_GROW_DOOR = "The door should grow with the charge, sized %.3f, %.3f, %.3f";
+    private static final String SHOULD_CONJURE_SOUND = "The conjuring sound should play once, sounds sent %s";
+    private static final String SHOULD_ENVELOP = "The full charge's door should envelop the caster at %s, is %s";
+    private static final String SHOULD_COLLAPSE = "A channel let go early should leave no door, leaves %s";
+    private static final String SHOULD_STAY = "A channel let go early should leave the caster at %s in %s, stands at "
+            + "%s in %s";
+    private static final String SHOULD_CONJURE_NONE = "A channel inside the pocket should conjure no door, conjures %s";
+    private static final String SHOULD_GROW_INSIDE = "A channel inside the pocket should grow the room past %.3f, "
+            + "stands at %.3f";
+
+    /**
+     * A caster channeling Outsider from outside the pocket conjures a door
+     * before them, the way they face, which grows with the held share of the
+     * charge, its conjuring sound playing once at its start
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     *
+     * @param helper the gametest helper
+     */
+    public static void conjuresADoorThatGrowsWithTheCharge(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        caster.setYRot(CAST_YAW);
+        PacketRecorder packets = PacketRecorder.attachTo(caster);
+        holdFor(helper, caster, CHARGE_TICKS);
+        double[] sizes = {-1, 0, 0};
+        Vec3[] conjuredAt = new Vec3[1];
+        // The door's first tick is the first the channel's program runs, read as it first stands.
+        helper.onEachTick(() -> ConjuredDoors.doorOf(caster.getUUID()).filter(door -> sizes[0] < 0)
+                .ifPresent(door -> {
+                    Vec3 facing = Vec3.directionFromRotation(0f, caster.getYRot());
+                    Vec3 expected = caster.position().add(facing.scale(DOOR_STANDS_OFF));
+                    helper.assertTrue(door.at().distanceTo(expected) < FACING_KEPT, String.format(
+                            SHOULD_STAND_BEFORE, DOOR_STANDS_OFF, door.at(), caster.position(), caster.getYRot()));
+                    sizes[0] = door.size();
+                    conjuredAt[0] = door.at();
+                }));
+        helper.runAfterDelay(CHARGE_TICKS / 2, () -> sizes[1] = doorOf(helper, caster, CHARGE_TICKS / 2).size());
+        helper.runAfterDelay(CHARGE_TICKS, () -> {
+            sizes[2] = doorOf(helper, caster, CHARGE_TICKS).size();
+            helper.assertTrue(sizes[0] > 0 && sizes[0] < sizes[1] && sizes[1] < sizes[2],
+                    String.format(SHOULD_GROW_DOOR, sizes[0], sizes[1], sizes[2]));
+            // Casters in the gametests beside this one conjure within earshot, so only this door's sound counts.
+            List<String> sounds = packets.sentOf(ClientboundSoundPacket.class).stream()
+                    .filter(sound -> conjuredAt[0] != null && Math.abs(sound.getX() - conjuredAt[0].x()) < 1
+                            && Math.abs(sound.getZ() - conjuredAt[0].z()) < 1)
+                    .map(sound -> sound.getSound().value().location().toString()).toList();
+            helper.assertTrue(sounds.stream().filter(GooSoundIds.OUTSIDER_CONJURE.toString()::equals).count() == 1,
+                    String.format(SHOULD_CONJURE_SOUND, sounds));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A channel held to its full charge moves the door onto the caster, and
+     * the caster stands in their room
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     *
+     * @param helper the gametest helper
+     */
+    public static void doorEnvelopsTheCasterOnTheFullCharge(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS);
+        // Read the tick after the full charge: two callbacks on one tick run in no fixed order, so a read on the
+        // charge's own tick may come before its hold; the door outlasts its last hold by a tick, so it still stands.
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            ConjuredDoor door = doorOf(helper, caster, CHARGE_TICKS + 1);
+            assertEntered(helper, caster);
+            // Where the caster stood as they went: the return point the way in kept.
+            VoidPockets.ReturnPoint left = VoidPockets.get((ServerLevel) caster.level()).returnOf(caster.getUUID());
+            helper.assertTrue(left != null && door.phase() == ConjuredDoor.Phase.ENVELOPING
+                            && door.at().distanceTo(left.position()) < KEPT,
+                    String.format(SHOULD_ENVELOP, left == null ? null : left.position(), door));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A channel let go halfway through its charge leaves no door, and the
+     * caster stands where they stood, in the level they stood in
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     *
+     * @param helper the gametest helper
+     */
+    public static void doorCollapsesWhenTheChannelIsLetGoEarly(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        ServerLevel level = helper.getLevel();
+        Vec3 castFrom = caster.position();
+        holdFor(helper, caster, CHARGE_TICKS / 2);
+        helper.runAfterDelay(CHARGE_TICKS / 2 + DOOR_GONE_BY, () -> {
+            helper.assertTrue(ConjuredDoors.doorOf(caster.getUUID()).isEmpty(),
+                    String.format(SHOULD_COLLAPSE, ConjuredDoors.doorOf(caster.getUUID())));
+            helper.assertTrue(caster.level() == level && caster.position().equals(castFrom),
+                    String.format(SHOULD_STAY, castFrom, level.dimension().identifier(), caster.position(),
+                            caster.level().dimension().identifier()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A caster holding on inside their room grows it and conjures no door
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     *
+     * @param helper the gametest helper
+     */
+    public static void conjuresNoDoorInsideThePocket(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, VOID_FOR_GROWTH));
+        holdFor(helper, caster, CHARGE_TICKS + HELD_ON_INSIDE);
+        double[] entered = new double[1];
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            assertEntered(helper, caster);
+            entered[0] = OutsiderRooms.extentOf((ServerLevel) caster.level(), caster.getUUID());
+        });
+        helper.runAfterDelay(CHARGE_TICKS + HELD_ON_INSIDE, () -> {
+            double extent = OutsiderRooms.extentOf((ServerLevel) caster.level(), caster.getUUID());
+            helper.assertTrue(ConjuredDoors.doorOf(caster.getUUID()).isEmpty(),
+                    String.format(SHOULD_CONJURE_NONE, ConjuredDoors.doorOf(caster.getUUID())));
+            helper.assertTrue(extent > entered[0], String.format(SHOULD_GROW_INSIDE, entered[0], extent));
+            helper.succeed();
+        });
+    }
+
+    private static ConjuredDoor doorOf(GameTestHelper helper, ServerPlayer caster, int tick) {
+        Optional<ConjuredDoor> door = ConjuredDoors.doorOf(caster.getUUID());
+        helper.assertTrue(door.isPresent(), String.format(SHOULD_CONJURE, tick));
+        return door.orElseThrow();
+    }
+
+    /** How near the door stands to the spot before the caster's facing: within the mock caster's drift in a tick. */
+    private static final double FACING_KEPT = 0.1;
+
+    private static final String OUTSIDER_WUB_REACHES_THE_CORNER = "outsider_wub_reaches_the_corner";
+    /** A wide room's extent, just short of a whole-block mark, so its corner stands far past a sound's own reach. */
+    private static final double WIDE_SHORT_OF_A_MARK = 20.45;
+    /** How far inside the corner the caster stands, on each axis. */
+    private static final double INSIDE_THE_CORNER = 0.6;
+    /** Void enough to carry the wide room across its next whole-block mark. */
+    private static final int FEED_ACROSS_THE_MARK = 5000;
+    /** The fullest a sound plays, which a wub heard where its player stands reaches. */
+    private static final float FULL = 1f;
+    private static final String SHOULD_HEAR_IN_THE_CORNER = "A player in the room's corner at %s should hear the wub "
+            + "at full volume where they stand; wubs sent to them %s";
+
+    /**
+     * A player standing in the far corner of a wide room hears the wub as
+     * the room gains a full block, at full volume where they stand
+     * (decision full-block-growth-wubs-and-raises-void-motes).
+     *
+     * @param helper the gametest helper
+     */
+    public static void wubReachesTheRoomsCorner(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            int room = assertEntered(helper, caster);
+            ServerLevel pocket = (ServerLevel) caster.level();
+            VoidPockets.get(pocket).keepPlatform(caster.getUUID(), new VoidPockets.Platform(WIDE_SHORT_OF_A_MARK));
+            BlockPos center = OutsiderRooms.voidstoneOf(room);
+            double corner = WIDE_SHORT_OF_A_MARK - INSIDE_THE_CORNER;
+            caster.setPos(center.getX() + HALF + corner, center.getY() + 1, center.getZ() + HALF + corner);
+            PacketRecorder packets = PacketRecorder.attachTo(caster);
+            OutsiderRooms.feedPlatform(caster, FEED_ACROSS_THE_MARK, 10, 1);
+            List<ClientboundSoundPacket> wubs = packets.sentOf(ClientboundSoundPacket.class).stream()
+                    .filter(sound -> sound.getSound().value().location().equals(GooSoundIds.OUTSIDER_WUB))
+                    .toList();
+            List<String> heard = wubs.stream().map(sound -> String.format("(%.1f, %.1f, %.1f) at volume %.2f",
+                    sound.getX(), sound.getY(), sound.getZ(), sound.getVolume())).toList();
+            helper.assertTrue(wubs.stream().anyMatch(sound -> caster.position().distanceTo(
+                            new Vec3(sound.getX(), sound.getY(), sound.getZ())) < 1 && sound.getVolume() >= FULL),
+                    String.format(SHOULD_HEAR_IN_THE_CORNER, caster.position(), heard));
             helper.succeed();
         });
     }
@@ -201,30 +461,32 @@ public final class OutsiderTests {
     private static final double HALF = 0.5;
 
     private static final String OUTSIDER_SHOWS_ITS_CHARGE_AND_GROWTH = "outsider_shows_its_charge_and_growth";
-    /** Ticks held inside before the first grown cell's 13 mB is fed at 2 mB a tick, and a tick more. */
-    private static final int HELD_TO_FIRST_CELL = 8;
+    /** Ticks held inside before the first ring's cost is fed over the ring time, and a tick more. */
+    private static final int HELD_TO_FIRST_RING = 41;
     private static final String SHOULD_SHOW_CHARGE = "A hold short of its charge should send void motes, sent %d particle packets";
-    private static final String SHOULD_CHIME = "A grown cell should chime, sounds sent %s";
+    private static final String SHOULD_WUB = "A full block gained should wub, sounds sent %s";
 
     /**
      * A caster charging Outsider sees void motes gather before the charge
-     * lands, and once inside, the first cell the hold grows chimes.
+     * lands, and once inside, the first full block the hold gains wubs
+     * (decision full-block-growth-wubs-and-raises-void-motes).
      *
      * @param helper the gametest helper
      */
     public static void showsItsChargeAndGrowth(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, VOID_FOR_GROWTH));
         PacketRecorder packets = PacketRecorder.attachTo(caster);
-        holdFor(helper, caster, CHARGE_TICKS + HELD_TO_FIRST_CELL);
+        holdFor(helper, caster, CHARGE_TICKS + HELD_TO_FIRST_RING);
         helper.runAfterDelay(CHARGE_TICKS - 1, () -> {
             int motes = packets.sentOf(ClientboundLevelParticlesPacket.class).size();
             helper.assertTrue(motes > 0, String.format(SHOULD_SHOW_CHARGE, motes));
         });
-        helper.runAfterDelay(CHARGE_TICKS + HELD_TO_FIRST_CELL + 1, () -> {
+        helper.runAfterDelay(CHARGE_TICKS + HELD_TO_FIRST_RING + 1, () -> {
             List<String> sounds = packets.sentOf(ClientboundSoundPacket.class).stream()
                     .map(sound -> sound.getSound().value().location().toString()).toList();
-            helper.assertTrue(sounds.contains(SoundEvents.AMETHYST_BLOCK_CHIME.location().toString()),
-                    String.format(SHOULD_CHIME, sounds));
+            helper.assertTrue(sounds.contains(GooSoundIds.OUTSIDER_WUB.toString()),
+                    String.format(SHOULD_WUB, sounds));
             helper.succeed();
         });
     }
@@ -252,52 +514,56 @@ public final class OutsiderTests {
         helper.succeed();
     }
 
-    private static final String OUTSIDER_PLATFORM_SPIRALS_WHILE_HELD = "outsider_platform_spirals_while_held_inside";
-    /** Ticks the caster keeps holding once inside: one ring time, as void_outsider.json's ring_ticks names. */
-    private static final int HELD_INSIDE = 40;
-    /** The 5 by 5 the first grown ring completes: cells 0 to 24. */
-    private static final int RING_TWO_DONE = 25;
-    /** The first cell of the fourth ring, which one ring time held inside does not reach. */
-    private static final int RING_FOUR_START = 49;
+    private static final String OUTSIDER_FLOOR_STANDS_WHOLE = "outsider_floor_stands_whole_and_growth_places_no_block";
+    /**
+     * Ticks the caster keeps holding once inside: one ring time, as
+     * void_outsider.json's ring_ticks names, and a tick more, so the feed
+     * carries the extent across the first whole-block mark.
+     */
+    private static final int HELD_INSIDE = 41;
+    /** How far out the floor is checked and watched: well past the starting 3 by 3. */
+    private static final int FLOOR_REACH = 6;
+    /** The rows watched for change: the floor and the two above it. */
+    private static final int WATCHED_ROWS = 3;
+    /** The extent once the first grown ring is whole: the 5 by 5 around the center. */
+    private static final double FIRST_RING_WHOLE = 2.5;
     private static final int VOID_FOR_GROWTH = 20 * GooStacks.THOUSAND;
-    private static final String SHOULD_GROW = "Cell %d at %s should be grown voidstone, %s stands there";
-    private static final String SHOULD_WAIT = "Cell %d at %s should not be grown yet, %s stands there";
-    private static final String SHOULD_KEEP_COUNT = "The room should keep at least %d platform cells, keeps %d";
-
-    private static BlockPos cellOf(int room, int index) {
-        PlatformSpiral.Cell cell = PlatformSpiral.cellAt(index);
-        return OutsiderRooms.voidstoneOf(room).offset(cell.x(), 0, cell.z());
-    }
+    private static final String SHOULD_FLOOR = "Voidstone should stand at the floor at %s, beyond the starting extent, "
+            + "%s stands there";
+    private static final String SHOULD_RISE = "The room's extent should rise past %.1f, stands at %.3f";
+    private static final String SHOULD_PLACE_NOTHING = "Growth should place no block, %s at %s became %s";
 
     /**
-     * A caster held on inside their room for one ring time grows the whole
-     * first ring past the starting 3 by 3 in voidstone along the spiral, the
-     * feed rising with the ring so each ring takes about that long, and does
-     * not yet reach the fourth ring; the room keeps the count it reached.
+     * A new room's voidstone floor stands well beyond its starting extent
+     * the moment it is laid, and a caster held on inside for a ring time
+     * carries the extent across a whole-block mark while no block in the
+     * room changes (decision voidstone-floor-stands-whole-and-growth-moves-the-boundary).
      *
      * @param helper the gametest helper
      */
-    public static void platformSpiralsWhileHeldInside(GameTestHelper helper) {
+    public static void floorStandsWholeAndGrowthPlacesNoBlock(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
         caster.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, VOID_FOR_GROWTH));
         holdFor(helper, caster, CHARGE_TICKS + HELD_INSIDE);
-        helper.runAfterDelay(CHARGE_TICKS + HELD_INSIDE + 1, () -> {
-            ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
-            Integer room = pocket == null ? null : OutsiderRooms.roomOf(pocket, caster.getUUID());
-            helper.assertTrue(room != null && caster.level() == pocket,
-                    String.format(SHOULD_ENTER, "", caster.position(), caster.getYRot(),
-                            caster.level().dimension().identifier()));
-            for (int index = PlatformSpiral.START_CELLS; index < RING_TWO_DONE; index++) {
-                BlockPos at = cellOf(room, index);
-                helper.assertTrue(pocket.getBlockState(at).is(GooBlocks.VOIDSTONE.get()),
-                        String.format(SHOULD_GROW, index, at, pocket.getBlockState(at)));
+        Map<BlockPos, BlockState> laid = new HashMap<>();
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            ServerLevel pocket = (ServerLevel) caster.level();
+            BlockPos center = OutsiderRooms.voidstoneOf(assertEntered(helper, caster));
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                BlockPos floor = center.relative(side, FLOOR_REACH);
+                helper.assertTrue(pocket.getBlockState(floor).is(GooBlocks.VOIDSTONE.get()),
+                        String.format(SHOULD_FLOOR, floor, pocket.getBlockState(floor)));
             }
-            BlockPos beyond = cellOf(room, RING_FOUR_START);
-            helper.assertTrue(pocket.getBlockState(beyond).isAir(),
-                    String.format(SHOULD_WAIT, RING_FOUR_START, beyond, pocket.getBlockState(beyond)));
-            int kept = OutsiderRooms.platformCells(pocket, caster.getUUID());
-            helper.assertTrue(kept >= RING_TWO_DONE && kept < RING_FOUR_START,
-                    String.format(SHOULD_KEEP_COUNT, RING_TWO_DONE, kept));
+            BlockPos.betweenClosed(center.offset(-FLOOR_REACH, 0, -FLOOR_REACH),
+                            center.offset(FLOOR_REACH, WATCHED_ROWS - 1, FLOOR_REACH))
+                    .forEach(at -> laid.put(at.immutable(), pocket.getBlockState(at)));
+        });
+        helper.runAfterDelay(CHARGE_TICKS + HELD_INSIDE + 1, () -> {
+            ServerLevel pocket = (ServerLevel) caster.level();
+            double extent = OutsiderRooms.extentOf(pocket, caster.getUUID());
+            helper.assertTrue(extent > FIRST_RING_WHOLE, String.format(SHOULD_RISE, FIRST_RING_WHOLE, extent));
+            laid.forEach((at, state) -> helper.assertTrue(pocket.getBlockState(at) == state,
+                    String.format(SHOULD_PLACE_NOTHING, state, at, pocket.getBlockState(at))));
             helper.succeed();
         });
     }
@@ -365,9 +631,8 @@ public final class OutsiderTests {
     }
 
     /**
-     * Once the caster stands in their room, the center voidstone, a ring
-     * cell of the platform and both doorway cells removed stand again by
-     * the next restore check.
+     * Once the caster stands in their room, the center voidstone and both
+     * doorway cells removed stand again by the next restore check.
      *
      * @param helper the gametest helper
      */
@@ -379,7 +644,7 @@ public final class OutsiderTests {
             room[0] = assertEntered(helper, caster);
             ServerLevel pocket = (ServerLevel) caster.level();
             BlockPos center = OutsiderRooms.voidstoneOf(room[0]);
-            for (BlockPos removed : List.of(doorOf(room[0]), doorOf(room[0]).above(), center, center.east())) {
+            for (BlockPos removed : List.of(doorOf(room[0]), doorOf(room[0]).above(), center)) {
                 pocket.setBlockAndUpdate(removed, Blocks.AIR.defaultBlockState());
             }
         });
@@ -387,10 +652,8 @@ public final class OutsiderTests {
             ServerLevel pocket = (ServerLevel) caster.level();
             BlockPos center = OutsiderRooms.voidstoneOf(room[0]);
             BlockPos door = doorOf(room[0]);
-            for (BlockPos voidstone : List.of(center, center.east())) {
-                helper.assertTrue(pocket.getBlockState(voidstone).is(GooBlocks.VOIDSTONE.get()),
-                        String.format(SHOULD_RESPAWN, "voidstone", voidstone, pocket.getBlockState(voidstone)));
-            }
+            helper.assertTrue(pocket.getBlockState(center).is(GooBlocks.VOIDSTONE.get()),
+                    String.format(SHOULD_RESPAWN, "voidstone", center, pocket.getBlockState(center)));
             for (BlockPos doorway : List.of(door, door.above())) {
                 helper.assertTrue(pocket.getBlockState(doorway).is(GooBlocks.DIMENSION_DOOR.get()),
                         String.format(SHOULD_RESPAWN, "doorway", doorway, pocket.getBlockState(doorway)));

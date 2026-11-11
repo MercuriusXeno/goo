@@ -17,8 +17,8 @@ import java.util.UUID;
 
 /**
  * The Outsider rooms a server has handed out, one per player, the place
- * each player last cast Outsider from and how far each room's platform has
- * grown, saved in the overworld's data so a
+ * each player last cast Outsider from and how far each room has grown,
+ * saved in the overworld's data so a
  * player's room stands at the same place in the pocket dimension for as long
  * as the world lasts and its door always leads back where they came in from.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
@@ -43,20 +43,25 @@ public class VoidPockets extends SavedData {
     private final Map<UUID, Platform> platforms;
 
     /**
-     * How far a room's platform has grown: its cells, and the void fed
-     * toward the next cell.
+     * How far a room has grown: its {@link RoomExtent}, the void fed held in
+     * the fraction of a block it carries. A room saved before the extent, as
+     * a spiral cell count and the void fed toward the next cell, loads as the
+     * extent of the square its cells completed.
+     * decision outsider-room-grows-fractionally-on-all-sides-at-once
      *
-     * @param cells the platform's cell count, the starting 3 by 3 included
-     * @param fed   the void fed toward the next cell (mB)
+     * @param extent the room's extent in blocks from its center
      */
-    public record Platform(int cells, long fed) {
-        /** A room's platform as it is laid. */
-        public static final Platform LAID = new Platform(PlatformSpiral.START_CELLS, 0);
-        /** Saves a platform. */
-        public static final Codec<Platform> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-                Codec.INT.fieldOf("cells").forGetter(Platform::cells),
-                Codec.LONG.fieldOf("fed").forGetter(Platform::fed)
+    public record Platform(double extent) {
+        /** A room as it is laid. */
+        public static final Platform LAID = new Platform(RoomExtent.LAID);
+        private static final Codec<Platform> EXTENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+                Codec.DOUBLE.fieldOf("extent").forGetter(Platform::extent)
         ).apply(inst, Platform::new));
+        private static final Codec<Platform> CELL_COUNT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+                Codec.INT.fieldOf("cells").forGetter(platform -> RoomExtent.wholeCells(platform.extent()))
+        ).apply(inst, cells -> new Platform(RoomExtent.ofCompletedSquare(cells))));
+        /** Saves a room's extent, and reads one saved as a cell count. */
+        public static final Codec<Platform> CODEC = Codec.withAlternative(EXTENT_CODEC, CELL_COUNT_CODEC);
     }
 
     /**
@@ -137,14 +142,14 @@ public class VoidPockets extends SavedData {
     }
 
     /**
-     * Each room handed out with the cells its platform holds.
+     * Each room handed out with its extent.
      *
-     * @return the platform's cell count by room number
+     * @return the room's extent by room number
      */
-    public Map<Integer, Integer> platformCellsByRoom() {
-        Map<Integer, Integer> cells = new HashMap<>();
-        rooms.forEach((player, room) -> cells.put(room, platformOf(player).cells()));
-        return cells;
+    public Map<Integer, Double> extentsByRoom() {
+        Map<Integer, Double> extents = new HashMap<>();
+        rooms.forEach((player, room) -> extents.put(room, platformOf(player).extent()));
+        return extents;
     }
 
     /**

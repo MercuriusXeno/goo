@@ -388,7 +388,7 @@ public final class GatePassage {
     /**
      * Whether a point crossed a gate's face: moving in, it now stands past
      * the margin before the face, no deeper than a body can be, within the
-     * oval, wherever it stood the tick before, so a body stepping straight
+     * opening its mask names, wherever it stood the tick before, so a body stepping straight
      * back into the gate it just came out of crosses it again rather than
      * walking into the opened blocks behind it.
      *
@@ -521,8 +521,8 @@ public final class GatePassage {
      * Takes a player's word that its client carried it through a gate, from
      * where its feet stood, how it moved and where it looked as its eye
      * crossed. Where the server finds the crossing true, the gate linked to
-     * a partner in the same level, the eye just behind its face within its
-     * oval, the feet near where the server holds the player, the server sets
+     * a partner in the same level, the eye just behind its face within the
+     * opening its mask names, the feet near where the server holds the player, the server sets
      * the player where the client did, sending it nothing back, so the
      * client's own carry stands unbroken.
      *

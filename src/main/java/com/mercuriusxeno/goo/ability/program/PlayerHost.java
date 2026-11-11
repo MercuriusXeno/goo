@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.outsider.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -239,6 +240,13 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         OutsiderRooms.showCharge(player, held, charge);
     }
 
+    /** Conjures the door before the player (decision
+     * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
+    @Override
+    public void conjureDoor(int held, int charge) {
+        ConjuredDoors.conjure(player, held, charge);
+    }
+
     @Override
     public void enterPocket(int cost) {
         if (GooSourceScanner.hasEnough(player, GooTypes.VOID, cost) && OutsiderRooms.enter(player)) {
@@ -246,8 +254,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Grows the player's Outsider platform (decision
-     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
+    /** Grows the player's Outsider room on all sides at once (decision
+     * outsider-room-grows-fractionally-on-all-sides-at-once). */
     @Override
     public void feedPlatform(int ringTicks, int base, int perDistance) {
         int feed = OutsiderRooms.feedOf(player, ringTicks, base, perDistance);
