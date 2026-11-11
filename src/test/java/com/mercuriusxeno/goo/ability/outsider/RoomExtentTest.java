@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.outsider;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -78,6 +81,48 @@ class RoomExtentTest {
                 assertTrue(feed * RING_TICKS >= ringCost && (feed - 1) * RING_TICKS < ringCost,
                         "ring " + ring + " costs " + ringCost + ", fed " + feed + " a tick for " + RING_TICKS);
             }
+        }
+    }
+
+    /**
+     * A held second grows one block on every side for the ring's price, read
+     * at the params void_outsider.json ships
+     * (decision outsider-room-grows-one-block-a-second-on-every-side).
+     */
+    @Nested
+    class Pace {
+
+        private final JsonObject outsider = shippedOutsiderStep();
+        private final int ringTicks = outsider.get("ring_ticks").getAsInt();
+        private final int base = outsider.get("cell_cost").getAsInt();
+        private final int perDistance = outsider.get("distance_cost").getAsInt();
+
+        @Test
+        void eachRingTimeGrowsOneBlockForTheRingsPrice() {
+            double extent = RoomExtent.LAID;
+            long fedThroughRingTwo = 0;
+            for (int tick = 0; tick < ringTicks; tick++) {
+                long feed = RoomExtent.feedFor(extent, base, perDistance, ringTicks);
+                fedThroughRingTwo += feed;
+                extent = RoomExtent.grown(extent, feed, base, perDistance);
+            }
+            double afterRingTwo = extent;
+            long fedThroughRingThree = 0;
+            for (int tick = 0; tick < ringTicks; tick++) {
+                long feed = RoomExtent.feedFor(extent, base, perDistance, ringTicks);
+                fedThroughRingThree += feed;
+                extent = RoomExtent.grown(extent, feed, base, perDistance);
+            }
+
+            assertEquals(2.5, afterRingTwo, EXACT, "extent after the first second");
+            assertEquals(208, fedThroughRingTwo, "void fed through ring 2");
+            assertEquals(3.5, extent, EXACT, "extent after the second second");
+            assertEquals(348, fedThroughRingThree, "void fed through ring 3");
+        }
+
+        private static JsonObject shippedOutsiderStep() {
+            JsonObject ability = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject();
+            return ability.getAsJsonArray("behaviors").get(0).getAsJsonObject();
         }
     }
 
