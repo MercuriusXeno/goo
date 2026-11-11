@@ -4,24 +4,23 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Bore's vortex widens with the bore's cone, about half a block at the reach
- * of a 15 degree cone (decision bore-breaks-a-15-degree-cone).
+ * Bore's vortex is one block wide along its whole length, from the eye out
+ * to Bore's reach, matching the line Bore drills
+ * (decision bore-breaks-a-15-degree-cone).
  */
 class BoreVortexTest {
 
-    private static final double CONE_DEGREES = 15;
+    /** rock_bore.json's delivery range. */
     private static final double REACH = 4;
-    /** 4 * tan(7.5 degrees). */
-    private static final double RADIUS_AT_THE_REACH = 0.527;
-    private static final double SLACK = 0.01;
+    private static final double HALF_A_BLOCK = 0.5;
+    private static final int SAMPLES = 16;
+    private static final double SLACK = 1e-9;
 
     @Test
-    void theRadiusFollowsTheConeOutToTheReach() {
-        assertEquals(RADIUS_AT_THE_REACH, BoreVortex.radiusAt(REACH, CONE_DEGREES), SLACK);
-    }
-
-    @Test
-    void theRadiusIsZeroAtTheEye() {
-        assertEquals(0, BoreVortex.radiusAt(0, CONE_DEGREES));
+    void theRadiusIsHalfABlockAtEverySampledDistanceOutToTheReach() {
+        for (int sample = 0; sample <= SAMPLES; sample++) {
+            double distance = REACH * sample / SAMPLES;
+            assertEquals(HALF_A_BLOCK, BoreVortex.radiusAt(distance), SLACK, "at " + distance);
+        }
     }
 }
